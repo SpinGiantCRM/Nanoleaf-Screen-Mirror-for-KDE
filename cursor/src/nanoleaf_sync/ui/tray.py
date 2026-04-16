@@ -4,8 +4,8 @@ import sys
 from dataclasses import replace
 from typing import List
 
-from config import AppConfig, ConfigManager, ZoneConfig
-from service import NanoleafSyncService
+from nanoleaf_sync.config import AppConfig, ConfigManager, ZoneConfig
+from nanoleaf_sync.runtime.service import NanoleafSyncService
 
 
 def make_horizontal_zones(zone_count: int) -> List[ZoneConfig]:

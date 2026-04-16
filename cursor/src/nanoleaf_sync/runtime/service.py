@@ -6,12 +6,12 @@ import threading
 import time
 from typing import List, Optional, Sequence, Tuple
 
-from capture.factory import create_capture_backend
-from color.analyzer import zone_colors
-from color.zone_mapper import map_colors_to_device_zones
-from config import AppConfig, ConfigManager, ZoneConfig
-from device.interfaces import DeviceDriver
-from device.nanoleaf_usb import MockNanoleafUSBDriver, NanoleafUSBDriver, NanoleafUSBIds
+from nanoleaf_sync.capture.factory import create_capture_backend
+from nanoleaf_sync.processing.analyzer import zone_colors
+from nanoleaf_sync.processing.zone_mapper import map_colors_to_device_zones
+from nanoleaf_sync.config import AppConfig, ConfigManager, ZoneConfig
+from nanoleaf_sync.device.interfaces import DeviceDriver
+from nanoleaf_sync.device.nanoleaf_usb import MockNanoleafUSBDriver, NanoleafUSBDriver, NanoleafUSBIds
 
 
 RGBTuple = Tuple[int, int, int]

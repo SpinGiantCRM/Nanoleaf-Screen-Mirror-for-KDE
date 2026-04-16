@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from color.hdr import convert_frame_to_srgb8
+from nanoleaf_sync.processing.hdr import convert_frame_to_srgb8
 
 
 def test_hdr_conversion_contract_zero_is_zero() -> None:

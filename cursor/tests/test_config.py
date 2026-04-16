@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from config import AppConfig, ConfigManager, ZoneConfig
+from nanoleaf_sync.config import AppConfig, ConfigManager, ZoneConfig
 
 
 def test_config_save_validates_and_is_json_loadable(tmp_path: Path) -> None:

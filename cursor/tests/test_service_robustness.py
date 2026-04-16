@@ -6,8 +6,8 @@ from typing import List, Sequence, Tuple
 
 import numpy as np
 
-from config import AppConfig
-from service import NanoleafSyncService
+from nanoleaf_sync.config import AppConfig
+from nanoleaf_sync.runtime.service import NanoleafSyncService
 
 
 RGB = Tuple[int, int, int]

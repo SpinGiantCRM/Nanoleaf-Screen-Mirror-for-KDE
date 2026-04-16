@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from capture.factory import create_capture_backend
+from nanoleaf_sync.capture.factory import create_capture_backend
 
 
 def test_capture_factory_replay_cycles_frames(tmp_path: Path) -> None:

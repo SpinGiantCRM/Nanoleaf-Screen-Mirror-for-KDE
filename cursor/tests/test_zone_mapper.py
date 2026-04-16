@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from color.zone_mapper import map_colors_to_device_zones
+from nanoleaf_sync.processing.zone_mapper import map_colors_to_device_zones
 
 
 def test_zone_mapper_offset_rotation() -> None:

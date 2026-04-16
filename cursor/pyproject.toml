@@ -2,3 +2,11 @@
 requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "nanoleaf-kde-sync"
+version = "0.0.0"
+requires-python = ">=3.11"
+
+[project.scripts]
+nanoleaf-kde-sync = "nanoleaf_sync.ui.tray:main"
+nanoleaf-kde-sync-service = "nanoleaf_sync.runtime.service:main"

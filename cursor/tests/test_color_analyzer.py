@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from color.analyzer import average_color, dominant_colors_kmeans, zone_colors
+from nanoleaf_sync.processing.analyzer import average_color, dominant_colors_kmeans, zone_colors
 
 
 # ---------------------------------------------------------------------------

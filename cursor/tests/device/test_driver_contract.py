@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from device.interfaces import DeviceDriver
-from device.nanoleaf_usb import MockNanoleafUSBDriver, NanoleafUSBIds
+from nanoleaf_sync.device.interfaces import DeviceDriver
+from nanoleaf_sync.device.nanoleaf_usb import MockNanoleafUSBDriver, NanoleafUSBIds
 
 
 def test_mock_driver_implements_contract() -> None:

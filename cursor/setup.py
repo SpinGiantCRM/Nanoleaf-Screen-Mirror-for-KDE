@@ -7,11 +7,10 @@ setup(
     python_requires=">=3.11",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
-    py_modules=["service", "config"],
     entry_points={
         "console_scripts": [
-            "nanoleaf-kde-sync=ui.tray:main",
-            "nanoleaf-kde-sync-service=service:main",
+            "nanoleaf-kde-sync=nanoleaf_sync.ui.tray:main",
+            "nanoleaf-kde-sync-service=nanoleaf_sync.runtime.service:main",
         ],
     },
     install_requires=[

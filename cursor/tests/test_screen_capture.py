@@ -1,6 +1,6 @@
 import numpy as np
 
-from capture.factory import create_capture_backend
+from nanoleaf_sync.capture.factory import create_capture_backend
 
 
 def test_capture_factory_mock_is_reusable() -> None:
