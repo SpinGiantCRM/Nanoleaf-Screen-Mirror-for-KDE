@@ -1,5 +1,6 @@
-from .interfaces import DeviceDriver, DriverCapabilities
-from .nanoleaf_usb import MockNanoleafUSBDriver, NanoleafUSBDriver, NanoleafUSBIds
+from .interfaces import DeviceDriver, DriverCapabilities, NanoleafUSBIds
+from .mock_driver import MockNanoleafUSBDriver
+from .usb_driver import NanoleafUSBDriver
 
 __all__ = [
     "DeviceDriver",

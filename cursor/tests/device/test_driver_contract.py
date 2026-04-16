@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from device.interfaces import DeviceDriver
-from device.nanoleaf_usb import MockNanoleafUSBDriver, NanoleafUSBIds
+from device.mock_driver import MockNanoleafUSBDriver
 
 
 def test_mock_driver_implements_contract() -> None:
-    driver = MockNanoleafUSBDriver(ids=NanoleafUSBIds(vid=0x0, pid=0x0))
+    driver = MockNanoleafUSBDriver()
     assert isinstance(driver, DeviceDriver)
 
     driver.initialize()
