@@ -130,19 +130,30 @@ class NanoleafSyncService:
         self.frames_sent = 0
         self.last_frame_timestamp: Optional[float] = None
         self._last_reinit_ts = 0.0
+        self._startup_complete = threading.Event()
+        self._startup_succeeded = False
 
         # Dimensions resolved once at start and reused for recovery.
         # Stored so recovery uses the same geometry as the initial setup.
         self._capture_width, self._capture_height = _resolve_capture_dims(self.config)
 
-    def start(self) -> None:
+    def start(self) -> bool:
         if self.is_running():
-            return
+            return True
         self._stop_event.clear()
+        self._startup_complete.clear()
+        self._startup_succeeded = False
         self._thread = threading.Thread(
             target=self.run, name="nanoleaf-sync", daemon=True
         )
         self._thread.start()
+        # Briefly wait for startup to either succeed or fail so callers (UI/tray)
+        # can reflect the real runtime state instead of assuming success.
+        self._startup_complete.wait(timeout=1.0)
+        if self._startup_complete.is_set() and not self._startup_succeeded:
+            self.join(timeout=0.2)
+            return False
+        return self.is_running()
 
     def stop(self) -> None:
         self._stop_event.set()
@@ -180,6 +191,8 @@ class NanoleafSyncService:
             capture_mode = "stub-fallback"
         elif capture_backend_name == "kmsgrab" and capture_path == "kwin-dbus":
             capture_mode = "stub-fallback"
+        elif capture_backend_name == "replay":
+            capture_mode = "replay"
         elif capture_backend_name == "kmsgrab":
             capture_mode = "real"
         else:
@@ -267,7 +280,20 @@ class NanoleafSyncService:
         self.frames_sent = 0
         self.last_frame_timestamp = None
 
-        self._install_drivers()
+        try:
+            self._install_drivers()
+        except Exception as e:
+            self.last_error = str(e)
+            self._startup_succeeded = False
+            self._startup_complete.set()
+            logger.exception("service startup failed")
+            self._close_backends()
+            self._capture = None
+            self._driver = None
+            return
+
+        self._startup_succeeded = True
+        self._startup_complete.set()
 
         fps = max(1, int(self.config.fps))
         interval_s = 1.0 / fps
