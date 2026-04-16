@@ -1,0 +1,4 @@
+numpy>=1.21
+PyQt6>=6.0
+dbus-next>=0.2.0
+hidapi>=0.14.0
