@@ -4,7 +4,7 @@ import logging
 import time
 from typing import Sequence
 
-from color.analyzer import zone_colors
+from runtime.zones import zone_colors
 from color.zone_mapper import resolve_device_zone_indices
 from config import AppConfig
 from runtime.processing import apply_brightness, ema_smooth, zones_from_config

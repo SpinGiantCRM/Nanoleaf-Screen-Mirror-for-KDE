@@ -10,7 +10,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from color.analyzer import average_color, dominant_colors_kmeans, zone_colors
+from runtime.zones import average_color, zone_colors
+from tools.color_kmeans import dominant_colors_kmeans
 
 
 # ---------------------------------------------------------------------------
