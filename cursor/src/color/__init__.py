@@ -1,4 +1,5 @@
-from .analyzer import average_color, dominant_colors_kmeans, zone_colors
+from runtime.zones import average_color, zone_colors
+from tools.color_kmeans import dominant_colors_kmeans
 from .hdr import HDRMetadata, convert_frame_to_srgb8
 from .zone_mapper import map_colors_to_device_zones
 
