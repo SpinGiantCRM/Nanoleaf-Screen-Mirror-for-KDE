@@ -14,6 +14,12 @@ from device.nanoleaf_usb import MockNanoleafUSBDriver, NanoleafUSBDriver, Nanole
 
 RGBTuple = Tuple[int, int, int]
 
+# Default capture dimensions used when no monitor-size detection is available.
+# Stored as a module constant so there is one obvious place to update once
+# autodetection is implemented.
+_DEFAULT_CAPTURE_WIDTH = 1920
+_DEFAULT_CAPTURE_HEIGHT = 1080
+
 
 def _clamp_u8(x: float) -> int:
     if x <= 0:
@@ -74,6 +80,17 @@ def _zones_from_config(zones: Sequence[ZoneConfig], width: int, height: int) -> 
     return out
 
 
+def _resolve_capture_dims(config: AppConfig) -> Tuple[int, int]:
+    """
+    Return (width, height) for capture initialization.
+
+    Currently falls back to the module-level defaults because monitor
+    autodetection is not yet implemented.  Once a detection path exists,
+    it should be wired in here so there is one authoritative source.
+    """
+    return _DEFAULT_CAPTURE_WIDTH, _DEFAULT_CAPTURE_HEIGHT
+
+
 class NanoleafSyncService:
     """
     Main service loop:
@@ -105,6 +122,10 @@ class NanoleafSyncService:
         self._consecutive_errors = 0
         self.last_error: Optional[str] = None
 
+        # Dimensions resolved once at start and reused for recovery.
+        # Stored so recovery uses the same geometry as the initial setup.
+        self._capture_width, self._capture_height = _resolve_capture_dims(self.config)
+
     def start(self) -> None:
         if self.is_running():
             return
@@ -127,27 +148,74 @@ class NanoleafSyncService:
         """
         Lightweight status for debugging and UI.
 
-        Avoids requiring the UI to touch private thread internals.
+        The 'capture_mode' field makes it explicit whether the active capture
+        path is mock, a real backend, or a fallback stub — so degraded or
+        placeholder paths are always visible.
         """
 
         capture_backend_name = getattr(self._capture, "name", None) if self._capture is not None else None
         capture_path = getattr(self._capture, "last_capture_path", None) if self._capture is not None else None
+
+        # Classify capture mode explicitly so the UI can surface it clearly.
+        if capture_backend_name == "mock":
+            capture_mode = "mock"
+        elif capture_backend_name in ("kwin-dbus",):
+            capture_mode = "stub-fallback"
+        elif capture_backend_name == "kmsgrab" and capture_path == "kwin-dbus":
+            capture_mode = "stub-fallback"
+        elif capture_backend_name == "kmsgrab":
+            capture_mode = "real"
+        else:
+            capture_mode = "unknown"
+
         return {
             "running": self.is_running(),
             "last_error": self.last_error,
             "capture_backend": capture_backend_name,
             "capture_path": capture_path,
+            "capture_mode": capture_mode,
+            "capture_width": self._capture_width,
+            "capture_height": self._capture_height,
             "consecutive_errors": self._consecutive_errors,
         }
 
     def _make_device_driver(self):
-        # Placeholder VID/PID values until official spec arrives.
         ids = NanoleafUSBIds(vid=self.config.device_vid, pid=self.config.device_pid)
         if self.config.use_mock_device:
             return MockNanoleafUSBDriver(ids=ids)
         return NanoleafUSBDriver(ids=ids)
 
-    def _install_drivers(self, width: int, height: int) -> None:
+    def _close_backends(self) -> None:
+        """
+        Explicitly close both capture and device backends.
+
+        Called on normal shutdown and before recovery reinit to avoid file
+        descriptor or D-Bus resource leaks once real backends are in use.
+        """
+        if self._capture is not None:
+            try:
+                close_fn = getattr(self._capture, "close", None)
+                if close_fn is not None:
+                    close_fn()
+            except Exception:
+                pass
+
+        if self._driver is not None:
+            try:
+                self._driver.close()
+            except Exception:
+                pass
+
+    def _install_drivers(self) -> None:
+        """
+        Initialize capture and device backends using stored dimensions.
+
+        Always uses self._capture_width / self._capture_height so recovery
+        uses the same geometry as the initial setup.
+        """
+        width = self._capture_width
+        height = self._capture_height
+
         if self._capture_backend_override is not None:
             self._capture = self._capture_backend_override
         else:
@@ -169,21 +237,12 @@ class NanoleafSyncService:
 
         self._driver.initialize()
 
-        # Refresh status fields based on chosen backends.
-        # (No allocations; just reads metadata for debugging.)
-        _ = self.get_status()
-
     def run(self) -> None:
         self._prev_smoothed_colors = []
         self._consecutive_errors = 0
         self.last_error = None
 
-        # Initial capture dimensions: KMSGrabCapture requires width/height.
-        # We start from a conservative default and allow future enhancement to
-        # auto-detect monitor size.
-        width = 1920
-        height = 1080
-        self._install_drivers(width, height)
+        self._install_drivers()
 
         fps = max(1, int(self.config.fps))
         interval_s = 1.0 / fps
@@ -196,14 +255,11 @@ class NanoleafSyncService:
         while not self._stop_event.is_set():
             start = time.perf_counter()
             if start < next_deadline:
-                # If we're early, wait a bit to keep capture rate stable.
-                # (time.sleep is coarse on some systems; keep it short.)
                 time.sleep(min(0.002, next_deadline - start))
 
             try:
                 # Step 1: capture
                 frame = self._capture.capture()
-                # Ensure expected dtype/shape.
                 if frame is None:
                     continue
                 if frame.ndim != 3 or frame.shape[2] != 3:
@@ -248,19 +304,13 @@ class NanoleafSyncService:
                 if self.config.verbose:
                     print(f"[service] frame error #{self._consecutive_errors}: {e}")
 
-                # Try to recover after a small number of consecutive failures.
+                # Attempt recovery after a small number of consecutive failures.
+                # Close both backends before reinit to release any held resources.
                 if self._consecutive_errors >= 5:
+                    self._close_backends()
                     try:
-                        if self._driver is not None:
-                            self._driver.close()
+                        self._install_drivers()
                     except Exception:
-                        pass
-
-                    try:
-                        # Re-install both capture and driver via the same selection path.
-                        self._install_drivers(width=1920, height=1080)
-                    except Exception:
-                        # If recovery fails, keep looping; error counters will continue.
                         pass
                     self._consecutive_errors = 0
 
@@ -275,23 +325,17 @@ class NanoleafSyncService:
                         f"[service] tick fps={fps} elapsed_ms={elapsed_ms:.2f} zones={last_sent_zone_count}"
                     )
 
-            # If we're behind schedule, skip waiting to catch up.
             if now < next_deadline:
                 time.sleep(next_deadline - now)
 
-        # Shutdown
-        try:
-            if self._driver is not None:
-                self._driver.close()
-        finally:
-            self._driver = None
+        # Shutdown: explicitly close both backends to release resources.
+        self._close_backends()
+        self._capture = None
+        self._driver = None
 
     def install_signal_handlers(self) -> None:
         """
         Install SIGINT/SIGTERM handlers to stop the loop.
-
-        If you run inside a Qt application, you may prefer to stop via UI actions
-        and not install these handlers.
         """
 
         def _handler(signum, _frame):
@@ -308,11 +352,9 @@ def main() -> None:  # pragma: no cover
     service = NanoleafSyncService(config=config)
     service.install_signal_handlers()
     service.start()
-    # Wait for the service thread to exit.
     while service.is_running():
         time.sleep(0.25)
 
 
 if __name__ == "__main__":  # pragma: no cover
     main()
-
