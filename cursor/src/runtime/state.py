@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 
 RGBTuple = Tuple[int, int, int]
@@ -55,3 +55,50 @@ class RuntimeState:
         self.consecutive_errors += 1
         self.last_error = str(error)
         return self.consecutive_errors
+
+    def status_snapshot(
+        self,
+        *,
+        running: bool,
+        capture_backend_name: Optional[str],
+        capture_path: Optional[str],
+        capture_width: int,
+        capture_height: int,
+        max_consecutive_errors: int,
+        reinit_backoff_ms: int,
+    ) -> dict[str, Any]:
+        return {
+            "running": running,
+            "last_error": self.last_error,
+            "capture_backend": capture_backend_name,
+            "capture_path": capture_path,
+            "capture_mode": classify_capture_mode(
+                capture_backend_name=capture_backend_name,
+                capture_path=capture_path,
+            ),
+            "capture_width": capture_width,
+            "capture_height": capture_height,
+            "consecutive_errors": self.consecutive_errors,
+            "frames_sent": self.frames_sent,
+            "last_frame_timestamp": self.last_frame_timestamp,
+            "max_consecutive_errors": max_consecutive_errors,
+            "reinit_backoff_ms": reinit_backoff_ms,
+        }
+
+
+def classify_capture_mode(
+    *,
+    capture_backend_name: Optional[str],
+    capture_path: Optional[str],
+) -> str:
+    if capture_backend_name == "mock":
+        return "mock"
+    if capture_backend_name == "kwin-dbus":
+        return "stub-fallback"
+    if capture_backend_name == "kmsgrab" and capture_path == "kwin-dbus":
+        return "stub-fallback"
+    if capture_backend_name == "replay":
+        return "replay"
+    if capture_backend_name == "kmsgrab":
+        return "real"
+    return "unknown"

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
-from typing import Callable
+from typing import Callable, Optional
 
+from config import AppConfig
 from runtime.state import RuntimeState
 
 
@@ -76,3 +78,72 @@ def shutdown_backends(
 ) -> None:
     close_backends()
     clear_backends()
+
+
+def run_runtime_engine(
+    *,
+    config: AppConfig,
+    state: RuntimeState,
+    get_capture: Callable[[], object],
+    get_driver: Callable[[], object],
+    install_drivers: Callable[[], None],
+    close_backends: Callable[[], None],
+    clear_backends: Callable[[], None],
+) -> None:
+    from runtime.engine import run_loop
+
+    state.reset_for_start()
+    if not initialize_or_fail(
+        install_drivers=install_drivers,
+        close_backends=close_backends,
+        state=state,
+    ):
+        clear_backends()
+        return
+
+    run_loop(
+        config=config,
+        state=state,
+        get_capture=get_capture,
+        get_driver=get_driver,
+        install_drivers=install_drivers,
+        close_backends=close_backends,
+    )
+    shutdown_backends(
+        close_backends=close_backends,
+        clear_backends=clear_backends,
+    )
+
+
+class RuntimeLifecycle:
+    def __init__(self, *, state: RuntimeState, runner: Callable[[], None]) -> None:
+        self._state = state
+        self._runner = runner
+        self._thread: Optional[threading.Thread] = None
+
+    def start(self, *, startup_timeout_s: float = 1.0) -> bool:
+        if self.is_running():
+            return True
+
+        reset_startup(self._state)
+        self._thread = threading.Thread(
+            target=self._runner,
+            name="nanoleaf-sync",
+            daemon=True,
+        )
+        self._thread.start()
+        if not wait_for_startup(self._state, timeout_s=startup_timeout_s):
+            self.join(timeout=0.2)
+            return False
+        return self.is_running()
+
+    def stop(self) -> None:
+        self._state.stop_event.set()
+
+    def join(self, timeout: Optional[float] = None) -> None:
+        if self._thread is None:
+            return
+        self._thread.join(timeout=timeout)
+
+    def is_running(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
