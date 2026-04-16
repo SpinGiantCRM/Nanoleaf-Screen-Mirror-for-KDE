@@ -32,8 +32,12 @@ class MockScreenCapture:
 
     name = "mock"
 
-    def __init__(self, width: int, height: int, *, fps_hint: int = 30, motion: float = 1.0) -> None:
-        self.params = MockCaptureParams(width=width, height=height, fps_hint=fps_hint, motion=motion)
+    def __init__(
+        self, width: int, height: int, *, fps_hint: int = 30, motion: float = 1.0
+    ) -> None:
+        self.params = MockCaptureParams(
+            width=width, height=height, fps_hint=fps_hint, motion=motion
+        )
         self._t0 = time.perf_counter()
 
         # Reusable buffer to reduce allocations.
@@ -61,4 +65,3 @@ class MockScreenCapture:
         self._frame[:, :, 1] = np.clip(np.rint(g * 255.0), 0, 255).astype(np.uint8)
         self._frame[:, :, 2] = np.clip(np.rint(b * 255.0), 0, 255).astype(np.uint8)
         return self._frame
-

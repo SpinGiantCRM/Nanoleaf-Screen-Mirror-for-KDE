@@ -70,7 +70,11 @@ def dominant_colors_kmeans(
     sample = pixels[idx].astype(np.float32, copy=False)
 
     # Initialize centroids by sampling random points.
-    initial_idx = rng.choice(sample.shape[0], size=n_clusters, replace=False if n_clusters <= sample.shape[0] else True)
+    initial_idx = rng.choice(
+        sample.shape[0],
+        size=n_clusters,
+        replace=False if n_clusters <= sample.shape[0] else True,
+    )
     centers = sample[initial_idx]  # (K, 3)
 
     labels = np.zeros(sample.shape[0], dtype=np.int32)
@@ -118,7 +122,7 @@ def zone_colors(
     h, w, _ = img.shape
 
     out: List[Tuple[int, int, int]] = []
-    for (x, y, zw, zh) in zones:
+    for x, y, zw, zh in zones:
         # Clip zone bounds to the image.
         x0 = max(0, int(x))
         y0 = max(0, int(y))
@@ -133,4 +137,3 @@ def zone_colors(
         out.append(average_color(zone))
 
     return out
-

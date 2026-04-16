@@ -73,3 +73,6 @@ def test_service_recovers_from_single_frame_exception() -> None:
     assert driver.frames_sent >= 1
     assert service.last_error is None
 
+    status = service.get_status()
+    assert status["frames_sent"] >= 1
+    assert status["max_consecutive_errors"] >= 1

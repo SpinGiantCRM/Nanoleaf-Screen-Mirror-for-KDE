@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import signal
 import threading
 import time
@@ -9,10 +10,13 @@ from capture.factory import create_capture_backend
 from color.analyzer import zone_colors
 from color.zone_mapper import map_colors_to_device_zones
 from config import AppConfig, ConfigManager, ZoneConfig
+from device.interfaces import DeviceDriver
 from device.nanoleaf_usb import MockNanoleafUSBDriver, NanoleafUSBDriver, NanoleafUSBIds
 
 
 RGBTuple = Tuple[int, int, int]
+
+logger = logging.getLogger(__name__)
 
 # Default capture dimensions used when no monitor-size detection is available.
 # Stored as a module constant so there is one obvious place to update once
@@ -65,7 +69,9 @@ def _ema_smooth(
     return out
 
 
-def _zones_from_config(zones: Sequence[ZoneConfig], width: int, height: int) -> List[Tuple[int, int, int, int]]:
+def _zones_from_config(
+    zones: Sequence[ZoneConfig], width: int, height: int
+) -> List[Tuple[int, int, int, int]]:
     if not zones:
         # Default single zone covering entire screen.
         return [(0, 0, width, height)]
@@ -121,6 +127,9 @@ class NanoleafSyncService:
 
         self._consecutive_errors = 0
         self.last_error: Optional[str] = None
+        self.frames_sent = 0
+        self.last_frame_timestamp: Optional[float] = None
+        self._last_reinit_ts = 0.0
 
         # Dimensions resolved once at start and reused for recovery.
         # Stored so recovery uses the same geometry as the initial setup.
@@ -130,7 +139,9 @@ class NanoleafSyncService:
         if self.is_running():
             return
         self._stop_event.clear()
-        self._thread = threading.Thread(target=self.run, name="nanoleaf-sync", daemon=True)
+        self._thread = threading.Thread(
+            target=self.run, name="nanoleaf-sync", daemon=True
+        )
         self._thread.start()
 
     def stop(self) -> None:
@@ -153,8 +164,14 @@ class NanoleafSyncService:
         placeholder paths are always visible.
         """
 
-        capture_backend_name = getattr(self._capture, "name", None) if self._capture is not None else None
-        capture_path = getattr(self._capture, "last_capture_path", None) if self._capture is not None else None
+        capture_backend_name = (
+            getattr(self._capture, "name", None) if self._capture is not None else None
+        )
+        capture_path = (
+            getattr(self._capture, "last_capture_path", None)
+            if self._capture is not None
+            else None
+        )
 
         # Classify capture mode explicitly so the UI can surface it clearly.
         if capture_backend_name == "mock":
@@ -177,9 +194,13 @@ class NanoleafSyncService:
             "capture_width": self._capture_width,
             "capture_height": self._capture_height,
             "consecutive_errors": self._consecutive_errors,
+            "frames_sent": self.frames_sent,
+            "last_frame_timestamp": self.last_frame_timestamp,
+            "max_consecutive_errors": self.config.max_consecutive_errors,
+            "reinit_backoff_ms": self.config.reinit_backoff_ms,
         }
 
-    def _make_device_driver(self):
+    def _make_device_driver(self) -> DeviceDriver:
         ids = NanoleafUSBIds(vid=self.config.device_vid, pid=self.config.device_pid)
         if self.config.use_mock_device:
             return MockNanoleafUSBDriver(ids=ids)
@@ -228,6 +249,8 @@ class NanoleafSyncService:
                 hdr_max_nits=self.config.hdr_max_nits,
                 hdr_transfer=self.config.hdr_transfer,
                 hdr_primaries=self.config.hdr_primaries,
+                replay_frames_path=getattr(self.config, "replay_frames_path", "")
+                or None,
             )
 
         if self._driver_override is not None:
@@ -241,6 +264,8 @@ class NanoleafSyncService:
         self._prev_smoothed_colors = []
         self._consecutive_errors = 0
         self.last_error = None
+        self.frames_sent = 0
+        self.last_frame_timestamp = None
 
         self._install_drivers()
 
@@ -249,6 +274,7 @@ class NanoleafSyncService:
 
         next_deadline = time.perf_counter()
         last_log = 0.0
+        log_interval_s = float(getattr(self.config, "status_log_interval_s", 5.0))
         last_sent_zone_count = 0
 
         # Main loop
@@ -297,30 +323,49 @@ class NanoleafSyncService:
 
                 self._consecutive_errors = 0
                 self.last_error = None
+                self.frames_sent += 1
+                self.last_frame_timestamp = time.time()
                 last_sent_zone_count = len(smoothed_colors)
             except Exception as e:
                 self._consecutive_errors += 1
                 self.last_error = str(e)
+                logger.warning("frame processing failed", exc_info=self.config.verbose)
                 if self.config.verbose:
                     print(f"[service] frame error #{self._consecutive_errors}: {e}")
 
-                # Attempt recovery after a small number of consecutive failures.
-                # Close both backends before reinit to release any held resources.
-                if self._consecutive_errors >= 5:
-                    self._close_backends()
-                    try:
-                        self._install_drivers()
-                    except Exception:
-                        pass
+                error_limit = max(
+                    1, int(getattr(self.config, "max_consecutive_errors", 5))
+                )
+                backoff_s = max(
+                    0.0, float(getattr(self.config, "reinit_backoff_ms", 500)) / 1000.0
+                )
+
+                # Attempt recovery with adaptive backoff and explicit threshold.
+                if self._consecutive_errors >= error_limit:
+                    now_ts = time.perf_counter()
+                    if now_ts - self._last_reinit_ts >= backoff_s:
+                        self._close_backends()
+                        try:
+                            self._install_drivers()
+                            self._last_reinit_ts = now_ts
+                        except Exception:
+                            logger.exception("backend reinitialization failed")
                     self._consecutive_errors = 0
 
             # Step 6: maintain FPS / low latency
             next_deadline += interval_s
             now = time.perf_counter()
-            if now - last_log > 5.0:
+            if now - last_log > log_interval_s:
                 last_log = now
+                elapsed_ms = (now - start) * 1000.0
+                logger.info(
+                    "service_tick fps=%s elapsed_ms=%.2f zones=%s errors=%s",
+                    fps,
+                    elapsed_ms,
+                    last_sent_zone_count,
+                    self._consecutive_errors,
+                )
                 if self.config.verbose:
-                    elapsed_ms = (now - start) * 1000.0
                     print(
                         f"[service] tick fps={fps} elapsed_ms={elapsed_ms:.2f} zones={last_sent_zone_count}"
                     )
@@ -349,6 +394,9 @@ def main() -> None:  # pragma: no cover
     cfg_mgr = ConfigManager()
     config = cfg_mgr.load()
 
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+    )
     service = NanoleafSyncService(config=config)
     service.install_signal_handlers()
     service.start()

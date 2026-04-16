@@ -8,4 +8,3 @@ driver module structure.
 from .nanoleaf_usb import MockNanoleafUSBDriver
 
 __all__ = ["MockNanoleafUSBDriver"]
-

@@ -30,6 +30,10 @@ def test_config_save_validates_and_is_json_loadable(tmp_path: Path) -> None:
         hdr_transfer="pq",
         hdr_primaries="bt2020",
         hdr_max_nits=999999.0,  # clamp
+        max_consecutive_errors=0,  # clamp
+        reinit_backoff_ms=-1,  # clamp
+        status_log_interval_s=0.1,  # clamp
+        replay_frames_path="/tmp/replay.npz",
         verbose=True,
     )
 
@@ -44,6 +48,9 @@ def test_config_save_validates_and_is_json_loadable(tmp_path: Path) -> None:
     assert data["device_zone_count"] == 0  # clamped
     assert data["allow_capture_fallback"] is False
     assert data["hdr_max_nits"] <= 10_000.0
+    assert data["max_consecutive_errors"] >= 1
+    assert data["reinit_backoff_ms"] >= 0
+    assert data["status_log_interval_s"] >= 0.5
 
     # Zones: second zone should be dropped due to w==0.
     assert len(data["zones"]) == 1
@@ -56,4 +63,3 @@ def test_config_load_recovers_from_corruption(tmp_path: Path) -> None:
     cfg = ConfigManager(path=cfg_path).load()
     # Should fall back to defaults rather than raising.
     assert isinstance(cfg, AppConfig)
-

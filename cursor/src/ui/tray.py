@@ -116,18 +116,25 @@ class SettingsDialog:
                 self.zone_offset_slider.setValue(int(getattr(cfg, "zone_offset", 0)))
 
                 self.reverse_checkbox = QCheckBox("Reverse strip orientation")
-                self.reverse_checkbox.setChecked(bool(getattr(cfg, "reverse_zones", False)))
+                self.reverse_checkbox.setChecked(
+                    bool(getattr(cfg, "reverse_zones", False))
+                )
 
-                device_zone_count = int(getattr(cfg, "device_zone_count", 0)) or int(zone_count)
+                device_zone_count = int(getattr(cfg, "device_zone_count", 0)) or int(
+                    zone_count
+                )
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.device_zone_count_slider.setRange(1, 128)
                 self.device_zone_count_slider.setValue(device_zone_count)
 
                 self.mock_capture_checkbox = QCheckBox("Mock capture (synthetic)")
-                self.mock_capture_checkbox.setChecked(bool(getattr(cfg, "use_mock_capture", True)))
+                self.mock_capture_checkbox.setChecked(
+                    bool(getattr(cfg, "use_mock_capture", True))
+                )
 
                 buttons = QDialogButtonBox(
-                    QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+                    QDialogButtonBox.StandardButton.Ok
+                    | QDialogButtonBox.StandardButton.Cancel
                 )
                 buttons.accepted.connect(self.accept)
                 buttons.rejected.connect(self.reject)
@@ -224,17 +231,20 @@ class NanoleafTrayApp:
         self.action_start = self.QAction("Start", menu)
         self.action_stop = self.QAction("Stop", menu)
         self.action_settings = self.QAction("Settings", menu)
+        self.action_status = self.QAction("Diagnostics", menu)
         self.action_quit = self.QAction("Quit", menu)
 
         self.action_start.triggered.connect(self.on_start)
         self.action_stop.triggered.connect(self.on_stop)
         self.action_settings.triggered.connect(self.on_settings)
+        self.action_status.triggered.connect(self.on_status)
         self.action_quit.triggered.connect(self.on_quit)
 
         menu.addAction(self.action_start)
         menu.addAction(self.action_stop)
         menu.addSeparator()
         menu.addAction(self.action_settings)
+        menu.addAction(self.action_status)
         menu.addAction(self.action_quit)
         return menu
 
@@ -263,6 +273,22 @@ class NanoleafTrayApp:
         if was_running:
             self.on_start()
 
+    def on_status(self):
+        status = self.service.get_status()
+        summary = (
+            f"running={status.get('running')} "
+            + f"backend={status.get('capture_backend')} "
+            + f"mode={status.get('capture_mode')} "
+            + f"frames={status.get('frames_sent')} "
+            + f"errors={status.get('consecutive_errors')}"
+        )
+        self.tray_icon.showMessage(
+            "nanoleaf-kde-sync diagnostics",
+            summary,
+            self.QSystemTrayIcon.MessageIcon.Information,
+            4000,
+        )
+
     def on_quit(self):
         try:
             self.on_stop()
@@ -279,4 +305,3 @@ def main() -> None:  # pragma: no cover
 
 if __name__ == "__main__":  # pragma: no cover
     main()
-

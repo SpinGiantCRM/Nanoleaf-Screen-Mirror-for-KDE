@@ -57,4 +57,3 @@ def map_colors_to_device_zones(
         src_idx = src_idx % src_n
         out.append(src[src_idx])
     return out
-

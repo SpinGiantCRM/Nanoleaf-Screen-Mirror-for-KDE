@@ -226,4 +226,3 @@ def convert_frame_to_srgb8(
 
     srgb_u8 = np.clip(np.rint(srgb * 255.0), 0, 255).astype(np.uint8)
     return srgb_u8
-
