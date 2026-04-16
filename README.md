@@ -25,7 +25,7 @@ Development mode note:
 
 ## Auto-start (KDE)
 1. Copy the provided `.desktop` file into KDE autostart:
-   - `cp nanoleaf-kde-sync.desktop ~/.config/autostart/`
+   - `cp docs/nanoleaf-kde-sync.desktop ~/.config/autostart/`
 2. Log out/in (or reload autostart).
 
 ## Config
