@@ -7,6 +7,7 @@ from typing import List, Optional, Tuple
 
 
 RGBTuple = Tuple[int, int, int]
+ZoneRect = Tuple[int, int, int, int]
 
 
 @dataclass
@@ -17,6 +18,12 @@ class RuntimeState:
 
     prev_smoothed_colors: List[RGBTuple] = field(default_factory=list)
 
+    cached_zone_rects: Optional[List[ZoneRect]] = None
+    zone_rects_signature: Optional[Tuple[int, int, Tuple[Tuple[float, float, float, float], ...]]] = None
+
+    cached_device_zone_indices: Optional[List[int]] = None
+    device_zone_mapping_signature: Optional[Tuple[int, int, int, bool, Tuple[int, ...]]] = None
+
     consecutive_errors: int = 0
     last_error: Optional[str] = None
     frames_sent: int = 0
@@ -25,6 +32,10 @@ class RuntimeState:
 
     def reset_for_start(self) -> None:
         self.prev_smoothed_colors = []
+        self.cached_zone_rects = None
+        self.zone_rects_signature = None
+        self.cached_device_zone_indices = None
+        self.device_zone_mapping_signature = None
         self.consecutive_errors = 0
         self.last_error = None
         self.frames_sent = 0
