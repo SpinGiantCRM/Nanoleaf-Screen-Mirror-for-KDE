@@ -33,9 +33,15 @@ class KWinDBusScreenshotCapture:
 
     name = "kwin-dbus"
 
-    def __init__(self, width: int, height: int, monitor_id: Optional[str] = None) -> None:
-        self.params = KWinDBusCaptureParams(width=width, height=height, monitor_id=monitor_id)
-        self._black = np.zeros((self.params.height, self.params.width, 3), dtype=np.uint8)
+    def __init__(
+        self, width: int, height: int, monitor_id: Optional[str] = None
+    ) -> None:
+        self.params = KWinDBusCaptureParams(
+            width=width, height=height, monitor_id=monitor_id
+        )
+        self._black = np.zeros(
+            (self.params.height, self.params.width, 3), dtype=np.uint8
+        )
 
     def capture(self) -> np.ndarray:
         """
@@ -67,4 +73,3 @@ class KWinDBusScreenshotCapture:
         # raw_bytes = await proxy.call('captureScreen', ...)
         # ...decode to numpy...
         return None
-

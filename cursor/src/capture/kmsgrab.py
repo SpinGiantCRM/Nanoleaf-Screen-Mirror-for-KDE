@@ -73,7 +73,9 @@ class KMSGrabCapture:
         )
 
         # Reusable black frame to avoid allocations on error.
-        self._black = np.zeros((self.params.height, self.params.width, 3), dtype=np.uint8)
+        self._black = np.zeros(
+            (self.params.height, self.params.width, 3), dtype=np.uint8
+        )
 
     def capture(self) -> np.ndarray:
         """
@@ -181,12 +183,17 @@ class KMSGrabCapture:
         meta = HDRMetadata.from_any(metadata)
 
         if not isinstance(rgb, np.ndarray):
-            raise TypeError("DRM capture must return a numpy.ndarray (or (ndarray, metadata)).")
+            raise TypeError(
+                "DRM capture must return a numpy.ndarray (or (ndarray, metadata))."
+            )
 
         # If we're already uint8 sRGB, this conversion is cheap but still costs
         # computation; we avoid it by checking the dtype first.
-        if rgb.dtype == np.uint8 and meta.transfer == "srgb" and meta.primaries == "bt709":
+        if (
+            rgb.dtype == np.uint8
+            and meta.transfer == "srgb"
+            and meta.primaries == "bt709"
+        ):
             return rgb
 
         return convert_frame_to_srgb8(rgb, metadata=meta)
-

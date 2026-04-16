@@ -33,7 +33,8 @@ class ZoneConfig:
 class AppConfig:
     # Capture
     fps: int = 30
-    prefer_backend: str = "kmsgrab"  # "kmsgrab" or "kwin-dbus" or "auto"
+    prefer_backend: str = "kmsgrab"  # "kmsgrab" or "kwin-dbus" or "auto" or "replay"
+    replay_frames_path: str = ""
 
     # Color -> device mapping
     brightness: float = 1.0  # [0.0, 1.0]
@@ -74,7 +75,12 @@ class AppConfig:
     hdr_transfer: str = "srgb"  # "srgb" | "pq" | "hlg" | "linear"
     hdr_primaries: str = "bt709"  # "bt709" | "bt2020"
 
+    # Recovery policy
+    max_consecutive_errors: int = 5
+    reinit_backoff_ms: int = 500
+
     # Logging / misc
+    status_log_interval_s: float = 5.0
     verbose: bool = False
 
 
@@ -98,7 +104,14 @@ class ConfigManager:
         zones: List[ZoneConfig] = []
         for z in zones_data:
             try:
-                zones.append(ZoneConfig(x=float(z["x"]), y=float(z["y"]), w=float(z["w"]), h=float(z["h"])))
+                zones.append(
+                    ZoneConfig(
+                        x=float(z["x"]),
+                        y=float(z["y"]),
+                        w=float(z["w"]),
+                        h=float(z["h"]),
+                    )
+                )
             except Exception:
                 # Ignore malformed zones entries; defaults will apply.
                 continue
@@ -107,23 +120,44 @@ class ConfigManager:
         cfg = AppConfig(
             fps=int(data.get("fps", AppConfig.fps)),
             prefer_backend=str(data.get("prefer_backend", AppConfig.prefer_backend)),
+            replay_frames_path=str(
+                data.get("replay_frames_path", AppConfig.replay_frames_path)
+            ),
             brightness=float(data.get("brightness", AppConfig.brightness)),
             smoothing=float(data.get("smoothing", AppConfig.smoothing)),
             zones=zones,
             device_vid=int(data.get("device_vid", AppConfig.device_vid)),
             device_pid=int(data.get("device_pid", AppConfig.device_pid)),
-            use_mock_device=bool(data.get("use_mock_device", AppConfig.use_mock_device)),
-            use_mock_capture=bool(data.get("use_mock_capture", AppConfig.use_mock_capture)),
+            use_mock_device=bool(
+                data.get("use_mock_device", AppConfig.use_mock_device)
+            ),
+            use_mock_capture=bool(
+                data.get("use_mock_capture", AppConfig.use_mock_capture)
+            ),
             allow_capture_fallback=bool(
                 data.get("allow_capture_fallback", AppConfig.allow_capture_fallback)
             ),
-            device_zone_count=int(data.get("device_zone_count", AppConfig.device_zone_count)),
+            device_zone_count=int(
+                data.get("device_zone_count", AppConfig.device_zone_count)
+            ),
             zone_offset=int(data.get("zone_offset", AppConfig.zone_offset)),
             reverse_zones=bool(data.get("reverse_zones", AppConfig.reverse_zones)),
-            explicit_zone_map=[int(x) for x in data.get("explicit_zone_map", AppConfig.explicit_zone_map)],
+            explicit_zone_map=[
+                int(x)
+                for x in data.get("explicit_zone_map", AppConfig.explicit_zone_map)
+            ],
             hdr_max_nits=float(data.get("hdr_max_nits", AppConfig.hdr_max_nits)),
             hdr_transfer=str(data.get("hdr_transfer", AppConfig.hdr_transfer)),
             hdr_primaries=str(data.get("hdr_primaries", AppConfig.hdr_primaries)),
+            max_consecutive_errors=int(
+                data.get("max_consecutive_errors", AppConfig.max_consecutive_errors)
+            ),
+            reinit_backoff_ms=int(
+                data.get("reinit_backoff_ms", AppConfig.reinit_backoff_ms)
+            ),
+            status_log_interval_s=float(
+                data.get("status_log_interval_s", AppConfig.status_log_interval_s)
+            ),
             verbose=bool(data.get("verbose", AppConfig.verbose)),
         )
 
@@ -197,11 +231,18 @@ class ConfigManager:
         hdr_max_nits = float(cfg.hdr_max_nits)
         hdr_max_nits = max(1.0, min(10_000.0, hdr_max_nits))
 
-        explicit_zone_map = [int(i) for i in cfg.explicit_zone_map] if cfg.explicit_zone_map else []
+        explicit_zone_map = (
+            [int(i) for i in cfg.explicit_zone_map] if cfg.explicit_zone_map else []
+        )
+
+        max_consecutive_errors = max(1, int(cfg.max_consecutive_errors))
+        reinit_backoff_ms = max(0, int(cfg.reinit_backoff_ms))
+        status_log_interval_s = max(0.5, float(cfg.status_log_interval_s))
 
         return AppConfig(
             fps=fps,
             prefer_backend=cfg.prefer_backend,
+            replay_frames_path=str(cfg.replay_frames_path or ""),
             brightness=brightness,
             smoothing=smoothing,
             zones=zones,
@@ -217,6 +258,8 @@ class ConfigManager:
             hdr_max_nits=hdr_max_nits,
             hdr_transfer=cfg.hdr_transfer,
             hdr_primaries=cfg.hdr_primaries,
+            max_consecutive_errors=max_consecutive_errors,
+            reinit_backoff_ms=reinit_backoff_ms,
+            status_log_interval_s=status_log_interval_s,
             verbose=cfg.verbose,
         )
-

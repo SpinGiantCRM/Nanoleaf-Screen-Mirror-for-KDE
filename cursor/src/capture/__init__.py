@@ -9,6 +9,7 @@ from .screen_capture import (
 from .kmsgrab import KMSGrabCapture, KMSGrabError
 from .kwin_dbus import KWinDBusScreenshotCapture
 from .mock_capture import MockScreenCapture
+from .replay_capture import ReplayScreenCapture
 from .factory import create_capture_backend
 
 __all__ = [
@@ -21,5 +22,6 @@ __all__ = [
     "KMSGrabError",
     "KWinDBusScreenshotCapture",
     "MockScreenCapture",
+    "ReplayScreenCapture",
     "create_capture_backend",
 ]

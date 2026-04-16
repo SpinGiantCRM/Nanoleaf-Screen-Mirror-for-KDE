@@ -103,7 +103,9 @@ class DRMKMSCaptureBackend(CaptureBackend):
 
     def __init__(self, frame_spec: FrameSpec, card_path: Optional[str] = None) -> None:
         super().__init__(frame_spec)
-        self.card_path = card_path or os.environ.get("NANOLEAF_DRM_CARD", "/dev/dri/card0")
+        self.card_path = card_path or os.environ.get(
+            "NANOLEAF_DRM_CARD", "/dev/dri/card0"
+        )
         self._mapped_buffer: Optional[memoryview] = None
 
     def _open(self) -> None:
@@ -113,9 +115,7 @@ class DRMKMSCaptureBackend(CaptureBackend):
             raise BackendUnavailableError(f"DRM device not found: {self.card_path}")
         self._mapped_buffer = self._try_initialize_drm_mapping()
         if self._mapped_buffer is None:
-            raise BackendUnavailableError(
-                "No DRM Python binding is configured."
-            )
+            raise BackendUnavailableError("No DRM Python binding is configured.")
 
     def _capture(self) -> np.ndarray:
         if self._mapped_buffer is None:
@@ -123,8 +123,12 @@ class DRMKMSCaptureBackend(CaptureBackend):
         source = np.frombuffer(self._mapped_buffer, dtype=np.uint8)
         expected_size = self.frame_spec.width * self.frame_spec.height * 4
         if source.size < expected_size:
-            raise CaptureBackendError("Mapped DRM framebuffer is smaller than expected.")
-        source = source[:expected_size].reshape(self.frame_spec.height, self.frame_spec.width, 4)
+            raise CaptureBackendError(
+                "Mapped DRM framebuffer is smaller than expected."
+            )
+        source = source[:expected_size].reshape(
+            self.frame_spec.height, self.frame_spec.width, 4
+        )
         return source[:, :, 2::-1].copy()
 
     def _close(self) -> None:

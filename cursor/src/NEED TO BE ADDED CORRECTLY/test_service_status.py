@@ -54,8 +54,12 @@ class FakeDriver:
 
 
 class TestServiceStatusAndMode:
-    def _make_service(self, capture_name="mock") -> tuple[NanoleafSyncService, FakeCapture, FakeDriver]:
-        cfg = AppConfig(fps=30, verbose=False, use_mock_capture=False, use_mock_device=True)
+    def _make_service(
+        self, capture_name="mock"
+    ) -> tuple[NanoleafSyncService, FakeCapture, FakeDriver]:
+        cfg = AppConfig(
+            fps=30, verbose=False, use_mock_capture=False, use_mock_device=True
+        )
         capture = FakeCapture(name=capture_name)
         driver = FakeDriver()
         svc = NanoleafSyncService(

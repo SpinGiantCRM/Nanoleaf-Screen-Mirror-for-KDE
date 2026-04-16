@@ -17,6 +17,7 @@ from color.analyzer import average_color, dominant_colors_kmeans, zone_colors
 # average_color
 # ---------------------------------------------------------------------------
 
+
 class TestAverageColor:
     def test_solid_red(self):
         img = np.full((4, 4, 3), [255, 0, 0], dtype=np.uint8)
@@ -33,8 +34,8 @@ class TestAverageColor:
     def test_mixed_horizontal(self):
         # Left half red, right half blue → average is (127, 0, 127) or (128, 0, 128)
         img = np.zeros((2, 4, 3), dtype=np.uint8)
-        img[:, :2, 0] = 255   # left = red
-        img[:, 2:, 2] = 255   # right = blue
+        img[:, :2, 0] = 255  # left = red
+        img[:, 2:, 2] = 255  # right = blue
         r, g, b = average_color(img)
         assert g == 0
         assert r == b
@@ -64,6 +65,7 @@ class TestAverageColor:
 # dominant_colors_kmeans
 # ---------------------------------------------------------------------------
 
+
 class TestDominantColorsKmeans:
     def test_single_cluster_solid_image(self):
         img = np.full((8, 8, 3), [100, 150, 200], dtype=np.uint8)
@@ -78,8 +80,8 @@ class TestDominantColorsKmeans:
     def test_two_dominant_clusters(self):
         # Left half pure red, right half pure blue — k=2 should find both
         img = np.zeros((16, 16, 3), dtype=np.uint8)
-        img[:, :8, 0] = 255   # red
-        img[:, 8:, 2] = 255   # blue
+        img[:, :8, 0] = 255  # red
+        img[:, 8:, 2] = 255  # blue
         colors = dominant_colors_kmeans(img, n_clusters=2, rng_seed=42)
         assert len(colors) == 2
         # Each cluster should be clearly red or blue
@@ -116,6 +118,7 @@ class TestDominantColorsKmeans:
 # zone_colors
 # ---------------------------------------------------------------------------
 
+
 class TestZoneColors:
     def _make_quadrant_image(self) -> np.ndarray:
         """
@@ -124,9 +127,9 @@ class TestZoneColors:
           BL=blue BR=white
         """
         img = np.zeros((4, 4, 3), dtype=np.uint8)
-        img[:2, :2] = [255, 0, 0]    # top-left: red
-        img[:2, 2:] = [0, 255, 0]    # top-right: green
-        img[2:, :2] = [0, 0, 255]    # bottom-left: blue
+        img[:2, :2] = [255, 0, 0]  # top-left: red
+        img[:2, 2:] = [0, 255, 0]  # top-right: green
+        img[2:, :2] = [0, 0, 255]  # bottom-left: blue
         img[2:, 2:] = [255, 255, 255]  # bottom-right: white
         return img
 
@@ -140,9 +143,9 @@ class TestZoneColors:
         img = self._make_quadrant_image()
         zones = [(0, 0, 2, 2), (2, 0, 2, 2), (0, 2, 2, 2), (2, 2, 2, 2)]
         result = zone_colors(img, zones)
-        assert result[0] == (255, 0, 0)    # TL = red
-        assert result[1] == (0, 255, 0)    # TR = green
-        assert result[2] == (0, 0, 255)    # BL = blue
+        assert result[0] == (255, 0, 0)  # TL = red
+        assert result[1] == (0, 255, 0)  # TR = green
+        assert result[2] == (0, 0, 255)  # BL = blue
         assert result[3] == (255, 255, 255)  # BR = white
 
     def test_empty_zones_returns_empty(self):

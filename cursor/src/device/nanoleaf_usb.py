@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional, Sequence, Tuple
 
+from .interfaces import DeviceDriver, DriverCapabilities
+
 
 RGBTuple = Tuple[int, int, int]
 
@@ -40,7 +42,7 @@ class NanoleafPCScreenMirrorProtocolStub:
             report[header_offset : header_offset + 3] = [0xAA, 0x55, 0x00]
 
         offset = header_offset + 3
-        for (r, g, b) in colors:
+        for r, g, b in colors:
             if offset + 3 > self.report_size:
                 break
             report[offset] = int(max(0, min(255, r)))
@@ -66,7 +68,9 @@ class HIDTransport:
         try:
             import hid  # type: ignore
         except Exception as e:  # pragma: no cover
-            raise RuntimeError("hidapi bindings not installed. Install `hidapi` package.") from e
+            raise RuntimeError(
+                "hidapi bindings not installed. Install `hidapi` package."
+            ) from e
 
         # Ensure device exists first (clear error message).
         found = False
@@ -74,7 +78,9 @@ class HIDTransport:
             found = True
             break
         if not found:
-            raise RuntimeError(f"Nanoleaf device not found VID={self.ids.vid:#06x} PID={self.ids.pid:#06x}")
+            raise RuntimeError(
+                f"Nanoleaf device not found VID={self.ids.vid:#06x} PID={self.ids.pid:#06x}"
+            )
 
         self._handle = hid.device()
         self._handle.open(self.ids.vid, self.ids.pid)
@@ -93,7 +99,7 @@ class HIDTransport:
             self._handle = None
 
 
-class NanoleafUSBDriver:
+class NanoleafUSBDriver(DeviceDriver):
     """
     Nanoleaf USB HID driver (protocol stub).
 
@@ -107,6 +113,8 @@ class NanoleafUSBDriver:
     - `send_frame` uses a placeholder protocol packer until the official spec
       is provided, but still exercises the full USB write path.
     """
+
+    capabilities = DriverCapabilities(name="nanoleaf-usb-stub")
 
     def __init__(self, *, ids: NanoleafUSBIds, report_size: int = 64) -> None:
         self.ids = ids
@@ -153,11 +161,14 @@ class NanoleafUSBDriver:
 
 
 class MockNanoleafUSBDriver(NanoleafUSBDriver):
+    capabilities = DriverCapabilities(name="mock-nanoleaf-usb")
     """
     Mock driver for development/testing without real Nanoleaf hardware.
     """
 
-    def __init__(self, *, report_size: int = 64, ids: Optional[NanoleafUSBIds] = None) -> None:
+    def __init__(
+        self, *, report_size: int = 64, ids: Optional[NanoleafUSBIds] = None
+    ) -> None:
         if ids is None:
             ids = NanoleafUSBIds(vid=0x0, pid=0x0)
         super().__init__(ids=ids, report_size=report_size)
@@ -182,4 +193,3 @@ class MockNanoleafUSBDriver(NanoleafUSBDriver):
             self._transport.close()
         except Exception:
             pass
-
