@@ -2,24 +2,82 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Sequence, Tuple
+from typing import Sequence
 
 from color.analyzer import zone_colors
-from color.zone_mapper import map_colors_to_device_zones
+from color.zone_mapper import resolve_device_zone_indices
 from config import AppConfig
 from runtime.processing import apply_brightness, ema_smooth, zones_from_config
 from runtime.startup import reinitialize_backends, should_reinitialize
-from runtime.state import RGBTuple, RuntimeState
+from runtime.state import RGBTuple, RuntimeState, ZoneRect
 
 
 logger = logging.getLogger(__name__)
 
 
+def _zones_signature(config: AppConfig, img_w: int, img_h: int) -> tuple[int, int, tuple[tuple[float, float, float, float], ...]]:
+    return (
+        int(img_w),
+        int(img_h),
+        tuple((float(z.x), float(z.y), float(z.w), float(z.h)) for z in config.zones),
+    )
+
+
+def _mapping_signature(
+    *,
+    source_zone_count: int,
+    config: AppConfig,
+) -> tuple[int, int, int, bool, tuple[int, ...]]:
+    return (
+        int(source_zone_count),
+        int(config.device_zone_count),
+        int(config.zone_offset),
+        bool(config.reverse_zones),
+        tuple(int(i) for i in (config.explicit_zone_map or [])),
+    )
+
+
+def _ensure_runtime_artifacts(
+    *,
+    state: RuntimeState,
+    config: AppConfig,
+    img_w: int,
+    img_h: int,
+) -> tuple[list[ZoneRect], list[int]]:
+    zone_sig = _zones_signature(config, img_w, img_h)
+    if state.zone_rects_signature != zone_sig or state.cached_zone_rects is None:
+        state.cached_zone_rects = zones_from_config(config.zones, img_w, img_h)
+        state.zone_rects_signature = zone_sig
+
+    zones_px = state.cached_zone_rects
+    source_zone_count = len(zones_px)
+
+    mapping_sig = _mapping_signature(source_zone_count=source_zone_count, config=config)
+    if (
+        state.device_zone_mapping_signature != mapping_sig
+        or state.cached_device_zone_indices is None
+    ):
+        device_zone_count = int(config.device_zone_count) or source_zone_count
+        state.cached_device_zone_indices = resolve_device_zone_indices(
+            source_zone_count,
+            device_zone_count=device_zone_count,
+            zone_offset=config.zone_offset,
+            reverse=config.reverse_zones,
+            explicit_zone_map=config.explicit_zone_map or None,
+        )
+        state.device_zone_mapping_signature = mapping_sig
+
+    return zones_px, state.cached_device_zone_indices
+
+
 def process_frame(
     *,
     frame,
-    config: AppConfig,
     prev_smoothed_colors: Sequence[RGBTuple],
+    zones_px: Sequence[ZoneRect],
+    device_zone_indices: Sequence[int],
+    brightness: float,
+    smoothing: float,
 ) -> list[RGBTuple]:
     """
     Hot-path frame processing pipeline:
@@ -30,21 +88,11 @@ def process_frame(
             f"Capture returned unexpected frame shape: {getattr(frame, 'shape', None)}"
         )
 
-    img_h, img_w, _ = frame.shape
-    zones_px = zones_from_config(config.zones, img_w, img_h)
     raw_colors = zone_colors(frame, zones_px)
+    mapped_colors = [raw_colors[idx] for idx in device_zone_indices] if raw_colors else []
 
-    device_zone_count = config.device_zone_count or len(raw_colors)
-    mapped_colors = map_colors_to_device_zones(
-        raw_colors,
-        device_zone_count=device_zone_count,
-        zone_offset=config.zone_offset,
-        reverse=config.reverse_zones,
-        explicit_zone_map=config.explicit_zone_map or None,
-    )
-
-    bright_colors = apply_brightness(mapped_colors, config.brightness)
-    return ema_smooth(prev_smoothed_colors, bright_colors, alpha=config.smoothing)
+    bright_colors = apply_brightness(mapped_colors, brightness)
+    return ema_smooth(prev_smoothed_colors, bright_colors, alpha=smoothing)
 
 
 def run_loop(
@@ -76,10 +124,21 @@ def run_loop(
             if frame is None:
                 continue
 
+            img_h, img_w, _ = frame.shape
+            zones_px, device_zone_indices = _ensure_runtime_artifacts(
+                state=state,
+                config=config,
+                img_w=img_w,
+                img_h=img_h,
+            )
+
             smoothed_colors = process_frame(
                 frame=frame,
-                config=config,
                 prev_smoothed_colors=state.prev_smoothed_colors,
+                zones_px=zones_px,
+                device_zone_indices=device_zone_indices,
+                brightness=config.brightness,
+                smoothing=config.smoothing,
             )
             state.prev_smoothed_colors = smoothed_colors
             driver.send_frame(smoothed_colors)
