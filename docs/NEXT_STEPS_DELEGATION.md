@@ -20,3 +20,7 @@ This document starts execution of the roadmap while waiting for the proprietary 
 - Add benchmark script and CI workflow for quality gates.
 - Integrate structured event export endpoint.
 - Replace protocol stub bytes once proprietary driver spec arrives.
+
+
+## 12-Commit Execution Checklist
+Track execution in `docs/COMMIT_CHECKLIST.md`.

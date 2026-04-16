@@ -5,7 +5,7 @@ Nanoleaf ambient light synchronization for KDE/Linux (scaffold + initial framewo
 ## Install
 1. Create/activate a Python 3.11+ environment
 2. Install dependencies:
-   - `pip install -r requirements.txt`
+   - `pip install .` (or `pip install -e .` for editable development)
 3. Install the package (optional while developing):
    - `pip install -e .`
    - or install non-editable:
@@ -25,7 +25,7 @@ Development mode note:
 
 ## Auto-start (KDE)
 1. Copy the provided `.desktop` file into KDE autostart:
-   - `cp nanoleaf-kde-sync.desktop ~/.config/autostart/`
+   - `cp docs/nanoleaf-kde-sync.desktop ~/.config/autostart/`
 2. Log out/in (or reload autostart).
 
 ## Config
