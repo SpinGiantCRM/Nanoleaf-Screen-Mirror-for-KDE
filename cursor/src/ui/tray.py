@@ -249,8 +249,16 @@ class NanoleafTrayApp:
         return menu
 
     def on_start(self):
-        self.service.start()
-        self.tray_icon.setIcon(self._make_tray_icon(running=True).icon())
+        started = self.service.start()
+        running = started and self.service.is_running()
+        self.tray_icon.setIcon(self._make_tray_icon(running=running).icon())
+        if not running:
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                f"Start failed: {self.service.last_error or 'unknown error'}",
+                self.QSystemTrayIcon.MessageIcon.Warning,
+                4000,
+            )
 
     def on_stop(self):
         self.service.stop()
