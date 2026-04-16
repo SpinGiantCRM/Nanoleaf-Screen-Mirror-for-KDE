@@ -8,8 +8,9 @@ from typing import Optional, Tuple
 from capture.interfaces import CaptureBackend
 from capture.factory import create_capture_backend
 from config import AppConfig, ConfigManager
-from device.interfaces import DeviceDriver
-from device.nanoleaf_usb import MockNanoleafUSBDriver, NanoleafUSBDriver, NanoleafUSBIds
+from device.interfaces import DeviceDriver, NanoleafUSBIds
+from device.mock_driver import MockNanoleafUSBDriver
+from device.usb_driver import NanoleafUSBDriver
 from runtime.startup import (
     RuntimeLifecycle,
     run_runtime_engine,

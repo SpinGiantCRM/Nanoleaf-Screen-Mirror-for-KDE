@@ -13,6 +13,12 @@ class DriverCapabilities:
     max_zones: int = 0
 
 
+@dataclass(frozen=True)
+class NanoleafUSBIds:
+    vid: int
+    pid: int
+
+
 @runtime_checkable
 class DeviceDriver(Protocol):
     """Runtime contract for all device drivers used by the service."""
