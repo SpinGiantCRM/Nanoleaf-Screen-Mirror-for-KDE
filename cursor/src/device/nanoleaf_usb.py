@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import List, Optional, Sequence, Tuple
 
@@ -7,6 +8,7 @@ from .interfaces import DeviceDriver, DriverCapabilities
 
 
 RGBTuple = Tuple[int, int, int]
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -174,6 +176,7 @@ class MockNanoleafUSBDriver(NanoleafUSBDriver):
         super().__init__(ids=ids, report_size=report_size)
         self.last_colors: Optional[Sequence[RGBTuple]] = None
         self._initialized = False
+        self._frames_sent = 0
 
     def initialize(self) -> None:
         self._initialized = True
@@ -182,9 +185,17 @@ class MockNanoleafUSBDriver(NanoleafUSBDriver):
         if not self._initialized:
             raise RuntimeError("Mock driver not initialized. Call initialize() first.")
         self.last_colors = list(colors)
-        # Print a small sample to avoid flooding stdout at 30 FPS.
-        sample = self.last_colors[: min(3, len(self.last_colors))]
-        print(f"[mock-usb] frame zones={len(self.last_colors)} sample={sample}")
+        self._frames_sent += 1
+        if logger.isEnabledFor(logging.DEBUG) and (
+            self._frames_sent == 1 or self._frames_sent % 60 == 0
+        ):
+            sample = self.last_colors[: min(3, len(self.last_colors))]
+            logger.debug(
+                "[mock-usb] frame zones=%s sample=%s frame=%s",
+                len(self.last_colors),
+                sample,
+                self._frames_sent,
+            )
 
     def close(self) -> None:
         self._initialized = False
