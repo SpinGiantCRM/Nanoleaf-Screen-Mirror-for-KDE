@@ -2,7 +2,7 @@
 Type=Application
 Name=nanoleaf-kde-sync
 Comment=Nanoleaf ambient light sync for KDE/Linux
-Exec=python -c "from ui.tray import main; main()"
+Exec=python -c "from nanoleaf_sync.ui.tray import main; main()"
 Terminal=false
 Categories=System;Utility;
 X-KDE-StartupNotify=false
