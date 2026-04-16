@@ -66,6 +66,15 @@ def test_config_load_recovers_from_corruption(tmp_path: Path) -> None:
     assert isinstance(cfg, AppConfig)
 
 
+def test_config_load_recovers_from_non_object_json(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "bad-shape.json"
+    cfg_path.write_text(json.dumps(["not", "an", "object"]), encoding="utf-8")
+
+    cfg = ConfigManager(path=cfg_path).load()
+
+    assert isinstance(cfg, AppConfig)
+
+
 def test_config_load_normalizes_enum_like_fields(tmp_path: Path) -> None:
     cfg_path = tmp_path / "config.json"
     cfg_path.write_text(
@@ -128,3 +137,29 @@ def test_config_load_parses_bool_strings_without_truthiness_bug(tmp_path: Path) 
     assert cfg.allow_capture_fallback is False
     assert cfg.reverse_zones is False
     assert cfg.verbose is False
+
+
+def test_config_load_tolerates_invalid_scalar_and_list_types(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.json"
+    cfg_path.write_text(
+        json.dumps(
+            {
+                "fps": "not-an-int",
+                "brightness": "not-a-float",
+                "device_vid": {"oops": 1},
+                "max_consecutive_errors": [],
+                "explicit_zone_map": "not-a-list",
+                "zones": {"x": 1, "y": 2},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    cfg = ConfigManager(path=cfg_path).load()
+
+    assert cfg.fps == AppConfig.fps
+    assert cfg.brightness == AppConfig.brightness
+    assert cfg.device_vid == AppConfig.device_vid
+    assert cfg.max_consecutive_errors == AppConfig.max_consecutive_errors
+    assert cfg.explicit_zone_map == []
+    assert cfg.zones == []

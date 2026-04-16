@@ -11,6 +11,40 @@ from nanoleaf_sync.config.model import AppConfig, ZoneConfig
 from nanoleaf_sync.config.normalize import coerce_bool, validate_config
 
 
+def _to_int(value: Any, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _to_float(value: Any, default: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _to_str(value: Any, default: str) -> str:
+    if value is None:
+        return default
+    return str(value)
+
+
+def _to_int_list(value: Any, default: list[int]) -> list[int]:
+    if value is None:
+        return default
+    if not isinstance(value, list):
+        return default
+    converted: list[int] = []
+    for item in value:
+        try:
+            converted.append(int(item))
+        except (TypeError, ValueError):
+            continue
+    return converted
+
+
 def default_config_path() -> Path:
     # Match the requirement: ~/.config/nanoleaf-kde-sync/config.json
     return Path.home() / ".config" / "nanoleaf-kde-sync" / "config.json"
@@ -31,16 +65,19 @@ class ConfigManager:
             # Config corruption should not prevent the app from starting.
             return AppConfig()
 
+        if not isinstance(data, dict):
+            return AppConfig()
+
         zones_data = data.get("zones", [])
         zones: List[ZoneConfig] = []
-        for z in zones_data:
+        for z in zones_data if isinstance(zones_data, list) else []:
             try:
                 zones.append(
                     ZoneConfig(
-                        x=float(z["x"]),
-                        y=float(z["y"]),
-                        w=float(z["w"]),
-                        h=float(z["h"]),
+                        x=_to_float(z["x"], 0.0),
+                        y=_to_float(z["y"], 0.0),
+                        w=_to_float(z["w"], 0.0),
+                        h=_to_float(z["h"], 0.0),
                     )
                 )
             except Exception:
@@ -48,32 +85,32 @@ class ConfigManager:
                 continue
 
         cfg = AppConfig(
-            fps=int(data.get("fps", AppConfig.fps)),
-            prefer_backend=str(data.get("prefer_backend", AppConfig.prefer_backend)),
-            replay_frames_path=str(data.get("replay_frames_path", AppConfig.replay_frames_path)),
-            brightness=float(data.get("brightness", AppConfig.brightness)),
-            smoothing=float(data.get("smoothing", AppConfig.smoothing)),
+            fps=_to_int(data.get("fps"), AppConfig.fps),
+            prefer_backend=_to_str(data.get("prefer_backend"), AppConfig.prefer_backend),
+            replay_frames_path=_to_str(data.get("replay_frames_path"), AppConfig.replay_frames_path),
+            brightness=_to_float(data.get("brightness"), AppConfig.brightness),
+            smoothing=_to_float(data.get("smoothing"), AppConfig.smoothing),
             zones=zones,
-            device_vid=int(data.get("device_vid", AppConfig.device_vid)),
-            device_pid=int(data.get("device_pid", AppConfig.device_pid)),
+            device_vid=_to_int(data.get("device_vid"), AppConfig.device_vid),
+            device_pid=_to_int(data.get("device_pid"), AppConfig.device_pid),
             use_mock_device=coerce_bool(data.get("use_mock_device"), AppConfig.use_mock_device),
             use_mock_capture=coerce_bool(data.get("use_mock_capture"), AppConfig.use_mock_capture),
             allow_capture_fallback=coerce_bool(
                 data.get("allow_capture_fallback"), AppConfig.allow_capture_fallback
             ),
-            device_zone_count=int(data.get("device_zone_count", AppConfig.device_zone_count)),
-            zone_offset=int(data.get("zone_offset", AppConfig.zone_offset)),
+            device_zone_count=_to_int(data.get("device_zone_count"), AppConfig.device_zone_count),
+            zone_offset=_to_int(data.get("zone_offset"), AppConfig.zone_offset),
             reverse_zones=coerce_bool(data.get("reverse_zones"), AppConfig.reverse_zones),
-            explicit_zone_map=[int(x) for x in data.get("explicit_zone_map", [])],
-            hdr_max_nits=float(data.get("hdr_max_nits", AppConfig.hdr_max_nits)),
-            hdr_transfer=str(data.get("hdr_transfer", AppConfig.hdr_transfer)),
-            hdr_primaries=str(data.get("hdr_primaries", AppConfig.hdr_primaries)),
-            max_consecutive_errors=int(
-                data.get("max_consecutive_errors", AppConfig.max_consecutive_errors)
+            explicit_zone_map=_to_int_list(data.get("explicit_zone_map"), []),
+            hdr_max_nits=_to_float(data.get("hdr_max_nits"), AppConfig.hdr_max_nits),
+            hdr_transfer=_to_str(data.get("hdr_transfer"), AppConfig.hdr_transfer),
+            hdr_primaries=_to_str(data.get("hdr_primaries"), AppConfig.hdr_primaries),
+            max_consecutive_errors=_to_int(
+                data.get("max_consecutive_errors"), AppConfig.max_consecutive_errors
             ),
-            reinit_backoff_ms=int(data.get("reinit_backoff_ms", AppConfig.reinit_backoff_ms)),
-            status_log_interval_s=float(
-                data.get("status_log_interval_s", AppConfig.status_log_interval_s)
+            reinit_backoff_ms=_to_int(data.get("reinit_backoff_ms"), AppConfig.reinit_backoff_ms),
+            status_log_interval_s=_to_float(
+                data.get("status_log_interval_s"), AppConfig.status_log_interval_s
             ),
             verbose=coerce_bool(data.get("verbose"), AppConfig.verbose),
         )
