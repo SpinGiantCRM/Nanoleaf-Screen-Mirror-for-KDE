@@ -35,6 +35,7 @@ class MockScreenCapture:
     def __init__(
         self, width: int, height: int, *, fps_hint: int = 30, motion: float = 1.0
     ) -> None:
+        self.last_capture_path: str | None = None
         self.params = MockCaptureParams(
             width=width, height=height, fps_hint=fps_hint, motion=motion
         )

@@ -5,6 +5,7 @@ import signal
 import time
 from typing import Optional, Tuple
 
+from capture.interfaces import CaptureBackend
 from capture.factory import create_capture_backend
 from config import AppConfig, ConfigManager
 from device.interfaces import DeviceDriver
@@ -40,13 +41,13 @@ class NanoleafSyncService:
         self,
         config: Optional[AppConfig] = None,
         *,
-        capture_backend_override=None,
+        capture_backend_override: CaptureBackend | None = None,
         driver_override=None,
     ) -> None:
         self.config = config or AppConfig()
 
-        self._driver = None
-        self._capture = None
+        self._driver: DeviceDriver | None = None
+        self._capture: CaptureBackend | None = None
         self._capture_backend_override = capture_backend_override
         self._driver_override = driver_override
 

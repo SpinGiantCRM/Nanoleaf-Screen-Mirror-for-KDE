@@ -1,4 +1,5 @@
 from .factory import create_capture_backend
+from .interfaces import CaptureBackend
 from .kmsgrab import KMSGrabCapture
 from .kwin_dbus import KWinDBusScreenshotCapture
 from .mock_capture import MockScreenCapture
@@ -9,5 +10,6 @@ __all__ = [
     "KWinDBusScreenshotCapture",
     "ReplayScreenCapture",
     "MockScreenCapture",
+    "CaptureBackend",
     "create_capture_backend",
 ]

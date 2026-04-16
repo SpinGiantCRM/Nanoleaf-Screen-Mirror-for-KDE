@@ -25,6 +25,7 @@ class ReplayScreenCapture:
     name = "replay"
 
     def __init__(self, width: int, height: int, *, frames_path: str) -> None:
+        self.last_capture_path: str | None = None
         self.params = ReplayCaptureParams(
             width=width,
             height=height,

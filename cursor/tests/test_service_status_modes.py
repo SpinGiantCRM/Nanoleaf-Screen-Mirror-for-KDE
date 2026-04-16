@@ -13,6 +13,7 @@ from typing import Sequence, Tuple
 
 import numpy as np
 
+from capture.interfaces import CaptureBackend
 from config import AppConfig
 from service import NanoleafSyncService, _DEFAULT_CAPTURE_HEIGHT, _DEFAULT_CAPTURE_WIDTH
 
@@ -21,8 +22,9 @@ RGB = Tuple[int, int, int]
 
 
 @dataclass
-class FakeCapture:
+class FakeCapture(CaptureBackend):
     name: str = "mock"
+    last_capture_path: str | None = None
     width: int = 16
     height: int = 9
     _frame: np.ndarray = None
