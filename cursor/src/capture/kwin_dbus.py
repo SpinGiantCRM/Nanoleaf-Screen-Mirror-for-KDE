@@ -55,6 +55,10 @@ class KWinDBusScreenshotCapture:
         # Later, replace this with a D-Bus screenshot call that yields pixel data.
         return self._black
 
+    def close(self) -> None:
+        # Placeholder for future D-Bus/session resource cleanup.
+        return None
+
     # ---- Outline for future real implementation ----
     def _try_capture_via_dbus(self) -> Optional[np.ndarray]:
         """

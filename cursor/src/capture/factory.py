@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .interfaces import CaptureBackendProtocol
 from .kmsgrab import KMSGrabCapture
 from .kwin_dbus import KWinDBusScreenshotCapture
 from .mock_capture import MockScreenCapture
@@ -19,7 +20,7 @@ def create_capture_backend(
     hdr_transfer: str,
     hdr_primaries: str,
     replay_frames_path: str | None = None,
-) -> object:
+) -> CaptureBackendProtocol:
     """
     Create the capture backend used by the runtime service.
 

@@ -11,6 +11,7 @@ from .kwin_dbus import KWinDBusScreenshotCapture
 from .mock_capture import MockScreenCapture
 from .replay_capture import ReplayScreenCapture
 from .factory import create_capture_backend
+from .interfaces import CaptureBackendProtocol, CaptureStatusMetadataProtocol
 
 __all__ = [
     "BackendUnavailableError",
@@ -24,4 +25,6 @@ __all__ = [
     "MockScreenCapture",
     "ReplayScreenCapture",
     "create_capture_backend",
+    "CaptureBackendProtocol",
+    "CaptureStatusMetadataProtocol",
 ]

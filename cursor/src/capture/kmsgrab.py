@@ -101,6 +101,10 @@ class KMSGrabCapture:
             self.last_capture_path = "kwin-dbus"
             return self._convert_if_needed(fallback_rgb)
 
+    def close(self) -> None:
+        # Forward close to fallback backend so future D-Bus resources are released.
+        self._fallback.close()
+
     def _capture_drm_rgb(self) -> np.ndarray:
         """
         DRM/KMS capture placeholder.

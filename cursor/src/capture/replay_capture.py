@@ -72,3 +72,7 @@ class ReplayScreenCapture:
         frame = self._frames[self._idx]
         self._idx = (self._idx + 1) % len(self._frames)
         return frame
+
+    def close(self) -> None:
+        # No external resources currently held.
+        return None

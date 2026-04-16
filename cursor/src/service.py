@@ -7,6 +7,7 @@ import time
 from typing import List, Optional, Sequence, Tuple
 
 from capture.factory import create_capture_backend
+from capture.interfaces import CaptureBackendProtocol
 from color.analyzer import zone_colors
 from color.zone_mapper import map_colors_to_device_zones
 from config import AppConfig, ConfigManager, ZoneConfig
@@ -110,7 +111,7 @@ class NanoleafSyncService:
         self,
         config: Optional[AppConfig] = None,
         *,
-        capture_backend_override=None,
+        capture_backend_override: Optional[CaptureBackendProtocol] = None,
         driver_override=None,
     ) -> None:
         self.config = config or AppConfig()
@@ -118,7 +119,7 @@ class NanoleafSyncService:
         self._thread: Optional[threading.Thread] = None
 
         self._driver = None
-        self._capture = None
+        self._capture: Optional[CaptureBackendProtocol] = None
 
         self._prev_smoothed_colors: List[RGBTuple] = []
 
