@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 
-from config import ConfigManager
+from config.store import ConfigManager
 from service import NanoleafSyncService
 
 from .qt_lazy import load_qt

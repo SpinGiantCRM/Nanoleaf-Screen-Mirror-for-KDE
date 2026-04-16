@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from config import AppConfig
+from config.model import AppConfig
 
 from .qt_lazy import load_qt
 from .zone_presets import make_horizontal_zones

@@ -7,7 +7,8 @@ from typing import Optional, Tuple
 
 from capture.interfaces import CaptureBackend
 from capture.factory import create_capture_backend
-from config import AppConfig, ConfigManager
+from config.model import AppConfig
+from config.store import ConfigManager
 from device.interfaces import DeviceDriver, NanoleafUSBIds
 from device.mock_driver import MockNanoleafUSBDriver
 from device.usb_driver import NanoleafUSBDriver

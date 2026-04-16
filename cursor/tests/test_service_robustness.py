@@ -7,7 +7,7 @@ from typing import List, Sequence, Tuple
 import numpy as np
 
 from capture.interfaces import CaptureBackend
-from config import AppConfig
+from config.model import AppConfig
 from service import NanoleafSyncService
 
 
