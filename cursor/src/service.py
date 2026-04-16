@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import signal
-import threading
 import time
 from typing import Optional, Tuple
 
@@ -10,12 +9,9 @@ from capture.factory import create_capture_backend
 from config import AppConfig, ConfigManager
 from device.interfaces import DeviceDriver
 from device.nanoleaf_usb import MockNanoleafUSBDriver, NanoleafUSBDriver, NanoleafUSBIds
-from runtime.engine import run_loop
 from runtime.startup import (
-    initialize_or_fail,
-    reset_startup,
-    shutdown_backends,
-    wait_for_startup,
+    RuntimeLifecycle,
+    run_runtime_engine,
 )
 from runtime.state import RuntimeState
 
@@ -48,7 +44,6 @@ class NanoleafSyncService:
         driver_override=None,
     ) -> None:
         self.config = config or AppConfig()
-        self._thread: Optional[threading.Thread] = None
 
         self._driver = None
         self._capture = None
@@ -56,6 +51,7 @@ class NanoleafSyncService:
         self._driver_override = driver_override
 
         self._runtime = RuntimeState()
+        self._lifecycle = RuntimeLifecycle(state=self._runtime, runner=self._run_runtime)
 
         self._capture_width, self._capture_height = _resolve_capture_dims(self.config)
 
@@ -68,30 +64,16 @@ class NanoleafSyncService:
         return self._runtime.frames_sent
 
     def start(self) -> bool:
-        if self.is_running():
-            return True
-
-        reset_startup(self._runtime)
-        self._thread = threading.Thread(
-            target=self.run, name="nanoleaf-sync", daemon=True
-        )
-        self._thread.start()
-
-        if not wait_for_startup(self._runtime, timeout_s=1.0):
-            self.join(timeout=0.2)
-            return False
-        return self.is_running()
+        return self._lifecycle.start(startup_timeout_s=1.0)
 
     def stop(self) -> None:
-        self._runtime.stop_event.set()
+        self._lifecycle.stop()
 
     def join(self, timeout: Optional[float] = None) -> None:
-        if self._thread is None:
-            return
-        self._thread.join(timeout=timeout)
+        self._lifecycle.join(timeout=timeout)
 
     def is_running(self) -> bool:
-        return self._thread is not None and self._thread.is_alive()
+        return self._lifecycle.is_running()
 
     def get_status(self) -> dict:
         capture_backend_name = (
@@ -103,33 +85,15 @@ class NanoleafSyncService:
             else None
         )
 
-        if capture_backend_name == "mock":
-            capture_mode = "mock"
-        elif capture_backend_name in ("kwin-dbus",):
-            capture_mode = "stub-fallback"
-        elif capture_backend_name == "kmsgrab" and capture_path == "kwin-dbus":
-            capture_mode = "stub-fallback"
-        elif capture_backend_name == "replay":
-            capture_mode = "replay"
-        elif capture_backend_name == "kmsgrab":
-            capture_mode = "real"
-        else:
-            capture_mode = "unknown"
-
-        return {
-            "running": self.is_running(),
-            "last_error": self._runtime.last_error,
-            "capture_backend": capture_backend_name,
-            "capture_path": capture_path,
-            "capture_mode": capture_mode,
-            "capture_width": self._capture_width,
-            "capture_height": self._capture_height,
-            "consecutive_errors": self._runtime.consecutive_errors,
-            "frames_sent": self._runtime.frames_sent,
-            "last_frame_timestamp": self._runtime.last_frame_timestamp,
-            "max_consecutive_errors": self.config.max_consecutive_errors,
-            "reinit_backoff_ms": self.config.reinit_backoff_ms,
-        }
+        return self._runtime.status_snapshot(
+            running=self.is_running(),
+            capture_backend_name=capture_backend_name,
+            capture_path=capture_path,
+            capture_width=self._capture_width,
+            capture_height=self._capture_height,
+            max_consecutive_errors=self.config.max_consecutive_errors,
+            reinit_backoff_ms=self.config.reinit_backoff_ms,
+        )
 
     def _make_device_driver(self) -> DeviceDriver:
         ids = NanoleafUSBIds(vid=self.config.device_vid, pid=self.config.device_pid)
@@ -183,27 +147,13 @@ class NanoleafSyncService:
 
         self._driver.initialize()
 
-    def run(self) -> None:
-        self._runtime.reset_for_start()
-
-        if not initialize_or_fail(
-            install_drivers=self._install_drivers,
-            close_backends=self._close_backends,
-            state=self._runtime,
-        ):
-            self._clear_backends()
-            return
-
-        run_loop(
+    def _run_runtime(self) -> None:
+        run_runtime_engine(
             config=self.config,
             state=self._runtime,
             get_capture=lambda: self._capture,
             get_driver=lambda: self._driver,
             install_drivers=self._install_drivers,
-            close_backends=self._close_backends,
-        )
-
-        shutdown_backends(
             close_backends=self._close_backends,
             clear_backends=self._clear_backends,
         )
