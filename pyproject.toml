@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nanoleaf-kde-sync"
+version = "0.0.0"
+description = "Nanoleaf ambient light synchronization for KDE/Linux"
+readme = "cursor/README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=1.21",
+  "PyQt6>=6.0",
+  "dbus-next>=0.2.0",
+  "hidapi>=0.14.0",
+]
+
+[project.scripts]
+nanoleaf-kde-sync = "nanoleaf_sync.ui.tray:main"
+nanoleaf-kde-sync-service = "nanoleaf_sync.service:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["nanoleaf_sync*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
