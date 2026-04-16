@@ -36,6 +36,7 @@ class KWinDBusScreenshotCapture:
     def __init__(
         self, width: int, height: int, monitor_id: Optional[str] = None
     ) -> None:
+        self.last_capture_path: str | None = None
         self.params = KWinDBusCaptureParams(
             width=width, height=height, monitor_id=monitor_id
         )

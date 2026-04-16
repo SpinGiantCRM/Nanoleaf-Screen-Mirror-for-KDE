@@ -6,6 +6,7 @@ from typing import List, Sequence, Tuple
 
 import numpy as np
 
+from capture.interfaces import CaptureBackend
 from config import AppConfig
 from service import NanoleafSyncService
 
@@ -13,8 +14,9 @@ from service import NanoleafSyncService
 RGB = Tuple[int, int, int]
 
 
-class FailingOnceCapture:
+class FailingOnceCapture(CaptureBackend):
     name = "failing-once"
+    last_capture_path: str | None = None
 
     def __init__(self, width: int, height: int) -> None:
         self._frame = np.zeros((height, width, 3), dtype=np.uint8)
