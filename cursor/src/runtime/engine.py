@@ -6,7 +6,7 @@ from typing import Sequence
 
 from runtime.zones import zone_colors
 from color.zone_mapper import resolve_device_zone_indices
-from config import AppConfig
+from config.model import AppConfig
 from runtime.processing import apply_brightness, ema_smooth, zones_from_config
 from runtime.startup import reinitialize_backends, should_reinitialize
 from runtime.state import RGBTuple, RuntimeState, ZoneRect

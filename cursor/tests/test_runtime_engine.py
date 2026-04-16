@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from config import AppConfig, ZoneConfig
+from config.model import AppConfig, ZoneConfig
 from runtime.engine import _ensure_runtime_artifacts, process_frame
 from runtime.state import RuntimeState
 

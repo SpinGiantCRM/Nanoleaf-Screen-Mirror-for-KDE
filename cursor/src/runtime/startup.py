@@ -5,7 +5,7 @@ import threading
 import time
 from typing import Callable, Optional
 
-from config import AppConfig
+from config.model import AppConfig
 from runtime.state import RuntimeState
 
 

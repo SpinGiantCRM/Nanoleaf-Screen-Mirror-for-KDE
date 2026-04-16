@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Sequence, Tuple
 
-from config import ZoneConfig
+from config.model import ZoneConfig
 
 
 RGBTuple = Tuple[int, int, int]

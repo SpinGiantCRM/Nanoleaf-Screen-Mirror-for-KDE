@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from config import AppConfig, ConfigManager, ZoneConfig
+from config.model import AppConfig, ZoneConfig
+from config.store import ConfigManager
 
 
 def test_config_save_validates_and_is_json_loadable(tmp_path: Path) -> None:

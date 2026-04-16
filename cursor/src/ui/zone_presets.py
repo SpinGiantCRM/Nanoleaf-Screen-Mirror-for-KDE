@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List
 
-from config import ZoneConfig
+from config.model import ZoneConfig
 
 
 def make_horizontal_zones(zone_count: int) -> List[ZoneConfig]:
