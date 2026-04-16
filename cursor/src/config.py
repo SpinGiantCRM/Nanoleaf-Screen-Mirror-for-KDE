@@ -13,6 +13,28 @@ def _default_config_path() -> Path:
     return Path.home() / ".config" / "nanoleaf-kde-sync" / "config.json"
 
 
+def _coerce_bool(value: Any, default: bool) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off", ""}:
+            return False
+        return default
+    return default
+
+
+def _normalize_enum(value: Any, *, allowed: Dict[str, str], default: str) -> str:
+    normalized = str(value).strip().lower()
+    return allowed.get(normalized, default)
+
+
 @dataclass
 class ZoneConfig:
     """
@@ -128,23 +150,24 @@ class ConfigManager:
             zones=zones,
             device_vid=int(data.get("device_vid", AppConfig.device_vid)),
             device_pid=int(data.get("device_pid", AppConfig.device_pid)),
-            use_mock_device=bool(
-                data.get("use_mock_device", AppConfig.use_mock_device)
+            use_mock_device=_coerce_bool(
+                data.get("use_mock_device"), AppConfig.use_mock_device
             ),
-            use_mock_capture=bool(
-                data.get("use_mock_capture", AppConfig.use_mock_capture)
+            use_mock_capture=_coerce_bool(
+                data.get("use_mock_capture"), AppConfig.use_mock_capture
             ),
-            allow_capture_fallback=bool(
-                data.get("allow_capture_fallback", AppConfig.allow_capture_fallback)
+            allow_capture_fallback=_coerce_bool(
+                data.get("allow_capture_fallback"), AppConfig.allow_capture_fallback
             ),
             device_zone_count=int(
                 data.get("device_zone_count", AppConfig.device_zone_count)
             ),
             zone_offset=int(data.get("zone_offset", AppConfig.zone_offset)),
-            reverse_zones=bool(data.get("reverse_zones", AppConfig.reverse_zones)),
+            reverse_zones=_coerce_bool(
+                data.get("reverse_zones"), AppConfig.reverse_zones
+            ),
             explicit_zone_map=[
-                int(x)
-                for x in data.get("explicit_zone_map", AppConfig.explicit_zone_map)
+                int(x) for x in data.get("explicit_zone_map", [])
             ],
             hdr_max_nits=float(data.get("hdr_max_nits", AppConfig.hdr_max_nits)),
             hdr_transfer=str(data.get("hdr_transfer", AppConfig.hdr_transfer)),
@@ -158,7 +181,7 @@ class ConfigManager:
             status_log_interval_s=float(
                 data.get("status_log_interval_s", AppConfig.status_log_interval_s)
             ),
-            verbose=bool(data.get("verbose", AppConfig.verbose)),
+            verbose=_coerce_bool(data.get("verbose"), AppConfig.verbose),
         )
 
         return self._validate_config(cfg)
@@ -239,9 +262,40 @@ class ConfigManager:
         reinit_backoff_ms = max(0, int(cfg.reinit_backoff_ms))
         status_log_interval_s = max(0.5, float(cfg.status_log_interval_s))
 
+        prefer_backend = _normalize_enum(
+            cfg.prefer_backend,
+            allowed={
+                "auto": "auto",
+                "kmsgrab": "kmsgrab",
+                "kwin-dbus": "kwin-dbus",
+                "kwin_dbus": "kwin-dbus",
+                "kwin-dbus-screenshot": "kwin-dbus-screenshot",
+                "replay": "replay",
+            },
+            default=AppConfig.prefer_backend,
+        )
+        hdr_transfer = _normalize_enum(
+            cfg.hdr_transfer,
+            allowed={
+                "srgb": "srgb",
+                "pq": "pq",
+                "hlg": "hlg",
+                "linear": "linear",
+            },
+            default=AppConfig.hdr_transfer,
+        )
+        hdr_primaries = _normalize_enum(
+            cfg.hdr_primaries,
+            allowed={
+                "bt709": "bt709",
+                "bt2020": "bt2020",
+            },
+            default=AppConfig.hdr_primaries,
+        )
+
         return AppConfig(
             fps=fps,
-            prefer_backend=cfg.prefer_backend,
+            prefer_backend=prefer_backend,
             replay_frames_path=str(cfg.replay_frames_path or ""),
             brightness=brightness,
             smoothing=smoothing,
@@ -256,8 +310,8 @@ class ConfigManager:
             reverse_zones=cfg.reverse_zones,
             explicit_zone_map=explicit_zone_map,
             hdr_max_nits=hdr_max_nits,
-            hdr_transfer=cfg.hdr_transfer,
-            hdr_primaries=cfg.hdr_primaries,
+            hdr_transfer=hdr_transfer,
+            hdr_primaries=hdr_primaries,
             max_consecutive_errors=max_consecutive_errors,
             reinit_backoff_ms=reinit_backoff_ms,
             status_log_interval_s=status_log_interval_s,

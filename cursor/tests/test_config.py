@@ -63,3 +63,67 @@ def test_config_load_recovers_from_corruption(tmp_path: Path) -> None:
     cfg = ConfigManager(path=cfg_path).load()
     # Should fall back to defaults rather than raising.
     assert isinstance(cfg, AppConfig)
+
+
+def test_config_load_normalizes_enum_like_fields(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.json"
+    cfg_path.write_text(
+        json.dumps(
+            {
+                "prefer_backend": "KWIN_DBUS",
+                "hdr_transfer": "PQ",
+                "hdr_primaries": "BT2020",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    cfg = ConfigManager(path=cfg_path).load()
+
+    assert cfg.prefer_backend == "kwin-dbus"
+    assert cfg.hdr_transfer == "pq"
+    assert cfg.hdr_primaries == "bt2020"
+
+
+def test_config_load_invalid_enum_values_fall_back_to_defaults(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.json"
+    cfg_path.write_text(
+        json.dumps(
+            {
+                "prefer_backend": "totally-unknown-backend",
+                "hdr_transfer": "gamma22",
+                "hdr_primaries": "p3",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    cfg = ConfigManager(path=cfg_path).load()
+
+    assert cfg.prefer_backend == AppConfig.prefer_backend
+    assert cfg.hdr_transfer == AppConfig.hdr_transfer
+    assert cfg.hdr_primaries == AppConfig.hdr_primaries
+
+
+def test_config_load_parses_bool_strings_without_truthiness_bug(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.json"
+    cfg_path.write_text(
+        json.dumps(
+            {
+                "use_mock_device": "false",
+                "use_mock_capture": "0",
+                "allow_capture_fallback": "no",
+                "reverse_zones": "off",
+                "verbose": "false",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    cfg = ConfigManager(path=cfg_path).load()
+
+    assert cfg.use_mock_device is False
+    assert cfg.use_mock_capture is False
+    assert cfg.allow_capture_fallback is False
+    assert cfg.reverse_zones is False
+    assert cfg.verbose is False
