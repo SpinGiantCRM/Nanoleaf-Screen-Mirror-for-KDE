@@ -35,3 +35,11 @@ def test_hdr_conversion_supports_pq_transfer() -> None:
         img, metadata={"transfer": "pq", "primaries": "bt2020", "max_nits": 1000.0}
     )
     assert np.array_equal(out, np.zeros_like(out))
+
+
+def test_hdr_conversion_fast_path_returns_input_for_srgb_uint8() -> None:
+    img = np.full((2, 3, 3), 77, dtype=np.uint8)
+    out = convert_frame_to_srgb8(
+        img, metadata={"transfer": "srgb", "primaries": "bt709", "max_nits": 1000.0}
+    )
+    assert out is img
