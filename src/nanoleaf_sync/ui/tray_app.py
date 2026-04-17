@@ -1,19 +1,34 @@
 from __future__ import annotations
 
+import subprocess
 import sys
+import threading
 
 from nanoleaf_sync.config.store import ConfigManager
 from nanoleaf_sync.service import NanoleafSyncService
 
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.settings_dialog import SettingsDialog
-from nanoleaf_sync.tools.doctor import format_report, run_doctor
 
 
 def describe_mode(use_mock_capture: bool, use_mock_device: bool, prefer_backend: str) -> tuple[str, str]:
     capture_mode = "Mock capture" if use_mock_capture else f"Capture: {prefer_backend}"
     device_mode = "Mock device" if use_mock_device else "Real USB device"
     return capture_mode, device_mode
+
+
+def summarize_command_output(stdout: str, stderr: str, returncode: int) -> tuple[str, int]:
+    combined = (stdout or "").strip()
+    err = (stderr or "").strip()
+    if err:
+        combined = f"{combined}\n{err}".strip() if combined else err
+
+    if not combined:
+        combined = "No command output captured."
+
+    lines = [line.strip() for line in combined.splitlines() if line.strip()]
+    preview = " | ".join(lines[:3])[:700]
+    return preview, returncode
 
 
 class NanoleafTrayApp:
@@ -30,6 +45,7 @@ class NanoleafTrayApp:
         self.QPainter = qt["QPainter"]
         self.QAction = qt["QAction"]
         self.QMenu = qt["QMenu"]
+        self.QTimer = qt["QTimer"]
         self.Qt = qt["Qt"]
 
         self.app = qt["QApplication"](sys.argv)
@@ -170,34 +186,62 @@ class NanoleafTrayApp:
         )
 
     def on_doctor(self):
-        checks = run_doctor(include_device_probe=False)
-        report = format_report(checks)
-        self.tray_icon.showMessage(
-            "nanoleaf-kde-sync doctor",
-            report[:800],
-            self.QSystemTrayIcon.MessageIcon.Information,
-            9000,
+        self._run_command_async(
+            label="doctor",
+            argv=[sys.executable, "-m", "nanoleaf_sync.tools.doctor"],
         )
 
     def on_smoke_test(self):
-        try:
-            from nanoleaf_sync.tools.smoke_test import main as smoke_main
+        self._run_command_async(
+            label="smoke test",
+            argv=[sys.executable, "-m", "nanoleaf_sync.tools.smoke_test"],
+        )
 
-            rc = smoke_main([])
-            if rc == 0:
-                title = "nanoleaf-kde-sync smoke test"
-                msg = "Smoke test completed. See terminal output for details."
-                icon = self.QSystemTrayIcon.MessageIcon.Information
-            else:
-                title = "nanoleaf-kde-sync smoke test"
-                msg = f"Smoke test exited with code {rc}."
-                icon = self.QSystemTrayIcon.MessageIcon.Warning
-        except Exception as exc:
-            title = "nanoleaf-kde-sync smoke test"
-            msg = f"Smoke test failed to run: {exc}"
-            icon = self.QSystemTrayIcon.MessageIcon.Warning
+    def _run_command_async(self, label: str, argv: list[str]) -> None:
+        self.action_doctor.setEnabled(False)
+        self.action_smoke.setEnabled(False)
+        self.tray_icon.showMessage(
+            "nanoleaf-kde-sync",
+            f"Running {label} in background…",
+            self.QSystemTrayIcon.MessageIcon.Information,
+            4000,
+        )
 
-        self.tray_icon.showMessage(title, msg, icon, 8000)
+        def worker() -> None:
+            try:
+                result = subprocess.run(
+                    argv,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                preview, rc = summarize_command_output(result.stdout, result.stderr, result.returncode)
+                self.QTimer.singleShot(0, lambda: self._handle_tool_result(label=label, preview=preview, rc=rc))
+            except Exception as exc:
+                self.QTimer.singleShot(0, lambda: self._handle_tool_error(label=label, error=exc))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _handle_tool_result(self, label: str, preview: str, rc: int) -> None:
+        self.action_doctor.setEnabled(True)
+        self.action_smoke.setEnabled(True)
+        is_ok = rc == 0
+        self.tray_icon.showMessage(
+            f"nanoleaf-kde-sync {label}",
+            f"{'Completed successfully' if is_ok else f'Finished with exit code {rc}'}.\n{preview}",
+            self.QSystemTrayIcon.MessageIcon.Information if is_ok else self.QSystemTrayIcon.MessageIcon.Warning,
+            10000,
+        )
+
+    def _handle_tool_error(self, label: str, error: Exception) -> None:
+        self.action_doctor.setEnabled(True)
+        self.action_smoke.setEnabled(True)
+        self.tray_icon.showMessage(
+            f"nanoleaf-kde-sync {label}",
+            f"Failed to launch: {error}",
+            self.QSystemTrayIcon.MessageIcon.Warning,
+            8000,
+        )
 
     def on_quit(self):
         try:

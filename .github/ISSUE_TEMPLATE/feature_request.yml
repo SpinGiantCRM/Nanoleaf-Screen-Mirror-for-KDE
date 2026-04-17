@@ -1,0 +1,28 @@
+name: Feature request
+about: Suggest an enhancement for nanoleaf-kde-sync
+labels: [enhancement]
+body:
+  - type: input
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What user problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe your ideal behavior or command/UI flow.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds or alternate designs you've considered.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope notes
+      description: Mention whether this is capture/protocol/UI/docs/packaging related.

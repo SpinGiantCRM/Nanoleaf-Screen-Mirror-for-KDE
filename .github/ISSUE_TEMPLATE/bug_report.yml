@@ -1,0 +1,68 @@
+name: Bug report
+about: Report a problem with nanoleaf-kde-sync
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting an issue. Please run doctor/smoke-test first and include results.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Which released version or commit are you running?
+      placeholder: v0.0.3
+    validations:
+      required: true
+  - type: dropdown
+    id: install_path
+    attributes:
+      label: Install path
+      options:
+        - Arch/CachyOS package
+        - pip install
+        - source checkout
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include distro, KDE Plasma version, and whether hardware is real/mock.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Doctor output
+      description: Paste output from `nanoleaf-kde-sync-doctor` (or `--device` when applicable).
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: smoke
+    attributes:
+      label: Smoke-test output
+      description: Paste output from `nanoleaf-kde-sync-smoke-test`.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Minimal step-by-step instructions to reproduce.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true

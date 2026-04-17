@@ -1,32 +1,32 @@
 # Install on Arch / CachyOS (KDE)
 
-## Option A: Build local package from this repository
+## Recommended path: package build/install
 
 ```bash
 cd packaging/arch
 makepkg -si
 ```
 
-This installs:
-- Python package + CLI commands (`nanoleaf-kde-sync`, `-service`, `-doctor`, `-smoke-test`, `-init-config`)
-- desktop file (`/usr/share/applications/nanoleaf-kde-sync.desktop`)
-- icon (`/usr/share/icons/hicolor/scalable/apps/nanoleaf-kde-sync.svg`)
-- udev rule (`/usr/lib/udev/rules.d/60-nanoleaf-kde-sync.rules`)
+Package install provides:
+- Python package + CLI commands
+- Desktop entry: `/usr/share/applications/nanoleaf-kde-sync.desktop`
+- Icon: `/usr/share/icons/hicolor/scalable/apps/nanoleaf-kde-sync.svg`
+- udev rule: `/usr/lib/udev/rules.d/60-nanoleaf-kde-sync.rules`
 
-## Option B: pip install (developer/manual path)
+## Alternate path: pip/source install
 
 ```bash
 pip install -r docs/requirements.txt
 pip install .
 ```
 
-If you use pip, you still need to install the udev rule manually:
+For pip/source installs, install udev rules manually:
 
 ```bash
 ./scripts/setup_udev.sh
 ```
 
-## First run (recommended order)
+## First run order
 
 ```bash
 nanoleaf-kde-sync-init-config --mode full-mock
@@ -35,15 +35,27 @@ nanoleaf-kde-sync-smoke-test
 nanoleaf-kde-sync
 ```
 
-Then switch to `capture-real` or `full-real` when capture/device checks pass.
-
-## Mode presets
-
-- `full-mock`: no KDE capture required, no USB required.
-- `capture-real`: real screen capture + mock device.
-- `full-real`: real screen capture + real USB device.
+Then switch modes only after checks pass:
 
 ```bash
 nanoleaf-kde-sync-init-config --mode capture-real --force
 nanoleaf-kde-sync-init-config --mode full-real --force
 ```
+
+## KDE autostart and capture authorization
+
+```bash
+mkdir -p ~/.config/autostart
+cp /usr/share/applications/nanoleaf-kde-sync.desktop ~/.config/autostart/
+```
+
+Verify the desktop file contains:
+
+`X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2`
+
+Re-login after changing desktop authorization entries.
+
+## If checks fail
+
+Use troubleshooting guide:
+- `docs/TROUBLESHOOTING.md`
