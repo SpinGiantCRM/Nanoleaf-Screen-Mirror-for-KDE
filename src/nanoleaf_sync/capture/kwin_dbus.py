@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -22,12 +23,24 @@ class KWinDBusCaptureError(RuntimeError):
     """Raised when KWin D-Bus screenshot capture is unavailable or fails."""
 
 
+@dataclass(frozen=True)
+class _ScreenShot2Payload:
+    data: bytes
+    results: dict[str, Any]
+
+
 class KWinDBusScreenshotCapture:
     """KWin D-Bus screenshot capture backend."""
 
     name = "kwin-dbus"
 
-    _API_CANDIDATES = (
+    _SCREENSHOT2_API = (
+        "org.kde.KWin",
+        "/org/kde/KWin/ScreenShot2",
+        "org.kde.KWin.ScreenShot2",
+    )
+
+    _LEGACY_API_CANDIDATES = (
         # KDE Plasma interface variants seen across versions/distributions.
         ("org.kde.KWin", "/Screenshot", "org.kde.kwin.Screenshot"),
         ("org.kde.KWin", "/org/kde/KWin/Screenshot", "org.kde.kwin.Screenshot"),
@@ -52,6 +65,8 @@ class KWinDBusScreenshotCapture:
 
         try:
             frame = self._try_capture_via_dbus()
+        except KWinDBusCaptureError:
+            raise
         except Exception as exc:
             raise KWinDBusCaptureError(
                 "KWin D-Bus screenshot failed. Ensure KDE Plasma session D-Bus is "
@@ -97,12 +112,73 @@ class KWinDBusScreenshotCapture:
         return self._resize_frame(frame=frame, width=target_w, height=target_h)
 
     async def _capture_reply_via_dbus(self):
+        # Fallback order is explicit: modern ScreenShot2 first, legacy KWin
+        # screenshot methods second.
+        last_exc: Exception | None = None
+        try:
+            return await self._capture_reply_via_screenshot2()
+        except Exception as exc:
+            last_exc = exc
+
+        try:
+            return await self._capture_reply_via_legacy_interfaces()
+        except Exception as exc:
+            if last_exc is None:
+                last_exc = exc
+
+        raise KWinDBusCaptureError(
+            "All known KWin screenshot D-Bus API variants failed."
+        ) from last_exc
+
+    async def _capture_reply_via_screenshot2(self):
+        from dbus_next import Message, MessageType
+        from dbus_next.aio import MessageBus
+
+        bus_name, path, interface_name = self._SCREENSHOT2_API
+        bus = await MessageBus(negotiate_unix_fd=True).connect()
+        await bus.introspect(bus_name, path)
+
+        last_exc: Exception | None = None
+        for method_name, signature, base_args in self._screenshot2_method_attempts():
+            read_fd, write_fd = os.pipe()
+            try:
+                msg = Message(
+                    destination=bus_name,
+                    path=path,
+                    interface=interface_name,
+                    member=method_name,
+                    signature=signature,
+                    # DBus type `h` carries an index into the unix_fds array.
+                    body=[*base_args, 0],
+                    unix_fds=[write_fd],
+                )
+                reply = await bus.call(msg)
+                if reply.message_type == MessageType.ERROR:
+                    self._raise_screenshot2_error(reply)
+
+                results = reply.body[0] if reply.body else {}
+                frame_data = self._read_all_bytes_from_fd(read_fd)
+                self.last_capture_path = f"kwin-dbus:{method_name}"
+                return _ScreenShot2Payload(data=frame_data, results=results)
+            except Exception as exc:
+                last_exc = exc
+            finally:
+                os.close(read_fd)
+                os.close(write_fd)
+
+        if last_exc is None:
+            raise KWinDBusCaptureError(
+                "KWin ScreenShot2 interface was available but no capture methods were callable."
+            )
+        raise last_exc
+
+    async def _capture_reply_via_legacy_interfaces(self):
         from dbus_next.aio import MessageBus
 
         bus = await MessageBus().connect()
         last_exc: Exception | None = None
 
-        for bus_name, path, interface_name in self._API_CANDIDATES:
+        for bus_name, path, interface_name in self._LEGACY_API_CANDIDATES:
             try:
                 introspection = await bus.introspect(bus_name, path)
                 proxy = bus.get_proxy_object(bus_name, path, introspection)
@@ -129,10 +205,58 @@ class KWinDBusScreenshotCapture:
             raise KWinDBusCaptureError(
                 "No known KWin screenshot D-Bus API was available on this session bus."
             )
+        raise last_exc
+
+    def _screenshot2_method_attempts(
+        self,
+    ) -> tuple[tuple[str, str, list[Any]], ...]:
+        options: dict[str, Any] = {}
+        attempts: list[tuple[str, str, list[Any]]] = []
+
+        if self.params.monitor_id:
+            attempts.append(
+                ("CaptureScreen", "sa{sv}h", [self.params.monitor_id, options])
+            )
+
+        # If monitor name is unknown, some KWin versions map an empty name to
+        # the primary output.
+        attempts.append(("CaptureScreen", "sa{sv}h", ["", options]))
+
+        # Conservative fallback: explicit area at configured dimensions.
+        attempts.append(
+            (
+                "CaptureArea",
+                "iiuua{sv}h",
+                [0, 0, int(self.params.width), int(self.params.height), options],
+            )
+        )
+        return tuple(attempts)
+
+    def _raise_screenshot2_error(self, reply: Any) -> None:
+        error_name = getattr(reply, "error_name", "org.freedesktop.DBus.Error.Failed")
+        details = ""
+        if getattr(reply, "body", None):
+            details = str(reply.body[0])
+
+        if "AccessDenied" in error_name or "NotAuthorized" in details:
+            raise KWinDBusCaptureError(
+                "KWin ScreenShot2 access denied. Add "
+                "X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2 "
+                "to the app desktop file and restart the KDE session."
+            )
 
         raise KWinDBusCaptureError(
-            "All known KWin screenshot D-Bus API variants failed."
-        ) from last_exc
+            f"KWin ScreenShot2 call failed: {error_name} {details}".strip()
+        )
+
+    def _read_all_bytes_from_fd(self, fd: int) -> bytes:
+        chunks: list[bytes] = []
+        while True:
+            chunk = os.read(fd, 64 * 1024)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        return b"".join(chunks)
 
     def _candidate_args_for_method(self, method_name: str) -> tuple[tuple[object, ...], ...]:
         if method_name == "captureScreen" and self.params.monitor_id:
@@ -147,6 +271,9 @@ class KWinDBusScreenshotCapture:
         return ((),)
 
     def _decode_reply_to_rgb(self, reply: object) -> Optional[np.ndarray]:
+        if isinstance(reply, _ScreenShot2Payload):
+            return self._decode_screenshot2_payload(reply)
+
         payload = reply
         if isinstance(payload, tuple):
             payload = payload[0] if payload else None
@@ -183,6 +310,44 @@ class KWinDBusScreenshotCapture:
         raise KWinDBusCaptureError(
             f"Unsupported KWin screenshot payload type: {type(payload)!r}"
         )
+
+    def _decode_screenshot2_payload(self, reply: _ScreenShot2Payload) -> np.ndarray:
+        results = self._normalize_variant_dict(reply.results)
+        image_type = results.get("type")
+        if image_type != "raw":
+            raise KWinDBusCaptureError(
+                f"Unsupported KWin ScreenShot2 result type: {image_type!r}"
+            )
+        try:
+            width = int(results["width"])
+            height = int(results["height"])
+            stride = int(results["stride"])
+            image_format = int(results["format"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise KWinDBusCaptureError(
+                "KWin ScreenShot2 reply missing required raw metadata "
+                "(type/width/height/stride/format)."
+            ) from exc
+
+        expected_bytes = stride * height
+        if len(reply.data) < expected_bytes:
+            raise KWinDBusCaptureError(
+                "KWin ScreenShot2 raw payload shorter than expected from stride/height."
+            )
+
+        return self._decode_qimage_raw_frame(
+            data=reply.data[:expected_bytes],
+            width=width,
+            height=height,
+            stride=stride,
+            image_format=image_format,
+        )
+
+    def _normalize_variant_dict(self, values: dict[str, Any]) -> dict[str, Any]:
+        normalized: dict[str, Any] = {}
+        for key, value in values.items():
+            normalized[key] = getattr(value, "value", value)
+        return normalized
 
     def _decode_ppm_path(self, path: Path) -> Optional[np.ndarray]:
         if path.suffix.lower() not in {".ppm", ".pnm"}:
@@ -272,6 +437,25 @@ class KWinDBusScreenshotCapture:
         arr = np.frombuffer(ptr, dtype=np.uint8).reshape((height, width, 3))
         # Copy out so frame remains valid after QImage destruction.
         return arr.copy()
+
+    def _decode_qimage_raw_frame(
+        self, *, data: bytes, width: int, height: int, stride: int, image_format: int
+    ) -> np.ndarray:
+        try:
+            from PyQt6.QtGui import QImage
+        except Exception as exc:
+            raise KWinDBusCaptureError(
+                "PyQt6 QImage is required to decode KWin ScreenShot2 raw frames."
+            ) from exc
+
+        fmt = QImage.Format(image_format)
+        raw_copy = bytearray(data)
+        image = QImage(raw_copy, width, height, stride, fmt)
+        if image.isNull():
+            raise KWinDBusCaptureError(
+                f"KWin ScreenShot2 returned unsupported QImage format id: {image_format}"
+            )
+        return self._qimage_to_rgb_array(image)
 
     def _resize_frame(self, *, frame: np.ndarray, width: int, height: int) -> np.ndarray:
         from PyQt6.QtCore import Qt

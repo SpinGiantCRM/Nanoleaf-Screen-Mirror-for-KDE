@@ -98,7 +98,9 @@ Fallback rules:
 
 
 ## Implementation Status (April 2026)
-- `kwin-dbus` capture path now performs real KWin session-bus screenshot calls and decodes returned image payloads/file paths into RGB `numpy.uint8` frames.
+- `kwin-dbus` capture path now prioritizes modern Plasma 6 `org.kde.KWin.ScreenShot2` (with Unix FD transport) and falls back to older `org.kde.kwin.Screenshot` interfaces for compatibility.
+- ScreenShot2 replies are decoded from the returned raw pipe payload plus metadata (`type`, `width`, `height`, `stride`, `format`) into RGB `numpy.uint8` frames.
+- Authorization errors for restricted ScreenShot2 access are surfaced with actionable guidance (`X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2`).
 - `kmsgrab` backend remains the preferred low-latency path when optional DRM bindings are installed; without bindings it falls back to KWin when allowed.
 - HDR conversion in `kmsgrab` now converts at native resolution before any resize step to avoid nonlinear transfer-function errors.
 - Nanoleaf device protocol bytes are intentionally still a placeholder in this repository pending proprietary protocol details; this is by design.
