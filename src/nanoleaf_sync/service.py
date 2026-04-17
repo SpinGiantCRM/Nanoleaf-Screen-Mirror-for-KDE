@@ -90,6 +90,9 @@ class NanoleafSyncService:
         self._lifecycle = RuntimeLifecycle(state=self._runtime, runner=self._run_runtime)
 
         self._capture_width, self._capture_height = _resolve_capture_dims(self.config)
+        self._device_discovered = False
+        self._device_model: str | None = None
+        self._device_zone_count: int | None = None
 
     @property
     def last_error(self) -> Optional[str]:
@@ -121,7 +124,7 @@ class NanoleafSyncService:
             else None
         )
 
-        return self._runtime.status_snapshot(
+        status = self._runtime.status_snapshot(
             running=self.is_running(),
             capture_backend_name=capture_backend_name,
             capture_path=capture_path,
@@ -130,6 +133,12 @@ class NanoleafSyncService:
             max_consecutive_errors=self.config.max_consecutive_errors,
             reinit_backoff_ms=self.config.reinit_backoff_ms,
         )
+        status["requested_capture_backend"] = self.config.prefer_backend
+        status["device_mode"] = "mock" if self.config.use_mock_device else "real-usb"
+        status["device_discovered"] = self._device_discovered
+        status["device_model"] = self._device_model
+        status["device_zone_count"] = self._device_zone_count
+        return status
 
     def _make_device_driver(self) -> DeviceDriver:
         ids = NanoleafUSBIds(vid=self.config.device_vid, pid=self.config.device_pid)
@@ -140,6 +149,7 @@ class NanoleafSyncService:
     def _clear_backends(self) -> None:
         self._capture = None
         self._driver = None
+        self._device_discovered = False
 
     def _close_backends(self) -> None:
         if self._capture is not None:
@@ -182,6 +192,9 @@ class NanoleafSyncService:
             self._driver = self._make_device_driver()
 
         self._driver.initialize()
+        self._device_discovered = True
+        self._device_model = getattr(self._driver, "model_number", None)
+        self._device_zone_count = getattr(self._driver, "zone_count", None)
 
     def _run_runtime(self) -> None:
         run_runtime_engine(

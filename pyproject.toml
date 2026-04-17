@@ -18,6 +18,8 @@ dependencies = [
 [project.scripts]
 nanoleaf-kde-sync = "nanoleaf_sync.ui.tray:main"
 nanoleaf-kde-sync-service = "nanoleaf_sync.service:main"
+nanoleaf-kde-sync-doctor = "nanoleaf_sync.tools.doctor:main"
+nanoleaf-kde-sync-smoke-test = "nanoleaf_sync.tools.smoke_test:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

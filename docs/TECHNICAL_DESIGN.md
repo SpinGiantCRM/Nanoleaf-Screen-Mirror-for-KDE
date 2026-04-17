@@ -108,3 +108,40 @@ Fallback rules:
 
 ## Public compatibility shims
 - `nanoleaf_sync.ui.tray` and `nanoleaf_sync.device.nanoleaf_usb` are retained as lightweight re-export modules for import-path stability.
+
+## Operational Readiness Additions (Release-candidate pass)
+
+### Diagnostics / Doctor
+- New CLI `nanoleaf-kde-sync-doctor` runs user-focused checks:
+  - Python/runtime module availability
+  - Session DBus presence
+  - KWin ScreenShot2 introspection availability
+  - Desktop restricted-interface marker presence
+  - HID enumeration validity for configured VID/PID
+  - Config mode consistency checks
+  - Optional real device initialize/model/zone probe (`--device`)
+- Output is grouped into FAIL/WARN/PASS sections with actionable remediation text.
+
+### Startup and runtime error surfacing
+- Runtime errors are normalized into user-facing categories (`unsupported-model`, `device-not-found`, `hid-permission`, `kwin-authorization`, etc.).
+- Service status now exposes:
+  - active capture backend and requested backend
+  - capture mode classification
+  - device mode (mock vs real-usb)
+  - whether device discovery completed
+  - discovered model and zone count (when available)
+  - last error kind + guidance
+- Tray `Status` action surfaces this snapshot for fast field diagnostics.
+
+### Linux setup assets
+- Added udev rules in `assets/udev/60-nanoleaf-kde-sync.rules` for supported Nanoleaf USB IDs.
+- Added helper installer script `scripts/setup_udev.sh`.
+- Added user docs for real hardware setup (`docs/HARDWARE_SETUP.md`).
+
+### Manual smoke test path
+- Added `nanoleaf-kde-sync-smoke-test` command:
+  - captures one frame from configured backend
+  - initializes configured device backend
+  - reports model + zone count where available
+  - optional safe one-frame low-brightness LED write (`--send-test-frame`)
+- Added `docs/SMOKE_TEST.md` checklist.

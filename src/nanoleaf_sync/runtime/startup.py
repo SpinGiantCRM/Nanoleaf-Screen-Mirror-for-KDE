@@ -6,6 +6,7 @@ import time
 from typing import Callable, Optional
 
 from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.runtime.errors import translate_runtime_error
 from nanoleaf_sync.runtime.state import RuntimeState
 
 
@@ -32,7 +33,10 @@ def initialize_or_fail(
     try:
         install_drivers()
     except Exception as e:
-        state.last_error = str(e)
+        translated = translate_runtime_error(e)
+        state.last_error = translated.summary
+        state.last_error_kind = translated.kind
+        state.last_error_guidance = translated.guidance
         state.mark_startup(False)
         logger.exception("service startup failed")
         close_backends()

@@ -96,3 +96,17 @@ def test_make_device_driver_uses_mock_driver_without_ids_argument() -> None:
     svc = NanoleafSyncService(config=_make_cfg())
     driver = svc._make_device_driver()
     assert isinstance(driver, MockNanoleafUSBDriver)
+
+
+def test_status_exposes_device_mode_and_error_guidance() -> None:
+    svc = NanoleafSyncService(
+        config=_make_cfg(),
+        capture_backend_override=FakeCapture(name="mock"),
+        driver_override=FailingInitDriver(),
+    )
+
+    svc.start()
+    status = svc.get_status()
+    assert status["device_mode"] == "mock"
+    assert status["last_error_kind"] is not None
+    assert status["last_error_guidance"] is not None

@@ -1,0 +1,71 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class UserFacingError:
+    kind: str
+    summary: str
+    guidance: str
+
+
+def translate_runtime_error(error: Exception) -> UserFacingError:
+    message = str(error or "Unknown runtime error")
+    normalized = message.lower()
+
+    if "unsupported nanoleaf model" in normalized:
+        return UserFacingError(
+            kind="unsupported-model",
+            summary=message,
+            guidance=(
+                "This app currently supports NL82K1/NL82K2 USB models only. "
+                "Switch to mock device mode or use a supported Nanoleaf USB device."
+            ),
+        )
+
+    if "device not found" in normalized:
+        return UserFacingError(
+            kind="device-not-found",
+            summary=message,
+            guidance=(
+                "Verify the USB device is connected, powered, and matches configured VID/PID. "
+                "Use `nanoleaf-kde-sync-doctor --device` to inspect HID detection."
+            ),
+        )
+
+    if "failed to open nanoleaf hid device" in normalized or "permission" in normalized:
+        return UserFacingError(
+            kind="hid-permission",
+            summary=message,
+            guidance=(
+                "Install the provided udev rule, reload udev, reconnect the device, "
+                "and confirm your user can access the HID node without sudo."
+            ),
+        )
+
+    if "screen" in normalized and ("access denied" in normalized or "notauthorized" in normalized):
+        return UserFacingError(
+            kind="kwin-authorization",
+            summary=message,
+            guidance=(
+                "KWin ScreenShot2 access requires a desktop file with "
+                "X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2 and a fresh session login."
+            ),
+        )
+
+    if "all known kwin screenshot" in normalized or "no known kwin screenshot" in normalized:
+        return UserFacingError(
+            kind="kwin-unavailable",
+            summary=message,
+            guidance=(
+                "KWin screenshot DBus interfaces were not reachable. Confirm you are running in KDE Plasma "
+                "with a valid session bus and choose mock capture if needed."
+            ),
+        )
+
+    return UserFacingError(
+        kind="runtime",
+        summary=message,
+        guidance="Run `nanoleaf-kde-sync-doctor` for targeted diagnostics and setup guidance.",
+    )

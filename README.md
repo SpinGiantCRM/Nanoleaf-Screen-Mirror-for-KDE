@@ -1,144 +1,149 @@
 # nanoleaf-kde-sync
 
-`nanoleaf-kde-sync` is a KDE/Linux ambient-light synchronization service for Nanoleaf devices.
-It captures screen content, maps dominant colors to configured LED zones, and sends updates through a device backend.
+`nanoleaf-kde-sync` mirrors KDE Plasma screen colors to supported Nanoleaf USB light devices on Linux.
 
-## Project purpose
+This repo is now in a **first usable app** state: mock mode remains default/safe, real capture + real hardware workflows are documented, and a built-in diagnostics flow is available.
 
-This project provides a Linux-first path for Nanoleaf screen mirroring with:
+## What currently works
 
-- A tray app for start/stop and settings management.
-- A background runtime engine for capture → color analysis → zone mapping → device output.
-- A mock-first development workflow so the app can run without real capture/device integrations.
+- KDE tray app to start/stop runtime service and edit settings.
+- Capture pipeline with KWin DBus ScreenShot2 + legacy fallback support.
+- Optional kmsgrab-style backend path.
+- Real Nanoleaf USB HID TLV protocol implementation.
+- Device model + strip length probe during startup.
+- Mock-first workflow for capture and/or device.
+- Runtime status visibility (capture backend/mode, device mode, last error).
+- CLI diagnostics (`nanoleaf-kde-sync-doctor`) and smoke test (`nanoleaf-kde-sync-smoke-test`).
 
-## Runtime requirements
+## Supported real hardware
 
-- Linux desktop environment with KDE support as the primary target.
-- Python **3.11+**.
-- Core Python dependencies:
-  - `numpy>=1.21`
-  - `PyQt6>=6.0`
-  - `dbus-next>=0.2.0`
-  - `hidapi>=0.14.0`
-- For real capture/device operation (non-mock), additional system-level capabilities may be required:
-  - KWin D-Bus/Wayland integration and/or DRM/KMS access.
-  - USB HID access permissions for the target Nanoleaf device.
+- Nanoleaf Pegboard Desk Dock (`VID=0x37FA`, `PID=0x8201`, model `NL82K1`)
+- Nanoleaf PC Screen Mirror Light Strip (`VID=0x37FA`, `PID=0x8202`, model `NL82K2`)
 
-## Install
+Unsupported model strings fail startup with an explicit message.
 
-1. Create and activate a Python 3.11+ virtual environment.
-2. Install Python dependencies:
-   - `pip install -r docs/requirements.txt`
-3. Install the package:
-   - Editable dev install: `pip install -e .`
-   - Standard install: `pip install .`
-4. (Optional) Install docs tooling dependencies when working on docs:
-   - `pip install -r docs/requirements.txt`
+## Requirements
 
-## Usage
+- Linux (KDE Plasma session strongly recommended)
+- Python 3.11+
+- Python packages: `numpy`, `PyQt6`, `dbus-next`, `hidapi`
 
-### Start tray UI
+Install:
 
-After installation:
+```bash
+pip install -r docs/requirements.txt
+pip install .
+```
 
-- `nanoleaf-kde-sync`
+## First-run modes (important)
 
-This launches the system tray application and lets you control the background sync service.
+Config file: `~/.config/nanoleaf-kde-sync/config.json`
 
-### Start service entry point directly
-
-- `nanoleaf-kde-sync-service`
-
-### Auto-start in KDE
-
-1. Copy desktop entry:
-   - `cp docs/nanoleaf-kde-sync.desktop ~/.config/autostart/`
-2. Log out and back in (or otherwise reload autostart entries).
-
-### Configuration location
-
-Persistent config is stored at:
-
-- `~/.config/nanoleaf-kde-sync/config.json`
-
-Useful mapping fields:
-
-- `zone_offset`
-- `reverse_zones`
-- `device_zone_count`
-- `explicit_zone_map`
-
-Useful HDR defaults:
-
-- `hdr_transfer` (`srgb` | `pq` | `hlg` | `linear`)
-- `hdr_primaries` (`bt709` | `bt2020`)
-- `hdr_max_nits`
-
-## Mock vs real backend behavior
-
-By default, development-safe mock mode is enabled:
-
-- `use_mock_capture=true`
-- `use_mock_device=true`
-
-In this mode:
-
-- The app runs without real screen-capture backends.
-- Device writes are handled by mock drivers instead of real Nanoleaf HID protocol output.
-
-To switch toward real integrations, set:
-
-- `use_mock_capture=false`
-- `use_mock_device=false`
-
-in `~/.config/nanoleaf-kde-sync/config.json`.
-
-
-### Practical run modes
-
-1. **Safe default (fully mock)**
+1. **Full mock (default + safest)**
    - `use_mock_capture=true`
    - `use_mock_device=true`
-
-2. **Real KDE capture + mock device (recommended hardware-free verification)**
+2. **Real capture + mock device**
    - `use_mock_capture=false`
-   - `prefer_backend="kwin-dbus"` (or `"kmsgrab"` with fallback enabled)
    - `use_mock_device=true`
-
-3. **Real capture + real Nanoleaf USB device**
+   - `prefer_backend="kwin-dbus"`
+3. **Real capture + real device**
    - `use_mock_capture=false`
    - `use_mock_device=false`
-   - Supports Nanoleaf PC Screen Mirror Light Strip (`VID=0x37FA`, `PID=0x8202`, model `NL82K2`) and Pegboard Desk Dock (`VID=0x37FA`, `PID=0x8201`, model `NL82K1`) using the official HID TLV protocol.
-   - Driver startup queries model number and strip length from the device before streaming frame colors.
-   - If a different model string is reported, startup fails explicitly with an unsupported-model error.
-   - Brightness control follows the device protocol range `[0..255]`; during streaming the host only auto-raises brightness when the current device brightness is `0`.
-   - `send_frame()` clamps extra zones to hardware length and pads missing zones with black (`0,0,0`) as a host-side policy (not a protocol requirement) so payload size always matches device zone count.
-   - The strip length command response is parsed as `status + 1-byte length` per protocol.
+   - `prefer_backend="kwin-dbus"`
+   - set `device_vid/device_pid`
 
-KWin capture assumptions:
-- Runs inside a KDE Plasma session with access to the session bus.
-- Prefers modern Plasma 6 ScreenShot2 first (`/org/kde/KWin/ScreenShot2`, `org.kde.KWin.ScreenShot2`) and then falls back to older `org.kde.kwin.Screenshot` variants for compatibility.
-- ScreenShot2 capture transport uses a Unix pipe FD (`h` in DBus signatures) and decodes returned `raw` metadata (`type`, `width`, `height`, `stride`, `format`) into an `np.ndarray` `(H, W, 3)` `uint8`.
-- Requires desktop entry authorization for restricted interfaces:
-  - `X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2`
-- Fails explicitly with actionable errors for authorization failure, unsupported metadata, and missing interfaces.
+## Run commands
+
+- Tray app: `nanoleaf-kde-sync`
+- Service only: `nanoleaf-kde-sync-service`
+- Diagnostics: `nanoleaf-kde-sync-doctor`
+- Deep device diagnostics: `nanoleaf-kde-sync-doctor --device`
+- Smoke test: `nanoleaf-kde-sync-smoke-test`
+- Smoke test + one test LED frame: `nanoleaf-kde-sync-smoke-test --send-test-frame`
+
+## KDE/autostart + ScreenShot2 authorization
+
+Copy desktop file:
+
+```bash
+mkdir -p ~/.config/autostart
+cp docs/nanoleaf-kde-sync.desktop ~/.config/autostart/
+```
+
+This desktop entry includes:
+
+`X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2`
+
+Re-login after changing this value.
+
+## Linux USB permission setup (udev)
+
+- Rule file: `assets/udev/60-nanoleaf-kde-sync.rules`
+- Helper script: `scripts/setup_udev.sh`
+- Full guide: `docs/HARDWARE_SETUP.md`
+
+Quick path:
+
+```bash
+./scripts/setup_udev.sh
+```
+
+## Manual smoke-test workflow
+
+See `docs/SMOKE_TEST.md` for the full checklist.
+
+Minimal path:
+
+```bash
+nanoleaf-kde-sync-doctor
+nanoleaf-kde-sync-smoke-test
+nanoleaf-kde-sync-doctor --device
+nanoleaf-kde-sync-smoke-test --send-test-frame
+```
+
+## Troubleshooting
+
+### No DBus capture / KWin unavailable
+
+- Confirm running inside KDE Plasma session.
+- Check `DBUS_SESSION_BUS_ADDRESS` exists.
+- Run `nanoleaf-kde-sync-doctor` and inspect `kwin-screenshot2` status.
+- Ensure desktop authorization key is present in `.desktop` file.
+
+### HID permission denied
+
+- Install udev rule and reload (`./scripts/setup_udev.sh`).
+- Reconnect device.
+- Confirm user group access (`plugdev` or active ACL via `uaccess`).
+
+### Device not found
+
+- Verify cable/device power.
+- Validate VID/PID in config.
+- Run `lsusb` and `nanoleaf-kde-sync-doctor --device`.
+
+### Unsupported model
+
+- Only `NL82K1`/`NL82K2` are accepted currently.
+- Use mock device mode for unsupported hardware.
+
+### Blank/no LED updates
+
+- Confirm service running from tray status.
+- Confirm `device_discovered=true` in tray status.
+- Run smoke test with `--send-test-frame` to separate mapping vs transport issues.
+- Ensure brightness is non-zero in hardware state.
 
 ## Known limitations
 
-- KWin D-Bus screenshot capture is implemented for both modern ScreenShot2 and legacy screenshot interfaces, but still depends on KDE Plasma session D-Bus behavior that can vary by distro/version.
-- DRM/KMS direct capture still requires optional external/native bindings (`nanoleaf_sync.capture._kmsgrab` or `kmsgrab` module).
-- Button press events (`0x85`) are not yet integrated into runtime actions in this first protocol pass.
-- Linux HID permissions still vary by distro (udev/group setup may be required for non-root USB access).
-- HID open failures are surfaced with explicit guidance to check udev/group permissions or conflicting processes.
-- Linux distribution packaging and permission setup (especially for HID and graphics capture) can vary and may require manual adjustment.
-- Hardware-specific timing/latency tuning is not universally optimized yet.
+- KWin behavior varies by Plasma version/session policy.
+- Runtime button event actions are not wired yet.
+- Packaging is still manual (`pip install .`) rather than distro-native packages.
+- Performance tuning is intentionally conservative in this release-candidate stage.
 
-## Support
+## Additional docs
 
-- Check `docs/TECHNICAL_DESIGN.md` for architecture details and implementation context.
-- Check `docs/CHANGELOG.md` for project change history.
-- For issues or feature requests, open a ticket in this repository with:
-  - Your distro + KDE version.
-  - Python version.
-  - Whether `use_mock_capture` / `use_mock_device` were enabled.
-  - Relevant logs and steps to reproduce.
+- `docs/HARDWARE_SETUP.md`
+- `docs/SMOKE_TEST.md`
+- `docs/TECHNICAL_DESIGN.md`
+- `docs/CHANGELOG.md`
