@@ -26,6 +26,12 @@ class FakeTransport:
         self.closed = True
 
 
+class FailingOpenTransport(FakeTransport):
+    def open(self) -> None:
+        self.opened = True
+        raise RuntimeError("permission denied")
+
+
 def _rsp(req_type: int, payload: bytes) -> bytes:
     return bytes((req_type + 0x80,)) + len(payload).to_bytes(2, "big") + payload
 
@@ -53,6 +59,32 @@ def test_initialize_rejects_unsupported_model() -> None:
 
     with pytest.raises(RuntimeError, match="Unsupported Nanoleaf model"):
         driver.initialize()
+    assert transport.closed is True
+
+
+def test_send_frame_auto_initializes_when_needed() -> None:
+    transport = FakeTransport([
+        _rsp(0x0C, b"\x00NL82K2"),
+        _rsp(0x03, b"\x00\x02"),
+        _rsp(0x06, b"\x00\x01"),
+        _rsp(0x08, b"\x00\x10"),
+        _rsp(0x02, b"\x00"),
+    ])
+    driver = NanoleafUSBDriver(ids=NanoleafUSBIds(0x37FA, 0x8202), transport=transport)
+
+    driver.send_frame([(1, 2, 3), (4, 5, 6)])
+
+    assert [req[0] for req in transport.requests] == [0x0C, 0x03, 0x06, 0x08, 0x02]
+
+
+def test_initialize_open_failure_is_raised_without_marking_initialized() -> None:
+    transport = FailingOpenTransport([])
+    driver = NanoleafUSBDriver(ids=NanoleafUSBIds(0x37FA, 0x8202), transport=transport)
+
+    with pytest.raises(RuntimeError, match="permission denied"):
+        driver.initialize()
+
+    assert driver.zone_count is None
 
 
 def test_send_frame_exact_zone_count() -> None:

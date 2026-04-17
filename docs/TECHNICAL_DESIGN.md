@@ -104,6 +104,7 @@ Fallback rules:
 - `kmsgrab` backend remains the preferred low-latency path when optional DRM bindings are installed; without bindings it falls back to KWin when allowed.
 - HDR conversion in `kmsgrab` now converts at native resolution before any resize step to avoid nonlinear transfer-function errors.
 - Nanoleaf USB HID integration now uses the official TLV request/response protocol for PC Screen Mirror LS (`NL82K2`, PID `0x8202`) and Pegboard Desk Dock (`NL82K1`, PID `0x8201`), including model/length discovery and RGB zone updates.
+- Protocol alignment details: brightness values are treated as `[0..255]`, get-length responses are parsed as `status + 1-byte strip-length`, and host-side frame policy clamps/pads zones to exact hardware length before `0x02` RGB writes.
 
 ## Public compatibility shims
 - `nanoleaf_sync.ui.tray` and `nanoleaf_sync.device.nanoleaf_usb` are retained as lightweight re-export modules for import-path stability.

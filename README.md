@@ -110,7 +110,10 @@ in `~/.config/nanoleaf-kde-sync/config.json`.
    - `use_mock_device=false`
    - Supports Nanoleaf PC Screen Mirror Light Strip (`VID=0x37FA`, `PID=0x8202`, model `NL82K2`) and Pegboard Desk Dock (`VID=0x37FA`, `PID=0x8201`, model `NL82K1`) using the official HID TLV protocol.
    - Driver startup queries model number and strip length from the device before streaming frame colors.
+   - If a different model string is reported, startup fails explicitly with an unsupported-model error.
+   - Brightness control follows the device protocol range `[0..255]`; during streaming the host only auto-raises brightness when the current device brightness is `0`.
    - `send_frame()` clamps extra zones to hardware length and pads missing zones with black (`0,0,0`) as a host-side policy (not a protocol requirement) so payload size always matches device zone count.
+   - The strip length command response is parsed as `status + 1-byte length` per protocol.
 
 KWin capture assumptions:
 - Runs inside a KDE Plasma session with access to the session bus.
@@ -126,6 +129,7 @@ KWin capture assumptions:
 - DRM/KMS direct capture still requires optional external/native bindings (`nanoleaf_sync.capture._kmsgrab` or `kmsgrab` module).
 - Button press events (`0x85`) are not yet integrated into runtime actions in this first protocol pass.
 - Linux HID permissions still vary by distro (udev/group setup may be required for non-root USB access).
+- HID open failures are surfaced with explicit guidance to check udev/group permissions or conflicting processes.
 - Linux distribution packaging and permission setup (especially for HID and graphics capture) can vary and may require manual adjustment.
 - Hardware-specific timing/latency tuning is not universally optimized yet.
 
