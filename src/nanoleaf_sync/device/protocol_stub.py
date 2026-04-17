@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import List, Sequence
 
+import numpy as np
+
 from nanoleaf_sync.device.interfaces import RGBTuple
 
 
@@ -12,19 +14,17 @@ class NanoleafPCScreenMirrorProtocolStub:
         self.report_size = int(report_size)
 
     def build_hid_report(self, colors: Sequence[RGBTuple]) -> List[int]:
-        report = [0x00] * self.report_size
+        report = bytearray(self.report_size)
 
         header_offset = 1
         if self.report_size >= 4:
-            report[header_offset : header_offset + 3] = [0xAA, 0x55, 0x00]
+            report[header_offset : header_offset + 3] = b"\xAA\x55\x00"
 
         offset = header_offset + 3
-        for r, g, b in colors:
-            if offset + 3 > self.report_size:
-                break
-            report[offset] = int(max(0, min(255, r)))
-            report[offset + 1] = int(max(0, min(255, g)))
-            report[offset + 2] = int(max(0, min(255, b)))
-            offset += 3
+        capacity = max(0, self.report_size - offset)
+        if capacity and colors:
+            payload = np.asarray(colors, dtype=np.uint8).reshape(-1)
+            usable = min(capacity, payload.size)
+            report[offset : offset + usable] = payload[:usable].tobytes()
 
-        return report
+        return list(report)

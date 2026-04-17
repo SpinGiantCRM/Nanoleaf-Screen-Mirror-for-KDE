@@ -19,6 +19,33 @@ import numpy as np
 TransferFn = Literal["srgb", "pq", "hlg", "linear", "unknown"]
 Primaries = Literal["bt709", "bt2020", "unknown"]
 
+_XYZ_TO_SRGB = np.array(
+    [
+        [3.2404542, -1.5371385, -0.4985314],
+        [-0.9692660, 1.8760108, 0.0415560],
+        [0.0556434, -0.2040259, 1.0572252],
+    ],
+    dtype=np.float32,
+)
+_BT709_TO_XYZ = np.array(
+    [
+        [0.4123908, 0.3575843, 0.1804808],
+        [0.2126390, 0.7151687, 0.0721923],
+        [0.0193308, 0.1191948, 0.9505322],
+    ],
+    dtype=np.float32,
+)
+_BT2020_TO_XYZ = np.array(
+    [
+        [0.6369580, 0.1446169, 0.1688809],
+        [0.2627002, 0.6779981, 0.0593017],
+        [0.0000000, 0.0280727, 1.0609851],
+    ],
+    dtype=np.float32,
+)
+_LINEAR_BT709_TO_SRGB = _XYZ_TO_SRGB @ _BT709_TO_XYZ
+_LINEAR_BT2020_TO_SRGB = _XYZ_TO_SRGB @ _BT2020_TO_XYZ
+
 
 @dataclass(frozen=True)
 class HDRMetadata:
@@ -115,45 +142,13 @@ def _apply_tonemap_reinhard(linear: np.ndarray, max_nits: float) -> np.ndarray:
 
 
 def _linear_bt709_to_linear_srgb(linear_rgb: np.ndarray) -> np.ndarray:
-    # BT.709 primaries -> XYZ -> sRGB (D65)
-    m = np.array(
-        [
-            [0.4123908, 0.3575843, 0.1804808],
-            [0.2126390, 0.7151687, 0.0721923],
-            [0.0193308, 0.1191948, 0.9505322],
-        ],
-        dtype=np.float32,
-    )
-    xyz_to_srgb = np.array(
-        [
-            [3.2404542, -1.5371385, -0.4985314],
-            [-0.9692660, 1.8760108, 0.0415560],
-            [0.0556434, -0.2040259, 1.0572252],
-        ],
-        dtype=np.float32,
-    )
-    return xyz_to_srgb @ (m @ linear_rgb.reshape(-1, 3).T)
+    # BT.709 primaries -> linear sRGB (D65)
+    return _LINEAR_BT709_TO_SRGB @ linear_rgb.reshape(-1, 3).T
 
 
 def _linear_bt2020_to_linear_srgb(linear_rgb: np.ndarray) -> np.ndarray:
-    # BT.2020 primaries -> XYZ -> sRGB (D65)
-    m = np.array(
-        [
-            [0.6369580, 0.1446169, 0.1688809],
-            [0.2627002, 0.6779981, 0.0593017],
-            [0.0000000, 0.0280727, 1.0609851],
-        ],
-        dtype=np.float32,
-    )
-    xyz_to_srgb = np.array(
-        [
-            [3.2404542, -1.5371385, -0.4985314],
-            [-0.9692660, 1.8760108, 0.0415560],
-            [0.0556434, -0.2040259, 1.0572252],
-        ],
-        dtype=np.float32,
-    )
-    return xyz_to_srgb @ (m @ linear_rgb.reshape(-1, 3).T)
+    # BT.2020 primaries -> linear sRGB (D65)
+    return _LINEAR_BT2020_TO_SRGB @ linear_rgb.reshape(-1, 3).T
 
 
 def _linear_to_srgb_encoded(linear: np.ndarray) -> np.ndarray:

@@ -4,6 +4,8 @@ import logging
 import time
 from typing import Sequence
 
+import numpy as np
+
 from nanoleaf_sync.runtime.zones import zone_colors
 from nanoleaf_sync.color.zone_mapper import resolve_device_zone_indices
 from nanoleaf_sync.config.model import AppConfig
@@ -89,7 +91,12 @@ def process_frame(
         )
 
     raw_colors = zone_colors(frame, zones_px)
-    mapped_colors = [raw_colors[idx] for idx in device_zone_indices] if raw_colors else []
+    if raw_colors:
+        raw_arr = np.asarray(raw_colors, dtype=np.uint8)
+        mapped_arr = raw_arr[np.asarray(device_zone_indices, dtype=np.intp)]
+        mapped_colors = [tuple(row) for row in mapped_arr.tolist()]
+    else:
+        mapped_colors = []
 
     bright_colors = apply_brightness(mapped_colors, brightness)
     return ema_smooth(prev_smoothed_colors, bright_colors, alpha=smoothing)

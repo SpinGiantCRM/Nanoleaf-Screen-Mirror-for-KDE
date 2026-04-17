@@ -35,7 +35,7 @@ class HIDTransport:
     def write(self, report: Sequence[int]) -> None:
         if self._handle is None:
             raise RuntimeError("HID transport not opened.")
-        self._handle.write(list(report))
+        self._handle.write(bytes(report))
 
     def close(self) -> None:
         if self._handle is None:
