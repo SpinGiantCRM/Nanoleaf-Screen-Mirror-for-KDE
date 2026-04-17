@@ -35,7 +35,7 @@ class NanoleafUSBDriver(DeviceDriver):
         self.report_size = int(report_size)
         self._transport = transport or HIDTransport(ids=ids, report_size=report_size)
         self._protocol = protocol or NanoleafTLVProtocol()
-        self._min_nonzero_brightness = max(1, min(100, int(min_nonzero_brightness)))
+        self._min_nonzero_brightness = max(1, min(255, int(min_nonzero_brightness)))
 
         self.model_number: str | None = None
         self.zone_count: int | None = None
@@ -65,7 +65,7 @@ class NanoleafUSBDriver(DeviceDriver):
 
     def get_length(self) -> int:
         payload = self._request(CMD_GET_LENGTH)
-        length = self._protocol.parse_u16_be(payload, field_name="length")
+        length = self._protocol.parse_u8(payload, field_name="length")
         self.zone_count = length
         return length
 
@@ -86,7 +86,7 @@ class NanoleafUSBDriver(DeviceDriver):
         return value
 
     def set_brightness(self, value: int) -> None:
-        clamped = max(0, min(100, int(value)))
+        clamped = max(0, min(255, int(value)))
         self._request(CMD_SET_BRIGHTNESS, bytes((clamped,)))
         self._cached_brightness = clamped
 
@@ -109,7 +109,7 @@ class NanoleafUSBDriver(DeviceDriver):
             for r, g, b in colors
         ]
 
-        # Policy: if fewer colors than zones, pad with black/off zones.
+        # Host policy (not protocol requirement): if fewer colors than zones, pad with black/off zones.
         if len(normalized) < self.zone_count:
             normalized.extend([(0, 0, 0)] * (self.zone_count - len(normalized)))
         elif len(normalized) > self.zone_count:

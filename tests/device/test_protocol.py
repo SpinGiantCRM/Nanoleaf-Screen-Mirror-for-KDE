@@ -26,8 +26,8 @@ def test_build_request_encodes_tlv() -> None:
 
 
 def test_parse_response_returns_payload_without_status() -> None:
-    parsed = NanoleafTLVProtocol.parse_response(CMD_GET_LENGTH, _response(CMD_GET_LENGTH, b"\x00\x00\x0A"))
-    assert parsed == b"\x00\x0A"
+    parsed = NanoleafTLVProtocol.parse_response(CMD_GET_LENGTH, _response(CMD_GET_LENGTH, b"\x00\x0A"))
+    assert parsed == b"\x0A"
 
 
 def test_parse_length_short_read_header() -> None:
@@ -62,14 +62,14 @@ def test_command_specific_parsers() -> None:
     )
     assert NanoleafTLVProtocol.parse_model_number(model_payload) == "NL82K2"
 
-    length_payload = NanoleafTLVProtocol.parse_response(CMD_GET_LENGTH, _response(CMD_GET_LENGTH, b"\x00\x00\x1E"))
-    assert NanoleafTLVProtocol.parse_u16_be(length_payload, field_name="length") == 30
+    length_payload = NanoleafTLVProtocol.parse_response(CMD_GET_LENGTH, _response(CMD_GET_LENGTH, b"\x00\x1E"))
+    assert NanoleafTLVProtocol.parse_u8(length_payload, field_name="length") == 30
 
     on_off_payload = NanoleafTLVProtocol.parse_response(CMD_GET_ON_OFF, _response(CMD_GET_ON_OFF, b"\x00\x01"))
     assert NanoleafTLVProtocol.parse_u8(on_off_payload, field_name="on/off state") == 1
 
     brightness_payload = NanoleafTLVProtocol.parse_response(
         CMD_GET_BRIGHTNESS,
-        _response(CMD_GET_BRIGHTNESS, b"\x00\x64"),
+        _response(CMD_GET_BRIGHTNESS, b"\x00\xFF"),
     )
-    assert NanoleafTLVProtocol.parse_u8(brightness_payload, field_name="brightness") == 100
+    assert NanoleafTLVProtocol.parse_u8(brightness_payload, field_name="brightness") == 255
