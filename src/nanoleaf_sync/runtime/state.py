@@ -28,6 +28,8 @@ class RuntimeState:
 
     consecutive_errors: int = 0
     last_error: Optional[str] = None
+    last_error_kind: Optional[str] = None
+    last_error_guidance: Optional[str] = None
     frames_sent: int = 0
     last_frame_timestamp: Optional[float] = None
     last_reinit_ts: float = 0.0
@@ -41,6 +43,8 @@ class RuntimeState:
         self.device_zone_mapping_signature = None
         self.consecutive_errors = 0
         self.last_error = None
+        self.last_error_kind = None
+        self.last_error_guidance = None
         self.frames_sent = 0
         self.last_frame_timestamp = None
 
@@ -51,12 +55,19 @@ class RuntimeState:
     def record_success(self) -> None:
         self.consecutive_errors = 0
         self.last_error = None
+        self.last_error_kind = None
+        self.last_error_guidance = None
         self.frames_sent += 1
         self.last_frame_timestamp = time.time()
 
     def record_error(self, error: Exception) -> int:
+        from nanoleaf_sync.runtime.errors import translate_runtime_error
+
+        translated = translate_runtime_error(error)
         self.consecutive_errors += 1
-        self.last_error = str(error)
+        self.last_error = translated.summary
+        self.last_error_kind = translated.kind
+        self.last_error_guidance = translated.guidance
         return self.consecutive_errors
 
     def status_snapshot(
@@ -74,6 +85,8 @@ class RuntimeState:
             "running": running,
             "last_error": self.last_error,
             "capture_backend": capture_backend_name,
+            "last_error_kind": self.last_error_kind,
+            "last_error_guidance": self.last_error_guidance,
             "capture_path": capture_path,
             "capture_mode": classify_capture_mode(
                 capture_backend_name=capture_backend_name,

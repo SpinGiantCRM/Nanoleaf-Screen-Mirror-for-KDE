@@ -1,0 +1,4 @@
+# Nanoleaf USB Screen Mirror Light Strip and Pegboard Desk Dock
+# Gives local users access via the `plugdev` group.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="37fa", ATTRS{idProduct}=="8201", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="37fa", ATTRS{idProduct}=="8202", MODE="0660", GROUP="plugdev", TAG+="uaccess"
