@@ -96,3 +96,5 @@ sudo usermod -aG plugdev "$USER"
 ```
 
 Log out/in after group changes.
+
+If checks fail, continue in `docs/TROUBLESHOOTING.md`.

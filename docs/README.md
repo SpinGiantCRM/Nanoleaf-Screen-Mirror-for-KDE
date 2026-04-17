@@ -1,9 +1,10 @@
 # Documentation index
 
-- `HARDWARE_SETUP.md` - real Linux/KDE + udev setup.
-- `INSTALL_ARCH.md` - Arch/CachyOS package + first-run install flow.
-- `SMOKE_TEST.md` - first-run/manual verification workflow.
-- `RELEASE_CHECKLIST.md` - release-candidate ship checklist.
-- `TECHNICAL_DESIGN.md` - architecture and runtime behavior.
-- `CHANGELOG.md` - release history.
-- `nanoleaf-kde-sync.desktop` - desktop/autostart template.
+- `INSTALL_ARCH.md` - Arch/CachyOS install and first-run order.
+- `HARDWARE_SETUP.md` - real-device and udev setup.
+- `TROUBLESHOOTING.md` - support checklist and common failure patterns.
+- `SMOKE_TEST.md` - smoke-test workflow and expected outcomes.
+- `RELEASE_CHECKLIST.md` - release gating checklist.
+- `CHANGELOG.md` - release history and unreleased notes.
+- `TECHNICAL_DESIGN.md` - architecture notes.
+- `nanoleaf-kde-sync.desktop` - desktop/autostart entry template.

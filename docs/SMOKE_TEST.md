@@ -61,3 +61,5 @@ In tray:
 - Smoke test capture fails but device probe passes: capture backend/session issue.
 - Device probe fails but capture passes: USB permissions/cable/device issue.
 - Tray start fails: use tray status guidance + rerun doctor.
+
+For a full support checklist, see `docs/TROUBLESHOOTING.md`.

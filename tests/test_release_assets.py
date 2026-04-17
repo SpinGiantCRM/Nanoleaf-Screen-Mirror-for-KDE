@@ -28,3 +28,24 @@ def test_packaged_icon_and_udev_rule_exist() -> None:
         / "nanoleaf-kde-sync.svg"
     ).exists()
     assert (REPO_ROOT / "assets" / "udev" / "60-nanoleaf-kde-sync.rules").exists()
+
+
+def test_ci_workflows_exist() -> None:
+    assert (REPO_ROOT / ".github" / "workflows" / "ci.yml").exists()
+    assert (REPO_ROOT / ".github" / "workflows" / "build.yml").exists()
+    assert (REPO_ROOT / ".github" / "workflows" / "release.yml").exists()
+
+
+def test_pkbuild_installs_rc_support_docs() -> None:
+    pkgbuild = (REPO_ROOT / "packaging" / "arch" / "PKGBUILD").read_text(encoding="utf-8")
+    assert 'docs/INSTALL_ARCH.md "$pkgdir/usr/share/doc/$pkgname/INSTALL_ARCH.md"' in pkgbuild
+    assert 'docs/TROUBLESHOOTING.md "$pkgdir/usr/share/doc/$pkgname/TROUBLESHOOTING.md"' in pkgbuild
+
+
+def test_install_and_hardware_docs_reference_consistent_udev_paths() -> None:
+    install_doc = (REPO_ROOT / "docs" / "INSTALL_ARCH.md").read_text(encoding="utf-8")
+    hardware_doc = (REPO_ROOT / "docs" / "HARDWARE_SETUP.md").read_text(encoding="utf-8")
+
+    assert "/usr/lib/udev/rules.d/60-nanoleaf-kde-sync.rules" in install_doc
+    assert "/usr/lib/udev/rules.d/" in hardware_doc
+    assert "assets/udev/60-nanoleaf-kde-sync.rules" in hardware_doc
