@@ -39,6 +39,7 @@ class NanoleafUSBDriver(DeviceDriver):
 
         self.model_number: str | None = None
         self.zone_count: int | None = None
+        self._initialized = False
         self._cached_on_state: bool | None = None
         self._cached_brightness: int | None = None
 
@@ -48,14 +49,21 @@ class NanoleafUSBDriver(DeviceDriver):
         return self._protocol.parse_response(cmd, raw_response)
 
     def initialize(self) -> None:
+        if self._initialized:
+            return
         self._transport.open()
-        self.model_number = self.get_model_number()
-        if self.model_number not in SUPPORTED_MODEL_NUMBERS:
-            raise RuntimeError(
-                f"Unsupported Nanoleaf model '{self.model_number}'. "
-                f"Expected one of: {', '.join(sorted(SUPPORTED_MODEL_NUMBERS))}"
-            )
-        self.zone_count = self.get_length()
+        try:
+            self.model_number = self.get_model_number()
+            if self.model_number not in SUPPORTED_MODEL_NUMBERS:
+                raise RuntimeError(
+                    f"Unsupported Nanoleaf model '{self.model_number}'. "
+                    f"Expected one of: {', '.join(sorted(SUPPORTED_MODEL_NUMBERS))}"
+                )
+            self.zone_count = self.get_length()
+            self._initialized = True
+        except Exception:
+            self.close()
+            raise
 
     def get_model_number(self) -> str:
         payload = self._request(CMD_GET_MODEL_NUMBER)
@@ -91,8 +99,12 @@ class NanoleafUSBDriver(DeviceDriver):
         self._cached_brightness = clamped
 
     def set_zone_colors(self, colors: Sequence[RGBTuple]) -> None:
+        if not self._initialized:
+            self.initialize()
         if self.zone_count is None:
-            raise RuntimeError("Driver not initialized: zone count unknown.")
+            raise RuntimeError(
+                "Driver not initialized correctly: device strip length was not discovered."
+            )
 
         if self._cached_on_state is None:
             self.get_on_off_state()
@@ -123,3 +135,4 @@ class NanoleafUSBDriver(DeviceDriver):
 
     def close(self) -> None:
         self._transport.close()
+        self._initialized = False

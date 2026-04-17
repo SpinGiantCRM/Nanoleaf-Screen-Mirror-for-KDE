@@ -40,7 +40,14 @@ class HIDTransport:
             )
 
         self._handle = hid.device()
-        self._handle.open(self.ids.vid, self.ids.pid)
+        try:
+            self._handle.open(self.ids.vid, self.ids.pid)
+        except Exception as exc:
+            self._handle = None
+            raise RuntimeError(
+                "Failed to open Nanoleaf HID device. Check Linux HID permissions "
+                "(udev/group access) and that no other process has claimed the device."
+            ) from exc
 
     def _build_report(self, payload: bytes) -> bytes:
         if self.use_report_id_prefix:

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import sys
+import types
+
 import pytest
 
 from nanoleaf_sync.device.hid_transport import HIDTransport
@@ -22,6 +25,14 @@ class FakeHIDHandle:
 
     def close(self) -> None:
         return None
+
+
+class _FailingOpenHandle(FakeHIDHandle):
+    def __init__(self) -> None:
+        super().__init__(reads=[])
+
+    def open(self, _vid: int, _pid: int) -> None:
+        raise OSError("access denied")
 
 
 def test_transceive_round_trip_with_report_id_prefix() -> None:
@@ -58,3 +69,15 @@ def test_transceive_times_out_on_empty_read() -> None:
 
     with pytest.raises(RuntimeError, match="Timed out"):
         transport.transceive(b"\x03\x00\x00")
+
+
+def test_open_wraps_hid_permission_error_with_actionable_message(monkeypatch) -> None:
+    fake_hid = types.SimpleNamespace(
+        enumerate=lambda _vid, _pid: [object()],
+        device=lambda: _FailingOpenHandle(),
+    )
+    monkeypatch.setitem(sys.modules, "hid", fake_hid)
+
+    transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
+    with pytest.raises(RuntimeError, match="Linux HID permissions"):
+        transport.open()

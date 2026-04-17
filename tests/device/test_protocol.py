@@ -73,3 +73,12 @@ def test_command_specific_parsers() -> None:
         _response(CMD_GET_BRIGHTNESS, b"\x00\xFF"),
     )
     assert NanoleafTLVProtocol.parse_u8(brightness_payload, field_name="brightness") == 255
+
+
+def test_get_length_payload_must_be_single_byte_after_status() -> None:
+    length_payload = NanoleafTLVProtocol.parse_response(
+        CMD_GET_LENGTH,
+        _response(CMD_GET_LENGTH, b"\x00\x00\x1E"),
+    )
+    with pytest.raises(ProtocolMalformedResponseError, match="Expected 1-byte length"):
+        NanoleafTLVProtocol.parse_u8(length_payload, field_name="length")
