@@ -6,3 +6,4 @@ Exec=nanoleaf-kde-sync
 Terminal=false
 Categories=System;Utility;
 X-KDE-StartupNotify=false
+X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2

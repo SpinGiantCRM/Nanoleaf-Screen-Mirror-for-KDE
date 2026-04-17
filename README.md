@@ -112,12 +112,15 @@ in `~/.config/nanoleaf-kde-sync/config.json`.
 
 KWin capture assumptions:
 - Runs inside a KDE Plasma session with access to the session bus.
-- Requires one of the known KWin screenshot interfaces/method variants to be available.
-- Fails explicitly with an actionable error if no supported screenshot API variant is accessible.
+- Prefers modern Plasma 6 ScreenShot2 first (`/org/kde/KWin/ScreenShot2`, `org.kde.KWin.ScreenShot2`) and then falls back to older `org.kde.kwin.Screenshot` variants for compatibility.
+- ScreenShot2 capture transport uses a Unix pipe FD (`h` in DBus signatures) and decodes returned `raw` metadata (`type`, `width`, `height`, `stride`, `format`) into an `np.ndarray` `(H, W, 3)` `uint8`.
+- Requires desktop entry authorization for restricted interfaces:
+  - `X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2`
+- Fails explicitly with actionable errors for authorization failure, unsupported metadata, and missing interfaces.
 
 ## Known limitations
 
-- KWin D-Bus screenshot capture is implemented, but depends on KDE Plasma session D-Bus interfaces that vary by distro/version.
+- KWin D-Bus screenshot capture is implemented for both modern ScreenShot2 and legacy screenshot interfaces, but still depends on KDE Plasma session D-Bus behavior that can vary by distro/version.
 - DRM/KMS direct capture still requires optional external/native bindings (`nanoleaf_sync.capture._kmsgrab` or `kmsgrab` module).
 - Nanoleaf USB protocol payloads are still placeholders; mock mode remains the recommended default until proprietary protocol details are available.
 - Linux distribution packaging and permission setup (especially for HID and graphics capture) can vary and may require manual adjustment.
