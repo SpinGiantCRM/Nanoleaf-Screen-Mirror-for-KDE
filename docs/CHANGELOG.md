@@ -1,5 +1,5 @@
 ## 0.0.0 (scaffold)
-- Added repository scaffold: `src/` modules, `tests/`, `setup.py`, `requirements.txt`, `README.md`.
+- Added repository scaffold: `src/` modules, `tests/`, packaging metadata, `README.md`.
 - Added `TECHNICAL_DESIGN.md` and initial architecture notes.
 
 ## 0.0.1 (pipeline framework)
