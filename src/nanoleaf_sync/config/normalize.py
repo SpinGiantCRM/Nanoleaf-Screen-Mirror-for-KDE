@@ -37,6 +37,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
 
     fps = int(cfg.fps)
     fps = max(1, min(120, fps))
+    zone_sampling_stride = max(1, int(cfg.zone_sampling_stride))
 
     zones: List[ZoneConfig] = []
     for z in cfg.zones:
@@ -103,6 +104,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         brightness=brightness,
         smoothing=smoothing,
         zones=zones,
+        zone_sampling_stride=zone_sampling_stride,
         device_vid=cfg.device_vid,
         device_pid=cfg.device_pid,
         use_mock_device=cfg.use_mock_device,

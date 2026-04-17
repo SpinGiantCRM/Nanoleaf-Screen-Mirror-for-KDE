@@ -6,10 +6,10 @@ from typing import Sequence
 
 import numpy as np
 
-from nanoleaf_sync.runtime.zones import zone_colors
+from nanoleaf_sync.runtime.zones import zone_colors_array
 from nanoleaf_sync.color.zone_mapper import resolve_device_zone_indices
 from nanoleaf_sync.config.model import AppConfig
-from nanoleaf_sync.runtime.processing import apply_brightness, ema_smooth, zones_from_config
+from nanoleaf_sync.runtime.processing import zones_from_config
 from nanoleaf_sync.runtime.startup import reinitialize_backends, should_reinitialize
 from nanoleaf_sync.runtime.state import RGBTuple, RuntimeState, ZoneRect
 
@@ -45,7 +45,7 @@ def _ensure_runtime_artifacts(
     config: AppConfig,
     img_w: int,
     img_h: int,
-) -> tuple[list[ZoneRect], list[int]]:
+) -> tuple[list[ZoneRect], np.ndarray]:
     zone_sig = _zones_signature(config, img_w, img_h)
     if state.zone_rects_signature != zone_sig or state.cached_zone_rects is None:
         state.cached_zone_rects = zones_from_config(config.zones, img_w, img_h)
@@ -58,6 +58,7 @@ def _ensure_runtime_artifacts(
     if (
         state.device_zone_mapping_signature != mapping_sig
         or state.cached_device_zone_indices is None
+        or state.cached_device_zone_indices_np is None
     ):
         device_zone_count = int(config.device_zone_count) or source_zone_count
         state.cached_device_zone_indices = resolve_device_zone_indices(
@@ -67,9 +68,12 @@ def _ensure_runtime_artifacts(
             reverse=config.reverse_zones,
             explicit_zone_map=config.explicit_zone_map or None,
         )
+        state.cached_device_zone_indices_np = np.asarray(
+            state.cached_device_zone_indices, dtype=np.intp
+        )
         state.device_zone_mapping_signature = mapping_sig
 
-    return zones_px, state.cached_device_zone_indices
+    return zones_px, state.cached_device_zone_indices_np
 
 
 def process_frame(
@@ -80,6 +84,7 @@ def process_frame(
     device_zone_indices: Sequence[int],
     brightness: float,
     smoothing: float,
+    zone_sampling_stride: int = 1,
 ) -> list[RGBTuple]:
     """
     Hot-path frame processing pipeline:
@@ -90,16 +95,25 @@ def process_frame(
             f"Capture returned unexpected frame shape: {getattr(frame, 'shape', None)}"
         )
 
-    raw_colors = zone_colors(frame, zones_px)
-    if raw_colors:
-        raw_arr = np.asarray(raw_colors, dtype=np.uint8)
-        mapped_arr = raw_arr[np.asarray(device_zone_indices, dtype=np.intp)]
-        mapped_colors = [tuple(row) for row in mapped_arr.tolist()]
-    else:
-        mapped_colors = []
+    raw_colors = zone_colors_array(frame, zones_px, sample_step=zone_sampling_stride)
+    if raw_colors.size == 0:
+        return []
 
-    bright_colors = apply_brightness(mapped_colors, brightness)
-    return ema_smooth(prev_smoothed_colors, bright_colors, alpha=smoothing)
+    mapped = raw_colors[np.asarray(device_zone_indices, dtype=np.intp)].astype(np.float32, copy=False)
+
+    b = max(0.0, min(1.0, float(brightness)))
+    if b != 1.0:
+        mapped *= b
+
+    a = max(0.0, min(1.0, float(smoothing)))
+    if prev_smoothed_colors and a < 1.0:
+        n = min(len(prev_smoothed_colors), mapped.shape[0])
+        if n:
+            prev_arr = np.asarray(prev_smoothed_colors[:n], dtype=np.float32)
+            mapped[:n] = (a * mapped[:n]) + ((1.0 - a) * prev_arr)
+
+    out = np.clip(np.rint(mapped), 0.0, 255.0).astype(np.uint8, copy=False)
+    return [tuple(int(c) for c in row) for row in out.tolist()]
 
 
 def run_loop(
@@ -144,6 +158,7 @@ def run_loop(
                 device_zone_indices=device_zone_indices,
                 brightness=config.brightness,
                 smoothing=config.smoothing,
+                zone_sampling_stride=config.zone_sampling_stride,
             )
             state.prev_smoothed_colors = smoothed_colors
             driver.send_frame(smoothed_colors)
@@ -188,5 +203,8 @@ def run_loop(
                     f"[service] tick fps={fps} elapsed_ms={elapsed_ms:.2f} zones={last_sent_zone_count}"
                 )
 
-        if now < next_deadline:
+        if now - next_deadline > interval_s:
+            # Drop accumulated lag to keep output responsive under overload.
+            next_deadline = now
+        elif now < next_deadline:
             time.sleep(next_deadline - now)

@@ -41,7 +41,19 @@ def average_color(image: np.ndarray) -> RGBTuple:
 def zone_colors(
     image: np.ndarray,
     zones: Sequence[ZoneRect],
+    *,
+    sample_step: int = 1,
 ) -> List[RGBTuple]:
+    zone_arr = zone_colors_array(image, zones, sample_step=sample_step)
+    return [tuple(int(c) for c in row) for row in zone_arr]
+
+
+def zone_colors_array(
+    image: np.ndarray,
+    zones: Sequence[ZoneRect],
+    *,
+    sample_step: int = 1,
+) -> np.ndarray:
     """
     Given a list of screen regions and an image, return average RGB per zone.
 
@@ -51,19 +63,48 @@ def zone_colors(
     img = _ensure_rgb_u8(image)
     h, w, _ = img.shape
 
-    out: List[RGBTuple] = []
-    for x, y, zw, zh in zones:
-        # Clip zone bounds to the image.
-        x0 = max(0, int(x))
-        y0 = max(0, int(y))
-        x1 = min(w, x0 + int(zw))
-        y1 = min(h, y0 + int(zh))
+    if not zones:
+        return np.zeros((0, 3), dtype=np.uint8)
 
-        if x1 <= x0 or y1 <= y0:
-            out.append((0, 0, 0))
-            continue
+    step = max(1, int(sample_step))
 
-        mean = img[y0:y1, x0:x1, :].mean(axis=(0, 1))
-        out.append(tuple(int(c) for c in mean.tolist()))
+    zones_arr = np.asarray(zones, dtype=np.intp)
+    x = zones_arr[:, 0]
+    y = zones_arr[:, 1]
+    zw = zones_arr[:, 2]
+    zh = zones_arr[:, 3]
 
-    return out
+    if step > 1:
+        # Sample a strided working image and map zone coordinates into that space.
+        img = img[::step, ::step, :]
+        h, w, _ = img.shape
+        x = x // step
+        y = y // step
+        # Ceil-div to preserve minimally-sized zones after downsampling.
+        zw = (zw + (step - 1)) // step
+        zh = (zh + (step - 1)) // step
+
+    x0 = np.clip(x, 0, w)
+    y0 = np.clip(y, 0, h)
+    x1 = np.clip(x0 + zw, 0, w)
+    y1 = np.clip(y0 + zh, 0, h)
+
+    areas = (x1 - x0) * (y1 - y0)
+
+    # Build per-channel integral image to compute zone sums in O(1) each.
+    integral = np.zeros((h + 1, w + 1, 3), dtype=np.uint64)
+    integral[1:, 1:, :] = img.cumsum(axis=0, dtype=np.uint64).cumsum(axis=1, dtype=np.uint64)
+
+    sums = (
+        integral[y1, x1]
+        - integral[y0, x1]
+        - integral[y1, x0]
+        + integral[y0, x0]
+    )
+
+    means = np.zeros((len(zones), 3), dtype=np.uint8)
+    valid = areas > 0
+    if valid.any():
+        means[valid] = (sums[valid] // areas[valid, None]).astype(np.uint8, copy=False)
+
+    return means

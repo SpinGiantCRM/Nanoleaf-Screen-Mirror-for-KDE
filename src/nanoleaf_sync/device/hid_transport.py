@@ -32,9 +32,12 @@ class HIDTransport:
         self._handle = hid.device()
         self._handle.open(self.ids.vid, self.ids.pid)
 
-    def write(self, report: Sequence[int]) -> None:
+    def write(self, report: bytes | bytearray | memoryview | Sequence[int]) -> None:
         if self._handle is None:
             raise RuntimeError("HID transport not opened.")
+        if isinstance(report, (bytes, bytearray, memoryview)):
+            self._handle.write(report)
+            return
         self._handle.write(bytes(report))
 
     def close(self) -> None:

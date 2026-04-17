@@ -5,6 +5,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, List, Optional, Tuple
 
+import numpy as np
 
 RGBTuple = Tuple[int, int, int]
 ZoneRect = Tuple[int, int, int, int]
@@ -22,6 +23,7 @@ class RuntimeState:
     zone_rects_signature: Optional[Tuple[int, int, Tuple[Tuple[float, float, float, float], ...]]] = None
 
     cached_device_zone_indices: Optional[List[int]] = None
+    cached_device_zone_indices_np: Optional[np.ndarray] = None
     device_zone_mapping_signature: Optional[Tuple[int, int, int, bool, Tuple[int, ...]]] = None
 
     consecutive_errors: int = 0
@@ -35,6 +37,7 @@ class RuntimeState:
         self.cached_zone_rects = None
         self.zone_rects_signature = None
         self.cached_device_zone_indices = None
+        self.cached_device_zone_indices_np = None
         self.device_zone_mapping_signature = None
         self.consecutive_errors = 0
         self.last_error = None
