@@ -21,6 +21,7 @@ class SettingsDialog:
         QDialogButtonBox = qt["QDialogButtonBox"]
         QGridLayout = qt["QGridLayout"]
         QCheckBox = qt["QCheckBox"]
+        QComboBox = qt["QComboBox"]
         QLabel = qt["QLabel"]
         QSlider = qt["QSlider"]
 
@@ -68,6 +69,17 @@ class SettingsDialog:
                 self.mock_capture_checkbox.setChecked(
                     bool(getattr(cfg, "use_mock_capture", True))
                 )
+                self.mock_device_checkbox = QCheckBox("Mock device (no USB required)")
+                self.mock_device_checkbox.setChecked(
+                    bool(getattr(cfg, "use_mock_device", True))
+                )
+
+                self.backend_combo = QComboBox()
+                self.backend_combo.addItems(["kwin-dbus", "kmsgrab", "auto", "replay"])
+                existing_backend = str(getattr(cfg, "prefer_backend", "kwin-dbus"))
+                idx = self.backend_combo.findText(existing_backend)
+                if idx >= 0:
+                    self.backend_combo.setCurrentIndex(idx)
 
                 buttons = QDialogButtonBox(
                     QDialogButtonBox.StandardButton.Ok
@@ -91,7 +103,10 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Device zone count"), 6, 0)
                 layout.addWidget(self.device_zone_count_slider, 6, 1)
                 layout.addWidget(self.mock_capture_checkbox, 7, 0, 1, 2)
-                layout.addWidget(buttons, 8, 0, 1, 2)
+                layout.addWidget(self.mock_device_checkbox, 8, 0, 1, 2)
+                layout.addWidget(QLabel("Preferred real capture backend"), 9, 0)
+                layout.addWidget(self.backend_combo, 9, 1)
+                layout.addWidget(buttons, 10, 0, 1, 2)
                 self.setLayout(layout)
 
             def updated_config(self) -> AppConfig:
@@ -102,6 +117,7 @@ class SettingsDialog:
                 zone_offset = int(self.zone_offset_slider.value())
                 reverse_zones = bool(self.reverse_checkbox.isChecked())
                 device_zone_count = int(self.device_zone_count_slider.value())
+                prefer_backend = str(self.backend_combo.currentText())
 
                 # Update zones as normalized equal slices.
                 new_zones = make_horizontal_zones(zone_count)
@@ -117,6 +133,8 @@ class SettingsDialog:
                     reverse_zones=reverse_zones,
                     explicit_zone_map=[],
                     use_mock_capture=bool(self.mock_capture_checkbox.isChecked()),
+                    use_mock_device=bool(self.mock_device_checkbox.isChecked()),
+                    prefer_backend=prefer_backend,
                 )
 
         self._dialog = _Dialog()

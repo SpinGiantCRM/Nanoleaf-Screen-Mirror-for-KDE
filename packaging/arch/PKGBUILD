@@ -1,0 +1,46 @@
+# Maintainer: nanoleaf-kde-sync contributors
+pkgname=nanoleaf-kde-sync
+a_pkgname=nanoleaf-kde-sync
+pkgver=0.0.3
+pkgrel=1
+pkgdesc='Nanoleaf ambient light synchronization tray app for KDE/Linux'
+arch=('x86_64')
+url='https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE'
+license=('MIT')
+depends=(
+  'python'
+  'python-numpy'
+  'python-pyqt6'
+  'python-dbus-next'
+  'python-hidapi'
+)
+makedepends=('python-build' 'python-installer' 'python-wheel' 'python-setuptools')
+install='nanoleaf-kde-sync.install'
+source=(
+  "$pkgname-$pkgver.tar.gz::https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/archive/refs/tags/v$pkgver.tar.gz"
+)
+sha256sums=('SKIP')
+
+build() {
+  cd "Nanoleaf-Screen-Mirror-for-KDE-$pkgver"
+  python -m build --wheel --no-isolation
+}
+
+package() {
+  cd "Nanoleaf-Screen-Mirror-for-KDE-$pkgver"
+
+  python -m installer --destdir="$pkgdir" dist/*.whl
+
+  install -Dm644 docs/nanoleaf-kde-sync.desktop \
+    "$pkgdir/usr/share/applications/nanoleaf-kde-sync.desktop"
+
+  install -Dm644 assets/icons/hicolor/scalable/apps/nanoleaf-kde-sync.svg \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/nanoleaf-kde-sync.svg"
+
+  install -Dm644 assets/udev/60-nanoleaf-kde-sync.rules \
+    "$pkgdir/usr/lib/udev/rules.d/60-nanoleaf-kde-sync.rules"
+
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  install -Dm644 docs/HARDWARE_SETUP.md "$pkgdir/usr/share/doc/$pkgname/HARDWARE_SETUP.md"
+  install -Dm644 docs/SMOKE_TEST.md "$pkgdir/usr/share/doc/$pkgname/SMOKE_TEST.md"
+}
