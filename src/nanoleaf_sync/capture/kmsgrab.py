@@ -53,8 +53,6 @@ class KMSGrabCapture:
             max_nits=float(hdr_max_nits),
         )
 
-        # Downsample before HDR conversion to cap conversion cost on large frames.
-        self._max_hdr_conversion_dim = 640
         self._resize_index_cache: dict[tuple[int, int, int, int], tuple[np.ndarray, np.ndarray]] = {}
         self._resize_index_cache_limit = 8
 
@@ -124,23 +122,14 @@ class KMSGrabCapture:
         ):
             return rgb
 
-        rgb_for_conversion = self._downsample_for_hdr_conversion(rgb)
-        converted = convert_frame_to_srgb8(rgb_for_conversion, metadata=meta)
+        # Convert at native resolution first: transfer functions are nonlinear,
+        # so pre-conversion downsampling can produce incorrect HDR→SDR results.
+        converted = convert_frame_to_srgb8(rgb, metadata=meta)
         return self._restore_converted_frame_shape(
             converted=converted,
             target_height=rgb.shape[0],
             target_width=rgb.shape[1],
         )
-
-    def _downsample_for_hdr_conversion(self, rgb: np.ndarray) -> np.ndarray:
-        h, w = rgb.shape[:2]
-        max_dim = int(self._max_hdr_conversion_dim)
-        if max(h, w) <= max_dim:
-            return rgb
-
-        scale = max(h / max_dim, w / max_dim)
-        step = max(1, int(np.ceil(scale)))
-        return rgb[::step, ::step, :]
 
     def _restore_converted_frame_shape(
         self, *, converted: np.ndarray, target_height: int, target_width: int

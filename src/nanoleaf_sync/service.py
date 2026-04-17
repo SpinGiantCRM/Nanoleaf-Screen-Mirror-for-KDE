@@ -26,13 +26,46 @@ _DEFAULT_CAPTURE_WIDTH = 1920
 _DEFAULT_CAPTURE_HEIGHT = 1080
 
 
-def _resolve_capture_dims(config: AppConfig) -> Tuple[int, int]:
-    """
-    Return (width, height) for capture initialization.
+def _detect_primary_screen_dims(*, qt_widgets_module=None) -> Optional[Tuple[int, int]]:
+    """Best-effort primary-screen detection via PyQt6."""
+    qt_widgets = qt_widgets_module
+    if qt_widgets is None:
+        try:
+            from PyQt6 import QtWidgets as qt_widgets  # type: ignore
+        except Exception:
+            return None
 
-    Currently falls back to module-level defaults because monitor autodetection
-    is not yet implemented.
-    """
+    app = qt_widgets.QApplication.instance()
+    created_app = False
+    if app is None:
+        try:
+            app = qt_widgets.QApplication([])
+            created_app = True
+        except Exception:
+            return None
+
+    try:
+        screen = app.primaryScreen()
+        if screen is None:
+            return None
+        geometry = screen.geometry()
+        width = int(geometry.width())
+        height = int(geometry.height())
+        if width <= 0 or height <= 0:
+            return None
+        return width, height
+    except Exception:
+        return None
+    finally:
+        if created_app:
+            app.quit()
+
+
+def _resolve_capture_dims(config: AppConfig) -> Tuple[int, int]:
+    """Return (width, height) for capture initialization."""
+    detected = _detect_primary_screen_dims()
+    if detected is not None:
+        return detected
     return _DEFAULT_CAPTURE_WIDTH, _DEFAULT_CAPTURE_HEIGHT
 
 

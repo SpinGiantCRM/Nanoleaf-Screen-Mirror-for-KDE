@@ -97,9 +97,9 @@ def classify_capture_mode(
     if capture_backend_name == "mock":
         return "mock"
     if capture_backend_name == "kwin-dbus":
-        return "stub-fallback"
+        return "kwin-dbus"
     if capture_backend_name == "kmsgrab" and capture_path == "kwin-dbus":
-        return "stub-fallback"
+        return "kwin-fallback"
     if capture_backend_name == "replay":
         return "replay"
     if capture_backend_name == "kmsgrab":

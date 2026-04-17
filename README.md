@@ -93,10 +93,33 @@ To switch toward real integrations, set:
 
 in `~/.config/nanoleaf-kde-sync/config.json`.
 
+
+### Practical run modes
+
+1. **Safe default (fully mock)**
+   - `use_mock_capture=true`
+   - `use_mock_device=true`
+
+2. **Real KDE capture + mock device (recommended hardware-free verification)**
+   - `use_mock_capture=false`
+   - `prefer_backend="kwin-dbus"` (or `"kmsgrab"` with fallback enabled)
+   - `use_mock_device=true`
+
+3. **Real capture + real USB driver scaffold**
+   - `use_mock_capture=false`
+   - `use_mock_device=false`
+   - Note: USB transport is real, but proprietary Nanoleaf payload protocol remains a documented placeholder.
+
+KWin capture assumptions:
+- Runs inside a KDE Plasma session with access to the session bus.
+- Requires one of the known KWin screenshot interfaces/method variants to be available.
+- Fails explicitly with an actionable error if no supported screenshot API variant is accessible.
+
 ## Known limitations
 
-- Real screen capture backends (e.g., full DRM/KMS + KWin paths) are scaffolded and may be incomplete depending on your environment.
-- Real Nanoleaf HID protocol behavior is under active development; some implementations are placeholders.
+- KWin D-Bus screenshot capture is implemented, but depends on KDE Plasma session D-Bus interfaces that vary by distro/version.
+- DRM/KMS direct capture still requires optional external/native bindings (`nanoleaf_sync.capture._kmsgrab` or `kmsgrab` module).
+- Nanoleaf USB protocol payloads are still placeholders; mock mode remains the recommended default until proprietary protocol details are available.
 - Linux distribution packaging and permission setup (especially for HID and graphics capture) can vary and may require manual adjustment.
 - Hardware-specific timing/latency tuning is not universally optimized yet.
 
