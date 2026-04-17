@@ -15,10 +15,10 @@ def apply_brightness(colors: Sequence[RGBTuple], brightness: float) -> List[RGBT
         return []
     b = max(0.0, min(1.0, float(brightness)))
     if b == 1.0:
-        return list(colors)
+        return colors if isinstance(colors, list) else list(colors)
     arr = np.asarray(colors, dtype=np.float32)
-    out = np.clip(np.rint(arr * b), 0.0, 255.0).astype(np.uint8)
-    return [tuple(int(c) for c in row) for row in out]
+    out = np.clip(np.rint(arr * b), 0.0, 255.0).astype(np.uint8, copy=False)
+    return [tuple(row) for row in out.tolist()]
 
 
 def ema_smooth(
@@ -29,17 +29,15 @@ def ema_smooth(
     """Exponential moving average: ema = alpha * current + (1-alpha) * prev."""
 
     a = max(0.0, min(1.0, float(alpha)))
-    if not prev:
-        return list(current)
-    if not current:
-        return []
+    if not prev or not current:
+        return list(current) if current else []
 
     n = min(len(prev), len(current))
-    prev_arr = np.asarray(prev[:n], dtype=np.float32)
     cur_arr = np.asarray(current[:n], dtype=np.float32)
+    prev_arr = np.asarray(prev[:n], dtype=np.float32)
     mixed = (a * cur_arr) + ((1.0 - a) * prev_arr)
-    out = np.clip(np.rint(mixed), 0.0, 255.0).astype(np.uint8)
-    return [tuple(int(c) for c in row) for row in out]
+    out = np.clip(np.rint(mixed), 0.0, 255.0).astype(np.uint8, copy=False)
+    return [tuple(row) for row in out.tolist()]
 
 
 def zones_from_config(

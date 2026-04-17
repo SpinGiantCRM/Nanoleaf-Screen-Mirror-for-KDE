@@ -63,7 +63,7 @@ def zone_colors(
             out.append((0, 0, 0))
             continue
 
-        zone = img[y0:y1, x0:x1, :]
-        out.append(average_color(zone))
+        mean = img[y0:y1, x0:x1, :].mean(axis=(0, 1))
+        out.append(tuple(int(c) for c in mean.tolist()))
 
     return out
