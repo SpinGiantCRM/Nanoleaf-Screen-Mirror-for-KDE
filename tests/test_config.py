@@ -45,7 +45,7 @@ def test_config_save_validates_and_is_json_loadable(tmp_path: Path) -> None:
 
     assert data["brightness"] == 1.0  # clamped
     assert data["smoothing"] == 0.0  # clamped
-    assert data["fps"] == 60  # clamped
+    assert data["fps"] == 120  # clamped
     assert data["device_zone_count"] == 0  # clamped
     assert data["allow_capture_fallback"] is False
     assert data["hdr_max_nits"] <= 10_000.0

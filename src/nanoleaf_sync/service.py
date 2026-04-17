@@ -101,7 +101,7 @@ class NanoleafSyncService:
     def _make_device_driver(self) -> DeviceDriver:
         ids = NanoleafUSBIds(vid=self.config.device_vid, pid=self.config.device_pid)
         if self.config.use_mock_device:
-            return MockNanoleafUSBDriver(ids=ids)
+            return MockNanoleafUSBDriver()
         return NanoleafUSBDriver(ids=ids)
 
     def _clear_backends(self) -> None:

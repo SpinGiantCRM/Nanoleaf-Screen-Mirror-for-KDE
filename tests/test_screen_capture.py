@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from nanoleaf_sync.capture.factory import create_capture_backend
 from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture
@@ -72,17 +73,23 @@ def test_capture_factory_kmsgrab_fallback_vs_no_fallback() -> None:
         hdr_transfer="srgb",
         hdr_primaries="bt709",
     )
-    raised = False
-    try:
+    with pytest.raises(Exception):
         _ = backend_fail.capture()
-    except Exception:
-        raised = True
-    assert raised
 
 
-def test_kmsgrab_downsamples_before_hdr_conversion() -> None:
+def test_kmsgrab_downsamples_before_hdr_conversion(monkeypatch) -> None:
     backend = KMSGrabCapture(width=1920, height=1080)
     rgb = np.zeros((1080, 1920, 3), dtype=np.uint16)
+    captured_shape = None
+
+    def _fake_convert(frame: np.ndarray, metadata):
+        nonlocal captured_shape
+        captured_shape = frame.shape
+        return np.zeros_like(frame, dtype=np.uint8)
+
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.kmsgrab.convert_frame_to_srgb8", _fake_convert
+    )
     out = backend._convert_if_needed(
         (
             rgb,
@@ -90,5 +97,7 @@ def test_kmsgrab_downsamples_before_hdr_conversion() -> None:
         )
     )
     assert out.dtype == np.uint8
-    assert out.shape[0] < 1080
-    assert out.shape[1] < 1920
+    assert captured_shape is not None
+    assert captured_shape[0] < 1080
+    assert captured_shape[1] < 1920
+    assert out.shape == (1080, 1920, 3)

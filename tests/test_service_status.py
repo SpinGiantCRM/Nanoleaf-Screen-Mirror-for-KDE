@@ -7,6 +7,7 @@ import numpy as np
 
 from nanoleaf_sync.capture.interfaces import CaptureBackend
 from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.device.mock_driver import MockNanoleafUSBDriver
 from nanoleaf_sync.service import NanoleafSyncService
 
 
@@ -20,7 +21,7 @@ class FakeCapture(CaptureBackend):
     width: int = 16
     height: int = 9
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self._frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
 
     def capture(self) -> np.ndarray:
@@ -89,3 +90,9 @@ def test_capture_mode_replay_is_explicit() -> None:
     svc.join(timeout=2.0)
 
     assert status["capture_mode"] == "replay"
+
+
+def test_make_device_driver_uses_mock_driver_without_ids_argument() -> None:
+    svc = NanoleafSyncService(config=_make_cfg())
+    driver = svc._make_device_driver()
+    assert isinstance(driver, MockNanoleafUSBDriver)
