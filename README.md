@@ -110,7 +110,7 @@ in `~/.config/nanoleaf-kde-sync/config.json`.
    - `use_mock_device=false`
    - Supports Nanoleaf PC Screen Mirror Light Strip (`VID=0x37FA`, `PID=0x8202`, model `NL82K2`) and Pegboard Desk Dock (`VID=0x37FA`, `PID=0x8201`, model `NL82K1`) using the official HID TLV protocol.
    - Driver startup queries model number and strip length from the device before streaming frame colors.
-   - `send_frame()` clamps extra zones to hardware length and pads missing zones with black (`0,0,0`) so payload size always matches device zone count.
+   - `send_frame()` clamps extra zones to hardware length and pads missing zones with black (`0,0,0`) as a host-side policy (not a protocol requirement) so payload size always matches device zone count.
 
 KWin capture assumptions:
 - Runs inside a KDE Plasma session with access to the session bus.

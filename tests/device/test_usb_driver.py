@@ -33,7 +33,7 @@ def _rsp(req_type: int, payload: bytes) -> bytes:
 def test_initialize_queries_model_and_length() -> None:
     transport = FakeTransport([
         _rsp(0x0C, b"\x00NL82K2"),
-        _rsp(0x03, b"\x00\x00\x0A"),
+        _rsp(0x03, b"\x00\x0A"),
     ])
     driver = NanoleafUSBDriver(ids=NanoleafUSBIds(0x37FA, 0x8202), transport=transport)
 
@@ -58,7 +58,7 @@ def test_initialize_rejects_unsupported_model() -> None:
 def test_send_frame_exact_zone_count() -> None:
     transport = FakeTransport([
         _rsp(0x0C, b"\x00NL82K2"),
-        _rsp(0x03, b"\x00\x00\x02"),
+        _rsp(0x03, b"\x00\x02"),
         _rsp(0x06, b"\x00\x01"),
         _rsp(0x08, b"\x00\x64"),
         _rsp(0x02, b"\x00"),
@@ -77,7 +77,7 @@ def test_send_frame_exact_zone_count() -> None:
 def test_send_frame_clamps_when_too_many_colors() -> None:
     transport = FakeTransport([
         _rsp(0x0C, b"\x00NL82K2"),
-        _rsp(0x03, b"\x00\x00\x02"),
+        _rsp(0x03, b"\x00\x02"),
         _rsp(0x06, b"\x00\x01"),
         _rsp(0x08, b"\x00\x14"),
         _rsp(0x02, b"\x00"),
@@ -94,7 +94,7 @@ def test_send_frame_clamps_when_too_many_colors() -> None:
 def test_send_frame_pads_black_when_too_few_colors() -> None:
     transport = FakeTransport([
         _rsp(0x0C, b"\x00NL82K2"),
-        _rsp(0x03, b"\x00\x00\x03"),
+        _rsp(0x03, b"\x00\x03"),
         _rsp(0x06, b"\x00\x01"),
         _rsp(0x08, b"\x00\x14"),
         _rsp(0x02, b"\x00"),
@@ -112,7 +112,7 @@ def test_send_frame_pads_black_when_too_few_colors() -> None:
 def test_send_frame_turns_on_and_sets_min_brightness_once() -> None:
     transport = FakeTransport([
         _rsp(0x0C, b"\x00NL82K2"),
-        _rsp(0x03, b"\x00\x00\x02"),
+        _rsp(0x03, b"\x00\x02"),
         _rsp(0x06, b"\x00\x00"),
         _rsp(0x07, b"\x00"),
         _rsp(0x08, b"\x00\x00"),
@@ -128,3 +128,38 @@ def test_send_frame_turns_on_and_sets_min_brightness_once() -> None:
 
     assert [req[0] for req in transport.requests] == [0x0C, 0x03, 0x06, 0x07, 0x08, 0x09, 0x02, 0x02]
     assert transport.requests[5][3:] == b"\x0c"
+
+
+def test_set_brightness_clamps_to_protocol_range() -> None:
+    transport = FakeTransport([
+        _rsp(0x09, b"\x00"),
+        _rsp(0x09, b"\x00"),
+    ])
+    driver = NanoleafUSBDriver(ids=NanoleafUSBIds(0x37FA, 0x8202), transport=transport)
+
+    driver.set_brightness(999)
+    driver.set_brightness(-5)
+
+    assert transport.requests[0][3:] == b"\xFF"
+    assert transport.requests[1][3:] == b"\x00"
+
+
+def test_min_nonzero_brightness_clamps_to_255() -> None:
+    transport = FakeTransport([
+        _rsp(0x0C, b"\x00NL82K2"),
+        _rsp(0x03, b"\x00\x02"),
+        _rsp(0x06, b"\x00\x01"),
+        _rsp(0x08, b"\x00\x00"),
+        _rsp(0x09, b"\x00"),
+        _rsp(0x02, b"\x00"),
+    ])
+    driver = NanoleafUSBDriver(
+        ids=NanoleafUSBIds(0x37FA, 0x8202),
+        transport=transport,
+        min_nonzero_brightness=500,
+    )
+    driver.initialize()
+
+    driver.send_frame([(1, 2, 3), (4, 5, 6)])
+
+    assert transport.requests[4][3:] == b"\xFF"
