@@ -76,6 +76,9 @@ class KMSGrabCapture:
         self._black = np.zeros(
             (self.params.height, self.params.width, 3), dtype=np.uint8
         )
+        # For HDR transforms we only need zone-level color estimates.
+        # Downsample before conversion to cap conversion cost on large frames.
+        self._max_hdr_conversion_dim = 640
 
     def capture(self) -> np.ndarray:
         """
@@ -196,4 +199,15 @@ class KMSGrabCapture:
         ):
             return rgb
 
-        return convert_frame_to_srgb8(rgb, metadata=meta)
+        rgb_for_conversion = self._downsample_for_hdr_conversion(rgb)
+        return convert_frame_to_srgb8(rgb_for_conversion, metadata=meta)
+
+    def _downsample_for_hdr_conversion(self, rgb: np.ndarray) -> np.ndarray:
+        h, w = rgb.shape[:2]
+        max_dim = int(self._max_hdr_conversion_dim)
+        if max(h, w) <= max_dim:
+            return rgb
+
+        scale = max(h / max_dim, w / max_dim)
+        step = max(1, int(np.ceil(scale)))
+        return rgb[::step, ::step, :]

@@ -114,8 +114,6 @@ def run_loop(
 
     while not state.stop_event.is_set():
         start = time.perf_counter()
-        if start < next_deadline:
-            time.sleep(min(0.002, next_deadline - start))
 
         try:
             capture = get_capture()

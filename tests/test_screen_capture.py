@@ -1,6 +1,7 @@
 import numpy as np
 
 from nanoleaf_sync.capture.factory import create_capture_backend
+from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture
 
 
 def test_capture_factory_mock_is_reusable() -> None:
@@ -77,3 +78,17 @@ def test_capture_factory_kmsgrab_fallback_vs_no_fallback() -> None:
     except Exception:
         raised = True
     assert raised
+
+
+def test_kmsgrab_downsamples_before_hdr_conversion() -> None:
+    backend = KMSGrabCapture(width=1920, height=1080)
+    rgb = np.zeros((1080, 1920, 3), dtype=np.uint16)
+    out = backend._convert_if_needed(
+        (
+            rgb,
+            {"transfer": "pq", "primaries": "bt2020", "max_nits": 1000.0},
+        )
+    )
+    assert out.dtype == np.uint8
+    assert out.shape[0] < 1080
+    assert out.shape[1] < 1920

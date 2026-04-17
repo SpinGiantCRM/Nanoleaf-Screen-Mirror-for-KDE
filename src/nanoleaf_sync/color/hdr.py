@@ -191,6 +191,9 @@ def convert_frame_to_srgb8(
         raise ValueError(f"Expected rgb shape (H,W,3); got {rgb.shape}")
 
     meta = HDRMetadata.from_any(metadata)
+    if rgb.dtype == np.uint8 and meta.transfer == "srgb" and meta.primaries == "bt709":
+        return rgb
+
     enc = _to_float01(rgb)
 
     # Step 1: EOTF (encoded -> linear light)
