@@ -36,7 +36,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     smoothing = max(0.0, min(1.0, smoothing))
 
     fps = int(cfg.fps)
-    fps = max(1, min(60, fps))
+    fps = max(1, min(120, fps))
 
     zones: List[ZoneConfig] = []
     for z in cfg.zones:
