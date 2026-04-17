@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "nanoleaf-kde-sync"
 version = "0.0.0"
 description = "Nanoleaf ambient light synchronization for KDE/Linux"
-readme = "docs/README.md"
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
   "numpy>=1.21",
