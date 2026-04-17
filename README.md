@@ -32,7 +32,7 @@ This project provides a Linux-first path for Nanoleaf screen mirroring with:
 3. Install the package:
    - Editable dev install: `pip install -e .`
    - Standard install: `pip install .`
-3. (Optional) Install docs tooling dependencies when working on docs:
+4. (Optional) Install docs tooling dependencies when working on docs:
    - `pip install -r docs/requirements.txt`
 
 ## Usage

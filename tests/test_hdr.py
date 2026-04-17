@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from nanoleaf_sync.color.hdr import convert_frame_to_srgb8
+from nanoleaf_sync.color.hdr import _pq_eotf_to_linear, convert_frame_to_srgb8
 
 
 def test_hdr_conversion_contract_zero_is_zero() -> None:
@@ -43,3 +43,21 @@ def test_hdr_conversion_fast_path_returns_input_for_srgb_uint8() -> None:
         img, metadata={"transfer": "srgb", "primaries": "bt709", "max_nits": 1000.0}
     )
     assert out is img
+
+
+def test_pq_eotf_reference_100_nits() -> None:
+    # ST2084 normalized code for 100 nits is approximately 0.508078.
+    code = np.array([0.5080784], dtype=np.float32)
+    linear = _pq_eotf_to_linear(code)
+    assert linear.shape == code.shape
+    assert np.isclose(float(linear[0]), 100.0 / 10000.0, rtol=0.05)
+
+
+def test_hdr_conversion_fast_path_converts_srgb_float_to_uint8() -> None:
+    img = np.array([[[0.0, 0.5, 1.0]]], dtype=np.float32)
+    out = convert_frame_to_srgb8(
+        img, metadata={"transfer": "srgb", "primaries": "bt709", "max_nits": 1000.0}
+    )
+    assert out.dtype == np.uint8
+    assert out.shape == img.shape
+    assert np.array_equal(out[0, 0], np.array([0, 128, 255], dtype=np.uint8))
