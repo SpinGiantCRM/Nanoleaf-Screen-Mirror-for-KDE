@@ -71,3 +71,22 @@ def test_process_frame_uses_precomputed_artifacts() -> None:
     )
 
     assert colors == [(0, 255, 0), (255, 0, 0)]
+
+
+def test_process_frame_supports_zone_sampling_stride() -> None:
+    frame = np.zeros((4, 4, 3), dtype=np.uint8)
+    frame[:, :2] = [10, 20, 30]
+    frame[:, 2:] = [50, 60, 70]
+    zones_px = [(0, 0, 2, 4), (2, 0, 2, 4)]
+
+    colors = process_frame(
+        frame=frame,
+        prev_smoothed_colors=[],
+        zones_px=zones_px,
+        device_zone_indices=[0, 1],
+        brightness=1.0,
+        smoothing=1.0,
+        zone_sampling_stride=2,
+    )
+
+    assert colors == [(10, 20, 30), (50, 60, 70)]

@@ -172,3 +172,15 @@ class TestZoneColors:
         result = zone_colors(img, [(0, 0, 3, 1), (3, 0, 3, 1)])
         assert result[0][0] == 10
         assert result[1][0] == 20
+
+    def test_zone_sampling_stride_reduces_work_but_preserves_structure(self):
+        img = np.zeros((8, 8, 3), dtype=np.uint8)
+        img[:, :4] = [100, 0, 0]
+        img[:, 4:] = [200, 0, 0]
+        zones = [(0, 0, 4, 8), (4, 0, 4, 8)]
+
+        full = zone_colors(img, zones, sample_step=1)
+        fast = zone_colors(img, zones, sample_step=2)
+
+        assert full == [(100, 0, 0), (200, 0, 0)]
+        assert fast == [(100, 0, 0), (200, 0, 0)]

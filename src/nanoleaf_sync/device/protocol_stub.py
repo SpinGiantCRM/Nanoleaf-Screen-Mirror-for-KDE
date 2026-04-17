@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Sequence
+from typing import Sequence
 
 import numpy as np
 
@@ -12,9 +12,12 @@ class NanoleafPCScreenMirrorProtocolStub:
 
     def __init__(self, *, report_size: int = 64) -> None:
         self.report_size = int(report_size)
+        self._report_buffer = bytearray(self.report_size)
+        self._zero_buffer = bytes(self.report_size)
 
-    def build_hid_report(self, colors: Sequence[RGBTuple]) -> List[int]:
-        report = bytearray(self.report_size)
+    def build_hid_report(self, colors: Sequence[RGBTuple]) -> bytearray:
+        report = self._report_buffer
+        report[:] = self._zero_buffer
 
         header_offset = 1
         if self.report_size >= 4:
@@ -27,4 +30,4 @@ class NanoleafPCScreenMirrorProtocolStub:
             usable = min(capacity, payload.size)
             report[offset : offset + usable] = payload[:usable].tobytes()
 
-        return list(report)
+        return report

@@ -15,6 +15,7 @@ def test_config_save_validates_and_is_json_loadable(tmp_path: Path) -> None:
         fps=999,
         brightness=2.0,
         smoothing=-1.0,
+        zone_sampling_stride=-4,
         zones=[
             ZoneConfig(x=-0.5, y=0.1, w=0.5, h=0.5),  # x will clamp
             ZoneConfig(x=0.1, y=0.1, w=0.0, h=0.5),  # w<=0 => dropped
@@ -46,6 +47,7 @@ def test_config_save_validates_and_is_json_loadable(tmp_path: Path) -> None:
     assert data["brightness"] == 1.0  # clamped
     assert data["smoothing"] == 0.0  # clamped
     assert data["fps"] == 120  # clamped
+    assert data["zone_sampling_stride"] == 1  # clamped
     assert data["device_zone_count"] == 0  # clamped
     assert data["allow_capture_fallback"] is False
     assert data["hdr_max_nits"] <= 10_000.0
@@ -55,6 +57,15 @@ def test_config_save_validates_and_is_json_loadable(tmp_path: Path) -> None:
 
     # Zones: second zone should be dropped due to w==0.
     assert len(data["zones"]) == 1
+
+
+def test_config_load_clamps_zone_sampling_stride(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.json"
+    cfg_path.write_text(json.dumps({"zone_sampling_stride": 0}), encoding="utf-8")
+
+    cfg = ConfigManager(path=cfg_path).load()
+
+    assert cfg.zone_sampling_stride == 1
 
 
 def test_config_load_recovers_from_corruption(tmp_path: Path) -> None:

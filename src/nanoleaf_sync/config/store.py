@@ -91,6 +91,9 @@ class ConfigManager:
             brightness=_to_float(data.get("brightness"), AppConfig.brightness),
             smoothing=_to_float(data.get("smoothing"), AppConfig.smoothing),
             zones=zones,
+            zone_sampling_stride=_to_int(
+                data.get("zone_sampling_stride"), AppConfig.zone_sampling_stride
+            ),
             device_vid=_to_int(data.get("device_vid"), AppConfig.device_vid),
             device_pid=_to_int(data.get("device_pid"), AppConfig.device_pid),
             use_mock_device=coerce_bool(data.get("use_mock_device"), AppConfig.use_mock_device),
@@ -124,6 +127,7 @@ class ConfigManager:
 
         payload: Dict[str, Any] = asdict(cfg)
         payload["zones"] = [asdict(z) for z in cfg.zones]
+        payload["zone_sampling_stride"] = int(cfg.zone_sampling_stride)
 
         encoded = json.dumps(payload, indent=2, sort_keys=True)
 

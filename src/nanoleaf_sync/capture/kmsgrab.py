@@ -55,6 +55,8 @@ class KMSGrabCapture:
 
         # Downsample before HDR conversion to cap conversion cost on large frames.
         self._max_hdr_conversion_dim = 640
+        self._resize_index_cache: dict[tuple[int, int, int, int], tuple[np.ndarray, np.ndarray]] = {}
+        self._resize_index_cache_limit = 8
 
     def capture(self) -> np.ndarray:
         try:
@@ -147,6 +149,19 @@ class KMSGrabCapture:
         if converted.shape[0] == target_height and converted.shape[1] == target_width:
             return converted
 
-        y_idx = np.linspace(0, converted.shape[0] - 1, target_height).astype(np.intp)
-        x_idx = np.linspace(0, converted.shape[1] - 1, target_width).astype(np.intp)
+        cache_key = (
+            int(converted.shape[0]),
+            int(converted.shape[1]),
+            int(target_height),
+            int(target_width),
+        )
+        cached = self._resize_index_cache.get(cache_key)
+        if cached is None:
+            y_idx = np.linspace(0, converted.shape[0] - 1, target_height).astype(np.intp)
+            x_idx = np.linspace(0, converted.shape[1] - 1, target_width).astype(np.intp)
+            self._resize_index_cache[cache_key] = (y_idx, x_idx)
+            if len(self._resize_index_cache) > self._resize_index_cache_limit:
+                self._resize_index_cache.pop(next(iter(self._resize_index_cache)))
+        else:
+            y_idx, x_idx = cached
         return converted[y_idx[:, None], x_idx[None, :], :]

@@ -34,6 +34,9 @@ class AppConfig:
     # Zones
     zones: List[ZoneConfig] = field(default_factory=list)
     # If zones is empty, the service will use a default single full-screen zone.
+    # Zone sampling stride (1 = every pixel, 2 = every other pixel, etc.).
+    # Larger values reduce CPU cost at the expense of color precision.
+    zone_sampling_stride: int = 1
 
     # USB / device
     device_vid: int = 0x0
