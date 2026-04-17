@@ -27,27 +27,9 @@ def test_capture_factory_mock_is_reusable() -> None:
     assert frame1 is frame2
 
 
-def test_capture_factory_kwin_stub_is_black_and_reusable() -> None:
-    backend = create_capture_backend(
-        width=5,
-        height=2,
-        use_mock_capture=False,
-        prefer_backend="kwin-dbus",
-        allow_fallback=True,
-        hdr_max_nits=1000.0,
-        hdr_transfer="srgb",
-        hdr_primaries="bt709",
-    )
-
-    frame1 = backend.capture()
-    frame2 = backend.capture()
-
-    assert frame1 is frame2
-    assert np.array_equal(frame1, np.zeros((2, 5, 3), dtype=np.uint8))
-
 
 def test_capture_factory_kmsgrab_fallback_vs_no_fallback() -> None:
-    # When allow_fallback=True, missing DRM bindings should fall back to kwin stub
+    # When allow_fallback=True, missing DRM bindings should fall back to kwin path.
     backend_ok = create_capture_backend(
         width=6,
         height=4,
@@ -58,6 +40,8 @@ def test_capture_factory_kmsgrab_fallback_vs_no_fallback() -> None:
         hdr_transfer="srgb",
         hdr_primaries="bt709",
     )
+    monkeypatch_capture = np.zeros((4, 6, 3), dtype=np.uint8)
+    backend_ok._fallback.capture = lambda: monkeypatch_capture  # type: ignore[attr-defined]
     frame = backend_ok.capture()
     assert frame.shape == (4, 6, 3)
     assert frame.dtype == np.uint8
@@ -77,7 +61,7 @@ def test_capture_factory_kmsgrab_fallback_vs_no_fallback() -> None:
         _ = backend_fail.capture()
 
 
-def test_kmsgrab_downsamples_before_hdr_conversion(monkeypatch) -> None:
+def test_kmsgrab_converts_hdr_before_any_resizing(monkeypatch) -> None:
     backend = KMSGrabCapture(width=1920, height=1080)
     rgb = np.zeros((1080, 1920, 3), dtype=np.uint16)
     captured_shape = None
@@ -97,7 +81,5 @@ def test_kmsgrab_downsamples_before_hdr_conversion(monkeypatch) -> None:
         )
     )
     assert out.dtype == np.uint8
-    assert captured_shape is not None
-    assert captured_shape[0] < 1080
-    assert captured_shape[1] < 1920
+    assert captured_shape == (1080, 1920, 3)
     assert out.shape == (1080, 1920, 3)

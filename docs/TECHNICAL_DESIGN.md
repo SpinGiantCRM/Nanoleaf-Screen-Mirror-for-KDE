@@ -95,3 +95,13 @@ Fallback rules:
 - Start with a single-producer pipeline that prefers correctness and instrumentation over optimization.
 - Introduce timing metrics at every stage from the start.
 - Develop downstream modules against the USB stub first, then add real transport support once the frame and color pipeline is stable.
+
+
+## Implementation Status (April 2026)
+- `kwin-dbus` capture path now performs real KWin session-bus screenshot calls and decodes returned image payloads/file paths into RGB `numpy.uint8` frames.
+- `kmsgrab` backend remains the preferred low-latency path when optional DRM bindings are installed; without bindings it falls back to KWin when allowed.
+- HDR conversion in `kmsgrab` now converts at native resolution before any resize step to avoid nonlinear transfer-function errors.
+- Nanoleaf device protocol bytes are intentionally still a placeholder in this repository pending proprietary protocol details; this is by design.
+
+## Public compatibility shims
+- `nanoleaf_sync.ui.tray` and `nanoleaf_sync.device.nanoleaf_usb` are retained as lightweight re-export modules for import-path stability.

@@ -93,7 +93,7 @@ class TestServiceStatusAndMode:
         status = svc.get_status()
         svc.stop()
         svc.join(timeout=2.0)
-        assert status["capture_mode"] == "stub-fallback"
+        assert status["capture_mode"] == "kwin-dbus"
 
     def test_capture_dimensions_stored(self):
         """Service stores and reports capture dimensions for diagnostics."""
