@@ -27,7 +27,9 @@ This project provides a Linux-first path for Nanoleaf screen mirroring with:
 ## Install
 
 1. Create and activate a Python 3.11+ virtual environment.
-2. Install the package:
+2. Install Python dependencies:
+   - `pip install -r docs/requirements.txt`
+3. Install the package:
    - Editable dev install: `pip install -e .`
    - Standard install: `pip install .`
 3. (Optional) Install docs tooling dependencies when working on docs:
