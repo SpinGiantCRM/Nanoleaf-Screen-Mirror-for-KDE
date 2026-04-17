@@ -105,10 +105,12 @@ in `~/.config/nanoleaf-kde-sync/config.json`.
    - `prefer_backend="kwin-dbus"` (or `"kmsgrab"` with fallback enabled)
    - `use_mock_device=true`
 
-3. **Real capture + real USB driver scaffold**
+3. **Real capture + real Nanoleaf USB device**
    - `use_mock_capture=false`
    - `use_mock_device=false`
-   - Note: USB transport is real, but proprietary Nanoleaf payload protocol remains a documented placeholder.
+   - Supports Nanoleaf PC Screen Mirror Light Strip (`VID=0x37FA`, `PID=0x8202`, model `NL82K2`) and Pegboard Desk Dock (`VID=0x37FA`, `PID=0x8201`, model `NL82K1`) using the official HID TLV protocol.
+   - Driver startup queries model number and strip length from the device before streaming frame colors.
+   - `send_frame()` clamps extra zones to hardware length and pads missing zones with black (`0,0,0`) so payload size always matches device zone count.
 
 KWin capture assumptions:
 - Runs inside a KDE Plasma session with access to the session bus.
@@ -122,7 +124,8 @@ KWin capture assumptions:
 
 - KWin D-Bus screenshot capture is implemented for both modern ScreenShot2 and legacy screenshot interfaces, but still depends on KDE Plasma session D-Bus behavior that can vary by distro/version.
 - DRM/KMS direct capture still requires optional external/native bindings (`nanoleaf_sync.capture._kmsgrab` or `kmsgrab` module).
-- Nanoleaf USB protocol payloads are still placeholders; mock mode remains the recommended default until proprietary protocol details are available.
+- Button press events (`0x85`) are not yet integrated into runtime actions in this first protocol pass.
+- Linux HID permissions still vary by distro (udev/group setup may be required for non-root USB access).
 - Linux distribution packaging and permission setup (especially for HID and graphics capture) can vary and may require manual adjustment.
 - Hardware-specific timing/latency tuning is not universally optimized yet.
 
