@@ -110,9 +110,9 @@ def _pq_eotf_to_linear(c: np.ndarray) -> np.ndarray:
     # L' in reference space scaled by 10000 nits.
     vp = np.power(c, 1.0 / m2)
     num = np.maximum(vp - c1, 0.0)
-    den = c2 - c3 * vp
-    l = (num * num) / den
-    return l / 10000.0
+    den = np.maximum(c2 - c3 * vp, 1e-10)
+    l = np.power(np.maximum(num / den, 0.0), 1.0 / m1)
+    return l
 
 
 def _hlg_eotf_to_linear(c: np.ndarray) -> np.ndarray:
@@ -188,6 +188,12 @@ def convert_frame_to_srgb8(
     meta = HDRMetadata.from_any(metadata)
     if rgb.dtype == np.uint8 and meta.transfer == "srgb" and meta.primaries == "bt709":
         return rgb
+    if (
+        np.issubdtype(rgb.dtype, np.floating)
+        and meta.transfer == "srgb"
+        and meta.primaries == "bt709"
+    ):
+        return np.clip(np.rint(np.clip(rgb, 0.0, 1.0) * 255.0), 0, 255).astype(np.uint8)
 
     enc = _to_float01(rgb)
 
