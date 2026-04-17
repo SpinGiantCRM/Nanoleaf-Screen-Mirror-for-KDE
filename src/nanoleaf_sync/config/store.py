@@ -50,6 +50,33 @@ def default_config_path() -> Path:
     return Path.home() / ".config" / "nanoleaf-kde-sync" / "config.json"
 
 
+def mode_config(mode: str) -> AppConfig:
+    normalized = (mode or "").strip().lower()
+    if normalized in ("full-mock", "mock", ""):
+        return validate_config(AppConfig(use_mock_capture=True, use_mock_device=True))
+    if normalized in ("capture-real", "real-capture-mock-device"):
+        return validate_config(
+            AppConfig(
+                use_mock_capture=False,
+                use_mock_device=True,
+                prefer_backend="kwin-dbus",
+            )
+        )
+    if normalized in ("full-real", "real"):
+        return validate_config(
+            AppConfig(
+                use_mock_capture=False,
+                use_mock_device=False,
+                prefer_backend="kwin-dbus",
+                device_vid=0x37FA,
+                device_pid=0x8202,
+            )
+        )
+    raise ValueError(
+        f"Unsupported mode '{mode}'. Expected one of: full-mock, capture-real, full-real."
+    )
+
+
 class ConfigManager:
     def __init__(self, path: Optional[os.PathLike[str] | str] = None) -> None:
         self.path = Path(path) if path is not None else default_config_path()
@@ -119,6 +146,15 @@ class ConfigManager:
         )
 
         return validate_config(cfg)
+
+    def exists(self) -> bool:
+        return self.path.exists()
+
+    def initialize(self, *, mode: str = "full-mock", force: bool = False) -> bool:
+        if self.path.exists() and not force:
+            return False
+        self.save(mode_config(mode))
+        return True
 
     def save(self, config: AppConfig) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)

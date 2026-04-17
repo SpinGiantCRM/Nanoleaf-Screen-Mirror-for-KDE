@@ -40,6 +40,22 @@
 - Updated README to document installation and the mock vs real capture/USB settings.
 
 ## Unreleased
+- Arch/CachyOS distribution assets:
+  - added `packaging/arch/PKGBUILD`
+  - added `packaging/arch/nanoleaf-kde-sync.install`
+  - package now installs desktop entry, icon, udev rule, and docs.
+- First-run UX improvements:
+  - added `nanoleaf-kde-sync-init-config` with safe mode presets (`full-mock`, `capture-real`, `full-real`)
+  - tray now auto-creates first-run config if missing.
+- Tray UX polish:
+  - explicit mode/device labels in menu
+  - clearer status message wording for device connection state
+  - smoke-test launch action from tray menu.
+- Documentation polish for end users:
+  - updated top-level README install/first-run flow
+  - added `docs/INSTALL_ARCH.md`
+  - added `docs/RELEASE_CHECKLIST.md`
+  - refreshed hardware + smoke-test guidance.
 - Awaiting official Nanoleaf USB “PC Screen Mirror LS protocol” bytes to implement real HID report packing.
 - Awaiting a concrete DRM/KMS + DMA-BUF binding implementation for true zero-copy low-latency capture.
 - Awaiting a real KWin D-Bus screenshot call implementation (currently stubbed).
