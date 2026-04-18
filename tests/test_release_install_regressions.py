@@ -35,9 +35,13 @@ def test_standalone_installer_uses_external_udev_rule_asset() -> None:
 def test_appimage_launcher_uses_matching_python_version() -> None:
     script = (REPO_ROOT / "scripts" / "build-appimage.sh").read_text(encoding="utf-8")
 
-    assert 'PYTHON_VERSION="3.11"' in script
-    assert 'PYTHON_BIN="python${PYTHON_VERSION}"' in script
-    assert 'exec python3.11 -m nanoleaf_sync.ui.tray "$@"' in script
+    assert 'PYTHON_STANDALONE_VERSION="3.11"' in script
+    assert 'export PYTHONHOME="\\$PYTHON_ROOT"' in script
+    assert (
+        'export PYTHONPATH="\\$PYTHON_ROOT/lib/python${PYTHON_STANDALONE_VERSION}/site-packages'
+        '\\${PYTHONPATH:+:\\$PYTHONPATH}"' in script
+    )
+    assert 'exec "\\$PYTHON_ROOT/bin/python3" -m nanoleaf_sync.ui.tray "\\$@"' in script
 
 
 def test_default_real_capture_backend_is_kwin_dbus() -> None:
