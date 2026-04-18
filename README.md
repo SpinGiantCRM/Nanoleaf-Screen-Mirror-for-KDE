@@ -1,64 +1,66 @@
-# nanoleaf-kde-sync
+# Nanoleaf Screen Mirror for KDE
 
-A focused Linux/KDE Plasma 6 port of Nanoleaf desktop screen mirroring:
+Nanoleaf Screen Mirror for KDE brings Nanoleaf desktop mirroring to Linux on KDE Plasma 6.
 
-**capture screen -> compute zone colours -> send USB frame to Nanoleaf device**.
+It captures the active display, maps sampled colors to Nanoleaf zones, and sends frames to supported Nanoleaf USB devices.
 
-## Scope (recovered baseline)
+## Features
 
-- OS/session: Linux + KDE Plasma 6
-- Real capture backend: `kwin-dbus` only
-- Device path: Nanoleaf USB HID driver (`NL82K1` / `NL82K2`)
-- Optional diagnostics mode: mock capture for first-run checks
+- KDE Plasma 6 screen capture support
+- Nanoleaf USB HID output (`NL82K1` / `NL82K2`)
+- Configuration bootstrap and diagnostics commands
+- Simple service entrypoint for continuous mirroring
 
-Everything else was intentionally de-scoped so the core mirroring path remains understandable and maintainable.
-
-## Primary install path (Arch / CachyOS)
+## Installation (Arch / CachyOS)
 
 ```bash
 cd packaging/arch
 makepkg -si
 ```
 
-No Docker, no AppImage installer flow, no duplicate install systems.
+## Quick start
 
-## First run
+1. Generate a default configuration:
 
-1) Generate default config (real capture + real USB device):
 ```bash
 nanoleaf-kde-sync-init-config
 ```
 
-2) Run diagnostics:
+2. Run diagnostics:
+
 ```bash
 nanoleaf-kde-sync-doctor
 nanoleaf-kde-sync-smoke-test
 ```
 
-3) Verify device IDs in `~/.config/nanoleaf-kde-sync/config.json`:
+3. Confirm device IDs in `~/.config/nanoleaf-kde-sync/config.json`:
+
 - `"device_vid": 14330` (`0x37fa`)
 - `"device_pid": 33282` (`0x8202`) or `33281` (`0x8201`)
 
-Then run:
+4. Start mirroring:
+
 ```bash
 nanoleaf-kde-sync-service
 ```
 
-## Common failures
+## Troubleshooting
 
-- **No frame capture:** Ensure KDE Plasma 6 Wayland session and screenshot permission prompt accepted.
-- **USB permission denied:** Install and reload the udev rule with:
+- **No frame capture**: Ensure you are running KDE Plasma 6 Wayland and accepted the screenshot permission prompt.
+- **USB permission denied**: Install and reload the udev rule:
+
   ```bash
   sudo install -Dm0644 assets/udev/60-nanoleaf-kde-sync.rules /etc/udev/rules.d/60-nanoleaf-kde-sync.rules
   sudo udevadm control --reload-rules
   sudo udevadm trigger --subsystem-match=hidraw --action=add
   ```
-  Then unplug/replug the device. If it still fails, check `journalctl -f` and try `udevadm test /sys/class/hidraw/hidraw0`.
-- **Lights not matching order:** adjust `zone_offset`, `reverse_zones`, and `device_zone_count` in config.
 
-## Non-goals
+  Then unplug and reconnect the device.
 
-- Cloud features
-- Enterprise architecture
-- Multiple speculative runtime backends
-- Release ceremony tooling inside the core project
+- **Zone order mismatch**: Adjust `zone_offset`, `reverse_zones`, and `device_zone_count` in the config.
+
+## Supported environment
+
+- Linux
+- KDE Plasma 6 (Wayland)
+- Nanoleaf USB device with supported VID/PID
