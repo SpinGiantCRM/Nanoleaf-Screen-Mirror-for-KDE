@@ -1,0 +1,56 @@
+name: Reusable CI gates
+
+on:
+  workflow_call:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  unit-integration-tests-ubuntu:
+    name: Unit and integration tests / Ubuntu
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      target: ubuntu
+      test-label: unit and integration tests
+      pytest-args: -q
+
+  unit-integration-tests-arch:
+    name: Unit and integration tests / Arch Linux
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      target: arch
+      test-label: unit and integration tests
+      pytest-args: -q
+
+  release-install-regression-tests-ubuntu:
+    name: Release/install regression tests / Ubuntu
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      target: ubuntu
+      test-label: release/install regression tests
+      pytest-args: -q tests/test_release_install_regressions.py tests/test_release_assets.py
+      # Keep this lane free of runtime GUI/device dependencies unless tests need them.
+      install-runtime-deps: false
+
+  release-install-regression-tests-arch:
+    name: Release/install regression tests / Arch Linux
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      target: arch
+      test-label: release/install regression tests
+      pytest-args: -q tests/test_release_install_regressions.py tests/test_release_assets.py
+      # Keep this lane free of runtime GUI/device dependencies unless tests need them.
+      install-runtime-deps: false
+
+  arch-package-metadata-sanity:
+    name: Arch package metadata sanity
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate Arch package metadata
+        uses: ./.github/actions/arch-metadata-validation
