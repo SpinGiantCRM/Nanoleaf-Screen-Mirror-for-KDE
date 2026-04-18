@@ -43,6 +43,7 @@
 ## Documentation quality
 
 - [ ] README reflects current RC scope and quick-start.
+- [ ] Legal artifact present in expected repo contents (`LICENSE` at repository root).
 - [ ] Install and troubleshooting docs are separated and consistent.
 - [ ] Hardware + smoke docs match current commands and behavior.
 
