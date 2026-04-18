@@ -1,5 +1,10 @@
 # Technical Design: nanoleaf-kde-sync
 
+## Related documents
+- Repository structure and ownership map: `docs/REPOSITORY_MAP.md`
+- Contributor workflow expectations: `CONTRIBUTING.md`
+- Operational validation flow: `docs/SMOKE_TEST.md`
+
 ## Overview
 `nanoleaf-kde-sync` is a Python package that captures the current KDE desktop image, derives representative lighting colors, and sends those colors to Nanoleaf devices with low end-to-end latency. The system is organized as a linear pipeline with clean module boundaries so capture backends, color algorithms, USB transport, and device integrations can evolve independently.
 
