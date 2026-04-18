@@ -15,6 +15,7 @@ jobs:
     permissions:
       contents: write
       id-token: write
+      actions: read
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -23,6 +24,9 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+
+      - name: Validate release candidate promotion evidence
+        run: python3 ./scripts/validate_release_promotion.py --target-sha "${GITHUB_SHA}"
 
       - name: Sync release metadata from tag
         run: python3 ./scripts/sync_release_version.py --git-tag "${GITHUB_REF_NAME}"

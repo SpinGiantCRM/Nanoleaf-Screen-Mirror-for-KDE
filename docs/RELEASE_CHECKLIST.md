@@ -17,6 +17,7 @@
 - [ ] **Pre-release gates / Release/install regression tests (Ubuntu)** job passes on candidate tag (`.github/workflows/pre-release.yml`, job id: `release-install-regression-tests-ubuntu`).
 - [ ] **Pre-release gates / Release/install regression tests (Arch Linux)** job passes on candidate tag (`.github/workflows/pre-release.yml`, job id: `release-install-regression-tests-arch`).
 - [ ] **Pre-release gates / Arch package metadata sanity** job passes on candidate tag (`.github/workflows/pre-release.yml`, job id: `arch-package-metadata-sanity`).
+- [ ] The exact commit SHA that will be promoted to stable (`vX.Y.Z`) has a **successful** `Pre-release gates` workflow run (`.github/workflows/pre-release.yml`) with required jobs green (unit/integration lanes, release/install regressions, Arch metadata sanity).
 
 ## Build/release artifacts
 
@@ -63,5 +64,6 @@
 2. (Optional but recommended) Dry-run metadata sync locally: `python3 ./scripts/sync_release_version.py --git-tag vX.Y.Z`.
 3. Run metadata validation locally: `python3 ./scripts/validate_release_metadata.py --git-tag vX.Y.Z`.
 4. Open a release PR using `.github/PULL_REQUEST_TEMPLATE/release.md`, complete RC matrix sign-off, and attach run evidence.
-5. Create and push the signed release tag using the exact same version (for example, `v0.1.0`) **only after** matrix sign-off is complete.
-6. Confirm GitHub Actions **CI / Release metadata validation** and **Release / Validate release metadata** steps pass before trusting published artifacts.
+5. Ensure the exact commit SHA to be tagged stable already has a successful pre-release run (`pre-release.yml`) and captured evidence.
+6. Create and push the signed release tag using the exact same version (for example, `v0.1.0`) **only after** matrix sign-off is complete.
+7. Confirm GitHub Actions **CI / Release metadata validation**, **Release / Validate release candidate promotion evidence**, and **Release / Validate release metadata** steps pass before trusting published artifacts.
