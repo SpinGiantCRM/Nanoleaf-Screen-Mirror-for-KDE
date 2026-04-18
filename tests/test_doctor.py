@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from pathlib import Path
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.tools import doctor
@@ -76,3 +77,26 @@ def test_run_probe_sync_works_inside_running_loop(monkeypatch) -> None:
 
     result = doctor.asyncio.run(_call())
     assert result.status == "pass"
+
+
+def test_desktop_authorization_warns_when_only_installed_entry_exists(monkeypatch, tmp_path: Path) -> None:
+    autostart = tmp_path / "home-autostart.desktop"
+    installed = tmp_path / "usr" / "share" / "applications" / "nanoleaf-kde-sync.desktop"
+    installed.parent.mkdir(parents=True, exist_ok=True)
+    installed.write_text(
+        f"[Desktop Entry]\n{doctor.RESTRICTED_IFACE_MARKER}\n",
+        encoding="utf-8",
+    )
+    template = tmp_path / "repo-docs.desktop"
+    template.write_text(
+        f"[Desktop Entry]\n{doctor.RESTRICTED_IFACE_MARKER}\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(doctor, "user_autostart_path", lambda: autostart)
+    monkeypatch.setattr(doctor, "installed_desktop_entry_candidates", lambda: [installed])
+    monkeypatch.setattr(doctor, "source_desktop_template_path", lambda: template)
+
+    result = doctor._check_desktop_authorization()
+    assert result.status == "warn"
+    assert "autostart is disabled" in result.message.lower()

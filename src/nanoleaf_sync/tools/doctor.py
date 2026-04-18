@@ -13,6 +13,13 @@ import threading
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.normalize import validate_config
 from nanoleaf_sync.config.store import ConfigManager
+from nanoleaf_sync.desktop_entry import (
+    RESTRICTED_IFACE_MARKER,
+    desktop_entry_has_restricted_marker,
+    installed_desktop_entry_candidates,
+    source_desktop_template_path,
+    user_autostart_path,
+)
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
 
@@ -108,29 +115,64 @@ def _run_probe_sync() -> DoctorCheck:
     return result
 
 def _check_desktop_authorization() -> DoctorCheck:
-    candidates = [
-        Path.home() / ".config" / "autostart" / "nanoleaf-kde-sync.desktop",
-        Path("docs/nanoleaf-kde-sync.desktop"),
-    ]
-    marker = "X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2"
-    for path in candidates:
-        if not path.exists():
-            continue
-        text = path.read_text(encoding="utf-8", errors="ignore")
-        if marker in text:
-            return DoctorCheck("desktop-authorization", "pass", f"Desktop entry contains restricted interface marker ({path}).")
+    autostart = user_autostart_path()
+    if autostart.exists():
+        if desktop_entry_has_restricted_marker(autostart):
+            return DoctorCheck("desktop-authorization", "pass", f"Autostart desktop entry is authorized ({autostart}).")
         return DoctorCheck(
             "desktop-authorization",
             "warn",
-            f"Desktop entry found but missing restricted interface marker ({path}).",
-            "Add X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2 then re-login.",
+            f"Autostart desktop entry exists but is missing restricted interface marker ({autostart}).",
+            f"Recreate it with `nanoleaf-kde-sync-autostart enable` so it includes {RESTRICTED_IFACE_MARKER}.",
         )
 
+    installed_with_marker: list[Path] = []
+    installed_without_marker: list[Path] = []
+    for candidate in installed_desktop_entry_candidates():
+        if not candidate.exists():
+            continue
+        if desktop_entry_has_restricted_marker(candidate):
+            installed_with_marker.append(candidate)
+        else:
+            installed_without_marker.append(candidate)
+
+    template = source_desktop_template_path()
+    template_has_marker = desktop_entry_has_restricted_marker(template)
+
+    if installed_with_marker:
+        first = installed_with_marker[0]
+        return DoctorCheck(
+            "desktop-authorization",
+            "warn",
+            f"Authorized desktop entry is installed at {first}, but autostart is disabled.",
+            "Enable autostart from tray menu or run `nanoleaf-kde-sync-autostart enable`.",
+        )
+    if installed_without_marker:
+        return DoctorCheck(
+            "desktop-authorization",
+            "warn",
+            f"Installed desktop entry is missing restricted interface marker ({installed_without_marker[0]}).",
+            f"Update package desktop entry to include {RESTRICTED_IFACE_MARKER}.",
+        )
+    if template.exists() and template_has_marker:
+        return DoctorCheck(
+            "desktop-authorization",
+            "warn",
+            f"Source desktop template is authorized ({template}), but no installed desktop entry or autostart file was found.",
+            "Install the desktop file with your package manager, then enable autostart.",
+        )
+    if template.exists():
+        return DoctorCheck(
+            "desktop-authorization",
+            "warn",
+            f"Source desktop template is present but missing restricted interface marker ({template}).",
+            f"Add {RESTRICTED_IFACE_MARKER} to the template and reinstall.",
+        )
     return DoctorCheck(
         "desktop-authorization",
         "warn",
-        "No desktop entry found for autostart or docs template.",
-        "Install docs/nanoleaf-kde-sync.desktop and include restricted interface marker.",
+        "No desktop entry found in autostart, installed applications, or source template.",
+        "Install nanoleaf-kde-sync desktop entry, then run `nanoleaf-kde-sync-autostart enable`.",
     )
 
 

@@ -9,6 +9,11 @@ import sys
 import threading
 
 from nanoleaf_sync.config.store import ConfigManager, mode_config
+from nanoleaf_sync.desktop_entry import (
+    disable_autostart,
+    enable_autostart,
+    user_autostart_path,
+)
 from nanoleaf_sync.service import NanoleafSyncService
 
 from nanoleaf_sync.tools.output_format import describe_mode, summarize_command_output
@@ -127,6 +132,8 @@ class NanoleafTrayApp:
         self.action_device = self.QAction("Device: --", menu)
         self.action_device.setEnabled(False)
         self.action_status = self.QAction("Status", menu)
+        self.action_enable_autostart = self.QAction("Enable autostart", menu)
+        self.action_disable_autostart = self.QAction("Disable autostart", menu)
         self.action_doctor = self.QAction("Run Doctor", menu)
         self.action_smoke = self.QAction("Run Smoke Test", menu)
         self.action_quit = self.QAction("Quit", menu)
@@ -136,6 +143,8 @@ class NanoleafTrayApp:
         self.action_settings.triggered.connect(self.on_settings)
         self.action_troubleshooting.triggered.connect(self.on_troubleshooting)
         self.action_status.triggered.connect(self.on_status)
+        self.action_enable_autostart.triggered.connect(self.on_enable_autostart)
+        self.action_disable_autostart.triggered.connect(self.on_disable_autostart)
         self.action_doctor.triggered.connect(self.on_doctor)
         self.action_smoke.triggered.connect(self.on_smoke_test)
         self.action_quit.triggered.connect(self.on_quit)
@@ -149,6 +158,8 @@ class NanoleafTrayApp:
         menu.addAction(self.action_settings)
         menu.addAction(self.action_troubleshooting)
         menu.addAction(self.action_status)
+        menu.addAction(self.action_enable_autostart)
+        menu.addAction(self.action_disable_autostart)
         menu.addAction(self.action_doctor)
         menu.addAction(self.action_smoke)
         menu.addAction(self.action_quit)
@@ -226,6 +237,45 @@ class NanoleafTrayApp:
             label="doctor",
             argv=[sys.executable, "-m", "nanoleaf_sync.tools.doctor"],
         )
+
+    def on_enable_autostart(self) -> None:
+        try:
+            path = enable_autostart()
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                f"Autostart enabled.\nDesktop file: {path}",
+                self.QSystemTrayIcon.MessageIcon.Information,
+                6000,
+            )
+        except Exception as exc:
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                f"Unable to enable autostart: {exc}",
+                self.QSystemTrayIcon.MessageIcon.Warning,
+                7000,
+            )
+
+    def on_disable_autostart(self) -> None:
+        try:
+            removed = disable_autostart()
+            text = (
+                f"Autostart disabled.\nRemoved: {user_autostart_path()}"
+                if removed
+                else f"Autostart already disabled.\nPath: {user_autostart_path()}"
+            )
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                text,
+                self.QSystemTrayIcon.MessageIcon.Information,
+                6000,
+            )
+        except Exception as exc:
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                f"Unable to disable autostart: {exc}",
+                self.QSystemTrayIcon.MessageIcon.Warning,
+                7000,
+            )
 
     def on_smoke_test(self):
         self._run_command_async(
