@@ -7,13 +7,14 @@
 - Fixed the standalone installer cleanup trap so `set -euo pipefail` runs do not fail with `temp_rule: unbound variable`.
 - Switched Arch/CachyOS user guidance to recommend `makepkg -si` as the primary install path.
 - Clarified AppImage status on Arch/CachyOS as an experimental/secondary path.
-- Made AppImage build/runtime Python invocation explicitly use Python 3.11 to avoid mixing 3.11 wheels with host Python 3.14.
+- Bundled a pinned standalone CPython 3.11 runtime inside AppImage and switched launchers to execute the embedded interpreter.
 - Changed default preferred real capture backend to `kwin-dbus` for KDE truthfulness.
 
 ### Release engineering
 - Added GitHub Actions CI workflow for Linux tests and Arch packaging metadata sanity checks.
 - Added GitHub Actions build workflow that produces `sdist` + `wheel` artifacts and uploads them.
 - Added tag-driven GitHub release workflow that publishes built distribution artifacts.
+- Added release CI sanity check that runs `./nanoleaf-kde-sync.AppImage --help` in a stripped environment to confirm no host `python3.11` dependency.
 
 ### Tray UX
 - Updated tray **Run Doctor** and **Run Smoke Test** actions to execute asynchronously in the background.

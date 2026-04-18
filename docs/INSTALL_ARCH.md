@@ -17,7 +17,7 @@ It tracks repo tags via `PKGBUILD` `pkgver`, so keep package metadata in sync wi
 bash ./install-nanoleaf-kde-sync.sh ./nanoleaf-kde-sync.AppImage
 ```
 
-Use this only if you explicitly want the release AppImage flow. It currently expects a matching Python 3.11 runtime on the target machine.
+Use this only if you explicitly want the release AppImage flow. The AppImage now bundles its own pinned CPython 3.11 runtime and does not require a host `python3.11`.
 
 ## Verify downloaded release assets
 
@@ -64,3 +64,11 @@ pip install .
 ```
 
 Use this path only for development and debugging workflows.
+
+
+## AppImage runtime architecture
+
+- `scripts/build-appimage.sh` downloads pinned `appimagetool` and pinned `python-build-standalone` artifacts, then verifies SHA256 for both before build proceeds.
+- The standalone interpreter and stdlib are unpacked to `AppDir/usr/python` and launcher scripts run `AppDir/usr/python/bin/python3` directly.
+- Python package wheels are installed into the bundled interpreter site-packages, so runtime imports resolve from inside the AppImage.
+- Launchers set `PYTHONHOME` and `PYTHONPATH` relative to the extracted AppImage mountpoint (`HERE`) for relocatable execution.
