@@ -16,7 +16,8 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.11+ in CI
 ROOT = Path(__file__).resolve().parents[1]
 PYPROJECT_PATH = ROOT / "pyproject.toml"
 CHANGELOG_PATH = ROOT / "docs" / "CHANGELOG.md"
-TAG_PATTERN = re.compile(r"^v(?P<version>\d+\.\d+\.\d+)$")
+TAG_PATTERN = re.compile(r"^v(?P<version>\d+\.\d+\.\d+)(?P<prerelease>-(?:rc|beta|alpha)\d+)?$")
+VERSION_PATTERN = re.compile(r"^(?P<version>\d+\.\d+\.\d+)(?P<prerelease>-(?:rc|beta|alpha)\d+)?$")
 
 
 class ValidationError(Exception):
@@ -42,6 +43,17 @@ def _read_project_version() -> str:
     return version.strip()
 
 
+def _normalize_version_data(raw_version: str) -> tuple[str, str | None]:
+    match = VERSION_PATTERN.fullmatch(raw_version.strip())
+    if not match:
+        raise ValidationError(
+            "Version format mismatch: "
+            f"got '{raw_version}', expected 'X.Y.Z' (optionally with -rcN/-betaN/-alphaN)."
+        )
+
+    return match.group("version"), match.group("prerelease")
+
+
 def _changelog_has_version(version: str) -> bool:
     # Matches headings such as "## 1.2.3" and "## [1.2.3]".
     header_pattern = re.compile(
@@ -57,15 +69,19 @@ def _validate_tag(tag: str, version: str) -> None:
     if not match:
         raise ValidationError(
             "Git tag format mismatch: "
-            f"got '{tag}', expected format 'vX.Y.Z' (for example 'v{version}')."
+            f"got '{tag}', expected 'vX.Y.Z' (optionally with -rcN/-betaN/-alphaN). "
+            f"Examples: 'v{version}', 'v{version}-rc1'."
         )
 
-    tag_version = match.group("version")
-    if tag_version != version:
+    normalized_project_version, _ = _normalize_version_data(version)
+    normalized_tag_version = match.group("version")
+
+    if normalized_tag_version != normalized_project_version:
         raise ValidationError(
             "Git tag version mismatch: "
-            f"pyproject.toml has '{version}', but git tag '{tag}' points to '{tag_version}'. "
-            f"Expected tag 'v{version}'."
+            f"pyproject.toml has '{version}' (normalized to '{normalized_project_version}'), "
+            f"but git tag '{tag}' points to '{normalized_tag_version}'. "
+            f"Expected tag 'v{normalized_project_version}' or prerelease variant like 'v{normalized_project_version}-rc1'."
         )
 
 
@@ -92,7 +108,7 @@ def main() -> int:
     parser.add_argument(
         "--git-tag",
         default=None,
-        help="Git tag to validate (for example: v1.2.3). If omitted, tag validation is skipped.",
+        help="Git tag to validate (for example: v1.2.3 or v1.2.3-rc1). If omitted, tag validation is skipped.",
     )
     args = parser.parse_args()
 
