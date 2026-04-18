@@ -30,6 +30,10 @@
 - Added GitHub issue templates for bug reports and feature requests.
 - Updated release checklist to match CI/build/release process and Arch package workflow.
 
+## 0.1.0
+
+- Promoted the current release-engineering, reliability, and documentation improvements from **Unreleased** into the 0.1.0 release.
+
 ## 0.0.3
 
 - Added Arch/CachyOS distribution assets:
