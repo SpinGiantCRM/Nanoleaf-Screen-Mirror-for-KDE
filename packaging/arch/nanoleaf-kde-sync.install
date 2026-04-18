@@ -24,7 +24,8 @@ Next steps:
      nanoleaf-kde-sync-smoke-test
 
 Optional autostart:
-  cp /usr/share/applications/nanoleaf-kde-sync.desktop ~/.config/autostart/
+  nanoleaf-kde-sync-autostart enable
+  # or from tray menu: Enable autostart
 EOF
 }
 

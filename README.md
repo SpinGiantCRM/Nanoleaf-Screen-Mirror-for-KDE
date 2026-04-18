@@ -9,6 +9,9 @@ It captures the active display, maps sampled colors to Nanoleaf zones, and sends
 - KDE Plasma 6 screen capture support
 - Nanoleaf USB HID output (`NL82K1` / `NL82K2`)
 - Configuration bootstrap and diagnostics commands
+- Tray-managed autostart enable/disable with KDE desktop authorization marker
+- Guided strip alignment controls (zone count, reverse, offset, preview mapping)
+- User-facing HDR tuning controls (transfer, primaries, max nits)
 - Simple service entrypoint for continuous mirroring
 
 ## Installation (Arch / CachyOS)
@@ -44,6 +47,14 @@ nanoleaf-kde-sync-smoke-test
 nanoleaf-kde-sync-service
 ```
 
+5. Optional autostart management:
+
+```bash
+nanoleaf-kde-sync-autostart status
+nanoleaf-kde-sync-autostart enable
+nanoleaf-kde-sync-autostart disable
+```
+
 ## Troubleshooting
 
 - **No frame capture**: Ensure you are running KDE Plasma 6 Wayland and accepted the screenshot permission prompt.
@@ -57,7 +68,8 @@ nanoleaf-kde-sync-service
 
   Then unplug and reconnect the device.
 
-- **Zone order mismatch**: Adjust `zone_offset`, `reverse_zones`, and `device_zone_count` in the config.
+- **Zone order mismatch**: Open tray **Settings** and use the Zone alignment preview while tuning reverse/offset.
+- **HDR looks washed out or too dim**: Open tray **Settings** and adjust HDR transfer/primaries/max nits.
 
 ## Supported environment
 

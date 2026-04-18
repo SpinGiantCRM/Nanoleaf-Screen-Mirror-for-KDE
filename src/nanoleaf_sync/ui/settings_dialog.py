@@ -3,9 +3,24 @@ from __future__ import annotations
 from dataclasses import replace
 
 from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.color.zone_mapper import resolve_device_zone_indices
 
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.zone_presets import make_horizontal_zones
+
+
+def _mapping_preview_text(*, zone_count: int, device_zone_count: int, zone_offset: int, reverse_zones: bool) -> str:
+    indices = resolve_device_zone_indices(
+        zone_count,
+        device_zone_count=device_zone_count,
+        zone_offset=zone_offset,
+        reverse=reverse_zones,
+    )
+    if not indices:
+        return "Calibration preview: no zones configured."
+    preview = ", ".join(str(i) for i in indices[:12])
+    suffix = "…" if len(indices) > 12 else ""
+    return f"Calibration preview (device→screen zones): {preview}{suffix}"
 
 
 class SettingsDialog:
@@ -21,6 +36,7 @@ class SettingsDialog:
         QDialogButtonBox = qt["QDialogButtonBox"]
         QGridLayout = qt["QGridLayout"]
         QCheckBox = qt["QCheckBox"]
+        QComboBox = qt["QComboBox"]
         QLabel = qt["QLabel"]
         QSlider = qt["QSlider"]
 
@@ -69,6 +85,36 @@ class SettingsDialog:
                     bool(getattr(cfg, "use_mock_capture", True))
                 )
 
+                self.hdr_help = QLabel(
+                    "HDR controls matter when your display/content is HDR. SDR users can keep defaults."
+                )
+
+                self.hdr_transfer_combo = QComboBox()
+                self.hdr_transfer_combo.addItems(["srgb", "pq", "hlg"])
+                transfer_idx = self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))
+                self.hdr_transfer_combo.setCurrentIndex(max(0, transfer_idx))
+
+                self.hdr_primaries_combo = QComboBox()
+                self.hdr_primaries_combo.addItems(["bt709", "bt2020"])
+                primaries_idx = self.hdr_primaries_combo.findText(str(getattr(cfg, "hdr_primaries", "bt709")))
+                self.hdr_primaries_combo.setCurrentIndex(max(0, primaries_idx))
+
+                self.hdr_max_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.hdr_max_nits_slider.setRange(80, 4000)
+                self.hdr_max_nits_slider.setValue(int(getattr(cfg, "hdr_max_nits", 1000.0)))
+
+                self.calibration_help = QLabel(
+                    "Zone alignment: use Reverse + Offset until the moving test pattern matches your strip."
+                )
+                self.preview_label = QLabel(
+                    _mapping_preview_text(
+                        zone_count=zone_count,
+                        device_zone_count=device_zone_count,
+                        zone_offset=int(getattr(cfg, "zone_offset", 0)),
+                        reverse_zones=bool(getattr(cfg, "reverse_zones", False)),
+                    )
+                )
+
                 buttons = QDialogButtonBox(
                     QDialogButtonBox.StandardButton.Ok
                     | QDialogButtonBox.StandardButton.Cancel
@@ -91,6 +137,15 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Device zone count"), 6, 0)
                 layout.addWidget(self.device_zone_count_slider, 6, 1)
                 layout.addWidget(self.mock_capture_checkbox, 7, 0, 1, 2)
+                layout.addWidget(self.calibration_help, 8, 0, 1, 2)
+                layout.addWidget(self.preview_label, 9, 0, 1, 2)
+                layout.addWidget(self.hdr_help, 10, 0, 1, 2)
+                layout.addWidget(QLabel("HDR transfer"), 11, 0)
+                layout.addWidget(self.hdr_transfer_combo, 11, 1)
+                layout.addWidget(QLabel("HDR primaries"), 12, 0)
+                layout.addWidget(self.hdr_primaries_combo, 12, 1)
+                layout.addWidget(QLabel("HDR max nits"), 13, 0)
+                layout.addWidget(self.hdr_max_nits_slider, 13, 1)
                 self.setLayout(layout)
 
             def updated_config(self) -> AppConfig:
@@ -101,6 +156,9 @@ class SettingsDialog:
                 zone_offset = int(self.zone_offset_slider.value())
                 reverse_zones = bool(self.reverse_checkbox.isChecked())
                 device_zone_count = int(self.device_zone_count_slider.value())
+                hdr_transfer = str(self.hdr_transfer_combo.currentText())
+                hdr_primaries = str(self.hdr_primaries_combo.currentText())
+                hdr_max_nits = float(self.hdr_max_nits_slider.value())
                 # Update zones as normalized equal slices.
                 new_zones = make_horizontal_zones(zone_count)
                 # Preserve all other config fields; only override what the user changed.
@@ -116,6 +174,9 @@ class SettingsDialog:
                     explicit_zone_map=[],
                     use_mock_capture=bool(self.mock_capture_checkbox.isChecked()),
                     prefer_backend="kwin-dbus",
+                    hdr_transfer=hdr_transfer,
+                    hdr_primaries=hdr_primaries,
+                    hdr_max_nits=hdr_max_nits,
                 )
 
         self._dialog = _Dialog()
