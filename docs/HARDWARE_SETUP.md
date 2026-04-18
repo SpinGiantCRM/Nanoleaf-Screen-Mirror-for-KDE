@@ -39,11 +39,18 @@ sudo udevadm trigger --subsystem-match=hidraw
 
 Reconnect the Nanoleaf USB device after rule reload.
 
+Standalone AppImage installer (`install-nanoleaf-kde-sync.sh`) uses the same canonical
+rule file (`assets/udev/60-nanoleaf-kde-sync.rules`) or packaged equivalents when present.
+
 ## 3) Generate full-real config preset
 
 ```bash
 nanoleaf-kde-sync-init-config --mode full-real --force
 ```
+
+The standalone AppImage installer initializes default config through
+`nanoleaf-kde-sync-init-config --mode full-mock` (or `python3 -m nanoleaf_sync.tools.config_init`
+fallback), so generated defaults stay aligned with `ConfigManager` mode presets.
 
 Then verify/update:
 

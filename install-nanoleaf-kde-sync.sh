@@ -12,6 +12,7 @@ ICON_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/scalable/apps"
 ICON_DST="$ICON_DIR/$APP_NAME.svg"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/$APP_NAME"
 CONFIG_FILE="$CONFIG_DIR/config.json"
+UDEV_RULE_NAME="60-nanoleaf-kde-sync.rules"
 
 print_step() {
   echo
@@ -48,9 +49,6 @@ SVG
 }
 
 install_udev_rule() {
-  local temp_rule=""
-  trap '[[ -n "${temp_rule:-}" ]] && rm -f -- "$temp_rule"' RETURN
-
   local helper
   helper="$(find_priv_helper)"
   if [[ -z "$helper" ]]; then
@@ -59,24 +57,36 @@ install_udev_rule() {
     return 0
   fi
 
-  temp_rule="$(mktemp)"
-
-  cat > "$temp_rule" <<'RULES'
-# Nanoleaf USB Screen Mirror Light Strip and Pegboard Desk Dock
-# Gives local users access via the `plugdev` group.
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="37fa", ATTRS{idProduct}=="8201", MODE="0660", GROUP="plugdev", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="37fa", ATTRS{idProduct}=="8202", MODE="0660", GROUP="plugdev", TAG+="uaccess"
-RULES
+  local rule_source=""
+  local candidate_paths=(
+    "$SCRIPT_DIR/assets/udev/$UDEV_RULE_NAME"
+    "$SCRIPT_DIR/../assets/udev/$UDEV_RULE_NAME"
+    "/usr/share/nanoleaf-kde-sync/assets/udev/$UDEV_RULE_NAME"
+    "/usr/share/doc/nanoleaf-kde-sync/assets/udev/$UDEV_RULE_NAME"
+    "/usr/lib/udev/rules.d/$UDEV_RULE_NAME"
+  )
+  local candidate=""
+  for candidate in "${candidate_paths[@]}"; do
+    if [[ -f "$candidate" ]]; then
+      rule_source="$candidate"
+      break
+    fi
+  done
+  if [[ -z "$rule_source" ]]; then
+    echo "Could not locate $UDEV_RULE_NAME from assets or packaged paths."
+    echo "Skipping USB rule install. Use docs/HARDWARE_SETUP.md for manual setup."
+    return 0
+  fi
 
   print_step "Setting up USB permissions (udev rule)"
   echo "You'll be asked for administrator approval once."
 
   if [[ "$helper" == "pkexec" ]]; then
-    pkexec install -Dm0644 "$temp_rule" /etc/udev/rules.d/60-nanoleaf-kde-sync.rules
+    pkexec install -Dm0644 "$rule_source" "/etc/udev/rules.d/$UDEV_RULE_NAME"
     pkexec udevadm control --reload-rules || true
     pkexec udevadm trigger --subsystem-match=hidraw || true
   else
-    sudo install -Dm0644 "$temp_rule" /etc/udev/rules.d/60-nanoleaf-kde-sync.rules
+    sudo install -Dm0644 "$rule_source" "/etc/udev/rules.d/$UDEV_RULE_NAME"
     sudo udevadm control --reload-rules || true
     sudo udevadm trigger --subsystem-match=hidraw || true
   fi
@@ -84,33 +94,25 @@ RULES
   echo "USB permissions installed. If your Nanoleaf was already plugged in, unplug/replug it."
 }
 
-write_default_config() {
+initialize_default_config() {
   mkdir -p "$CONFIG_DIR"
   if [[ -f "$CONFIG_FILE" ]]; then
     return
   fi
-  cat > "$CONFIG_FILE" <<'JSON'
-{
-  "allow_capture_fallback": true,
-  "brightness": 0.7,
-  "device_pid": 33282,
-  "device_vid": 14330,
-  "fps": 30,
-  "prefer_backend": "kwin-dbus",
-  "replay_frames_path": "",
-  "smoothing": 0.2,
-  "use_mock_capture": true,
-  "use_mock_device": true,
-  "zones": [
-    {
-      "h": 1.0,
-      "w": 1.0,
-      "x": 0.0,
-      "y": 0.0
-    }
-  ]
-}
-JSON
+
+  if command -v nanoleaf-kde-sync-init-config >/dev/null 2>&1; then
+    nanoleaf-kde-sync-init-config --mode full-mock >/dev/null
+    return
+  fi
+
+  if command -v python3 >/dev/null 2>&1; then
+    if python3 -m nanoleaf_sync.tools.config_init --mode full-mock >/dev/null 2>&1; then
+      return
+    fi
+  fi
+
+  echo "Could not run nanoleaf-kde-sync-init-config or Python module fallback."
+  echo "Proceeding without creating $CONFIG_FILE."
 }
 
 install_desktop_file() {
@@ -155,7 +157,7 @@ main() {
   install_desktop_file
 
   print_step "Preparing first-run settings"
-  write_default_config
+  initialize_default_config
 
   install_udev_rule
 
