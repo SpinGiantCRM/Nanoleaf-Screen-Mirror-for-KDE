@@ -14,17 +14,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build AppImage
+        run: ./scripts/build-appimage.sh
+
+      - name: Stage release artifacts
+        run: |
+          mkdir -p release-assets
+          cp -f ./nanoleaf-kde-sync.AppImage ./release-assets/nanoleaf-kde-sync.AppImage
+          cp -f ./install-nanoleaf-kde-sync.sh ./release-assets/install-nanoleaf-kde-sync.sh
+
       - name: Validate release artifacts exist
         run: |
-          test -f nanoleaf-kde-sync.AppImage
-          test -f install-nanoleaf-kde-sync.sh
+          test -f release-assets/nanoleaf-kde-sync.AppImage
+          test -f release-assets/install-nanoleaf-kde-sync.sh
 
       - name: Publish GitHub release with AppImage and installer
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            nanoleaf-kde-sync.AppImage
-            install-nanoleaf-kde-sync.sh
+            release-assets/nanoleaf-kde-sync.AppImage
+            release-assets/install-nanoleaf-kde-sync.sh
           generate_release_notes: true
           draft: false
           prerelease: false
