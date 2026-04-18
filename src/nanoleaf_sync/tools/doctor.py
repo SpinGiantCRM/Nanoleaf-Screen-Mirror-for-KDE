@@ -199,7 +199,9 @@ def _check_real_device_probe(config: AppConfig) -> DoctorCheck:
 
 
 def _check_mode_consistency(config: AppConfig) -> DoctorCheck:
-    if not config.use_mock_capture and config.prefer_backend != "kwin-dbus":
+    normalized = (config.prefer_backend or "").strip().lower()
+    valid_backends = {"", "kwin-dbus", "kwin_dbus", "kwin-dbus-screenshot"}
+    if not config.use_mock_capture and normalized not in valid_backends:
         return DoctorCheck(
             "mode-consistency",
             "fail",

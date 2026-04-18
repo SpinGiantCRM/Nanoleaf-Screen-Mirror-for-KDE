@@ -18,6 +18,7 @@ def test_mode_consistency_mock_capture_real_device_warns() -> None:
     cfg = AppConfig(use_mock_capture=True, use_mock_device=False)
     result = _check_mode_consistency(cfg)
     assert result.status == "warn"
+    assert "mock capture with real device" in result.message.lower()
 
 
 def test_format_report_groups_entries() -> None:
@@ -62,6 +63,7 @@ def test_run_doctor_real_device_requested_hid_unavailable(monkeypatch) -> None:
     checks = run_doctor(include_device_probe=True)
     hid_check = next(check for check in checks if check.name == "hid-device")
     assert hid_check.status == "fail"
+    assert "hid backend unavailable" in hid_check.message.lower()
 
 
 def test_run_probe_sync_works_inside_running_loop(monkeypatch) -> None:

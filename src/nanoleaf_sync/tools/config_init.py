@@ -7,8 +7,8 @@ from nanoleaf_sync.config.store import ConfigManager
 
 def _mode_help() -> str:
     return (
-        "full-mock (safe default), "
-        "capture-real (real capture + mock device), "
+        "full-mock (mock capture + mock device), "
+        "capture-real (real capture + mock device, default), "
         "full-real (real capture + real device)"
     )
 

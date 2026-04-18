@@ -61,6 +61,26 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         default=AppConfig.prefer_backend,
     )
 
+    hdr_max_nits = max(80.0, min(10000.0, float(cfg.hdr_max_nits)))
+    hdr_transfer = normalize_enum(
+        cfg.hdr_transfer,
+        allowed={
+            "srgb": "srgb",
+            "pq": "pq",
+            "st2084": "pq",
+        },
+        default=AppConfig.hdr_transfer,
+    )
+    hdr_primaries = normalize_enum(
+        cfg.hdr_primaries,
+        allowed={
+            "bt709": "bt709",
+            "srgb": "bt709",
+            "bt2020": "bt2020",
+        },
+        default=AppConfig.hdr_primaries,
+    )
+
     return AppConfig(
         fps=fps,
         prefer_backend=prefer_backend,
@@ -72,6 +92,9 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         device_pid=cfg.device_pid,
         use_mock_device=cfg.use_mock_device,
         use_mock_capture=cfg.use_mock_capture,
+        hdr_max_nits=hdr_max_nits,
+        hdr_transfer=hdr_transfer,
+        hdr_primaries=hdr_primaries,
         device_zone_count=device_zone_count,
         zone_offset=zone_offset,
         reverse_zones=cfg.reverse_zones,

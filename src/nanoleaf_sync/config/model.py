@@ -44,10 +44,14 @@ class AppConfig:
     # Default to mock device so the app runs without requiring HID hardware/protocol.
     use_mock_device: bool = True
 
-    # Capture backend (development/demo).
-    # Default to mock capture so the full pipeline can be tested immediately
-    # even before DRM/KWin capture bindings are implemented.
+    # Capture backend toggle.
+    # Default to real capture (kwin-dbus) for KDE Plasma; set True for dev/demo mode.
     use_mock_capture: bool = False
+
+    # HDR conversion controls (used by HDR-capable capture paths / metadata-aware conversion).
+    hdr_max_nits: float = 1000.0
+    hdr_transfer: str = "srgb"
+    hdr_primaries: str = "bt709"
 
     # Device zone calibration (mapping sampled screen zones to physical strip zones)
     # If 0, the service uses `len(zones)` (or 1 if zones are empty).

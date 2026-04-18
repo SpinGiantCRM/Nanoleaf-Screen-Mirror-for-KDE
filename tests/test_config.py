@@ -46,6 +46,7 @@ def test_config_save_validates_and_is_json_loadable(tmp_path: Path) -> None:
     assert data["reinit_backoff_ms"] >= 0
     assert data["status_log_interval_s"] >= 0.5
     assert len(data["zones"]) == 1
+    assert data["zones"][0] == {"x": 0.0, "y": 0.1, "w": 0.5, "h": 0.5}
 
 
 def test_config_load_normalizes_backend(tmp_path: Path) -> None:
@@ -65,6 +66,19 @@ def test_config_load_invalid_backend_falls_back_to_default(tmp_path: Path) -> No
 
     cfg = ConfigManager(path=cfg_path).load()
     assert cfg.prefer_backend == AppConfig.prefer_backend
+
+
+def test_config_load_normalizes_hdr_fields(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.json"
+    cfg_path.write_text(
+        json.dumps({"hdr_transfer": "ST2084", "hdr_primaries": "sRGB", "hdr_max_nits": 12000}),
+        encoding="utf-8",
+    )
+
+    cfg = ConfigManager(path=cfg_path).load()
+    assert cfg.hdr_transfer == "pq"
+    assert cfg.hdr_primaries == "bt709"
+    assert cfg.hdr_max_nits == 10000.0
 
 
 def test_config_load_parses_bool_strings(tmp_path: Path) -> None:

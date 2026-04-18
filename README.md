@@ -51,7 +51,13 @@ nanoleaf-kde-sync-service
 ## Common failures
 
 - **No frame capture:** Ensure KDE Plasma 6 Wayland session and screenshot permission prompt accepted.
-- **USB permission denied:** Install `assets/udev/60-nanoleaf-kde-sync.rules`, reload udev, unplug/replug device.
+- **USB permission denied:** Install and reload the udev rule with:
+  ```bash
+  sudo install -Dm0644 assets/udev/60-nanoleaf-kde-sync.rules /etc/udev/rules.d/60-nanoleaf-kde-sync.rules
+  sudo udevadm control --reload-rules
+  sudo udevadm trigger --subsystem-match=hidraw --action=add
+  ```
+  Then unplug/replug the device. If it still fails, check `journalctl -f` and try `udevadm test /sys/class/hidraw/hidraw0`.
 - **Lights not matching order:** adjust `zone_offset`, `reverse_zones`, and `device_zone_count` in config.
 
 ## Non-goals

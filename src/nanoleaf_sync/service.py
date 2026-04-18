@@ -183,6 +183,9 @@ class NanoleafSyncService:
                 height=height,
                 use_mock_capture=self.config.use_mock_capture,
                 prefer_backend=self.config.prefer_backend,
+                hdr_max_nits=self.config.hdr_max_nits,
+                hdr_transfer=self.config.hdr_transfer,
+                hdr_primaries=self.config.hdr_primaries,
             )
 
         if self._driver_override is not None:
