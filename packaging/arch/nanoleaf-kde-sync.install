@@ -9,6 +9,13 @@ Next steps:
      sudo udevadm trigger --subsystem-match=hidraw
      Reconnect your Nanoleaf USB device.
 
+  1a) Fresh Arch/CachyOS plugdev remediation (if doctor reports missing group access):
+      getent group plugdev || sudo groupadd plugdev
+      sudo usermod -aG plugdev "$USER"
+      log out/in after adding group membership
+      Reconnect USB device and re-run doctor.
+      See docs/HARDWARE_SETUP.md for deeper troubleshooting.
+
   2) Create initial config (safe default):
      nanoleaf-kde-sync-init-config --mode full-mock
 
