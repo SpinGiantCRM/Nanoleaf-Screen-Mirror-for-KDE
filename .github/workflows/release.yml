@@ -14,21 +14,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Build release artifacts
+      - name: Validate release artifacts exist
         run: |
-          python -m pip install --upgrade pip
-          pip install build
-          python -m build
+          test -f nanoleaf-kde-sync.AppImage
+          test -f install-nanoleaf-kde-sync.sh
 
-      - name: Publish GitHub release with artifacts
+      - name: Publish GitHub release with AppImage and installer
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
+          files: |
+            nanoleaf-kde-sync.AppImage
+            install-nanoleaf-kde-sync.sh
           generate_release_notes: true
           draft: false
           prerelease: false
