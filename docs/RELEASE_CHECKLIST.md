@@ -43,3 +43,10 @@
 - [ ] README reflects current RC scope and quick-start.
 - [ ] Install and troubleshooting docs are separated and consistent.
 - [ ] Hardware + smoke docs match current commands and behavior.
+
+## How to cut a release
+
+1. Update `pyproject.toml` with the target release version (`X.Y.Z`) and add the matching section to `docs/CHANGELOG.md`.
+2. Run metadata validation locally: `python3 ./scripts/validate_release_metadata.py --git-tag vX.Y.Z`.
+3. Create and push the signed release tag using the exact same version (for example, `v0.1.0`).
+4. Confirm GitHub Actions **CI / Release metadata validation** and **Release / Validate release metadata** steps pass before trusting published artifacts.
