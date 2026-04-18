@@ -10,11 +10,7 @@ def test_capture_factory_mock_is_reusable() -> None:
         width=4,
         height=3,
         use_mock_capture=True,
-        prefer_backend="kmsgrab",
-        allow_fallback=True,
-        hdr_max_nits=1000.0,
-        hdr_transfer="srgb",
-        hdr_primaries="bt709",
+        prefer_backend="kwin-dbus",
     )
 
     frame1 = backend.capture()
@@ -23,42 +19,17 @@ def test_capture_factory_mock_is_reusable() -> None:
     assert isinstance(frame1, np.ndarray)
     assert frame1.shape == (3, 4, 3)
     assert frame1.dtype == np.uint8
-    # Mock capture reuses a single buffer to reduce allocations.
     assert frame1 is frame2
 
 
-
-def test_capture_factory_kmsgrab_fallback_vs_no_fallback() -> None:
-    # When allow_fallback=True, missing DRM bindings should fall back to kwin path.
-    backend_ok = create_capture_backend(
-        width=6,
-        height=4,
-        use_mock_capture=False,
-        prefer_backend="kmsgrab",
-        allow_fallback=True,
-        hdr_max_nits=1000.0,
-        hdr_transfer="srgb",
-        hdr_primaries="bt709",
-    )
-    monkeypatch_capture = np.zeros((4, 6, 3), dtype=np.uint8)
-    backend_ok._fallback.capture = lambda: monkeypatch_capture  # type: ignore[attr-defined]
-    frame = backend_ok.capture()
-    assert frame.shape == (4, 6, 3)
-    assert frame.dtype == np.uint8
-
-    # When allow_fallback=False, missing DRM bindings should raise
-    backend_fail = create_capture_backend(
-        width=6,
-        height=4,
-        use_mock_capture=False,
-        prefer_backend="kmsgrab",
-        allow_fallback=False,
-        hdr_max_nits=1000.0,
-        hdr_transfer="srgb",
-        hdr_primaries="bt709",
-    )
-    with pytest.raises(Exception):
-        _ = backend_fail.capture()
+def test_capture_factory_rejects_non_primary_real_backends() -> None:
+    with pytest.raises(ValueError, match="supports only 'kwin-dbus'"):
+        create_capture_backend(
+            width=6,
+            height=4,
+            use_mock_capture=False,
+            prefer_backend="kmsgrab",
+        )
 
 
 def test_kmsgrab_converts_hdr_before_any_resizing(monkeypatch) -> None:

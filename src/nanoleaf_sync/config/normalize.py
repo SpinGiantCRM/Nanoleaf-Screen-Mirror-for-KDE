@@ -28,15 +28,9 @@ def normalize_enum(value: Any, *, allowed: Dict[str, str], default: str) -> str:
 
 
 def validate_config(cfg: AppConfig) -> AppConfig:
-    # Clamp core performance/brightness knobs to keep behavior predictable.
-    brightness = float(cfg.brightness)
-    brightness = max(0.0, min(1.0, brightness))
-
-    smoothing = float(cfg.smoothing)
-    smoothing = max(0.0, min(1.0, smoothing))
-
-    fps = int(cfg.fps)
-    fps = max(1, min(120, fps))
+    brightness = max(0.0, min(1.0, float(cfg.brightness)))
+    smoothing = max(0.0, min(1.0, float(cfg.smoothing)))
+    fps = max(1, min(120, int(cfg.fps)))
     zone_sampling_stride = max(1, int(cfg.zone_sampling_stride))
 
     zones: List[ZoneConfig] = []
@@ -45,21 +39,12 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         y = max(0.0, min(1.0, float(z.y)))
         w = max(0.0, min(1.0, float(z.w)))
         h = max(0.0, min(1.0, float(z.h)))
-        # If w/h clamp to 0, drop zones to avoid empty rectangles.
         if w <= 0.0 or h <= 0.0:
             continue
         zones.append(ZoneConfig(x=x, y=y, w=w, h=h))
 
-    device_zone_count = int(cfg.device_zone_count)
-    if device_zone_count < 0:
-        device_zone_count = 0
-
+    device_zone_count = max(0, int(cfg.device_zone_count))
     zone_offset = int(cfg.zone_offset)
-
-    # Clamp HDR defaults to plausible ranges.
-    hdr_max_nits = float(cfg.hdr_max_nits)
-    hdr_max_nits = max(1.0, min(10_000.0, hdr_max_nits))
-
     explicit_zone_map = [int(i) for i in cfg.explicit_zone_map] if cfg.explicit_zone_map else []
 
     max_consecutive_errors = max(1, int(cfg.max_consecutive_errors))
@@ -69,22 +54,20 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     prefer_backend = normalize_enum(
         cfg.prefer_backend,
         allowed={
-            "auto": "auto",
-            "kmsgrab": "kmsgrab",
             "kwin-dbus": "kwin-dbus",
             "kwin_dbus": "kwin-dbus",
-            "kwin-dbus-screenshot": "kwin-dbus-screenshot",
-            "replay": "replay",
+            "kwin-dbus-screenshot": "kwin-dbus",
         },
         default=AppConfig.prefer_backend,
     )
+
+    hdr_max_nits = max(80.0, min(10000.0, float(cfg.hdr_max_nits)))
     hdr_transfer = normalize_enum(
         cfg.hdr_transfer,
         allowed={
             "srgb": "srgb",
             "pq": "pq",
-            "hlg": "hlg",
-            "linear": "linear",
+            "st2084": "pq",
         },
         default=AppConfig.hdr_transfer,
     )
@@ -92,6 +75,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         cfg.hdr_primaries,
         allowed={
             "bt709": "bt709",
+            "srgb": "bt709",
             "bt2020": "bt2020",
         },
         default=AppConfig.hdr_primaries,
@@ -100,7 +84,6 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     return AppConfig(
         fps=fps,
         prefer_backend=prefer_backend,
-        replay_frames_path=str(cfg.replay_frames_path or ""),
         brightness=brightness,
         smoothing=smoothing,
         zones=zones,
@@ -109,14 +92,13 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         device_pid=cfg.device_pid,
         use_mock_device=cfg.use_mock_device,
         use_mock_capture=cfg.use_mock_capture,
-        allow_capture_fallback=cfg.allow_capture_fallback,
+        hdr_max_nits=hdr_max_nits,
+        hdr_transfer=hdr_transfer,
+        hdr_primaries=hdr_primaries,
         device_zone_count=device_zone_count,
         zone_offset=zone_offset,
         reverse_zones=cfg.reverse_zones,
         explicit_zone_map=explicit_zone_map,
-        hdr_max_nits=hdr_max_nits,
-        hdr_transfer=hdr_transfer,
-        hdr_primaries=hdr_primaries,
         max_consecutive_errors=max_consecutive_errors,
         reinit_backoff_ms=reinit_backoff_ms,
         status_log_interval_s=status_log_interval_s,
