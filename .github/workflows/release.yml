@@ -27,6 +27,16 @@ jobs:
       - name: Sync release metadata from tag
         run: python3 ./scripts/sync_release_version.py --git-tag "${GITHUB_REF_NAME}"
 
+      - name: Pin PKGBUILD source checksum from release tarball
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          version="${version%%-*}"
+          tarball_url="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/v${version}.tar.gz"
+          curl -fsSL "${tarball_url}" -o /tmp/release-source.tar.gz
+          checksum="$(sha256sum /tmp/release-source.tar.gz | awk '{print $1}')"
+          sed -Ei "s|^sha256sums=\\([^)]*\\)$|sha256sums=('${checksum}')|" packaging/arch/PKGBUILD
+
       - name: Validate release metadata
         run: python3 ./scripts/validate_release_metadata.py --git-tag "${GITHUB_REF_NAME}"
 
