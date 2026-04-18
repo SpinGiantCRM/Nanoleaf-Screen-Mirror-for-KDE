@@ -1,0 +1,68 @@
+name: Reusable test runner
+
+on:
+  workflow_call:
+    inputs:
+      target:
+        description: Target environment variant
+        required: true
+        type: string
+      test-label:
+        description: Human-friendly label for the pytest step
+        required: true
+        type: string
+      pytest-args:
+        description: Arguments passed to pytest
+        required: false
+        default: -q
+        type: string
+
+jobs:
+  run-ubuntu:
+    if: ${{ inputs.target == 'ubuntu' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r docs/requirements.txt
+          pip install -e .[test]
+
+      - name: Run ${{ inputs.test-label }}
+        run: pytest ${{ inputs.pytest-args }}
+
+  run-arch:
+    if: ${{ inputs.target == 'arch' }}
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    steps:
+      - name: Install runtime dependencies
+        run: |
+          pacman -Syu --noconfirm --needed python python-pip python-setuptools git
+
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Create virtual environment
+        run: python -m venv .venv
+
+      - name: Install dependencies
+        run: |
+          . .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r docs/requirements.txt
+          pip install -e .[test]
+
+      - name: Run ${{ inputs.test-label }}
+        run: |
+          . .venv/bin/activate
+          pytest ${{ inputs.pytest-args }}
