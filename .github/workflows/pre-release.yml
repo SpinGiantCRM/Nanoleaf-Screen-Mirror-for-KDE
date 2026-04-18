@@ -12,8 +12,8 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  unit-integration-tests:
-    name: Unit and integration tests (Ubuntu)
+  unit-integration-tests-ubuntu:
+    name: Unit and integration tests / Ubuntu
     uses: ./.github/workflows/reusable-test.yml
     with:
       target: ubuntu
@@ -21,15 +21,15 @@ jobs:
       pytest-args: -q
 
   unit-integration-tests-arch:
-    name: Unit and integration tests (Arch Linux)
+    name: Unit and integration tests / Arch Linux
     uses: ./.github/workflows/reusable-test.yml
     with:
       target: arch
       test-label: unit and integration tests
       pytest-args: -q
 
-  release-install-regression-tests:
-    name: Release/install regression tests (Ubuntu)
+  release-install-regression-tests-ubuntu:
+    name: Release/install regression tests / Ubuntu
     uses: ./.github/workflows/reusable-test.yml
     with:
       target: ubuntu
@@ -37,7 +37,7 @@ jobs:
       pytest-args: -q tests/test_release_install_regressions.py tests/test_release_assets.py
 
   release-install-regression-tests-arch:
-    name: Release/install regression tests (Arch Linux)
+    name: Release/install regression tests / Arch Linux
     uses: ./.github/workflows/reusable-test.yml
     with:
       target: arch

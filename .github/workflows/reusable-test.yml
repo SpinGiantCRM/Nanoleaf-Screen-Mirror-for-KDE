@@ -18,44 +18,37 @@ on:
         type: string
 
 jobs:
-  run-ubuntu:
-    if: ${{ inputs.target == 'ubuntu' }}
+  run-tests:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r docs/requirements.txt
-          pip install -e .[test]
-
-      - name: Run ${{ inputs.test-label }}
-        run: pytest ${{ inputs.pytest-args }}
-
-  run-arch:
-    if: ${{ inputs.target == 'arch' }}
-    runs-on: ubuntu-latest
-    container:
-      image: archlinux:latest
+    container: ${{ inputs.target == 'arch' && 'archlinux:latest' || null }}
     steps:
       - name: Install runtime dependencies
+        if: ${{ inputs.target == 'arch' }}
         run: |
           pacman -Syu --noconfirm --needed python python-pip python-setuptools git
 
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Set up Python
+        if: ${{ inputs.target == 'ubuntu' }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
       - name: Create virtual environment
+        if: ${{ inputs.target == 'arch' }}
         run: python -m venv .venv
 
-      - name: Install dependencies
+      - name: Install dependencies (Ubuntu)
+        if: ${{ inputs.target == 'ubuntu' }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r docs/requirements.txt
+          pip install -e .[test]
+
+      - name: Install dependencies (Arch)
+        if: ${{ inputs.target == 'arch' }}
         run: |
           . .venv/bin/activate
           pip install --upgrade pip
@@ -64,5 +57,7 @@ jobs:
 
       - name: Run ${{ inputs.test-label }}
         run: |
-          . .venv/bin/activate
+          if [ "${{ inputs.target }}" = "arch" ]; then
+            . .venv/bin/activate
+          fi
           pytest ${{ inputs.pytest-args }}
