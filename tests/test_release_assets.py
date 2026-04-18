@@ -51,6 +51,7 @@ def test_install_and_hardware_docs_reference_consistent_udev_paths() -> None:
     install_doc = (REPO_ROOT / "docs" / "INSTALL_ARCH.md").read_text(encoding="utf-8")
     hardware_doc = (REPO_ROOT / "docs" / "HARDWARE_SETUP.md").read_text(encoding="utf-8")
 
-    assert "AppImage installer flow" in install_doc
+    assert "makepkg -si" in install_doc
+    assert "recommended end-user path on Arch/CachyOS KDE" in install_doc
     assert "/usr/lib/udev/rules.d/" in hardware_doc
     assert "assets/udev/60-nanoleaf-kde-sync.rules" in hardware_doc

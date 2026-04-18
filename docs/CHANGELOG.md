@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Release/install reliability fixes
+- Fixed the standalone installer cleanup trap so `set -euo pipefail` runs do not fail with `temp_rule: unbound variable`.
+- Switched Arch/CachyOS user guidance to recommend `makepkg -si` as the primary install path.
+- Clarified AppImage status on Arch/CachyOS as an experimental/secondary path.
+- Made AppImage build/runtime Python invocation explicitly use Python 3.11 to avoid mixing 3.11 wheels with host Python 3.14.
+
 ### Release engineering
 - Added GitHub Actions CI workflow for Linux tests and Arch packaging metadata sanity checks.
 - Added GitHub Actions build workflow that produces `sdist` + `wheel` artifacts and uploads them.
