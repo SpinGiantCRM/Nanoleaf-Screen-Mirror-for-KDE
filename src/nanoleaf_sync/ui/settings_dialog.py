@@ -68,10 +68,6 @@ class SettingsDialog:
                 self.mock_capture_checkbox.setChecked(
                     bool(getattr(cfg, "use_mock_capture", True))
                 )
-                self.mock_device_checkbox = QCheckBox("Mock device (no USB required)")
-                self.mock_device_checkbox.setChecked(
-                    bool(getattr(cfg, "use_mock_device", True))
-                )
 
                 buttons = QDialogButtonBox(
                     QDialogButtonBox.StandardButton.Ok
@@ -95,10 +91,6 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Device zone count"), 6, 0)
                 layout.addWidget(self.device_zone_count_slider, 6, 1)
                 layout.addWidget(self.mock_capture_checkbox, 7, 0, 1, 2)
-                layout.addWidget(self.mock_device_checkbox, 8, 0, 1, 2)
-                layout.addWidget(QLabel("Real capture backend"), 9, 0)
-                layout.addWidget(QLabel("kwin-dbus (KDE Plasma 6)"), 9, 1)
-                layout.addWidget(buttons, 10, 0, 1, 2)
                 self.setLayout(layout)
 
             def updated_config(self) -> AppConfig:
@@ -123,7 +115,6 @@ class SettingsDialog:
                     reverse_zones=reverse_zones,
                     explicit_zone_map=[],
                     use_mock_capture=bool(self.mock_capture_checkbox.isChecked()),
-                    use_mock_device=bool(self.mock_device_checkbox.isChecked()),
                     prefer_backend="kwin-dbus",
                 )
 

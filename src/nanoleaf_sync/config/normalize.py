@@ -90,7 +90,6 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         zone_sampling_stride=zone_sampling_stride,
         device_vid=cfg.device_vid,
         device_pid=cfg.device_pid,
-        use_mock_device=cfg.use_mock_device,
         use_mock_capture=cfg.use_mock_capture,
         hdr_max_nits=hdr_max_nits,
         hdr_transfer=hdr_transfer,

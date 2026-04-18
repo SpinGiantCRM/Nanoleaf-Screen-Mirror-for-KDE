@@ -4,8 +4,8 @@ from nanoleaf_sync.ui.tray_app import first_run_message
 
 
 def test_first_run_message_for_demo_mode() -> None:
-    message = first_run_message("full-mock")
-    assert "Demo mode" in message
+    message = first_run_message("diagnostic")
+    assert "Diagnostics mode" in message
     assert "Settings" in message
 
 

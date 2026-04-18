@@ -111,7 +111,6 @@ def test_settings_dialog_constructs_and_opens_with_qt_stubs(monkeypatch) -> None
     cfg = AppConfig(
         zones=[ZoneConfig(x=0.0, y=0.0, w=1.0, h=1.0)],
         use_mock_capture=False,
-        use_mock_device=True,
         prefer_backend="kwin-dbus",
     )
     dialog = SettingsDialog(parent=None, cfg=cfg)

@@ -52,28 +52,12 @@ def default_config_path() -> Path:
 
 def mode_config(mode: str) -> AppConfig:
     normalized = (mode or "").strip().lower()
-    if normalized in ("capture-real", "real-capture-mock-device", ""):
-        return validate_config(
-            AppConfig(
-                use_mock_capture=False,
-                use_mock_device=True,
-                prefer_backend="kwin-dbus",
-            )
-        )
-    if normalized in ("full-mock", "mock"):
-        return validate_config(AppConfig(use_mock_capture=True, use_mock_device=True))
-    if normalized in ("full-real", "real"):
-        return validate_config(
-            AppConfig(
-                use_mock_capture=False,
-                use_mock_device=False,
-                prefer_backend="kwin-dbus",
-                device_vid=0x37FA,
-                device_pid=0x8202,
-            )
-        )
+    if normalized in ("full-real", "real", "capture-real", ""):
+        return validate_config(AppConfig(use_mock_capture=False, prefer_backend="kwin-dbus"))
+    if normalized in ("diagnostic", "diag", "full-mock", "mock"):
+        return validate_config(AppConfig(use_mock_capture=True, prefer_backend="kwin-dbus"))
     raise ValueError(
-        f"Unsupported mode '{mode}'. Expected one of: full-mock, capture-real, full-real."
+        f"Unsupported mode '{mode}'. Expected one of: full-real, diagnostic."
     )
 
 
@@ -122,7 +106,6 @@ class ConfigManager:
             ),
             device_vid=_to_int(data.get("device_vid"), AppConfig.device_vid),
             device_pid=_to_int(data.get("device_pid"), AppConfig.device_pid),
-            use_mock_device=coerce_bool(data.get("use_mock_device"), AppConfig.use_mock_device),
             use_mock_capture=coerce_bool(data.get("use_mock_capture"), AppConfig.use_mock_capture),
             hdr_max_nits=_to_float(data.get("hdr_max_nits"), AppConfig.hdr_max_nits),
             hdr_transfer=_to_str(data.get("hdr_transfer"), AppConfig.hdr_transfer),
@@ -146,7 +129,7 @@ class ConfigManager:
     def exists(self) -> bool:
         return self.path.exists()
 
-    def initialize(self, *, mode: str = "capture-real", force: bool = False) -> bool:
+    def initialize(self, *, mode: str = "full-real", force: bool = False) -> bool:
         if self.path.exists() and not force:
             return False
         self.save(mode_config(mode))

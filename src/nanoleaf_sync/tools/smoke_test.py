@@ -5,7 +5,6 @@ import argparse
 from nanoleaf_sync.capture.factory import create_capture_backend
 from nanoleaf_sync.config.store import ConfigManager
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
-from nanoleaf_sync.device.mock_driver import MockNanoleafUSBDriver
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
 
 
@@ -22,7 +21,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print("== nanoleaf-kde-sync smoke test ==")
     print(f"capture mode: {'mock' if cfg.use_mock_capture else cfg.prefer_backend}")
-    print(f"device mode: {'mock' if cfg.use_mock_device else 'real-usb'}")
+    print("device mode: real-usb")
 
     capture = create_capture_backend(
         width=320,
@@ -36,10 +35,7 @@ def main(argv: list[str] | None = None) -> int:
     frame = capture.capture()
     print(f"capture ok: frame shape={frame.shape}")
 
-    if cfg.use_mock_device:
-        driver = MockNanoleafUSBDriver()
-    else:
-        driver = NanoleafUSBDriver(ids=NanoleafUSBIds(vid=cfg.device_vid, pid=cfg.device_pid))
+    driver = NanoleafUSBDriver(ids=NanoleafUSBIds(vid=cfg.device_vid, pid=cfg.device_pid))
 
     try:
         driver.initialize()

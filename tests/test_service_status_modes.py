@@ -60,7 +60,7 @@ class TestServiceStatusAndMode:
         self, capture_name="mock"
     ) -> tuple[NanoleafSyncService, FakeCapture, FakeDriver]:
         cfg = AppConfig(
-            fps=30, verbose=False, use_mock_capture=False, use_mock_device=True
+            fps=30, verbose=False, use_mock_capture=False
         )
         capture = FakeCapture(name=capture_name)
         driver = FakeDriver()
@@ -114,7 +114,7 @@ class TestServiceStatusAndMode:
         assert svc.get_status()["running"] is False
 
     def test_driver_closed_after_stop(self):
-        cfg = AppConfig(fps=30, use_mock_capture=False, use_mock_device=True)
+        cfg = AppConfig(fps=30, use_mock_capture=False)
         capture = FakeCapture(name="mock")
         driver = FakeDriver()
         svc = NanoleafSyncService(

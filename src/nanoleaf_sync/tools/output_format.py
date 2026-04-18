@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 
-def describe_mode(use_mock_capture: bool, use_mock_device: bool, prefer_backend: str) -> tuple[str, str]:
+def describe_mode(use_mock_capture: bool, prefer_backend: str) -> tuple[str, str]:
     capture_mode = "Mock capture" if use_mock_capture else f"Capture: {prefer_backend}"
-    device_mode = "Mock device" if use_mock_device else "Real USB device"
+    device_mode = "Real USB device"
     return capture_mode, device_mode
 
 

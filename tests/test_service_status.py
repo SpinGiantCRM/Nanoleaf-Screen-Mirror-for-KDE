@@ -8,7 +8,6 @@ import pytest
 
 from nanoleaf_sync.capture.interfaces import CaptureBackend
 from nanoleaf_sync.config.model import AppConfig
-from nanoleaf_sync.device.mock_driver import MockNanoleafUSBDriver
 from nanoleaf_sync.service import NanoleafSyncService
 
 
@@ -58,7 +57,6 @@ def _make_cfg() -> AppConfig:
         fps=30,
         verbose=False,
         use_mock_capture=False,
-        use_mock_device=True,
     )
 
 
@@ -93,10 +91,10 @@ def test_capture_mode_replay_is_explicit() -> None:
     assert status["capture_mode"] == "replay"
 
 
-def test_make_device_driver_uses_mock_driver_without_ids_argument() -> None:
+def test_make_device_driver_uses_real_driver() -> None:
     svc = NanoleafSyncService(config=_make_cfg())
     driver = svc._make_device_driver()
-    assert isinstance(driver, MockNanoleafUSBDriver)
+    assert driver.__class__.__name__ == "NanoleafUSBDriver"
 
 
 def test_status_exposes_device_mode_and_error_guidance() -> None:
@@ -108,13 +106,13 @@ def test_status_exposes_device_mode_and_error_guidance() -> None:
 
     svc.start()
     status = svc.get_status()
-    assert status["device_mode"] == "mock"
+    assert status["device_mode"] == "real-usb"
     assert status["last_error_kind"] is not None
     assert status["last_error_guidance"] is not None
 
 
 def test_make_device_driver_requires_non_zero_vid_pid_for_real_device() -> None:
-    cfg = AppConfig(use_mock_device=False, device_vid=0, device_pid=0)
+    cfg = AppConfig(device_vid=0, device_pid=0)
     svc = NanoleafSyncService(config=cfg)
     with pytest.raises(ValueError) as excinfo:
         svc._make_device_driver()

@@ -97,7 +97,7 @@ def test_process_frame_supports_zone_sampling_stride() -> None:
 def test_run_loop_skips_tick_when_backends_temporarily_missing() -> None:
     from nanoleaf_sync.runtime.engine import run_loop
 
-    cfg = AppConfig(fps=120, verbose=False, use_mock_capture=False, use_mock_device=True)
+    cfg = AppConfig(fps=120, verbose=False, use_mock_capture=False)
     state = RuntimeState()
     capture_calls = {"count": 0}
 
