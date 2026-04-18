@@ -9,13 +9,13 @@
 ## Test and CI gates
 
 - [ ] Local tests pass: `pytest -q`.
-- [ ] CI workflow (`.github/workflows/ci.yml`) passes on Linux.
-- [ ] Packaging metadata sanity check passes in CI (`makepkg --printsrcinfo`).
+- [ ] Packaging metadata sanity check passes locally (`cd packaging/arch && makepkg --printsrcinfo >/dev/null`).
+- [ ] Version metadata check passes locally (`pytest -q tests/test_release_install_regressions.py`).
 
 ## Build/release artifacts
 
-- [ ] Build workflow (`.github/workflows/build.yml`) generates wheel + sdist artifacts.
-- [ ] Tag-triggered release workflow (`.github/workflows/release.yml`) publishes artifacts.
+- [ ] Build artifacts generated locally (`python -m build`).
+- [ ] Arch package source tarball URL resolves for planned tag (`vX.Y.Z`).
 
 ## Arch/CachyOS packaging
 

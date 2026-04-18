@@ -1,8 +1,8 @@
 # Documentation index
 
 ## End-user docs
-- Root `README.md` - primary AppImage + installer flow.
-- `INSTALL_ARCH.md` - advanced Arch/pip install paths (secondary).
+- Root `README.md` - primary Arch/CachyOS package flow (`makepkg -si`).
+- `INSTALL_ARCH.md` - Arch install details plus AppImage caveats.
 - `TROUBLESHOOTING.md` - plain-language fixes first, advanced diagnostics second.
 - `HARDWARE_SETUP.md` - deeper USB/udev details when needed.
 

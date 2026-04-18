@@ -9,6 +9,7 @@ makepkg -si
 ```
 
 This is the recommended end-user path on Arch/CachyOS KDE.
+It tracks repo tags via `PKGBUILD` `pkgver`, so keep package metadata in sync with `pyproject.toml` before release.
 
 ## Secondary path: standalone AppImage installer (experimental on Arch/CachyOS)
 
