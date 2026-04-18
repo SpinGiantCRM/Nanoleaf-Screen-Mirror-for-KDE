@@ -86,6 +86,7 @@ jobs:
       - name: Publish GitHub release with AppImage and installer
         uses: softprops/action-gh-release@v3
         with:
+          name: nanoleaf-kde-sync ${{ github.ref_name }} — Nanoleaf screen mirroring for KDE Plasma on Linux.
           files: |
             release-assets/nanoleaf-kde-sync.AppImage
             release-assets/nanoleaf-kde-sync.AppImage.sha256
