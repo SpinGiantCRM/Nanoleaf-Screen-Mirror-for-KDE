@@ -25,6 +25,9 @@ jobs:
       - name: Validate release metadata
         run: python3 ./scripts/validate_release_metadata.py --git-tag "${GITHUB_REF_NAME}"
 
+      - name: Verify pinned AppImage toolchain
+        run: ./scripts/build-appimage.sh --verify-appimagetool
+
       - name: Build AppImage
         run: ./scripts/build-appimage.sh
 
