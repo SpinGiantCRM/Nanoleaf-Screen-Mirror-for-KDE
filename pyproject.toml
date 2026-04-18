@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nanoleaf-kde-sync"
-version = "0.1.0"
+version = "0.3.0"
 description = "Nanoleaf screen mirroring for KDE Plasma on Linux."
 readme = "README.md"
 license = { file = "LICENSE" }

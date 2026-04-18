@@ -19,6 +19,7 @@ jobs:
       - name: Validate release metadata
         run: |
           if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            python3 ./scripts/sync_release_version.py --git-tag "${GITHUB_REF_NAME}"
             python3 ./scripts/validate_release_metadata.py --git-tag "${GITHUB_REF_NAME}"
           else
             python3 ./scripts/validate_release_metadata.py
