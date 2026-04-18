@@ -91,10 +91,14 @@ def test_run_doctor_real_device_requested_hid_unavailable(monkeypatch) -> None:
     monkeypatch.setattr(doctor, "_probe_kwin_screenshot2", _probe_pass)
     monkeypatch.setattr(doctor, "_check_desktop_authorization", lambda: DoctorCheck("desktop-authorization", "pass", "ok"))
     monkeypatch.setattr(doctor, "_check_real_device_probe", lambda cfg: DoctorCheck("device-probe", "warn", "probe skipped"))
+
+    def _raise_hid_unavailable(*_args, **_kwargs):
+        raise RuntimeError("hid backend unavailable")
+
     monkeypatch.setitem(
         doctor.sys.modules,
         "hid",
-        SimpleNamespace(enumerate=lambda *_: (_ for _ in ()).throw(RuntimeError("hid backend unavailable"))),
+        SimpleNamespace(enumerate=_raise_hid_unavailable),
     )
 
     checks = run_doctor(include_device_probe=True)
@@ -106,6 +110,19 @@ def test_run_doctor_real_device_requested_hid_unavailable(monkeypatch) -> None:
     assert "Install/enable hidapi" in hid_check.action
     assert "FAIL (1)" in report
     assert "Action: Install/enable hidapi" in report
+
+
+def test_check_hid_enumeration_reports_no_matching_devices(monkeypatch) -> None:
+    cfg = AppConfig(use_mock_device=False, device_vid=0x37FA, device_pid=0x8201)
+    monkeypatch.setitem(
+        doctor.sys.modules,
+        "hid",
+        SimpleNamespace(enumerate=lambda *_args, **_kwargs: []),
+    )
+
+    result = doctor._check_hid_enumeration(cfg)
+    assert result.status == "fail"
+    assert "No matching HID device found" in result.message
 
 
 def test_run_doctor_replay_backend_without_path(monkeypatch) -> None:

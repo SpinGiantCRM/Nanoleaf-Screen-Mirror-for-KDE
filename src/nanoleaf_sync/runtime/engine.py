@@ -135,36 +135,48 @@ def run_loop(
 
     while not state.stop_event.is_set():
         start = time.perf_counter()
+        processing_end = start
+        skip_tick = False
 
         try:
-            capture = get_capture()
-            driver = get_driver()
-            frame = capture.capture()
-            if frame is None:
-                continue
+            if state.is_reinitializing:
+                skip_tick = True
+            else:
+                capture = get_capture()
+                driver = get_driver()
+                if capture is None or driver is None:
+                    skip_tick = True
+                else:
+                    frame = capture.capture()
+                    if frame is None:
+                        skip_tick = True
 
-            img_h, img_w, _ = frame.shape
-            zones_px, device_zone_indices = _ensure_runtime_artifacts(
-                state=state,
-                config=config,
-                img_w=img_w,
-                img_h=img_h,
-            )
+            if skip_tick:
+                pass
+            else:
+                img_h, img_w, _ = frame.shape
+                zones_px, device_zone_indices = _ensure_runtime_artifacts(
+                    state=state,
+                    config=config,
+                    img_w=img_w,
+                    img_h=img_h,
+                )
 
-            smoothed_colors = process_frame(
-                frame=frame,
-                prev_smoothed_colors=state.prev_smoothed_colors,
-                zones_px=zones_px,
-                device_zone_indices=device_zone_indices,
-                brightness=config.brightness,
-                smoothing=config.smoothing,
-                zone_sampling_stride=config.zone_sampling_stride,
-            )
-            state.prev_smoothed_colors = smoothed_colors
-            driver.send_frame(smoothed_colors)
+                smoothed_colors = process_frame(
+                    frame=frame,
+                    prev_smoothed_colors=state.prev_smoothed_colors,
+                    zones_px=zones_px,
+                    device_zone_indices=device_zone_indices,
+                    brightness=config.brightness,
+                    smoothing=config.smoothing,
+                    zone_sampling_stride=config.zone_sampling_stride,
+                )
+                state.prev_smoothed_colors = smoothed_colors
+                driver.send_frame(smoothed_colors)
+                processing_end = time.perf_counter()
 
-            state.record_success()
-            last_sent_zone_count = len(smoothed_colors)
+                state.record_success()
+                last_sent_zone_count = len(smoothed_colors)
         except Exception as e:
             state.record_error(e)
             logger.warning("frame processing failed", exc_info=config.verbose)
@@ -190,7 +202,7 @@ def run_loop(
         now = time.perf_counter()
         if now - last_log > log_interval_s:
             last_log = now
-            elapsed_ms = (now - start) * 1000.0
+            elapsed_ms = (processing_end - start) * 1000.0
             logger.info(
                 "service_tick fps=%s elapsed_ms=%.2f zones=%s errors=%s",
                 fps,

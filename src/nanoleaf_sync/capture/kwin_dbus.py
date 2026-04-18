@@ -66,6 +66,7 @@ class KWinDBusScreenshotCapture:
         self._loop_lock = threading.Lock()
         self._screenshot2_bus = None
         self._legacy_bus = None
+        self._loop_start_error: BaseException | None = None
 
     def capture(self) -> np.ndarray:
         """Return an RGB frame as a numpy array or raise ``KWinDBusCaptureError``."""
@@ -119,36 +120,53 @@ class KWinDBusScreenshotCapture:
 
         with self._loop_lock:
             if self._loop is None or not self._loop.is_running():
+                if self._loop_start_error is not None:
+                    raise KWinDBusCaptureError(
+                        "Failed to initialize KWin D-Bus event loop."
+                    ) from self._loop_start_error
                 raise KWinDBusCaptureError("Failed to initialize KWin D-Bus event loop.")
             return self._loop
 
     def _loop_worker(self) -> None:
-        loop = asyncio.new_event_loop()
-        self._loop = loop
-        asyncio.set_event_loop(loop)
-        self._loop_ready.set()
-        loop.run_forever()
-        loop.close()
+        try:
+            loop = asyncio.new_event_loop()
+            self._loop = loop
+            self._loop_start_error = None
+            asyncio.set_event_loop(loop)
+            self._loop_ready.set()
+            loop.run_forever()
+            loop.close()
+        except BaseException as exc:
+            self._loop_start_error = exc
+            self._loop = None
+            self._loop_ready.set()
 
     def close(self) -> None:
         loop = self._loop
         if loop is None:
+            self._screenshot2_bus = None
+            self._legacy_bus = None
             return
-        try:
-            future = asyncio.run_coroutine_threadsafe(
-                self._reset_bus_connections(), loop
-            )
-            future.result(timeout=1.0)
-        except Exception:
-            pass
-
-        loop.call_soon_threadsafe(loop.stop)
+        if loop.is_running():
+            try:
+                future = asyncio.run_coroutine_threadsafe(
+                    self._reset_bus_connections(), loop
+                )
+                future.result(timeout=1.0)
+            except Exception:
+                pass
+            loop.call_soon_threadsafe(loop.stop)
+        else:
+            self._screenshot2_bus = None
+            self._legacy_bus = None
         if self._loop_thread is not None:
             self._loop_thread.join(timeout=1.0)
 
         self._loop = None
         self._loop_thread = None
         self._loop_ready.clear()
+        self._screenshot2_bus = None
+        self._legacy_bus = None
 
     def _try_capture_via_dbus(self) -> Optional[np.ndarray]:
         reply = self._run_async(self._capture_reply_via_dbus())

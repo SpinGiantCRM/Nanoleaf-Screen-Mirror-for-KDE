@@ -144,6 +144,11 @@ class NanoleafSyncService:
         ids = NanoleafUSBIds(vid=self.config.device_vid, pid=self.config.device_pid)
         if self.config.use_mock_device:
             return MockNanoleafUSBDriver()
+        if int(ids.vid) == 0 or int(ids.pid) == 0:
+            raise ValueError(
+                "Real device mode requires non-zero device_vid/device_pid. "
+                "Configure Nanoleaf USB IDs (for example 0x37fa:0x8201 or 0x37fa:0x8202)."
+            )
         return NanoleafUSBDriver(ids=ids)
 
     def _clear_backends(self) -> None:

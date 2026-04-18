@@ -14,6 +14,20 @@ from nanoleaf_sync.service import NanoleafSyncService
 RGB = Tuple[int, int, int]
 
 
+def _wait_until(
+    predicate,
+    *,
+    timeout_s: float = 1.0,
+    step_s: float = 0.01,
+) -> bool:
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        if predicate():
+            return True
+        time.sleep(step_s)
+    return predicate()
+
+
 class FailingOnceCapture(CaptureBackend):
     name = "failing-once"
     last_capture_path: str | None = None
@@ -66,10 +80,11 @@ def test_service_recovers_from_single_frame_exception() -> None:
         driver_override=driver,
     )
 
-    service.start()
-    time.sleep(0.25)
+    assert service.start() is True
+    assert _wait_until(lambda: driver.frames_sent >= 1, timeout_s=1.0)
     service.stop()
     service.join(timeout=2.0)
+    assert _wait_until(lambda: not service.is_running(), timeout_s=1.0)
 
     assert driver.initialized is False
     assert driver.frames_sent >= 1
@@ -78,3 +93,38 @@ def test_service_recovers_from_single_frame_exception() -> None:
     status = service.get_status()
     assert status["frames_sent"] >= 1
     assert status["max_consecutive_errors"] >= 1
+
+
+def test_service_can_restart_after_stop() -> None:
+    cfg = AppConfig(
+        fps=30,
+        verbose=False,
+        use_mock_capture=False,
+        use_mock_device=True,
+    )
+    capture = FailingOnceCapture(width=16, height=9)
+    driver = FakeDriver()
+    service = NanoleafSyncService(
+        config=cfg,
+        capture_backend_override=capture,
+        driver_override=driver,
+    )
+
+    assert service.start() is True
+    assert _wait_until(lambda: driver.frames_sent >= 1, timeout_s=1.0)
+    service.stop()
+    service.join(timeout=2.0)
+    assert _wait_until(lambda: not service.is_running(), timeout_s=1.0)
+    first_run_frames = driver.frames_sent
+    assert first_run_frames >= 1
+
+    # Start again and verify state/loop can produce fresh frames.
+    assert service.start() is True
+    assert _wait_until(lambda: driver.frames_sent > first_run_frames, timeout_s=1.0)
+    service.stop()
+    service.join(timeout=2.0)
+    assert _wait_until(lambda: not service.is_running(), timeout_s=1.0)
+
+    status = service.get_status()
+    assert status["frames_sent"] >= 1
+    assert driver.frames_sent > first_run_frames

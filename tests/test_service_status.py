@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Sequence, Tuple
 
 import numpy as np
+import pytest
 
 from nanoleaf_sync.capture.interfaces import CaptureBackend
 from nanoleaf_sync.config.model import AppConfig
@@ -110,3 +111,11 @@ def test_status_exposes_device_mode_and_error_guidance() -> None:
     assert status["device_mode"] == "mock"
     assert status["last_error_kind"] is not None
     assert status["last_error_guidance"] is not None
+
+
+def test_make_device_driver_requires_non_zero_vid_pid_for_real_device() -> None:
+    cfg = AppConfig(use_mock_device=False, device_vid=0, device_pid=0)
+    svc = NanoleafSyncService(config=cfg)
+    with pytest.raises(ValueError) as excinfo:
+        svc._make_device_driver()
+    assert "non-zero device_vid/device_pid" in str(excinfo.value)

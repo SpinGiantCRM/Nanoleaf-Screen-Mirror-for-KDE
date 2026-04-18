@@ -64,15 +64,17 @@ def reinitialize_backends(
     close_backends: Callable[[], None],
     state: RuntimeState,
 ) -> None:
-    close_backends()
-    now_ts = time.perf_counter()
+    state.is_reinitializing = True
     try:
+        close_backends()
+        now_ts = time.perf_counter()
         install_drivers()
         state.last_reinit_ts = now_ts
     except Exception:
         logger.exception("backend reinitialization failed")
     finally:
         state.consecutive_errors = 0
+        state.is_reinitializing = False
 
 
 def shutdown_backends(

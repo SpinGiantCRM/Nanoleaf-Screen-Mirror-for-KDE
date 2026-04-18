@@ -7,14 +7,14 @@
 
 ## Test and CI gates
 
-- [ ] **CI / Unit and integration tests (Ubuntu)** job passes (`.github/workflows/ci.yml`, job id: `unit-integration-tests`).
+- [ ] **CI / Unit and integration tests (Ubuntu)** job passes (`.github/workflows/ci.yml`, job id: `unit-integration-tests-ubuntu`).
 - [ ] **CI / Unit and integration tests (Arch Linux)** job passes (`.github/workflows/ci.yml`, job id: `unit-integration-tests-arch`).
-- [ ] **CI / Release/install regression tests (Ubuntu)** job passes (`.github/workflows/ci.yml`, job id: `release-install-regression-tests`).
+- [ ] **CI / Release/install regression tests (Ubuntu)** job passes (`.github/workflows/ci.yml`, job id: `release-install-regression-tests-ubuntu`).
 - [ ] **CI / Release/install regression tests (Arch Linux)** job passes (`.github/workflows/ci.yml`, job id: `release-install-regression-tests-arch`).
 - [ ] **CI / Arch package metadata sanity** job passes (`.github/workflows/ci.yml`, job id: `arch-package-metadata-sanity`).
-- [ ] **Pre-release gates / Unit and integration tests (Ubuntu)** job passes on candidate tag (`.github/workflows/pre-release.yml`, job id: `unit-integration-tests`).
+- [ ] **Pre-release gates / Unit and integration tests (Ubuntu)** job passes on candidate tag (`.github/workflows/pre-release.yml`, job id: `unit-integration-tests-ubuntu`).
 - [ ] **Pre-release gates / Unit and integration tests (Arch Linux)** job passes on candidate tag (`.github/workflows/pre-release.yml`, job id: `unit-integration-tests-arch`).
-- [ ] **Pre-release gates / Release/install regression tests (Ubuntu)** job passes on candidate tag (`.github/workflows/pre-release.yml`, job id: `release-install-regression-tests`).
+- [ ] **Pre-release gates / Release/install regression tests (Ubuntu)** job passes on candidate tag (`.github/workflows/pre-release.yml`, job id: `release-install-regression-tests-ubuntu`).
 - [ ] **Pre-release gates / Release/install regression tests (Arch Linux)** job passes on candidate tag (`.github/workflows/pre-release.yml`, job id: `release-install-regression-tests-arch`).
 - [ ] **Pre-release gates / Arch package metadata sanity** job passes on candidate tag (`.github/workflows/pre-release.yml`, job id: `arch-package-metadata-sanity`).
 
@@ -22,6 +22,7 @@
 
 - [ ] **Release / Build AppImage** and **Release / Validate release artifacts exist** steps pass (`.github/workflows/release.yml`, job id: `publish`).
 - [ ] Arch package source tarball URL resolves for planned tag (`vX.Y.Z`).
+- [ ] For stable (`vX.Y.Z`) releases, `packaging/arch/PKGBUILD` does not contain `sha256sums=('SKIP')`.
 
 ## Arch/CachyOS packaging
 
