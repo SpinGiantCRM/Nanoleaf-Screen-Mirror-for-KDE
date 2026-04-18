@@ -27,6 +27,14 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Validate canonical version sources
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+        run: |
+          set -euo pipefail
+          python scripts/check_release_versions.py --tag "${RELEASE_TAG}"
+          echo "RELEASE_VERSION=$(cat VERSION)" >> "$GITHUB_ENV"
+
       - name: Build Python distributions
         run: |
           python -m pip install --upgrade pip
@@ -34,17 +42,20 @@ jobs:
           python -m build
 
       - name: Build source archive
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          git archive --format=tar.gz --prefix="Nanoleaf-Screen-Mirror-for-KDE-${RELEASE_TAG}/" -o "release-assets/Nanoleaf-Screen-Mirror-for-KDE-${RELEASE_TAG}.tar.gz" HEAD
+          git archive --format=tar.gz --prefix="Nanoleaf-Screen-Mirror-for-KDE-${RELEASE_VERSION}/" -o "release-assets/Nanoleaf-Screen-Mirror-for-KDE-${RELEASE_VERSION}.tar.gz" HEAD
 
       - name: Stage release assets
         run: |
           mkdir -p release-assets
           cp -f dist/* release-assets/
+
+      - name: Validate release artifact versions
+        run: |
+          set -euo pipefail
+          python scripts/check_release_versions.py --artifact-dir dist --artifact-dir release-assets
 
       - name: Generate checksums
         run: |

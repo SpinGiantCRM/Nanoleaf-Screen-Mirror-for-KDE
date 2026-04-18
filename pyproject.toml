@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nanoleaf-kde-sync"
-version = "0.3.0"
+dynamic = ["version"]
 description = "Nanoleaf screen mirroring for KDE Plasma on Linux."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -29,6 +29,9 @@ nanoleaf-kde-sync-smoke-test = "nanoleaf_sync.tools.smoke_test:main"
 nanoleaf-kde-sync-init-config = "nanoleaf_sync.tools.config_init:main"
 nanoleaf-kde-sync-rc-runner = "nanoleaf_sync.tools.rc_runner:main"
 
+
+[tool.setuptools.dynamic]
+version = {file = ["VERSION"]}
 [tool.setuptools]
 package-dir = {"" = "src"}
 
