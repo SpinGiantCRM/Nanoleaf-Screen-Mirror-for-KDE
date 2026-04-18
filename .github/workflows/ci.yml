@@ -122,6 +122,8 @@ jobs:
 
       - name: Validate Arch package metadata
         run: |
+          useradd -m builder
+          chown -R builder:builder "$GITHUB_WORKSPACE"
           cd packaging/arch
           bash -n nanoleaf-kde-sync.install
-          makepkg --printsrcinfo > /dev/null
+          su - builder -c "cd \"$GITHUB_WORKSPACE/packaging/arch\" && makepkg --printsrcinfo >/dev/null"
