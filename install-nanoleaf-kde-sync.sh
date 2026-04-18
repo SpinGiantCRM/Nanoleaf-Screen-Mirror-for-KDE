@@ -58,7 +58,7 @@ install_udev_rule() {
 
   local temp_rule
   temp_rule="$(mktemp)"
-  trap 'rm -f "$temp_rule"' RETURN
+  trap 'rm -f -- "'"$temp_rule"'"' RETURN
 
   cat > "$temp_rule" <<'RULES'
 # Nanoleaf USB Screen Mirror Light Strip and Pegboard Desk Dock

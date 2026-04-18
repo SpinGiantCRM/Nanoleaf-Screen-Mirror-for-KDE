@@ -1,7 +1,7 @@
 # Maintainer: nanoleaf-kde-sync contributors
 pkgname=nanoleaf-kde-sync
 a_pkgname=nanoleaf-kde-sync
-pkgver=0.0.3
+pkgver=0.1.0
 pkgrel=1
 pkgdesc='Nanoleaf ambient light synchronization tray app for KDE/Linux'
 arch=('x86_64')

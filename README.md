@@ -4,27 +4,25 @@
 
 ## Primary install path (recommended for Arch/CachyOS KDE users)
 
-### Download these two files from the latest release
-1. `nanoleaf-kde-sync.AppImage`
-2. `install-nanoleaf-kde-sync.sh`
+Use the Arch package workflow:
 
-### Install (one command)
 ```bash
-bash ./install-nanoleaf-kde-sync.sh ./nanoleaf-kde-sync.AppImage
+cd packaging/arch
+makepkg -si
 ```
 
-What the installer does for you:
-- copies the AppImage to `~/.local/share/nanoleaf-kde-sync/`
-- installs launcher menu entry + icon
-- creates first-run config automatically (safe Demo mode)
-- asks for admin permission only for USB udev access setup
-- reloads udev rules when possible
-- launches the app at the end
+This path keeps Python/runtime dependencies consistent on Arch-family systems and installs:
+- the CLI and tray app entry points
+- desktop launcher + icon
+- udev rule for Nanoleaf USB access
+- docs under `/usr/share/doc/nanoleaf-kde-sync/`
 
 After install:
-- the app appears in your KDE launcher menu as **nanoleaf-kde-sync**
-- first launch shows a simple choice: **Demo mode** or **Real Nanoleaf mode**
-- advanced diagnostics are still available later from tray Help/Troubleshooting
+- initialize first-run config (safe Demo mode):
+  - `nanoleaf-kde-sync-init-config --mode full-mock`
+- run diagnostics:
+  - `nanoleaf-kde-sync-doctor`
+  - `nanoleaf-kde-sync-smoke-test`
 
 ## Troubleshooting (if something breaks)
 - Open `docs/TROUBLESHOOTING.md`
@@ -32,7 +30,7 @@ After install:
 
 ## Advanced / developer paths (secondary)
 These are still supported, but **not the recommended user path**:
-- Arch package build: `docs/INSTALL_ARCH.md`
+- AppImage installer (experimental on Arch/CachyOS): `install-nanoleaf-kde-sync.sh`
 - pip/source setup and developer tooling: `docs/README.md`
 
 ## Project status
