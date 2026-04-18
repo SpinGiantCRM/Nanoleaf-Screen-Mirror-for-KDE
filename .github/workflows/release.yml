@@ -26,6 +26,8 @@ jobs:
           python-version: "3.11"
 
       - name: Validate release candidate promotion evidence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: python3 ./scripts/validate_release_promotion.py --target-sha "${GITHUB_SHA}"
 
       - name: Sync release metadata from tag
