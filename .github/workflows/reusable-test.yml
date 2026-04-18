@@ -113,7 +113,7 @@ jobs:
 
       - name: Upload diagnostics artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: debug-${{ inputs.target }}-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: ignore

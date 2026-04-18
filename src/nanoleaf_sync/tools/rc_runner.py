@@ -10,8 +10,8 @@ from typing import Callable
 
 from nanoleaf_sync.config.store import ConfigManager
 from nanoleaf_sync.tools.doctor import run_doctor
+from nanoleaf_sync.tools.output_format import summarize_command_output
 from nanoleaf_sync.tools.smoke_test import main as smoke_main
-from nanoleaf_sync.ui.tray_app import summarize_command_output
 
 Status = str
 
@@ -51,13 +51,14 @@ def map_returncode_to_status(returncode: int | None, *, not_applicable: bool = F
     return "fail"
 
 
-def _run_with_captured_output(func: Callable[[], int]) -> tuple[int, str, str]:
+def _run_with_captured_output(func: Callable[[], int | None]) -> tuple[int, str, str]:
     stdout_buffer = io.StringIO()
     stderr_buffer = io.StringIO()
 
     try:
         with contextlib.redirect_stdout(stdout_buffer), contextlib.redirect_stderr(stderr_buffer):
-            returncode = int(func())
+            result = func()
+            returncode = int(result) if result is not None else 0
     except Exception as exc:  # pragma: no cover - defensive fallback
         stderr_buffer.write(f"Unhandled exception: {exc}")
         returncode = 1

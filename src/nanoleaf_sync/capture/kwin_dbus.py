@@ -114,7 +114,10 @@ class KWinDBusScreenshotCapture:
                 daemon=True,
             )
             self._loop_thread.start()
-            self._loop_ready.wait(timeout=2.0)
+
+        self._loop_ready.wait(timeout=2.0)
+
+        with self._loop_lock:
             if self._loop is None or not self._loop.is_running():
                 raise KWinDBusCaptureError("Failed to initialize KWin D-Bus event loop.")
             return self._loop

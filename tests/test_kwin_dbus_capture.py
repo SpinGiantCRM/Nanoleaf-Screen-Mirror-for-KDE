@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -183,3 +184,53 @@ def test_capture_reconnects_and_retries_after_disconnect_error(
     assert calls["s2"] == 2
     assert calls["reset"] == 1
     backend.close()
+
+
+def test_ensure_background_loop_waits_outside_lock(monkeypatch) -> None:
+    backend = KWinDBusScreenshotCapture(width=2, height=1)
+
+    class _FakeLock:
+        def __init__(self) -> None:
+            self.held = False
+
+        def __enter__(self):
+            self.held = True
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            self.held = False
+
+    class _FakeReady:
+        def __init__(self, lock: _FakeLock) -> None:
+            self.lock = lock
+            self.called_while_held = False
+
+        def clear(self) -> None:
+            return None
+
+        def set(self) -> None:
+            return None
+
+        def wait(self, timeout: float | None = None) -> bool:
+            self.called_while_held = self.lock.held
+            backend._loop = SimpleNamespace(is_running=lambda: True)
+            return True
+
+    fake_lock = _FakeLock()
+    fake_ready = _FakeReady(fake_lock)
+
+    class _FakeThread:
+        def __init__(self, target, name, daemon):
+            self.target = target
+
+        def start(self):
+            return None
+
+    monkeypatch.setattr(backend, "_loop_lock", fake_lock)
+    monkeypatch.setattr(backend, "_loop_ready", fake_ready)
+    monkeypatch.setattr("nanoleaf_sync.capture.kwin_dbus.threading.Thread", _FakeThread)
+
+    loop = backend._ensure_background_loop()
+
+    assert loop is not None
+    assert fake_ready.called_while_held is False

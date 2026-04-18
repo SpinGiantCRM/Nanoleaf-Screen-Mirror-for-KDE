@@ -7,28 +7,9 @@ import threading
 from nanoleaf_sync.config.store import ConfigManager, mode_config
 from nanoleaf_sync.service import NanoleafSyncService
 
+from nanoleaf_sync.tools.output_format import describe_mode, summarize_command_output
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.settings_dialog import SettingsDialog
-
-
-def describe_mode(use_mock_capture: bool, use_mock_device: bool, prefer_backend: str) -> tuple[str, str]:
-    capture_mode = "Mock capture" if use_mock_capture else f"Capture: {prefer_backend}"
-    device_mode = "Mock device" if use_mock_device else "Real USB device"
-    return capture_mode, device_mode
-
-
-def summarize_command_output(stdout: str, stderr: str, returncode: int) -> tuple[str, int]:
-    combined = (stdout or "").strip()
-    err = (stderr or "").strip()
-    if err:
-        combined = f"{combined}\n{err}".strip() if combined else err
-
-    if not combined:
-        combined = "No command output captured."
-
-    lines = [line.strip() for line in combined.splitlines() if line.strip()]
-    preview = " | ".join(lines[:3])[:700]
-    return preview, returncode
 
 
 def first_run_message(mode: str) -> str:
@@ -71,7 +52,7 @@ class NanoleafTrayApp:
         self.config = self.cfg_mgr.load()
         self.service = NanoleafSyncService(config=self.config)
 
-        self.tray_icon = self._make_tray_icon(running=False)
+        self.tray_icon = self.QSystemTrayIcon(self._make_icon(running=False))
         self.tray_icon.setContextMenu(self._make_menu())
         self._refresh_mode_labels()
         self.tray_icon.show()
@@ -86,15 +67,14 @@ class NanoleafTrayApp:
                 7000,
             )
 
-    def _make_tray_icon(self, running: bool):
+    def _make_icon(self, running: bool):
         pix = self.QPixmap(16, 16)
         pix.fill(self.Qt.GlobalColor.transparent)
         painter = self.QPainter(pix)
         color = self.Qt.GlobalColor.green if running else self.Qt.GlobalColor.gray
         painter.fillRect(0, 0, 16, 16, color)
         painter.end()
-        icon = self.QIcon(pix)
-        return self.QSystemTrayIcon(icon)
+        return self.QIcon(pix)
 
     def _make_menu(self):
         menu = self.QMenu()
@@ -146,7 +126,7 @@ class NanoleafTrayApp:
     def on_start(self):
         started = self.service.start()
         running = started and self.service.is_running()
-        self.tray_icon.setIcon(self._make_tray_icon(running=running).icon())
+        self.tray_icon.setIcon(self._make_icon(running=running))
         self._refresh_mode_labels()
         if not running:
             status = self.service.get_status()
@@ -160,13 +140,13 @@ class NanoleafTrayApp:
 
     def on_stop(self):
         self.service.stop()
-        self.service.join(timeout=3.0)
-        self.tray_icon.setIcon(self._make_tray_icon(running=False).icon())
+        self.service.join(timeout=0.5)
+        self.tray_icon.setIcon(self._make_icon(running=False))
         self._refresh_mode_labels()
 
     def on_settings(self):
         dlg = SettingsDialog(parent=None, cfg=self.config)
-        if dlg.exec() != 1:  # QDialog.Accepted == 1
+        if dlg.exec() != self.QDialog.DialogCode.Accepted:
             return
         new_cfg = dlg.updated_config()
         self.cfg_mgr.save(new_cfg)
