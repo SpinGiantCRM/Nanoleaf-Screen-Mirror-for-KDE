@@ -42,12 +42,34 @@ This path keeps Python/runtime dependencies consistent on Arch-family systems an
 - udev rule for Nanoleaf USB access
 - docs under `/usr/share/doc/nanoleaf-kde-sync/`
 
+## Quick start
+
 After install:
 - initialize first-run config (safe Demo mode):
   - `nanoleaf-kde-sync-init-config --mode full-mock`
 - run diagnostics:
   - `nanoleaf-kde-sync-doctor`
   - `nanoleaf-kde-sync-smoke-test`
+
+## First-run health check
+
+Run this sequence on first launch (and any time you reconfigure capture/device permissions):
+
+```bash
+nanoleaf-kde-sync-init-config --mode full-mock
+nanoleaf-kde-sync-doctor
+nanoleaf-kde-sync-smoke-test
+```
+
+What good output looks like:
+- **PASS**: expected checks succeeded; you can proceed to normal use.
+- **WARN**: usable but degraded or missing optional setup; review notes and fix when convenient.
+- **FAIL**: blocking issue; fix before attempting live screen mirroring.
+- Run `--device` variants of doctor/smoke test when you want to validate a physically connected Nanoleaf USB device (instead of mock/demo-only checks).
+
+Escalation paths:
+- Hardware and USB readiness steps: [docs/HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md)
+- Detailed diagnostics and fixes: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 
 ## Troubleshooting (if something breaks)
 - Open `docs/TROUBLESHOOTING.md`
