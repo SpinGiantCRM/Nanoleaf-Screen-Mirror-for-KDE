@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import importlib
 import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
+import threading
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.normalize import validate_config
@@ -38,8 +40,8 @@ def _check_dependencies() -> DoctorCheck:
     missing: list[str] = []
     for mod in ("numpy", "PyQt6", "dbus_next", "hid"):
         try:
-            __import__(mod)
-        except Exception:
+            importlib.import_module(mod)
+        except ImportError:
             missing.append(mod)
     if missing:
         return DoctorCheck(
@@ -78,6 +80,32 @@ async def _probe_kwin_screenshot2() -> DoctorCheck:
             "If running Plasma, ensure KWin is active and DBus access is available.",
         )
 
+
+def _run_probe_sync() -> DoctorCheck:
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(_probe_kwin_screenshot2())
+
+    result: DoctorCheck | None = None
+    error: BaseException | None = None
+
+    def _worker() -> None:
+        nonlocal result, error
+        try:
+            result = asyncio.run(_probe_kwin_screenshot2())
+        except BaseException as exc:  # pragma: no cover - defensive fallback
+            error = exc
+
+    thread = threading.Thread(target=_worker, daemon=True)
+    thread.start()
+    thread.join()
+
+    if error is not None:
+        raise error
+    if result is None:  # pragma: no cover - defensive fallback
+        raise RuntimeError("KWin screenshot probe did not return a result.")
+    return result
 
 def _check_desktop_authorization() -> DoctorCheck:
     candidates = [
@@ -203,7 +231,7 @@ def run_doctor(*, include_device_probe: bool = False) -> list[DoctorCheck]:
         _check_python_runtime(),
         _check_dependencies(),
         _check_session_bus(),
-        asyncio.run(_probe_kwin_screenshot2()),
+        _run_probe_sync(),
         _check_desktop_authorization(),
         _check_mode_consistency(cfg),
         _check_hid_enumeration(cfg),

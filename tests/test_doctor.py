@@ -152,3 +152,16 @@ def test_run_doctor_kwin_authorization_denial_guidance(monkeypatch) -> None:
     assert "WARN (2)" in report
     assert "AccessDenied" in report
     assert "Re-launch from the authorized desktop file" in report
+
+
+def test_run_probe_sync_works_inside_running_loop(monkeypatch) -> None:
+    async def _probe_pass() -> DoctorCheck:
+        return DoctorCheck("kwin-screenshot2", "pass", "ok")
+
+    monkeypatch.setattr(doctor, "_probe_kwin_screenshot2", _probe_pass)
+
+    async def _call() -> DoctorCheck:
+        return doctor._run_probe_sync()
+
+    result = doctor.asyncio.run(_call())
+    assert result.status == "pass"

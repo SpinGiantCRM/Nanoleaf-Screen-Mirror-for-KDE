@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from nanoleaf_sync.ui.tray_app import summarize_command_output
+from nanoleaf_sync.tools.output_format import summarize_command_output
 
 
 def test_summarize_command_output_prefers_combined_preview() -> None:

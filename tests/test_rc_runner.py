@@ -83,3 +83,10 @@ def test_failure_to_status_mapping() -> None:
     assert rc_runner.map_returncode_to_status(42) == "fail"
     assert rc_runner.map_returncode_to_status(None) == "fail"
     assert rc_runner.map_returncode_to_status(0, not_applicable=True) == "N/A"
+
+
+def test_run_with_captured_output_handles_none_return() -> None:
+    rc, stdout, stderr = rc_runner._run_with_captured_output(lambda: None)
+    assert rc == 0
+    assert stdout == ""
+    assert stderr == ""
