@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,7 @@ def _load_module(relative_path: str, module_name: str):
     spec = importlib.util.spec_from_file_location(module_name, path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -73,3 +75,8 @@ def test_validate_tag_accepts_when_project_version_is_prerelease() -> None:
 def test_validate_tag_rejects_mismatched_or_invalid_tags(tag: str, version: str, error_match: str) -> None:
     with pytest.raises(validate_release_metadata.ValidationError, match=error_match):
         validate_release_metadata._validate_tag(tag, version)
+
+
+def test_parse_version_rejects_invalid_values() -> None:
+    with pytest.raises(validate_release_metadata.ValidationError, match="Version format mismatch"):
+        validate_release_metadata._parse_version("1.2")
