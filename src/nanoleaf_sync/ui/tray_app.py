@@ -4,7 +4,7 @@ import subprocess
 import sys
 import threading
 
-from nanoleaf_sync.config.store import ConfigManager
+from nanoleaf_sync.config.store import ConfigManager, mode_config
 from nanoleaf_sync.service import NanoleafSyncService
 
 from nanoleaf_sync.ui.qt_lazy import load_qt
@@ -31,6 +31,19 @@ def summarize_command_output(stdout: str, stderr: str, returncode: int) -> tuple
     return preview, returncode
 
 
+def first_run_message(mode: str) -> str:
+    normalized = (mode or "").strip().lower()
+    if normalized == "full-real":
+        return (
+            "Real Nanoleaf mode is now selected.\n"
+            "If the light is not detected, open Help → Troubleshooting from the tray menu."
+        )
+    return (
+        "Demo mode is enabled. You can switch to Real Nanoleaf mode any time in Settings.\n"
+        "Start the app from the tray menu when ready."
+    )
+
+
 class NanoleafTrayApp:
     """
     KDE/Linux system tray UI for starting/stopping the background service.
@@ -45,6 +58,10 @@ class NanoleafTrayApp:
         self.QPainter = qt["QPainter"]
         self.QAction = qt["QAction"]
         self.QMenu = qt["QMenu"]
+        self.QDialog = qt["QDialog"]
+        self.QLabel = qt["QLabel"]
+        self.QPushButton = qt["QPushButton"]
+        self.QVBoxLayout = qt["QVBoxLayout"]
         self.QTimer = qt["QTimer"]
         self.Qt = qt["Qt"]
 
@@ -62,8 +79,8 @@ class NanoleafTrayApp:
             self.tray_icon.showMessage(
                 "nanoleaf-kde-sync",
                 (
-                    "Created first-run config in safe full-mock mode.\n"
-                    "Use Settings to switch mode, then run Doctor/Smoke Test."
+                    "First launch setup is ready.\n"
+                    "Choose Demo mode or Real Nanoleaf mode in the welcome dialog."
                 ),
                 self.QSystemTrayIcon.MessageIcon.Information,
                 7000,
@@ -84,6 +101,7 @@ class NanoleafTrayApp:
         self.action_start = self.QAction("Start", menu)
         self.action_stop = self.QAction("Stop", menu)
         self.action_settings = self.QAction("Settings", menu)
+        self.action_troubleshooting = self.QAction("Help / Troubleshooting", menu)
         self.action_mode = self.QAction("Mode: --", menu)
         self.action_mode.setEnabled(False)
         self.action_device = self.QAction("Device: --", menu)
@@ -96,6 +114,7 @@ class NanoleafTrayApp:
         self.action_start.triggered.connect(self.on_start)
         self.action_stop.triggered.connect(self.on_stop)
         self.action_settings.triggered.connect(self.on_settings)
+        self.action_troubleshooting.triggered.connect(self.on_troubleshooting)
         self.action_status.triggered.connect(self.on_status)
         self.action_doctor.triggered.connect(self.on_doctor)
         self.action_smoke.triggered.connect(self.on_smoke_test)
@@ -108,6 +127,7 @@ class NanoleafTrayApp:
         menu.addAction(self.action_device)
         menu.addSeparator()
         menu.addAction(self.action_settings)
+        menu.addAction(self.action_troubleshooting)
         menu.addAction(self.action_status)
         menu.addAction(self.action_doctor)
         menu.addAction(self.action_smoke)
@@ -249,7 +269,58 @@ class NanoleafTrayApp:
         finally:
             self.app.quit()
 
+    def _show_first_run_dialog(self) -> None:
+        qdialog = self.QDialog()
+        qdialog.setWindowTitle("Welcome to nanoleaf-kde-sync")
+        layout = self.QVBoxLayout()
+        layout.addWidget(
+            self.QLabel(
+                (
+                    "Choose how you want to start:\n\n"
+                    "• Demo mode: test without needing a USB device.\n"
+                    "• Real Nanoleaf mode: use your connected USB light strip."
+                )
+            )
+        )
+        demo_button = self.QPushButton("Start in Demo mode")
+        real_button = self.QPushButton("Use Real Nanoleaf mode")
+        layout.addWidget(demo_button)
+        layout.addWidget(real_button)
+        qdialog.setLayout(layout)
+
+        def apply_mode(mode: str) -> None:
+            self.config = mode_config(mode)
+            self.cfg_mgr.save(self.config)
+            self.service = NanoleafSyncService(config=self.config)
+            self._refresh_mode_labels()
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                first_run_message(mode),
+                self.QSystemTrayIcon.MessageIcon.Information,
+                8000,
+            )
+            qdialog.accept()
+
+        demo_button.clicked.connect(lambda: apply_mode("full-mock"))
+        real_button.clicked.connect(lambda: apply_mode("full-real"))
+        qdialog.exec()
+
+    def on_troubleshooting(self) -> None:
+        self.tray_icon.showMessage(
+            "nanoleaf-kde-sync help",
+            (
+                "Need help?\n"
+                "1) Try Start in Demo mode from Settings.\n"
+                "2) For real USB mode, run: nanoleaf-kde-sync-doctor --device\n"
+                "3) Full guide: docs/TROUBLESHOOTING.md"
+            ),
+            self.QSystemTrayIcon.MessageIcon.Information,
+            10000,
+        )
+
     def run(self):
+        if self._config_created:
+            self._show_first_run_dialog()
         return self.app.exec()
 
 

@@ -15,6 +15,11 @@ dependencies = [
   "hidapi>=0.14.0",
 ]
 
+[project.optional-dependencies]
+test = [
+  "pytest>=8",
+]
+
 [project.scripts]
 nanoleaf-kde-sync = "nanoleaf_sync.ui.tray:main"
 nanoleaf-kde-sync-service = "nanoleaf_sync.service:main"

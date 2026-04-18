@@ -36,6 +36,11 @@ def test_ci_workflows_exist() -> None:
     assert (REPO_ROOT / ".github" / "workflows" / "release.yml").exists()
 
 
+def test_primary_installer_assets_exist() -> None:
+    assert (REPO_ROOT / "install-nanoleaf-kde-sync.sh").exists()
+    assert (REPO_ROOT / "installer" / "install-nanoleaf-kde-sync.sh").exists()
+
+
 def test_pkbuild_installs_rc_support_docs() -> None:
     pkgbuild = (REPO_ROOT / "packaging" / "arch" / "PKGBUILD").read_text(encoding="utf-8")
     assert 'docs/INSTALL_ARCH.md "$pkgdir/usr/share/doc/$pkgname/INSTALL_ARCH.md"' in pkgbuild
@@ -46,6 +51,6 @@ def test_install_and_hardware_docs_reference_consistent_udev_paths() -> None:
     install_doc = (REPO_ROOT / "docs" / "INSTALL_ARCH.md").read_text(encoding="utf-8")
     hardware_doc = (REPO_ROOT / "docs" / "HARDWARE_SETUP.md").read_text(encoding="utf-8")
 
-    assert "/usr/lib/udev/rules.d/60-nanoleaf-kde-sync.rules" in install_doc
+    assert "AppImage installer flow" in install_doc
     assert "/usr/lib/udev/rules.d/" in hardware_doc
     assert "assets/udev/60-nanoleaf-kde-sync.rules" in hardware_doc
