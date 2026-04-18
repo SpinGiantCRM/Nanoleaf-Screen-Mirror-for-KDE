@@ -52,9 +52,7 @@ def default_config_path() -> Path:
 
 def mode_config(mode: str) -> AppConfig:
     normalized = (mode or "").strip().lower()
-    if normalized in ("full-mock", "mock", ""):
-        return validate_config(AppConfig(use_mock_capture=True, use_mock_device=True))
-    if normalized in ("capture-real", "real-capture-mock-device"):
+    if normalized in ("capture-real", "real-capture-mock-device", ""):
         return validate_config(
             AppConfig(
                 use_mock_capture=False,
@@ -62,6 +60,8 @@ def mode_config(mode: str) -> AppConfig:
                 prefer_backend="kwin-dbus",
             )
         )
+    if normalized in ("full-mock", "mock"):
+        return validate_config(AppConfig(use_mock_capture=True, use_mock_device=True))
     if normalized in ("full-real", "real"):
         return validate_config(
             AppConfig(
@@ -114,7 +114,6 @@ class ConfigManager:
         cfg = AppConfig(
             fps=_to_int(data.get("fps"), AppConfig.fps),
             prefer_backend=_to_str(data.get("prefer_backend"), AppConfig.prefer_backend),
-            replay_frames_path=_to_str(data.get("replay_frames_path"), AppConfig.replay_frames_path),
             brightness=_to_float(data.get("brightness"), AppConfig.brightness),
             smoothing=_to_float(data.get("smoothing"), AppConfig.smoothing),
             zones=zones,
@@ -125,16 +124,10 @@ class ConfigManager:
             device_pid=_to_int(data.get("device_pid"), AppConfig.device_pid),
             use_mock_device=coerce_bool(data.get("use_mock_device"), AppConfig.use_mock_device),
             use_mock_capture=coerce_bool(data.get("use_mock_capture"), AppConfig.use_mock_capture),
-            allow_capture_fallback=coerce_bool(
-                data.get("allow_capture_fallback"), AppConfig.allow_capture_fallback
-            ),
             device_zone_count=_to_int(data.get("device_zone_count"), AppConfig.device_zone_count),
             zone_offset=_to_int(data.get("zone_offset"), AppConfig.zone_offset),
             reverse_zones=coerce_bool(data.get("reverse_zones"), AppConfig.reverse_zones),
             explicit_zone_map=_to_int_list(data.get("explicit_zone_map"), []),
-            hdr_max_nits=_to_float(data.get("hdr_max_nits"), AppConfig.hdr_max_nits),
-            hdr_transfer=_to_str(data.get("hdr_transfer"), AppConfig.hdr_transfer),
-            hdr_primaries=_to_str(data.get("hdr_primaries"), AppConfig.hdr_primaries),
             max_consecutive_errors=_to_int(
                 data.get("max_consecutive_errors"), AppConfig.max_consecutive_errors
             ),
@@ -150,7 +143,7 @@ class ConfigManager:
     def exists(self) -> bool:
         return self.path.exists()
 
-    def initialize(self, *, mode: str = "full-mock", force: bool = False) -> bool:
+    def initialize(self, *, mode: str = "capture-real", force: bool = False) -> bool:
         if self.path.exists() and not force:
             return False
         self.save(mode_config(mode))

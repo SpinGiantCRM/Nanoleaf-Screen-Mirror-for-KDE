@@ -199,19 +199,12 @@ def _check_real_device_probe(config: AppConfig) -> DoctorCheck:
 
 
 def _check_mode_consistency(config: AppConfig) -> DoctorCheck:
-    if config.use_mock_capture and config.prefer_backend == "replay":
-        return DoctorCheck(
-            "mode-consistency",
-            "warn",
-            "prefer_backend='replay' is ignored while use_mock_capture=true.",
-            "Disable mock capture to use replay input.",
-        )
-    if not config.use_mock_capture and config.prefer_backend == "replay" and not config.replay_frames_path:
+    if not config.use_mock_capture and config.prefer_backend != "kwin-dbus":
         return DoctorCheck(
             "mode-consistency",
             "fail",
-            "Replay backend selected but replay_frames_path is empty.",
-            "Set replay_frames_path to a .npz file or choose kwin-dbus/kmsgrab.",
+            "Unsupported real capture backend in config.",
+            "Set prefer_backend to 'kwin-dbus' or enable mock capture.",
         )
     if config.use_mock_capture and not config.use_mock_device:
         return DoctorCheck(

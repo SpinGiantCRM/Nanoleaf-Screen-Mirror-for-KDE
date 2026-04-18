@@ -19,7 +19,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--mode",
-        default="full-mock",
+        default="capture-real",
         choices=["full-mock", "capture-real", "full-real"],
         help=f"Preset mode: {_mode_help()}",
     )

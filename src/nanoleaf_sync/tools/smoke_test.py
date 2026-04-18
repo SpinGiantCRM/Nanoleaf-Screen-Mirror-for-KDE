@@ -29,11 +29,6 @@ def main(argv: list[str] | None = None) -> int:
         height=180,
         use_mock_capture=cfg.use_mock_capture,
         prefer_backend=cfg.prefer_backend,
-        allow_fallback=cfg.allow_capture_fallback,
-        hdr_max_nits=cfg.hdr_max_nits,
-        hdr_transfer=cfg.hdr_transfer,
-        hdr_primaries=cfg.hdr_primaries,
-        replay_frames_path=cfg.replay_frames_path or None,
     )
     frame = capture.capture()
     print(f"capture ok: frame shape={frame.shape}")
