@@ -32,8 +32,15 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
         run: |
           set -euo pipefail
+          RELEASE_VERSION="${RELEASE_TAG#refs/tags/}"
+          RELEASE_VERSION="${RELEASE_VERSION#v}"
+          if [[ ! "${RELEASE_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: Release tag must be in format vX.Y.Z; got '${RELEASE_TAG}'." >&2
+            exit 1
+          fi
+          printf '%s\n' "${RELEASE_VERSION}" > VERSION
           python scripts/check_release_versions.py --tag "${RELEASE_TAG}"
-          echo "RELEASE_VERSION=$(cat VERSION)" >> "$GITHUB_ENV"
+          echo "RELEASE_VERSION=${RELEASE_VERSION}" >> "$GITHUB_ENV"
 
       - name: Build Python distributions
         run: |
@@ -73,3 +80,26 @@ jobs:
           files: |
             release-assets/*
           fail_on_unmatched_files: true
+
+      - name: Sync VERSION on default branch
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          RELEASE_VERSION="${RELEASE_TAG#refs/tags/}"
+          RELEASE_VERSION="${RELEASE_VERSION#v}"
+          git fetch origin "${DEFAULT_BRANCH}"
+          git checkout -B "sync-version-${RELEASE_VERSION}" "origin/${DEFAULT_BRANCH}"
+          CURRENT_VERSION="$(cat VERSION)"
+          if [[ "${CURRENT_VERSION}" == "${RELEASE_VERSION}" ]]; then
+            echo "VERSION already matches ${RELEASE_VERSION}; nothing to commit."
+            exit 0
+          fi
+          printf '%s\n' "${RELEASE_VERSION}" > VERSION
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git commit -m "chore: sync VERSION to ${RELEASE_VERSION} [skip ci]"
+          git push origin "HEAD:${DEFAULT_BRANCH}"
