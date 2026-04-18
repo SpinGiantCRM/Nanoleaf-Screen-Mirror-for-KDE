@@ -1,0 +1,19 @@
+name: Arch metadata validation
+description: Install Arch packaging dependencies and validate PKGBUILD metadata via makepkg as a non-root user
+runs:
+  using: composite
+  steps:
+    - name: Install packaging dependencies
+      shell: bash
+      run: |
+        pacman -Syu --noconfirm --needed base-devel git
+
+    - name: Validate Arch package metadata
+      shell: bash
+      run: |
+        useradd -m builder
+        chown -R builder:builder "$GITHUB_WORKSPACE"
+        cd "$GITHUB_WORKSPACE/packaging/arch"
+        bash -n nanoleaf-kde-sync.install
+        # Arch packaging requires makepkg to run as a non-root user.
+        su - builder -c "cd \"$GITHUB_WORKSPACE/packaging/arch\" && makepkg --printsrcinfo >/dev/null"

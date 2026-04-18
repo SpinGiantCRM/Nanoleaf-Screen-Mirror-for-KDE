@@ -116,15 +116,8 @@ jobs:
     container:
       image: archlinux:latest
     steps:
-      - name: Install packaging dependencies
-        run: |
-          pacman -Syu --noconfirm --needed base-devel git
-
       - name: Checkout
         uses: actions/checkout@v5
 
       - name: Validate Arch package metadata
-        run: |
-          cd packaging/arch
-          bash -n nanoleaf-kde-sync.install
-          makepkg --printsrcinfo > /dev/null
+        uses: ./.github/actions/arch-metadata-validation
