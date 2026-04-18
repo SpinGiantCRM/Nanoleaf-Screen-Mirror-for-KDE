@@ -16,6 +16,11 @@ on:
         required: false
         default: -q
         type: string
+      install-runtime-deps:
+        description: Install app runtime/UI/device dependencies in addition to baseline test deps
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   run-tests:
@@ -25,7 +30,10 @@ jobs:
       - name: Install runtime dependencies
         if: ${{ inputs.target == 'arch' }}
         run: |
-          pacman -Syu --noconfirm --needed python python-pip python-setuptools git
+          # Keep Python toolchain packages here so pip installs are reliable on Arch.
+          pacman -Syu --noconfirm --needed \
+            python python-pip python-setuptools python-wheel python-virtualenv \
+            base-devel libffi openssl git
 
       - name: Checkout
         uses: actions/checkout@v5
@@ -44,16 +52,26 @@ jobs:
         if: ${{ inputs.target == 'ubuntu' }}
         run: |
           python -m pip install --upgrade pip
-          pip install -r docs/requirements.txt
-          pip install -e .[test]
+          # Baseline CI lanes should only pull test dependencies.
+          pip install -r docs/requirements-test.txt
+          if [ "${{ inputs.install-runtime-deps }}" = "true" ]; then
+            # Runtime deps are opt-in for integration-heavy test slices.
+            pip install -r docs/requirements.txt
+          fi
+          pip install -e . --no-deps
 
       - name: Install dependencies (Arch)
         if: ${{ inputs.target == 'arch' }}
         run: |
           . .venv/bin/activate
           pip install --upgrade pip
-          pip install -r docs/requirements.txt
-          pip install -e .[test]
+          # Baseline CI lanes should only pull test dependencies.
+          pip install -r docs/requirements-test.txt
+          if [ "${{ inputs.install-runtime-deps }}" = "true" ]; then
+            # Runtime deps are opt-in for integration-heavy test slices.
+            pip install -r docs/requirements.txt
+          fi
+          pip install -e . --no-deps
 
       - name: Run ${{ inputs.test-label }}
         run: |

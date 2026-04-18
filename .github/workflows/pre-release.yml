@@ -35,6 +35,8 @@ jobs:
       target: ubuntu
       test-label: release/install regression tests
       pytest-args: -q tests/test_release_install_regressions.py tests/test_release_assets.py
+      # Keep this lane free of runtime GUI/device dependencies unless tests need them.
+      install-runtime-deps: false
 
   release-install-regression-tests-arch:
     name: Release/install regression tests / Arch Linux
@@ -43,6 +45,8 @@ jobs:
       target: arch
       test-label: release/install regression tests
       pytest-args: -q tests/test_release_install_regressions.py tests/test_release_assets.py
+      # Keep this lane free of runtime GUI/device dependencies unless tests need them.
+      install-runtime-deps: false
 
   arch-package-metadata-sanity:
     name: Arch package metadata sanity

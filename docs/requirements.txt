@@ -1,3 +1,6 @@
+# Runtime dependencies for the nanoleaf-kde-sync application.
+# CI should install docs/requirements-test.txt first, and only install this file
+# for jobs that exercise runtime/UI/device integrations.
 numpy>=1.21
 PyQt6>=6.0
 dbus-next>=0.2.0

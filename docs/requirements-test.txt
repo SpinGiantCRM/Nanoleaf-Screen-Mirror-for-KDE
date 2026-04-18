@@ -1,0 +1,3 @@
+# CI baseline test dependencies only.
+# Keep this file minimal so baseline lanes can run without GUI/device stacks.
+pytest>=8
