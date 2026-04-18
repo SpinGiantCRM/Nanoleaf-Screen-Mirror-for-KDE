@@ -2,6 +2,7 @@
 
 ## End-user docs
 - Root `README.md` - primary Arch/CachyOS package flow (`makepkg -si`).
+- Root `LICENSE` - canonical source-available non-commercial project license text for legal distribution.
 - `INSTALL_ARCH.md` - Arch install details plus AppImage caveats.
 - `TROUBLESHOOTING.md` - plain-language fixes first, advanced diagnostics second.
 - `HARDWARE_SETUP.md` - deeper USB/udev details when needed.

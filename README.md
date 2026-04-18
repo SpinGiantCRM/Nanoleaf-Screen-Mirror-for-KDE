@@ -2,6 +2,8 @@
 
 `nanoleaf-kde-sync` mirrors KDE Plasma screen colors to supported Nanoleaf USB light devices on Linux.
 
+Licensed under the Nanoleaf Source-Available Non-Commercial License.
+
 ## Primary install path (recommended for Arch/CachyOS KDE users)
 
 Use the Arch package workflow:
