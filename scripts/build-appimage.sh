@@ -104,7 +104,14 @@ fi
 
 "$BUNDLED_PYTHON_BIN" -m ensurepip --upgrade
 "$BUNDLED_PYTHON_BIN" -m pip install --upgrade pip build
+cd "$REPO_ROOT"
 "$BUNDLED_PYTHON_BIN" -m build --wheel
+if ! compgen -G "$DIST_DIR"/*.whl > /dev/null; then
+  echo "Error: Built wheel not found after 'python -m build --wheel'."
+  echo "pwd: $(pwd)"
+  echo "Expected dist dir: $DIST_DIR"
+  exit 1
+fi
 "$BUNDLED_PYTHON_BIN" -m pip install --no-compile "$DIST_DIR"/*.whl
 
 cat > "$APPDIR/usr/bin/$APP_NAME" <<LAUNCHER
