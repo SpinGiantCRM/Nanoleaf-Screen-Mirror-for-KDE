@@ -61,5 +61,4 @@ jobs:
           tag_name: ${{ github.event.release.tag_name }}
           files: |
             release-assets/*
-            release-assets/*.sha256
           fail_on_unmatched_files: true
