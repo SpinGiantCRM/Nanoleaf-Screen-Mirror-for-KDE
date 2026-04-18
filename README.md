@@ -4,6 +4,17 @@
 
 Licensed under the Nanoleaf Source-Available Non-Commercial License.
 
+| Compatibility area | Current status |
+| --- | --- |
+| KDE Plasma version support | **Plasma 6 is the primary target** via modern `org.kde.KWin.ScreenShot2`; older `org.kde.kwin.Screenshot` interfaces are used as a compatibility fallback path. |
+| Primary distro target | **Arch/CachyOS** is the primary supported install/runtime path (`makepkg -si` from `packaging/arch`). |
+| Capture backend + Wayland/X11 status | Backend order is **`kmsgrab` preferred**, then **`kwin-dbus` fallback**; KWin D-Bus capture is the implemented compatibility path when `kmsgrab` is unavailable. |
+| Device model support | Real USB protocol support is implemented for **Pegboard Desk Dock `NL82K1` (PID `0x8201`)** and **PC Screen Mirror LS `NL82K2` (PID `0x8202`)**. |
+| HDR support caveats | HDR-aware processing is implemented, but behavior still depends on capture metadata, transfer-function handling, and compositor/stack capabilities. |
+| AppImage support status | **Secondary / experimental on Arch/CachyOS**; Arch package workflow remains the recommended path. |
+
+For unsupported or untested setups, start with `docs/TROUBLESHOOTING.md`.
+
 ## Primary install path (recommended for Arch/CachyOS KDE users)
 
 Use the Arch package workflow:
