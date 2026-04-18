@@ -3,7 +3,10 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - "v*.*.*"
+      - "!v*.*.*-rc*"
+      - "!v*.*.*-beta*"
+      - "!v*.*.*-alpha*"
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
