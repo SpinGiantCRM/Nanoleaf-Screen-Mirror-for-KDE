@@ -25,9 +25,9 @@ jobs:
             python3 ./scripts/validate_release_metadata.py
           fi
 
-  unit-integration-tests:
+  unit-integration-tests-ubuntu:
     needs: release-metadata-validation
-    name: Unit and integration tests (Ubuntu)
+    name: Unit and integration tests / Ubuntu
     uses: ./.github/workflows/reusable-test.yml
     with:
       target: ubuntu
@@ -36,16 +36,16 @@ jobs:
 
   unit-integration-tests-arch:
     needs: release-metadata-validation
-    name: Unit and integration tests (Arch Linux)
+    name: Unit and integration tests / Arch Linux
     uses: ./.github/workflows/reusable-test.yml
     with:
       target: arch
       test-label: unit and integration tests
       pytest-args: -q
 
-  release-install-regression-tests:
+  release-install-regression-tests-ubuntu:
     needs: release-metadata-validation
-    name: Release/install regression tests (Ubuntu)
+    name: Release/install regression tests / Ubuntu
     uses: ./.github/workflows/reusable-test.yml
     with:
       target: ubuntu
@@ -54,7 +54,7 @@ jobs:
 
   release-install-regression-tests-arch:
     needs: release-metadata-validation
-    name: Release/install regression tests (Arch Linux)
+    name: Release/install regression tests / Arch Linux
     uses: ./.github/workflows/reusable-test.yml
     with:
       target: arch
