@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RULE_SRC="assets/udev/60-nanoleaf-kde-sync.rules"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RULE_SRC="$SCRIPT_DIR/../assets/udev/60-nanoleaf-kde-sync.rules"
 RULE_DST="/etc/udev/rules.d/60-nanoleaf-kde-sync.rules"
 
 if [[ ! -f "$RULE_SRC" ]]; then
-  echo "Missing $RULE_SRC" >&2
+  echo "Missing udev rule source file: $RULE_SRC" >&2
   exit 1
 fi
 
