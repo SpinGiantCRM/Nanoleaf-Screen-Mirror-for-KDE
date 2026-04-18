@@ -64,6 +64,7 @@ def reinitialize_backends(
     close_backends: Callable[[], None],
     state: RuntimeState,
 ) -> None:
+    state.is_reinitializing = True
     close_backends()
     now_ts = time.perf_counter()
     try:
@@ -73,6 +74,7 @@ def reinitialize_backends(
         logger.exception("backend reinitialization failed")
     finally:
         state.consecutive_errors = 0
+        state.is_reinitializing = False
 
 
 def shutdown_backends(

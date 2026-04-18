@@ -72,4 +72,4 @@ class ReplayScreenCapture:
     def capture(self) -> np.ndarray:
         frame = self._frames[self._idx]
         self._idx = (self._idx + 1) % len(self._frames)
-        return frame
+        return frame.copy()

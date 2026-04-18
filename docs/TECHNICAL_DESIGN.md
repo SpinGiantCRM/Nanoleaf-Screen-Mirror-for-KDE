@@ -82,12 +82,12 @@ This pipeline should be implemented so each stage can be profiled independently.
 ## Fallback Strategy
 Preferred backend order:
 
-1. `kmsgrab`
-2. `kwin dbus`
+1. `kwin-dbus`
+2. `kmsgrab`
 
 Fallback rules:
-- Use `kmsgrab` by default because it is expected to provide lower overhead and lower latency.
-- Switch to KWin D-Bus capture when `kmsgrab` is unsupported, fails initialization, or repeatedly produces invalid frames.
+- Use `kwin-dbus` by default for Plasma compatibility and stable startup behavior.
+- Switch to `kmsgrab` when explicitly preferred or when runtime capability checks indicate it is available and desired.
 - Keep backend selection explicit in logs and UI so degraded capture modes are visible.
 - Design capture backend selection behind a shared interface so future backends can be added without changing downstream modules.
 

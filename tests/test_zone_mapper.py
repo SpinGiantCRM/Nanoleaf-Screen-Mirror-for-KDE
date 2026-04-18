@@ -32,3 +32,9 @@ def test_zone_mapper_explicit_map() -> None:
         screen, device_zone_count=4, explicit_zone_map=[2, 0]
     )
     assert out2 == [(30, 0, 0), (10, 0, 0), (10, 0, 0), (10, 0, 0)]
+
+
+def test_zone_mapper_wraps_large_positive_offset() -> None:
+    screen = [(10, 0, 0), (20, 0, 0), (30, 0, 0)]
+    out = map_colors_to_device_zones(screen, device_zone_count=3, zone_offset=10)
+    assert out == [(20, 0, 0), (30, 0, 0), (10, 0, 0)]

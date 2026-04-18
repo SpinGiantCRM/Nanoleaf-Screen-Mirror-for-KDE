@@ -33,6 +33,7 @@ class RuntimeState:
     frames_sent: int = 0
     last_frame_timestamp: Optional[float] = None
     last_reinit_ts: float = 0.0
+    is_reinitializing: bool = False
 
     def reset_for_start(self) -> None:
         self.prev_smoothed_colors = []
@@ -47,6 +48,7 @@ class RuntimeState:
         self.last_error_guidance = None
         self.frames_sent = 0
         self.last_frame_timestamp = None
+        self.is_reinitializing = False
 
     def mark_startup(self, succeeded: bool) -> None:
         self.startup_succeeded = succeeded

@@ -110,3 +110,13 @@ def test_status_exposes_device_mode_and_error_guidance() -> None:
     assert status["device_mode"] == "mock"
     assert status["last_error_kind"] is not None
     assert status["last_error_guidance"] is not None
+
+
+def test_make_device_driver_requires_non_zero_vid_pid_for_real_device() -> None:
+    cfg = AppConfig(use_mock_device=False, device_vid=0, device_pid=0)
+    svc = NanoleafSyncService(config=cfg)
+    try:
+        svc._make_device_driver()
+        assert False, "expected ValueError for unset VID/PID in real device mode"
+    except ValueError as exc:
+        assert "non-zero device_vid/device_pid" in str(exc)

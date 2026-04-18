@@ -135,10 +135,15 @@ def run_loop(
 
     while not state.stop_event.is_set():
         start = time.perf_counter()
+        processing_end = start
 
         try:
+            if state.is_reinitializing:
+                continue
             capture = get_capture()
             driver = get_driver()
+            if capture is None or driver is None:
+                continue
             frame = capture.capture()
             if frame is None:
                 continue
@@ -162,6 +167,7 @@ def run_loop(
             )
             state.prev_smoothed_colors = smoothed_colors
             driver.send_frame(smoothed_colors)
+            processing_end = time.perf_counter()
 
             state.record_success()
             last_sent_zone_count = len(smoothed_colors)
@@ -190,7 +196,7 @@ def run_loop(
         now = time.perf_counter()
         if now - last_log > log_interval_s:
             last_log = now
-            elapsed_ms = (now - start) * 1000.0
+            elapsed_ms = (processing_end - start) * 1000.0
             logger.info(
                 "service_tick fps=%s elapsed_ms=%.2f zones=%s errors=%s",
                 fps,
