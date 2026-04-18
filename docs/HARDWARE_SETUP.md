@@ -1,6 +1,7 @@
 # Real hardware setup (Linux/KDE)
 
 This guide prepares `nanoleaf-kde-sync` for **real Nanoleaf USB hardware** on KDE Plasma.
+For Arch/CachyOS KDE, prefer `makepkg -si` from `packaging/arch` first.
 
 ## 1) Install the app
 
@@ -63,6 +64,8 @@ nanoleaf-kde-sync-doctor --device
 Expected in real mode:
 - HID enumeration passes
 - device probe reports model + zone count
+
+If this check fails, real hardware mode is not validated yet even if mock/demo mode still works.
 
 ## 5) Run smoke test
 

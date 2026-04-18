@@ -12,6 +12,7 @@ def load_qt():
         from PyQt6.QtWidgets import (
             QApplication,
             QCheckBox,
+            QComboBox,
             QDialog,
             QDialogButtonBox,
             QGridLayout,
@@ -38,6 +39,7 @@ def load_qt():
         "QDialogButtonBox": QDialogButtonBox,
         "QGridLayout": QGridLayout,
         "QCheckBox": QCheckBox,
+        "QComboBox": QComboBox,
         "QLabel": QLabel,
         "QMenu": QMenu,
         "QMessageBox": QMessageBox,

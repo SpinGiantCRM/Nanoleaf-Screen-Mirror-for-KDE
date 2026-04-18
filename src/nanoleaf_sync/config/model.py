@@ -24,7 +24,7 @@ class ZoneConfig:
 class AppConfig:
     # Capture
     fps: int = 30
-    prefer_backend: str = "kmsgrab"  # "kmsgrab" or "kwin-dbus" or "auto" or "replay"
+    prefer_backend: str = "kwin-dbus"  # "kwin-dbus" or "kmsgrab" or "auto" or "replay"
     replay_frames_path: str = ""
 
     # Color -> device mapping

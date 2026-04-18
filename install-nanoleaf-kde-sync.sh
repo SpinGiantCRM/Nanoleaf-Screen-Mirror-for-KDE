@@ -48,6 +48,9 @@ SVG
 }
 
 install_udev_rule() {
+  local temp_rule=""
+  trap '[[ -n "${temp_rule:-}" ]] && rm -f -- "$temp_rule"' RETURN
+
   local helper
   helper="$(find_priv_helper)"
   if [[ -z "$helper" ]]; then
@@ -56,9 +59,7 @@ install_udev_rule() {
     return 0
   fi
 
-  local temp_rule
   temp_rule="$(mktemp)"
-  trap 'rm -f -- "'"$temp_rule"'"' RETURN
 
   cat > "$temp_rule" <<'RULES'
 # Nanoleaf USB Screen Mirror Light Strip and Pegboard Desk Dock

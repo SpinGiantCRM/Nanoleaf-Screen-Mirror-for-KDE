@@ -39,4 +39,4 @@ Release candidate focused on:
 - Arch/CachyOS + KDE first-run usability
 - KWin capture path + capture fallback
 - Nanoleaf USB real driver path
-- AppImage + installer based onboarding
+- Arch package based onboarding (AppImage remains secondary/experimental on Arch/CachyOS)

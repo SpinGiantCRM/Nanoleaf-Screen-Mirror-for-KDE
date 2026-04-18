@@ -1,6 +1,7 @@
 # Manual smoke test checklist
 
 Run this after first install, mode changes, or hardware setup changes.
+On Arch/CachyOS KDE, run from the package install path (`makepkg -si`) for the most reliable runtime.
 
 ## 0) Optional reset to known-safe mode
 
@@ -23,6 +24,7 @@ nanoleaf-kde-sync-smoke-test
 ```
 
 Expected: prints a valid frame shape from active capture backend.
+If you are in full-mock mode this validates pipeline health, not physical USB output.
 
 ## 3) Real-device probe (only when `use_mock_device=false`)
 
