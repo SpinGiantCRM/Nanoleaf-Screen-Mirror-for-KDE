@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
@@ -59,6 +60,12 @@ class KWinDBusScreenshotCapture:
         self.params = KWinDBusCaptureParams(
             width=width, height=height, monitor_id=monitor_id
         )
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._loop_thread: threading.Thread | None = None
+        self._loop_ready = threading.Event()
+        self._loop_lock = threading.Lock()
+        self._screenshot2_bus = None
+        self._legacy_bus = None
 
     def capture(self) -> np.ndarray:
         """Return an RGB frame as a numpy array or raise ``KWinDBusCaptureError``."""
@@ -91,11 +98,54 @@ class KWinDBusScreenshotCapture:
 
     def _run_async(self, coro):
         """Run async DBus calls in a dedicated loop for sync capture API."""
+        loop = self._ensure_background_loop()
+        future = asyncio.run_coroutine_threadsafe(coro, loop)
+        return future.result()
+
+    def _ensure_background_loop(self) -> asyncio.AbstractEventLoop:
+        with self._loop_lock:
+            if self._loop is not None and self._loop.is_running():
+                return self._loop
+
+            self._loop_ready.clear()
+            self._loop_thread = threading.Thread(
+                target=self._loop_worker,
+                name="kwin-dbus-capture",
+                daemon=True,
+            )
+            self._loop_thread.start()
+            self._loop_ready.wait(timeout=2.0)
+            if self._loop is None or not self._loop.is_running():
+                raise KWinDBusCaptureError("Failed to initialize KWin D-Bus event loop.")
+            return self._loop
+
+    def _loop_worker(self) -> None:
         loop = asyncio.new_event_loop()
+        self._loop = loop
+        asyncio.set_event_loop(loop)
+        self._loop_ready.set()
+        loop.run_forever()
+        loop.close()
+
+    def close(self) -> None:
+        loop = self._loop
+        if loop is None:
+            return
         try:
-            return loop.run_until_complete(coro)
-        finally:
-            loop.close()
+            future = asyncio.run_coroutine_threadsafe(
+                self._reset_bus_connections(), loop
+            )
+            future.result(timeout=1.0)
+        except Exception:
+            pass
+
+        loop.call_soon_threadsafe(loop.stop)
+        if self._loop_thread is not None:
+            self._loop_thread.join(timeout=1.0)
+
+        self._loop = None
+        self._loop_thread = None
+        self._loop_ready.clear()
 
     def _try_capture_via_dbus(self) -> Optional[np.ndarray]:
         reply = self._run_async(self._capture_reply_via_dbus())
@@ -116,12 +166,14 @@ class KWinDBusScreenshotCapture:
         # screenshot methods second.
         last_exc: Exception | None = None
         try:
-            return await self._capture_reply_via_screenshot2()
+            return await self._call_with_reconnect(self._capture_reply_via_screenshot2)
         except Exception as exc:
             last_exc = exc
 
         try:
-            return await self._capture_reply_via_legacy_interfaces()
+            return await self._call_with_reconnect(
+                self._capture_reply_via_legacy_interfaces
+            )
         except Exception as exc:
             if last_exc is None:
                 last_exc = exc
@@ -130,12 +182,72 @@ class KWinDBusScreenshotCapture:
             "All known KWin screenshot D-Bus API variants failed."
         ) from last_exc
 
-    async def _capture_reply_via_screenshot2(self):
-        from dbus_next import Message, MessageType
+    async def _call_with_reconnect(self, func):
+        try:
+            return await func()
+        except Exception as exc:
+            if not self._is_reconnectable_bus_error(exc):
+                raise
+            await self._reset_bus_connections()
+            return await func()
+
+    def _is_reconnectable_bus_error(self, exc: Exception) -> bool:
+        error_name = str(getattr(exc, "type", ""))
+        message = str(exc)
+        reconnectable_markers = (
+            "org.freedesktop.DBus.Error.Disconnected",
+            "org.freedesktop.DBus.Error.NoReply",
+            "org.freedesktop.DBus.Error.NameHasNoOwner",
+            "org.freedesktop.DBus.Error.ServiceUnknown",
+            "Disconnected",
+            "connection reset",
+            "broken pipe",
+            "closed",
+        )
+        combined = f"{error_name} {message}".lower()
+        return any(marker.lower() in combined for marker in reconnectable_markers)
+
+    async def _disconnect_bus(self, bus: Any) -> None:
+        if bus is None:
+            return
+        disconnect = getattr(bus, "disconnect", None)
+        if disconnect is None:
+            return
+        result = disconnect()
+        if asyncio.iscoroutine(result):
+            await result
+
+    async def _reset_bus_connections(self) -> None:
+        await self._disconnect_bus(self._screenshot2_bus)
+        await self._disconnect_bus(self._legacy_bus)
+        self._screenshot2_bus = None
+        self._legacy_bus = None
+
+    async def _connect_screenshot2_bus(self):
         from dbus_next.aio import MessageBus
 
+        return await MessageBus(negotiate_unix_fd=True).connect()
+
+    async def _connect_legacy_bus(self):
+        from dbus_next.aio import MessageBus
+
+        return await MessageBus().connect()
+
+    async def _get_screenshot2_bus(self):
+        if self._screenshot2_bus is None:
+            self._screenshot2_bus = await self._connect_screenshot2_bus()
+        return self._screenshot2_bus
+
+    async def _get_legacy_bus(self):
+        if self._legacy_bus is None:
+            self._legacy_bus = await self._connect_legacy_bus()
+        return self._legacy_bus
+
+    async def _capture_reply_via_screenshot2(self):
+        from dbus_next import Message, MessageType
+
         bus_name, path, interface_name = self._SCREENSHOT2_API
-        bus = await MessageBus(negotiate_unix_fd=True).connect()
+        bus = await self._get_screenshot2_bus()
         await bus.introspect(bus_name, path)
 
         last_exc: Exception | None = None
@@ -173,9 +285,7 @@ class KWinDBusScreenshotCapture:
         raise last_exc
 
     async def _capture_reply_via_legacy_interfaces(self):
-        from dbus_next.aio import MessageBus
-
-        bus = await MessageBus().connect()
+        bus = await self._get_legacy_bus()
         last_exc: Exception | None = None
 
         for bus_name, path, interface_name in self._LEGACY_API_CANDIDATES:

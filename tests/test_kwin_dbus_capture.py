@@ -114,3 +114,72 @@ def test_capture_reports_missing_interfaces_from_all_paths(monkeypatch) -> None:
 
     with pytest.raises(KWinDBusCaptureError, match="All known KWin screenshot D-Bus API variants failed"):
         backend._run_async(backend._capture_reply_via_dbus())
+
+
+def test_capture_reuses_single_screenshot2_connection_across_frames(
+    tmp_path: Path, monkeypatch
+) -> None:
+    ppm_path = tmp_path / "frame.ppm"
+    ppm_path.write_bytes(b"P6\n2 1\n255\n" + bytes([101, 120, 130, 140, 150, 160]))
+
+    backend = KWinDBusScreenshotCapture(width=2, height=1)
+    calls = {"connect": 0}
+
+    async def _fake_connect_screenshot2_bus():
+        calls["connect"] += 1
+        return object()
+
+    async def _fake_capture_screenshot2():
+        await backend._get_screenshot2_bus()
+        return str(ppm_path)
+
+    async def _fake_capture_legacy():
+        raise RuntimeError("legacy should not be used")
+
+    monkeypatch.setattr(backend, "_connect_screenshot2_bus", _fake_connect_screenshot2_bus)
+    monkeypatch.setattr(backend, "_capture_reply_via_screenshot2", _fake_capture_screenshot2)
+    monkeypatch.setattr(backend, "_capture_reply_via_legacy_interfaces", _fake_capture_legacy)
+
+    first = backend.capture()
+    second = backend.capture()
+
+    assert first.shape == (1, 2, 3)
+    assert second.shape == (1, 2, 3)
+    assert calls["connect"] == 1
+    backend.close()
+
+
+def test_capture_reconnects_and_retries_after_disconnect_error(
+    tmp_path: Path, monkeypatch
+) -> None:
+    ppm_path = tmp_path / "retry.ppm"
+    ppm_path.write_bytes(b"P6\n1 1\n255\n" + bytes([200, 100, 50]))
+
+    backend = KWinDBusScreenshotCapture(width=1, height=1)
+    calls = {"s2": 0, "reset": 0}
+
+    async def _fake_screenshot2():
+        calls["s2"] += 1
+        if calls["s2"] == 1:
+            raise RuntimeError("org.freedesktop.DBus.Error.Disconnected")
+        return str(ppm_path)
+
+    async def _fake_legacy():
+        raise RuntimeError("legacy should not be used")
+
+    original_reset = backend._reset_bus_connections
+
+    async def _tracking_reset():
+        calls["reset"] += 1
+        await original_reset()
+
+    monkeypatch.setattr(backend, "_capture_reply_via_screenshot2", _fake_screenshot2)
+    monkeypatch.setattr(backend, "_capture_reply_via_legacy_interfaces", _fake_legacy)
+    monkeypatch.setattr(backend, "_reset_bus_connections", _tracking_reset)
+
+    frame = backend.capture()
+
+    assert frame.shape == (1, 1, 3)
+    assert calls["s2"] == 2
+    assert calls["reset"] == 1
+    backend.close()
