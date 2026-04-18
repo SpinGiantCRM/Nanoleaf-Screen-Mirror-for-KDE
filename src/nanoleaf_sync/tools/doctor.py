@@ -124,7 +124,12 @@ def _check_hid_enumeration(config: AppConfig) -> DoctorCheck:
 
         devices = hid.enumerate(vid, pid)
     except Exception as exc:
-        return DoctorCheck("hid-device", "fail", f"Unable to enumerate HID devices: {exc}")
+        return DoctorCheck(
+            "hid-device",
+            "fail",
+            f"Unable to enumerate HID devices: {exc}",
+            "Install/enable hidapi for your environment and confirm device access permissions, then rerun doctor.",
+        )
 
     if not devices:
         return DoctorCheck(
