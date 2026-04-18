@@ -44,6 +44,7 @@
 
 - [ ] README reflects current RC scope and quick-start.
 - [ ] Legal artifact present in expected repo contents (`LICENSE` at repository root).
+- [ ] License wording/metadata is consistent across `README.md`, `LICENSE`, `packaging/arch/PKGBUILD`, `pyproject.toml`, and published release/install artifacts.
 - [ ] Install and troubleshooting docs are separated and consistent.
 - [ ] Hardware + smoke docs match current commands and behavior.
 
