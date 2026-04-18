@@ -33,6 +33,8 @@
 
 ## Runtime and supportability
 
+- [ ] RC matrix executed and signed off (`docs/RC_TEST_MATRIX.md`) across Arch + CachyOS and KDE Wayland/X11 where supported.
+- [ ] RC run result artifact updated (table in release PR description via `.github/PULL_REQUEST_TEMPLATE/release.md` or in `docs/RC_TEST_MATRIX.md`).
 - [ ] `nanoleaf-kde-sync-doctor` and `nanoleaf-kde-sync-smoke-test` run in target environment.
 - [ ] Tray Start/Stop/Status verified.
 - [ ] Tray doctor/smoke actions run without freezing UI.
@@ -48,5 +50,6 @@
 
 1. Update `pyproject.toml` with the target release version (`X.Y.Z`) and add the matching section to `docs/CHANGELOG.md`.
 2. Run metadata validation locally: `python3 ./scripts/validate_release_metadata.py --git-tag vX.Y.Z`.
-3. Create and push the signed release tag using the exact same version (for example, `v0.1.0`).
-4. Confirm GitHub Actions **CI / Release metadata validation** and **Release / Validate release metadata** steps pass before trusting published artifacts.
+3. Open a release PR using `.github/PULL_REQUEST_TEMPLATE/release.md`, complete RC matrix sign-off, and attach run evidence.
+4. Create and push the signed release tag using the exact same version (for example, `v0.1.0`) **only after** matrix sign-off is complete.
+5. Confirm GitHub Actions **CI / Release metadata validation** and **Release / Validate release metadata** steps pass before trusting published artifacts.

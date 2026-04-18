@@ -3,6 +3,32 @@
 Run this after first install, mode changes, or hardware setup changes.
 On Arch/CachyOS KDE, run from the package install path (`makepkg -si`) for the most reliable runtime.
 
+For RC coverage across distros/sessions/modes, execute this checklist per matrix row in `docs/RC_TEST_MATRIX.md`.
+
+## RC matrix execution mapping (commands + expected outputs)
+
+Use this sequence exactly for each matrix row and mode under test:
+
+```bash
+nanoleaf-kde-sync-init-config --mode <full-mock|capture-real|full-real> --force
+nanoleaf-kde-sync-doctor
+nanoleaf-kde-sync-smoke-test
+nanoleaf-kde-sync-doctor --device                 # required for full-real
+nanoleaf-kde-sync-smoke-test --send-test-frame    # required for full-real
+nanoleaf-kde-sync
+```
+
+Expected command outcomes:
+
+- `nanoleaf-kde-sync-init-config ...`: mode is written successfully to config (exit code `0`).
+- `nanoleaf-kde-sync-doctor`: dependency/session checks complete successfully for the selected mode (exit code `0`).
+- `nanoleaf-kde-sync-smoke-test`: valid capture frame output is printed (for example, frame shape/dimensions) and command exits `0`.
+- `nanoleaf-kde-sync-doctor --device` (`full-real`): real device is discovered/initialized and model + zone details are printed.
+- `nanoleaf-kde-sync-smoke-test --send-test-frame` (`full-real`): one low-brightness test frame is sent successfully (exit code `0`).
+- `nanoleaf-kde-sync` tray lifecycle: Start/Stop/Status works without freezing; status reflects current mode/backend and no persistent `last_error`.
+
+After each run, record pass/fail in the RC run artifact table in `docs/RC_TEST_MATRIX.md` (or copy that table into the release PR body).
+
 ## 0) Optional reset to known-safe mode
 
 ```bash
