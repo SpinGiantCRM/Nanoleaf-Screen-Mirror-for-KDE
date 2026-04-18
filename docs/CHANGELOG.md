@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0
+
 ### Release/install reliability fixes
 - Fixed lazy Qt exports to include `QComboBox`, preventing Settings dialog crashes on open.
 - Fixed the standalone installer cleanup trap so `set -euo pipefail` runs do not fail with `temp_rule: unbound variable`.

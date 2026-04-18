@@ -2,8 +2,7 @@
 
 ## Version and changelog
 
-- [ ] `pyproject.toml` version updated.
-- [ ] `docs/CHANGELOG.md` updated with release notes.
+- [ ] `docs/CHANGELOG.md` updated with release notes under `## Unreleased` (automation will stamp release heading/version from tag).
 - [ ] Tag plan prepared (`vX.Y.Z`).
 
 ## Test and CI gates
@@ -50,8 +49,9 @@
 
 ## How to cut a release
 
-1. Update `pyproject.toml` with the target release version (`X.Y.Z`) and add the matching section to `docs/CHANGELOG.md`.
-2. Run metadata validation locally: `python3 ./scripts/validate_release_metadata.py --git-tag vX.Y.Z`.
-3. Open a release PR using `.github/PULL_REQUEST_TEMPLATE/release.md`, complete RC matrix sign-off, and attach run evidence.
-4. Create and push the signed release tag using the exact same version (for example, `v0.1.0`) **only after** matrix sign-off is complete.
-5. Confirm GitHub Actions **CI / Release metadata validation** and **Release / Validate release metadata** steps pass before trusting published artifacts.
+1. Update `docs/CHANGELOG.md` with release notes under `## Unreleased`.
+2. (Optional but recommended) Dry-run metadata sync locally: `python3 ./scripts/sync_release_version.py --git-tag vX.Y.Z`.
+3. Run metadata validation locally: `python3 ./scripts/validate_release_metadata.py --git-tag vX.Y.Z`.
+4. Open a release PR using `.github/PULL_REQUEST_TEMPLATE/release.md`, complete RC matrix sign-off, and attach run evidence.
+5. Create and push the signed release tag using the exact same version (for example, `v0.1.0`) **only after** matrix sign-off is complete.
+6. Confirm GitHub Actions **CI / Release metadata validation** and **Release / Validate release metadata** steps pass before trusting published artifacts.
