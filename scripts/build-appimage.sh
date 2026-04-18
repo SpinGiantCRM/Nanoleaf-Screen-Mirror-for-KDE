@@ -3,9 +3,8 @@ set -euo pipefail
 
 APP_NAME="nanoleaf-kde-sync"
 APPIMAGE_NAME="${APP_NAME}.AppImage"
-APPIMAGETOOL_VERSION="13"
-APPIMAGETOOL_URL="https://github.com/AppImage/AppImageKit/releases/download/${APPIMAGETOOL_VERSION}/appimagetool-x86_64.AppImage"
-APPIMAGETOOL_SHA256="df3baf5ca5facbecfc2f3fa6713c29ab9cefa8fd8c1eac5d283b79cab33e4acb"
+APPIMAGETOOL_CHANNEL="continuous"
+APPIMAGETOOL_URL="https://github.com/AppImage/appimagetool/releases/download/${APPIMAGETOOL_CHANNEL}/appimagetool-x86_64.AppImage"
 PYTHON_STANDALONE_FLAVOR="cpython-3.11.8+20240224-x86_64-unknown-linux-gnu-install_only.tar.gz"
 PYTHON_STANDALONE_URL="https://github.com/indygreg/python-build-standalone/releases/download/20240224/cpython-3.11.8%2B20240224-x86_64-unknown-linux-gnu-install_only.tar.gz"
 PYTHON_STANDALONE_SHA256="94e13d0e5ad417035b80580f3e893a72e094b0900d5d64e7e34ab08e95439987"
@@ -47,18 +46,24 @@ check_sha256() {
 download_file() {
   local url="$1"
   local out="$2"
-  curl -fsSL "$url" -o "$out"
+  curl --retry 5 --retry-all-errors --retry-delay 2 -fsSL "$url" -o "$out"
 }
 
 download_toolchain() {
   mkdir -p "$BUILD_ROOT"
 
   download_file "$APPIMAGETOOL_URL" "$APPIMAGE_TOOL"
-  check_sha256 "$APPIMAGE_TOOL" "$APPIMAGETOOL_SHA256" "appimagetool"
   chmod +x "$APPIMAGE_TOOL"
 
   download_file "$PYTHON_STANDALONE_URL" "$PYTHON_ARCHIVE_PATH"
   check_sha256 "$PYTHON_ARCHIVE_PATH" "$PYTHON_STANDALONE_SHA256" "standalone CPython archive"
+}
+
+verify_appimagetool() {
+  if ! "$APPIMAGE_TOOL" --appimage-version >/dev/null 2>&1; then
+    echo "Error: downloaded appimagetool failed to execute." >&2
+    exit 1
+  fi
 }
 
 write_launcher() {
@@ -140,9 +145,10 @@ main() {
   require_cmd python3
 
   download_toolchain
+  verify_appimagetool
 
   if [[ "$VERIFY_ONLY" -eq 1 ]]; then
-    echo "appimagetool ${APPIMAGETOOL_VERSION} and ${PYTHON_STANDALONE_FLAVOR} downloaded and verified successfully."
+    echo "appimagetool (${APPIMAGETOOL_CHANNEL}) and ${PYTHON_STANDALONE_FLAVOR} downloaded and verified successfully."
     return
   fi
 
