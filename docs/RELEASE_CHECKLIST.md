@@ -24,6 +24,15 @@
 - [ ] Arch package source tarball URL resolves for planned tag (`vX.Y.Z`).
 - [ ] For stable (`vX.Y.Z`) releases, `packaging/arch/PKGBUILD` does not contain `sha256sums=('SKIP')`.
 
+### If the release workflow fails
+
+- Find the uploaded artifact named `release-failure-summary-<run_id>` in the failed **Release** workflow run (`Actions` → run → `Artifacts`).
+- Use the `failed steps` line in `summary.md` to identify the exact failing step(s) before re-running.
+- For `Metadata validation passed: no`, fix release metadata/tag mismatch (`scripts/sync_release_version.py` and docs/version fields), then push a corrected tag.
+- For `AppImage build passed: no`, fix AppImage/toolchain build issues and re-run after verifying `./scripts/build-appimage.sh` locally.
+- For `Wheel/sdist build passed: no`, fix Python packaging/build configuration and re-run after `python -m build` succeeds locally.
+- For `Checksum/signing/publish passed: no`, inspect checksum generation, Sigstore signing, and GitHub release publish permissions/secrets before re-running.
+
 ## Arch/CachyOS packaging
 
 - [ ] `cd packaging/arch && makepkg -sf` succeeds.
