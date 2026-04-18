@@ -1,48 +1,31 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  release:
+    types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event.release.tag_name || github.ref }}
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Build and publish release assets
+  build-and-upload:
+    name: Build and upload release assets
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-
-      - name: Sync and validate release metadata from tag
-        run: |
-          python3 ./scripts/sync_release_version.py --git-tag "${GITHUB_REF_NAME}"
-          python3 ./scripts/validate_release_metadata.py --git-tag "${GITHUB_REF_NAME}"
-
-      - name: Build AppImage
-        run: ./scripts/build-appimage.sh
-
-      - name: AppImage startup self-check
-        run: |
-          set -euo pipefail
-          log_file="$(mktemp)"
-          env -i \
-            HOME="$HOME" \
-            PATH="/usr/bin:/bin" \
-            QT_QPA_PLATFORM="minimal" \
-            ./nanoleaf-kde-sync.AppImage --self-check 2>&1 | tee "${log_file}"
-          grep -q '"status": "ok"' "${log_file}"
 
       - name: Build Python distributions
         run: |
@@ -50,25 +33,33 @@ jobs:
           pip install build
           python -m build
 
+      - name: Build source archive
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          git archive --format=tar.gz --prefix="Nanoleaf-Screen-Mirror-for-KDE-${RELEASE_TAG}/" -o "release-assets/Nanoleaf-Screen-Mirror-for-KDE-${RELEASE_TAG}.tar.gz" HEAD
+
       - name: Stage release assets
         run: |
           mkdir -p release-assets
-          cp -f ./nanoleaf-kde-sync.AppImage ./release-assets/nanoleaf-kde-sync.AppImage
-          cp -f ./install-nanoleaf-kde-sync.sh ./release-assets/install-nanoleaf-kde-sync.sh
-          cp -f ./dist/* ./release-assets/
+          cp -f dist/* release-assets/
 
       - name: Generate checksums
         run: |
+          set -euo pipefail
           cd release-assets
           for artifact in *; do
             sha256sum "${artifact}" > "${artifact}.sha256"
           done
 
-      - name: Publish GitHub release
+      - name: Upload assets to GitHub release
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v3
         with:
-          generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          tag_name: ${{ github.event.release.tag_name }}
           files: |
             release-assets/*
             release-assets/*.sha256
+          fail_on_unmatched_files: true
