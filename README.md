@@ -78,6 +78,8 @@ Escalation paths:
 ## Advanced / developer paths (secondary)
 These are still supported, but **not the recommended user path**:
 - AppImage installer (experimental on Arch/CachyOS): `install-nanoleaf-kde-sync.sh`
+  - first-run config is initialized via `nanoleaf-kde-sync-init-config --mode full-mock` (with Python module fallback)
+  - USB permissions are installed from canonical `assets/udev/60-nanoleaf-kde-sync.rules` or packaged rule paths
 - pip/source setup and developer tooling: `docs/README.md`
 
 ## Release artifact verification

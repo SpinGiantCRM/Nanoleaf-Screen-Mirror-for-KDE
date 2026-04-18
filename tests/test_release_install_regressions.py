@@ -25,12 +25,11 @@ def test_version_metadata_is_consistent_between_pyproject_and_pkgbuild() -> None
     assert pyproject_version == pkgver
 
 
-def test_standalone_installer_temp_rule_cleanup_is_set_u_safe() -> None:
+def test_standalone_installer_uses_external_udev_rule_asset() -> None:
     installer = (REPO_ROOT / "install-nanoleaf-kde-sync.sh").read_text(encoding="utf-8")
 
-    # Regression check for the "temp_rule: unbound variable" cleanup crash.
-    assert 'local temp_rule=""' in installer
-    assert "trap '[[ -n \"${temp_rule:-}\" ]] && rm -f -- \"$temp_rule\"' RETURN" in installer
+    assert "assets/udev/$UDEV_RULE_NAME" in installer
+    assert "cat > \"$temp_rule\" <<'RULES'" not in installer
 
 
 def test_appimage_launcher_uses_matching_python_version() -> None:
