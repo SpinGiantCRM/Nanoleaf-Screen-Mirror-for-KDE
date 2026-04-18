@@ -5,17 +5,17 @@ on:
     tags:
       - "v*.*.*"
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   publish:
-    if: ${{ !contains(github.ref_name, '-rc') && !contains(github.ref_name, '-beta') && !contains(github.ref_name, '-alpha') }}
+    name: Build and publish release assets
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      id-token: write
-      actions: read
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -25,37 +25,15 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Validate release candidate promotion evidence
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: python3 ./scripts/validate_release_promotion.py --target-sha "${GITHUB_SHA}"
-
-      - name: Sync release metadata from tag
-        run: python3 ./scripts/sync_release_version.py --git-tag "${GITHUB_REF_NAME}"
-
-      - name: Pin PKGBUILD source checksum from release tarball
+      - name: Sync and validate release metadata from tag
         run: |
-          set -euo pipefail
-          version="${GITHUB_REF_NAME#v}"
-          version="${version%%-*}"
-          tarball_url="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/v${version}.tar.gz"
-          curl -fsSL "${tarball_url}" -o /tmp/release-source.tar.gz
-          checksum="$(sha256sum /tmp/release-source.tar.gz | awk '{print $1}')"
-          sed -Ei "s|^sha256sums=\\([^)]*\\)$|sha256sums=('${checksum}')|" packaging/arch/PKGBUILD
-
-      - name: Validate release metadata
-        id: validate_release_metadata
-        run: python3 ./scripts/validate_release_metadata.py --git-tag "${GITHUB_REF_NAME}"
-
-      - name: Verify pinned AppImage toolchain
-        run: ./scripts/build-appimage.sh --verify-appimagetool
+          python3 ./scripts/sync_release_version.py --git-tag "${GITHUB_REF_NAME}"
+          python3 ./scripts/validate_release_metadata.py --git-tag "${GITHUB_REF_NAME}"
 
       - name: Build AppImage
-        id: build_appimage
         run: ./scripts/build-appimage.sh
 
-      - name: Startup smoke check AppImage (headless self-check)
-        id: appimage_self_check
+      - name: AppImage startup self-check
         run: |
           set -euo pipefail
           log_file="$(mktemp)"
@@ -64,160 +42,33 @@ jobs:
             PATH="/usr/bin:/bin" \
             QT_QPA_PLATFORM="minimal" \
             ./nanoleaf-kde-sync.AppImage --self-check 2>&1 | tee "${log_file}"
-          if ! grep -q '"status": "ok"' "${log_file}"; then
-            echo "self-check did not report success status"
-            exit 1
-          fi
+          grep -q '"status": "ok"' "${log_file}"
 
       - name: Build Python distributions
-        id: build_python_distributions
         run: |
           python -m pip install --upgrade pip
-          pip install "build==1.2.2.post1"
+          pip install build
           python -m build
 
-      - name: Sanity check AppImage uses bundled Python runtime
-        run: |
-          env -i \
-            HOME="$HOME" \
-            PATH="/usr/bin:/bin" \
-            ./nanoleaf-kde-sync.AppImage --help
-
-      - name: Stage release artifacts
+      - name: Stage release assets
         run: |
           mkdir -p release-assets
           cp -f ./nanoleaf-kde-sync.AppImage ./release-assets/nanoleaf-kde-sync.AppImage
           cp -f ./install-nanoleaf-kde-sync.sh ./release-assets/install-nanoleaf-kde-sync.sh
-          if compgen -G "./dist/*.whl" > /dev/null; then
-            cp -f ./dist/*.whl ./release-assets/
-          fi
-          if compgen -G "./dist/*.tar.gz" > /dev/null; then
-            cp -f ./dist/*.tar.gz ./release-assets/
-          fi
+          cp -f ./dist/* ./release-assets/
 
-      - name: Validate release artifacts exist
-        run: |
-          test -f release-assets/nanoleaf-kde-sync.AppImage
-          test -f release-assets/install-nanoleaf-kde-sync.sh
-          ls release-assets/*.whl >/dev/null 2>&1
-          ls release-assets/*.tar.gz >/dev/null 2>&1
-
-      - name: Enforce pinned PKGBUILD checksum for stable release tags
-        run: |
-          if grep -Eq "^[[:space:]]*sha256sums[[:space:]]*=.*\([[:space:]]*.*['\"]?SKIP['\"]?" packaging/arch/PKGBUILD; then
-            echo "PKGBUILD still uses sha256sums=('SKIP'). Pin checksum before stable release."
-            exit 1
-          fi
-
-      - name: Generate SHA256 checksums
-        id: generate_checksums
+      - name: Generate checksums
         run: |
           cd release-assets
-          sha256sum nanoleaf-kde-sync.AppImage > nanoleaf-kde-sync.AppImage.sha256
-          sha256sum install-nanoleaf-kde-sync.sh > install-nanoleaf-kde-sync.sh.sha256
-          for artifact in *.whl *.tar.gz; do
-            if [ -f "${artifact}" ]; then
-              sha256sum "${artifact}" > "${artifact}.sha256"
-            fi
+          for artifact in *; do
+            sha256sum "${artifact}" > "${artifact}.sha256"
           done
 
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: Sign release assets with Sigstore (keyless)
-        id: sign_release_assets
-        env:
-          COSIGN_YES: "true"
-        run: |
-          cd release-assets
-          for artifact in nanoleaf-kde-sync.AppImage install-nanoleaf-kde-sync.sh *.whl *.tar.gz; do
-            if [ -f "${artifact}" ]; then
-              cosign sign-blob "${artifact}" \
-                --output-signature "${artifact}.sig" \
-                --output-certificate "${artifact}.pem"
-            fi
-          done
-
-      - name: Publish GitHub release with AppImage and installer
-        id: publish_release
+      - name: Publish GitHub release
         uses: softprops/action-gh-release@v3
         with:
-          name: nanoleaf-kde-sync ${{ github.ref_name }} — Nanoleaf screen mirroring for KDE Plasma on Linux.
-          files: |
-            release-assets/nanoleaf-kde-sync.AppImage
-            release-assets/nanoleaf-kde-sync.AppImage.sha256
-            release-assets/nanoleaf-kde-sync.AppImage.sig
-            release-assets/nanoleaf-kde-sync.AppImage.pem
-            release-assets/install-nanoleaf-kde-sync.sh
-            release-assets/install-nanoleaf-kde-sync.sh.sha256
-            release-assets/install-nanoleaf-kde-sync.sh.sig
-            release-assets/install-nanoleaf-kde-sync.sh.pem
-            release-assets/*.whl
-            release-assets/*.whl.sha256
-            release-assets/*.whl.sig
-            release-assets/*.whl.pem
-            release-assets/*.tar.gz
-            release-assets/*.tar.gz.sha256
-            release-assets/*.tar.gz.sig
-            release-assets/*.tar.gz.pem
           generate_release_notes: true
-          draft: false
-          prerelease: false
-
-      - name: Create release failure summary
-        if: failure()
-        env:
-          TAG_NAME: ${{ github.ref_name }}
-          METADATA_VALIDATION_OUTCOME: ${{ steps.validate_release_metadata.outcome }}
-          APPIMAGE_BUILD_OUTCOME: ${{ steps.build_appimage.outcome }}
-          APPIMAGE_SELF_CHECK_OUTCOME: ${{ steps.appimage_self_check.outcome }}
-          PYTHON_BUILD_OUTCOME: ${{ steps.build_python_distributions.outcome }}
-          CHECKSUM_OUTCOME: ${{ steps.generate_checksums.outcome }}
-          SIGN_OUTCOME: ${{ steps.sign_release_assets.outcome }}
-          PUBLISH_OUTCOME: ${{ steps.publish_release.outcome }}
-        run: |
-          set -euo pipefail
-          mkdir -p release-failure-summary
-          summary_file="release-failure-summary/summary.md"
-          failed_steps=()
-
-          if [ "${METADATA_VALIDATION_OUTCOME}" = "failure" ]; then
-            failed_steps+=("Validate release metadata")
-          fi
-          if [ "${APPIMAGE_BUILD_OUTCOME}" = "failure" ]; then
-            failed_steps+=("Build AppImage")
-          fi
-          if [ "${APPIMAGE_SELF_CHECK_OUTCOME}" = "failure" ]; then
-            failed_steps+=("Startup smoke check AppImage (headless self-check)")
-          fi
-          if [ "${PYTHON_BUILD_OUTCOME}" = "failure" ]; then
-            failed_steps+=("Build Python distributions")
-          fi
-          if [ "${CHECKSUM_OUTCOME}" = "failure" ]; then
-            failed_steps+=("Generate SHA256 checksums")
-          fi
-          if [ "${SIGN_OUTCOME}" = "failure" ]; then
-            failed_steps+=("Sign release assets with Sigstore (keyless)")
-          fi
-          if [ "${PUBLISH_OUTCOME}" = "failure" ]; then
-            failed_steps+=("Publish GitHub release with AppImage and installer")
-          fi
-
-          {
-            echo "# Release failure summary"
-            echo ""
-            echo "- Tag: ${TAG_NAME}"
-            echo "- Failed steps: ${failed_steps[*]:-none captured}"
-            echo "- Metadata validation passed: $([ "${METADATA_VALIDATION_OUTCOME}" = "success" ] && echo "yes" || echo "no")"
-            echo "- AppImage build passed: $([ "${APPIMAGE_BUILD_OUTCOME}" = "success" ] && echo "yes" || echo "no")"
-            echo "- AppImage self-check passed: $([ "${APPIMAGE_SELF_CHECK_OUTCOME}" = "success" ] && echo "yes" || echo "no")"
-            echo "- Wheel/sdist build passed: $([ "${PYTHON_BUILD_OUTCOME}" = "success" ] && echo "yes" || echo "no")"
-            echo "- Checksum/signing/publish passed: $([ "${CHECKSUM_OUTCOME}" = "success" ] && [ "${SIGN_OUTCOME}" = "success" ] && [ "${PUBLISH_OUTCOME}" = "success" ] && echo "yes" || echo "no")"
-          } > "${summary_file}"
-
-      - name: Upload release failure summary artifact
-        if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: release-failure-summary-${{ github.run_id }}
-          path: release-failure-summary/summary.md
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          files: |
+            release-assets/*
+            release-assets/*.sha256

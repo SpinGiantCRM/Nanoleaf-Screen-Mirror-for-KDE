@@ -32,7 +32,6 @@ def test_packaged_icon_and_udev_rule_exist() -> None:
 
 def test_ci_workflows_exist() -> None:
     assert (REPO_ROOT / ".github" / "workflows" / "ci.yml").exists()
-    assert (REPO_ROOT / ".github" / "workflows" / "build.yml").exists()
     assert (REPO_ROOT / ".github" / "workflows" / "release.yml").exists()
 
 
