@@ -6,7 +6,18 @@ runs:
     - name: Install packaging dependencies
       shell: bash
       run: |
-        pacman -Syu --noconfirm --needed base-devel git
+        # Refresh keyring first to avoid intermittent signature failures from stale base images.
+        pacman -Sy --noconfirm --needed archlinux-keyring
+        for attempt in 1 2 3; do
+          if pacman -Syu --noconfirm --needed base-devel git; then
+            break
+          fi
+          if [ "${attempt}" -eq 3 ]; then
+            exit 1
+          fi
+          echo "pacman install failed (attempt ${attempt}); retrying in 10s..."
+          sleep 10
+        done
 
     - name: Validate Arch package metadata
       shell: bash

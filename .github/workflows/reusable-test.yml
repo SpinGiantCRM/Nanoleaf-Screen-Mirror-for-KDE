@@ -34,10 +34,21 @@ jobs:
         if: ${{ inputs.target == 'arch' }}
         run: |
           set -o pipefail
+          # Refresh keyring first to avoid intermittent signature failures from stale base images.
+          pacman -Sy --noconfirm --needed archlinux-keyring
           # Keep Python toolchain packages here so pip installs are reliable on Arch.
-          pacman -Syu --noconfirm --needed \
-            python python-pip python-setuptools python-wheel python-virtualenv \
-            base-devel libffi openssl git |& tee .github-debug/runtime-dependencies.log
+          for attempt in 1 2 3; do
+            if pacman -Syu --noconfirm --needed \
+              python python-pip python-setuptools python-wheel python-virtualenv \
+              base-devel libffi openssl git; then
+              break
+            fi
+            if [ "${attempt}" -eq 3 ]; then
+              exit 1
+            fi
+            echo "pacman install failed (attempt ${attempt}); retrying in 10s..."
+            sleep 10
+          done |& tee .github-debug/runtime-dependencies.log
 
       - name: Checkout
         uses: actions/checkout@v5
