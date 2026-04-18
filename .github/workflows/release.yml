@@ -38,15 +38,18 @@ jobs:
           sed -Ei "s|^sha256sums=\\([^)]*\\)$|sha256sums=('${checksum}')|" packaging/arch/PKGBUILD
 
       - name: Validate release metadata
+        id: validate_release_metadata
         run: python3 ./scripts/validate_release_metadata.py --git-tag "${GITHUB_REF_NAME}"
 
       - name: Verify pinned AppImage toolchain
         run: ./scripts/build-appimage.sh --verify-appimagetool
 
       - name: Build AppImage
+        id: build_appimage
         run: ./scripts/build-appimage.sh
 
       - name: Build Python distributions
+        id: build_python_distributions
         run: |
           python -m pip install --upgrade pip
           pip install "build==1.2.2.post1"
@@ -86,6 +89,7 @@ jobs:
           fi
 
       - name: Generate SHA256 checksums
+        id: generate_checksums
         run: |
           cd release-assets
           sha256sum nanoleaf-kde-sync.AppImage > nanoleaf-kde-sync.AppImage.sha256
@@ -100,6 +104,7 @@ jobs:
         uses: sigstore/cosign-installer@v3
 
       - name: Sign release assets with Sigstore (keyless)
+        id: sign_release_assets
         env:
           COSIGN_YES: "true"
         run: |
@@ -113,6 +118,7 @@ jobs:
           done
 
       - name: Publish GitHub release with AppImage and installer
+        id: publish_release
         uses: softprops/action-gh-release@v3
         with:
           name: nanoleaf-kde-sync ${{ github.ref_name }} — Nanoleaf screen mirroring for KDE Plasma on Linux.
@@ -136,3 +142,56 @@ jobs:
           generate_release_notes: true
           draft: false
           prerelease: false
+
+      - name: Create release failure summary
+        if: failure()
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+          METADATA_VALIDATION_OUTCOME: ${{ steps.validate_release_metadata.outcome }}
+          APPIMAGE_BUILD_OUTCOME: ${{ steps.build_appimage.outcome }}
+          PYTHON_BUILD_OUTCOME: ${{ steps.build_python_distributions.outcome }}
+          CHECKSUM_OUTCOME: ${{ steps.generate_checksums.outcome }}
+          SIGN_OUTCOME: ${{ steps.sign_release_assets.outcome }}
+          PUBLISH_OUTCOME: ${{ steps.publish_release.outcome }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-failure-summary
+          summary_file="release-failure-summary/summary.md"
+          failed_steps=()
+
+          if [ "${METADATA_VALIDATION_OUTCOME}" = "failure" ]; then
+            failed_steps+=("Validate release metadata")
+          fi
+          if [ "${APPIMAGE_BUILD_OUTCOME}" = "failure" ]; then
+            failed_steps+=("Build AppImage")
+          fi
+          if [ "${PYTHON_BUILD_OUTCOME}" = "failure" ]; then
+            failed_steps+=("Build Python distributions")
+          fi
+          if [ "${CHECKSUM_OUTCOME}" = "failure" ]; then
+            failed_steps+=("Generate SHA256 checksums")
+          fi
+          if [ "${SIGN_OUTCOME}" = "failure" ]; then
+            failed_steps+=("Sign release assets with Sigstore (keyless)")
+          fi
+          if [ "${PUBLISH_OUTCOME}" = "failure" ]; then
+            failed_steps+=("Publish GitHub release with AppImage and installer")
+          fi
+
+          {
+            echo "# Release failure summary"
+            echo ""
+            echo "- Tag: ${TAG_NAME}"
+            echo "- Failed steps: ${failed_steps[*]:-none captured}"
+            echo "- Metadata validation passed: $([ "${METADATA_VALIDATION_OUTCOME}" = "success" ] && echo "yes" || echo "no")"
+            echo "- AppImage build passed: $([ "${APPIMAGE_BUILD_OUTCOME}" = "success" ] && echo "yes" || echo "no")"
+            echo "- Wheel/sdist build passed: $([ "${PYTHON_BUILD_OUTCOME}" = "success" ] && echo "yes" || echo "no")"
+            echo "- Checksum/signing/publish passed: $([ "${CHECKSUM_OUTCOME}" = "success" ] && [ "${SIGN_OUTCOME}" = "success" ] && [ "${PUBLISH_OUTCOME}" = "success" ] && echo "yes" || echo "no")"
+          } > "${summary_file}"
+
+      - name: Upload release failure summary artifact
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-failure-summary-${{ github.run_id }}
+          path: release-failure-summary/summary.md
