@@ -1,6 +1,15 @@
-# Install on Arch / CachyOS (KDE)
+# Arch/CachyOS install options
 
-## Recommended path: package build/install
+## Primary user path (recommended)
+Use the AppImage installer flow from the repository root README:
+
+```bash
+bash ./install-nanoleaf-kde-sync.sh ./nanoleaf-kde-sync.AppImage
+```
+
+This is the only recommended end-user path.
+
+## Advanced path: Arch package build (secondary)
 
 ```bash
 cd packaging/arch
@@ -13,49 +22,12 @@ Package install provides:
 - Icon: `/usr/share/icons/hicolor/scalable/apps/nanoleaf-kde-sync.svg`
 - udev rule: `/usr/lib/udev/rules.d/60-nanoleaf-kde-sync.rules`
 
-## Alternate path: pip/source install
+## Advanced path: pip/source install (secondary)
 
 ```bash
 pip install -r docs/requirements.txt
 pip install .
-```
-
-For pip/source installs, install udev rules manually:
-
-```bash
 ./scripts/setup_udev.sh
 ```
 
-## First run order
-
-```bash
-nanoleaf-kde-sync-init-config --mode full-mock
-nanoleaf-kde-sync-doctor
-nanoleaf-kde-sync-smoke-test
-nanoleaf-kde-sync
-```
-
-Then switch modes only after checks pass:
-
-```bash
-nanoleaf-kde-sync-init-config --mode capture-real --force
-nanoleaf-kde-sync-init-config --mode full-real --force
-```
-
-## KDE autostart and capture authorization
-
-```bash
-mkdir -p ~/.config/autostart
-cp /usr/share/applications/nanoleaf-kde-sync.desktop ~/.config/autostart/
-```
-
-Verify the desktop file contains:
-
-`X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2`
-
-Re-login after changing desktop authorization entries.
-
-## If checks fail
-
-Use troubleshooting guide:
-- `docs/TROUBLESHOOTING.md`
+Use this path only for development and debugging workflows.

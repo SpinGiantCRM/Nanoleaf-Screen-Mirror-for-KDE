@@ -1,8 +1,12 @@
 # Documentation index
 
-- `INSTALL_ARCH.md` - Arch/CachyOS install and first-run order.
-- `HARDWARE_SETUP.md` - real-device and udev setup.
-- `TROUBLESHOOTING.md` - support checklist and common failure patterns.
+## End-user docs
+- Root `README.md` - primary AppImage + installer flow.
+- `INSTALL_ARCH.md` - advanced Arch/pip install paths (secondary).
+- `TROUBLESHOOTING.md` - plain-language fixes first, advanced diagnostics second.
+- `HARDWARE_SETUP.md` - deeper USB/udev details when needed.
+
+## Advanced/developer docs
 - `SMOKE_TEST.md` - smoke-test workflow and expected outcomes.
 - `RELEASE_CHECKLIST.md` - release gating checklist.
 - `CHANGELOG.md` - release history and unreleased notes.

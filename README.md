@@ -2,46 +2,43 @@
 
 `nanoleaf-kde-sync` mirrors KDE Plasma screen colors to supported Nanoleaf USB light devices on Linux.
 
-This repository is prepared as a **first public release candidate** focused on **Arch/CachyOS + KDE**.
+## Primary install path (recommended for Arch/CachyOS KDE users)
 
-## Quick start (Arch/CachyOS)
+### Download these two files from the latest release
+1. `nanoleaf-kde-sync.AppImage`
+2. `install-nanoleaf-kde-sync.sh`
 
+### Install (one command)
 ```bash
-cd packaging/arch
-makepkg -si
-nanoleaf-kde-sync-init-config --mode full-mock
-nanoleaf-kde-sync-doctor
-nanoleaf-kde-sync-smoke-test
-nanoleaf-kde-sync
+bash ./install-nanoleaf-kde-sync.sh ./nanoleaf-kde-sync.AppImage
 ```
 
-## Installed commands
+What the installer does for you:
+- copies the AppImage to `~/.local/share/nanoleaf-kde-sync/`
+- installs launcher menu entry + icon
+- creates first-run config automatically (safe Demo mode)
+- asks for admin permission only for USB udev access setup
+- reloads udev rules when possible
+- launches the app at the end
 
-- `nanoleaf-kde-sync` — tray app
-- `nanoleaf-kde-sync-service` — service-only runtime
-- `nanoleaf-kde-sync-doctor` — diagnostics
-- `nanoleaf-kde-sync-smoke-test` — capture/device smoke checks
-- `nanoleaf-kde-sync-init-config` — first-run mode presets
+After install:
+- the app appears in your KDE launcher menu as **nanoleaf-kde-sync**
+- first launch shows a simple choice: **Demo mode** or **Real Nanoleaf mode**
+- advanced diagnostics are still available later from tray Help/Troubleshooting
 
-## What is release-candidate ready now
+## Troubleshooting (if something breaks)
+- Open `docs/TROUBLESHOOTING.md`
+- In the tray app, use **Help / Troubleshooting**
 
-- KWin capture path + runtime capture fallback selection
-- Nanoleaf USB real driver path (with supported model validation)
-- Doctor + smoke-test tooling
-- Arch/CachyOS packaging assets (`PKGBUILD`, `.install`, desktop, icon, udev rule)
-- Tray app with non-blocking doctor/smoke-test actions
+## Advanced / developer paths (secondary)
+These are still supported, but **not the recommended user path**:
+- Arch package build: `docs/INSTALL_ARCH.md`
+- pip/source setup and developer tooling: `docs/README.md`
 
-## Intentionally deferred beyond first RC
+## Project status
 
-- non-Arch distro packaging
-- advanced effects/animations
-- broader button-event integrations
-
-## Documentation map
-
-- Install: `docs/INSTALL_ARCH.md`
-- Hardware/udev: `docs/HARDWARE_SETUP.md`
-- Troubleshooting: `docs/TROUBLESHOOTING.md`
-- Smoke-test procedure: `docs/SMOKE_TEST.md`
-- Release checklist: `docs/RELEASE_CHECKLIST.md`
-- Changelog: `docs/CHANGELOG.md`
+Release candidate focused on:
+- Arch/CachyOS + KDE first-run usability
+- KWin capture path + capture fallback
+- Nanoleaf USB real driver path
+- AppImage + installer based onboarding

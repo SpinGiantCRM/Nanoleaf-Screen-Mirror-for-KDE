@@ -17,6 +17,9 @@ def load_qt():
             QGridLayout,
             QLabel,
             QMenu,
+            QMessageBox,
+            QPushButton,
+            QVBoxLayout,
             QSlider,
             QSystemTrayIcon,
         )
@@ -37,6 +40,9 @@ def load_qt():
         "QCheckBox": QCheckBox,
         "QLabel": QLabel,
         "QMenu": QMenu,
+        "QMessageBox": QMessageBox,
+        "QPushButton": QPushButton,
+        "QVBoxLayout": QVBoxLayout,
         "QSlider": QSlider,
         "QSystemTrayIcon": QSystemTrayIcon,
     }
