@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -36,18 +37,65 @@ jobs:
           mkdir -p release-assets
           cp -f ./nanoleaf-kde-sync.AppImage ./release-assets/nanoleaf-kde-sync.AppImage
           cp -f ./install-nanoleaf-kde-sync.sh ./release-assets/install-nanoleaf-kde-sync.sh
+          if compgen -G "./dist/*.whl" > /dev/null; then
+            cp -f ./dist/*.whl ./release-assets/
+          fi
+          if compgen -G "./dist/*.tar.gz" > /dev/null; then
+            cp -f ./dist/*.tar.gz ./release-assets/
+          fi
 
       - name: Validate release artifacts exist
         run: |
           test -f release-assets/nanoleaf-kde-sync.AppImage
           test -f release-assets/install-nanoleaf-kde-sync.sh
 
+      - name: Generate SHA256 checksums
+        run: |
+          cd release-assets
+          sha256sum nanoleaf-kde-sync.AppImage > nanoleaf-kde-sync.AppImage.sha256
+          sha256sum install-nanoleaf-kde-sync.sh > install-nanoleaf-kde-sync.sh.sha256
+          for artifact in *.whl *.tar.gz; do
+            if [ -f "${artifact}" ]; then
+              sha256sum "${artifact}" > "${artifact}.sha256"
+            fi
+          done
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign release assets with Sigstore (keyless)
+        env:
+          COSIGN_YES: "true"
+        run: |
+          cd release-assets
+          for artifact in nanoleaf-kde-sync.AppImage install-nanoleaf-kde-sync.sh *.whl *.tar.gz; do
+            if [ -f "${artifact}" ]; then
+              cosign sign-blob "${artifact}" \
+                --output-signature "${artifact}.sig" \
+                --output-certificate "${artifact}.pem"
+            fi
+          done
+
       - name: Publish GitHub release with AppImage and installer
         uses: softprops/action-gh-release@v3
         with:
           files: |
             release-assets/nanoleaf-kde-sync.AppImage
+            release-assets/nanoleaf-kde-sync.AppImage.sha256
+            release-assets/nanoleaf-kde-sync.AppImage.sig
+            release-assets/nanoleaf-kde-sync.AppImage.pem
             release-assets/install-nanoleaf-kde-sync.sh
+            release-assets/install-nanoleaf-kde-sync.sh.sha256
+            release-assets/install-nanoleaf-kde-sync.sh.sig
+            release-assets/install-nanoleaf-kde-sync.sh.pem
+            release-assets/*.whl
+            release-assets/*.whl.sha256
+            release-assets/*.whl.sig
+            release-assets/*.whl.pem
+            release-assets/*.tar.gz
+            release-assets/*.tar.gz.sha256
+            release-assets/*.tar.gz.sig
+            release-assets/*.tar.gz.pem
           generate_release_notes: true
           draft: false
           prerelease: false
