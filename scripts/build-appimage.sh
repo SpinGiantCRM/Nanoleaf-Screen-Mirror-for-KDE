@@ -3,6 +3,9 @@ set -euo pipefail
 
 APP_NAME="nanoleaf-kde-sync"
 APPIMAGE_NAME="${APP_NAME}.AppImage"
+APPIMAGETOOL_VERSION="13"
+APPIMAGETOOL_URL="https://github.com/AppImage/AppImageKit/releases/download/${APPIMAGETOOL_VERSION}/appimagetool-x86_64.AppImage"
+APPIMAGETOOL_SHA256="df3baf5ca5facbecfc2f3fa6713c29ab9cefa8fd8c1eac5d283b79cab33e4acb"
 PYTHON_VERSION="3.11"
 PYTHON_BIN="python${PYTHON_VERSION}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,6 +14,50 @@ BUILD_ROOT="$REPO_ROOT/build/appimage"
 APPDIR="$BUILD_ROOT/AppDir"
 DIST_DIR="$REPO_ROOT/dist"
 OUTPUT_PATH="$REPO_ROOT/$APPIMAGE_NAME"
+VERIFY_ONLY=0
+
+download_and_verify_appimagetool() {
+  local tool_path="$1"
+
+  curl -L --fail "$APPIMAGETOOL_URL" -o "$tool_path"
+
+  local actual_sha
+  actual_sha="$(sha256sum "$tool_path" | awk '{print $1}')"
+  if [[ "$actual_sha" != "$APPIMAGETOOL_SHA256" ]]; then
+    echo "Error: appimagetool SHA256 mismatch."
+    echo "Expected: $APPIMAGETOOL_SHA256"
+    echo "Actual:   $actual_sha"
+    exit 1
+  fi
+
+  chmod +x "$tool_path"
+}
+
+if [[ "${1:-}" == "--verify-appimagetool" ]]; then
+  VERIFY_ONLY=1
+elif [[ "${1:-}" != "" ]]; then
+  echo "Usage: $0 [--verify-appimagetool]"
+  exit 1
+fi
+
+if ! command -v curl >/dev/null 2>&1; then
+  echo "Error: curl is required to download appimagetool."
+  exit 1
+fi
+
+if ! command -v sha256sum >/dev/null 2>&1; then
+  echo "Error: sha256sum is required to verify appimagetool."
+  exit 1
+fi
+
+mkdir -p "$BUILD_ROOT"
+APPIMAGE_TOOL="$BUILD_ROOT/appimagetool.AppImage"
+download_and_verify_appimagetool "$APPIMAGE_TOOL"
+
+if [[ "$VERIFY_ONLY" -eq 1 ]]; then
+  echo "appimagetool ${APPIMAGETOOL_VERSION} downloaded and verified successfully."
+  exit 0
+fi
 
 if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
   echo "Error: $PYTHON_BIN is required to build this AppImage."
@@ -57,10 +104,6 @@ cat > "$APPDIR/nanoleaf-kde-sync.svg" <<'SVG'
   <circle cx="64" cy="74" r="10" fill="#ffffff" opacity="0.9"/>
 </svg>
 SVG
-
-APPIMAGE_TOOL="$BUILD_ROOT/appimagetool.AppImage"
-curl -L "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -o "$APPIMAGE_TOOL"
-chmod +x "$APPIMAGE_TOOL"
 
 ARCH=x86_64 "$APPIMAGE_TOOL" --appimage-extract-and-run "$APPDIR" "$OUTPUT_PATH"
 chmod +x "$OUTPUT_PATH"
