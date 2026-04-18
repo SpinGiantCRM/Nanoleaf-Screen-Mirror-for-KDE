@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import argparse
+import importlib
+import json
+import os
 import subprocess
 import sys
 import threading
@@ -10,6 +14,42 @@ from nanoleaf_sync.service import NanoleafSyncService
 from nanoleaf_sync.tools.output_format import describe_mode, summarize_command_output
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.settings_dialog import SettingsDialog
+
+
+SELF_CHECK_IMPORTS: tuple[str, ...] = (
+    "nanoleaf_sync.config.store",
+    "nanoleaf_sync.service",
+    "nanoleaf_sync.ui.tray_app",
+)
+
+
+def _run_self_check() -> int:
+    checks: list[dict[str, str]] = []
+    diagnostics: dict[str, object] = {
+        "kind": "nanoleaf-kde-sync-self-check",
+        "status": "ok",
+        "pid": os.getpid(),
+        "checks": checks,
+    }
+
+    try:
+        for module_name in SELF_CHECK_IMPORTS:
+            importlib.import_module(module_name)
+            checks.append({"check": f"import:{module_name}", "status": "ok"})
+        load_qt()
+        checks.append({"check": "qt:load_qt", "status": "ok"})
+    except Exception as exc:
+        diagnostics["status"] = "error"
+        diagnostics["error"] = {
+            "type": exc.__class__.__name__,
+            "message": str(exc),
+        }
+        checks.append({"check": "self-check", "status": "failed"})
+        print(json.dumps(diagnostics, sort_keys=True), flush=True)
+        return 1
+
+    print(json.dumps(diagnostics, sort_keys=True), flush=True)
+    return 0
 
 
 def first_run_message(mode: str) -> str:
@@ -304,9 +344,19 @@ class NanoleafTrayApp:
         return self.app.exec()
 
 
-def main() -> None:  # pragma: no cover
+def main(argv: list[str] | None = None) -> int:  # pragma: no cover
+    parser = argparse.ArgumentParser(description="nanoleaf-kde-sync tray entry point")
+    parser.add_argument(
+        "--self-check",
+        action="store_true",
+        help="run non-interactive startup/import checks and exit",
+    )
+    args = parser.parse_args(argv)
+    if args.self_check:
+        return _run_self_check()
     NanoleafTrayApp().run()
+    return 0
 
 
 if __name__ == "__main__":  # pragma: no cover
-    main()
+    raise SystemExit(main())

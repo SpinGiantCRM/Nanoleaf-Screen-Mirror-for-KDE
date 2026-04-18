@@ -52,6 +52,21 @@ jobs:
         id: build_appimage
         run: ./scripts/build-appimage.sh
 
+      - name: Startup smoke check AppImage (headless self-check)
+        id: appimage_self_check
+        run: |
+          set -euo pipefail
+          log_file="$(mktemp)"
+          env -i \
+            HOME="$HOME" \
+            PATH="/usr/bin:/bin" \
+            QT_QPA_PLATFORM="minimal" \
+            ./nanoleaf-kde-sync.AppImage --self-check 2>&1 | tee "${log_file}"
+          if ! grep -q '"status": "ok"' "${log_file}"; then
+            echo "self-check did not report success status"
+            exit 1
+          fi
+
       - name: Build Python distributions
         id: build_python_distributions
         run: |
@@ -153,6 +168,7 @@ jobs:
           TAG_NAME: ${{ github.ref_name }}
           METADATA_VALIDATION_OUTCOME: ${{ steps.validate_release_metadata.outcome }}
           APPIMAGE_BUILD_OUTCOME: ${{ steps.build_appimage.outcome }}
+          APPIMAGE_SELF_CHECK_OUTCOME: ${{ steps.appimage_self_check.outcome }}
           PYTHON_BUILD_OUTCOME: ${{ steps.build_python_distributions.outcome }}
           CHECKSUM_OUTCOME: ${{ steps.generate_checksums.outcome }}
           SIGN_OUTCOME: ${{ steps.sign_release_assets.outcome }}
@@ -168,6 +184,9 @@ jobs:
           fi
           if [ "${APPIMAGE_BUILD_OUTCOME}" = "failure" ]; then
             failed_steps+=("Build AppImage")
+          fi
+          if [ "${APPIMAGE_SELF_CHECK_OUTCOME}" = "failure" ]; then
+            failed_steps+=("Startup smoke check AppImage (headless self-check)")
           fi
           if [ "${PYTHON_BUILD_OUTCOME}" = "failure" ]; then
             failed_steps+=("Build Python distributions")
@@ -189,6 +208,7 @@ jobs:
             echo "- Failed steps: ${failed_steps[*]:-none captured}"
             echo "- Metadata validation passed: $([ "${METADATA_VALIDATION_OUTCOME}" = "success" ] && echo "yes" || echo "no")"
             echo "- AppImage build passed: $([ "${APPIMAGE_BUILD_OUTCOME}" = "success" ] && echo "yes" || echo "no")"
+            echo "- AppImage self-check passed: $([ "${APPIMAGE_SELF_CHECK_OUTCOME}" = "success" ] && echo "yes" || echo "no")"
             echo "- Wheel/sdist build passed: $([ "${PYTHON_BUILD_OUTCOME}" = "success" ] && echo "yes" || echo "no")"
             echo "- Checksum/signing/publish passed: $([ "${CHECKSUM_OUTCOME}" = "success" ] && [ "${SIGN_OUTCOME}" = "success" ] && [ "${PUBLISH_OUTCOME}" = "success" ] && echo "yes" || echo "no")"
           } > "${summary_file}"
