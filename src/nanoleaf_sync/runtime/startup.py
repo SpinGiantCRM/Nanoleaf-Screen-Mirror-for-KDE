@@ -65,9 +65,9 @@ def reinitialize_backends(
     state: RuntimeState,
 ) -> None:
     state.is_reinitializing = True
-    close_backends()
-    now_ts = time.perf_counter()
     try:
+        close_backends()
+        now_ts = time.perf_counter()
         install_drivers()
         state.last_reinit_ts = now_ts
     except Exception:

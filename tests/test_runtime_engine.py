@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+
 import numpy as np
 
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
@@ -97,13 +99,22 @@ def test_run_loop_skips_tick_when_backends_temporarily_missing() -> None:
 
     cfg = AppConfig(fps=120, verbose=False, use_mock_capture=False, use_mock_device=True)
     state = RuntimeState()
-    state.stop_event.set()
+    capture_calls = {"count": 0}
+
+    def get_capture():
+        capture_calls["count"] += 1
+        return None
+
+    stop_timer = threading.Timer(0.02, state.stop_event.set)
+    stop_timer.start()
     # Should return cleanly even if providers currently return None.
     run_loop(
         config=cfg,
         state=state,
-        get_capture=lambda: None,
+        get_capture=get_capture,
         get_driver=lambda: None,
         install_drivers=lambda: None,
         close_backends=lambda: None,
     )
+    stop_timer.cancel()
+    assert capture_calls["count"] >= 1

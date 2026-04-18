@@ -144,6 +144,8 @@ class KWinDBusScreenshotCapture:
     def close(self) -> None:
         loop = self._loop
         if loop is None:
+            self._screenshot2_bus = None
+            self._legacy_bus = None
             return
         if loop.is_running():
             try:
@@ -154,12 +156,17 @@ class KWinDBusScreenshotCapture:
             except Exception:
                 pass
             loop.call_soon_threadsafe(loop.stop)
+        else:
+            self._screenshot2_bus = None
+            self._legacy_bus = None
         if self._loop_thread is not None:
             self._loop_thread.join(timeout=1.0)
 
         self._loop = None
         self._loop_thread = None
         self._loop_ready.clear()
+        self._screenshot2_bus = None
+        self._legacy_bus = None
 
     def _try_capture_via_dbus(self) -> Optional[np.ndarray]:
         reply = self._run_async(self._capture_reply_via_dbus())

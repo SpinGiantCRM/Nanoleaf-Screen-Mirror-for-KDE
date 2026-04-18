@@ -39,9 +39,12 @@ def test_capture_factory_replay_cycles_frames(tmp_path: Path) -> None:
     assert np.array_equal(frame2, frames[1])
     assert np.array_equal(frame3, frames[0])
 
+    original_frame0 = frames[0].copy()
     frame1[:, :, :] = 255
     frame4 = backend.capture()
     assert np.array_equal(frame4, frames[1])
+    frame5 = backend.capture()
+    assert np.array_equal(frame5, original_frame0)
 
 
 def test_capture_factory_replay_requires_path() -> None:
