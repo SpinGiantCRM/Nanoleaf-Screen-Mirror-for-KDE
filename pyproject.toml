@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nanoleaf-kde-sync"
 version = "0.1.0"
-description = "Nanoleaf ambient light synchronization for KDE/Linux"
+description = "Nanoleaf screen mirroring for KDE Plasma on Linux."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

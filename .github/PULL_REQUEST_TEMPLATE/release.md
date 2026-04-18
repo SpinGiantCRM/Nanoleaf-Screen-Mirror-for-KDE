@@ -3,6 +3,7 @@
 - Target version: `vX.Y.Z` / `vX.Y.Z-rcN`
 - Planned tag date (UTC): `YYYY-MM-DD`
 - Changelog section updated: yes/no
+- Planned release title: `nanoleaf-kde-sync vX.Y.Z — Nanoleaf screen mirroring for KDE Plasma on Linux.`
 
 ## RC matrix sign-off (required before tagging)
 

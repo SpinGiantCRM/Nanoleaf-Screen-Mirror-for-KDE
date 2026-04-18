@@ -1,8 +1,20 @@
 # nanoleaf-kde-sync
 
+**Nanoleaf screen mirroring for KDE Plasma on Linux.**
+
+Canonical product name: `nanoleaf-kde-sync` (package/CLI).  
+Repository slug: `Nanoleaf-Screen-Mirror-for-kde-cachyos` (kept for repo identity/history).
+
 `nanoleaf-kde-sync` mirrors KDE Plasma screen colors to supported Nanoleaf USB light devices on Linux.
 
 Licensed under the Nanoleaf Source-Available Non-Commercial License.
+
+## Naming convention (maintainer note)
+
+- **Canonical package/CLI name:** `nanoleaf-kde-sync`
+- **Canonical subtitle/tagline:** “Nanoleaf screen mirroring for KDE Plasma on Linux.”
+- **Release title format:** `nanoleaf-kde-sync vX.Y.Z — Nanoleaf screen mirroring for KDE Plasma on Linux.`
+- Keep the repository slug unchanged unless there is a deliberate migration plan.
 
 | Compatibility area | Current status |
 | --- | --- |
