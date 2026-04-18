@@ -22,7 +22,6 @@ def test_config_save_validates_and_is_json_loadable(tmp_path: Path) -> None:
         ],
         device_vid=1,
         device_pid=2,
-        use_mock_device=True,
         use_mock_capture=True,
         device_zone_count=-5,
         zone_offset=123,
@@ -86,7 +85,6 @@ def test_config_load_parses_bool_strings(tmp_path: Path) -> None:
     cfg_path.write_text(
         json.dumps(
             {
-                "use_mock_device": "false",
                 "use_mock_capture": "0",
                 "reverse_zones": "off",
                 "verbose": "false",
@@ -97,7 +95,6 @@ def test_config_load_parses_bool_strings(tmp_path: Path) -> None:
 
     cfg = ConfigManager(path=cfg_path).load()
 
-    assert cfg.use_mock_device is False
     assert cfg.use_mock_capture is False
     assert cfg.reverse_zones is False
     assert cfg.verbose is False

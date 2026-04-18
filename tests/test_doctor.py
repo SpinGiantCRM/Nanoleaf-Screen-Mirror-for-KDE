@@ -15,10 +15,9 @@ def test_mode_consistency_unsupported_backend_fails() -> None:
 
 
 def test_mode_consistency_mock_capture_real_device_warns() -> None:
-    cfg = AppConfig(use_mock_capture=True, use_mock_device=False)
+    cfg = AppConfig(use_mock_capture=True)
     result = _check_mode_consistency(cfg)
-    assert result.status == "warn"
-    assert "mock capture with real device" in result.message.lower()
+    assert result.status == "pass"
 
 
 def test_format_report_groups_entries() -> None:
@@ -43,7 +42,7 @@ def _patch_config_loader(monkeypatch, cfg: AppConfig) -> None:
 
 
 def test_run_doctor_real_device_requested_hid_unavailable(monkeypatch) -> None:
-    _patch_config_loader(monkeypatch, AppConfig(use_mock_device=False, device_vid=0x37FA, device_pid=0x8201))
+    _patch_config_loader(monkeypatch, AppConfig(device_vid=0x37FA, device_pid=0x8201))
     monkeypatch.setattr(doctor, "_check_python_runtime", lambda: DoctorCheck("python", "pass", "ok"))
     monkeypatch.setattr(doctor, "_check_dependencies", lambda: DoctorCheck("dependencies", "pass", "ok"))
     monkeypatch.setattr(doctor, "_check_session_bus", lambda: DoctorCheck("session-bus", "pass", "ok"))

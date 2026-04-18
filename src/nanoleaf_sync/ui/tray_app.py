@@ -60,7 +60,7 @@ def first_run_message(mode: str) -> str:
             "If the light is not detected, open Help → Troubleshooting from the tray menu."
         )
     return (
-        "Demo mode is enabled. You can switch to Real Nanoleaf mode any time in Settings.\n"
+        "Diagnostics mode is enabled. You can switch to Real Nanoleaf mode any time in Settings.\n"
         "Start the app from the tray menu when ready."
     )
 
@@ -88,7 +88,7 @@ class NanoleafTrayApp:
 
         self.app = qt["QApplication"](sys.argv)
         self.cfg_mgr = ConfigManager()
-        self._config_created = self.cfg_mgr.initialize(mode="full-mock", force=False)
+        self._config_created = self.cfg_mgr.initialize(mode="full-real", force=False)
         self.config = self.cfg_mgr.load()
         self.service = NanoleafSyncService(config=self.config)
 
@@ -101,7 +101,7 @@ class NanoleafTrayApp:
                 "nanoleaf-kde-sync",
                 (
                     "First launch setup is ready.\n"
-                    "Choose Demo mode or Real Nanoleaf mode in the welcome dialog."
+                    "Choose diagnostics mode or real capture mode in the welcome dialog."
                 ),
                 self.QSystemTrayIcon.MessageIcon.Information,
                 7000,
@@ -155,11 +155,7 @@ class NanoleafTrayApp:
         return menu
 
     def _refresh_mode_labels(self) -> None:
-        capture_mode, device_mode = describe_mode(
-            self.config.use_mock_capture,
-            self.config.use_mock_device,
-            self.config.prefer_backend,
-        )
+        capture_mode, device_mode = describe_mode(self.config.use_mock_capture, self.config.prefer_backend)
         self.action_mode.setText(f"Mode: {capture_mode}")
         self.action_device.setText(f"Device: {device_mode}")
 
@@ -206,7 +202,7 @@ class NanoleafTrayApp:
         connection_text = (
             "connected"
             if status.get("device_discovered")
-            else ("mock device" if status.get("device_mode") == "mock" else "not connected")
+            else "not connected"
         )
         summary = "\n".join(
             [
@@ -297,12 +293,12 @@ class NanoleafTrayApp:
             self.QLabel(
                 (
                     "Choose how you want to start:\n\n"
-                    "• Demo mode: test without needing a USB device.\n"
+                    "• Diagnostics mode: synthetic capture for setup checks.\n"
                     "• Real Nanoleaf mode: use your connected USB light strip."
                 )
             )
         )
-        demo_button = self.QPushButton("Start in Demo mode")
+        demo_button = self.QPushButton("Start in Diagnostics mode")
         real_button = self.QPushButton("Use Real Nanoleaf mode")
         layout.addWidget(demo_button)
         layout.addWidget(real_button)
@@ -321,7 +317,7 @@ class NanoleafTrayApp:
             )
             qdialog.accept()
 
-        demo_button.clicked.connect(lambda: apply_mode("full-mock"))
+        demo_button.clicked.connect(lambda: apply_mode("diagnostic"))
         real_button.clicked.connect(lambda: apply_mode("full-real"))
         qdialog.exec()
 
@@ -330,7 +326,7 @@ class NanoleafTrayApp:
             "nanoleaf-kde-sync help",
             (
                 "Need help?\n"
-                "1) Try Start in Demo mode from Settings.\n"
+                "1) Try Diagnostics mode from first-run setup.\n"
                 "2) For real USB mode, run: nanoleaf-kde-sync-doctor --device\n"
                 "3) Full guide: docs/TROUBLESHOOTING.md"
             ),

@@ -117,7 +117,7 @@ def _run_config_init(*, mode: str) -> CommandResult:
         created = mgr.initialize(mode=mode, force=True)
         cfg = mgr.load()
         print(f"config reset ({'created' if created else 'updated'}): {mgr.path}")
-        print(f"mode={mode} capture={'mock' if cfg.use_mock_capture else cfg.prefer_backend} device={'mock' if cfg.use_mock_device else 'real-usb'}")
+        print(f"mode={mode} capture={'mock' if cfg.use_mock_capture else cfg.prefer_backend} device=real-usb")
         return 0
 
     rc, stdout, stderr = _run_with_captured_output(_execute)
@@ -223,7 +223,7 @@ def _print_markdown(result: RunResult) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run RC matrix checks and format a docs/RC_TEST_MATRIX.md row")
-    parser.add_argument("--mode", required=True, choices=["full-mock", "capture-real", "full-real"])
+    parser.add_argument("--mode", required=True, choices=["diagnostic", "full-real"])
     parser.add_argument("--env-id", required=True, choices=["A1", "A2", "C1", "C2"])
     parser.add_argument("--rc-version", required=True, help="Release candidate version, e.g. v0.3.0-rc1")
     parser.add_argument("--tester", required=True, help="Tester handle, e.g. @handle")

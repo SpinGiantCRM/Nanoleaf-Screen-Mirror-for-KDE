@@ -7,9 +7,8 @@ from nanoleaf_sync.config.store import ConfigManager
 
 def _mode_help() -> str:
     return (
-        "full-mock (mock capture + mock device), "
-        "capture-real (real capture + mock device, default), "
-        "full-real (real capture + real device)"
+        "full-real (real capture + real USB device, default), "
+        "diagnostic (mock capture + real USB device)"
     )
 
 
@@ -19,8 +18,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--mode",
-        default="capture-real",
-        choices=["full-mock", "capture-real", "full-real"],
+        default="full-real",
+        choices=["full-real", "diagnostic"],
         help=f"Preset mode: {_mode_help()}",
     )
     parser.add_argument(
@@ -45,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
         "Capture mode: "
         + ("mock" if cfg.use_mock_capture else cfg.prefer_backend)
         + " | Device mode: "
-        + ("mock" if cfg.use_mock_device else "real-usb")
+        + "real-usb"
     )
 
     if args.mode == "full-real":

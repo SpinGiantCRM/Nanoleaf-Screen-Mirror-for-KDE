@@ -68,7 +68,6 @@ def test_service_recovers_from_single_frame_exception() -> None:
         verbose=False,
         # Use real pipeline code paths but via injected capture/driver.
         use_mock_capture=False,
-        use_mock_device=True,
     )
 
     capture = FailingOnceCapture(width=16, height=9)
@@ -100,7 +99,6 @@ def test_service_can_restart_after_stop() -> None:
         fps=30,
         verbose=False,
         use_mock_capture=False,
-        use_mock_device=True,
     )
     capture = FailingOnceCapture(width=16, height=9)
     driver = FakeDriver()

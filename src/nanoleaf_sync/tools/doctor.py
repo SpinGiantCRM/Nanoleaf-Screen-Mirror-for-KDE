@@ -137,13 +137,11 @@ def _check_desktop_authorization() -> DoctorCheck:
 def _check_hid_enumeration(config: AppConfig) -> DoctorCheck:
     vid = int(config.device_vid)
     pid = int(config.device_pid)
-    if config.use_mock_device:
-        return DoctorCheck("hid-device", "warn", "Mock device mode enabled; skipping real HID checks.")
     if vid == 0 or pid == 0:
         return DoctorCheck(
             "hid-device",
             "fail",
-            "Real device mode enabled but VID/PID are unset in config.",
+            "VID/PID are unset in config.",
             "Set device_vid/device_pid (for Nanoleaf USB: 0x37fa:0x8201 or 0x37fa:0x8202).",
         )
 
@@ -171,10 +169,8 @@ def _check_hid_enumeration(config: AppConfig) -> DoctorCheck:
 
 
 def _check_real_device_probe(config: AppConfig) -> DoctorCheck:
-    if config.use_mock_device:
-        return DoctorCheck("device-probe", "warn", "Mock device mode enabled; skipping model/zone probe.")
     if int(config.device_vid) == 0 or int(config.device_pid) == 0:
-        return DoctorCheck("device-probe", "fail", "Cannot probe real device because VID/PID are not configured.")
+        return DoctorCheck("device-probe", "fail", "Cannot probe device because VID/PID are not configured.")
 
     driver = NanoleafUSBDriver(ids=NanoleafUSBIds(vid=int(config.device_vid), pid=int(config.device_pid)))
     try:
@@ -188,7 +184,7 @@ def _check_real_device_probe(config: AppConfig) -> DoctorCheck:
         return DoctorCheck(
             "device-probe",
             "fail",
-            f"Real-device probe failed: {exc}",
+            f"Device probe failed: {exc}",
             "Check udev permissions and supported model list (NL82K1/NL82K2).",
         )
     finally:
@@ -207,12 +203,6 @@ def _check_mode_consistency(config: AppConfig) -> DoctorCheck:
             "fail",
             "Unsupported real capture backend in config.",
             "Set prefer_backend to 'kwin-dbus' or enable mock capture.",
-        )
-    if config.use_mock_capture and not config.use_mock_device:
-        return DoctorCheck(
-            "mode-consistency",
-            "warn",
-            "Using mock capture with real device: valid for LED output checks, but no live screen data.",
         )
     return DoctorCheck("mode-consistency", "pass", "Capture/device mode configuration is coherent.")
 

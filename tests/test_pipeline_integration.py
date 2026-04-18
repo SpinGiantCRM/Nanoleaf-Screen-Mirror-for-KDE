@@ -44,7 +44,6 @@ def test_full_pipeline_zone_map_brightness_smoothing_and_send() -> None:
         device_zone_count=2,
         zone_offset=1,
         use_mock_capture=False,
-        use_mock_device=True,
         verbose=False,
     )
 

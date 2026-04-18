@@ -17,7 +17,7 @@ Next steps:
       See docs/HARDWARE_SETUP.md for deeper troubleshooting.
 
   2) Create initial config (safe default):
-     nanoleaf-kde-sync-init-config --mode full-mock
+     nanoleaf-kde-sync-init-config --mode full-real
 
   3) Validate runtime paths:
      nanoleaf-kde-sync-doctor

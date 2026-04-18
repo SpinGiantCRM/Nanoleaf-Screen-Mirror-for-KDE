@@ -20,7 +20,7 @@ def translate_runtime_error(error: Exception) -> UserFacingError:
             summary=message,
             guidance=(
                 "This app currently supports NL82K1/NL82K2 USB models only. "
-                "Switch to mock device mode or use a supported Nanoleaf USB device."
+                "Use a supported Nanoleaf USB device."
             ),
         )
 

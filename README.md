@@ -9,7 +9,7 @@ A focused Linux/KDE Plasma 6 port of Nanoleaf desktop screen mirroring:
 - OS/session: Linux + KDE Plasma 6
 - Real capture backend: `kwin-dbus` only
 - Device path: Nanoleaf USB HID driver (`NL82K1` / `NL82K2`)
-- Optional safe mode: mock capture and/or mock device for first-run checks
+- Optional diagnostics mode: mock capture for first-run checks
 
 Everything else was intentionally de-scoped so the core mirroring path remains understandable and maintainable.
 
@@ -24,7 +24,7 @@ No Docker, no AppImage installer flow, no duplicate install systems.
 
 ## First run
 
-1) Generate beginner-safe config (real capture, mock device):
+1) Generate default config (real capture + real USB device):
 ```bash
 nanoleaf-kde-sync-init-config
 ```
@@ -35,11 +35,7 @@ nanoleaf-kde-sync-doctor
 nanoleaf-kde-sync-smoke-test
 ```
 
-3) Switch to real device by editing:
-`~/.config/nanoleaf-kde-sync/config.json`
-
-Set:
-- `"use_mock_device": false`
+3) Verify device IDs in `~/.config/nanoleaf-kde-sync/config.json`:
 - `"device_vid": 14330` (`0x37fa`)
 - `"device_pid": 33282` (`0x8202`) or `33281` (`0x8201`)
 

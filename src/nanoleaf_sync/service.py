@@ -10,7 +10,6 @@ from nanoleaf_sync.capture.factory import create_capture_backend
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.store import ConfigManager
 from nanoleaf_sync.device.interfaces import DeviceDriver, NanoleafUSBIds
-from nanoleaf_sync.device.mock_driver import MockNanoleafUSBDriver
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
 from nanoleaf_sync.runtime.startup import (
     RuntimeLifecycle,
@@ -134,7 +133,7 @@ class NanoleafSyncService:
             reinit_backoff_ms=self.config.reinit_backoff_ms,
         )
         status["requested_capture_backend"] = self.config.prefer_backend
-        status["device_mode"] = "mock" if self.config.use_mock_device else "real-usb"
+        status["device_mode"] = "real-usb"
         status["device_discovered"] = self._device_discovered
         status["device_model"] = self._device_model
         status["device_zone_count"] = self._device_zone_count
@@ -142,8 +141,6 @@ class NanoleafSyncService:
 
     def _make_device_driver(self) -> DeviceDriver:
         ids = NanoleafUSBIds(vid=self.config.device_vid, pid=self.config.device_pid)
-        if self.config.use_mock_device:
-            return MockNanoleafUSBDriver()
         if int(ids.vid) == 0 or int(ids.pid) == 0:
             raise ValueError(
                 "Real device mode requires non-zero device_vid/device_pid. "

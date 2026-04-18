@@ -39,13 +39,11 @@ class AppConfig:
     zone_sampling_stride: int = 1
 
     # USB / device
-    device_vid: int = 0x0
-    device_pid: int = 0x0
-    # Default to mock device so the app runs without requiring HID hardware/protocol.
-    use_mock_device: bool = True
+    device_vid: int = 0x37FA
+    device_pid: int = 0x8202
 
     # Capture backend toggle.
-    # Default to real capture (kwin-dbus) for KDE Plasma; set True for dev/demo mode.
+    # Default to real capture (kwin-dbus) for KDE Plasma; set True for diagnostics mode.
     use_mock_capture: bool = False
 
     # HDR conversion controls (used by HDR-capable capture paths / metadata-aware conversion).

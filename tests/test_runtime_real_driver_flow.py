@@ -64,7 +64,6 @@ def test_run_loop_with_usb_driver_initializes_then_sends_frame() -> None:
         ],
         device_zone_count=2,
         use_mock_capture=False,
-        use_mock_device=False,
         verbose=False,
     )
 
