@@ -32,6 +32,13 @@ jobs:
       - name: Build AppImage
         run: ./scripts/build-appimage.sh
 
+      - name: Sanity check AppImage uses bundled Python runtime
+        run: |
+          env -i \
+            HOME="$HOME" \
+            PATH="/usr/bin:/bin" \
+            ./nanoleaf-kde-sync.AppImage --help
+
       - name: Stage release artifacts
         run: |
           mkdir -p release-assets
