@@ -91,6 +91,15 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         },
         default=AppConfig.zone_preset,
     )
+    color_mode = normalize_enum(
+        getattr(cfg, "color_mode", AppConfig.color_mode),
+        allowed={
+            "balanced": "balanced",
+            "dynamic": "dynamic",
+            "vibrant": "dynamic",
+        },
+        default=AppConfig.color_mode,
+    )
 
     hdr_max_nits = max(80.0, min(10000.0, float(cfg.hdr_max_nits)))
     hdr_transfer = normalize_enum(
@@ -122,6 +131,8 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         zones=zones,
         zone_sampling_stride=zone_sampling_stride,
         zone_preset=zone_preset,
+        color_mode=color_mode,
+        start_on_launch=coerce_bool(getattr(cfg, "start_on_launch", False), False),
         device_vid=cfg.device_vid,
         device_pid=cfg.device_pid,
         use_mock_capture=cfg.use_mock_capture,

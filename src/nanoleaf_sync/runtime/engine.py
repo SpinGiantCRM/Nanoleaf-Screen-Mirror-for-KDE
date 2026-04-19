@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from dataclasses import dataclass
 from typing import Sequence
 
 import numpy as np
@@ -22,6 +23,39 @@ from nanoleaf_sync.runtime.state import RGBTuple, RuntimeState, ZoneRect
 
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class PendingFrame:
+    frame: np.ndarray
+    captured_at: float
+
+
+class PendingFrameSlot:
+    """Single-slot latest-frame handoff with overwrite metrics."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._pending: PendingFrame | None = None
+        self._ready = threading.Event()
+        self.replaced_frames = 0
+
+    def put_latest(self, frame: np.ndarray, captured_at: float) -> None:
+        with self._lock:
+            if self._pending is not None:
+                self.replaced_frames += 1
+            self._pending = PendingFrame(frame=frame, captured_at=captured_at)
+            self._ready.set()
+
+    def pop(self) -> PendingFrame | None:
+        with self._lock:
+            pending = self._pending
+            self._pending = None
+            self._ready.clear()
+            return pending
+
+    def wait(self, timeout: float) -> bool:
+        return self._ready.wait(timeout=max(0.0, float(timeout)))
 
 
 def _adaptive_one_euro_blend(
@@ -133,6 +167,7 @@ def process_frame(
     smoothing_speed: float = 0.75,
     zone_sampling_stride: int = 1,
     led_gamma: float = 2.2,
+    color_mode: str = "balanced",
 ) -> list[RGBTuple]:
     """
     Hot-path frame processing pipeline:
@@ -143,7 +178,13 @@ def process_frame(
             f"Capture returned unexpected frame shape: {getattr(frame, 'shape', None)}"
         )
 
-    raw_colors = zone_colors_array(frame, zones_px, sample_step=zone_sampling_stride)
+    raw_colors = zone_colors_array(
+        frame,
+        zones_px,
+        sample_step=zone_sampling_stride,
+        mode=color_mode,
+        previous_zone_colors=prev_smoothed_colors,
+    )
     if raw_colors.size == 0:
         return []
 
@@ -193,10 +234,10 @@ def run_loop(
     last_log = 0.0
     log_interval_s = float(getattr(config, "status_log_interval_s", 5.0))
     last_sent_zone_count = 0
+    sent_in_window = 0
+    ewma_capture_to_send_ms = 0.0
 
-    latest_frame: dict[str, np.ndarray | None] = {"frame": None}
-    frame_ready = threading.Event()
-    capture_lock = threading.Lock()
+    pending_slot = PendingFrameSlot()
 
     def _capture_worker() -> None:
         while not state.stop_event.is_set():
@@ -208,15 +249,10 @@ def run_loop(
                 if capture is None:
                     time.sleep(0.001)
                     continue
-                with capture_lock:
-                    if latest_frame["frame"] is not None:
-                        continue
                 frame = capture.capture()
                 if frame is None:
                     continue
-                with capture_lock:
-                    latest_frame["frame"] = frame
-                frame_ready.set()
+                pending_slot.put_latest(frame=frame, captured_at=time.perf_counter())
             except Exception:
                 # Main loop will handle backend reinitialization and logging.
                 time.sleep(0.005)
@@ -237,15 +273,16 @@ def run_loop(
                 if driver is None:
                     skip_tick = True
                 else:
-                    if not frame_ready.wait(timeout=interval_s):
+                    pending = pending_slot.pop()
+                    if pending is None:
+                        wait_budget = max(0.0, min(interval_s, next_deadline - time.perf_counter()))
+                        pending_slot.wait(timeout=min(0.005, wait_budget))
+                        pending = pending_slot.pop()
+                    if pending is None:
                         skip_tick = True
                     else:
-                        with capture_lock:
-                            frame = latest_frame["frame"]
-                            latest_frame["frame"] = None
-                            frame_ready.clear()
-                        if frame is None:
-                            skip_tick = True
+                        frame = pending.frame
+                        captured_at = pending.captured_at
 
             if skip_tick:
                 pass
@@ -270,13 +307,21 @@ def run_loop(
                     smoothing_speed=config.smoothing_speed,
                     zone_sampling_stride=config.zone_sampling_stride,
                     led_gamma=config.led_gamma,
+                    color_mode=getattr(config, "color_mode", "balanced"),
                 )
                 state.prev_smoothed_colors = smoothed_colors
                 driver.send_frame(smoothed_colors)
                 processing_end = time.perf_counter()
+                capture_to_send_ms = (processing_end - captured_at) * 1000.0
+                ewma_capture_to_send_ms = (
+                    (0.9 * ewma_capture_to_send_ms) + (0.1 * capture_to_send_ms)
+                    if ewma_capture_to_send_ms > 0.0
+                    else capture_to_send_ms
+                )
 
                 state.record_success()
                 last_sent_zone_count = len(smoothed_colors)
+                sent_in_window += 1
         except Exception as e:
             state.record_error(e)
             logger.warning("frame processing failed", exc_info=config.verbose)
@@ -301,18 +346,24 @@ def run_loop(
         next_deadline += interval_s
         now = time.perf_counter()
         if now - last_log > log_interval_s:
+            window_s = max(0.001, now - last_log)
+            send_fps = sent_in_window / window_s
             last_log = now
+            sent_in_window = 0
             elapsed_ms = (processing_end - start) * 1000.0
             logger.info(
-                "service_tick fps=%s elapsed_ms=%.2f zones=%s errors=%s",
+                "service_tick fps=%s elapsed_ms=%.2f zones=%s errors=%s send_fps=%.1f capture_to_send_ms=%.2f replaced_frames=%s",
                 fps,
                 elapsed_ms,
                 last_sent_zone_count,
                 state.consecutive_errors,
+                send_fps,
+                ewma_capture_to_send_ms,
+                pending_slot.replaced_frames,
             )
             if config.verbose:
                 print(
-                    f"[service] tick fps={fps} elapsed_ms={elapsed_ms:.2f} zones={last_sent_zone_count}"
+                    f"[service] tick fps={fps} elapsed_ms={elapsed_ms:.2f} zones={last_sent_zone_count} send_fps={send_fps:.1f} capture_to_send_ms={ewma_capture_to_send_ms:.2f} replaced_frames={pending_slot.replaced_frames}"
                 )
 
         if now - next_deadline > interval_s:

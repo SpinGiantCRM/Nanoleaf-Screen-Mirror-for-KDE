@@ -37,6 +37,11 @@ class _FakeDialog:
         )
 
 
+class _FakeDialogCancel(_FakeDialog):
+    def exec(self):
+        return 0
+
+
 def test_on_settings_replaces_service_with_updated_config(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.tray_app.SettingsDialog", _FakeDialog)
     monkeypatch.setattr("nanoleaf_sync.ui.tray_app.NanoleafSyncService", _FakeService)
@@ -59,3 +64,24 @@ def test_on_settings_replaces_service_with_updated_config(monkeypatch) -> None:
     assert fake_tray.service.config.device_zone_count == 0
     assert fake_tray.service.config.output_channel_order == "grb"
     assert len(fake_tray.service.config.zones) == 2
+
+
+def test_on_settings_cancel_discards_changes(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.SettingsDialog", _FakeDialogCancel)
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.NanoleafSyncService", _FakeService)
+
+    original_cfg = AppConfig(device_zone_count=3, output_channel_order="rgb")
+    fake_tray = SimpleNamespace(
+        config=original_cfg,
+        cfg_mgr=_FakeCfgMgr(),
+        service=_FakeService(config=original_cfg),
+        QDialog=SimpleNamespace(DialogCode=SimpleNamespace(Accepted=1)),
+        _refresh_mode_labels=lambda: None,
+        on_stop=lambda: None,
+        on_start=lambda: None,
+    )
+
+    NanoleafTrayApp.on_settings(fake_tray)
+
+    assert fake_tray.cfg_mgr.saved is None
+    assert fake_tray.service.config.device_zone_count == 3

@@ -5,7 +5,12 @@ import threading
 import numpy as np
 
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
-from nanoleaf_sync.runtime.engine import _adaptive_one_euro_blend, _ensure_runtime_artifacts, process_frame
+from nanoleaf_sync.runtime.engine import (
+    PendingFrameSlot,
+    _adaptive_one_euro_blend,
+    _ensure_runtime_artifacts,
+    process_frame,
+)
 from nanoleaf_sync.runtime.state import RuntimeState
 
 
@@ -165,3 +170,18 @@ def test_run_loop_skips_tick_when_backends_temporarily_missing() -> None:
     )
     stop_timer.cancel()
     assert capture_calls["count"] >= 1
+
+
+def test_pending_frame_slot_replaces_stale_frame_with_newest() -> None:
+    slot = PendingFrameSlot()
+    frame_a = np.zeros((1, 1, 3), dtype=np.uint8)
+    frame_b = np.ones((1, 1, 3), dtype=np.uint8) * 255
+
+    slot.put_latest(frame=frame_a, captured_at=1.0)
+    slot.put_latest(frame=frame_b, captured_at=2.0)
+
+    pending = slot.pop()
+    assert pending is not None
+    assert pending.captured_at == 2.0
+    assert pending.frame[0, 0, 0] == 255
+    assert slot.replaced_frames == 1

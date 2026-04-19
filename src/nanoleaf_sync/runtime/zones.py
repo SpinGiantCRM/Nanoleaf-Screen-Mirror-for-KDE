@@ -99,6 +99,8 @@ def zone_colors_array(
     zones: Sequence[ZoneRect],
     *,
     sample_step: int = 1,
+    mode: str = "balanced",
+    previous_zone_colors: Sequence[RGBTuple] | None = None,
 ) -> np.ndarray:
     """
     Given a list of screen regions and an image, return average RGB per zone.
@@ -158,4 +160,44 @@ def zone_colors_array(
         avg_linear_rgb = _oklab_to_linear_srgb(avg_oklab)
         means[valid] = linear01_to_srgb_u8(avg_linear_rgb)
 
-    return means
+    if str(mode).strip().lower() != "dynamic":
+        return means
+
+    out = means.astype(np.float32)
+    prev = (
+        np.asarray(previous_zone_colors, dtype=np.float32)
+        if previous_zone_colors
+        else None
+    )
+    for idx in range(len(zones)):
+        if not valid[idx]:
+            continue
+        patch = img[y0[idx]:y1[idx], x0[idx]:x1[idx]]
+        if patch.size == 0:
+            continue
+        patch_f = patch.astype(np.float32)
+        max_c = patch_f.max(axis=2)
+        min_c = patch_f.min(axis=2)
+        sat = (max_c - min_c) / np.clip(max_c, 1.0, None)
+        lum = (0.2126 * patch_f[:, :, 0]) + (0.7152 * patch_f[:, :, 1]) + (0.0722 * patch_f[:, :, 2])
+        contrast = np.clip(float(np.std(lum) / 64.0), 0.0, 1.0)
+        vivid_weight = 0.40 + 0.40 * sat + 0.20 * np.clip((lum / 255.0) ** 0.7, 0.0, 1.0)
+        vivid_flat = vivid_weight.reshape(-1)
+        patch_flat = patch_f.reshape(-1, 3)
+        highlight = np.average(patch_flat, axis=0, weights=vivid_flat)
+
+        motion_boost = 0.0
+        if prev is not None and idx < len(prev):
+            motion = np.abs(out[idx] - prev[idx]).mean() / 255.0
+            motion_boost = float(np.clip(motion * 1.8, 0.0, 1.0))
+
+        highlight_mix = np.clip(0.18 + (0.40 * contrast) + (0.30 * motion_boost), 0.12, 0.72)
+        candidate = ((1.0 - highlight_mix) * out[idx]) + (highlight_mix * highlight)
+        if prev is not None and idx < len(prev):
+            max_step = 55.0 + (85.0 * motion_boost)
+            delta = np.clip(candidate - prev[idx], -max_step, max_step)
+            candidate = prev[idx] + delta
+            candidate = (0.70 * prev[idx]) + (0.30 * candidate)
+        out[idx] = np.clip(candidate, 0.0, 255.0)
+
+    return np.clip(np.rint(out), 0.0, 255.0).astype(np.uint8)
