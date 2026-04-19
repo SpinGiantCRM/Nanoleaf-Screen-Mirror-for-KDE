@@ -18,11 +18,16 @@ def detect_primary_screen_dims(*, qt_widgets_module=None) -> Optional[Tuple[int,
         except Exception:
             return None
 
-    app = qt_widgets.QApplication.instance()
+    try:
+        qapplication = qt_widgets.QApplication
+        app = qapplication.instance()
+    except Exception:
+        return None
+
     created_app = False
     if app is None:
         try:
-            app = qt_widgets.QApplication([])
+            app = qapplication([])
             created_app = True
         except Exception:
             return None
