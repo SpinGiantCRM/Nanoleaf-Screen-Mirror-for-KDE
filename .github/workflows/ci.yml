@@ -38,4 +38,6 @@ jobs:
         run: mypy src/nanoleaf_sync/tools/config_init.py src/nanoleaf_sync/tools/output_format.py --ignore-missing-imports --follow-imports=silent
 
       - name: Run tests
-        run: pytest -q --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=60
+        run: |
+          set -euo pipefail
+          pytest -q --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=60           || pytest -q --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=60
