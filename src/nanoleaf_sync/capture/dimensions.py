@@ -61,9 +61,10 @@ def _detect_primary_screen_dims_sysfs() -> Optional[Tuple[int, int]]:
 
 def detect_primary_screen_dims(*, qt_widgets_module=None) -> Optional[Tuple[int, int]]:
     """Best-effort primary-screen detection via sysfs/DRM first, Qt fallback."""
-    detected = _detect_primary_screen_dims_sysfs()
-    if detected is not None:
-        return detected
+    if qt_widgets_module is None:
+        detected = _detect_primary_screen_dims_sysfs()
+        if detected is not None:
+            return detected
 
     qt_widgets = qt_widgets_module
     if qt_widgets is None:
