@@ -197,6 +197,40 @@ def test_capture_reconnects_and_retries_after_disconnect_error(
     backend.close()
 
 
+def test_kwin_backend_applies_hdr_conversion_when_configured(monkeypatch) -> None:
+    backend = KWinDBusScreenshotCapture(
+        width=2,
+        height=1,
+        hdr_max_nits=1200.0,
+        hdr_transfer="pq",
+        hdr_primaries="bt2020",
+    )
+    source = np.zeros((1, 2, 3), dtype=np.uint16)
+    monkeypatch.setattr(backend, "_try_capture_via_dbus", lambda: source)
+
+    captured: dict[str, object] = {}
+
+    def _fake_convert(frame: np.ndarray, metadata):
+        captured["shape"] = frame.shape
+        captured["metadata"] = metadata
+        return np.ones((1, 2, 3), dtype=np.uint8) * 9
+
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.kwin_dbus.convert_frame_to_srgb8", _fake_convert
+    )
+
+    frame = backend.capture()
+
+    assert frame.dtype == np.uint8
+    assert frame.shape == (1, 2, 3)
+    assert int(frame[0, 0, 0]) == 9
+    assert captured["shape"] == (1, 2, 3)
+    meta = captured["metadata"]
+    assert getattr(meta, "transfer") == "pq"
+    assert getattr(meta, "primaries") == "bt2020"
+    assert float(getattr(meta, "max_nits")) == 1200.0
+
+
 def test_ensure_background_loop_waits_outside_lock(monkeypatch) -> None:
     backend = KWinDBusScreenshotCapture(width=2, height=1)
 

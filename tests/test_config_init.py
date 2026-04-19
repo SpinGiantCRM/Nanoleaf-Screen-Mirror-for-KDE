@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from nanoleaf_sync.config.store import ConfigManager, mode_config
 
 
@@ -13,6 +15,11 @@ def test_mode_config_presets() -> None:
     assert full_real.use_mock_capture is False
     assert full_real.prefer_backend == "kwin-dbus"
     assert full_real.device_vid == 0x37FA
+
+
+def test_mode_config_rejects_empty_mode() -> None:
+    with pytest.raises(ValueError, match="mode cannot be empty"):
+        mode_config("")
 
 
 def test_initialize_respects_force_flag(tmp_path: Path) -> None:

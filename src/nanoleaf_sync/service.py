@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+"""Long-running service that wires capture, processing, and USB output.
+
+This module owns startup/shutdown orchestration, capture dimension discovery,
+backend construction, and status reporting consumed by tray and CLI tools.
+"""
+
 import logging
 import signal
 import time

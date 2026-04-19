@@ -11,7 +11,9 @@ def create_capture_backend(
     height: int,
     use_mock_capture: bool,
     prefer_backend: str,
-    **_ignored,
+    hdr_max_nits: float = 1000.0,
+    hdr_transfer: str = "srgb",
+    hdr_primaries: str = "bt709",
 ) -> CaptureBackend:
     """Create capture backend for the runtime.
 
@@ -25,7 +27,13 @@ def create_capture_backend(
 
     normalized = (prefer_backend or "").strip().lower()
     if normalized in {"", "kwin-dbus", "kwin_dbus", "kwin-dbus-screenshot"}:
-        return KWinDBusScreenshotCapture(width=width, height=height)
+        return KWinDBusScreenshotCapture(
+            width=width,
+            height=height,
+            hdr_max_nits=hdr_max_nits,
+            hdr_transfer=hdr_transfer,
+            hdr_primaries=hdr_primaries,
+        )
 
     raise ValueError(
         "Unsupported capture backend. This recovered build supports only "

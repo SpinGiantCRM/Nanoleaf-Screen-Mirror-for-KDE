@@ -8,8 +8,14 @@ on:
 
 jobs:
   tests:
-    name: Run test suite
+    name: CI (py${{ matrix.python-version }})
+    # Intentional: ubuntu-latest validates packaging-agnostic Python behavior;
+    # KDE/Wayland integration checks are covered manually in release RC matrix.
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -17,12 +23,18 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
 
+      - name: Lint
+        run: ruff check src/ tests/ --select E9,F63,F7,F82
+
+      - name: Type check
+        run: mypy src/nanoleaf_sync/tools/config_init.py src/nanoleaf_sync/tools/output_format.py --ignore-missing-imports --follow-imports=silent
+
       - name: Run tests
-        run: pytest -q
+        run: pytest -q --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=60

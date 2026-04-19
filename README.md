@@ -1,5 +1,9 @@
 # Nanoleaf Screen Mirror for KDE
 
+![CI](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/actions/workflows/ci.yml/badge.svg)
+![License](https://img.shields.io/badge/license-Source%20Available-blue)
+![Version](https://img.shields.io/badge/version-0.1.0-informational)
+
 Nanoleaf Screen Mirror for KDE brings Nanoleaf desktop mirroring to Linux on KDE Plasma 6.
 
 It captures the active display, maps sampled colors to Nanoleaf zones, and sends frames to supported Nanoleaf USB devices.
@@ -13,6 +17,11 @@ It captures the active display, maps sampled colors to Nanoleaf zones, and sends
 - Guided strip alignment controls (zone count, reverse, offset, preview mapping)
 - User-facing HDR tuning controls (transfer, primaries, max nits)
 - Simple service entrypoint for continuous mirroring
+
+## Supported devices
+
+- `NL82K1` (`VID:PID 37fa:8201`)
+- `NL82K2` (`VID:PID 37fa:8202`)
 
 ## Installation (Arch / CachyOS)
 
@@ -56,6 +65,8 @@ nanoleaf-kde-sync-autostart disable
 ```
 
 ## Troubleshooting
+
+See the full guide at [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
 
 - **No frame capture**: Ensure you are running KDE Plasma 6 Wayland and accepted the screenshot permission prompt.
 - **ScreenShot2 authorization error (`...NoAuthorized` / `...NotAuthorized`)**:

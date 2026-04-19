@@ -125,7 +125,7 @@ class SettingsDialog:
                 layout = QGridLayout()
                 layout.addWidget(QLabel("Brightness"), 0, 0)
                 layout.addWidget(self.brightness_slider, 0, 1)
-                layout.addWidget(QLabel("Smoothing (EMA alpha)"), 1, 0)
+                layout.addWidget(QLabel("Response speed (0 = slow/smooth, 100 = instant)"), 1, 0)
                 layout.addWidget(self.smoothing_slider, 1, 1)
                 layout.addWidget(QLabel("Capture FPS"), 2, 0)
                 layout.addWidget(self.fps_slider, 2, 1)

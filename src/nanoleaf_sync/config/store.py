@@ -52,7 +52,9 @@ def default_config_path() -> Path:
 
 def mode_config(mode: str) -> AppConfig:
     normalized = (mode or "").strip().lower()
-    if normalized in ("full-real", "real", "capture-real", ""):
+    if not normalized:
+        raise ValueError("mode cannot be empty. Expected one of: full-real, diagnostic.")
+    if normalized in ("full-real", "real", "capture-real"):
         return validate_config(AppConfig(use_mock_capture=False, prefer_backend="kwin-dbus"))
     if normalized in ("diagnostic", "diag", "full-mock", "mock"):
         return validate_config(AppConfig(use_mock_capture=True, prefer_backend="kwin-dbus"))

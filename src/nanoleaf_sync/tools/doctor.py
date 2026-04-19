@@ -7,7 +7,6 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 import threading
 
 from nanoleaf_sync.config.model import AppConfig
@@ -55,7 +54,7 @@ def _check_dependencies() -> DoctorCheck:
             "dependencies",
             "fail",
             f"Missing Python modules: {', '.join(missing)}.",
-            "Install package deps: pip install -r docs/requirements.txt && pip install .",
+            "Install project deps: pip install -e .[test] (provides hidapi package and `hid` runtime module).",
         )
     return DoctorCheck("dependencies", "pass", "Core Python modules are importable.")
 

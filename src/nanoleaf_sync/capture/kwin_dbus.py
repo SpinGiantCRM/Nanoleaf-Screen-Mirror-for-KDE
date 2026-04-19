@@ -9,6 +9,8 @@ from typing import Any, Optional
 
 import numpy as np
 
+from nanoleaf_sync.color.hdr import HDRMetadata, convert_frame_to_srgb8
+
 
 @dataclass(frozen=True)
 class KWinDBusCaptureParams:
@@ -54,7 +56,14 @@ class KWinDBusScreenshotCapture:
     )
 
     def __init__(
-        self, width: int, height: int, monitor_id: Optional[str] = None
+        self,
+        width: int,
+        height: int,
+        monitor_id: Optional[str] = None,
+        *,
+        hdr_max_nits: float = 1000.0,
+        hdr_transfer: str = "srgb",
+        hdr_primaries: str = "bt709",
     ) -> None:
         self.last_capture_path: str | None = None
         self.params = KWinDBusCaptureParams(
@@ -67,6 +76,11 @@ class KWinDBusScreenshotCapture:
         self._screenshot2_bus = None
         self._legacy_bus = None
         self._loop_start_error: BaseException | None = None
+        self._hdr_defaults = HDRMetadata(
+            transfer=str(hdr_transfer),
+            primaries=str(hdr_primaries),
+            max_nits=float(hdr_max_nits),
+        )
 
     def capture(self) -> np.ndarray:
         """Return an RGB frame as a numpy array or raise ``KWinDBusCaptureError``."""
@@ -87,8 +101,7 @@ class KWinDBusScreenshotCapture:
                 "permissions/interface availability for this Plasma version."
             )
 
-        if frame.dtype != np.uint8:
-            frame = frame.astype(np.uint8, copy=False)
+        frame = self._convert_if_needed(frame)
 
         if frame.ndim != 3 or frame.shape[2] != 3:
             raise KWinDBusCaptureError(
@@ -96,6 +109,16 @@ class KWinDBusScreenshotCapture:
             )
 
         return frame
+
+    def _convert_if_needed(self, frame: np.ndarray) -> np.ndarray:
+        meta = self._hdr_defaults
+        if (
+            frame.dtype == np.uint8
+            and meta.transfer == "srgb"
+            and meta.primaries == "bt709"
+        ):
+            return frame
+        return convert_frame_to_srgb8(frame, metadata=meta)
 
     def _run_async(self, coro):
         """Run async DBus calls in a dedicated loop for sync capture API."""
