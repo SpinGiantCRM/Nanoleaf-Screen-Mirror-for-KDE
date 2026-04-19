@@ -401,7 +401,14 @@ class NanoleafTrayApp:
         guide_path = Path(__file__).resolve().parents[3] / "docs" / "TROUBLESHOOTING.md"
         if guide_path.exists():
             try:
-                subprocess.Popen(["xdg-open", str(guide_path)])
+                opened = subprocess.run(
+                    ["xdg-open", str(guide_path)],
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                if opened.returncode != 0:
+                    raise RuntimeError(f"xdg-open exited with code {opened.returncode}")
                 self.tray_icon.showMessage(
                     "nanoleaf-kde-sync",
                     f"Opened troubleshooting guide:\n{guide_path}",
