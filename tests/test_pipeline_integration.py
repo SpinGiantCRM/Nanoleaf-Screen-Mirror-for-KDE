@@ -45,6 +45,7 @@ def test_full_pipeline_zone_map_brightness_smoothing_and_send() -> None:
         zone_offset=1,
         use_mock_capture=False,
         verbose=False,
+        color_mode="balanced",
     )
 
     state = RuntimeState()

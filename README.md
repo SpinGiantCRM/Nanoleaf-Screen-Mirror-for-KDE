@@ -23,7 +23,8 @@ It captures the active display, maps sampled colors to Nanoleaf zones, and sends
 - Configuration bootstrap and diagnostics commands
 - Tray-managed autostart enable/disable with KDE desktop authorization marker
 - Guided strip alignment controls (zone count, reverse, offset, preview mapping)
-- Balanced and Dynamic colour modes for stable vs responsive highlights
+- Display Configurator wizard (first-run + re-open from Settings) for SDR/HDR and behaviour presets
+- Preset-driven colour behaviour modes: Default (recommended), Balanced, Dynamic, Hyper
 - User-facing HDR tuning controls (transfer, primaries, max nits)
 - Optional auto-start mirroring when tray app launches (`start_on_launch`)
 - Service entry point for continuous mirroring
@@ -78,6 +79,25 @@ nanoleaf-kde-sync-autostart status
 nanoleaf-kde-sync-autostart enable
 nanoleaf-kde-sync-autostart disable
 ```
+
+
+## Display configurator and presets
+
+On first launch, the tray app opens a **Display Configurator** wizard after startup.
+You can run it again any time from **Settings → Re-run Display Setup** or tray **Display Configurator**.
+
+Wizard flow:
+1. **SDR or HDR** selection with plain-English guidance.
+2. **Behaviour preset** selection:
+   - **Default** (recommended tuned look)
+   - **Balanced** (safer/stabler)
+   - **Dynamic** (more responsive to vivid accents)
+   - **Hyper** (strongest and most reactive)
+3. **HDR tuning** (if HDR selected): transfer (`sRGB` vs `PQ`), primaries (`BT.709` vs `BT.2020`), and `HDR max nits`.
+
+   > **Note**: In `config.toml`, `transfer`/`primaries` use lowercase values: `srgb`/`pq`, `bt709`/`bt2020`.
+
+Tooltip help is included in Settings for these display fields.
 
 ## Developer quick start
 

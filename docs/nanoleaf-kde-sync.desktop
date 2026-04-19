@@ -1,10 +1,14 @@
 [Desktop Entry]
 Type=Application
+Version=1.0
 Name=nanoleaf-kde-sync
 Comment=Nanoleaf screen mirroring for KDE Plasma on Linux.
 Exec=nanoleaf-kde-sync
+TryExec=nanoleaf-kde-sync
 Icon=nanoleaf-kde-sync
 Terminal=false
 Categories=System;Utility;
-X-KDE-StartupNotify=false
+Keywords=nanoleaf;ambient;lighting;kde;tray;
+StartupNotify=true
+DBusActivatable=false
 X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2

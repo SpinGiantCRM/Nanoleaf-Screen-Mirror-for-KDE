@@ -8,7 +8,7 @@ def load_qt():
 
     try:
         from PyQt6.QtCore import QObject, QTimer, Qt, pyqtSignal
-        from PyQt6.QtGui import QAction, QIcon, QPainter, QPixmap
+        from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
         from PyQt6.QtWidgets import (
             QApplication,
             QCheckBox,
@@ -33,6 +33,7 @@ def load_qt():
         "QObject": QObject,
         "pyqtSignal": pyqtSignal,
         "QAction": QAction,
+        "QColor": QColor,
         "QIcon": QIcon,
         "QPainter": QPainter,
         "QPixmap": QPixmap,

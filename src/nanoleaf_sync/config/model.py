@@ -41,7 +41,11 @@ class AppConfig:
     # Larger values reduce CPU cost at the expense of color precision.
     zone_sampling_stride: int = 1
     zone_preset: str = "edge-weighted"
-    color_mode: str = "balanced"
+    color_mode: str = "default"
+    # Tracks whether the first-run display configurator has been completed.
+    wizard_completed: bool = False
+    # Wizard choice: False=SDR path, True=HDR path.
+    hdr_enabled: bool = False
     start_on_launch: bool = False
 
     # USB / device

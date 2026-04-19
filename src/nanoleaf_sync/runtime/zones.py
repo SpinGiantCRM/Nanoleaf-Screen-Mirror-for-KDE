@@ -43,6 +43,37 @@ _M2_INV = np.array(
 )
 
 
+_COLOR_MODE_PROFILES = {
+    "default": {
+        "base_mix": 0.16,
+        "contrast_w": 0.30,
+        "motion_w": 0.25,
+        "standout_w": 0.20,
+        "vivid_sat": 0.45,
+        "max_step": 62.0,
+        "blend": 0.35,
+    },
+    "dynamic": {
+        "base_mix": 0.22,
+        "contrast_w": 0.34,
+        "motion_w": 0.32,
+        "standout_w": 0.28,
+        "vivid_sat": 0.50,
+        "max_step": 78.0,
+        "blend": 0.38,
+    },
+    "hyper": {
+        "base_mix": 0.28,
+        "contrast_w": 0.38,
+        "motion_w": 0.36,
+        "standout_w": 0.34,
+        "vivid_sat": 0.58,
+        "max_step": 95.0,
+        "blend": 0.42,
+    },
+}
+
+
 def _ensure_rgb_u8(image: np.ndarray) -> np.ndarray:
     """
     Ensure `image` is an RGB uint8 array.
@@ -160,15 +191,16 @@ def zone_colors_array(
         avg_linear_rgb = _oklab_to_linear_srgb(avg_oklab)
         means[valid] = linear01_to_srgb_u8(avg_linear_rgb)
 
-    if str(mode).strip().lower() != "dynamic":
+    normalized_mode = str(mode).strip().lower()
+    if normalized_mode == "balanced":
+        return means
+
+    profile = _COLOR_MODE_PROFILES.get(normalized_mode)
+    if profile is None:
         return means
 
     out = means.astype(np.float32)
-    prev = (
-        np.asarray(previous_zone_colors, dtype=np.float32)
-        if previous_zone_colors is not None
-        else None
-    )
+    prev = np.asarray(previous_zone_colors, dtype=np.float32) if previous_zone_colors is not None else None
     for idx in range(len(zones)):
         if not valid[idx]:
             continue
@@ -180,27 +212,19 @@ def zone_colors_array(
         min_c = patch_f.min(axis=2)
         sat = (max_c - min_c) / np.clip(max_c, 1.0, None)
         lum = (0.2126 * patch_f[:, :, 0]) + (0.7152 * patch_f[:, :, 1]) + (0.0722 * patch_f[:, :, 2])
-        # 64.0 normalizes typical luma spread to [0,1] so contrast influences highlight mix.
         contrast = np.clip(float(np.std(lum) / 64.0), 0.0, 1.0)
         zone_lum = float(np.mean(lum))
         zone_lum_norm = np.clip(zone_lum / 255.0, 0.0, 1.0)
         required_delta = 10.0 + (55.0 * zone_lum_norm)
         prominence = np.clip((lum - zone_lum) / required_delta, 0.0, 1.0)
         prominence = np.power(prominence, 1.0 + (1.2 * zone_lum_norm))
-        # Pixel vividness bias: 35% baseline + 45% saturation + 20% gamma-shaped luma (gamma=0.7).
-        vivid_weight = (
-            0.35 + 0.45 * sat + 0.20 * np.clip((lum / 255.0) ** 0.7, 0.0, 1.0)
-        ) * prominence
-        vivid_flat = vivid_weight.reshape(-1)
+        vivid_weight = (0.30 + profile["vivid_sat"] * sat + 0.20 * np.clip((lum / 255.0) ** 0.7, 0.0, 1.0)) * prominence
+        # Down-weight huge flat areas so large backgrounds don't fully dominate dynamic/hyper modes.
+        area_rejection = 1.0 - (0.18 * np.clip((1.0 - sat), 0.0, 1.0) * np.clip((1.0 - prominence), 0.0, 1.0))
+        vivid_flat = (vivid_weight * area_rejection).reshape(-1)
         patch_flat = patch_f.reshape(-1, 3)
-        if patch_flat.size == 0:
-            highlight = np.zeros(3, dtype=np.float32)
-        else:
-            weight_sum = float(vivid_flat.sum())
-            if weight_sum <= 0.0:
-                highlight = patch_flat.mean(axis=0)
-            else:
-                highlight = np.average(patch_flat, axis=0, weights=vivid_flat)
+        weight_sum = float(vivid_flat.sum())
+        highlight = patch_flat.mean(axis=0) if weight_sum <= 0.0 else np.average(patch_flat, axis=0, weights=vivid_flat)
 
         motion_boost = 0.0
         if prev is not None and idx < len(prev):
@@ -209,16 +233,16 @@ def zone_colors_array(
 
         standout = float(np.clip(np.mean(prominence), 0.0, 1.0))
         highlight_mix = np.clip(
-            0.12 + (0.33 * contrast) + (0.30 * motion_boost) + (0.25 * standout),
-            0.08,
-            0.72,
+            profile["base_mix"] + (profile["contrast_w"] * contrast) + (profile["motion_w"] * motion_boost) + (profile["standout_w"] * standout),
+            0.10,
+            0.88 if normalized_mode == "hyper" else 0.78,
         )
         candidate = ((1.0 - highlight_mix) * out[idx]) + (highlight_mix * highlight)
         if prev is not None and idx < len(prev):
-            max_step = 55.0 + (85.0 * motion_boost)
+            max_step = profile["max_step"] + (90.0 * motion_boost)
             delta = np.clip(candidate - prev[idx], -max_step, max_step)
             candidate = prev[idx] + delta
-            candidate = (0.70 * prev[idx]) + (0.30 * candidate)
+            candidate = ((1.0 - profile["blend"]) * prev[idx]) + (profile["blend"] * candidate)
         out[idx] = np.clip(candidate, 0.0, 255.0)
 
     return np.clip(np.rint(out), 0.0, 255.0).astype(np.uint8)
