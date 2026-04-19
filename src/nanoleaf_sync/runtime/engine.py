@@ -63,7 +63,7 @@ def _mapping_signature(
     source_zone_count: int,
     config: AppConfig,
     detected_device_zone_count: int | None,
-) -> tuple[int, int, int, bool, tuple[int, ...]]:
+) -> tuple[int, int, int, int, bool, tuple[int, ...]]:
     return (
         int(source_zone_count),
         int(config.device_zone_count),

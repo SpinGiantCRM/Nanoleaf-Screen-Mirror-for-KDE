@@ -160,3 +160,25 @@ def test_settings_dialog_zone_count_updates_zones_without_forcing_manual_device_
 
     assert len(updated.zones) == 6
     assert updated.device_zone_count == 0
+
+
+def test_mapping_preview_uses_explicit_auto_flag() -> None:
+    from nanoleaf_sync.ui.settings_dialog import _mapping_preview_text
+
+    auto_text = _mapping_preview_text(
+        zone_count=8,
+        device_zone_count=8,
+        zone_offset=0,
+        reverse_zones=False,
+        auto_mapping=True,
+    )
+    manual_text = _mapping_preview_text(
+        zone_count=8,
+        device_zone_count=8,
+        zone_offset=0,
+        reverse_zones=False,
+        auto_mapping=False,
+    )
+
+    assert "Mapping mode: auto" in auto_text
+    assert "Mapping mode: manual" in manual_text

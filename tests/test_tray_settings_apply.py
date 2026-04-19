@@ -55,5 +55,7 @@ def test_on_settings_replaces_service_with_updated_config(monkeypatch) -> None:
 
     assert fake_tray.cfg_mgr.saved is not None
     assert fake_tray.cfg_mgr.saved.device_zone_count == 0
+    assert fake_tray.cfg_mgr.saved.output_channel_order == "grb"
     assert fake_tray.service.config.device_zone_count == 0
+    assert fake_tray.service.config.output_channel_order == "grb"
     assert len(fake_tray.service.config.zones) == 2

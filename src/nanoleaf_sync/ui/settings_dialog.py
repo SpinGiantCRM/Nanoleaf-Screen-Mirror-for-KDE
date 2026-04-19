@@ -9,7 +9,7 @@ from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
 
-def _mapping_preview_text(*, zone_count: int, device_zone_count: int, zone_offset: int, reverse_zones: bool) -> str:
+def _mapping_preview_text(*, zone_count: int, device_zone_count: int, zone_offset: int, reverse_zones: bool, auto_mapping: bool = True) -> str:
     indices = resolve_device_zone_indices(
         zone_count,
         device_zone_count=device_zone_count,
@@ -20,7 +20,7 @@ def _mapping_preview_text(*, zone_count: int, device_zone_count: int, zone_offse
         return "Calibration preview: no zones configured."
     preview = ", ".join(str(i) for i in indices[:12])
     suffix = "…" if len(indices) > 12 else ""
-    mapping_mode = "auto" if device_zone_count == zone_count else "manual"
+    mapping_mode = "auto" if auto_mapping else "manual"
     return (
         f"Mapping mode: {mapping_mode} | screen zones: {zone_count} | output zones: {device_zone_count}\n"
         f"Calibration preview (device→screen zones): {preview}{suffix}"
@@ -141,6 +141,7 @@ class SettingsDialog:
                         device_zone_count=device_zone_count,
                         zone_offset=int(getattr(cfg, "zone_offset", 0)),
                         reverse_zones=bool(getattr(cfg, "reverse_zones", False)),
+                        auto_mapping=int(getattr(cfg, "device_zone_count", 0)) == 0,
                     )
                 )
                 self.brightness_value = QLabel("")
@@ -255,6 +256,7 @@ class SettingsDialog:
                         ),
                         zone_offset=int(self.zone_offset_slider.value()),
                         reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                        auto_mapping=bool(self.device_zone_count_auto_checkbox.isChecked()),
                     )
                 )
 
