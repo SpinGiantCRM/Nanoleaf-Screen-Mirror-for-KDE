@@ -2,6 +2,12 @@
 
 Use this matrix before tagging a release.
 
+## Required evidence
+
+- Record the exact package/app version under test.
+- Capture outputs for `nanoleaf-kde-sync-doctor` and `nanoleaf-kde-sync-smoke-test`.
+- Note whether testing used real hardware or mock mode.
+
 | Env ID | OS | Session | Mode | Doctor | Smoke | Tray lifecycle | Notes |
 |---|---|---|---|---|---|---|---|
 | A1 | Arch | Wayland | full-mock |  |  |  |  |

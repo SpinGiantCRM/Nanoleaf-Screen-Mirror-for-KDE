@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Settings dialog smoothing label now describes user-visible behavior (`0 = smooth`, `100 = instant`).
 - Smoke test capture dimensions now use primary-screen detection with explicit fallback constants.
 - Tray startup now handles config/service initialization failures gracefully and shows a user-facing warning.
+- README now reflects the current project version and links key operational docs from a single documentation section.
+- Troubleshooting and RC docs now include clearer triage/evidence guidance for release readiness.
 
 ### Fixed
 - Doctor dependency guidance now recommends `pip install -e .[test]` instead of referencing `docs/requirements.txt`.

@@ -9,6 +9,8 @@ nanoleaf-kde-sync-doctor
 nanoleaf-kde-sync-smoke-test
 ```
 
+If both commands pass but mirroring still fails, continue with the sections below.
+
 ## Common issues
 
 ### KWin screenshot authorization errors
@@ -35,9 +37,13 @@ Open tray **Settings** and adjust:
 - HDR primaries (`bt709` / `bt2020`)
 - HDR max nits
 
+Start with `srgb + bt709` if your desktop is SDR, then tune brightness conservatively.
+
 ### Zone order mismatch
 
 Use tray **Settings**:
 - Reverse strip orientation
 - Zone offset
 - Mapping preview line
+
+If the strip is mounted upside-down, enable reverse first, then fine-tune the offset.
