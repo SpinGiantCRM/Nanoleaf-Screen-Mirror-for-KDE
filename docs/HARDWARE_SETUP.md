@@ -1,6 +1,6 @@
 # Hardware Setup (Nanoleaf USB)
 
-## Supported IDs
+## Supported USB IDs
 
 - VID `0x37fa`
 - PID `0x8201` (`NL82K1`)
@@ -8,7 +8,7 @@
 
 ## Linux permissions
 
-Install the provided udev rule and reload:
+Install the provided udev rule and reload rules:
 
 ```bash
 sudo install -Dm0644 assets/udev/60-nanoleaf-kde-sync.rules /etc/udev/rules.d/60-nanoleaf-kde-sync.rules
@@ -23,4 +23,4 @@ getent group plugdev || sudo groupadd plugdev
 sudo usermod -aG plugdev "$USER"
 ```
 
-Log out/in, then reconnect the device.
+Then log out and back in, and reconnect the device.
