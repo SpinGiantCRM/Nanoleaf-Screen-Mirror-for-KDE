@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 HDR-aware color conversion utilities.
 
@@ -10,8 +8,10 @@ Goal:
   correct without changing downstream logic.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Any, Literal, Optional, Tuple
+from typing import Any, Literal, Optional
 
 import numpy as np
 
@@ -111,8 +111,8 @@ def _pq_eotf_to_linear(c: np.ndarray) -> np.ndarray:
     vp = np.power(c, 1.0 / m2)
     num = np.maximum(vp - c1, 0.0)
     den = np.maximum(c2 - c3 * vp, 1e-10)
-    l = np.power(np.maximum(num / den, 0.0), 1.0 / m1)
-    return l
+    linear = np.power(np.maximum(num / den, 0.0), 1.0 / m1)
+    return linear
 
 
 def _hlg_eotf_to_linear(c: np.ndarray) -> np.ndarray:

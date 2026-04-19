@@ -1,10 +1,10 @@
-from __future__ import annotations
-
 """Long-running service that wires capture, processing, and USB output.
 
 This module owns startup/shutdown orchestration, capture dimension discovery,
 backend construction, and status reporting consumed by tray and CLI tools.
 """
+
+from __future__ import annotations
 
 import logging
 import signal
@@ -31,6 +31,13 @@ from nanoleaf_sync.runtime.state import RuntimeState
 
 
 logger = logging.getLogger(__name__)
+__all__ = (
+    "NanoleafSyncService",
+    "_DEFAULT_CAPTURE_WIDTH",
+    "_DEFAULT_CAPTURE_HEIGHT",
+    "_detect_primary_screen_dims",
+    "_resolve_capture_dims",
+)
 
 def _detect_primary_screen_dims(*, qt_widgets_module=None) -> Optional[Tuple[int, int]]:
     return detect_primary_screen_dims(qt_widgets_module=qt_widgets_module)
