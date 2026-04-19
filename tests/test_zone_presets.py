@@ -13,3 +13,8 @@ def test_make_edge_weighted_zones_shape() -> None:
     zones = make_edge_weighted_zones(8)
     assert len(zones) == 8
     assert all(0.0 <= z.x <= 1.0 and 0.0 <= z.y <= 1.0 for z in zones)
+
+
+def test_make_edge_weighted_zones_honors_low_counts() -> None:
+    zones = make_edge_weighted_zones(1)
+    assert len(zones) == 1

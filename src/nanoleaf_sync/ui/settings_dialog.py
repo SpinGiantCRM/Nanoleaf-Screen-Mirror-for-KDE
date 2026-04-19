@@ -9,7 +9,7 @@ from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
 
-def _mapping_preview_text(*, zone_count: int, device_zone_count: int, zone_offset: int, reverse_zones: bool) -> str:
+def _mapping_preview_text(*, zone_count: int, device_zone_count: int, zone_offset: int, reverse_zones: bool, auto_mapping: bool = True) -> str:
     indices = resolve_device_zone_indices(
         zone_count,
         device_zone_count=device_zone_count,
@@ -20,7 +20,11 @@ def _mapping_preview_text(*, zone_count: int, device_zone_count: int, zone_offse
         return "Calibration preview: no zones configured."
     preview = ", ".join(str(i) for i in indices[:12])
     suffix = "…" if len(indices) > 12 else ""
-    return f"Calibration preview (device→screen zones): {preview}{suffix}"
+    mapping_mode = "auto" if auto_mapping else "manual"
+    return (
+        f"Mapping mode: {mapping_mode} | screen zones: {zone_count} | output zones: {device_zone_count}\n"
+        f"Calibration preview (device→screen zones): {preview}{suffix}"
+    )
 
 
 class SettingsDialog:
@@ -86,6 +90,14 @@ class SettingsDialog:
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.device_zone_count_slider.setRange(1, 128)
                 self.device_zone_count_slider.setValue(device_zone_count)
+                self.device_zone_count_auto_checkbox = QCheckBox("Auto device zone count (match detected strip length)")
+                self.device_zone_count_auto_checkbox.setChecked(int(getattr(cfg, "device_zone_count", 0)) == 0)
+
+                self.output_channel_order_combo = QComboBox()
+                self.output_channel_order_combo.addItems(["grb", "rgb", "rbg", "gbr", "brg", "bgr"])
+                output_channel_order = str(getattr(cfg, "output_channel_order", "grb"))
+                output_channel_order_idx = self.output_channel_order_combo.findText(output_channel_order)
+                self.output_channel_order_combo.setCurrentIndex(max(0, output_channel_order_idx))
 
                 self.mock_capture_checkbox = QCheckBox("Mock capture (synthetic)")
                 self.mock_capture_checkbox.setChecked(
@@ -129,6 +141,7 @@ class SettingsDialog:
                         device_zone_count=device_zone_count,
                         zone_offset=int(getattr(cfg, "zone_offset", 0)),
                         reverse_zones=bool(getattr(cfg, "reverse_zones", False)),
+                        auto_mapping=int(getattr(cfg, "device_zone_count", 0)) == 0,
                     )
                 )
                 self.brightness_value = QLabel("")
@@ -152,6 +165,7 @@ class SettingsDialog:
                     self.zone_preset_combo.currentIndexChanged.connect(self._on_calibration_control_changed)
                 self.zone_offset_slider.valueChanged.connect(self._on_calibration_control_changed)
                 self.device_zone_count_slider.valueChanged.connect(self._on_calibration_control_changed)
+                self.device_zone_count_auto_checkbox.stateChanged.connect(self._on_calibration_control_changed)
                 self.hdr_max_nits_slider.valueChanged.connect(self._refresh_numeric_labels)
                 self.led_gamma_slider.valueChanged.connect(self._refresh_numeric_labels)
                 self.reverse_checkbox.stateChanged.connect(self._refresh_preview_label)
@@ -188,22 +202,25 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Device zone count"), 8, 0)
                 layout.addWidget(self.device_zone_count_slider, 8, 1)
                 layout.addWidget(self.device_zone_count_value, 8, 2)
-                layout.addWidget(self.mock_capture_checkbox, 9, 0, 1, 2)
-                layout.addWidget(QLabel("Capture backend"), 10, 0)
-                layout.addWidget(self.capture_backend_combo, 10, 1)
-                layout.addWidget(self.calibration_help, 11, 0, 1, 2)
-                layout.addWidget(self.preview_label, 12, 0, 1, 3)
-                layout.addWidget(self.hdr_help, 13, 0, 1, 2)
-                layout.addWidget(QLabel("HDR transfer"), 14, 0)
-                layout.addWidget(self.hdr_transfer_combo, 14, 1)
-                layout.addWidget(QLabel("HDR primaries"), 15, 0)
-                layout.addWidget(self.hdr_primaries_combo, 15, 1)
-                layout.addWidget(QLabel("HDR max nits"), 16, 0)
-                layout.addWidget(self.hdr_max_nits_slider, 16, 1)
-                layout.addWidget(self.hdr_max_nits_value, 16, 2)
-                layout.addWidget(QLabel("LED gamma"), 17, 0)
-                layout.addWidget(self.led_gamma_slider, 17, 1)
-                layout.addWidget(self.led_gamma_value, 17, 2)
+                layout.addWidget(self.device_zone_count_auto_checkbox, 9, 0, 1, 2)
+                layout.addWidget(QLabel("Output channel order"), 10, 0)
+                layout.addWidget(self.output_channel_order_combo, 10, 1)
+                layout.addWidget(self.mock_capture_checkbox, 11, 0, 1, 2)
+                layout.addWidget(QLabel("Capture backend"), 12, 0)
+                layout.addWidget(self.capture_backend_combo, 12, 1)
+                layout.addWidget(self.calibration_help, 13, 0, 1, 2)
+                layout.addWidget(self.preview_label, 14, 0, 1, 3)
+                layout.addWidget(self.hdr_help, 15, 0, 1, 2)
+                layout.addWidget(QLabel("HDR transfer"), 16, 0)
+                layout.addWidget(self.hdr_transfer_combo, 16, 1)
+                layout.addWidget(QLabel("HDR primaries"), 17, 0)
+                layout.addWidget(self.hdr_primaries_combo, 17, 1)
+                layout.addWidget(QLabel("HDR max nits"), 18, 0)
+                layout.addWidget(self.hdr_max_nits_slider, 18, 1)
+                layout.addWidget(self.hdr_max_nits_value, 18, 2)
+                layout.addWidget(QLabel("LED gamma"), 19, 0)
+                layout.addWidget(self.led_gamma_slider, 19, 1)
+                layout.addWidget(self.led_gamma_value, 19, 2)
                 self.setLayout(layout)
 
             def _on_calibration_control_changed(self) -> None:
@@ -217,7 +234,14 @@ class SettingsDialog:
                 self.fps_value.setText(f"{self.fps_slider.value()} fps")
                 self.zone_count_value.setText(str(self.zone_count_slider.value()))
                 self.zone_offset_value.setText(str(self.zone_offset_slider.value()))
-                self.device_zone_count_value.setText(str(self.device_zone_count_slider.value()))
+                if self.device_zone_count_auto_checkbox.isChecked():
+                    self.device_zone_count_value.setText("auto")
+                    if hasattr(self.device_zone_count_slider, "setEnabled"):
+                        self.device_zone_count_slider.setEnabled(False)
+                else:
+                    self.device_zone_count_value.setText(str(self.device_zone_count_slider.value()))
+                    if hasattr(self.device_zone_count_slider, "setEnabled"):
+                        self.device_zone_count_slider.setEnabled(True)
                 self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
                 self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}")
 
@@ -225,9 +249,14 @@ class SettingsDialog:
                 self.preview_label.setText(
                     _mapping_preview_text(
                         zone_count=int(self.zone_count_slider.value()),
-                        device_zone_count=int(self.device_zone_count_slider.value()),
+                        device_zone_count=(
+                            int(self.zone_count_slider.value())
+                            if self.device_zone_count_auto_checkbox.isChecked()
+                            else int(self.device_zone_count_slider.value())
+                        ),
                         zone_offset=int(self.zone_offset_slider.value()),
                         reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                        auto_mapping=bool(self.device_zone_count_auto_checkbox.isChecked()),
                     )
                 )
 
@@ -240,8 +269,9 @@ class SettingsDialog:
                 zone_preset = str(self.zone_preset_combo.currentText())
                 zone_offset = int(self.zone_offset_slider.value())
                 reverse_zones = bool(self.reverse_checkbox.isChecked())
-                device_zone_count = int(self.device_zone_count_slider.value())
+                device_zone_count = 0 if self.device_zone_count_auto_checkbox.isChecked() else int(self.device_zone_count_slider.value())
                 prefer_backend = str(self.capture_backend_combo.currentText())
+                output_channel_order = str(self.output_channel_order_combo.currentText())
                 hdr_transfer = str(self.hdr_transfer_combo.currentText())
                 hdr_primaries = str(self.hdr_primaries_combo.currentText())
                 hdr_max_nits = float(self.hdr_max_nits_slider.value())
@@ -263,6 +293,7 @@ class SettingsDialog:
                     zones=new_zones,
                     zone_preset=zone_preset,
                     device_zone_count=device_zone_count,
+                    output_channel_order=output_channel_order,
                     zone_offset=zone_offset,
                     reverse_zones=reverse_zones,
                     explicit_zone_map=[],
