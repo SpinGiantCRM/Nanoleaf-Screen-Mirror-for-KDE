@@ -99,4 +99,5 @@ def test_run_loop_with_usb_driver_initializes_then_sends_frame() -> None:
     assert transport.opened is True
     assert [req[0] for req in transport.requests[:7]] == [0x0C, 0x03, 0x06, 0x07, 0x08, 0x09, 0x02]
     assert transport.requests[5][3:] == b"\x10"
-    assert transport.requests[6][3:] == b"\x78\x00\x00\x00\x5a\x00"
+    # Driver default output channel order is GRB, so red/green channels are swapped on the wire.
+    assert transport.requests[6][3:] == b"\x00\x78\x00\x5a\x00\x00"
