@@ -77,6 +77,23 @@ def first_run_message(mode: str) -> str:
     )
 
 
+def _build_auto_start_bridge(qt: dict[str, object], callback):
+    class _AutoStartBridge(qt["QObject"]):
+        result_ready = qt["pyqtSignal"](bool)
+
+        def __init__(self):
+            super().__init__()
+            self.result_ready.connect(
+                self._deliver_result,
+                qt["Qt"].ConnectionType.QueuedConnection,
+            )
+
+        def _deliver_result(self, running: bool) -> None:
+            callback(bool(running))
+
+    return _AutoStartBridge()
+
+
 class NanoleafTrayApp:
     """
     KDE/Linux system tray UI for starting/stopping the background service.
@@ -95,6 +112,7 @@ class NanoleafTrayApp:
         self.QVBoxLayout = qt["QVBoxLayout"]
         self.QTimer = qt["QTimer"]
         self.Qt = qt["Qt"]
+        self._auto_start_bridge = _build_auto_start_bridge(qt, self._handle_auto_start_result)
         self._set_qt_desktop_identity()
 
         self.app = qt["QApplication"](sys.argv)
@@ -271,7 +289,7 @@ class NanoleafTrayApp:
         def worker() -> None:
             started = self.service.start()
             running = started and self.service.is_running()
-            self.QTimer.singleShot(0, lambda: self._handle_auto_start_result(running))
+            self._auto_start_bridge.result_ready.emit(running)
 
         threading.Thread(target=worker, daemon=True).start()
 

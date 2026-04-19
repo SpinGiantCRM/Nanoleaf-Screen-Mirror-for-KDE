@@ -166,7 +166,7 @@ def zone_colors_array(
     out = means.astype(np.float32)
     prev = (
         np.asarray(previous_zone_colors, dtype=np.float32)
-        if previous_zone_colors
+        if previous_zone_colors is not None
         else None
     )
     for idx in range(len(zones)):
@@ -180,12 +180,14 @@ def zone_colors_array(
         min_c = patch_f.min(axis=2)
         sat = (max_c - min_c) / np.clip(max_c, 1.0, None)
         lum = (0.2126 * patch_f[:, :, 0]) + (0.7152 * patch_f[:, :, 1]) + (0.0722 * patch_f[:, :, 2])
+        # 64.0 normalizes typical luma spread to [0,1] so contrast influences highlight mix.
         contrast = np.clip(float(np.std(lum) / 64.0), 0.0, 1.0)
         zone_lum = float(np.mean(lum))
         zone_lum_norm = np.clip(zone_lum / 255.0, 0.0, 1.0)
         required_delta = 10.0 + (55.0 * zone_lum_norm)
         prominence = np.clip((lum - zone_lum) / required_delta, 0.0, 1.0)
         prominence = np.power(prominence, 1.0 + (1.2 * zone_lum_norm))
+        # Pixel vividness bias: 35% baseline + 45% saturation + 20% gamma-shaped luma (gamma=0.7).
         vivid_weight = (
             0.35 + 0.45 * sat + 0.20 * np.clip((lum / 255.0) ** 0.7, 0.0, 1.0)
         ) * prominence

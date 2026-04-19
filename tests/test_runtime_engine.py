@@ -183,5 +183,5 @@ def test_pending_frame_slot_last_write_wins() -> None:
     pending = slot.pop()
     assert pending is not None
     assert pending.captured_at == 2.0
-    assert pending.frame[0, 0, 0] == 255
-    assert slot.replaced_frames == 1
+    assert np.array_equal(pending.frame, frame_b)
+    assert slot.get_replaced_count() == 1
