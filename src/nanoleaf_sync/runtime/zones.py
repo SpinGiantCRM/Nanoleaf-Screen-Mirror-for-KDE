@@ -181,7 +181,14 @@ def zone_colors_array(
         sat = (max_c - min_c) / np.clip(max_c, 1.0, None)
         lum = (0.2126 * patch_f[:, :, 0]) + (0.7152 * patch_f[:, :, 1]) + (0.0722 * patch_f[:, :, 2])
         contrast = np.clip(float(np.std(lum) / 64.0), 0.0, 1.0)
-        vivid_weight = 0.40 + 0.40 * sat + 0.20 * np.clip((lum / 255.0) ** 0.7, 0.0, 1.0)
+        zone_lum = float(np.mean(lum))
+        zone_lum_norm = np.clip(zone_lum / 255.0, 0.0, 1.0)
+        required_delta = 10.0 + (55.0 * zone_lum_norm)
+        prominence = np.clip((lum - zone_lum) / required_delta, 0.0, 1.0)
+        prominence = np.power(prominence, 1.0 + (1.2 * zone_lum_norm))
+        vivid_weight = (
+            0.35 + 0.45 * sat + 0.20 * np.clip((lum / 255.0) ** 0.7, 0.0, 1.0)
+        ) * prominence
         vivid_flat = vivid_weight.reshape(-1)
         patch_flat = patch_f.reshape(-1, 3)
         if patch_flat.size == 0:
@@ -198,7 +205,12 @@ def zone_colors_array(
             motion = np.abs(out[idx] - prev[idx]).mean() / 255.0
             motion_boost = float(np.clip(motion * 1.8, 0.0, 1.0))
 
-        highlight_mix = np.clip(0.18 + (0.40 * contrast) + (0.30 * motion_boost), 0.12, 0.72)
+        standout = float(np.clip(np.mean(prominence), 0.0, 1.0))
+        highlight_mix = np.clip(
+            0.12 + (0.33 * contrast) + (0.30 * motion_boost) + (0.25 * standout),
+            0.08,
+            0.72,
+        )
         candidate = ((1.0 - highlight_mix) * out[idx]) + (highlight_mix * highlight)
         if prev is not None and idx < len(prev):
             max_step = 55.0 + (85.0 * motion_boost)
