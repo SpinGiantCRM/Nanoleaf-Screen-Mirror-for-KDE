@@ -41,8 +41,13 @@ def test_capture_factory_creates_xdg_portal_backend() -> None:
     assert backend.name == "xdg-portal"
 
 
-def test_capture_factory_auto_prefers_kmsgrab_on_cachyos(monkeypatch) -> None:
-    monkeypatch.setattr("nanoleaf_sync.capture.factory._is_cachyos", lambda: True)
+def test_capture_factory_auto_prefers_kmsgrab_when_low_latency_path_is_available(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr("nanoleaf_sync.capture.factory._has_drm_device", lambda: True)
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: True
+    )
     backend = create_capture_backend(
         width=6,
         height=4,
@@ -50,6 +55,22 @@ def test_capture_factory_auto_prefers_kmsgrab_on_cachyos(monkeypatch) -> None:
         prefer_backend="auto",
     )
     assert backend.name == "kmsgrab"
+
+
+def test_capture_factory_auto_falls_back_to_kwin_when_kmsgrab_is_unavailable(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr("nanoleaf_sync.capture.factory._has_drm_device", lambda: False)
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: False
+    )
+    backend = create_capture_backend(
+        width=6,
+        height=4,
+        use_mock_capture=False,
+        prefer_backend="auto",
+    )
+    assert backend.name == "kwin-dbus"
 
 
 def test_kmsgrab_converts_hdr_before_any_resizing(monkeypatch) -> None:

@@ -5,6 +5,14 @@ import numpy as np
 from nanoleaf_sync.color.hdr import _apply_tonemap_hable, _linear_to_srgb_encoded
 from nanoleaf_sync.runtime.srgb import srgb_u8_to_linear01
 
+_SDR_REFERENCE_NITS = 80.0
+
+
+def effective_sdr_boost(*, sdr_boost_nits: float) -> float:
+    """Return the linear SDR boost scalar relative to the KDE SDR reference."""
+
+    return max(0.0, float(sdr_boost_nits)) / _SDR_REFERENCE_NITS
+
 
 def apply_sdr_boost_compensation(
     frame: np.ndarray,
@@ -17,7 +25,7 @@ def apply_sdr_boost_compensation(
     if frame.dtype != np.uint8:
         frame = np.clip(np.rint(frame), 0.0, 255.0).astype(np.uint8, copy=False)
 
-    boost = float(sdr_boost_nits) / 80.0
+    boost = effective_sdr_boost(sdr_boost_nits=sdr_boost_nits)
     if boost <= 1.0:
         return frame
 

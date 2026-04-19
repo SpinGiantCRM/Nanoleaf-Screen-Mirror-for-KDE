@@ -18,7 +18,10 @@ from nanoleaf_sync.runtime.zones import zone_colors_array
 from nanoleaf_sync.color.zone_mapper import resolve_device_zone_indices
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.processing import zones_from_config
-from nanoleaf_sync.runtime.compositor import apply_sdr_boost_compensation
+from nanoleaf_sync.runtime.compositor import (
+    apply_sdr_boost_compensation,
+    effective_sdr_boost,
+)
 from nanoleaf_sync.runtime.startup import reinitialize_backends, should_reinitialize
 from nanoleaf_sync.runtime.state import RGBTuple, RuntimeState, ZoneRect
 
@@ -186,7 +189,8 @@ def process_frame(
             f"Capture returned unexpected frame shape: {getattr(frame, 'shape', None)}"
         )
 
-    if compositor_hdr_mode:
+    boost = effective_sdr_boost(sdr_boost_nits=sdr_boost_nits)
+    if compositor_hdr_mode and abs(boost - 1.0) > 1e-6:
         frame = apply_sdr_boost_compensation(
             frame,
             sdr_boost_nits=sdr_boost_nits,
