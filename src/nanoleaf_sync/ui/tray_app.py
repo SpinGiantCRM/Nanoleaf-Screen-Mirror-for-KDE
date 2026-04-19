@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -12,6 +13,7 @@ from nanoleaf_sync.config.store import ConfigManager, mode_config
 from nanoleaf_sync.desktop_entry import (
     QT_DESKTOP_FILE_NAME,
     disable_autostart,
+    ensure_user_launcher_entry,
     enable_autostart,
     launch_context_snapshot,
     redact_launch_token,
@@ -29,6 +31,7 @@ SELF_CHECK_IMPORTS: tuple[str, ...] = (
     "nanoleaf_sync.service",
     "nanoleaf_sync.ui.tray_app",
 )
+_log = logging.getLogger(__name__)
 
 
 def _run_self_check() -> int:
@@ -98,6 +101,11 @@ class NanoleafTrayApp:
         self.app = qt["QApplication"](sys.argv)
         self.app.setApplicationName(QT_DESKTOP_FILE_NAME)
         self.app.setDesktopFileName(QT_DESKTOP_FILE_NAME)
+        try:
+            ensure_user_launcher_entry()
+        except Exception as exc:
+            # Keep startup resilient even if desktop entry patching fails.
+            _log.warning("Failed to ensure user launcher entry: %s", exc, exc_info=True)
         self.cfg_mgr = ConfigManager()
         self._startup_warning: str | None = None
         try:
