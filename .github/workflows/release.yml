@@ -86,10 +86,12 @@ jobs:
             release-assets/*
           fail_on_unmatched_files: true
 
-      - name: Sync VERSION on default branch
+      - name: Sync VERSION and CHANGELOG on default branch
         if: github.event_name == 'release'
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_NOTES: ${{ github.event.release.body }}
+          RELEASE_PUBLISHED_AT: ${{ github.event.release.published_at }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
@@ -98,14 +100,18 @@ jobs:
           git restore VERSION
           git fetch origin "${DEFAULT_BRANCH}"
           git checkout -B "sync-version-${RELEASE_VERSION}" "origin/${DEFAULT_BRANCH}"
-          CURRENT_VERSION="$(cat VERSION)"
-          if [[ "${CURRENT_VERSION}" == "${RELEASE_VERSION}" ]]; then
-            echo "VERSION already matches ${RELEASE_VERSION}; nothing to commit."
+          printf '%s\n' "${RELEASE_VERSION}" > VERSION
+          RELEASE_DATE="${RELEASE_PUBLISHED_AT%%T*}"
+          python scripts/sync_changelog_from_release.py \
+            --version "${RELEASE_VERSION}" \
+            --notes "${RELEASE_NOTES}" \
+            --release-date "${RELEASE_DATE}"
+          if git diff --quiet -- VERSION CHANGELOG.md; then
+            echo "VERSION and CHANGELOG already aligned for ${RELEASE_VERSION}; nothing to commit."
             exit 0
           fi
-          printf '%s\n' "${RELEASE_VERSION}" > VERSION
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add VERSION
-          git commit -m "chore: sync VERSION to ${RELEASE_VERSION} [skip ci]"
+          git add VERSION CHANGELOG.md
+          git commit -m "chore: sync VERSION and CHANGELOG to ${RELEASE_VERSION} [skip ci]"
           git push origin "HEAD:${DEFAULT_BRANCH}"

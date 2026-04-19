@@ -50,7 +50,8 @@ If your change affects installation, configuration, commands, or runtime behavio
 
 ## Release process
 
-1. Update `CHANGELOG.md` and `VERSION`.
+1. Update `VERSION` and create/publish the GitHub release with complete release notes.
+   (`CHANGELOG.md` is synced from release notes by the release workflow.)
 2. Open a release PR using `.github/PULL_REQUEST_TEMPLATE/release.md`.
 3. Fill out RC evidence in the PR body and/or `docs/RC_TEST_MATRIX.md`.
 4. Run `nanoleaf-kde-sync-doctor` and `nanoleaf-kde-sync-smoke-test` for required matrix rows.
