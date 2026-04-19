@@ -44,7 +44,13 @@ class KMSGrabCapture:
             card_path=card_path
             or os.environ.get("NANOLEAF_DRM_CARD", "/dev/dri/card0"),
         )
-        self._fallback = KWinDBusScreenshotCapture(width=width, height=height)
+        self._fallback = KWinDBusScreenshotCapture(
+            width=width,
+            height=height,
+            hdr_max_nits=hdr_max_nits,
+            hdr_transfer=hdr_transfer,
+            hdr_primaries=hdr_primaries,
+        )
         self._allow_fallback = bool(allow_fallback)
         self.last_capture_path: str = "drm-kms"
 
@@ -71,7 +77,7 @@ class KMSGrabCapture:
 
             fallback_rgb = self._fallback.capture()
             self.last_capture_path = "kwin-dbus"
-            return self._convert_if_needed(fallback_rgb)
+            return fallback_rgb
 
     def _capture_drm_rgb(self) -> np.ndarray:
         """Try available DRM capture bindings, otherwise raise KMSGrabError."""

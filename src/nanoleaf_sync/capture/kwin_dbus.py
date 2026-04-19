@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -727,6 +728,8 @@ class KWinDBusScreenshotCapture:
     def _decode_known_qimage_raw_formats(
         self, *, data: bytes, width: int, height: int, stride: int, image_format: int
     ) -> np.ndarray | None:
+        if sys.byteorder != "little":
+            return None
         # Qt: RGB32=4, ARGB32=5. Both are B G R A/x in memory order on little-endian.
         if image_format not in (4, 5):
             return None

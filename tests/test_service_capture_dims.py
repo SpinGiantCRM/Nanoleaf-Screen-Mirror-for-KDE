@@ -94,9 +94,16 @@ def test_detect_primary_screen_dims_returns_none_for_invalid_qt_module() -> None
 
 
 def test_resolve_capture_dims_caps_to_low_latency_default(monkeypatch) -> None:
+    calls = {"count": 0}
+
+    def _fake_detect() -> tuple[int, int]:
+        calls["count"] += 1
+        return (3440, 1440)
+
     monkeypatch.setattr(
         "nanoleaf_sync.capture.dimensions.detect_primary_screen_dims",
-        lambda: (3440, 1440),
+        _fake_detect,
     )
     w, h = _resolve_capture_dims(AppConfig())
-    assert (w, h) == (480, 270)
+    assert calls["count"] == 1
+    assert (w, h) == (_DEFAULT_CAPTURE_WIDTH, _DEFAULT_CAPTURE_HEIGHT)

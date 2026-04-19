@@ -95,7 +95,11 @@ class ConfigManager:
         if not self.path.exists():
             return AppConfig()
 
-        raw = self.path.read_text(encoding="utf-8")
+        try:
+            raw = self.path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            # Config corruption/unreadable file should not prevent the app from starting.
+            return AppConfig()
         try:
             data = tomllib.loads(raw) if raw.strip() else {}
         except tomllib.TOMLDecodeError:
