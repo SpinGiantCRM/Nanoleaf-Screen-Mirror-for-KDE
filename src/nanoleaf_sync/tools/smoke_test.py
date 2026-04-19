@@ -6,6 +6,7 @@ from nanoleaf_sync.capture.factory import create_capture_backend
 from nanoleaf_sync.config.store import ConfigManager
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
+from nanoleaf_sync.runtime.errors import translate_runtime_error
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -32,7 +33,14 @@ def main(argv: list[str] | None = None) -> int:
         hdr_transfer=cfg.hdr_transfer,
         hdr_primaries=cfg.hdr_primaries,
     )
-    frame = capture.capture()
+    try:
+        frame = capture.capture()
+    except Exception as exc:
+        translated = translate_runtime_error(exc)
+        print(f"capture failed: kind={translated.kind}")
+        print(f"capture error: {translated.summary}")
+        print(f"guidance: {translated.guidance}")
+        raise SystemExit(1) from exc
     print(f"capture ok: frame shape={frame.shape}")
 
     driver = NanoleafUSBDriver(ids=NanoleafUSBIds(vid=cfg.device_vid, pid=cfg.device_pid))
