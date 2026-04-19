@@ -29,6 +29,7 @@ class XDGPortalCapture:
     _PORTAL_BUS = "org.freedesktop.portal.Desktop"
     _PORTAL_PATH = "/org/freedesktop/portal/desktop"
     _PORTAL_IFACE = "org.freedesktop.portal.ScreenCast"
+    _SESSION_IFACE = "org.freedesktop.portal.Session"
     _REQUEST_IFACE = "org.freedesktop.portal.Request"
 
     def __init__(
@@ -47,6 +48,7 @@ class XDGPortalCapture:
         )
         self._pw_fd: Optional[int] = None
         self._node_id: Optional[int] = None
+        self._session_handle: Optional[str] = None
         self._initialized = False
         self._use_gstreamer = False
 
@@ -75,6 +77,7 @@ class XDGPortalCapture:
             except OSError:
                 pass
             self._pw_fd = None
+        self._close_portal_session_sync()
         self._initialized = False
 
     def _negotiate_portal_sync(self) -> tuple[int, int]:
@@ -159,6 +162,7 @@ class XDGPortalCapture:
         if response_code != 0:
             raise XDGPortalError(f"CreateSession denied (response={response_code}).")
         session_handle = msg.body[1]["session_handle"].value
+        self._session_handle = str(session_handle)
 
         restore_token = self._load_restore_token()
         handle_token2 = f"h{random.randint(10000, 99999)}"
@@ -294,9 +298,9 @@ class XDGPortalCapture:
             "!",
             "filesink",
             f"location={self._shm_file.name}",
-            "append=true",
+            "append=false",
         ]
-        self._gst_proc = subprocess.Popen(cmd, close_fds=True)
+        self._gst_proc = subprocess.Popen(cmd, close_fds=True, pass_fds=(fd,))
         self._shm_mm = mmap.mmap(self._shm_file.fileno(), frame_bytes)
         self._frame_bytes = frame_bytes
         self._use_gstreamer = True
@@ -340,6 +344,57 @@ class XDGPortalCapture:
         loop = getattr(self, "_pw_main_loop", None)
         if loop is not None:
             loop.quit()
+
+    async def _close_portal_session(self, session_handle: str) -> None:
+        from dbus_next import Message
+        from dbus_next.aio import MessageBus
+
+        bus = await MessageBus().connect()
+        try:
+            await bus.call(
+                Message(
+                    destination=self._PORTAL_BUS,
+                    path=session_handle,
+                    interface=self._SESSION_IFACE,
+                    member="Close",
+                )
+            )
+        finally:
+            disconnect = getattr(bus, "disconnect", None)
+            if disconnect is not None:
+                maybe = disconnect()
+                if asyncio.iscoroutine(maybe):
+                    await maybe
+
+    def _close_portal_session_sync(self) -> None:
+        if not self._session_handle:
+            return
+
+        session_handle = self._session_handle
+        self._session_handle = None
+        try:
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                asyncio.run(self._close_portal_session(session_handle))
+                return
+
+            error: BaseException | None = None
+
+            def _worker() -> None:
+                nonlocal error
+                try:
+                    asyncio.run(self._close_portal_session(session_handle))
+                except BaseException as exc:  # pragma: no cover - defensive fallback
+                    error = exc
+
+            thread = threading.Thread(target=_worker, daemon=True)
+            thread.start()
+            thread.join()
+            if error is not None:
+                raise error
+        except Exception:
+            pass
 
     def _load_restore_token(self) -> Optional[str]:
         try:
