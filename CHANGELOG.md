@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-04-19
+
+## What's Changed
+* Add missing `on_troubleshooting` handler to fix tray startup crash by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/116
+
+
+**Full Changelog**: https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/compare/v0.5.4...v0.5.5
+
 ## [0.5.4] - 2026-04-19
 
 ## What's Changed
