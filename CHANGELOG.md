@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-04-19
+
+## What's Changed
+* Improve GUI launch robustness and add display configurator presets by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/113
+
+
+**Full Changelog**: https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/compare/v0.5.1...v0.5.2
+
 ## [0.5.1] - 2026-04-19
 
 ## What's Changed
