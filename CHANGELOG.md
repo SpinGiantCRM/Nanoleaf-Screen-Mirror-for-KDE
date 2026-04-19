@@ -11,12 +11,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added CI lint/type checks and Python 3.12 test coverage.
 
 ### Changed
-- README startup/troubleshooting wording was clarified to recommend tray-first launch flow and improve environment guidance (housekeeping).
-- `docs/TROUBLESHOOTING.md` was cleaned up for clearer KWin authorization, HDR guidance, and device reconnection steps (housekeeping).
-- `docs/HARDWARE_SETUP.md` wording was standardized for USB IDs, udev reload steps, and logout/login guidance (housekeeping).
-- `docs/SMOKE_TEST.md` wording was clarified for basic checks and optional test-frame validation intent (housekeeping).
-- `docs/RC_TEST_MATRIX.md` expectations were clarified for X11 compatibility-check rows (housekeeping).
-- `CONTRIBUTING.md` release-step wording was corrected for clearer tag creation instructions (housekeeping).
+- README now provides a clearer tray-first startup flow while still documenting direct service startup as an alternative.
+- README troubleshooting highlights now use consistent KWin ScreenShot2 wording and clearer Wayland/environment guidance.
+- README now links key operational docs in one documentation section and aligns quick-start wording with current commands.
+- `docs/TROUBLESHOOTING.md` now uses clearer labels and action wording for KWin authorization, HID/udev checks, HDR tuning, and reconnect steps.
+- `docs/HARDWARE_SETUP.md` now standardizes USB ID heading text, udev rule wording, and logout/login instructions.
+- `docs/SMOKE_TEST.md` now clarifies that the optional test-frame command validates device output with a low-brightness RGB pattern.
+- `docs/RC_TEST_MATRIX.md` now makes X11 rows explicitly compatibility checks and clarifies expected behavior for real-capture vs mock scenarios.
+- `CONTRIBUTING.md` release guidance now reads: create and push a tag only after the release checklist is fully complete.
+- Changelog documentation entries were expanded so each notable docs housekeeping change is recorded individually instead of in a single broad summary.
 - Capture factory now accepts explicit HDR args; KWin DBus capture forwards HDR metadata and relies on conversion logic to interpret it.
 - Empty `mode` values now raise a clear `ValueError` instead of defaulting to `full-real`.
 - Settings dialog smoothing label now describes user-visible behavior (`0 = smooth`, `100 = instant`).
