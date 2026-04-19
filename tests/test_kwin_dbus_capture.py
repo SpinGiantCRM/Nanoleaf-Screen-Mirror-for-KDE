@@ -90,15 +90,27 @@ def test_screenshot2_payload_rejects_unsupported_type() -> None:
         )
 
 
-def test_screenshot2_authorization_error_is_actionable() -> None:
+def test_screenshot2_authorization_error_is_actionable(monkeypatch) -> None:
     backend = KWinDBusScreenshotCapture(width=2, height=1)
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.kwin_dbus.launch_context_snapshot",
+        lambda: {
+            "DESKTOP_STARTUP_ID": "startup-secret-token",
+            "XDG_ACTIVATION_TOKEN": "activation-secret-token",
+        },
+    )
 
     class _Reply:
         error_name = "org.freedesktop.DBus.Error.AccessDenied"
         body = ["not authorized"]
 
-    with pytest.raises(KWinDBusCaptureError, match="cannot associate this process"):
+    with pytest.raises(KWinDBusCaptureError, match="cannot associate this process") as exc_info:
         backend._raise_screenshot2_error(_Reply())
+    message = str(exc_info.value)
+    assert "startup-secret-token" not in message
+    assert "activation-secret-token" not in message
+    assert "star…oken" in message
+    assert "acti…oken" in message
 
 
 def test_screenshot2_noauthorized_error_is_actionable() -> None:

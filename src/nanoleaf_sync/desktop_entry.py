@@ -85,6 +85,18 @@ def launch_context_snapshot() -> dict[str, str]:
     return {key: os.environ.get(key, "").strip() for key in keys}
 
 
+def redact_launch_token(value: str | None) -> str:
+    """
+    Return a non-sensitive summary for launch/auth tokens used in diagnostics.
+    """
+    token = (value or "").strip()
+    if not token:
+        return "unset"
+    if len(token) <= 8:
+        return "***"
+    return f"{token[:4]}…{token[-4:]}"
+
+
 def _resolved_desktop_source() -> Path | None:
     template = source_desktop_template_path()
     if template.exists():

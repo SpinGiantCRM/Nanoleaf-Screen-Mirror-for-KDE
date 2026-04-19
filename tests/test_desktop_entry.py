@@ -42,3 +42,10 @@ def test_launch_context_snapshot_reads_expected_env(monkeypatch) -> None:
     assert snapshot["XDG_SESSION_DESKTOP"] == "KDE"
     assert snapshot["KDE_SESSION_VERSION"] == "6"
     assert snapshot["DBUS_SESSION_BUS_ADDRESS"] == "unix:path=/tmp/bus"
+
+
+def test_redact_launch_token_masks_sensitive_values() -> None:
+    assert desktop_entry.redact_launch_token(None) == "unset"
+    assert desktop_entry.redact_launch_token("   ") == "unset"
+    assert desktop_entry.redact_launch_token("abcd1234") == "***"
+    assert desktop_entry.redact_launch_token("abcdefghijkl") == "abcd…ijkl"

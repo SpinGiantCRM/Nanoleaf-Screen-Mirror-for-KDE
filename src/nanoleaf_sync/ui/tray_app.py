@@ -14,6 +14,7 @@ from nanoleaf_sync.desktop_entry import (
     disable_autostart,
     enable_autostart,
     launch_context_snapshot,
+    redact_launch_token,
     user_autostart_path,
 )
 from nanoleaf_sync.service import NanoleafSyncService
@@ -143,8 +144,8 @@ class NanoleafTrayApp:
 
     def _show_startup_launch_diagnostic(self) -> None:
         context = launch_context_snapshot()
-        startup_id = context.get("DESKTOP_STARTUP_ID") or "unset"
-        activation = context.get("XDG_ACTIVATION_TOKEN") or "unset"
+        startup_id = redact_launch_token(context.get("DESKTOP_STARTUP_ID"))
+        activation = redact_launch_token(context.get("XDG_ACTIVATION_TOKEN"))
         self.tray_icon.showMessage(
             "nanoleaf-kde-sync startup context",
             (
