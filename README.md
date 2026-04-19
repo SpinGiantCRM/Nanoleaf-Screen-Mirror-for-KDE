@@ -24,7 +24,7 @@ It captures the active display, maps sampled colors to Nanoleaf zones, and sends
 - Tray-managed autostart enable/disable with KDE desktop authorization marker
 - Guided strip alignment controls (zone count, reverse, offset, preview mapping)
 - User-facing HDR tuning controls (transfer, primaries, max nits)
-- Simple service entrypoint for continuous mirroring
+- Service entry point for continuous mirroring
 
 ## Supported devices
 
@@ -58,9 +58,11 @@ nanoleaf-kde-sync-smoke-test
 - `"device_vid": 14330` (`0x37fa`)
 - `"device_pid": 33282` (`0x8202`) or `33281` (`0x8201`)
 
-4. Start mirroring:
+4. Start the tray app (recommended) or service directly:
 
 ```bash
+nanoleaf-kde-sync
+# or
 nanoleaf-kde-sync-service
 ```
 
@@ -81,14 +83,14 @@ pip install -e .[test]
 pytest -q
 ```
 
-## Troubleshooting
+## Troubleshooting highlights
 
 See the full guide at [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
 
-- **No frame capture**: Ensure you are running KDE Plasma 6 Wayland and accepted the screenshot permission prompt.
-- **ScreenShot2 authorization error (`...NoAuthorized` / `...NotAuthorized`)**:
+- **No frame capture**: Ensure you are running KDE Plasma 6 on Wayland and accepted the screenshot permission prompt.
+- **KWin ScreenShot2 authorization errors** (`...NoAuthorized` / `...NotAuthorized`):
   launching `nanoleaf-kde-sync-service` directly from a terminal can be denied by KDE policy.
-  Prefer launching from the installed desktop entry/tray workflow so KDE can apply the
+  Prefer launching from the installed desktop entry/tray flow so KDE can apply the
   `X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2` authorization context.
 - **USB permission denied**: Install and reload the udev rule:
 
@@ -106,8 +108,8 @@ See the full guide at [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
 ## Supported environment
 
 - Linux
-- KDE Plasma 6 (Wayland)
-- Nanoleaf USB device with supported VID/PID
+- KDE Plasma 6 (Wayland recommended)
+- Nanoleaf USB device with a supported VID/PID
 
 ### Capture backend guidance (CachyOS/KDE)
 

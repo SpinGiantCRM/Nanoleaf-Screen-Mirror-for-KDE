@@ -1,6 +1,6 @@
 # Smoke Test Guide
 
-## Basic
+## Basic checks
 
 ```bash
 nanoleaf-kde-sync-doctor
@@ -13,4 +13,4 @@ nanoleaf-kde-sync-smoke-test
 nanoleaf-kde-sync-smoke-test --send-test-frame
 ```
 
-This sends a low-brightness RGB pattern to verify output.
+This command sends a low-brightness RGB pattern to verify device output.

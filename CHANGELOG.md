@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added CI lint/type checks and Python 3.12 test coverage.
 
 ### Changed
+- Documentation wording was cleaned up for clarity and consistency across README, troubleshooting, hardware setup, smoke testing, RC matrix, and contribution guides.
 - Capture factory now accepts explicit HDR args; KWin DBus capture forwards HDR metadata and relies on conversion logic to interpret it.
 - Empty `mode` values now raise a clear `ValueError` instead of defaulting to `full-real`.
 - Settings dialog smoothing label now describes user-visible behavior (`0 = smooth`, `100 = instant`).
