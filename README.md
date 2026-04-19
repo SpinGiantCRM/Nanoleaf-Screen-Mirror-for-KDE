@@ -2,11 +2,19 @@
 
 ![CI](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-Source%20Available-blue)
-![Version](https://img.shields.io/badge/version-0.1.0-informational)
+![Version](https://img.shields.io/badge/version-0.4.8-informational)
 
 Nanoleaf Screen Mirror for KDE brings Nanoleaf desktop mirroring to Linux on KDE Plasma 6.
 
 It captures the active display, maps sampled colors to Nanoleaf zones, and sends frames to supported Nanoleaf USB devices.
+
+## Documentation
+
+- [Troubleshooting guide](docs/TROUBLESHOOTING.md)
+- [Hardware setup](docs/HARDWARE_SETUP.md)
+- [Smoke test guide](docs/SMOKE_TEST.md)
+- [RC test matrix](docs/RC_TEST_MATRIX.md)
+- [Contributing](CONTRIBUTING.md)
 
 ## Features
 
@@ -62,6 +70,15 @@ nanoleaf-kde-sync-service
 nanoleaf-kde-sync-autostart status
 nanoleaf-kde-sync-autostart enable
 nanoleaf-kde-sync-autostart disable
+```
+
+## Developer quick start
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .[test]
+pytest -q
 ```
 
 ## Troubleshooting
