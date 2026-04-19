@@ -97,7 +97,7 @@ def test_screenshot2_authorization_error_is_actionable() -> None:
         error_name = "org.freedesktop.DBus.Error.AccessDenied"
         body = ["not authorized"]
 
-    with pytest.raises(KWinDBusCaptureError, match="launched from a plain terminal"):
+    with pytest.raises(KWinDBusCaptureError, match="cannot associate this process"):
         backend._raise_screenshot2_error(_Reply())
 
 
@@ -108,7 +108,7 @@ def test_screenshot2_noauthorized_error_is_actionable() -> None:
         error_name = "org.kde.KWin.ScreenShot2.Error.NoAuthorized"
         body = ["NoAuthorized"]
 
-    with pytest.raises(KWinDBusCaptureError, match="desktop entry/launcher"):
+    with pytest.raises(KWinDBusCaptureError, match="Qt desktop file name"):
         backend._raise_screenshot2_error(_Reply())
 
 
