@@ -12,6 +12,7 @@ from nanoleaf_sync.config.store import ConfigManager, mode_config
 from nanoleaf_sync.desktop_entry import (
     QT_DESKTOP_FILE_NAME,
     disable_autostart,
+    ensure_user_launcher_entry,
     enable_autostart,
     launch_context_snapshot,
     redact_launch_token,
@@ -98,6 +99,11 @@ class NanoleafTrayApp:
         self.app = qt["QApplication"](sys.argv)
         self.app.setApplicationName(QT_DESKTOP_FILE_NAME)
         self.app.setDesktopFileName(QT_DESKTOP_FILE_NAME)
+        try:
+            ensure_user_launcher_entry()
+        except Exception:
+            # Keep startup resilient even if desktop entry patching fails.
+            pass
         self.cfg_mgr = ConfigManager()
         self._startup_warning: str | None = None
         try:
