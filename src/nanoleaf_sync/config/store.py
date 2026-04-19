@@ -55,9 +55,9 @@ def mode_config(mode: str) -> AppConfig:
     if not normalized:
         raise ValueError("mode cannot be empty. Expected one of: full-real, diagnostic.")
     if normalized in ("full-real", "real", "capture-real"):
-        return validate_config(AppConfig(use_mock_capture=False, prefer_backend="kwin-dbus"))
+        return validate_config(AppConfig(use_mock_capture=False, prefer_backend="auto"))
     if normalized in ("diagnostic", "diag", "full-mock", "mock"):
-        return validate_config(AppConfig(use_mock_capture=True, prefer_backend="kwin-dbus"))
+        return validate_config(AppConfig(use_mock_capture=True, prefer_backend="auto"))
     raise ValueError(
         f"Unsupported mode '{mode}'. Expected one of: full-real, diagnostic."
     )

@@ -105,7 +105,12 @@ def process_frame(
     if raw_colors.size == 0:
         return []
 
-    mapped = raw_colors[np.asarray(device_zone_indices, dtype=np.intp)].astype(np.float32, copy=False)
+    if isinstance(device_zone_indices, np.ndarray):
+        zone_indices = device_zone_indices
+    else:
+        zone_indices = np.asarray(device_zone_indices, dtype=np.intp)
+
+    mapped = raw_colors[zone_indices].astype(np.float32, copy=False)
 
     b = max(0.0, min(1.0, float(brightness)))
     if b != 1.0:

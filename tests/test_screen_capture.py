@@ -22,14 +22,14 @@ def test_capture_factory_mock_is_reusable() -> None:
     assert frame1 is frame2
 
 
-def test_capture_factory_rejects_unsupported_real_backends() -> None:
-    with pytest.raises(ValueError, match="Supported real backends"):
-        create_capture_backend(
-            width=6,
-            height=4,
-            use_mock_capture=False,
-            prefer_backend="kmsgrab",
-        )
+def test_capture_factory_creates_kmsgrab_backend() -> None:
+    backend = create_capture_backend(
+        width=6,
+        height=4,
+        use_mock_capture=False,
+        prefer_backend="kmsgrab",
+    )
+    assert backend.name == "kmsgrab"
 
 
 def test_capture_factory_creates_xdg_portal_backend() -> None:
@@ -40,6 +40,17 @@ def test_capture_factory_creates_xdg_portal_backend() -> None:
         prefer_backend="xdg-portal",
     )
     assert backend.name == "xdg-portal"
+
+
+def test_capture_factory_auto_prefers_kmsgrab_on_cachyos(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.capture.factory._is_cachyos", lambda: True)
+    backend = create_capture_backend(
+        width=6,
+        height=4,
+        use_mock_capture=False,
+        prefer_backend="auto",
+    )
+    assert backend.name == "kmsgrab"
 
 
 def test_kmsgrab_converts_hdr_before_any_resizing(monkeypatch) -> None:
