@@ -95,6 +95,8 @@ Wizard flow:
    - **Hyper** (strongest and most reactive)
 3. **HDR tuning** (if HDR selected): transfer (`sRGB` vs `PQ`), primaries (`BT.709` vs `BT.2020`), and `HDR max nits`.
 
+   > **Note**: In `config.toml`, `transfer`/`primaries` use lowercase values: `srgb`/`pq`, `bt709`/`bt2020`.
+
 Tooltip help is included in Settings for these display fields.
 
 ## Developer quick start

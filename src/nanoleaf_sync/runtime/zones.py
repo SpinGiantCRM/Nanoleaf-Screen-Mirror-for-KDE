@@ -43,6 +43,37 @@ _M2_INV = np.array(
 )
 
 
+_COLOR_MODE_PROFILES = {
+    "default": {
+        "base_mix": 0.16,
+        "contrast_w": 0.30,
+        "motion_w": 0.25,
+        "standout_w": 0.20,
+        "vivid_sat": 0.45,
+        "max_step": 62.0,
+        "blend": 0.35,
+    },
+    "dynamic": {
+        "base_mix": 0.22,
+        "contrast_w": 0.34,
+        "motion_w": 0.32,
+        "standout_w": 0.28,
+        "vivid_sat": 0.50,
+        "max_step": 78.0,
+        "blend": 0.38,
+    },
+    "hyper": {
+        "base_mix": 0.28,
+        "contrast_w": 0.38,
+        "motion_w": 0.36,
+        "standout_w": 0.34,
+        "vivid_sat": 0.58,
+        "max_step": 95.0,
+        "blend": 0.42,
+    },
+}
+
+
 def _ensure_rgb_u8(image: np.ndarray) -> np.ndarray:
     """
     Ensure `image` is an RGB uint8 array.
@@ -164,11 +195,7 @@ def zone_colors_array(
     if normalized_mode == "balanced":
         return means
 
-    profile = {
-        "default": {"base_mix": 0.16, "contrast_w": 0.30, "motion_w": 0.25, "standout_w": 0.20, "vivid_sat": 0.45, "max_step": 62.0, "blend": 0.35},
-        "dynamic": {"base_mix": 0.22, "contrast_w": 0.34, "motion_w": 0.32, "standout_w": 0.28, "vivid_sat": 0.50, "max_step": 78.0, "blend": 0.38},
-        "hyper": {"base_mix": 0.28, "contrast_w": 0.38, "motion_w": 0.36, "standout_w": 0.34, "vivid_sat": 0.58, "max_step": 95.0, "blend": 0.42},
-    }.get(normalized_mode)
+    profile = _COLOR_MODE_PROFILES.get(normalized_mode)
     if profile is None:
         return means
 

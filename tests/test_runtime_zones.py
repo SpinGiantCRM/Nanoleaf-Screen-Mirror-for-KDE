@@ -61,3 +61,6 @@ def test_color_modes_are_meaningfully_different() -> None:
     assert int(default[0]) >= int(balanced[0])
     assert int(dynamic[0]) >= int(default[0])
     assert int(hyper[0]) >= int(dynamic[0])
+    assert tuple(default) != tuple(balanced)
+    assert tuple(dynamic) != tuple(default)
+    assert tuple(hyper) != tuple(dynamic)

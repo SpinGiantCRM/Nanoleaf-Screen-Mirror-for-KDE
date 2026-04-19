@@ -168,7 +168,7 @@ def test_settings_dialog_constructs_and_opens_with_qt_stubs(monkeypatch) -> None
     assert updated.hdr_primaries in {"bt709", "bt2020"}
     assert updated.device_zone_count == 0
     assert updated.output_channel_order == "grb"
-    assert updated.color_mode in {"default", "balanced", "dynamic", "hyper"}
+    assert updated.color_mode == "default"
     assert updated.start_on_launch is False
     assert updated.hdr_enabled is False
 

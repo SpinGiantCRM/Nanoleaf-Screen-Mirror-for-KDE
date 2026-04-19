@@ -176,10 +176,10 @@ class NanoleafTrayApp:
         self.tray_icon.setContextMenu(self._make_menu())
         self._refresh_mode_labels()
         self.tray_icon.show()
-        if not self.tray_icon.isVisible():
+        if not self.QSystemTrayIcon.isSystemTrayAvailable():
             raise RuntimeError(
-                "Tray icon failed to register with the desktop shell. "
-                f"Check StatusNotifier settings and logs at {self.startup_log_path}."
+                "System tray became unavailable during tray_icon registration. "
+                f"Check StatusNotifier settings and startup log at {self.startup_log_path}."
             )
 
         self._show_startup_launch_diagnostic()
@@ -361,10 +361,15 @@ class NanoleafTrayApp:
         dlg = DisplayConfiguratorDialog(parent=None, cfg=self.config)
         if dlg.exec() != self.QDialog.DialogCode.Accepted:
             return
+        was_running = self.service.is_running()
+        if was_running:
+            self.on_stop()
         self.config = dlg.updated_config()
         self.cfg_mgr.save(self.config)
         self.service = NanoleafSyncService(config=self.config)
         self._refresh_mode_labels()
+        if was_running:
+            self.on_start()
         self.tray_icon.showMessage(
             "nanoleaf-kde-sync",
             "Display setup saved.",

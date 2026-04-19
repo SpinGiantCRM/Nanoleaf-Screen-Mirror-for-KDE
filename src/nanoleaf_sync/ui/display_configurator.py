@@ -63,8 +63,10 @@ class DisplayConfiguratorDialog:
                 )
 
                 self.hdr_max_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.hdr_max_nits_slider.setRange(80, 4000)
-                self.hdr_max_nits_slider.setValue(int(getattr(cfg, "hdr_max_nits", 1000.0)))
+                self.hdr_max_nits_slider.setRange(80, 10000)
+                self.hdr_max_nits_slider.setValue(
+                    min(int(getattr(cfg, "hdr_max_nits", 1000.0)), self.hdr_max_nits_slider.maximum())
+                )
                 self.hdr_max_nits_value = QLabel("")
 
                 self.cancel_button = QPushButton("Cancel")
@@ -110,25 +112,23 @@ class DisplayConfiguratorDialog:
 
                 layout.addWidget(self.hdr_help)
                 step3 = QGridLayout()
-                step3.addWidget(QLabel("HDR transfer"), 0, 0)
+                self.hdr_transfer_label = QLabel("HDR transfer")
+                self.hdr_transfer_help_label = QLabel(
+                    "sRGB = safer SDR-style response | PQ = HDR transfer curve for HDR tone mapping"
+                )
+                self.hdr_primaries_label = QLabel("HDR primaries")
+                self.hdr_primaries_help_label = QLabel(
+                    "BT.709 = standard/smaller gamut | BT.2020 = wider gamut for HDR-capable paths"
+                )
+                self.hdr_max_nits_label = QLabel("HDR max brightness")
+
+                step3.addWidget(self.hdr_transfer_label, 0, 0)
                 step3.addWidget(self.hdr_transfer_combo, 0, 1)
-                step3.addWidget(
-                    QLabel("sRGB = safer SDR-style response | PQ = HDR transfer curve for HDR tone mapping"),
-                    1,
-                    0,
-                    1,
-                    2,
-                )
-                step3.addWidget(QLabel("HDR primaries"), 2, 0)
+                step3.addWidget(self.hdr_transfer_help_label, 1, 0, 1, 2)
+                step3.addWidget(self.hdr_primaries_label, 2, 0)
                 step3.addWidget(self.hdr_primaries_combo, 2, 1)
-                step3.addWidget(
-                    QLabel("BT.709 = standard/smaller gamut | BT.2020 = wider gamut for HDR-capable paths"),
-                    3,
-                    0,
-                    1,
-                    2,
-                )
-                step3.addWidget(QLabel("HDR max brightness"), 4, 0)
+                step3.addWidget(self.hdr_primaries_help_label, 3, 0, 1, 2)
+                step3.addWidget(self.hdr_max_nits_label, 4, 0)
                 step3.addWidget(self.hdr_max_nits_slider, 4, 1)
                 step3.addWidget(self.hdr_max_nits_value, 4, 2)
                 layout.addLayout(step3)
@@ -145,8 +145,13 @@ class DisplayConfiguratorDialog:
                 hdr_mode = str(self.display_mode_combo.currentText()) == "hdr"
                 for widget in (
                     self.hdr_help,
+                    self.hdr_transfer_label,
+                    self.hdr_transfer_help_label,
                     self.hdr_transfer_combo,
+                    self.hdr_primaries_label,
+                    self.hdr_primaries_help_label,
                     self.hdr_primaries_combo,
+                    self.hdr_max_nits_label,
                     self.hdr_max_nits_slider,
                     self.hdr_max_nits_value,
                 ):
