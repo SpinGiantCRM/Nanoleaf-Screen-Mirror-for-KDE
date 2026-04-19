@@ -52,7 +52,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          git archive --format=tar.gz --prefix="Nanoleaf-Screen-Mirror-for-KDE-${RELEASE_VERSION}/" -o "release-assets/Nanoleaf-Screen-Mirror-for-KDE-${RELEASE_VERSION}.tar.gz" HEAD
+          # Use tracked files from the working tree (not git archive from HEAD)
+          # so the temporary VERSION update applied above is reflected in the
+          # release source tarball.
+          git ls-files -z \
+            | tar --null -T - -czf "release-assets/Nanoleaf-Screen-Mirror-for-KDE-${RELEASE_VERSION}.tar.gz" \
+                --transform "s|^|Nanoleaf-Screen-Mirror-for-KDE-${RELEASE_VERSION}/|"
 
       - name: Stage release assets
         run: |
@@ -90,6 +95,7 @@ jobs:
           set -euo pipefail
           RELEASE_VERSION="${RELEASE_TAG#refs/tags/}"
           RELEASE_VERSION="${RELEASE_VERSION#v}"
+          git restore VERSION
           git fetch origin "${DEFAULT_BRANCH}"
           git checkout -B "sync-version-${RELEASE_VERSION}" "origin/${DEFAULT_BRANCH}"
           CURRENT_VERSION="$(cat VERSION)"
