@@ -18,3 +18,17 @@ def test_runtime_state_records_translated_error() -> None:
     assert state.last_error_kind == "device-not-found"
     assert "VID=0x37fa" in (state.last_error or "")
     assert state.last_error_guidance is not None
+
+
+def test_translate_kwin_signature_mismatch_error() -> None:
+    translated = translate_runtime_error(
+        RuntimeError("KWin ScreenShot2 interface is present but method/signature is incompatible with this Plasma version.")
+    )
+    assert translated.kind == "kwin-signature-mismatch"
+
+
+def test_translate_kwin_decode_error() -> None:
+    translated = translate_runtime_error(
+        RuntimeError("KWin screenshot payload decode failed for byte payload.")
+    )
+    assert translated.kind == "kwin-decode"

@@ -14,6 +14,9 @@ def test_qt_lazy_exports_qcombobox() -> None:
 
 def test_settings_dialog_constructs_and_opens_with_qt_stubs(monkeypatch) -> None:
     class _DummySignal:
+        def __init__(self):
+            self._callback = None
+
         def connect(self, callback):
             self._callback = callback
 
@@ -39,12 +42,15 @@ def test_settings_dialog_constructs_and_opens_with_qt_stubs(monkeypatch) -> None
     class _Slider:
         def __init__(self, _orientation):
             self._value = 0
+            self.valueChanged = _DummySignal()
 
         def setRange(self, _min, _max):
             pass
 
         def setValue(self, value):
             self._value = value
+            if self.valueChanged._callback is not None:
+                self.valueChanged._callback()
 
         def value(self):
             return self._value
@@ -52,9 +58,12 @@ def test_settings_dialog_constructs_and_opens_with_qt_stubs(monkeypatch) -> None
     class _Check:
         def __init__(self, _label):
             self._value = False
+            self.stateChanged = _DummySignal()
 
         def setChecked(self, value):
             self._value = bool(value)
+            if self.stateChanged._callback is not None:
+                self.stateChanged._callback()
 
         def isChecked(self):
             return self._value
@@ -84,8 +93,11 @@ def test_settings_dialog_constructs_and_opens_with_qt_stubs(monkeypatch) -> None
             pass
 
     class _Label:
-        def __init__(self, _text):
-            pass
+        def __init__(self, text):
+            self._text = text
+
+        def setText(self, text):
+            self._text = text
 
     class _Buttons:
         class StandardButton:
