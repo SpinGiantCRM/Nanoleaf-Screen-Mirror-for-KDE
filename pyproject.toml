@@ -7,7 +7,8 @@ name = "nanoleaf-kde-sync"
 dynamic = ["version"]
 description = "Nanoleaf screen mirroring for KDE Plasma on Linux."
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "LicenseRef-Nanoleaf-Source-Available-Non-Commercial"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = [
   "numpy>=1.21",
