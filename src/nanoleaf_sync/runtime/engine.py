@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+"""Frame-processing engine for the mirroring runtime loop.
+
+The functions in this module transform captured RGB frames into device-zone
+colors, apply brightness/smoothing, and handle runtime reinitialization hooks.
+"""
+
 import logging
 import time
 from typing import Sequence

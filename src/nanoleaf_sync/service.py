@@ -1,11 +1,23 @@
 from __future__ import annotations
 
+"""Long-running service that wires capture, processing, and USB output.
+
+This module owns startup/shutdown orchestration, capture dimension discovery,
+backend construction, and status reporting consumed by tray and CLI tools.
+"""
+
 import logging
 import signal
 import time
 from typing import Optional, Tuple
 
 from nanoleaf_sync.capture.interfaces import CaptureBackend
+from nanoleaf_sync.capture.dimensions import (
+    DEFAULT_CAPTURE_HEIGHT as _DEFAULT_CAPTURE_HEIGHT,
+    DEFAULT_CAPTURE_WIDTH as _DEFAULT_CAPTURE_WIDTH,
+    detect_primary_screen_dims,
+    resolve_capture_dims,
+)
 from nanoleaf_sync.capture.factory import create_capture_backend
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.store import ConfigManager
@@ -20,52 +32,12 @@ from nanoleaf_sync.runtime.state import RuntimeState
 
 logger = logging.getLogger(__name__)
 
-# Default capture dimensions used when no monitor-size detection is available.
-_DEFAULT_CAPTURE_WIDTH = 1920
-_DEFAULT_CAPTURE_HEIGHT = 1080
-
-
 def _detect_primary_screen_dims(*, qt_widgets_module=None) -> Optional[Tuple[int, int]]:
-    """Best-effort primary-screen detection via PyQt6."""
-    qt_widgets = qt_widgets_module
-    if qt_widgets is None:
-        try:
-            from PyQt6 import QtWidgets as qt_widgets  # type: ignore
-        except Exception:
-            return None
-
-    app = qt_widgets.QApplication.instance()
-    created_app = False
-    if app is None:
-        try:
-            app = qt_widgets.QApplication([])
-            created_app = True
-        except Exception:
-            return None
-
-    try:
-        screen = app.primaryScreen()
-        if screen is None:
-            return None
-        geometry = screen.geometry()
-        width = int(geometry.width())
-        height = int(geometry.height())
-        if width <= 0 or height <= 0:
-            return None
-        return width, height
-    except Exception:
-        return None
-    finally:
-        if created_app:
-            app.quit()
+    return detect_primary_screen_dims(qt_widgets_module=qt_widgets_module)
 
 
 def _resolve_capture_dims(config: AppConfig) -> Tuple[int, int]:
-    """Return (width, height) for capture initialization."""
-    detected = _detect_primary_screen_dims()
-    if detected is not None:
-        return detected
-    return _DEFAULT_CAPTURE_WIDTH, _DEFAULT_CAPTURE_HEIGHT
+    return resolve_capture_dims(config)
 
 
 class NanoleafSyncService:

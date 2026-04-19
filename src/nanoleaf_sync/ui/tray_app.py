@@ -61,11 +61,11 @@ def first_run_message(mode: str) -> str:
     normalized = (mode or "").strip().lower()
     if normalized == "full-real":
         return (
-            "Real Nanoleaf mode is now selected.\n"
+            "Real hardware mode is now selected.\n"
             "If the light is not detected, open Help → Troubleshooting from the tray menu."
         )
     return (
-        "Diagnostics mode is enabled. You can switch to Real Nanoleaf mode any time in Settings.\n"
+        "Mock (no hardware) mode is enabled. You can switch to Real hardware mode any time in Settings.\n"
         "Start the app from the tray menu when ready."
     )
 
@@ -93,9 +93,19 @@ class NanoleafTrayApp:
 
         self.app = qt["QApplication"](sys.argv)
         self.cfg_mgr = ConfigManager()
-        self._config_created = self.cfg_mgr.initialize(mode="full-real", force=False)
-        self.config = self.cfg_mgr.load()
-        self.service = NanoleafSyncService(config=self.config)
+        self._startup_warning: str | None = None
+        try:
+            self._config_created = self.cfg_mgr.initialize(mode="full-real", force=False)
+            self.config = self.cfg_mgr.load()
+            self.service = NanoleafSyncService(config=self.config)
+        except Exception as exc:
+            self._startup_warning = (
+                f"Failed to load config/service: {exc}. "
+                "Using safe defaults; open Settings and save to repair your config."
+            )
+            self._config_created = False
+            self.config = mode_config("diagnostic")
+            self.service = NanoleafSyncService(config=self.config)
 
         self.tray_icon = self.QSystemTrayIcon(self._make_icon(running=False))
         self.tray_icon.setContextMenu(self._make_menu())
@@ -110,6 +120,13 @@ class NanoleafTrayApp:
                 ),
                 self.QSystemTrayIcon.MessageIcon.Information,
                 7000,
+            )
+        if self._startup_warning:
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                self._startup_warning,
+                self.QSystemTrayIcon.MessageIcon.Warning,
+                10000,
             )
 
     def _make_icon(self, running: bool):
@@ -304,7 +321,10 @@ class NanoleafTrayApp:
                 preview, rc = summarize_command_output(result.stdout, result.stderr, result.returncode)
                 self.QTimer.singleShot(0, lambda: self._handle_tool_result(label=label, preview=preview, rc=rc))
             except Exception as exc:
-                self.QTimer.singleShot(0, lambda: self._handle_tool_error(label=label, error=exc))
+                self.QTimer.singleShot(
+                    0,
+                    lambda exc=exc: self._handle_tool_error(label=label, error=exc),
+                )
 
         threading.Thread(target=worker, daemon=True).start()
 

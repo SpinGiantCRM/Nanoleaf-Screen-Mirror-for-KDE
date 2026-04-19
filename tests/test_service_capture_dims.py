@@ -53,6 +53,10 @@ class _FakeQtWidgets:
     QApplication = _FakeQApplication
 
 
+class _InvalidQtWidgets:
+    pass
+
+
 def test_detect_primary_screen_dims_uses_existing_qt_app() -> None:
     app = _FakeQApplication([])
     dims = _detect_primary_screen_dims(qt_widgets_module=_FakeQtWidgets)
@@ -75,9 +79,15 @@ def test_detect_primary_screen_dims_creates_app_when_missing() -> None:
 
 
 def test_resolve_capture_dims_falls_back_to_defaults(monkeypatch) -> None:
-    monkeypatch.setattr("nanoleaf_sync.service._detect_primary_screen_dims", lambda: None)
+    monkeypatch.setattr("nanoleaf_sync.capture.dimensions.detect_primary_screen_dims", lambda: None)
 
     w, h = _resolve_capture_dims(AppConfig())
 
     assert w == _DEFAULT_CAPTURE_WIDTH
     assert h == _DEFAULT_CAPTURE_HEIGHT
+
+
+def test_detect_primary_screen_dims_returns_none_for_invalid_qt_module() -> None:
+    dims = _detect_primary_screen_dims(qt_widgets_module=_InvalidQtWidgets)
+
+    assert dims is None

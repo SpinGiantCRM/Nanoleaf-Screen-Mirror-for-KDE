@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+"""Desktop-entry discovery and autostart file management helpers.
+
+KDE ScreenShot2 access can depend on launch context, so this module ensures
+desktop entries and autostart files carry the required restricted-interface
+marker used by diagnostics and first-run tooling.
+"""
+
 import os
 from pathlib import Path
 
