@@ -3,10 +3,10 @@ from __future__ import annotations
 import argparse
 
 from nanoleaf_sync.capture.factory import create_capture_backend
+from nanoleaf_sync.capture.dimensions import resolve_capture_dims
 from nanoleaf_sync.config.store import ConfigManager
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
-from nanoleaf_sync.service import _resolve_capture_dims
 
 
 DEFAULT_SMOKE_WIDTH = 320
@@ -27,7 +27,7 @@ def main(argv: list[str] | None = None) -> int:
     print("== nanoleaf-kde-sync smoke test ==")
     print(f"capture mode: {'mock' if cfg.use_mock_capture else cfg.prefer_backend}")
     print("device mode: real-usb")
-    width, height = _resolve_capture_dims(cfg)
+    width, height = resolve_capture_dims(cfg)
     if width <= 0 or height <= 0:
         width, height = DEFAULT_SMOKE_WIDTH, DEFAULT_SMOKE_HEIGHT
 

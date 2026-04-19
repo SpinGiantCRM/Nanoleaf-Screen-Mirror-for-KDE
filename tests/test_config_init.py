@@ -20,6 +20,8 @@ def test_mode_config_presets() -> None:
 def test_mode_config_rejects_empty_mode() -> None:
     with pytest.raises(ValueError, match="mode cannot be empty"):
         mode_config("")
+    with pytest.raises(ValueError, match="mode cannot be empty"):
+        mode_config("   ")
 
 
 def test_initialize_respects_force_flag(tmp_path: Path) -> None:

@@ -75,7 +75,7 @@ def test_detect_primary_screen_dims_creates_app_when_missing() -> None:
 
 
 def test_resolve_capture_dims_falls_back_to_defaults(monkeypatch) -> None:
-    monkeypatch.setattr("nanoleaf_sync.service._detect_primary_screen_dims", lambda: None)
+    monkeypatch.setattr("nanoleaf_sync.capture.dimensions.detect_primary_screen_dims", lambda: None)
 
     w, h = _resolve_capture_dims(AppConfig())
 
