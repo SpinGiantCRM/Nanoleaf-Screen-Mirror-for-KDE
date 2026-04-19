@@ -63,6 +63,13 @@ class SettingsDialog:
                 self.fps_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.fps_slider.setRange(1, 60)
                 self.fps_slider.setValue(int(cfg.fps))
+                self.color_mode_combo = QComboBox()
+                self.color_mode_combo.addItems(["balanced", "dynamic"])
+                color_mode_idx = self.color_mode_combo.findText(str(getattr(cfg, "color_mode", "balanced")))
+                self.color_mode_combo.setCurrentIndex(max(0, color_mode_idx))
+                self.start_on_launch_checkbox = QCheckBox("Start mirroring automatically when tray app opens")
+                self.start_on_launch_checkbox.setChecked(bool(getattr(cfg, "start_on_launch", False)))
+                self.start_on_launch_checkbox.setToolTip("Automatically start mirroring after the tray icon appears.")
 
                 # Derive zone_count from existing zones; if empty, default to 1.
                 zone_count = len(cfg.zones) if cfg.zones else 1
@@ -83,6 +90,7 @@ class SettingsDialog:
                 self.reverse_checkbox.setChecked(
                     bool(getattr(cfg, "reverse_zones", False))
                 )
+                self.reverse_checkbox.setToolTip("Flip strip direction when colors appear mirrored left-to-right.")
 
                 device_zone_count = int(getattr(cfg, "device_zone_count", 0)) or int(
                     zone_count
@@ -92,6 +100,7 @@ class SettingsDialog:
                 self.device_zone_count_slider.setValue(device_zone_count)
                 self.device_zone_count_auto_checkbox = QCheckBox("Auto device zone count (match detected strip length)")
                 self.device_zone_count_auto_checkbox.setChecked(int(getattr(cfg, "device_zone_count", 0)) == 0)
+                self.device_zone_count_auto_checkbox.setToolTip("Use the strip zone count reported by the connected device.")
 
                 self.output_channel_order_combo = QComboBox()
                 self.output_channel_order_combo.addItems(["grb", "rgb", "rbg", "gbr", "brg", "bgr"])
@@ -103,6 +112,7 @@ class SettingsDialog:
                 self.mock_capture_checkbox.setChecked(
                     bool(getattr(cfg, "use_mock_capture", True))
                 )
+                self.mock_capture_checkbox.setToolTip("Use synthetic patterns for diagnostics without real screen capture.")
 
                 self.capture_backend_combo = QComboBox()
                 self.capture_backend_combo.addItems(["auto", "kwin-dbus", "kmsgrab", "xdg-portal"])
@@ -171,56 +181,48 @@ class SettingsDialog:
                 self.reverse_checkbox.stateChanged.connect(self._refresh_preview_label)
 
                 buttons = QDialogButtonBox(
-                    QDialogButtonBox.StandardButton.Ok
+                    QDialogButtonBox.StandardButton.Save
                     | QDialogButtonBox.StandardButton.Cancel
                 )
                 buttons.accepted.connect(self.accept)
                 buttons.rejected.connect(self.reject)
 
                 layout = QGridLayout()
-                layout.addWidget(QLabel("Brightness"), 0, 0)
-                layout.addWidget(self.brightness_slider, 0, 1)
-                layout.addWidget(self.brightness_value, 0, 2)
-                layout.addWidget(QLabel("Smoothing (min cutoff)"), 1, 0)
-                layout.addWidget(self.smoothing_slider, 1, 1)
-                layout.addWidget(self.smoothing_value, 1, 2)
-                layout.addWidget(QLabel("Smoothing speed coefficient"), 2, 0)
-                layout.addWidget(self.smoothing_speed_slider, 2, 1)
-                layout.addWidget(self.smoothing_speed_value, 2, 2)
-                layout.addWidget(QLabel("Capture FPS"), 3, 0)
-                layout.addWidget(self.fps_slider, 3, 1)
-                layout.addWidget(self.fps_value, 3, 2)
-                layout.addWidget(QLabel("Zone count"), 4, 0)
-                layout.addWidget(self.zone_count_slider, 4, 1)
-                layout.addWidget(self.zone_count_value, 4, 2)
-                layout.addWidget(QLabel("Zone preset"), 5, 0)
-                layout.addWidget(self.zone_preset_combo, 5, 1)
-                layout.addWidget(QLabel("Zone offset (calibration)"), 6, 0)
-                layout.addWidget(self.zone_offset_slider, 6, 1)
-                layout.addWidget(self.zone_offset_value, 6, 2)
-                layout.addWidget(self.reverse_checkbox, 7, 0, 1, 2)
-                layout.addWidget(QLabel("Device zone count"), 8, 0)
-                layout.addWidget(self.device_zone_count_slider, 8, 1)
-                layout.addWidget(self.device_zone_count_value, 8, 2)
-                layout.addWidget(self.device_zone_count_auto_checkbox, 9, 0, 1, 2)
-                layout.addWidget(QLabel("Output channel order"), 10, 0)
-                layout.addWidget(self.output_channel_order_combo, 10, 1)
-                layout.addWidget(self.mock_capture_checkbox, 11, 0, 1, 2)
-                layout.addWidget(QLabel("Capture backend"), 12, 0)
-                layout.addWidget(self.capture_backend_combo, 12, 1)
-                layout.addWidget(self.calibration_help, 13, 0, 1, 2)
-                layout.addWidget(self.preview_label, 14, 0, 1, 3)
-                layout.addWidget(self.hdr_help, 15, 0, 1, 2)
-                layout.addWidget(QLabel("HDR transfer"), 16, 0)
-                layout.addWidget(self.hdr_transfer_combo, 16, 1)
-                layout.addWidget(QLabel("HDR primaries"), 17, 0)
-                layout.addWidget(self.hdr_primaries_combo, 17, 1)
-                layout.addWidget(QLabel("HDR max nits"), 18, 0)
-                layout.addWidget(self.hdr_max_nits_slider, 18, 1)
-                layout.addWidget(self.hdr_max_nits_value, 18, 2)
-                layout.addWidget(QLabel("LED gamma"), 19, 0)
-                layout.addWidget(self.led_gamma_slider, 19, 1)
-                layout.addWidget(self.led_gamma_value, 19, 2)
+                def _add_labeled(row: int, text: str, control, value_label=None, *, tooltip: str = "") -> None:
+                    label = QLabel(text)
+                    if tooltip:
+                        if hasattr(label, "setToolTip"):
+                            label.setToolTip(tooltip)
+                        if hasattr(control, "setToolTip"):
+                            control.setToolTip(tooltip)
+                    layout.addWidget(label, row, 0)
+                    layout.addWidget(control, row, 1)
+                    if value_label is not None:
+                        layout.addWidget(value_label, row, 2)
+
+                _add_labeled(0, "Brightness", self.brightness_slider, self.brightness_value, tooltip="Controls LED output intensity without changing color balance.")
+                _add_labeled(1, "Smoothing (min cutoff)", self.smoothing_slider, self.smoothing_value, tooltip="Higher smoothing reduces flicker but adds delay.")
+                _add_labeled(2, "Smoothing speed coefficient", self.smoothing_speed_slider, self.smoothing_speed_value, tooltip="Makes smoothing react faster when colors change quickly.")
+                _add_labeled(3, "Capture FPS", self.fps_slider, self.fps_value, tooltip="Higher values can reduce latency but use more CPU/GPU.")
+                _add_labeled(4, "Colour mode", self.color_mode_combo, tooltip="Dynamic follows vivid or changing colours more aggressively.")
+                _add_labeled(5, "Zone count", self.zone_count_slider, self.zone_count_value, tooltip="Number of sampled screen regions mapped to strip zones.")
+                _add_labeled(6, "Zone preset", self.zone_preset_combo, tooltip="Edge-weighted tracks edges; horizontal splits into equal columns.")
+                _add_labeled(7, "Zone offset (calibration)", self.zone_offset_slider, self.zone_offset_value, tooltip="Shift mapping until left/right screen movement matches strip direction.")
+                layout.addWidget(self.reverse_checkbox, 8, 0, 1, 2)
+                _add_labeled(9, "Device zone count", self.device_zone_count_slider, self.device_zone_count_value, tooltip="Set physical strip zone count, or use auto-detect.")
+                layout.addWidget(self.device_zone_count_auto_checkbox, 10, 0, 1, 2)
+                _add_labeled(11, "Output channel order", self.output_channel_order_combo, tooltip="Color channel order expected by your strip controller.")
+                layout.addWidget(self.start_on_launch_checkbox, 12, 0, 1, 2)
+                layout.addWidget(self.mock_capture_checkbox, 13, 0, 1, 2)
+                _add_labeled(14, "Capture backend", self.capture_backend_combo, tooltip="Pick a capture backend, or keep auto for best available path.")
+                layout.addWidget(self.calibration_help, 15, 0, 1, 2)
+                layout.addWidget(self.preview_label, 16, 0, 1, 3)
+                layout.addWidget(self.hdr_help, 17, 0, 1, 2)
+                _add_labeled(18, "HDR transfer", self.hdr_transfer_combo, tooltip="Select source transfer curve for HDR capture paths.")
+                _add_labeled(19, "HDR primaries", self.hdr_primaries_combo, tooltip="Select display primaries used for HDR color conversion.")
+                _add_labeled(20, "HDR max nits", self.hdr_max_nits_slider, self.hdr_max_nits_value, tooltip="Peak luminance used for HDR tone mapping.")
+                _add_labeled(21, "LED gamma", self.led_gamma_slider, self.led_gamma_value, tooltip="Compensates LED non-linearity for smoother gradients.")
+                layout.addWidget(buttons, 22, 0, 1, 3)
                 self.setLayout(layout)
 
             def _on_calibration_control_changed(self) -> None:
@@ -267,6 +269,7 @@ class SettingsDialog:
                 fps = int(self.fps_slider.value())
                 zone_count = int(self.zone_count_slider.value())
                 zone_preset = str(self.zone_preset_combo.currentText())
+                color_mode = str(self.color_mode_combo.currentText())
                 zone_offset = int(self.zone_offset_slider.value())
                 reverse_zones = bool(self.reverse_checkbox.isChecked())
                 device_zone_count = 0 if self.device_zone_count_auto_checkbox.isChecked() else int(self.device_zone_count_slider.value())
@@ -292,6 +295,8 @@ class SettingsDialog:
                     led_gamma=led_gamma,
                     zones=new_zones,
                     zone_preset=zone_preset,
+                    color_mode=color_mode,
+                    start_on_launch=bool(self.start_on_launch_checkbox.isChecked()),
                     device_zone_count=device_zone_count,
                     output_channel_order=output_channel_order,
                     zone_offset=zone_offset,

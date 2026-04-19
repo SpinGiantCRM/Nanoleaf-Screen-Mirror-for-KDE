@@ -5,6 +5,7 @@ import importlib
 import json
 import logging
 import os
+from pathlib import Path
 import subprocess
 import sys
 import threading
@@ -76,6 +77,23 @@ def first_run_message(mode: str) -> str:
     )
 
 
+def _build_auto_start_bridge(qt: dict[str, object], callback):
+    class _AutoStartBridge(qt["QObject"]):
+        result_ready = qt["pyqtSignal"](bool)
+
+        def __init__(self):
+            super().__init__()
+            self.result_ready.connect(
+                self._deliver_result,
+                qt["Qt"].ConnectionType.QueuedConnection,
+            )
+
+        def _deliver_result(self, running: bool) -> None:
+            callback(bool(running))
+
+    return _AutoStartBridge()
+
+
 class NanoleafTrayApp:
     """
     KDE/Linux system tray UI for starting/stopping the background service.
@@ -86,8 +104,6 @@ class NanoleafTrayApp:
         self.QApplication = qt["QApplication"]
         self.QSystemTrayIcon = qt["QSystemTrayIcon"]
         self.QIcon = qt["QIcon"]
-        self.QPixmap = qt["QPixmap"]
-        self.QPainter = qt["QPainter"]
         self.QAction = qt["QAction"]
         self.QMenu = qt["QMenu"]
         self.QDialog = qt["QDialog"]
@@ -96,6 +112,7 @@ class NanoleafTrayApp:
         self.QVBoxLayout = qt["QVBoxLayout"]
         self.QTimer = qt["QTimer"]
         self.Qt = qt["Qt"]
+        self._auto_start_bridge = _build_auto_start_bridge(qt, self._handle_auto_start_result)
         self._set_qt_desktop_identity()
 
         self.app = qt["QApplication"](sys.argv)
@@ -121,7 +138,8 @@ class NanoleafTrayApp:
             self.config = mode_config("diagnostic")
             self.service = NanoleafSyncService(config=self.config)
 
-        self.tray_icon = self.QSystemTrayIcon(self._make_icon(running=False))
+        self._idle_icon, self._running_icon = self._load_tray_icons()
+        self.tray_icon = self.QSystemTrayIcon(self._idle_icon)
         self.tray_icon.setContextMenu(self._make_menu())
         self._refresh_mode_labels()
         self.tray_icon.show()
@@ -143,6 +161,8 @@ class NanoleafTrayApp:
                 self.QSystemTrayIcon.MessageIcon.Warning,
                 10000,
             )
+        if not self._config_created and bool(getattr(self.config, "start_on_launch", False)):
+            self.QTimer.singleShot(0, self._start_after_launch)
 
     def _set_qt_desktop_identity(self) -> None:
         for method_name in ("setDesktopFileName", "setApplicationName"):
@@ -165,14 +185,35 @@ class NanoleafTrayApp:
             6000,
         )
 
-    def _make_icon(self, running: bool):
-        pix = self.QPixmap(16, 16)
-        pix.fill(self.Qt.GlobalColor.transparent)
-        painter = self.QPainter(pix)
-        color = self.Qt.GlobalColor.green if running else self.Qt.GlobalColor.gray
-        painter.fillRect(0, 0, 16, 16, color)
-        painter.end()
-        return self.QIcon(pix)
+    def _load_tray_icons(self):
+        themed_idle = self.QIcon.fromTheme("nanoleaf-kde-sync")
+        if themed_idle.isNull():
+            themed_idle = self.QIcon.fromTheme("preferences-desktop-color")
+        themed_running = self.QIcon.fromTheme("media-playback-start")
+        if themed_running.isNull():
+            themed_running = self.QIcon.fromTheme("nanoleaf-kde-sync")
+
+        fallback_icon = self.QIcon()
+        for candidate in (
+            Path(__file__).resolve().parents[3] / "assets" / "icons" / "hicolor" / "scalable" / "apps" / "nanoleaf-kde-sync.svg",
+            Path(sys.prefix) / "share" / "icons" / "hicolor" / "scalable" / "apps" / "nanoleaf-kde-sync.svg",
+        ):
+            if candidate.exists():
+                fallback_icon = self.QIcon(str(candidate))
+                break
+
+        idle_icon = themed_idle if not themed_idle.isNull() else fallback_icon
+        running_icon = themed_running if not themed_running.isNull() else idle_icon
+        if idle_icon.isNull() or running_icon.isNull():
+            qt = load_qt()
+            pixmap = qt["QPixmap"](16, 16)
+            pixmap.fill(qt["QColor"](88, 88, 88))
+            fallback_generated_icon = self.QIcon(pixmap)
+            if idle_icon.isNull():
+                idle_icon = fallback_generated_icon
+            if running_icon.isNull():
+                running_icon = fallback_generated_icon
+        return idle_icon, running_icon
 
     def _make_menu(self):
         menu = self.QMenu()
@@ -226,7 +267,7 @@ class NanoleafTrayApp:
     def on_start(self):
         started = self.service.start()
         running = started and self.service.is_running()
-        self.tray_icon.setIcon(self._make_icon(running=running))
+        self.tray_icon.setIcon(self._running_icon if running else self._idle_icon)
         self._refresh_mode_labels()
         if not running:
             status = self.service.get_status()
@@ -241,8 +282,29 @@ class NanoleafTrayApp:
     def on_stop(self):
         self.service.stop()
         self.service.join(timeout=0.5)
-        self.tray_icon.setIcon(self._make_icon(running=False))
+        self.tray_icon.setIcon(self._idle_icon)
         self._refresh_mode_labels()
+
+    def _start_after_launch(self) -> None:
+        def worker() -> None:
+            started = self.service.start()
+            running = started and self.service.is_running()
+            self._auto_start_bridge.result_ready.emit(running)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _handle_auto_start_result(self, running: bool) -> None:
+        self.tray_icon.setIcon(self._running_icon if running else self._idle_icon)
+        if running:
+            return
+        status = self.service.get_status()
+        guidance = status.get("last_error_guidance") or "Run nanoleaf-kde-sync-doctor for diagnostics."
+        self.tray_icon.showMessage(
+            "nanoleaf-kde-sync",
+            f"Auto-start failed: {self.service.last_error or 'unknown error'}\n{guidance}",
+            self.QSystemTrayIcon.MessageIcon.Warning,
+            7000,
+        )
 
     def on_settings(self):
         dlg = SettingsDialog(parent=None, cfg=self.config)

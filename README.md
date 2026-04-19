@@ -23,7 +23,9 @@ It captures the active display, maps sampled colors to Nanoleaf zones, and sends
 - Configuration bootstrap and diagnostics commands
 - Tray-managed autostart enable/disable with KDE desktop authorization marker
 - Guided strip alignment controls (zone count, reverse, offset, preview mapping)
+- Balanced and Dynamic colour modes for stable vs responsive highlights
 - User-facing HDR tuning controls (transfer, primaries, max nits)
+- Optional auto-start mirroring when tray app launches (`start_on_launch`)
 - Service entry point for continuous mirroring
 
 ## Supported devices
@@ -56,10 +58,10 @@ nanoleaf-kde-sync-doctor
 nanoleaf-kde-sync-smoke-test
 ```
 
-3. Confirm device IDs in `~/.config/nanoleaf-kde-sync/config.json`:
+3. Confirm device IDs in `~/.config/nanoleaf-kde-sync/config.toml`:
 
-- `"device_vid": 14330` (`0x37fa`)
-- `"device_pid": 33282` (`0x8202`) or `33281` (`0x8201`)
+- `device_vid = 14330` (`0x37fa`)
+- `device_pid = 33282` (`0x8202`) or `33281` (`0x8201`)
 
 4. Start the tray app (recommended) or service directly:
 

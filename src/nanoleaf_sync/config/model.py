@@ -41,6 +41,8 @@ class AppConfig:
     # Larger values reduce CPU cost at the expense of color precision.
     zone_sampling_stride: int = 1
     zone_preset: str = "edge-weighted"
+    color_mode: str = "balanced"
+    start_on_launch: bool = False
 
     # USB / device
     device_vid: int = 0x37FA

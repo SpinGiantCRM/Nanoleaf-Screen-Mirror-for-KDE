@@ -98,3 +98,15 @@ def test_config_migrates_legacy_json_to_toml(tmp_path: Path) -> None:
     assert cfg.zone_preset == "horizontal"
     assert (tmp_path / "config.toml").exists()
     assert (tmp_path / "config.json.bak").exists()
+
+
+def test_config_persists_start_on_launch_and_color_mode(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    mgr = ConfigManager(path=cfg_path)
+
+    cfg = AppConfig(start_on_launch=True, color_mode="dynamic")
+    mgr.save(cfg)
+    loaded = mgr.load()
+
+    assert loaded.start_on_launch is True
+    assert loaded.color_mode == "dynamic"

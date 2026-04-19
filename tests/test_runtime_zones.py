@@ -14,3 +14,35 @@ def test_zone_averaging_uses_perceptual_oklab_midpoint() -> None:
     assert 136 <= midpoint[0] <= 144
     assert 79 <= midpoint[1] <= 87
     assert 158 <= midpoint[2] <= 166
+
+
+def test_dynamic_mode_biases_toward_vivid_highlights() -> None:
+    frame = np.zeros((4, 4, 3), dtype=np.uint8)
+    frame[:, :] = [40, 40, 40]
+    frame[1:3, 1:3] = [255, 30, 30]
+
+    balanced = zone_colors_array(frame, [(0, 0, 4, 4)], mode="balanced")
+    dynamic = zone_colors_array(frame, [(0, 0, 4, 4)], mode="dynamic")
+
+    assert dynamic[0, 0] > balanced[0, 0]
+    assert tuple(dynamic[0]) != tuple(balanced[0])
+
+
+def test_dynamic_mode_requires_stronger_signal_in_brighter_scene() -> None:
+    dark_frame = np.zeros((6, 6, 3), dtype=np.uint8)
+    dark_frame[:, :] = [25, 25, 25]
+    dark_frame[2:4, 2:4] = [180, 40, 40]
+
+    bright_frame = np.zeros((6, 6, 3), dtype=np.uint8)
+    bright_frame[:, :] = [170, 170, 170]
+    bright_frame[2:4, 2:4] = [220, 130, 130]
+
+    dark_balanced = zone_colors_array(dark_frame, [(0, 0, 6, 6)], mode="balanced")
+    dark_dynamic = zone_colors_array(dark_frame, [(0, 0, 6, 6)], mode="dynamic")
+    bright_balanced = zone_colors_array(bright_frame, [(0, 0, 6, 6)], mode="balanced")
+    bright_dynamic = zone_colors_array(bright_frame, [(0, 0, 6, 6)], mode="dynamic")
+
+    dark_red_lift = int(dark_dynamic[0, 0]) - int(dark_balanced[0, 0])
+    bright_red_lift = int(bright_dynamic[0, 0]) - int(bright_balanced[0, 0])
+
+    assert dark_red_lift > bright_red_lift
