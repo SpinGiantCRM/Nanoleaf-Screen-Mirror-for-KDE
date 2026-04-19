@@ -189,6 +189,27 @@ def test_capture_reuses_single_screenshot2_connection_across_frames(
     backend.close()
 
 
+def test_screenshot2_introspection_is_cached(monkeypatch) -> None:
+    backend = KWinDBusScreenshotCapture(width=2, height=1)
+    calls = {"introspect": 0}
+
+    class _FakeBus:
+        async def introspect(self, _bus_name, _path):
+            calls["introspect"] += 1
+            return object()
+
+    async def _fake_connect():
+        return _FakeBus()
+
+    monkeypatch.setattr(backend, "_connect_screenshot2_bus", _fake_connect)
+
+    backend._run_async(backend._get_screenshot2_introspection())
+    backend._run_async(backend._get_screenshot2_introspection())
+
+    assert calls["introspect"] == 1
+    backend.close()
+
+
 def test_capture_reconnects_and_retries_after_disconnect_error(
     tmp_path: Path, monkeypatch
 ) -> None:

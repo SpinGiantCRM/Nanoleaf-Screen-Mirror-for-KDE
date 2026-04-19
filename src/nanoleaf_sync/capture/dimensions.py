@@ -6,8 +6,8 @@ from typing import Optional, Tuple
 from nanoleaf_sync.config.model import AppConfig
 
 
-DEFAULT_CAPTURE_WIDTH = 1920
-DEFAULT_CAPTURE_HEIGHT = 1080
+DEFAULT_CAPTURE_WIDTH = 480
+DEFAULT_CAPTURE_HEIGHT = 270
 
 
 def _parse_mode_line(line: str) -> Optional[Tuple[int, int]]:
@@ -103,9 +103,13 @@ def detect_primary_screen_dims(*, qt_widgets_module=None) -> Optional[Tuple[int,
             app.quit()
 
 
-def resolve_capture_dims(_config: AppConfig) -> Tuple[int, int]:
+def resolve_capture_dims(config: AppConfig) -> Tuple[int, int]:
     """Return ``(width, height)`` for capture initialization."""
+    zone_count = max(1, len(getattr(config, "zones", ()) or ()))
+    target_w = max(DEFAULT_CAPTURE_WIDTH, zone_count * 4, 160)
+    target_h = max(DEFAULT_CAPTURE_HEIGHT, (target_w * 9) // 16, 90)
+
     detected = detect_primary_screen_dims()
     if detected is not None:
-        return detected
-    return DEFAULT_CAPTURE_WIDTH, DEFAULT_CAPTURE_HEIGHT
+        return min(target_w, int(detected[0])), min(target_h, int(detected[1]))
+    return target_w, target_h

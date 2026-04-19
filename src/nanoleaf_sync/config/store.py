@@ -18,9 +18,7 @@ from nanoleaf_sync.config.normalize import validate_config
 def _dump_toml(payload: Dict[str, Any]) -> str:
     try:
         import tomli_w
-
-        return tomli_w.dumps(payload)
-    except Exception:
+    except ImportError:
         lines: list[str] = []
         for key, value in payload.items():
             if key == "zones" and isinstance(value, list):
@@ -40,6 +38,8 @@ def _dump_toml(payload: Dict[str, Any]) -> str:
                 rendered = str(value)
             lines.append(f"{key} = {rendered}")
         return "\n".join(lines).rstrip() + "\n"
+
+    return tomli_w.dumps(payload)
 
 
 def default_config_path() -> Path:

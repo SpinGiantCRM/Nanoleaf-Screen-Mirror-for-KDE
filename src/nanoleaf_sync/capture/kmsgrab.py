@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from importlib import import_module
 from dataclasses import dataclass
 from typing import Optional
 
@@ -55,9 +56,12 @@ class KMSGrabCapture:
 
         self._resize_index_cache: dict[tuple[int, int, int, int], tuple[np.ndarray, np.ndarray]] = {}
         self._resize_index_cache_limit = 8
+        self._drm_capture_impl = self._probe_drm_capture_impl()
 
     def capture(self) -> np.ndarray:
         try:
+            if self._drm_capture_impl is None:
+                raise KMSGrabError("DRM/KMS capture bindings are unavailable.")
             frame = self._capture_drm_rgb()
             self.last_capture_path = "drm-kms"
             return frame
@@ -71,34 +75,37 @@ class KMSGrabCapture:
 
     def _capture_drm_rgb(self) -> np.ndarray:
         """Try available DRM capture bindings, otherwise raise KMSGrabError."""
-        try:
-            from nanoleaf_sync.capture._kmsgrab import capture_dma_buf_rgb  # type: ignore
-
-            result = capture_dma_buf_rgb(
-                width=self.params.width,
-                height=self.params.height,
-                card_path=self.params.card_path,
+        if self._drm_capture_impl is None:
+            raise KMSGrabError(
+                "DRM/KMS capture bindings are not available yet (expected _kmsgrab or kmsgrab module). "
+                "Using KWin D-Bus fallback."
             )
-            return self._convert_if_needed(result)
-        except ModuleNotFoundError:
-            pass
 
-        try:
-            import kmsgrab  # type: ignore
-
-            result = kmsgrab.capture(
-                width=self.params.width,
-                height=self.params.height,
-                card_path=self.params.card_path,
-            )
-            return self._convert_if_needed(result)
-        except ModuleNotFoundError:
-            pass
-
-        raise KMSGrabError(
-            "DRM/KMS capture bindings are not available yet (expected _kmsgrab or kmsgrab module). "
-            "Using KWin D-Bus fallback."
+        result = self._drm_capture_impl(
+            width=self.params.width,
+            height=self.params.height,
+            card_path=self.params.card_path,
         )
+        return self._convert_if_needed(result)
+
+    def _probe_drm_capture_impl(self):
+        try:
+            module = import_module("nanoleaf_sync.capture._kmsgrab")
+            capture = getattr(module, "capture_dma_buf_rgb", None)
+            if callable(capture):
+                return capture
+        except ImportError:
+            pass
+
+        try:
+            module = import_module("kmsgrab")  # type: ignore
+            capture = getattr(module, "capture", None)
+            if callable(capture):
+                return capture
+        except ImportError:
+            pass
+
+        return None
 
     def _convert_if_needed(self, result: object) -> np.ndarray:
         """Convert DRM output to uint8 sRGB; accepts ndarray or (ndarray, metadata)."""

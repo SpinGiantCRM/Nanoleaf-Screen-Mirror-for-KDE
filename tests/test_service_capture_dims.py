@@ -91,3 +91,12 @@ def test_detect_primary_screen_dims_returns_none_for_invalid_qt_module() -> None
     dims = _detect_primary_screen_dims(qt_widgets_module=_InvalidQtWidgets)
 
     assert dims is None
+
+
+def test_resolve_capture_dims_caps_to_low_latency_default(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.dimensions.detect_primary_screen_dims",
+        lambda: (3440, 1440),
+    )
+    w, h = _resolve_capture_dims(AppConfig())
+    assert (w, h) == (480, 270)

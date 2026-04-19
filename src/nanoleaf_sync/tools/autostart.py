@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import subprocess
 
 from nanoleaf_sync.desktop_entry import (
     disable_autostart,
@@ -32,7 +33,27 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Autostart was already disabled: {target}")
         return 0
 
-    path = user_autostart_path() if args.method == "desktop" else user_systemd_service_path()
+    if args.method == "systemd":
+        path = user_systemd_service_path()
+        unit = path.name
+        try:
+            result = subprocess.run(
+                ["systemctl", "--user", "is-enabled", unit],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            state = (result.stdout or "").strip() or (result.stderr or "").strip() or "disabled"
+        except Exception:
+            state = "unknown"
+        if state == "enabled":
+            print(f"Autostart is enabled: {unit}")
+        else:
+            print(f"Autostart is {state}: {unit}")
+        return 0
+
+    path = user_autostart_path()
     if path.exists():
         print(f"Autostart is enabled: {path}")
     else:

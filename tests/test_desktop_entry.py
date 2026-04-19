@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from nanoleaf_sync import desktop_entry
@@ -30,14 +31,48 @@ def test_disable_autostart_when_missing(monkeypatch, tmp_path: Path) -> None:
 
 def test_enable_systemd_autostart_writes_unit(monkeypatch, tmp_path: Path) -> None:
     service_path = tmp_path / "systemd" / "user" / "nanoleaf-kde-sync.service"
+    calls: list[list[str]] = []
+
+    def _fake_run(cmd, check, timeout):
+        calls.append(list(cmd))
+        return subprocess.CompletedProcess(cmd, 0)
+
     monkeypatch.setattr(desktop_entry, "user_systemd_service_path", lambda: service_path)
     monkeypatch.setattr(desktop_entry, "runtime_exec_command", lambda: "/opt/demo/python -m demo")
+    monkeypatch.setattr(desktop_entry.subprocess, "run", _fake_run)
 
     out = desktop_entry.enable_systemd_autostart()
     assert out == service_path
     content = service_path.read_text(encoding="utf-8")
     assert "ExecStart=/opt/demo/python -m demo" in content
     assert "Restart=on-failure" in content
+    assert calls == [
+        ["systemctl", "--user", "daemon-reload"],
+        ["systemctl", "--user", "enable", "nanoleaf-kde-sync.service"],
+    ]
+
+
+def test_disable_systemd_autostart_disables_and_removes_unit(monkeypatch, tmp_path: Path) -> None:
+    service_path = tmp_path / "systemd" / "user" / "nanoleaf-kde-sync.service"
+    service_path.parent.mkdir(parents=True, exist_ok=True)
+    service_path.write_text("[Unit]\n", encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def _fake_run(cmd, check, timeout):
+        calls.append(list(cmd))
+        return subprocess.CompletedProcess(cmd, 0)
+
+    monkeypatch.setattr(desktop_entry, "user_systemd_service_path", lambda: service_path)
+    monkeypatch.setattr(desktop_entry.subprocess, "run", _fake_run)
+
+    removed = desktop_entry.disable_systemd_autostart()
+
+    assert removed is True
+    assert not service_path.exists()
+    assert calls == [
+        ["systemctl", "--user", "disable", "nanoleaf-kde-sync.service"],
+        ["systemctl", "--user", "daemon-reload"],
+    ]
 
 
 def test_launch_context_snapshot_reads_expected_env(monkeypatch) -> None:

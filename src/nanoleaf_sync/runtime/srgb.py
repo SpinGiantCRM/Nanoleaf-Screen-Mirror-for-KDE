@@ -23,7 +23,7 @@ def linear01_to_srgb_encoded(linear: np.ndarray) -> np.ndarray:
     is_low = linear <= threshold
     out[is_low] = linear[is_low] * 12.92
     out[~is_low] = (1.0 + a) * np.power(linear[~is_low], 1.0 / 2.4) - a
-    return out
+    return np.clip(out, 0.0, 1.0)
 
 
 def srgb_u8_to_linear01(rgb: np.ndarray) -> np.ndarray:
