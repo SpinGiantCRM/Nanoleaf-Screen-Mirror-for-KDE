@@ -139,7 +139,7 @@ See the full guide at [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
 
 ### Capture backend guidance (CachyOS/KDE)
 
-- `auto` (default): prefers `kmsgrab` on CachyOS and otherwise falls back to `kwin-dbus`.
+- `auto` (default): picks the lowest-latency backend available on the current system (prefers `kmsgrab` when DRM/KMS device + bindings are available, otherwise uses `kwin-dbus`).
 - `kmsgrab`: lowest-latency path when DRM/KMS bindings are available; automatically falls back to KWin screenshot capture if needed.
 - `kwin-dbus`: most compatible KDE path.
 - `xdg-portal`: best for strict portal-based security environments.

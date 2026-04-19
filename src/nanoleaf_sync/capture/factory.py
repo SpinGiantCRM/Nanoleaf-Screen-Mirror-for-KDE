@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from importlib import import_module
 from functools import lru_cache
+import os
 from pathlib import Path
 
 from nanoleaf_sync.capture.interfaces import CaptureBackend
@@ -11,19 +13,37 @@ from nanoleaf_sync.capture.xdg_portal import XDGPortalCapture
 
 
 @lru_cache(maxsize=1)
-def _is_cachyos() -> bool:
+def _has_drm_device() -> bool:
+    card_path = os.environ.get("NANOLEAF_DRM_CARD", "/dev/dri/card0")
+    return Path(card_path).exists()
+
+
+@lru_cache(maxsize=1)
+def _kmsgrab_bindings_available() -> bool:
     try:
-        os_release = Path("/etc/os-release").read_text(encoding="utf-8")
-    except OSError:
+        module = import_module("nanoleaf_sync.capture._kmsgrab")
+        if callable(getattr(module, "capture_dma_buf_rgb", None)):
+            return True
+    except ImportError:
+        pass
+
+    try:
+        module = import_module("kmsgrab")  # type: ignore
+        return callable(getattr(module, "capture", None))
+    except ImportError:
         return False
-    lower = os_release.lower()
-    return 'id="cachyos"' in lower or "id=cachyos" in lower
+
+
+def _resolve_auto_backend() -> str:
+    if _has_drm_device() and _kmsgrab_bindings_available():
+        return "kmsgrab"
+    return "kwin-dbus"
 
 
 def _resolve_prefer_backend(prefer_backend: str) -> str:
     normalized = (prefer_backend or "").strip().lower()
     if normalized in {"", "auto"}:
-        return "kmsgrab" if _is_cachyos() else "kwin-dbus"
+        return _resolve_auto_backend()
     if normalized in {"kwin-dbus", "kwin_dbus", "kwin-dbus-screenshot"}:
         return "kwin-dbus"
     if normalized in {"xdg-portal", "xdg_portal", "portal"}:

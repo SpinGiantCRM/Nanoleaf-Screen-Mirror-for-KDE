@@ -32,7 +32,7 @@ class AppConfig:
     brightness: float = 1.0  # [0.0, 1.0]
     smoothing: float = 0.5  # One-Euro minimum responsiveness in [0.0, 1.0]
     smoothing_speed: float = 0.75  # One-Euro speed coefficient in [0.0, 4.0]
-    led_gamma: float = 2.2  # Output correction for LED electrical response.
+    led_gamma: float = 1.0  # Output correction for LED electrical response.
 
     # Zones
     zones: List[ZoneConfig] = field(default_factory=list)
@@ -47,6 +47,11 @@ class AppConfig:
     # Wizard choice: False=SDR path, True=HDR path.
     hdr_enabled: bool = False
     start_on_launch: bool = False
+
+    # KDE compositor HDR controls for SDR content on HDR displays.
+    compositor_hdr_mode: bool = False
+    # Plasma SDR white reference in nits (80 = no compositor SDR boost).
+    sdr_boost_nits: float = 80.0
 
     # USB / device
     device_vid: int = 0x37FA

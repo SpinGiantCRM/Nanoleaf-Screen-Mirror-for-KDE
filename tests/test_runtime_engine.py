@@ -185,3 +185,57 @@ def test_pending_frame_slot_last_write_wins() -> None:
     assert pending.captured_at == 2.0
     assert np.array_equal(pending.frame, frame_b)
     assert slot.get_replaced_count() == 1
+
+
+def test_process_frame_applies_compositor_hdr_compensation() -> None:
+    frame = np.full((2, 2, 3), 100, dtype=np.uint8)
+
+    baseline = process_frame(
+        frame=frame,
+        prev_smoothed_colors=[],
+        zones_px=[(0, 0, 2, 2)],
+        device_zone_indices=[0],
+        brightness=1.0,
+        smoothing=1.0,
+        compositor_hdr_mode=False,
+    )[0]
+
+    boosted = process_frame(
+        frame=frame,
+        prev_smoothed_colors=[],
+        zones_px=[(0, 0, 2, 2)],
+        device_zone_indices=[0],
+        brightness=1.0,
+        smoothing=1.0,
+        compositor_hdr_mode=True,
+        sdr_boost_nits=320.0,
+        hdr_max_nits=1000.0,
+    )[0]
+
+    assert sum(boosted) > sum(baseline)
+
+
+def test_process_frame_skips_compositor_when_boost_is_effectively_noop(monkeypatch) -> None:
+    frame = np.full((2, 2, 3), 100, dtype=np.uint8)
+    called = {"count": 0}
+
+    def _fake_apply(*args, **kwargs):
+        called["count"] += 1
+        return np.full((2, 2, 3), 255, dtype=np.uint8)
+
+    monkeypatch.setattr("nanoleaf_sync.runtime.engine.apply_sdr_boost_compensation", _fake_apply)
+
+    out = process_frame(
+        frame=frame,
+        prev_smoothed_colors=[],
+        zones_px=[(0, 0, 2, 2)],
+        device_zone_indices=[0],
+        brightness=1.0,
+        smoothing=1.0,
+        compositor_hdr_mode=True,
+        sdr_boost_nits=80.0,
+        hdr_max_nits=1000.0,
+    )[0]
+
+    assert called["count"] == 0
+    assert out == (100, 100, 100)

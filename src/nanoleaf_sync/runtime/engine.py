@@ -18,6 +18,10 @@ from nanoleaf_sync.runtime.zones import zone_colors_array
 from nanoleaf_sync.color.zone_mapper import resolve_device_zone_indices
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.processing import zones_from_config
+from nanoleaf_sync.runtime.compositor import (
+    apply_sdr_boost_compensation,
+    effective_sdr_boost,
+)
 from nanoleaf_sync.runtime.startup import reinitialize_backends, should_reinitialize
 from nanoleaf_sync.runtime.state import RGBTuple, RuntimeState, ZoneRect
 
@@ -170,8 +174,11 @@ def process_frame(
     smoothing: float,
     smoothing_speed: float = 0.75,
     zone_sampling_stride: int = 1,
-    led_gamma: float = 2.2,
+    led_gamma: float = 1.0,
     color_mode: str = "balanced",
+    compositor_hdr_mode: bool = False,
+    sdr_boost_nits: float = 80.0,
+    hdr_max_nits: float = 1000.0,
 ) -> list[RGBTuple]:
     """
     Hot-path frame processing pipeline:
@@ -180,6 +187,14 @@ def process_frame(
     if frame.ndim != 3 or frame.shape[2] != 3:
         raise RuntimeError(
             f"Capture returned unexpected frame shape: {getattr(frame, 'shape', None)}"
+        )
+
+    boost = effective_sdr_boost(sdr_boost_nits=sdr_boost_nits)
+    if compositor_hdr_mode and abs(boost - 1.0) > 1e-6:
+        frame = apply_sdr_boost_compensation(
+            frame,
+            sdr_boost_nits=sdr_boost_nits,
+            hdr_max_nits=hdr_max_nits,
         )
 
     raw_colors = zone_colors_array(
@@ -215,7 +230,7 @@ def process_frame(
             )
 
     gamma = max(1.0, min(4.0, float(led_gamma)))
-    if abs(gamma - 2.2) > 1e-6:
+    if abs(gamma - 1.0) > 1e-6:
         mapped = 255.0 * np.power(np.clip(mapped / 255.0, 0.0, 1.0), 1.0 / gamma)
 
     out = np.clip(np.rint(mapped), 0.0, 255.0).astype(np.uint8, copy=False)
@@ -325,6 +340,9 @@ def run_loop(
                     zone_sampling_stride=config.zone_sampling_stride,
                     led_gamma=config.led_gamma,
                     color_mode=getattr(config, "color_mode", "balanced"),
+                    compositor_hdr_mode=getattr(config, "compositor_hdr_mode", False),
+                    sdr_boost_nits=getattr(config, "sdr_boost_nits", 80.0),
+                    hdr_max_nits=getattr(config, "hdr_max_nits", 1000.0),
                 )
                 state.prev_smoothed_colors = smoothed_colors
                 driver.send_frame(smoothed_colors)

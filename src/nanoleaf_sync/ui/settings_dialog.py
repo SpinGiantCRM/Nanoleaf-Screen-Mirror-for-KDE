@@ -125,7 +125,7 @@ class SettingsDialog:
                 self.hdr_max_nits_slider.setValue(int(getattr(cfg, "hdr_max_nits", 1000.0)))
                 self.led_gamma_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.led_gamma_slider.setRange(100, 400)
-                self.led_gamma_slider.setValue(int(round(getattr(cfg, "led_gamma", 2.2) * 100)))
+                self.led_gamma_slider.setValue(int(round(getattr(cfg, "led_gamma", 1.0) * 100)))
 
                 self.display_configurator_button = QPushButton("Re-run Display Setup")
                 self.display_configurator_button.clicked.connect(self._open_configurator)

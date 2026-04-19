@@ -104,6 +104,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     )
 
     hdr_max_nits = max(80.0, min(10000.0, float(cfg.hdr_max_nits)))
+    sdr_boost_nits = max(80.0, min(1000.0, float(getattr(cfg, "sdr_boost_nits", 80.0))))
     hdr_transfer = normalize_enum(
         cfg.hdr_transfer,
         allowed={
@@ -141,6 +142,8 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         device_pid=cfg.device_pid,
         use_mock_capture=cfg.use_mock_capture,
         hdr_max_nits=hdr_max_nits,
+        compositor_hdr_mode=coerce_bool(getattr(cfg, "compositor_hdr_mode", False), False),
+        sdr_boost_nits=sdr_boost_nits,
         hdr_transfer=hdr_transfer,
         hdr_primaries=hdr_primaries,
         device_zone_count=device_zone_count,
