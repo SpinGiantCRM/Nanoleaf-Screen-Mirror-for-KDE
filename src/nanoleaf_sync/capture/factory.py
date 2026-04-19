@@ -3,6 +3,7 @@ from __future__ import annotations
 from nanoleaf_sync.capture.interfaces import CaptureBackend
 from nanoleaf_sync.capture.kwin_dbus import KWinDBusScreenshotCapture
 from nanoleaf_sync.capture.mock_capture import MockScreenCapture
+from nanoleaf_sync.capture.xdg_portal import XDGPortalCapture
 
 
 def create_capture_backend(
@@ -17,9 +18,8 @@ def create_capture_backend(
 ) -> CaptureBackend:
     """Create capture backend for the runtime.
 
-    Recovery decision: keep one real backend (kwin-dbus) plus one development
-    backend (mock). Any other backend requests are treated as configuration
-    drift and fail fast with a clear error.
+    Supports mock capture plus compositor-backed capture via KWin D-Bus or
+    XDG desktop portal (ScreenCast + PipeWire).
     """
 
     if use_mock_capture:
@@ -35,7 +35,10 @@ def create_capture_backend(
             hdr_primaries=hdr_primaries,
         )
 
+    if normalized in {"xdg-portal", "xdg_portal", "portal"}:
+        return XDGPortalCapture(width=width, height=height)
+
     raise ValueError(
-        "Unsupported capture backend. This recovered build supports only "
-        "'kwin-dbus' for real capture (or mock capture for safe setup)."
+        "Unsupported capture backend. Supported real backends are "
+        "'kwin-dbus' and 'xdg-portal' (or mock capture for safe setup)."
     )

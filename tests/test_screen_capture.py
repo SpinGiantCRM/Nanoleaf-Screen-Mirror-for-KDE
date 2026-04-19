@@ -22,14 +22,24 @@ def test_capture_factory_mock_is_reusable() -> None:
     assert frame1 is frame2
 
 
-def test_capture_factory_rejects_non_primary_real_backends() -> None:
-    with pytest.raises(ValueError, match="supports only 'kwin-dbus'"):
+def test_capture_factory_rejects_unsupported_real_backends() -> None:
+    with pytest.raises(ValueError, match="Supported real backends"):
         create_capture_backend(
             width=6,
             height=4,
             use_mock_capture=False,
             prefer_backend="kmsgrab",
         )
+
+
+def test_capture_factory_creates_xdg_portal_backend() -> None:
+    backend = create_capture_backend(
+        width=6,
+        height=4,
+        use_mock_capture=False,
+        prefer_backend="xdg-portal",
+    )
+    assert backend.name == "xdg-portal"
 
 
 def test_kmsgrab_converts_hdr_before_any_resizing(monkeypatch) -> None:

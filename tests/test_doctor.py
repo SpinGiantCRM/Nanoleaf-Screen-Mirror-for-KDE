@@ -93,6 +93,22 @@ def test_run_doctor_with_capture_probe(monkeypatch) -> None:
     capture_check = next(check for check in checks if check.name == "capture-probe")
     assert capture_check.status == "fail"
 
+def test_run_doctor_skips_kwin_probe_for_portal_backend(monkeypatch) -> None:
+    _patch_config_loader(
+        monkeypatch,
+        AppConfig(device_vid=0x37FA, device_pid=0x8201, use_mock_capture=False, prefer_backend="portal"),
+    )
+    monkeypatch.setattr(doctor, "_check_python_runtime", lambda: DoctorCheck("python", "pass", "ok"))
+    monkeypatch.setattr(doctor, "_check_dependencies", lambda: DoctorCheck("dependencies", "pass", "ok"))
+    monkeypatch.setattr(doctor, "_check_session_bus", lambda: DoctorCheck("session-bus", "pass", "ok"))
+    monkeypatch.setattr(doctor, "_check_hid_enumeration", lambda cfg: DoctorCheck("hid-device", "pass", "ok"))
+    monkeypatch.setattr(doctor, "_run_probe_sync", lambda: (_ for _ in ()).throw(AssertionError("kwin probe should be skipped")))
+
+    checks = run_doctor()
+    desktop_auth = next(check for check in checks if check.name == "desktop-authorization")
+    assert desktop_auth.status == "pass"
+    assert "not required for xdg-portal" in desktop_auth.message
+
 
 def test_desktop_authorization_warns_when_only_installed_entry_exists(monkeypatch, tmp_path: Path) -> None:
     autostart = tmp_path / "home-autostart.desktop"

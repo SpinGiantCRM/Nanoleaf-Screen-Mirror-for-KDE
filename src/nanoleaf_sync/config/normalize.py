@@ -57,6 +57,9 @@ def validate_config(cfg: AppConfig) -> AppConfig:
             "kwin-dbus": "kwin-dbus",
             "kwin_dbus": "kwin-dbus",
             "kwin-dbus-screenshot": "kwin-dbus",
+            "xdg-portal": "xdg-portal",
+            "xdg_portal": "xdg-portal",
+            "portal": "xdg-portal",
         },
         default=AppConfig.prefer_backend,
     )

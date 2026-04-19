@@ -85,6 +85,13 @@ class SettingsDialog:
                     bool(getattr(cfg, "use_mock_capture", True))
                 )
 
+                self.capture_backend_combo = QComboBox()
+                self.capture_backend_combo.addItems(["kwin-dbus", "xdg-portal"])
+                backend_idx = self.capture_backend_combo.findText(
+                    str(getattr(cfg, "prefer_backend", "kwin-dbus"))
+                )
+                self.capture_backend_combo.setCurrentIndex(max(0, backend_idx))
+
                 self.hdr_help = QLabel(
                     "HDR controls matter when your display/content is HDR. SDR users can keep defaults."
                 )
@@ -162,16 +169,18 @@ class SettingsDialog:
                 layout.addWidget(self.device_zone_count_slider, 6, 1)
                 layout.addWidget(self.device_zone_count_value, 6, 2)
                 layout.addWidget(self.mock_capture_checkbox, 7, 0, 1, 2)
-                layout.addWidget(self.calibration_help, 8, 0, 1, 2)
-                layout.addWidget(self.preview_label, 9, 0, 1, 3)
-                layout.addWidget(self.hdr_help, 10, 0, 1, 2)
-                layout.addWidget(QLabel("HDR transfer"), 11, 0)
-                layout.addWidget(self.hdr_transfer_combo, 11, 1)
-                layout.addWidget(QLabel("HDR primaries"), 12, 0)
-                layout.addWidget(self.hdr_primaries_combo, 12, 1)
-                layout.addWidget(QLabel("HDR max nits"), 13, 0)
-                layout.addWidget(self.hdr_max_nits_slider, 13, 1)
-                layout.addWidget(self.hdr_max_nits_value, 13, 2)
+                layout.addWidget(QLabel("Capture backend"), 8, 0)
+                layout.addWidget(self.capture_backend_combo, 8, 1)
+                layout.addWidget(self.calibration_help, 9, 0, 1, 2)
+                layout.addWidget(self.preview_label, 10, 0, 1, 3)
+                layout.addWidget(self.hdr_help, 11, 0, 1, 2)
+                layout.addWidget(QLabel("HDR transfer"), 12, 0)
+                layout.addWidget(self.hdr_transfer_combo, 12, 1)
+                layout.addWidget(QLabel("HDR primaries"), 13, 0)
+                layout.addWidget(self.hdr_primaries_combo, 13, 1)
+                layout.addWidget(QLabel("HDR max nits"), 14, 0)
+                layout.addWidget(self.hdr_max_nits_slider, 14, 1)
+                layout.addWidget(self.hdr_max_nits_value, 14, 2)
                 self.setLayout(layout)
 
             def _on_calibration_control_changed(self) -> None:
@@ -205,6 +214,7 @@ class SettingsDialog:
                 zone_offset = int(self.zone_offset_slider.value())
                 reverse_zones = bool(self.reverse_checkbox.isChecked())
                 device_zone_count = int(self.device_zone_count_slider.value())
+                prefer_backend = str(self.capture_backend_combo.currentText())
                 hdr_transfer = str(self.hdr_transfer_combo.currentText())
                 hdr_primaries = str(self.hdr_primaries_combo.currentText())
                 hdr_max_nits = float(self.hdr_max_nits_slider.value())
@@ -222,7 +232,7 @@ class SettingsDialog:
                     reverse_zones=reverse_zones,
                     explicit_zone_map=[],
                     use_mock_capture=bool(self.mock_capture_checkbox.isChecked()),
-                    prefer_backend="kwin-dbus",
+                    prefer_backend=prefer_backend,
                     hdr_transfer=hdr_transfer,
                     hdr_primaries=hdr_primaries,
                     hdr_max_nits=hdr_max_nits,

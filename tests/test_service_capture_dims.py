@@ -58,7 +58,7 @@ class _InvalidQtWidgets:
 
 
 def test_detect_primary_screen_dims_uses_existing_qt_app() -> None:
-    app = _FakeQApplication([])
+    _FakeQApplication([])
     dims = _detect_primary_screen_dims(qt_widgets_module=_FakeQtWidgets)
 
     assert dims == (3440, 1440)

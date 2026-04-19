@@ -113,6 +113,8 @@ def classify_capture_mode(
         return "mock"
     if capture_backend_name == "kwin-dbus":
         return "kwin-dbus"
+    if capture_backend_name == "xdg-portal":
+        return "xdg-portal"
     if capture_backend_name == "kmsgrab" and capture_path == "kwin-dbus":
         return "kwin-fallback"
     if capture_backend_name == "replay":

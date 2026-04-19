@@ -237,16 +237,25 @@ def _check_real_device_probe(config: AppConfig) -> DoctorCheck:
 
 
 def _check_mode_consistency(config: AppConfig) -> DoctorCheck:
-    normalized = (config.prefer_backend or "").strip().lower()
-    valid_backends = {"", "kwin-dbus", "kwin_dbus", "kwin-dbus-screenshot"}
+    normalized = _normalized_backend(config)
+    valid_backends = {"", "kwin-dbus", "xdg-portal"}
     if not config.use_mock_capture and normalized not in valid_backends:
         return DoctorCheck(
             "mode-consistency",
             "fail",
             "Unsupported real capture backend in config.",
-            "Set prefer_backend to 'kwin-dbus' or enable mock capture.",
+            "Set prefer_backend to 'kwin-dbus' or 'xdg-portal', or enable mock capture.",
         )
     return DoctorCheck("mode-consistency", "pass", "Capture/device mode configuration is coherent.")
+
+
+def _normalized_backend(config: AppConfig) -> str:
+    raw = (config.prefer_backend or "").strip().lower()
+    if raw in {"xdg-portal", "xdg_portal", "portal"}:
+        return "xdg-portal"
+    if raw in {"", "kwin-dbus", "kwin_dbus", "kwin-dbus-screenshot"}:
+        return "kwin-dbus" if raw else ""
+    return raw
 
 
 def _check_real_capture_probe(config: AppConfig) -> DoctorCheck:
@@ -292,16 +301,27 @@ def run_doctor(
     cfg_mgr = ConfigManager()
     cfg = cfg_mgr.load()
     cfg = validate_config(cfg)
+    normalized = _normalized_backend(cfg)
 
     checks: list[DoctorCheck] = [
         _check_python_runtime(),
         _check_dependencies(),
         _check_session_bus(),
-        _run_probe_sync(),
-        _check_desktop_authorization(),
         _check_mode_consistency(cfg),
         _check_hid_enumeration(cfg),
     ]
+    if not cfg.use_mock_capture:
+        if normalized in {"", "kwin-dbus"}:
+            checks.append(_run_probe_sync())
+            checks.append(_check_desktop_authorization())
+        elif normalized == "xdg-portal":
+            checks.append(
+                DoctorCheck(
+                    "desktop-authorization",
+                    "pass",
+                    "Desktop entry authorization check is not required for xdg-portal backend.",
+                )
+            )
     if include_device_probe:
         checks.append(_check_real_device_probe(cfg))
     if include_capture_probe:
