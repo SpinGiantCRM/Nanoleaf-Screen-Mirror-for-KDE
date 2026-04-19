@@ -7,6 +7,13 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
+FPS_MIN = 1
+FPS_MAX = 120
+HDR_MAX_NITS_MIN = 80
+HDR_MAX_NITS_MAX = 10000
+ZONE_STRIDE_MIN = 1
+ZONE_STRIDE_MAX = 8
+
 
 def _mapping_preview_text(*, zone_count: int, device_zone_count: int, zone_offset: int, reverse_zones: bool, auto_mapping: bool = True) -> str:
     indices = resolve_device_zone_indices(
@@ -56,7 +63,7 @@ class SettingsDialog:
                 self.smoothing_speed_slider.setValue(int(round(getattr(cfg, "smoothing_speed", 0.75) * 100)))
 
                 self.fps_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.fps_slider.setRange(1, 120)
+                self.fps_slider.setRange(FPS_MIN, FPS_MAX)
                 self.fps_slider.setValue(int(cfg.fps))
 
                 self.display_mode_combo = QComboBox()
@@ -121,10 +128,10 @@ class SettingsDialog:
                 self.hdr_primaries_combo.setCurrentIndex(max(0, primaries_idx))
 
                 self.hdr_max_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.hdr_max_nits_slider.setRange(80, 10000)
+                self.hdr_max_nits_slider.setRange(HDR_MAX_NITS_MIN, HDR_MAX_NITS_MAX)
                 self.hdr_max_nits_slider.setValue(int(getattr(cfg, "hdr_max_nits", 1000.0)))
                 self.zone_sampling_stride_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.zone_sampling_stride_slider.setRange(1, 8)
+                self.zone_sampling_stride_slider.setRange(ZONE_STRIDE_MIN, ZONE_STRIDE_MAX)
                 self.zone_sampling_stride_slider.setValue(int(getattr(cfg, "zone_sampling_stride", 1)))
                 self.led_gamma_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.led_gamma_slider.setRange(100, 400)
