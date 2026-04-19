@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-04-19
+
+## What's Changed
+* Fix Settings UI ranges, add zone_sampling_stride control, and prefer CaptureArea in KWin capture by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/115
+
+
+**Full Changelog**: https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/compare/v0.5.3...v0.5.4
+
 ## [0.5.3] - 2026-04-19
 
 ## What's Changed
