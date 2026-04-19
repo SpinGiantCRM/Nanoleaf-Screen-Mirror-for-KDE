@@ -45,8 +45,8 @@ _M2_INV = np.array(
 
 _COLOR_MODE_PROFILES = {
     "default": {
-        "base_mix": 0.16,
-        "contrast_w": 0.30,
+        "base_mix": 0.22,
+        "contrast_w": 0.32,
         "motion_w": 0.25,
         "standout_w": 0.20,
         "vivid_sat": 0.45,
@@ -170,22 +170,36 @@ def zone_colors_array(
 
     areas = (x1 - x0) * (y1 - y0)
 
-    linear_rgb = srgb_u8_to_linear01(img)
-    oklab = _linear_srgb_to_oklab(linear_rgb)
+    valid = areas > 0
 
-    # Build per-channel integral image to compute zone sums in O(1) each.
-    integral = np.zeros((h + 1, w + 1, 3), dtype=np.float32)
-    integral[1:, 1:, :] = oklab.cumsum(axis=0, dtype=np.float32).cumsum(axis=1, dtype=np.float32)
+    sums = np.zeros((len(zones), 3), dtype=np.float32)
+    if valid.any():
+        bx0 = int(np.min(x0[valid]))
+        by0 = int(np.min(y0[valid]))
+        bx1 = int(np.max(x1[valid]))
+        by1 = int(np.max(y1[valid]))
 
-    sums = (
-        integral[y1, x1]
-        - integral[y0, x1]
-        - integral[y1, x0]
-        + integral[y0, x0]
-    )
+        cropped = img[by0:by1, bx0:bx1, :]
+        linear_rgb = srgb_u8_to_linear01(cropped)
+        oklab = _linear_srgb_to_oklab(linear_rgb)
+
+        crop_h, crop_w, _ = cropped.shape
+        integral = np.zeros((crop_h + 1, crop_w + 1, 3), dtype=np.float32)
+        integral[1:, 1:, :] = oklab.cumsum(axis=0, dtype=np.float32).cumsum(axis=1, dtype=np.float32)
+
+        cx0 = x0 - bx0
+        cy0 = y0 - by0
+        cx1 = x1 - bx0
+        cy1 = y1 - by0
+
+        sums = (
+            integral[cy1, cx1]
+            - integral[cy0, cx1]
+            - integral[cy1, cx0]
+            + integral[cy0, cx0]
+        )
 
     means = np.zeros((len(zones), 3), dtype=np.uint8)
-    valid = areas > 0
     if valid.any():
         avg_oklab = (sums[valid] / areas[valid, None]).astype(np.float32, copy=False)
         avg_linear_rgb = _oklab_to_linear_srgb(avg_oklab)

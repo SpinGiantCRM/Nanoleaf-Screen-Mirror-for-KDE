@@ -123,3 +123,15 @@ def test_config_persists_display_wizard_fields(tmp_path: Path) -> None:
     assert loaded.wizard_completed is True
     assert loaded.hdr_enabled is True
     assert loaded.color_mode == "hyper"
+
+
+def test_config_normalizes_sdr_boost_fields(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text(
+        "compositor_hdr_mode = true\nsdr_boost_nits = 5000\n",
+        encoding="utf-8",
+    )
+
+    cfg = ConfigManager(path=cfg_path).load()
+    assert cfg.compositor_hdr_mode is True
+    assert cfg.sdr_boost_nits == 1000.0

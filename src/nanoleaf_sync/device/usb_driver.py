@@ -34,7 +34,9 @@ class NanoleafUSBDriver(DeviceDriver):
     ) -> None:
         self.ids = ids
         self.report_size = int(report_size)
-        self._transport = transport or HIDTransport(ids=ids, report_size=report_size)
+        self._transport = transport or HIDTransport(
+            ids=ids, report_size=report_size, read_timeout_ms=50
+        )
         self._protocol = protocol or NanoleafTLVProtocol()
         self._min_nonzero_brightness = max(1, min(255, int(min_nonzero_brightness)))
         order = str(output_channel_order or "grb").strip().lower()
