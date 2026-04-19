@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-Source%20Available-blue)
-![Version](https://img.shields.io/badge/version-0.5.0-informational)
+![Version](https://img.shields.io/github/v/release/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE?display_name=tag)
 
 Nanoleaf Screen Mirror for KDE brings Nanoleaf desktop mirroring to Linux on KDE Plasma 6.
 

@@ -52,8 +52,10 @@ def parse_pkgbuild_pkgver() -> str:
     return pkgver
 
 
-def parse_readme_badge_version() -> str:
+def parse_readme_badge_version() -> str | None:
     readme_text = (ROOT / "README.md").read_text(encoding="utf-8")
+    if "img.shields.io/github/v/release/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE" in readme_text:
+        return None
     match = re.search(r"badge/version-(\d+\.\d+\.\d+)-", readme_text)
     if not match:
         fail("Unable to find semantic version in README version badge.")
@@ -111,7 +113,7 @@ def main() -> None:
         fail(f"PKGBUILD pkgver ({pkgver}) does not match VERSION ({version}).")
 
     readme_version = parse_readme_badge_version()
-    if readme_version != version:
+    if readme_version is not None and readme_version != version:
         fail(
             f"README version badge ({readme_version}) does not match VERSION ({version})."
         )
