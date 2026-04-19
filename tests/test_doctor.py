@@ -8,11 +8,10 @@ from nanoleaf_sync.tools import doctor
 from nanoleaf_sync.tools.doctor import DoctorCheck, _check_mode_consistency, format_report, run_doctor
 
 
-def test_mode_consistency_unsupported_backend_fails() -> None:
+def test_mode_consistency_kmsgrab_is_supported() -> None:
     cfg = AppConfig(use_mock_capture=False, prefer_backend="kmsgrab")
     result = _check_mode_consistency(cfg)
-    assert result.status == "fail"
-    assert "Unsupported real capture backend" in result.message
+    assert result.status == "pass"
 
 
 def test_mode_consistency_mock_capture_real_device_warns() -> None:

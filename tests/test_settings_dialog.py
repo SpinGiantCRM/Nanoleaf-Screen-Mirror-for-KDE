@@ -129,7 +129,7 @@ def test_settings_dialog_constructs_and_opens_with_qt_stubs(monkeypatch) -> None
     assert dialog.exec() == 1
     updated = dialog.updated_config()
     assert updated.prefer_backend == "kwin-dbus"
-    assert updated.hdr_transfer in {"srgb", "pq", "hlg"}
+    assert updated.hdr_transfer in {"srgb", "pq"}
     assert updated.hdr_primaries in {"bt709", "bt2020"}
 
     portal_idx = dialog._dialog.capture_backend_combo.findText("xdg-portal")

@@ -10,7 +10,7 @@ It captures the active display, maps sampled colors to Nanoleaf zones, and sends
 
 ## Features
 
-- KDE Plasma 6 screen capture support
+- KDE Plasma 6 screen capture support (`auto`, `kwin-dbus`, `kmsgrab`, `xdg-portal`)
 - Nanoleaf USB HID output (`NL82K1` / `NL82K2`)
 - Configuration bootstrap and diagnostics commands
 - Tray-managed autostart enable/disable with KDE desktop authorization marker
@@ -91,3 +91,10 @@ See the full guide at [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
 - Linux
 - KDE Plasma 6 (Wayland)
 - Nanoleaf USB device with supported VID/PID
+
+### Capture backend guidance (CachyOS/KDE)
+
+- `auto` (default): prefers `kmsgrab` on CachyOS and otherwise falls back to `kwin-dbus`.
+- `kmsgrab`: lowest-latency path when DRM/KMS bindings are available; automatically falls back to KWin screenshot capture if needed.
+- `kwin-dbus`: most compatible KDE path.
+- `xdg-portal`: best for strict portal-based security environments.

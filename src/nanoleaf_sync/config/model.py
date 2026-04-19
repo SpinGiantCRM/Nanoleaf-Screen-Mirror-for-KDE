@@ -24,8 +24,9 @@ class ZoneConfig:
 class AppConfig:
     # Capture
     fps: int = 30
-    # Recovery scope: one real capture path (kwin-dbus) plus mock capture for setup/testing.
-    prefer_backend: str = "kwin-dbus"
+    # Auto chooses backend based on platform capabilities.
+    # On CachyOS, auto currently prefers kmsgrab for lower latency.
+    prefer_backend: str = "auto"
 
     # Color -> device mapping
     brightness: float = 1.0  # [0.0, 1.0]

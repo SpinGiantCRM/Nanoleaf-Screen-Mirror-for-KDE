@@ -86,7 +86,7 @@ class SettingsDialog:
                 )
 
                 self.capture_backend_combo = QComboBox()
-                self.capture_backend_combo.addItems(["kwin-dbus", "xdg-portal"])
+                self.capture_backend_combo.addItems(["auto", "kwin-dbus", "kmsgrab", "xdg-portal"])
                 backend_idx = self.capture_backend_combo.findText(
                     str(getattr(cfg, "prefer_backend", "kwin-dbus"))
                 )
@@ -97,7 +97,7 @@ class SettingsDialog:
                 )
 
                 self.hdr_transfer_combo = QComboBox()
-                self.hdr_transfer_combo.addItems(["srgb", "pq", "hlg"])
+                self.hdr_transfer_combo.addItems(["srgb", "pq"])
                 transfer_idx = self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))
                 self.hdr_transfer_combo.setCurrentIndex(max(0, transfer_idx))
 

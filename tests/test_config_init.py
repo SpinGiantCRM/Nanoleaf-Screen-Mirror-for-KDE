@@ -13,7 +13,7 @@ def test_mode_config_presets() -> None:
 
     full_real = mode_config("full-real")
     assert full_real.use_mock_capture is False
-    assert full_real.prefer_backend == "kwin-dbus"
+    assert full_real.prefer_backend == "auto"
     assert full_real.device_vid == 0x37FA
 
 

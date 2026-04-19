@@ -54,12 +54,17 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     prefer_backend = normalize_enum(
         cfg.prefer_backend,
         allowed={
+            "auto": "auto",
             "kwin-dbus": "kwin-dbus",
             "kwin_dbus": "kwin-dbus",
             "kwin-dbus-screenshot": "kwin-dbus",
             "xdg-portal": "xdg-portal",
             "xdg_portal": "xdg-portal",
             "portal": "xdg-portal",
+            "kmsgrab": "kmsgrab",
+            "kms-grab": "kmsgrab",
+            "drm-kms": "kmsgrab",
+            "drm_kms": "kmsgrab",
         },
         default=AppConfig.prefer_backend,
     )
