@@ -6,7 +6,7 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.color.zone_mapper import resolve_device_zone_indices
 
 from nanoleaf_sync.ui.qt_lazy import load_qt
-from nanoleaf_sync.ui.zone_presets import make_horizontal_zones
+from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
 
 def _mapping_preview_text(*, zone_count: int, device_zone_count: int, zone_offset: int, reverse_zones: bool) -> str:
@@ -52,6 +52,9 @@ class SettingsDialog:
                 self.smoothing_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.smoothing_slider.setRange(0, 100)
                 self.smoothing_slider.setValue(int(round(cfg.smoothing * 100)))
+                self.smoothing_speed_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.smoothing_speed_slider.setRange(0, 400)
+                self.smoothing_speed_slider.setValue(int(round(getattr(cfg, "smoothing_speed", 0.75) * 100)))
 
                 self.fps_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.fps_slider.setRange(1, 60)
@@ -62,6 +65,10 @@ class SettingsDialog:
                 self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.zone_count_slider.setRange(1, 24)
                 self.zone_count_slider.setValue(int(zone_count))
+                self.zone_preset_combo = QComboBox()
+                self.zone_preset_combo.addItems(["edge-weighted", "horizontal"])
+                zone_preset_idx = self.zone_preset_combo.findText(str(getattr(cfg, "zone_preset", "edge-weighted")))
+                self.zone_preset_combo.setCurrentIndex(max(0, zone_preset_idx))
 
                 # Calibration controls (mapping sampled zones -> physical strip zones)
                 self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal)
@@ -109,6 +116,9 @@ class SettingsDialog:
                 self.hdr_max_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.hdr_max_nits_slider.setRange(80, 4000)
                 self.hdr_max_nits_slider.setValue(int(getattr(cfg, "hdr_max_nits", 1000.0)))
+                self.led_gamma_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.led_gamma_slider.setRange(100, 400)
+                self.led_gamma_slider.setValue(int(round(getattr(cfg, "led_gamma", 2.2) * 100)))
 
                 self.calibration_help = QLabel(
                     "Zone alignment: use Reverse + Offset until the moving test pattern matches your strip."
@@ -128,16 +138,22 @@ class SettingsDialog:
                 self.zone_offset_value = QLabel("")
                 self.device_zone_count_value = QLabel("")
                 self.hdr_max_nits_value = QLabel("")
+                self.smoothing_speed_value = QLabel("")
+                self.led_gamma_value = QLabel("")
 
                 self._refresh_numeric_labels()
                 self._refresh_preview_label()
                 self.brightness_slider.valueChanged.connect(self._refresh_numeric_labels)
                 self.smoothing_slider.valueChanged.connect(self._refresh_numeric_labels)
+                self.smoothing_speed_slider.valueChanged.connect(self._refresh_numeric_labels)
                 self.fps_slider.valueChanged.connect(self._refresh_numeric_labels)
                 self.zone_count_slider.valueChanged.connect(self._on_calibration_control_changed)
+                if hasattr(self.zone_preset_combo, "currentIndexChanged"):
+                    self.zone_preset_combo.currentIndexChanged.connect(self._on_calibration_control_changed)
                 self.zone_offset_slider.valueChanged.connect(self._on_calibration_control_changed)
                 self.device_zone_count_slider.valueChanged.connect(self._on_calibration_control_changed)
                 self.hdr_max_nits_slider.valueChanged.connect(self._refresh_numeric_labels)
+                self.led_gamma_slider.valueChanged.connect(self._refresh_numeric_labels)
                 self.reverse_checkbox.stateChanged.connect(self._refresh_preview_label)
 
                 buttons = QDialogButtonBox(
@@ -150,37 +166,44 @@ class SettingsDialog:
                 layout = QGridLayout()
                 layout.addWidget(QLabel("Brightness"), 0, 0)
                 layout.addWidget(self.brightness_slider, 0, 1)
-                layout.addWidget(QLabel("Response speed (0 = slow/smooth, 100 = instant)"), 1, 0)
                 layout.addWidget(self.brightness_value, 0, 2)
-                layout.addWidget(QLabel("Smoothing (EMA alpha)"), 1, 0)
+                layout.addWidget(QLabel("Smoothing (min cutoff)"), 1, 0)
                 layout.addWidget(self.smoothing_slider, 1, 1)
                 layout.addWidget(self.smoothing_value, 1, 2)
-                layout.addWidget(QLabel("Capture FPS"), 2, 0)
-                layout.addWidget(self.fps_slider, 2, 1)
-                layout.addWidget(self.fps_value, 2, 2)
-                layout.addWidget(QLabel("Zone count (horizontal)"), 3, 0)
-                layout.addWidget(self.zone_count_slider, 3, 1)
-                layout.addWidget(self.zone_count_value, 3, 2)
-                layout.addWidget(QLabel("Zone offset (calibration)"), 4, 0)
-                layout.addWidget(self.zone_offset_slider, 4, 1)
-                layout.addWidget(self.zone_offset_value, 4, 2)
-                layout.addWidget(self.reverse_checkbox, 5, 0, 1, 2)
-                layout.addWidget(QLabel("Device zone count"), 6, 0)
-                layout.addWidget(self.device_zone_count_slider, 6, 1)
-                layout.addWidget(self.device_zone_count_value, 6, 2)
-                layout.addWidget(self.mock_capture_checkbox, 7, 0, 1, 2)
-                layout.addWidget(QLabel("Capture backend"), 8, 0)
-                layout.addWidget(self.capture_backend_combo, 8, 1)
-                layout.addWidget(self.calibration_help, 9, 0, 1, 2)
-                layout.addWidget(self.preview_label, 10, 0, 1, 3)
-                layout.addWidget(self.hdr_help, 11, 0, 1, 2)
-                layout.addWidget(QLabel("HDR transfer"), 12, 0)
-                layout.addWidget(self.hdr_transfer_combo, 12, 1)
-                layout.addWidget(QLabel("HDR primaries"), 13, 0)
-                layout.addWidget(self.hdr_primaries_combo, 13, 1)
-                layout.addWidget(QLabel("HDR max nits"), 14, 0)
-                layout.addWidget(self.hdr_max_nits_slider, 14, 1)
-                layout.addWidget(self.hdr_max_nits_value, 14, 2)
+                layout.addWidget(QLabel("Smoothing speed coefficient"), 2, 0)
+                layout.addWidget(self.smoothing_speed_slider, 2, 1)
+                layout.addWidget(self.smoothing_speed_value, 2, 2)
+                layout.addWidget(QLabel("Capture FPS"), 3, 0)
+                layout.addWidget(self.fps_slider, 3, 1)
+                layout.addWidget(self.fps_value, 3, 2)
+                layout.addWidget(QLabel("Zone count"), 4, 0)
+                layout.addWidget(self.zone_count_slider, 4, 1)
+                layout.addWidget(self.zone_count_value, 4, 2)
+                layout.addWidget(QLabel("Zone preset"), 5, 0)
+                layout.addWidget(self.zone_preset_combo, 5, 1)
+                layout.addWidget(QLabel("Zone offset (calibration)"), 6, 0)
+                layout.addWidget(self.zone_offset_slider, 6, 1)
+                layout.addWidget(self.zone_offset_value, 6, 2)
+                layout.addWidget(self.reverse_checkbox, 7, 0, 1, 2)
+                layout.addWidget(QLabel("Device zone count"), 8, 0)
+                layout.addWidget(self.device_zone_count_slider, 8, 1)
+                layout.addWidget(self.device_zone_count_value, 8, 2)
+                layout.addWidget(self.mock_capture_checkbox, 9, 0, 1, 2)
+                layout.addWidget(QLabel("Capture backend"), 10, 0)
+                layout.addWidget(self.capture_backend_combo, 10, 1)
+                layout.addWidget(self.calibration_help, 11, 0, 1, 2)
+                layout.addWidget(self.preview_label, 12, 0, 1, 3)
+                layout.addWidget(self.hdr_help, 13, 0, 1, 2)
+                layout.addWidget(QLabel("HDR transfer"), 14, 0)
+                layout.addWidget(self.hdr_transfer_combo, 14, 1)
+                layout.addWidget(QLabel("HDR primaries"), 15, 0)
+                layout.addWidget(self.hdr_primaries_combo, 15, 1)
+                layout.addWidget(QLabel("HDR max nits"), 16, 0)
+                layout.addWidget(self.hdr_max_nits_slider, 16, 1)
+                layout.addWidget(self.hdr_max_nits_value, 16, 2)
+                layout.addWidget(QLabel("LED gamma"), 17, 0)
+                layout.addWidget(self.led_gamma_slider, 17, 1)
+                layout.addWidget(self.led_gamma_value, 17, 2)
                 self.setLayout(layout)
 
             def _on_calibration_control_changed(self) -> None:
@@ -190,11 +213,13 @@ class SettingsDialog:
             def _refresh_numeric_labels(self) -> None:
                 self.brightness_value.setText(f"{self.brightness_slider.value()}%")
                 self.smoothing_value.setText(f"{self.smoothing_slider.value()}%")
+                self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}")
                 self.fps_value.setText(f"{self.fps_slider.value()} fps")
                 self.zone_count_value.setText(str(self.zone_count_slider.value()))
                 self.zone_offset_value.setText(str(self.zone_offset_slider.value()))
                 self.device_zone_count_value.setText(str(self.device_zone_count_slider.value()))
                 self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
+                self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}")
 
             def _refresh_preview_label(self) -> None:
                 self.preview_label.setText(
@@ -209,8 +234,10 @@ class SettingsDialog:
             def updated_config(self) -> AppConfig:
                 brightness = self.brightness_slider.value() / 100.0
                 smoothing = self.smoothing_slider.value() / 100.0
+                smoothing_speed = self.smoothing_speed_slider.value() / 100.0
                 fps = int(self.fps_slider.value())
                 zone_count = int(self.zone_count_slider.value())
+                zone_preset = str(self.zone_preset_combo.currentText())
                 zone_offset = int(self.zone_offset_slider.value())
                 reverse_zones = bool(self.reverse_checkbox.isChecked())
                 device_zone_count = int(self.device_zone_count_slider.value())
@@ -218,15 +245,23 @@ class SettingsDialog:
                 hdr_transfer = str(self.hdr_transfer_combo.currentText())
                 hdr_primaries = str(self.hdr_primaries_combo.currentText())
                 hdr_max_nits = float(self.hdr_max_nits_slider.value())
-                # Update zones as normalized equal slices.
-                new_zones = make_horizontal_zones(zone_count)
+                led_gamma = self.led_gamma_slider.value() / 100.0
+                # Update zones from selected preset.
+                new_zones = (
+                    make_edge_weighted_zones(zone_count)
+                    if zone_preset == "edge-weighted"
+                    else make_horizontal_zones(zone_count)
+                )
                 # Preserve all other config fields; only override what the user changed.
                 return replace(
                     cfg,
                     fps=fps,
                     brightness=brightness,
                     smoothing=smoothing,
+                    smoothing_speed=smoothing_speed,
+                    led_gamma=led_gamma,
                     zones=new_zones,
+                    zone_preset=zone_preset,
                     device_zone_count=device_zone_count,
                     zone_offset=zone_offset,
                     reverse_zones=reverse_zones,

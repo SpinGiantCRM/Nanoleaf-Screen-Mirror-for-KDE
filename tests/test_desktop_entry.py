@@ -28,6 +28,18 @@ def test_disable_autostart_when_missing(monkeypatch, tmp_path: Path) -> None:
     assert desktop_entry.disable_autostart() is False
 
 
+def test_enable_systemd_autostart_writes_unit(monkeypatch, tmp_path: Path) -> None:
+    service_path = tmp_path / "systemd" / "user" / "nanoleaf-kde-sync.service"
+    monkeypatch.setattr(desktop_entry, "user_systemd_service_path", lambda: service_path)
+    monkeypatch.setattr(desktop_entry, "runtime_exec_command", lambda: "/opt/demo/python -m demo")
+
+    out = desktop_entry.enable_systemd_autostart()
+    assert out == service_path
+    content = service_path.read_text(encoding="utf-8")
+    assert "ExecStart=/opt/demo/python -m demo" in content
+    assert "Restart=on-failure" in content
+
+
 def test_launch_context_snapshot_reads_expected_env(monkeypatch) -> None:
     monkeypatch.setenv("DESKTOP_STARTUP_ID", "start-1")
     monkeypatch.setenv("XDG_ACTIVATION_TOKEN", "token-1")

@@ -7,15 +7,17 @@ from nanoleaf_sync.config.model import AppConfig, ZoneConfig
 from nanoleaf_sync.config.store import ConfigManager
 
 
-def test_config_save_validates_and_is_json_loadable(tmp_path: Path) -> None:
-    cfg_path = tmp_path / "config.json"
+def test_config_save_validates_and_is_toml_loadable(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
     mgr = ConfigManager(path=cfg_path)
 
     cfg = AppConfig(
         fps=999,
         brightness=2.0,
         smoothing=-1.0,
+        smoothing_speed=9.0,
         zone_sampling_stride=-4,
+        led_gamma=5.0,
         zones=[
             ZoneConfig(x=-0.5, y=0.1, w=0.5, h=0.5),
             ZoneConfig(x=0.1, y=0.1, w=0.0, h=0.5),
@@ -34,51 +36,50 @@ def test_config_save_validates_and_is_json_loadable(tmp_path: Path) -> None:
     )
 
     mgr.save(cfg)
-    data = json.loads(cfg_path.read_text(encoding="utf-8"))
+    loaded = mgr.load()
 
-    assert data["brightness"] == 1.0
-    assert data["smoothing"] == 0.0
-    assert data["fps"] == 120
-    assert data["zone_sampling_stride"] == 1
-    assert data["device_zone_count"] == 0
-    assert data["max_consecutive_errors"] >= 1
-    assert data["reinit_backoff_ms"] >= 0
-    assert data["status_log_interval_s"] >= 0.5
-    assert len(data["zones"]) == 1
-    assert data["zones"][0] == {"x": 0.0, "y": 0.1, "w": 0.5, "h": 0.5}
+    assert loaded.brightness == 1.0
+    assert loaded.smoothing == 0.0
+    assert loaded.smoothing_speed == 4.0
+    assert loaded.fps == 120
+    assert loaded.zone_sampling_stride == 1
+    assert loaded.led_gamma == 4.0
+    assert loaded.device_zone_count == 0
+    assert loaded.max_consecutive_errors >= 1
+    assert loaded.reinit_backoff_ms >= 0
+    assert loaded.status_log_interval_s >= 0.5
+    assert len(loaded.zones) == 1
+    assert loaded.zones[0] == ZoneConfig(x=0.0, y=0.1, w=0.5, h=0.5)
 
 
 def test_config_load_normalizes_backend(tmp_path: Path) -> None:
-    cfg_path = tmp_path / "config.json"
-    cfg_path.write_text(json.dumps({"prefer_backend": "KWIN_DBUS"}), encoding="utf-8")
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text("prefer_backend = \"KWIN_DBUS\"\n", encoding="utf-8")
 
     cfg = ConfigManager(path=cfg_path).load()
     assert cfg.prefer_backend == "kwin-dbus"
 
 
 def test_config_load_normalizes_portal_backend_alias(tmp_path: Path) -> None:
-    cfg_path = tmp_path / "config.json"
-    cfg_path.write_text(json.dumps({"prefer_backend": "portal"}), encoding="utf-8")
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text("prefer_backend = \"portal\"\n", encoding="utf-8")
 
     cfg = ConfigManager(path=cfg_path).load()
     assert cfg.prefer_backend == "xdg-portal"
 
 
 def test_config_load_invalid_backend_falls_back_to_default(tmp_path: Path) -> None:
-    cfg_path = tmp_path / "config.json"
-    cfg_path.write_text(
-        json.dumps({"prefer_backend": "totally-unknown-backend"}),
-        encoding="utf-8",
-    )
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text("prefer_backend = \"totally-unknown-backend\"\n", encoding="utf-8")
 
     cfg = ConfigManager(path=cfg_path).load()
     assert cfg.prefer_backend == AppConfig.prefer_backend
 
 
 def test_config_load_normalizes_hdr_fields(tmp_path: Path) -> None:
-    cfg_path = tmp_path / "config.json"
+    cfg_path = tmp_path / "config.toml"
     cfg_path.write_text(
-        json.dumps({"hdr_transfer": "ST2084", "hdr_primaries": "sRGB", "hdr_max_nits": 12000}),
+        "hdr_transfer = \"ST2084\"\nhdr_primaries = \"sRGB\"\nhdr_max_nits = 12000\n",
         encoding="utf-8",
     )
 
@@ -88,21 +89,12 @@ def test_config_load_normalizes_hdr_fields(tmp_path: Path) -> None:
     assert cfg.hdr_max_nits == 10000.0
 
 
-def test_config_load_parses_bool_strings(tmp_path: Path) -> None:
-    cfg_path = tmp_path / "config.json"
-    cfg_path.write_text(
-        json.dumps(
-            {
-                "use_mock_capture": "0",
-                "reverse_zones": "off",
-                "verbose": "false",
-            }
-        ),
-        encoding="utf-8",
-    )
+def test_config_migrates_legacy_json_to_toml(tmp_path: Path) -> None:
+    json_path = tmp_path / "config.json"
+    json_path.write_text(json.dumps({"fps": 55, "zone_preset": "horizontal"}), encoding="utf-8")
 
-    cfg = ConfigManager(path=cfg_path).load()
-
-    assert cfg.use_mock_capture is False
-    assert cfg.reverse_zones is False
-    assert cfg.verbose is False
+    cfg = ConfigManager(path=tmp_path / "config.toml").load()
+    assert cfg.fps == 55
+    assert cfg.zone_preset == "horizontal"
+    assert (tmp_path / "config.toml").exists()
+    assert (tmp_path / "config.json.bak").exists()

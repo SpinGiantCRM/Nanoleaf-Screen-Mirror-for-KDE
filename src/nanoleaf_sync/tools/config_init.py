@@ -14,7 +14,7 @@ def _mode_help() -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Create or reset ~/.config/nanoleaf-kde-sync/config.json"
+        description="Create or reset ~/.config/nanoleaf-kde-sync/config.toml"
     )
     parser.add_argument(
         "--mode",

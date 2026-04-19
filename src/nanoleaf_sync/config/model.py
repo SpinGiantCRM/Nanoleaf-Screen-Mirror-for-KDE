@@ -30,7 +30,9 @@ class AppConfig:
 
     # Color -> device mapping
     brightness: float = 1.0  # [0.0, 1.0]
-    smoothing: float = 0.5  # EMA alpha in [0.0, 1.0]; higher = less smoothing
+    smoothing: float = 0.5  # One-Euro minimum responsiveness in [0.0, 1.0]
+    smoothing_speed: float = 0.75  # One-Euro speed coefficient in [0.0, 4.0]
+    led_gamma: float = 2.2  # Output correction for LED electrical response.
 
     # Zones
     zones: List[ZoneConfig] = field(default_factory=list)
@@ -38,6 +40,7 @@ class AppConfig:
     # Zone sampling stride (1 = every pixel, 2 = every other pixel, etc.).
     # Larger values reduce CPU cost at the expense of color precision.
     zone_sampling_stride: int = 1
+    zone_preset: str = "edge-weighted"
 
     # USB / device
     device_vid: int = 0x37FA
