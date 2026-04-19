@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.5.0]
+
 ### Added
 - Added XDG portal capture backend and wired config/UI support for portal-based capture workflows (PR #99).
 - Integrated the alternative pipeline/platform systems path for broader runtime/capture flexibility (PR #102).

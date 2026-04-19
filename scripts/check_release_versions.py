@@ -52,6 +52,14 @@ def parse_pkgbuild_pkgver() -> str:
     return pkgver
 
 
+def parse_readme_badge_version() -> str:
+    readme_text = (ROOT / "README.md").read_text(encoding="utf-8")
+    match = re.search(r"badge/version-(\d+\.\d+\.\d+)-", readme_text)
+    if not match:
+        fail("Unable to find semantic version in README version badge.")
+    return match.group(1)
+
+
 def check_artifacts(version: str, *artifact_dirs: Path) -> None:
     expected_prefixes = (
         f"nanoleaf_kde_sync-{version}",
@@ -101,6 +109,12 @@ def main() -> None:
     pkgver = parse_pkgbuild_pkgver()
     if pkgver != version:
         fail(f"PKGBUILD pkgver ({pkgver}) does not match VERSION ({version}).")
+
+    readme_version = parse_readme_badge_version()
+    if readme_version != version:
+        fail(
+            f"README version badge ({readme_version}) does not match VERSION ({version})."
+        )
 
     for artifact_dir in args.artifact_dir:
         check_artifacts(version, Path(artifact_dir))
