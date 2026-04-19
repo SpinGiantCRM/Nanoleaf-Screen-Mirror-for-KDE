@@ -75,6 +75,42 @@ def test_process_frame_uses_precomputed_artifacts() -> None:
     assert colors == [(0, 255, 0), (255, 0, 0)]
 
 
+def test_runtime_artifacts_use_detected_device_zone_count_when_config_is_auto() -> None:
+    state = RuntimeState()
+    cfg = AppConfig(
+        zones=[ZoneConfig(x=0.0, y=0.0, w=0.5, h=1.0), ZoneConfig(x=0.5, y=0.0, w=0.5, h=1.0)],
+        device_zone_count=0,
+    )
+
+    _, mapping = _ensure_runtime_artifacts(
+        state=state,
+        config=cfg,
+        img_w=100,
+        img_h=50,
+        detected_device_zone_count=5,
+    )
+
+    assert mapping.tolist() == [0, 1, 0, 1, 0]
+
+
+def test_runtime_artifacts_manual_device_zone_count_overrides_detected_length() -> None:
+    state = RuntimeState()
+    cfg = AppConfig(
+        zones=[ZoneConfig(x=0.0, y=0.0, w=0.5, h=1.0), ZoneConfig(x=0.5, y=0.0, w=0.5, h=1.0)],
+        device_zone_count=3,
+    )
+
+    _, mapping = _ensure_runtime_artifacts(
+        state=state,
+        config=cfg,
+        img_w=100,
+        img_h=50,
+        detected_device_zone_count=10,
+    )
+
+    assert mapping.tolist() == [0, 1, 0]
+
+
 def test_process_frame_supports_zone_sampling_stride() -> None:
     frame = np.zeros((4, 4, 3), dtype=np.uint8)
     frame[:, :2] = [10, 20, 30]

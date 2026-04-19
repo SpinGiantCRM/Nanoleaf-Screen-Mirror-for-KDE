@@ -46,6 +46,18 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         zones.append(ZoneConfig(x=x, y=y, w=w, h=h))
 
     device_zone_count = max(0, int(cfg.device_zone_count))
+    output_channel_order = normalize_enum(
+        getattr(cfg, "output_channel_order", "grb"),
+        allowed={
+            "rgb": "rgb",
+            "rbg": "rbg",
+            "grb": "grb",
+            "gbr": "gbr",
+            "brg": "brg",
+            "bgr": "bgr",
+        },
+        default="grb",
+    )
     zone_offset = int(cfg.zone_offset)
     explicit_zone_map = [int(i) for i in cfg.explicit_zone_map] if cfg.explicit_zone_map else []
 
@@ -117,6 +129,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         hdr_transfer=hdr_transfer,
         hdr_primaries=hdr_primaries,
         device_zone_count=device_zone_count,
+        output_channel_order=output_channel_order,
         zone_offset=zone_offset,
         reverse_zones=cfg.reverse_zones,
         explicit_zone_map=explicit_zone_map,

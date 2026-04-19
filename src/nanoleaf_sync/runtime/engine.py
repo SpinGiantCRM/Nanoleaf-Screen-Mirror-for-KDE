@@ -62,10 +62,12 @@ def _mapping_signature(
     *,
     source_zone_count: int,
     config: AppConfig,
+    detected_device_zone_count: int | None,
 ) -> tuple[int, int, int, bool, tuple[int, ...]]:
     return (
         int(source_zone_count),
         int(config.device_zone_count),
+        int(detected_device_zone_count or 0),
         int(config.zone_offset),
         bool(config.reverse_zones),
         tuple(int(i) for i in (config.explicit_zone_map or [])),
@@ -78,6 +80,7 @@ def _ensure_runtime_artifacts(
     config: AppConfig,
     img_w: int,
     img_h: int,
+    detected_device_zone_count: int | None = None,
 ) -> tuple[list[ZoneRect], np.ndarray]:
     zone_sig = _zones_signature(config, img_w, img_h)
     if state.zone_rects_signature != zone_sig or state.cached_zone_rects is None:
@@ -87,13 +90,23 @@ def _ensure_runtime_artifacts(
     zones_px = state.cached_zone_rects
     source_zone_count = len(zones_px)
 
-    mapping_sig = _mapping_signature(source_zone_count=source_zone_count, config=config)
+    mapping_sig = _mapping_signature(
+        source_zone_count=source_zone_count,
+        config=config,
+        detected_device_zone_count=detected_device_zone_count,
+    )
     if (
         state.device_zone_mapping_signature != mapping_sig
         or state.cached_device_zone_indices is None
         or state.cached_device_zone_indices_np is None
     ):
-        device_zone_count = int(config.device_zone_count) or source_zone_count
+        configured_device_zone_count = int(config.device_zone_count)
+        if configured_device_zone_count > 0:
+            device_zone_count = configured_device_zone_count
+        elif detected_device_zone_count is not None and int(detected_device_zone_count) > 0:
+            device_zone_count = int(detected_device_zone_count)
+        else:
+            device_zone_count = source_zone_count
         state.cached_device_zone_indices = resolve_device_zone_indices(
             source_zone_count,
             device_zone_count=device_zone_count,
@@ -244,6 +257,7 @@ def run_loop(
                     config=config,
                     img_w=img_w,
                     img_h=img_h,
+                    detected_device_zone_count=getattr(driver, "zone_count", None),
                 )
 
                 smoothed_colors = process_frame(

@@ -30,12 +30,19 @@ class NanoleafUSBDriver(DeviceDriver):
         transport: HIDTransport | None = None,
         protocol: NanoleafTLVProtocol | None = None,
         min_nonzero_brightness: int = 10,
+        output_channel_order: str = "grb",
     ) -> None:
         self.ids = ids
         self.report_size = int(report_size)
         self._transport = transport or HIDTransport(ids=ids, report_size=report_size)
         self._protocol = protocol or NanoleafTLVProtocol()
         self._min_nonzero_brightness = max(1, min(255, int(min_nonzero_brightness)))
+        order = str(output_channel_order or "grb").strip().lower()
+        if sorted(order) != ["b", "g", "r"]:
+            raise ValueError(
+                "output_channel_order must be a permutation of 'rgb' (for example: rgb, grb, bgr)."
+            )
+        self._output_channel_order = order
 
         self.model_number: str | None = None
         self.zone_count: int | None = None
@@ -127,7 +134,12 @@ class NanoleafUSBDriver(DeviceDriver):
         elif len(normalized) > self.zone_count:
             normalized = normalized[: self.zone_count]
 
-        payload = bytes(channel for rgb in normalized for channel in rgb)
+        index_by_channel = {"r": 0, "g": 1, "b": 2}
+        payload = bytes(
+            rgb[index_by_channel[ch]]
+            for rgb in normalized
+            for ch in self._output_channel_order
+        )
         self._request(CMD_SET_ZONE_COLORS, payload)
 
     def send_frame(self, colors: Sequence[RGBTuple]) -> None:

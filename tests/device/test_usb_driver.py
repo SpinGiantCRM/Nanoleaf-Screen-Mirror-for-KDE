@@ -103,7 +103,7 @@ def test_send_frame_exact_zone_count() -> None:
     req = transport.requests[-1]
     assert req[0] == 0x02
     assert req[1:3] == b"\x00\x06"
-    assert req[3:] == b"\x01\x02\x03\x04\x05\x06"
+    assert req[3:] == b"\x02\x01\x03\x05\x04\x06"
 
 
 def test_send_frame_clamps_when_too_many_colors() -> None:
@@ -138,7 +138,28 @@ def test_send_frame_pads_black_when_too_few_colors() -> None:
 
     req = transport.requests[-1]
     assert req[1:3] == b"\x00\x09"
-    assert req[3:] == b"\x09\x08\x07\x00\x00\x00\x00\x00\x00"
+    assert req[3:] == b"\x08\x09\x07\x00\x00\x00\x00\x00\x00"
+
+
+def test_send_frame_uses_configured_channel_order() -> None:
+    transport = FakeTransport([
+        _rsp(0x0C, b"\x00NL82K2"),
+        _rsp(0x03, b"\x00\x01"),
+        _rsp(0x06, b"\x00\x01"),
+        _rsp(0x08, b"\x00\x64"),
+        _rsp(0x02, b"\x00"),
+    ])
+    driver = NanoleafUSBDriver(
+        ids=NanoleafUSBIds(0x37FA, 0x8202),
+        transport=transport,
+        output_channel_order="rgb",
+    )
+    driver.initialize()
+
+    driver.send_frame([(1, 2, 3)])
+
+    req = transport.requests[-1]
+    assert req[3:] == b"\x01\x02\x03"
 
 
 def test_send_frame_turns_on_and_sets_min_brightness_once() -> None:

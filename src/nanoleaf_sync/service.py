@@ -125,7 +125,10 @@ class NanoleafSyncService:
                 "Real device mode requires non-zero device_vid/device_pid. "
                 "Configure Nanoleaf USB IDs (for example 0x37fa:0x8201 or 0x37fa:0x8202)."
             )
-        return NanoleafUSBDriver(ids=ids)
+        return NanoleafUSBDriver(
+            ids=ids,
+            output_channel_order=self.config.output_channel_order,
+        )
 
     def _clear_backends(self) -> None:
         self._capture = None
