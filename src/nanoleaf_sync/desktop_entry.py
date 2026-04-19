@@ -12,6 +12,7 @@ from pathlib import Path
 
 
 AUTOSTART_DESKTOP_NAME = "nanoleaf-kde-sync.desktop"
+QT_DESKTOP_FILE_NAME = AUTOSTART_DESKTOP_NAME.removesuffix(".desktop")
 RESTRICTED_IFACE_MARKER = "X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2"
 
 
@@ -67,6 +68,33 @@ def desktop_entry_has_restricted_marker(path: Path) -> bool:
         return False
     text = path.read_text(encoding="utf-8", errors="ignore")
     return RESTRICTED_IFACE_MARKER in text
+
+
+def launch_context_snapshot() -> dict[str, str]:
+    """
+    Return launch-context fields useful for diagnosing KDE ScreenShot2 policy checks.
+    """
+    keys = (
+        "DESKTOP_STARTUP_ID",
+        "XDG_ACTIVATION_TOKEN",
+        "XDG_CURRENT_DESKTOP",
+        "XDG_SESSION_DESKTOP",
+        "KDE_SESSION_VERSION",
+        "DBUS_SESSION_BUS_ADDRESS",
+    )
+    return {key: os.environ.get(key, "").strip() for key in keys}
+
+
+def redact_launch_token(value: str | None) -> str:
+    """
+    Return a non-sensitive summary for launch/auth tokens used in diagnostics.
+    """
+    token = (value or "").strip()
+    if not token:
+        return "unset"
+    if len(token) <= 8:
+        return "***"
+    return f"{token[:4]}…{token[-4:]}"
 
 
 def _resolved_desktop_source() -> Path | None:

@@ -10,8 +10,11 @@ import threading
 
 from nanoleaf_sync.config.store import ConfigManager, mode_config
 from nanoleaf_sync.desktop_entry import (
+    QT_DESKTOP_FILE_NAME,
     disable_autostart,
     enable_autostart,
+    launch_context_snapshot,
+    redact_launch_token,
     user_autostart_path,
 )
 from nanoleaf_sync.service import NanoleafSyncService
@@ -90,8 +93,11 @@ class NanoleafTrayApp:
         self.QVBoxLayout = qt["QVBoxLayout"]
         self.QTimer = qt["QTimer"]
         self.Qt = qt["Qt"]
+        self._set_qt_desktop_identity()
 
         self.app = qt["QApplication"](sys.argv)
+        self.app.setApplicationName(QT_DESKTOP_FILE_NAME)
+        self.app.setDesktopFileName(QT_DESKTOP_FILE_NAME)
         self.cfg_mgr = ConfigManager()
         self._startup_warning: str | None = None
         try:
@@ -111,6 +117,7 @@ class NanoleafTrayApp:
         self.tray_icon.setContextMenu(self._make_menu())
         self._refresh_mode_labels()
         self.tray_icon.show()
+        self._show_startup_launch_diagnostic()
         if self._config_created:
             self.tray_icon.showMessage(
                 "nanoleaf-kde-sync",
@@ -128,6 +135,27 @@ class NanoleafTrayApp:
                 self.QSystemTrayIcon.MessageIcon.Warning,
                 10000,
             )
+
+    def _set_qt_desktop_identity(self) -> None:
+        for method_name in ("setDesktopFileName", "setApplicationName"):
+            method = getattr(self.QApplication, method_name, None)
+            if callable(method):
+                method(QT_DESKTOP_FILE_NAME)
+
+    def _show_startup_launch_diagnostic(self) -> None:
+        context = launch_context_snapshot()
+        startup_id = redact_launch_token(context.get("DESKTOP_STARTUP_ID"))
+        activation = redact_launch_token(context.get("XDG_ACTIVATION_TOKEN"))
+        self.tray_icon.showMessage(
+            "nanoleaf-kde-sync startup context",
+            (
+                f"Qt desktop file name: {self.app.desktopFileName() or 'unset'}\n"
+                f"Desktop startup ID: {startup_id}\n"
+                f"Activation token: {activation}"
+            ),
+            self.QSystemTrayIcon.MessageIcon.Information,
+            6000,
+        )
 
     def _make_icon(self, running: bool):
         pix = self.QPixmap(16, 16)

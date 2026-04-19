@@ -10,6 +10,12 @@ from typing import Any, Optional
 import numpy as np
 
 from nanoleaf_sync.color.hdr import HDRMetadata, convert_frame_to_srgb8
+from nanoleaf_sync.desktop_entry import (
+    QT_DESKTOP_FILE_NAME,
+    RESTRICTED_IFACE_MARKER,
+    launch_context_snapshot,
+    redact_launch_token,
+)
 
 
 @dataclass(frozen=True)
@@ -420,12 +426,15 @@ class KWinDBusScreenshotCapture:
             or "NoAuthorized" in error_name
             or "NoAuthorized" in details
         ):
+            context = launch_context_snapshot()
+            startup_id = redact_launch_token(context.get("DESKTOP_STARTUP_ID"))
+            activation = redact_launch_token(context.get("XDG_ACTIVATION_TOKEN"))
             raise KWinDBusCaptureError(
-                "KWin ScreenShot2 access denied by KDE policy. If you launched from a plain "
-                "terminal, run via the installed desktop entry/launcher so KDE grants "
-                "screenshot permissions. For packaged/manual launchers, ensure the desktop file "
-                "includes X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2 and then "
-                "restart the KDE session."
+                "KWin ScreenShot2 access denied by KDE policy. This can happen when KDE cannot "
+                "associate this process with an authorized desktop entry. Confirm the running app "
+                f"uses Qt desktop file name '{QT_DESKTOP_FILE_NAME}' and the launcher desktop file "
+                f"contains '{RESTRICTED_IFACE_MARKER}'. Launch context: DESKTOP_STARTUP_ID={startup_id}; "
+                f"XDG_ACTIVATION_TOKEN={activation}. If launcher metadata changed, restart the Plasma session."
             )
 
         raise KWinDBusCaptureError(
