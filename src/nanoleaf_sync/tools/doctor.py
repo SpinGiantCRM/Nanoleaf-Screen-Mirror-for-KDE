@@ -238,13 +238,21 @@ def _check_real_device_probe(config: AppConfig) -> DoctorCheck:
 
 def _check_mode_consistency(config: AppConfig) -> DoctorCheck:
     normalized = (config.prefer_backend or "").strip().lower()
-    valid_backends = {"", "kwin-dbus", "kwin_dbus", "kwin-dbus-screenshot"}
+    valid_backends = {
+        "",
+        "kwin-dbus",
+        "kwin_dbus",
+        "kwin-dbus-screenshot",
+        "xdg-portal",
+        "xdg_portal",
+        "portal",
+    }
     if not config.use_mock_capture and normalized not in valid_backends:
         return DoctorCheck(
             "mode-consistency",
             "fail",
             "Unsupported real capture backend in config.",
-            "Set prefer_backend to 'kwin-dbus' or enable mock capture.",
+            "Set prefer_backend to 'kwin-dbus' or 'xdg-portal', or enable mock capture.",
         )
     return DoctorCheck("mode-consistency", "pass", "Capture/device mode configuration is coherent.")
 

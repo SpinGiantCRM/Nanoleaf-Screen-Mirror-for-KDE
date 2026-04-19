@@ -56,6 +56,14 @@ def test_config_load_normalizes_backend(tmp_path: Path) -> None:
     assert cfg.prefer_backend == "kwin-dbus"
 
 
+def test_config_load_normalizes_portal_backend_alias(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.json"
+    cfg_path.write_text(json.dumps({"prefer_backend": "portal"}), encoding="utf-8")
+
+    cfg = ConfigManager(path=cfg_path).load()
+    assert cfg.prefer_backend == "xdg-portal"
+
+
 def test_config_load_invalid_backend_falls_back_to_default(tmp_path: Path) -> None:
     cfg_path = tmp_path / "config.json"
     cfg_path.write_text(

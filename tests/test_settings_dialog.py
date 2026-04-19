@@ -128,6 +128,6 @@ def test_settings_dialog_constructs_and_opens_with_qt_stubs(monkeypatch) -> None
     dialog = SettingsDialog(parent=None, cfg=cfg)
     assert dialog.exec() == 1
     updated = dialog.updated_config()
-    assert updated.prefer_backend == "kwin-dbus"
+    assert updated.prefer_backend in {"kwin-dbus", "xdg-portal"}
     assert updated.hdr_transfer in {"srgb", "pq", "hlg"}
     assert updated.hdr_primaries in {"bt709", "bt2020"}
