@@ -138,16 +138,21 @@ class TestZoneColors:
         img = np.full((4, 4, 3), [100, 100, 100], dtype=np.uint8)
         result = zone_colors(img, [(0, 0, 4, 4)])
         assert len(result) == 1
+        # Neutral grey round-trips exactly through OKLab.
         assert result[0] == (100, 100, 100)
 
     def test_quadrant_zones(self):
         img = self._make_quadrant_image()
         zones = [(0, 0, 2, 2), (2, 0, 2, 2), (0, 2, 2, 2), (2, 2, 2, 2)]
         result = zone_colors(img, zones)
-        assert result[0] == (255, 0, 0)  # TL = red
-        assert result[1] == (0, 255, 0)  # TR = green
-        assert result[2] == (0, 0, 255)  # BL = blue
-        assert result[3] == (255, 255, 255)  # BR = white
+        # Solid primary colours: allow ±2 for OKLab float32 roundtrip.
+        for channel_idx, (r, g, b) in enumerate(result[:3]):
+            dominant = [r, g, b][channel_idx]
+            others = [v for i, v in enumerate([r, g, b]) if i != channel_idx]
+            assert abs(dominant - 255) <= 2, f"zone {channel_idx} dominant channel off: {(r, g, b)}"
+            assert all(v <= 3 for v in others), f"zone {channel_idx} bleed into off channels: {(r, g, b)}"
+        # White is a neutral grey; round-trips exactly.
+        assert result[3] == (255, 255, 255)
 
     def test_empty_zones_returns_empty(self):
         img = np.zeros((4, 4, 3), dtype=np.uint8)
@@ -163,15 +168,21 @@ class TestZoneColors:
         # Zone starts at (3,3) with size (4,4) — only 1x1 pixel inside a 4x4 image
         img = np.full((4, 4, 3), [80, 160, 240], dtype=np.uint8)
         result = zone_colors(img, [(3, 3, 4, 4)])
-        assert result == [(80, 160, 240)]
+        assert len(result) == 1
+        r, g, b = result[0]
+        # Allow ±2 for OKLab float32 roundtrip on non-neutral colours.
+        assert abs(r - 80) <= 2
+        assert abs(g - 160) <= 2
+        assert abs(b - 240) <= 2
 
     def test_multiple_zones_same_image(self):
         img = np.zeros((1, 6, 3), dtype=np.uint8)
         img[0, :3] = [10, 0, 0]
         img[0, 3:] = [20, 0, 0]
         result = zone_colors(img, [(0, 0, 3, 1), (3, 0, 3, 1)])
-        assert result[0][0] == 10
-        assert result[1][0] == 20
+        # Very dark values: allow ±1 for sRGB linear-segment OKLab precision.
+        assert abs(result[0][0] - 10) <= 1
+        assert abs(result[1][0] - 20) <= 1
 
     def test_zone_sampling_stride_reduces_work_but_preserves_structure(self):
         img = np.zeros((8, 8, 3), dtype=np.uint8)
@@ -182,5 +193,9 @@ class TestZoneColors:
         full = zone_colors(img, zones, sample_step=1)
         fast = zone_colors(img, zones, sample_step=2)
 
-        assert full == [(100, 0, 0), (200, 0, 0)]
-        assert fast == [(100, 0, 0), (200, 0, 0)]
+        # Structure is preserved: left zone is redder, right zone is more red.
+        # Allow ±2 for OKLab float32 roundtrip.
+        assert abs(full[0][0] - 100) <= 2 and full[0][1] <= 3 and full[0][2] <= 3
+        assert abs(full[1][0] - 200) <= 2 and full[1][1] <= 3 and full[1][2] <= 3
+        assert abs(fast[0][0] - 100) <= 2 and fast[0][1] <= 3 and fast[0][2] <= 3
+        assert abs(fast[1][0] - 200) <= 2 and fast[1][1] <= 3 and fast[1][2] <= 3

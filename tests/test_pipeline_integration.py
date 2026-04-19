@@ -63,6 +63,18 @@ def test_full_pipeline_zone_map_brightness_smoothing_and_send() -> None:
     )
 
     assert len(driver.sent_frames) == 1
-    # Adaptive One-Euro-style smoothing should stay responsive on larger deltas
-    # while still blending with previous output.
-    assert driver.sent_frames[0] == [(0, 50, 0), (100, 5, 5)]
+    result = driver.sent_frames[0]
+
+    # Zone 0: green (0, ~100, 0) × 0.5 brightness, large delta → fully responsive.
+    r0, g0, b0 = result[0]
+    assert r0 == 0
+    assert abs(g0 - 50) <= 1  # OKLab float32 ±1
+    assert b0 == 0
+
+    # Zone 1: red (~200, 0, 0) × 0.5 brightness vs prev (40, 40, 40).
+    # R: large delta → alpha=1.0 → R=100.
+    # G, B: moderate delta → partially blended toward 5.
+    r1, g1, b1 = result[1]
+    assert abs(r1 - 100) <= 1
+    assert abs(g1 - 5) <= 2
+    assert abs(b1 - 5) <= 2
