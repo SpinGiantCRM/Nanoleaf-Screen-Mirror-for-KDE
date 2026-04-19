@@ -110,3 +110,16 @@ def test_config_persists_start_on_launch_and_color_mode(tmp_path: Path) -> None:
 
     assert loaded.start_on_launch is True
     assert loaded.color_mode == "dynamic"
+
+
+def test_config_persists_display_wizard_fields(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    mgr = ConfigManager(path=cfg_path)
+
+    cfg = AppConfig(wizard_completed=True, hdr_enabled=True, color_mode="hyper")
+    mgr.save(cfg)
+    loaded = mgr.load()
+
+    assert loaded.wizard_completed is True
+    assert loaded.hdr_enabled is True
+    assert loaded.color_mode == "hyper"

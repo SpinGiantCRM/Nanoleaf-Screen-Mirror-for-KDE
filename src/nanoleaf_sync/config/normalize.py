@@ -94,8 +94,10 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     color_mode = normalize_enum(
         getattr(cfg, "color_mode", AppConfig.color_mode),
         allowed={
+            "default": "default",
             "balanced": "balanced",
             "dynamic": "dynamic",
+            "hyper": "hyper",
             "vibrant": "dynamic",
         },
         default=AppConfig.color_mode,
@@ -132,6 +134,8 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         zone_sampling_stride=zone_sampling_stride,
         zone_preset=zone_preset,
         color_mode=color_mode,
+        wizard_completed=coerce_bool(getattr(cfg, "wizard_completed", False), False),
+        hdr_enabled=coerce_bool(getattr(cfg, "hdr_enabled", False), False),
         start_on_launch=coerce_bool(getattr(cfg, "start_on_launch", False), False),
         device_vid=cfg.device_vid,
         device_pid=cfg.device_pid,

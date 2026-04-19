@@ -46,3 +46,18 @@ def test_dynamic_mode_requires_stronger_signal_in_brighter_scene() -> None:
     bright_red_lift = int(bright_dynamic[0, 0]) - int(bright_balanced[0, 0])
 
     assert dark_red_lift > bright_red_lift
+
+
+def test_color_modes_are_meaningfully_different() -> None:
+    frame = np.zeros((8, 8, 3), dtype=np.uint8)
+    frame[:, :] = [30, 30, 30]
+    frame[2:6, 2:6] = [255, 50, 40]
+
+    balanced = zone_colors_array(frame, [(0, 0, 8, 8)], mode="balanced")[0]
+    default = zone_colors_array(frame, [(0, 0, 8, 8)], mode="default")[0]
+    dynamic = zone_colors_array(frame, [(0, 0, 8, 8)], mode="dynamic")[0]
+    hyper = zone_colors_array(frame, [(0, 0, 8, 8)], mode="hyper")[0]
+
+    assert int(default[0]) >= int(balanced[0])
+    assert int(dynamic[0]) >= int(default[0])
+    assert int(hyper[0]) >= int(dynamic[0])

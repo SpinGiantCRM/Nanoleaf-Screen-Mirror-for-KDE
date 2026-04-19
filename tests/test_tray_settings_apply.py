@@ -29,6 +29,9 @@ class _FakeDialog:
     def exec(self):
         return 1
 
+    def wants_display_configurator(self):
+        return False
+
     def updated_config(self):
         return AppConfig(
             zones=[ZoneConfig(x=0.0, y=0.0, w=0.5, h=1.0), ZoneConfig(x=0.5, y=0.0, w=0.5, h=1.0)],

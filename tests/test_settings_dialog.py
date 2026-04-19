@@ -102,12 +102,25 @@ def _qt_stub() -> dict[str, object]:
         def addWidget(self, *_args):
             pass
 
+        def addLayout(self, *_args):
+            pass
+
     class _Label:
         def __init__(self, text):
             self._text = text
 
         def setText(self, text):
             self._text = text
+
+        def setToolTip(self, _text):
+            pass
+
+        def setVisible(self, _visible):
+            pass
+
+    class _Button:
+        def __init__(self, _text):
+            self.clicked = _DummySignal()
 
         def setToolTip(self, _text):
             pass
@@ -129,6 +142,7 @@ def _qt_stub() -> dict[str, object]:
         "QComboBox": _Combo,
         "QLabel": _Label,
         "QSlider": _Slider,
+        "QPushButton": _Button,
         "Qt": types.SimpleNamespace(Orientation=types.SimpleNamespace(Horizontal=1)),
     }
 
@@ -154,8 +168,9 @@ def test_settings_dialog_constructs_and_opens_with_qt_stubs(monkeypatch) -> None
     assert updated.hdr_primaries in {"bt709", "bt2020"}
     assert updated.device_zone_count == 0
     assert updated.output_channel_order == "grb"
-    assert updated.color_mode in {"balanced", "dynamic"}
+    assert updated.color_mode in {"default", "balanced", "dynamic", "hyper"}
     assert updated.start_on_launch is False
+    assert updated.hdr_enabled is False
 
     portal_idx = dialog._dialog.capture_backend_combo.findText("xdg-portal")
     dialog._dialog.capture_backend_combo.setCurrentIndex(portal_idx)
