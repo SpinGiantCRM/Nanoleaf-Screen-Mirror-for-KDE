@@ -369,11 +369,19 @@ class KWinDBusScreenshotCapture:
         if getattr(reply, "body", None):
             details = str(reply.body[0])
 
-        if "AccessDenied" in error_name or "NotAuthorized" in details:
+        if (
+            "AccessDenied" in error_name
+            or "NotAuthorized" in error_name
+            or "NotAuthorized" in details
+            or "NoAuthorized" in error_name
+            or "NoAuthorized" in details
+        ):
             raise KWinDBusCaptureError(
-                "KWin ScreenShot2 access denied. Add "
-                "X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2 "
-                "to the app desktop file and restart the KDE session."
+                "KWin ScreenShot2 access denied by KDE policy. If you launched from a plain "
+                "terminal, run via the installed desktop entry/launcher so KDE grants "
+                "screenshot permissions. For packaged/manual launchers, ensure the desktop file "
+                "includes X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2 and then "
+                "restart the KDE session."
             )
 
         raise KWinDBusCaptureError(
