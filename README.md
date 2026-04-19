@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-Source%20Available-blue)
-![Version](https://img.shields.io/badge/version-0.4.8-informational)
+![Version](https://img.shields.io/badge/version-0.4.9-informational)
 
 Nanoleaf Screen Mirror for KDE brings Nanoleaf desktop mirroring to Linux on KDE Plasma 6.
 
@@ -33,7 +33,10 @@ It captures the active display, maps sampled colors to Nanoleaf zones, and sends
 
 ## Installation (Arch / CachyOS)
 
+> `python-dacite` may not be available in default pacman repositories on clean Arch/CachyOS installs. Install it with an AUR helper first, then build this package.
+
 ```bash
+paru -S --needed python-dacite
 cd packaging/arch
 makepkg -si
 ```
@@ -90,7 +93,8 @@ See the full guide at [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
 - **No frame capture**: Ensure you are running KDE Plasma 6 on Wayland and accepted the screenshot permission prompt.
 - **KWin ScreenShot2 authorization errors** (`...NoAuthorized` / `...NotAuthorized`):
   launching `nanoleaf-kde-sync-service` directly from a terminal can be denied by KDE policy.
-  Prefer launching from the installed desktop entry/tray flow so KDE can apply the
+  If diagnostics show `DESKTOP_STARTUP_ID=unset` and `XDG_ACTIVATION_TOKEN=unset`,
+  start from the installed desktop entry/tray flow so KDE can apply the
   `X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2` authorization context.
 - **USB permission denied**: Install and reload the udev rule:
 

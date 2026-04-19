@@ -14,7 +14,9 @@ depends=(
   'python-dbus-next'
   'python-hidapi'
   'python-dacite'
+  'python-tomli-w'
 )
+# NOTE: `python-dacite` may require AUR enablement on Arch/CachyOS.
 makedepends=('python-build' 'python-installer' 'python-wheel' 'python-setuptools')
 install='nanoleaf-kde-sync.install'
 source=(

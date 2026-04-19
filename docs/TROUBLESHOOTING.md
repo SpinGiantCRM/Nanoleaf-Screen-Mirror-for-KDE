@@ -13,9 +13,19 @@ If both commands pass but mirroring still fails, continue with the sections belo
 
 ## Common issues
 
+### Install-time dependency issue on Arch/CachyOS
+
+If `makepkg -si` fails with an unresolved `python-dacite` dependency, install it first with an AUR helper:
+
+```bash
+paru -S --needed python-dacite
+cd packaging/arch
+makepkg -si
+```
+
 ### KWin ScreenShot2 authorization errors
 
-If you see `NoAuthorized` / `NotAuthorized`, launch from the desktop entry or tray app so KDE policy applies `X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2`.
+If you see `NoAuthorized` / `NotAuthorized` (especially with `DESKTOP_STARTUP_ID=unset` and `XDG_ACTIVATION_TOKEN=unset` in diagnostics), launch from the desktop entry or tray app so KDE policy applies `X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2`.
 
 ### No HID device found
 
