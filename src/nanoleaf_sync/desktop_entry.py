@@ -28,6 +28,13 @@ def source_desktop_template_path() -> Path:
     return project_root() / "docs" / AUTOSTART_DESKTOP_NAME
 
 
+def _xdg_data_home() -> Path:
+    data_home = os.environ.get("XDG_DATA_HOME", "").strip()
+    if data_home:
+        return Path(data_home)
+    return Path.home() / ".local" / "share"
+
+
 def user_autostart_path() -> Path:
     return Path.home() / ".config" / "autostart" / AUTOSTART_DESKTOP_NAME
 
@@ -35,11 +42,7 @@ def user_autostart_path() -> Path:
 def installed_desktop_entry_candidates() -> list[Path]:
     candidates: list[Path] = []
 
-    data_home = os.environ.get("XDG_DATA_HOME", "").strip()
-    if data_home:
-        candidates.append(Path(data_home) / "applications" / AUTOSTART_DESKTOP_NAME)
-    else:
-        candidates.append(Path.home() / ".local" / "share" / "applications" / AUTOSTART_DESKTOP_NAME)
+    candidates.append(_xdg_data_home() / "applications" / AUTOSTART_DESKTOP_NAME)
 
     data_dirs = os.environ.get("XDG_DATA_DIRS", "").strip()
     if data_dirs:
@@ -89,10 +92,7 @@ def launch_context_snapshot() -> dict[str, str]:
 
 
 def preferred_user_desktop_entry_path() -> Path:
-    data_home = os.environ.get("XDG_DATA_HOME", "").strip()
-    if data_home:
-        return Path(data_home) / "applications" / AUTOSTART_DESKTOP_NAME
-    return Path.home() / ".local" / "share" / "applications" / AUTOSTART_DESKTOP_NAME
+    return _xdg_data_home() / "applications" / AUTOSTART_DESKTOP_NAME
 
 
 def runtime_exec_command() -> str:
@@ -106,14 +106,27 @@ def runtime_exec_command() -> str:
 def _upsert_desktop_key(text: str, key: str, value: str) -> str:
     lines = text.splitlines()
     replacement = f"{key}={value}"
-    for idx, line in enumerate(lines):
-        if line.startswith(f"{key}="):
+
+    section_start = next((idx for idx, line in enumerate(lines) if line.strip() == _DESKTOP_ENTRY_HEADER), None)
+    if section_start is None:
+        if lines and lines[-1].strip():
+            lines.append("")
+        lines.append(_DESKTOP_ENTRY_HEADER)
+        section_start = len(lines) - 1
+        section_end = len(lines)
+    else:
+        section_end = len(lines)
+        for idx in range(section_start + 1, len(lines)):
+            if lines[idx].lstrip().startswith("["):
+                section_end = idx
+                break
+
+    for idx in range(section_start + 1, section_end):
+        if lines[idx].startswith(f"{key}="):
             lines[idx] = replacement
             break
     else:
-        if lines and lines[-1].strip():
-            lines.append("")
-        lines.append(replacement)
+        lines.insert(section_end, replacement)
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -129,6 +142,12 @@ def _prepare_desktop_entry_text(text: str, *, exec_command: str | None = None) -
 
 
 def ensure_user_launcher_entry(*, exec_command: str | None = None) -> Path:
+    """Create or update the user launcher desktop entry.
+
+    Unlike enable_autostart(), this helper self-heals missing source templates
+    by generating a minimal desktop entry from _DESKTOP_ENTRY_HEADER and a
+    default Type/Name stanza, then normalizing it with runtime_exec_command().
+    """
     source = _resolved_desktop_source()
     text = (
         source.read_text(encoding="utf-8", errors="ignore")
