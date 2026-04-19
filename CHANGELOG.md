@@ -7,28 +7,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
-- Added core project health docs: troubleshooting, smoke-test guide, RC test matrix, hardware setup, security policy, and code of conduct.
-- Added CI lint/type checks and Python 3.12 test coverage.
+- Added XDG portal capture backend and wired config/UI support for portal-based capture workflows (PR #99).
+- Integrated the alternative pipeline/platform systems path for broader runtime/capture flexibility (PR #102).
 
 ### Changed
-- README now provides a clearer tray-first startup flow while still documenting direct service startup as an alternative.
-- README troubleshooting highlights now use consistent KWin ScreenShot2 wording and clearer Wayland/environment guidance.
-- README now links key operational docs in one documentation section and aligns quick-start wording with current commands.
-- `docs/TROUBLESHOOTING.md` now uses clearer labels and action wording for KWin authorization, HID/udev checks, HDR tuning, and reconnect steps.
-- `docs/HARDWARE_SETUP.md` now standardizes USB ID heading text, udev rule wording, and logout/login instructions.
-- `docs/SMOKE_TEST.md` now clarifies that the optional test-frame command validates device output with a low-brightness RGB pattern.
-- `docs/RC_TEST_MATRIX.md` now makes X11 rows explicitly compatibility checks and clarifies expected behavior for real-capture vs mock scenarios.
-- `CONTRIBUTING.md` release guidance now reads: create and push a tag only after the release checklist is fully complete.
-- Changelog documentation entries were expanded so each notable docs housekeeping change is recorded individually instead of in a single broad summary.
-- Capture factory now accepts explicit HDR args; KWin DBus capture forwards HDR metadata and relies on conversion logic to interpret it.
-- Empty `mode` values now raise a clear `ValueError` instead of defaulting to `full-real`.
-- Settings dialog smoothing label now describes user-visible behavior (`0 = smooth`, `100 = instant`).
-- Smoke test capture dimensions now use primary-screen detection with explicit fallback constants.
-- Tray startup now handles config/service initialization failures gracefully and shows a user-facing warning.
+- Optimized backend selection for CachyOS and enabled the `kmsgrab` path where available (PR #100).
+- Improved visual fidelity with perceptual averaging and adaptive smoothing updates (PR #102).
+- Applied follow-up capture/config stability improvements from CodeRabbit review feedback (PR #102).
+- Refreshed README/troubleshooting docs and then standardized wording across setup, smoke-test, RC, and contribution docs (PR #101 and docs housekeeping follow-ups).
+- Expanded changelog documentation entries so notable docs housekeeping is itemized instead of summarized in one broad line.
 
 ### Fixed
-- Doctor dependency guidance now recommends `pip install -e .[test]` instead of referencing `docs/requirements.txt`.
-
+- Fixed KDE ScreenShot2 authorization by normalizing desktop launcher `Exec` handling and related desktop-entry nits (PR #98).
+- Fixed portal capture and doctor backend-check regressions and resolved repo-wide Ruff lint violations (PR #99).
+- Hardened CI with pytest retry/de-flake logic and strengthened color/dimension test reliability (PR #103 and PR #104).
+- Fixed Qt module override behavior in primary-screen dimension detection tests (PR #105).
 
 ## [0.4.8]
 
