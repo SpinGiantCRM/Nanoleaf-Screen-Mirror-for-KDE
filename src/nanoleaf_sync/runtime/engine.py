@@ -23,6 +23,30 @@ from nanoleaf_sync.runtime.state import RGBTuple, RuntimeState, ZoneRect
 logger = logging.getLogger(__name__)
 
 
+def _adaptive_one_euro_blend(
+    *,
+    current: np.ndarray,
+    previous: np.ndarray,
+    smoothing: float,
+) -> np.ndarray:
+    """
+    Adaptive smoothing blend inspired by the One Euro filter.
+
+    `smoothing` remains user-facing in [0,1]:
+    - 0.0: strongest smoothing at low motion
+    - 1.0: effectively no smoothing
+    """
+    min_alpha = max(0.0, min(1.0, float(smoothing)))
+    if min_alpha >= 1.0:
+        return current
+
+    velocity = np.abs(current - previous)
+    # Scale 8-bit channel deltas into a 0..~1 adaptive range.
+    speed = np.clip(velocity / 64.0, 0.0, 1.0)
+    alpha = min_alpha + (1.0 - min_alpha) * speed
+    return alpha * current + (1.0 - alpha) * previous
+
+
 def _zones_signature(config: AppConfig, img_w: int, img_h: int) -> tuple[int, int, tuple[tuple[float, float, float, float], ...]]:
     return (
         int(img_w),
@@ -116,12 +140,15 @@ def process_frame(
     if b != 1.0:
         mapped *= b
 
-    a = max(0.0, min(1.0, float(smoothing)))
-    if prev_smoothed_colors and a < 1.0:
+    if prev_smoothed_colors:
         n = min(len(prev_smoothed_colors), mapped.shape[0])
         if n:
             prev_arr = np.asarray(prev_smoothed_colors[:n], dtype=np.float32)
-            mapped[:n] = (a * mapped[:n]) + ((1.0 - a) * prev_arr)
+            mapped[:n] = _adaptive_one_euro_blend(
+                current=mapped[:n],
+                previous=prev_arr,
+                smoothing=smoothing,
+            )
 
     out = np.clip(np.rint(mapped), 0.0, 255.0).astype(np.uint8, copy=False)
     return [tuple(int(c) for c in row) for row in out.tolist()]

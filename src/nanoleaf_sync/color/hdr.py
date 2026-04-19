@@ -131,14 +131,24 @@ def _hlg_eotf_to_linear(c: np.ndarray) -> np.ndarray:
 
 
 def _apply_tonemap_reinhard(linear: np.ndarray, max_nits: float) -> np.ndarray:
-    # Scale by max_nits to approximate scene luminance.
-    # `linear` from our EOTF is normalized relative to reference.
-    # This tonemap is intentionally simple; a future iteration can
-    # use proper Dolby/BT.2390 tone mapping once you have mastering metadata.
+    # Hable / Uncharted 2 filmic curve:
+    # better shoulder roll-off and colorfulness retention than Reinhard.
     scale = max(1.0, float(max_nits)) / 100.0
-    x = linear * scale
-    # Reinhard tone mapping into [0,1)
-    return x / (1.0 + x)
+    x = np.clip(linear * scale, 0.0, None).astype(np.float32, copy=False)
+
+    a = 0.15
+    b = 0.50
+    c = 0.10
+    d = 0.20
+    e = 0.02
+    f = 0.30
+    white = 11.2
+
+    def _hable_curve(v: np.ndarray) -> np.ndarray:
+        return ((v * (a * v + c * b) + d * e) / (v * (a * v + b) + d * f)) - (e / f)
+
+    white_scale = 1.0 / max(float(_hable_curve(np.array([white], dtype=np.float32))[0]), 1e-6)
+    return np.clip(_hable_curve(x) * white_scale, 0.0, 1.0)
 
 
 def _linear_bt709_to_linear_srgb(linear_rgb: np.ndarray) -> np.ndarray:
