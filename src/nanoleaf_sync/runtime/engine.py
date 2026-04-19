@@ -239,6 +239,7 @@ def run_loop(
     log_interval_s = float(getattr(config, "status_log_interval_s", 5.0))
     last_sent_zone_count = 0
     sent_in_window = 0
+    sent_any_frame = False
     ewma_capture_to_send_ms = 0.0
 
     pending_slot = PendingFrameSlot()
@@ -264,25 +265,37 @@ def run_loop(
     capture_thread = threading.Thread(target=_capture_worker, name="capture-worker", daemon=True)
     capture_thread.start()
 
-    while not state.stop_event.is_set():
+    while True:
+        stop_requested = state.stop_event.is_set()
         start = time.perf_counter()
         processing_end = start
         skip_tick = False
 
         try:
             if state.is_reinitializing:
+                if stop_requested:
+                    break
                 skip_tick = True
             else:
                 driver = get_driver()
                 if driver is None:
+                    if stop_requested:
+                        break
                     skip_tick = True
                 else:
+                    if stop_requested and sent_any_frame:
+                        break
                     pending = pending_slot.pop()
-                    if pending is None:
-                        wait_budget = max(0.0, min(interval_s, next_deadline - time.perf_counter()))
+                    if pending is None and not stop_requested:
+                        wait_budget = max(
+                            0.0,
+                            min(interval_s, next_deadline - time.perf_counter()),
+                        )
                         pending_slot.wait(timeout=min(0.005, wait_budget))
                         pending = pending_slot.pop()
                     if pending is None:
+                        if stop_requested:
+                            break
                         skip_tick = True
                     else:
                         frame = pending.frame
@@ -324,6 +337,7 @@ def run_loop(
                 )
 
                 state.record_success()
+                sent_any_frame = True
                 last_sent_zone_count = len(smoothed_colors)
                 sent_in_window += 1
         except Exception as e:
