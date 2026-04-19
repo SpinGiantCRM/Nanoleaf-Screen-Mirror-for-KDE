@@ -280,6 +280,28 @@ def test_kwin_backend_applies_hdr_conversion_when_configured(monkeypatch) -> Non
     assert float(getattr(meta, "max_nits")) == 1200.0
 
 
+def test_screenshot2_attempts_capture_screen_before_capture_area_with_monitor_id() -> None:
+    backend = KWinDBusScreenshotCapture(width=480, height=270, monitor_id="DP-1")
+
+    attempts = backend._screenshot2_method_attempts()
+
+    assert attempts[0][0] == "CaptureScreen"
+    assert attempts[1][0] == "CaptureScreen"
+    assert len(attempts) == 2
+    backend.close()
+
+
+def test_screenshot2_attempts_capture_area_when_monitor_id_is_not_set() -> None:
+    backend = KWinDBusScreenshotCapture(width=480, height=270, monitor_id=None)
+
+    attempts = backend._screenshot2_method_attempts()
+
+    assert attempts[0][0] == "CaptureArea"
+    assert attempts[1][0] == "CaptureScreen"
+    assert len(attempts) == 2
+    backend.close()
+
+
 def test_ensure_background_loop_waits_outside_lock(monkeypatch) -> None:
     backend = KWinDBusScreenshotCapture(width=2, height=1)
 
