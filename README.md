@@ -58,6 +58,10 @@ nanoleaf-kde-sync-autostart disable
 ## Troubleshooting
 
 - **No frame capture**: Ensure you are running KDE Plasma 6 Wayland and accepted the screenshot permission prompt.
+- **ScreenShot2 authorization error (`...NoAuthorized` / `...NotAuthorized`)**:
+  launching `nanoleaf-kde-sync-service` directly from a terminal can be denied by KDE policy.
+  Prefer launching from the installed desktop entry/tray workflow so KDE can apply the
+  `X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2` authorization context.
 - **USB permission denied**: Install and reload the udev rule:
 
   ```bash

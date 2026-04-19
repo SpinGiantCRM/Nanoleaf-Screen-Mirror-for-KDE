@@ -97,7 +97,18 @@ def test_screenshot2_authorization_error_is_actionable() -> None:
         error_name = "org.freedesktop.DBus.Error.AccessDenied"
         body = ["not authorized"]
 
-    with pytest.raises(KWinDBusCaptureError, match="X-KDE-DBUS-Restricted-Interfaces"):
+    with pytest.raises(KWinDBusCaptureError, match="launched from a plain terminal"):
+        backend._raise_screenshot2_error(_Reply())
+
+
+def test_screenshot2_noauthorized_error_is_actionable() -> None:
+    backend = KWinDBusScreenshotCapture(width=2, height=1)
+
+    class _Reply:
+        error_name = "org.kde.KWin.ScreenShot2.Error.NoAuthorized"
+        body = ["NoAuthorized"]
+
+    with pytest.raises(KWinDBusCaptureError, match="desktop entry/launcher"):
         backend._raise_screenshot2_error(_Reply())
 
 

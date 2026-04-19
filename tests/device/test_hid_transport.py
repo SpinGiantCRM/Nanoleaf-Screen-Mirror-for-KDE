@@ -62,6 +62,36 @@ def test_transceive_multi_read_accumulates_full_tlv() -> None:
     assert response == b"\x8C\x00\x07\x00NL82K2"
 
 
+def test_transceive_accepts_no_report_id_prefix_when_enabled_by_default() -> None:
+    # Device replies with no report-id prefix (64-byte packet starts with TLV type directly).
+    fake = FakeHIDHandle([b"\x83\x00\x03\x00\x00\x0A" + b"\x00" * 58])
+    transport = HIDTransport(
+        ids=NanoleafUSBIds(0x37FA, 0x8202),
+        report_size=64,
+        use_report_id_prefix=True,
+    )
+    transport._handle = fake
+
+    response = transport.transceive(b"\x03\x00\x00")
+
+    assert response == b"\x83\x00\x03\x00\x00\x0A"
+
+
+def test_transceive_accepts_prefixed_reply_when_prefix_disabled() -> None:
+    # Compatibility fallback: read framing may still include a report-id byte.
+    fake = FakeHIDHandle([b"\x00\x83\x00\x03\x00\x00\x0A" + b"\x00" * 58])
+    transport = HIDTransport(
+        ids=NanoleafUSBIds(0x37FA, 0x8202),
+        report_size=64,
+        use_report_id_prefix=False,
+    )
+    transport._handle = fake
+
+    response = transport.transceive(b"\x03\x00\x00")
+
+    assert response == b"\x83\x00\x03\x00\x00\x0A"
+
+
 def test_transceive_times_out_on_empty_read() -> None:
     fake = FakeHIDHandle([])
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
