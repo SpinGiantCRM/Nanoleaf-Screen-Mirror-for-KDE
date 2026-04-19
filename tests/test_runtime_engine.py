@@ -172,7 +172,7 @@ def test_run_loop_skips_tick_when_backends_temporarily_missing() -> None:
     assert capture_calls["count"] >= 1
 
 
-def test_pending_frame_slot_replaces_stale_frame_with_newest() -> None:
+def test_pending_frame_slot_last_write_wins() -> None:
     slot = PendingFrameSlot()
     frame_a = np.zeros((1, 1, 3), dtype=np.uint8)
     frame_b = np.ones((1, 1, 3), dtype=np.uint8) * 255

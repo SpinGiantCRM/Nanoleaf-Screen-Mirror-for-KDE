@@ -186,6 +186,15 @@ class NanoleafTrayApp:
 
         idle_icon = themed_idle if not themed_idle.isNull() else fallback_icon
         running_icon = themed_running if not themed_running.isNull() else idle_icon
+        if idle_icon.isNull() or running_icon.isNull():
+            qt = load_qt()
+            pixmap = qt["QPixmap"](16, 16)
+            pixmap.fill(qt["QColor"](88, 88, 88))
+            fallback_generated_icon = self.QIcon(pixmap)
+            if idle_icon.isNull():
+                idle_icon = fallback_generated_icon
+            if running_icon.isNull():
+                running_icon = fallback_generated_icon
         return idle_icon, running_icon
 
     def _make_menu(self):

@@ -57,6 +57,10 @@ class PendingFrameSlot:
     def wait(self, timeout: float) -> bool:
         return self._ready.wait(timeout=max(0.0, float(timeout)))
 
+    def get_replaced_count(self) -> int:
+        with self._lock:
+            return int(self.replaced_frames)
+
 
 def _adaptive_one_euro_blend(
     *,
@@ -348,6 +352,7 @@ def run_loop(
         if now - last_log > log_interval_s:
             window_s = max(0.001, now - last_log)
             send_fps = sent_in_window / window_s
+            replaced_frames = pending_slot.get_replaced_count()
             last_log = now
             sent_in_window = 0
             elapsed_ms = (processing_end - start) * 1000.0
@@ -359,11 +364,11 @@ def run_loop(
                 state.consecutive_errors,
                 send_fps,
                 ewma_capture_to_send_ms,
-                pending_slot.replaced_frames,
+                replaced_frames,
             )
             if config.verbose:
                 print(
-                    f"[service] tick fps={fps} elapsed_ms={elapsed_ms:.2f} zones={last_sent_zone_count} send_fps={send_fps:.1f} capture_to_send_ms={ewma_capture_to_send_ms:.2f} replaced_frames={pending_slot.replaced_frames}"
+                    f"[service] tick fps={fps} elapsed_ms={elapsed_ms:.2f} zones={last_sent_zone_count} send_fps={send_fps:.1f} capture_to_send_ms={ewma_capture_to_send_ms:.2f} replaced_frames={replaced_frames}"
                 )
 
         if now - next_deadline > interval_s:

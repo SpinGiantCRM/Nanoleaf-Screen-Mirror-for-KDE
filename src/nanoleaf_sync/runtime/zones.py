@@ -184,7 +184,14 @@ def zone_colors_array(
         vivid_weight = 0.40 + 0.40 * sat + 0.20 * np.clip((lum / 255.0) ** 0.7, 0.0, 1.0)
         vivid_flat = vivid_weight.reshape(-1)
         patch_flat = patch_f.reshape(-1, 3)
-        highlight = np.average(patch_flat, axis=0, weights=vivid_flat)
+        if patch_flat.size == 0:
+            highlight = np.zeros(3, dtype=np.float32)
+        else:
+            weight_sum = float(vivid_flat.sum())
+            if weight_sum <= 0.0:
+                highlight = patch_flat.mean(axis=0)
+            else:
+                highlight = np.average(patch_flat, axis=0, weights=vivid_flat)
 
         motion_boost = 0.0
         if prev is not None and idx < len(prev):

@@ -25,3 +25,4 @@ def test_dynamic_mode_biases_toward_vivid_highlights() -> None:
     dynamic = zone_colors_array(frame, [(0, 0, 4, 4)], mode="dynamic")
 
     assert dynamic[0, 0] > balanced[0, 0]
+    assert tuple(dynamic[0]) != tuple(balanced[0])
