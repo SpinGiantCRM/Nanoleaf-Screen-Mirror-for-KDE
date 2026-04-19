@@ -396,6 +396,33 @@ class NanoleafTrayApp:
         if was_running:
             self.on_start()
 
+
+    def on_troubleshooting(self) -> None:
+        guide_path = Path(__file__).resolve().parents[3] / "docs" / "TROUBLESHOOTING.md"
+        if guide_path.exists():
+            try:
+                subprocess.Popen(["xdg-open", str(guide_path)])
+                self.tray_icon.showMessage(
+                    "nanoleaf-kde-sync",
+                    f"Opened troubleshooting guide:\n{guide_path}",
+                    self.QSystemTrayIcon.MessageIcon.Information,
+                    5000,
+                )
+                return
+            except Exception as exc:
+                _log.warning("Unable to open troubleshooting guide with xdg-open: %s", exc, exc_info=True)
+
+        self.QMessageBox.information(
+            None,
+            "nanoleaf-kde-sync troubleshooting",
+            (
+                "Run diagnostics from the tray menu:\n"
+                "• Run Doctor\n"
+                "• Run Smoke Test\n\n"
+                "If those checks fail, open docs/TROUBLESHOOTING.md in the project source."
+            ),
+        )
+
     def on_status(self):
         status = self.service.get_status()
         connection_text = "connected" if status.get("device_discovered") else "not connected"
