@@ -63,7 +63,6 @@ def test_full_pipeline_zone_map_brightness_smoothing_and_send() -> None:
     )
 
     assert len(driver.sent_frames) == 1
-    # EMA with alpha=0.25: current contribution is 25%, previous is 75%.
-    # zone0: current (0,50,0), prev (0,0,0) -> (0,12.5,0) -> (0,12,0)
-    # zone1: current (100,0,0), prev (40,40,40) -> (55,30,30)
-    assert driver.sent_frames[0] == [(0, 12, 0), (55, 30, 30)]
+    # Adaptive One-Euro-style smoothing should stay responsive on larger deltas
+    # while still blending with previous output.
+    assert driver.sent_frames[0] == [(0, 50, 0), (100, 5, 5)]

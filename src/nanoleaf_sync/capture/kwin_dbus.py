@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -80,6 +81,7 @@ class KWinDBusScreenshotCapture:
         self._loop_ready = threading.Event()
         self._loop_lock = threading.Lock()
         self._screenshot2_bus = None
+        self._screenshot2_introspection = None
         self._legacy_bus = None
         self._loop_start_error: BaseException | None = None
         self._hdr_defaults = HDRMetadata(
@@ -133,6 +135,10 @@ class KWinDBusScreenshotCapture:
         return future.result()
 
     def _ensure_background_loop(self) -> asyncio.AbstractEventLoop:
+        loop = self._loop
+        if loop is not None and loop.is_running():
+            return loop
+
         with self._loop_lock:
             if self._loop is not None and self._loop.is_running():
                 return self._loop
@@ -278,6 +284,7 @@ class KWinDBusScreenshotCapture:
         await self._disconnect_bus(self._screenshot2_bus)
         await self._disconnect_bus(self._legacy_bus)
         self._screenshot2_bus = None
+        self._screenshot2_introspection = None
         self._legacy_bus = None
 
     async def _connect_screenshot2_bus(self):
@@ -295,6 +302,13 @@ class KWinDBusScreenshotCapture:
             self._screenshot2_bus = await self._connect_screenshot2_bus()
         return self._screenshot2_bus
 
+    async def _get_screenshot2_introspection(self):
+        bus_name, path, _ = self._SCREENSHOT2_API
+        bus = await self._get_screenshot2_bus()
+        if self._screenshot2_introspection is None:
+            self._screenshot2_introspection = await bus.introspect(bus_name, path)
+        return self._screenshot2_introspection
+
     async def _get_legacy_bus(self):
         if self._legacy_bus is None:
             self._legacy_bus = await self._connect_legacy_bus()
@@ -305,7 +319,7 @@ class KWinDBusScreenshotCapture:
 
         bus_name, path, interface_name = self._SCREENSHOT2_API
         bus = await self._get_screenshot2_bus()
-        await bus.introspect(bus_name, path)
+        await self._get_screenshot2_introspection()
 
         attempt_errors: list[tuple[str, str, Exception]] = []
         for method_name, signature, base_args in self._screenshot2_method_attempts():
@@ -326,7 +340,11 @@ class KWinDBusScreenshotCapture:
                     self._raise_screenshot2_error(reply)
 
                 results = reply.body[0] if reply.body else {}
-                frame_data = self._read_all_bytes_from_fd(read_fd)
+                result_map = self._normalize_variant_dict(results)
+                stride = int(result_map.get("stride", 0) or 0)
+                height = int(result_map.get("height", 0) or 0)
+                expected_bytes = stride * height if stride > 0 and height > 0 else None
+                frame_data = self._read_fd_exact(read_fd, expected_bytes)
                 self.last_capture_path = f"kwin-dbus:{method_name}"
                 return _ScreenShot2Payload(data=frame_data, results=results)
             except Exception as exc:
@@ -477,6 +495,21 @@ class KWinDBusScreenshotCapture:
                 break
             chunks.append(chunk)
         return b"".join(chunks)
+
+    def _read_fd_exact(self, fd: int, expected_size: int | None) -> bytes:
+        if expected_size is None or expected_size <= 0:
+            return self._read_all_bytes_from_fd(fd)
+
+        buffer = bytearray(expected_size)
+        view = memoryview(buffer)
+        read_total = 0
+        with os.fdopen(os.dup(fd), "rb", closefd=True) as handle:
+            while read_total < expected_size:
+                got = handle.readinto(view[read_total:])
+                if not got:
+                    break
+                read_total += got
+        return bytes(view[:read_total])
 
     def _candidate_args_for_method(self, method_name: str) -> tuple[tuple[object, ...], ...]:
         if method_name == "captureScreen" and self.params.monitor_id:
@@ -666,6 +699,16 @@ class KWinDBusScreenshotCapture:
     def _decode_qimage_raw_frame(
         self, *, data: bytes, width: int, height: int, stride: int, image_format: int
     ) -> np.ndarray:
+        known_rgb = self._decode_known_qimage_raw_formats(
+            data=data,
+            width=width,
+            height=height,
+            stride=stride,
+            image_format=image_format,
+        )
+        if known_rgb is not None:
+            return known_rgb
+
         try:
             from PyQt6.QtGui import QImage
         except Exception as exc:
@@ -681,6 +724,22 @@ class KWinDBusScreenshotCapture:
                 f"KWin ScreenShot2 returned unsupported QImage format id: {image_format}"
             )
         return self._qimage_to_rgb_array(image)
+
+    def _decode_known_qimage_raw_formats(
+        self, *, data: bytes, width: int, height: int, stride: int, image_format: int
+    ) -> np.ndarray | None:
+        if sys.byteorder != "little":
+            return None
+        # Qt: RGB32=4, ARGB32=5. Both are B G R A/x in memory order on little-endian.
+        if image_format not in (4, 5):
+            return None
+        if stride < width * 4 or len(data) < stride * height:
+            return None
+
+        arr = np.frombuffer(data, dtype=np.uint8).reshape(height, stride)
+        pixels = arr[:, : width * 4].reshape(height, width, 4)
+        # BGRx/BGRA -> RGB
+        return pixels[:, :, :3][:, :, ::-1].copy()
 
     def _resize_frame(self, *, frame: np.ndarray, width: int, height: int) -> np.ndarray:
         from PyQt6.QtCore import Qt

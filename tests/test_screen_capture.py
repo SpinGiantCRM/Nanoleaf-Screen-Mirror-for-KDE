@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from nanoleaf_sync.capture.factory import create_capture_backend
 from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture
@@ -104,3 +103,26 @@ def test_capture_factory_passes_hdr_params_to_kwin_backend(monkeypatch) -> None:
     assert captured["hdr_max_nits"] == 1600.0
     assert captured["hdr_transfer"] == "pq"
     assert captured["hdr_primaries"] == "bt2020"
+
+
+def test_kmsgrab_probes_modules_once_and_falls_back_without_import_exceptions(monkeypatch) -> None:
+    calls = {"imports": 0}
+
+    def _fake_import(_name):
+        calls["imports"] += 1
+        raise ImportError("missing")
+
+    monkeypatch.setattr("nanoleaf_sync.capture.kmsgrab.import_module", _fake_import)
+
+    backend = KMSGrabCapture(width=4, height=3)
+
+    fallback_frame = np.zeros((3, 4, 3), dtype=np.uint8)
+    monkeypatch.setattr(backend._fallback, "capture", lambda: fallback_frame)
+
+    first = backend.capture()
+    second = backend.capture()
+
+    assert first.shape == (3, 4, 3)
+    assert second.shape == (3, 4, 3)
+    # Two probes only (internal module + external kmsgrab), not per frame.
+    assert calls["imports"] == 2

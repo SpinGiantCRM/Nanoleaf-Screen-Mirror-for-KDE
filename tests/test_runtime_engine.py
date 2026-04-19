@@ -5,7 +5,7 @@ import threading
 import numpy as np
 
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
-from nanoleaf_sync.runtime.engine import _ensure_runtime_artifacts, process_frame
+from nanoleaf_sync.runtime.engine import _adaptive_one_euro_blend, _ensure_runtime_artifacts, process_frame
 from nanoleaf_sync.runtime.state import RuntimeState
 
 
@@ -92,6 +92,17 @@ def test_process_frame_supports_zone_sampling_stride() -> None:
     )
 
     assert colors == [(10, 20, 30), (50, 60, 70)]
+
+
+def test_adaptive_smoothing_is_more_responsive_on_large_deltas() -> None:
+    prev = np.array([[10.0, 10.0, 10.0], [10.0, 10.0, 10.0]], dtype=np.float32)
+    current = np.array([[14.0, 10.0, 10.0], [200.0, 10.0, 10.0]], dtype=np.float32)
+
+    out = _adaptive_one_euro_blend(current=current, previous=prev, smoothing=0.25)
+    # Small delta remains strongly smoothed.
+    assert out[0, 0] < 13.0
+    # Large delta gets a much larger current-frame contribution.
+    assert out[1, 0] > 150.0
 
 
 def test_run_loop_skips_tick_when_backends_temporarily_missing() -> None:

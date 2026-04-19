@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import os
 import shlex
+import subprocess
 import sys
 from pathlib import Path
 
 
 AUTOSTART_DESKTOP_NAME = "nanoleaf-kde-sync.desktop"
+SYSTEMD_SERVICE_NAME = "nanoleaf-kde-sync.service"
 QT_DESKTOP_FILE_NAME = AUTOSTART_DESKTOP_NAME.removesuffix(".desktop")
 RESTRICTED_IFACE_MARKER = "X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2"
 _DESKTOP_ENTRY_HEADER = "[Desktop Entry]"
@@ -37,6 +39,10 @@ def _xdg_data_home() -> Path:
 
 def user_autostart_path() -> Path:
     return Path.home() / ".config" / "autostart" / AUTOSTART_DESKTOP_NAME
+
+
+def user_systemd_service_path() -> Path:
+    return Path.home() / ".config" / "systemd" / "user" / SYSTEMD_SERVICE_NAME
 
 
 def installed_desktop_entry_candidates() -> list[Path]:
@@ -207,3 +213,46 @@ def disable_autostart() -> bool:
         return False
     path.unlink()
     return True
+
+
+def _systemd_service_text(*, exec_command: str | None = None) -> str:
+    run_cmd = exec_command or runtime_exec_command()
+    return (
+        "[Unit]\n"
+        "Description=Nanoleaf KDE Sync Service\n"
+        "After=graphical-session.target\n\n"
+        "[Service]\n"
+        "Type=simple\n"
+        f"ExecStart={run_cmd}\n"
+        "Restart=on-failure\n"
+        "RestartSec=1\n\n"
+        "[Install]\n"
+        "WantedBy=default.target\n"
+    )
+
+
+def enable_systemd_autostart(*, exec_command: str | None = None) -> Path:
+    destination = user_systemd_service_path()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(_systemd_service_text(exec_command=exec_command), encoding="utf-8")
+    subprocess.run(["systemctl", "--user", "daemon-reload"], check=True, timeout=5)
+    subprocess.run(
+        ["systemctl", "--user", "enable", destination.name],
+        check=True,
+        timeout=5,
+    )
+    return destination
+
+
+def disable_systemd_autostart() -> bool:
+    path = user_systemd_service_path()
+    was_present = path.exists()
+    subprocess.run(
+        ["systemctl", "--user", "disable", path.name],
+        check=False,
+        timeout=5,
+    )
+    if was_present:
+        path.unlink()
+    subprocess.run(["systemctl", "--user", "daemon-reload"], check=False, timeout=5)
+    return was_present

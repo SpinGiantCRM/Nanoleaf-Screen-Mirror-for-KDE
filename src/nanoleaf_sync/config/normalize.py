@@ -30,6 +30,8 @@ def normalize_enum(value: Any, *, allowed: Dict[str, str], default: str) -> str:
 def validate_config(cfg: AppConfig) -> AppConfig:
     brightness = max(0.0, min(1.0, float(cfg.brightness)))
     smoothing = max(0.0, min(1.0, float(cfg.smoothing)))
+    smoothing_speed = max(0.0, min(4.0, float(cfg.smoothing_speed)))
+    led_gamma = max(1.0, min(4.0, float(cfg.led_gamma)))
     fps = max(1, min(120, int(cfg.fps)))
     zone_sampling_stride = max(1, int(cfg.zone_sampling_stride))
 
@@ -68,6 +70,15 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         },
         default=AppConfig.prefer_backend,
     )
+    zone_preset = normalize_enum(
+        cfg.zone_preset,
+        allowed={
+            "horizontal": "horizontal",
+            "edge": "edge-weighted",
+            "edge-weighted": "edge-weighted",
+        },
+        default=AppConfig.zone_preset,
+    )
 
     hdr_max_nits = max(80.0, min(10000.0, float(cfg.hdr_max_nits)))
     hdr_transfer = normalize_enum(
@@ -94,8 +105,11 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         prefer_backend=prefer_backend,
         brightness=brightness,
         smoothing=smoothing,
+        smoothing_speed=smoothing_speed,
+        led_gamma=led_gamma,
         zones=zones,
         zone_sampling_stride=zone_sampling_stride,
+        zone_preset=zone_preset,
         device_vid=cfg.device_vid,
         device_pid=cfg.device_pid,
         use_mock_capture=cfg.use_mock_capture,

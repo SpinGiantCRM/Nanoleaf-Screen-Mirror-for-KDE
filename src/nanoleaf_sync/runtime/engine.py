@@ -7,6 +7,7 @@ colors, apply brightness/smoothing, and handle runtime reinitialization hooks.
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from typing import Sequence
 
@@ -21,6 +22,32 @@ from nanoleaf_sync.runtime.state import RGBTuple, RuntimeState, ZoneRect
 
 
 logger = logging.getLogger(__name__)
+
+
+def _adaptive_one_euro_blend(
+    *,
+    current: np.ndarray,
+    previous: np.ndarray,
+    smoothing: float,
+    smoothing_speed: float = 0.75,
+) -> np.ndarray:
+    """
+    Adaptive smoothing blend inspired by the One Euro filter.
+
+    `smoothing` remains user-facing in [0,1]:
+    - 0.0: strongest smoothing at low motion
+    - 1.0: effectively no smoothing
+    """
+    min_alpha = max(0.0, min(1.0, float(smoothing)))
+    if min_alpha >= 1.0:
+        return current
+
+    velocity = np.abs(current - previous)
+    # Scale 8-bit channel deltas into a 0..~1 adaptive range.
+    speed_scale = max(0.01, float(smoothing_speed)) * 64.0
+    speed = np.clip(velocity / speed_scale, 0.0, 1.0)
+    alpha = min_alpha + (1.0 - min_alpha) * speed
+    return alpha * current + (1.0 - alpha) * previous
 
 
 def _zones_signature(config: AppConfig, img_w: int, img_h: int) -> tuple[int, int, tuple[tuple[float, float, float, float], ...]]:
@@ -90,7 +117,9 @@ def process_frame(
     device_zone_indices: Sequence[int],
     brightness: float,
     smoothing: float,
+    smoothing_speed: float = 0.75,
     zone_sampling_stride: int = 1,
+    led_gamma: float = 2.2,
 ) -> list[RGBTuple]:
     """
     Hot-path frame processing pipeline:
@@ -116,12 +145,20 @@ def process_frame(
     if b != 1.0:
         mapped *= b
 
-    a = max(0.0, min(1.0, float(smoothing)))
-    if prev_smoothed_colors and a < 1.0:
+    if prev_smoothed_colors:
         n = min(len(prev_smoothed_colors), mapped.shape[0])
         if n:
             prev_arr = np.asarray(prev_smoothed_colors[:n], dtype=np.float32)
-            mapped[:n] = (a * mapped[:n]) + ((1.0 - a) * prev_arr)
+            mapped[:n] = _adaptive_one_euro_blend(
+                current=mapped[:n],
+                previous=prev_arr,
+                smoothing=smoothing,
+                smoothing_speed=smoothing_speed,
+            )
+
+    gamma = max(1.0, min(4.0, float(led_gamma)))
+    if abs(gamma - 2.2) > 1e-6:
+        mapped = 255.0 * np.power(np.clip(mapped / 255.0, 0.0, 1.0), 1.0 / gamma)
 
     out = np.clip(np.rint(mapped), 0.0, 255.0).astype(np.uint8, copy=False)
     return [tuple(int(c) for c in row) for row in out.tolist()]
@@ -144,6 +181,36 @@ def run_loop(
     log_interval_s = float(getattr(config, "status_log_interval_s", 5.0))
     last_sent_zone_count = 0
 
+    latest_frame: dict[str, np.ndarray | None] = {"frame": None}
+    frame_ready = threading.Event()
+    capture_lock = threading.Lock()
+
+    def _capture_worker() -> None:
+        while not state.stop_event.is_set():
+            try:
+                if state.is_reinitializing:
+                    time.sleep(0.001)
+                    continue
+                capture = get_capture()
+                if capture is None:
+                    time.sleep(0.001)
+                    continue
+                with capture_lock:
+                    if latest_frame["frame"] is not None:
+                        continue
+                frame = capture.capture()
+                if frame is None:
+                    continue
+                with capture_lock:
+                    latest_frame["frame"] = frame
+                frame_ready.set()
+            except Exception:
+                # Main loop will handle backend reinitialization and logging.
+                time.sleep(0.005)
+
+    capture_thread = threading.Thread(target=_capture_worker, name="capture-worker", daemon=True)
+    capture_thread.start()
+
     while not state.stop_event.is_set():
         start = time.perf_counter()
         processing_end = start
@@ -153,18 +220,24 @@ def run_loop(
             if state.is_reinitializing:
                 skip_tick = True
             else:
-                capture = get_capture()
                 driver = get_driver()
-                if capture is None or driver is None:
+                if driver is None:
                     skip_tick = True
                 else:
-                    frame = capture.capture()
-                    if frame is None:
+                    if not frame_ready.wait(timeout=interval_s):
                         skip_tick = True
+                    else:
+                        with capture_lock:
+                            frame = latest_frame["frame"]
+                            latest_frame["frame"] = None
+                            frame_ready.clear()
+                        if frame is None:
+                            skip_tick = True
 
             if skip_tick:
                 pass
             else:
+                assert frame is not None
                 img_h, img_w, _ = frame.shape
                 zones_px, device_zone_indices = _ensure_runtime_artifacts(
                     state=state,
@@ -180,7 +253,9 @@ def run_loop(
                     device_zone_indices=device_zone_indices,
                     brightness=config.brightness,
                     smoothing=config.smoothing,
+                    smoothing_speed=config.smoothing_speed,
                     zone_sampling_stride=config.zone_sampling_stride,
+                    led_gamma=config.led_gamma,
                 )
                 state.prev_smoothed_colors = smoothed_colors
                 driver.send_frame(smoothed_colors)
@@ -231,3 +306,5 @@ def run_loop(
             next_deadline = now
         elif now < next_deadline:
             time.sleep(next_deadline - now)
+
+    capture_thread.join(timeout=0.2)
