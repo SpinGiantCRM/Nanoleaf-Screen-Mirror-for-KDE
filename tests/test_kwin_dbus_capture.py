@@ -124,7 +124,23 @@ def test_capture_reports_missing_interfaces_from_all_paths(monkeypatch) -> None:
     monkeypatch.setattr(backend, "_capture_reply_via_screenshot2", _s2_fail)
     monkeypatch.setattr(backend, "_capture_reply_via_legacy_interfaces", _legacy_fail)
 
-    with pytest.raises(KWinDBusCaptureError, match="All known KWin screenshot D-Bus API variants failed"):
+    with pytest.raises(KWinDBusCaptureError, match="No usable KWin screenshot API"):
+        backend._run_async(backend._capture_reply_via_dbus())
+
+
+def test_capture_reports_signature_mismatch_for_screenshot2(monkeypatch) -> None:
+    backend = KWinDBusScreenshotCapture(width=2, height=1)
+
+    async def _s2_fail():
+        raise RuntimeError("org.freedesktop.DBus.Error.InvalidArgs")
+
+    async def _legacy_fail():
+        raise RuntimeError("org.freedesktop.DBus.Error.UnknownMethod")
+
+    monkeypatch.setattr(backend, "_capture_reply_via_screenshot2", _s2_fail)
+    monkeypatch.setattr(backend, "_capture_reply_via_legacy_interfaces", _legacy_fail)
+
+    with pytest.raises(KWinDBusCaptureError, match="No usable KWin screenshot API"):
         backend._run_async(backend._capture_reply_via_dbus())
 
 

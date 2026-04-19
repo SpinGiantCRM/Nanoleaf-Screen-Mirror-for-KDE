@@ -208,23 +208,30 @@ class KWinDBusScreenshotCapture:
     async def _capture_reply_via_dbus(self):
         # Fallback order is explicit: modern ScreenShot2 first, legacy KWin
         # screenshot methods second.
-        last_exc: Exception | None = None
+        screenshot2_exc: Exception | None = None
         try:
             return await self._call_with_reconnect(self._capture_reply_via_screenshot2)
         except Exception as exc:
-            last_exc = exc
+            screenshot2_exc = exc
+            if self._is_authorization_error(exc):
+                raise KWinDBusCaptureError(
+                    "KWin authorization denied for ScreenShot2. "
+                    f"Details: {self._format_exception_details(exc)}"
+                ) from exc
 
+        legacy_exc: Exception | None = None
         try:
             return await self._call_with_reconnect(
                 self._capture_reply_via_legacy_interfaces
             )
         except Exception as exc:
-            if last_exc is None:
-                last_exc = exc
+            legacy_exc = exc
 
         raise KWinDBusCaptureError(
-            "All known KWin screenshot D-Bus API variants failed."
-        ) from last_exc
+            "No usable KWin screenshot API on this Plasma session. "
+            f"ScreenShot2: {self._format_exception_details(screenshot2_exc)}. "
+            f"Legacy: {self._format_exception_details(legacy_exc)}."
+        ) from (legacy_exc or screenshot2_exc)
 
     async def _call_with_reconnect(self, func):
         try:
@@ -294,7 +301,7 @@ class KWinDBusScreenshotCapture:
         bus = await self._get_screenshot2_bus()
         await bus.introspect(bus_name, path)
 
-        last_exc: Exception | None = None
+        attempt_errors: list[tuple[str, str, Exception]] = []
         for method_name, signature, base_args in self._screenshot2_method_attempts():
             read_fd, write_fd = os.pipe()
             try:
@@ -317,16 +324,30 @@ class KWinDBusScreenshotCapture:
                 self.last_capture_path = f"kwin-dbus:{method_name}"
                 return _ScreenShot2Payload(data=frame_data, results=results)
             except Exception as exc:
-                last_exc = exc
+                attempt_errors.append((method_name, signature, exc))
             finally:
                 os.close(read_fd)
                 os.close(write_fd)
 
-        if last_exc is None:
+        if not attempt_errors:
             raise KWinDBusCaptureError(
                 "KWin ScreenShot2 interface was available but no capture methods were callable."
             )
-        raise last_exc
+        if any(self._is_authorization_error(exc) for _, _, exc in attempt_errors):
+            auth_exc = next(exc for _, _, exc in attempt_errors if self._is_authorization_error(exc))
+            raise auth_exc
+
+        if all(self._is_signature_or_method_error(exc) for _, _, exc in attempt_errors):
+            attempted = ", ".join(f"{name}({sig})" for name, sig, _ in attempt_errors)
+            raise KWinDBusCaptureError(
+                "KWin ScreenShot2 interface is present but method/signature is incompatible "
+                f"with this Plasma version. Attempted: {attempted}."
+            ) from attempt_errors[-1][2]
+
+        raise KWinDBusCaptureError(
+            "KWin ScreenShot2 capture failed. "
+            f"Last error: {self._format_exception_details(attempt_errors[-1][2])}"
+        ) from attempt_errors[-1][2]
 
     async def _capture_reply_via_legacy_interfaces(self):
         bus = await self._get_legacy_bus()
@@ -411,6 +432,34 @@ class KWinDBusScreenshotCapture:
             f"KWin ScreenShot2 call failed: {error_name} {details}".strip()
         )
 
+    def _is_authorization_error(self, exc: Exception) -> bool:
+        message = self._format_exception_details(exc).lower()
+        return any(token in message for token in ("accessdenied", "notauthorized", "noauthorized", "access denied"))
+
+    def _is_signature_or_method_error(self, exc: Exception) -> bool:
+        message = self._format_exception_details(exc).lower()
+        return any(
+            token in message
+            for token in (
+                "unknownmethod",
+                "invalidargs",
+                "invalid signature",
+                "signature",
+                "method",
+            )
+        )
+
+    def _format_exception_details(self, exc: Exception | None) -> str:
+        if exc is None:
+            return "not attempted"
+        error_type = str(getattr(exc, "type", "")).strip()
+        message = str(exc).strip()
+        if error_type and message:
+            return f"{error_type}: {message}"
+        if error_type:
+            return error_type
+        return message or exc.__class__.__name__
+
     def _read_all_bytes_from_fd(self, fd: int) -> bytes:
         chunks: list[bytes] = []
         while True:
@@ -467,7 +516,12 @@ class KWinDBusScreenshotCapture:
             ppm_rgb = self._decode_ppm_bytes(payload)
             if ppm_rgb is not None:
                 return ppm_rgb
-            return self._decode_qimage_bytes(payload)
+            try:
+                return self._decode_qimage_bytes(payload)
+            except KWinDBusCaptureError as exc:
+                raise KWinDBusCaptureError(
+                    "KWin screenshot payload decode failed for byte payload."
+                ) from exc
 
         raise KWinDBusCaptureError(
             f"Unsupported KWin screenshot payload type: {type(payload)!r}"

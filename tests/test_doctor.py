@@ -79,6 +79,21 @@ def test_run_probe_sync_works_inside_running_loop(monkeypatch) -> None:
     assert result.status == "pass"
 
 
+def test_run_doctor_with_capture_probe(monkeypatch) -> None:
+    _patch_config_loader(monkeypatch, AppConfig(device_vid=0x37FA, device_pid=0x8201))
+    monkeypatch.setattr(doctor, "_check_python_runtime", lambda: DoctorCheck("python", "pass", "ok"))
+    monkeypatch.setattr(doctor, "_check_dependencies", lambda: DoctorCheck("dependencies", "pass", "ok"))
+    monkeypatch.setattr(doctor, "_check_session_bus", lambda: DoctorCheck("session-bus", "pass", "ok"))
+    monkeypatch.setattr(doctor, "_run_probe_sync", lambda: DoctorCheck("kwin-screenshot2", "pass", "ok"))
+    monkeypatch.setattr(doctor, "_check_desktop_authorization", lambda: DoctorCheck("desktop-authorization", "pass", "ok"))
+    monkeypatch.setattr(doctor, "_check_hid_enumeration", lambda cfg: DoctorCheck("hid-device", "pass", "ok"))
+    monkeypatch.setattr(doctor, "_check_real_capture_probe", lambda cfg: DoctorCheck("capture-probe", "fail", "boom"))
+
+    checks = run_doctor(include_capture_probe=True)
+    capture_check = next(check for check in checks if check.name == "capture-probe")
+    assert capture_check.status == "fail"
+
+
 def test_desktop_authorization_warns_when_only_installed_entry_exists(monkeypatch, tmp_path: Path) -> None:
     autostart = tmp_path / "home-autostart.desktop"
     installed = tmp_path / "usr" / "share" / "applications" / "nanoleaf-kde-sync.desktop"

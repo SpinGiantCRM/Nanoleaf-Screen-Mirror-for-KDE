@@ -21,6 +21,7 @@ from nanoleaf_sync.desktop_entry import (
 )
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
+from nanoleaf_sync.runtime.errors import translate_runtime_error
 
 
 @dataclass(frozen=True)
@@ -248,7 +249,46 @@ def _check_mode_consistency(config: AppConfig) -> DoctorCheck:
     return DoctorCheck("mode-consistency", "pass", "Capture/device mode configuration is coherent.")
 
 
-def run_doctor(*, include_device_probe: bool = False) -> list[DoctorCheck]:
+def _check_real_capture_probe(config: AppConfig) -> DoctorCheck:
+    from nanoleaf_sync.capture.factory import create_capture_backend
+
+    capture = create_capture_backend(
+        width=64,
+        height=36,
+        use_mock_capture=False,
+        prefer_backend=config.prefer_backend,
+        hdr_max_nits=config.hdr_max_nits,
+        hdr_transfer=config.hdr_transfer,
+        hdr_primaries=config.hdr_primaries,
+    )
+    try:
+        frame = capture.capture()
+        path = getattr(capture, "last_capture_path", None) or "unknown"
+        return DoctorCheck(
+            "capture-probe",
+            "pass",
+            f"Real capture probe succeeded via {path} with frame shape={getattr(frame, 'shape', '?')}.",
+        )
+    except Exception as exc:
+        translated = translate_runtime_error(exc)
+        return DoctorCheck(
+            "capture-probe",
+            "fail",
+            f"Real capture probe failed ({translated.kind}): {translated.summary}",
+            translated.guidance,
+        )
+    finally:
+        try:
+            close_fn = getattr(capture, "close", None)
+            if close_fn is not None:
+                close_fn()
+        except Exception:
+            pass
+
+
+def run_doctor(
+    *, include_device_probe: bool = False, include_capture_probe: bool = False
+) -> list[DoctorCheck]:
     cfg_mgr = ConfigManager()
     cfg = cfg_mgr.load()
     cfg = validate_config(cfg)
@@ -264,6 +304,8 @@ def run_doctor(*, include_device_probe: bool = False) -> list[DoctorCheck]:
     ]
     if include_device_probe:
         checks.append(_check_real_device_probe(cfg))
+    if include_capture_probe:
+        checks.append(_check_real_capture_probe(cfg))
     return checks
 
 
@@ -287,9 +329,16 @@ def format_report(checks: list[DoctorCheck]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run diagnostics for nanoleaf-kde-sync")
     parser.add_argument("--device", action="store_true", help="Attempt real device initialize/model/zone probe")
+    parser.add_argument(
+        "--capture",
+        action="store_true",
+        help="Attempt a real kwin-dbus capture and report the exact root cause on failure",
+    )
     args = parser.parse_args(argv)
 
-    checks = run_doctor(include_device_probe=args.device)
+    checks = run_doctor(
+        include_device_probe=args.device, include_capture_probe=args.capture
+    )
     print(format_report(checks))
     failures = [c for c in checks if c.status == "fail"]
     return 1 if failures else 0

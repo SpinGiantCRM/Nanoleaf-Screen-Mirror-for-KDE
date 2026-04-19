@@ -114,6 +114,24 @@ class SettingsDialog:
                         reverse_zones=bool(getattr(cfg, "reverse_zones", False)),
                     )
                 )
+                self.brightness_value = QLabel("")
+                self.smoothing_value = QLabel("")
+                self.fps_value = QLabel("")
+                self.zone_count_value = QLabel("")
+                self.zone_offset_value = QLabel("")
+                self.device_zone_count_value = QLabel("")
+                self.hdr_max_nits_value = QLabel("")
+
+                self._refresh_numeric_labels()
+                self._refresh_preview_label()
+                self.brightness_slider.valueChanged.connect(self._refresh_numeric_labels)
+                self.smoothing_slider.valueChanged.connect(self._refresh_numeric_labels)
+                self.fps_slider.valueChanged.connect(self._refresh_numeric_labels)
+                self.zone_count_slider.valueChanged.connect(self._on_calibration_control_changed)
+                self.zone_offset_slider.valueChanged.connect(self._on_calibration_control_changed)
+                self.device_zone_count_slider.valueChanged.connect(self._on_calibration_control_changed)
+                self.hdr_max_nits_slider.valueChanged.connect(self._refresh_numeric_labels)
+                self.reverse_checkbox.stateChanged.connect(self._refresh_preview_label)
 
                 buttons = QDialogButtonBox(
                     QDialogButtonBox.StandardButton.Ok
@@ -126,19 +144,26 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Brightness"), 0, 0)
                 layout.addWidget(self.brightness_slider, 0, 1)
                 layout.addWidget(QLabel("Response speed (0 = slow/smooth, 100 = instant)"), 1, 0)
+                layout.addWidget(self.brightness_value, 0, 2)
+                layout.addWidget(QLabel("Smoothing (EMA alpha)"), 1, 0)
                 layout.addWidget(self.smoothing_slider, 1, 1)
+                layout.addWidget(self.smoothing_value, 1, 2)
                 layout.addWidget(QLabel("Capture FPS"), 2, 0)
                 layout.addWidget(self.fps_slider, 2, 1)
+                layout.addWidget(self.fps_value, 2, 2)
                 layout.addWidget(QLabel("Zone count (horizontal)"), 3, 0)
                 layout.addWidget(self.zone_count_slider, 3, 1)
+                layout.addWidget(self.zone_count_value, 3, 2)
                 layout.addWidget(QLabel("Zone offset (calibration)"), 4, 0)
                 layout.addWidget(self.zone_offset_slider, 4, 1)
+                layout.addWidget(self.zone_offset_value, 4, 2)
                 layout.addWidget(self.reverse_checkbox, 5, 0, 1, 2)
                 layout.addWidget(QLabel("Device zone count"), 6, 0)
                 layout.addWidget(self.device_zone_count_slider, 6, 1)
+                layout.addWidget(self.device_zone_count_value, 6, 2)
                 layout.addWidget(self.mock_capture_checkbox, 7, 0, 1, 2)
                 layout.addWidget(self.calibration_help, 8, 0, 1, 2)
-                layout.addWidget(self.preview_label, 9, 0, 1, 2)
+                layout.addWidget(self.preview_label, 9, 0, 1, 3)
                 layout.addWidget(self.hdr_help, 10, 0, 1, 2)
                 layout.addWidget(QLabel("HDR transfer"), 11, 0)
                 layout.addWidget(self.hdr_transfer_combo, 11, 1)
@@ -146,7 +171,31 @@ class SettingsDialog:
                 layout.addWidget(self.hdr_primaries_combo, 12, 1)
                 layout.addWidget(QLabel("HDR max nits"), 13, 0)
                 layout.addWidget(self.hdr_max_nits_slider, 13, 1)
+                layout.addWidget(self.hdr_max_nits_value, 13, 2)
                 self.setLayout(layout)
+
+            def _on_calibration_control_changed(self) -> None:
+                self._refresh_numeric_labels()
+                self._refresh_preview_label()
+
+            def _refresh_numeric_labels(self) -> None:
+                self.brightness_value.setText(f"{self.brightness_slider.value()}%")
+                self.smoothing_value.setText(f"{self.smoothing_slider.value()}%")
+                self.fps_value.setText(f"{self.fps_slider.value()} fps")
+                self.zone_count_value.setText(str(self.zone_count_slider.value()))
+                self.zone_offset_value.setText(str(self.zone_offset_slider.value()))
+                self.device_zone_count_value.setText(str(self.device_zone_count_slider.value()))
+                self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
+
+            def _refresh_preview_label(self) -> None:
+                self.preview_label.setText(
+                    _mapping_preview_text(
+                        zone_count=int(self.zone_count_slider.value()),
+                        device_zone_count=int(self.device_zone_count_slider.value()),
+                        zone_offset=int(self.zone_offset_slider.value()),
+                        reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                    )
+                )
 
             def updated_config(self) -> AppConfig:
                 brightness = self.brightness_slider.value() / 100.0
