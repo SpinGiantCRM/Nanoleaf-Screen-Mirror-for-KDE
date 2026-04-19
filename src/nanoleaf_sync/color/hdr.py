@@ -14,6 +14,12 @@ from dataclasses import dataclass
 from typing import Any, Literal, Optional
 
 import numpy as np
+from nanoleaf_sync.runtime.srgb import (
+    linear01_to_srgb_encoded,
+    linear01_to_srgb_u8,
+    srgb_eotf_to_linear01,
+    srgb_u8_to_linear01,
+)
 
 
 TransferFn = Literal["srgb", "pq", "hlg", "linear", "unknown"]
@@ -86,15 +92,18 @@ def _to_float01(rgb: np.ndarray) -> np.ndarray:
     return rgb.astype(np.float32, copy=False) / 255.0
 
 
+def _srgb_u8_to_linear01(rgb: np.ndarray) -> np.ndarray:
+    """Convert uint8 sRGB values to linear-light floats in [0, 1]."""
+    return srgb_u8_to_linear01(rgb)
+
+
+def _linear01_to_srgb_u8(linear: np.ndarray) -> np.ndarray:
+    """Convert linear-light floats to uint8 sRGB values."""
+    return linear01_to_srgb_u8(linear)
+
+
 def _srgb_eotf_to_linear(c: np.ndarray) -> np.ndarray:
-    # c is sRGB-encoded in [0, 1]
-    a = 0.055
-    threshold = 0.04045
-    below = c <= threshold
-    out = np.empty_like(c, dtype=np.float32)
-    out[below] = c[below] / 12.92
-    out[~below] = np.power((c[~below] + a) / (1.0 + a), 2.4)
-    return out
+    return srgb_eotf_to_linear01(c)
 
 
 def _pq_eotf_to_linear(c: np.ndarray) -> np.ndarray:
@@ -130,7 +139,7 @@ def _hlg_eotf_to_linear(c: np.ndarray) -> np.ndarray:
     return out
 
 
-def _apply_tonemap_reinhard(linear: np.ndarray, max_nits: float) -> np.ndarray:
+def _apply_tonemap_hable(linear: np.ndarray, max_nits: float) -> np.ndarray:
     # Hable / Uncharted 2 filmic curve:
     # better shoulder roll-off and colorfulness retention than Reinhard.
     scale = max(1.0, float(max_nits)) / 100.0
@@ -162,15 +171,7 @@ def _linear_bt2020_to_linear_srgb(linear_rgb: np.ndarray) -> np.ndarray:
 
 
 def _linear_to_srgb_encoded(linear: np.ndarray) -> np.ndarray:
-    # linear is in [0, +inf), RGB channel-wise.
-    linear = np.clip(linear, 0.0, None)
-    a = 0.055
-    threshold = 0.0031308
-    out = np.empty_like(linear, dtype=np.float32)
-    is_low = linear <= threshold
-    out[is_low] = linear[is_low] * 12.92
-    out[~is_low] = (1.0 + a) * np.power(linear[~is_low], 1.0 / 2.4) - a
-    return out
+    return linear01_to_srgb_encoded(linear)
 
 
 def convert_frame_to_srgb8(
@@ -235,7 +236,7 @@ def convert_frame_to_srgb8(
 
     # Step 3: Tone-map into SDR-ish range, then sRGB encode.
     # (Nanoleaf HID expects 8-bit sRGB-like payloads.)
-    ldr = _apply_tonemap_reinhard(linear_srgb, max_nits=meta.max_nits)
+    ldr = _apply_tonemap_hable(linear_srgb, max_nits=meta.max_nits)
     srgb = _linear_to_srgb_encoded(ldr)
 
     srgb_u8 = np.clip(np.rint(srgb * 255.0), 0, 255).astype(np.uint8)

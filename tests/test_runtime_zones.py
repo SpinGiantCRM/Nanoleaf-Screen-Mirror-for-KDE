@@ -10,6 +10,7 @@ def test_zone_averaging_uses_perceptual_oklab_midpoint() -> None:
     colors = zone_colors_array(frame, [(0, 0, 2, 1)])
     assert colors.shape == (1, 3)
     midpoint = tuple(int(c) for c in colors[0])
-    # Perceptual midpoint should not collapse to naive sRGB (127, 0, 127).
-    assert midpoint != (127, 0, 127)
-    assert midpoint[0] > 120 and midpoint[2] > 120
+    # Perceptual midpoint should be a brighter magenta with non-zero green.
+    assert 136 <= midpoint[0] <= 144
+    assert 79 <= midpoint[1] <= 87
+    assert 158 <= midpoint[2] <= 166

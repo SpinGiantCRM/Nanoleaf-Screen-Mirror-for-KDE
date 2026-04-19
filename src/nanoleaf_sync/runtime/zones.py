@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import List, Sequence, Tuple
 
 import numpy as np
+from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
 
 
 RGBTuple = Tuple[int, int, int]
@@ -71,20 +72,6 @@ def average_color(image: np.ndarray) -> RGBTuple:
     return int(r), int(g), int(b)
 
 
-def _srgb_u8_to_linear01(rgb: np.ndarray) -> np.ndarray:
-    x = rgb.astype(np.float32, copy=False) / 255.0
-    return np.where(x <= 0.04045, x / 12.92, np.power((x + 0.055) / 1.055, 2.4))
-
-
-def _linear01_to_srgb_u8(linear: np.ndarray) -> np.ndarray:
-    encoded = np.where(
-        linear <= 0.0031308,
-        12.92 * linear,
-        1.055 * np.power(np.clip(linear, 0.0, None), 1.0 / 2.4) - 0.055,
-    )
-    return np.clip(np.rint(encoded * 255.0), 0.0, 255.0).astype(np.uint8, copy=False)
-
-
 def _linear_srgb_to_oklab(linear_rgb: np.ndarray) -> np.ndarray:
     lms = linear_rgb @ _M1.T
     lms_cbrt = np.cbrt(np.clip(lms, 0.0, None))
@@ -150,12 +137,12 @@ def zone_colors_array(
 
     areas = (x1 - x0) * (y1 - y0)
 
-    linear_rgb = _srgb_u8_to_linear01(img)
+    linear_rgb = srgb_u8_to_linear01(img)
     oklab = _linear_srgb_to_oklab(linear_rgb)
 
     # Build per-channel integral image to compute zone sums in O(1) each.
-    integral = np.zeros((h + 1, w + 1, 3), dtype=np.float64)
-    integral[1:, 1:, :] = oklab.cumsum(axis=0, dtype=np.float64).cumsum(axis=1, dtype=np.float64)
+    integral = np.zeros((h + 1, w + 1, 3), dtype=np.float32)
+    integral[1:, 1:, :] = oklab.cumsum(axis=0, dtype=np.float32).cumsum(axis=1, dtype=np.float32)
 
     sums = (
         integral[y1, x1]
@@ -169,6 +156,6 @@ def zone_colors_array(
     if valid.any():
         avg_oklab = (sums[valid] / areas[valid, None]).astype(np.float32, copy=False)
         avg_linear_rgb = _oklab_to_linear_srgb(avg_oklab)
-        means[valid] = _linear01_to_srgb_u8(avg_linear_rgb)
+        means[valid] = linear01_to_srgb_u8(avg_linear_rgb)
 
     return means

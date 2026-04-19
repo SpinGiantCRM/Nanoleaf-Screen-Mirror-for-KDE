@@ -1,0 +1,37 @@
+from __future__ import annotations
+
+import numpy as np
+
+
+def srgb_eotf_to_linear01(c: np.ndarray) -> np.ndarray:
+    """Convert sRGB-encoded floats in [0, 1] to linear-light floats."""
+    a = 0.055
+    threshold = 0.04045
+    below = c <= threshold
+    out = np.empty_like(c, dtype=np.float32)
+    out[below] = c[below] / 12.92
+    out[~below] = np.power((c[~below] + a) / (1.0 + a), 2.4)
+    return out
+
+
+def linear01_to_srgb_encoded(linear: np.ndarray) -> np.ndarray:
+    """Convert linear-light floats to sRGB-encoded floats in [0, 1]."""
+    linear = np.clip(linear, 0.0, None)
+    a = 0.055
+    threshold = 0.0031308
+    out = np.empty_like(linear, dtype=np.float32)
+    is_low = linear <= threshold
+    out[is_low] = linear[is_low] * 12.92
+    out[~is_low] = (1.0 + a) * np.power(linear[~is_low], 1.0 / 2.4) - a
+    return out
+
+
+def srgb_u8_to_linear01(rgb: np.ndarray) -> np.ndarray:
+    """Convert uint8 sRGB values to linear-light floats in [0, 1]."""
+    return srgb_eotf_to_linear01(rgb.astype(np.float32, copy=False) / 255.0)
+
+
+def linear01_to_srgb_u8(linear: np.ndarray) -> np.ndarray:
+    """Convert linear-light floats to uint8 sRGB values."""
+    encoded = linear01_to_srgb_encoded(linear)
+    return np.clip(np.rint(encoded * 255.0), 0.0, 255.0).astype(np.uint8, copy=False)
