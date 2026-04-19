@@ -412,6 +412,16 @@ class KWinDBusScreenshotCapture:
         options: dict[str, Any] = {}
         attempts: list[tuple[str, str, list[Any]]] = []
 
+        # Prefer explicit area first so we don't pull full-resolution monitor
+        # frames when the runtime only needs configured dimensions.
+        attempts.append(
+            (
+                "CaptureArea",
+                "iiuua{sv}h",
+                [0, 0, int(self.params.width), int(self.params.height), options],
+            )
+        )
+
         if self.params.monitor_id:
             attempts.append(
                 ("CaptureScreen", "sa{sv}h", [self.params.monitor_id, options])
@@ -420,15 +430,6 @@ class KWinDBusScreenshotCapture:
         # If monitor name is unknown, some KWin versions map an empty name to
         # the primary output.
         attempts.append(("CaptureScreen", "sa{sv}h", ["", options]))
-
-        # Conservative fallback: explicit area at configured dimensions.
-        attempts.append(
-            (
-                "CaptureArea",
-                "iiuua{sv}h",
-                [0, 0, int(self.params.width), int(self.params.height), options],
-            )
-        )
         return tuple(attempts)
 
     def _raise_screenshot2_error(self, reply: Any) -> None:

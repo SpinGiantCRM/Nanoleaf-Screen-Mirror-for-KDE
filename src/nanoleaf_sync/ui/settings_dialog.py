@@ -56,7 +56,7 @@ class SettingsDialog:
                 self.smoothing_speed_slider.setValue(int(round(getattr(cfg, "smoothing_speed", 0.75) * 100)))
 
                 self.fps_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.fps_slider.setRange(1, 60)
+                self.fps_slider.setRange(1, 120)
                 self.fps_slider.setValue(int(cfg.fps))
 
                 self.display_mode_combo = QComboBox()
@@ -121,8 +121,11 @@ class SettingsDialog:
                 self.hdr_primaries_combo.setCurrentIndex(max(0, primaries_idx))
 
                 self.hdr_max_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.hdr_max_nits_slider.setRange(80, 4000)
+                self.hdr_max_nits_slider.setRange(80, 10000)
                 self.hdr_max_nits_slider.setValue(int(getattr(cfg, "hdr_max_nits", 1000.0)))
+                self.zone_sampling_stride_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.zone_sampling_stride_slider.setRange(1, 8)
+                self.zone_sampling_stride_slider.setValue(int(getattr(cfg, "zone_sampling_stride", 1)))
                 self.led_gamma_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.led_gamma_slider.setRange(100, 400)
                 self.led_gamma_slider.setValue(int(round(getattr(cfg, "led_gamma", 1.0) * 100)))
@@ -146,6 +149,7 @@ class SettingsDialog:
                 self.zone_offset_value = QLabel("")
                 self.device_zone_count_value = QLabel("")
                 self.hdr_max_nits_value = QLabel("")
+                self.zone_sampling_stride_value = QLabel("")
                 self.smoothing_speed_value = QLabel("")
                 self.led_gamma_value = QLabel("")
 
@@ -161,6 +165,7 @@ class SettingsDialog:
                 self.device_zone_count_slider.valueChanged.connect(self._on_calibration_control_changed)
                 self.device_zone_count_auto_checkbox.stateChanged.connect(self._on_calibration_control_changed)
                 self.hdr_max_nits_slider.valueChanged.connect(self._refresh_numeric_labels)
+                self.zone_sampling_stride_slider.valueChanged.connect(self._refresh_numeric_labels)
                 self.led_gamma_slider.valueChanged.connect(self._refresh_numeric_labels)
                 self.reverse_checkbox.stateChanged.connect(self._refresh_preview_label)
 
@@ -193,22 +198,23 @@ class SettingsDialog:
                 _add_labeled(9, "Smoothing (min cutoff)", self.smoothing_slider, self.smoothing_value, tooltip="Higher smoothing reduces flicker but adds delay.")
                 _add_labeled(10, "Smoothing speed coefficient", self.smoothing_speed_slider, self.smoothing_speed_value, tooltip="How fast smoothing loosens when colours change quickly.")
                 _add_labeled(11, "Capture FPS", self.fps_slider, self.fps_value, tooltip="Higher values can reduce latency but use more resources.")
+                _add_labeled(12, "Zone sampling stride", self.zone_sampling_stride_slider, self.zone_sampling_stride_value, tooltip="Higher values sample fewer pixels per zone and reduce CPU at the cost of precision.")
 
-                layout.addWidget(QLabel("Strip / Zone Mapping"), 12, 0, 1, 2)
-                _add_labeled(13, "Zone count", self.zone_count_slider, self.zone_count_value)
-                _add_labeled(14, "Zone preset", self.zone_preset_combo)
-                _add_labeled(15, "Zone offset (calibration)", self.zone_offset_slider, self.zone_offset_value)
-                layout.addWidget(self.reverse_checkbox, 16, 0, 1, 2)
-                _add_labeled(17, "Device zone count", self.device_zone_count_slider, self.device_zone_count_value)
-                layout.addWidget(self.device_zone_count_auto_checkbox, 18, 0, 1, 2)
-                _add_labeled(19, "Output channel order", self.output_channel_order_combo)
+                layout.addWidget(QLabel("Strip / Zone Mapping"), 13, 0, 1, 2)
+                _add_labeled(14, "Zone count", self.zone_count_slider, self.zone_count_value)
+                _add_labeled(15, "Zone preset", self.zone_preset_combo)
+                _add_labeled(16, "Zone offset (calibration)", self.zone_offset_slider, self.zone_offset_value)
+                layout.addWidget(self.reverse_checkbox, 17, 0, 1, 2)
+                _add_labeled(18, "Device zone count", self.device_zone_count_slider, self.device_zone_count_value)
+                layout.addWidget(self.device_zone_count_auto_checkbox, 19, 0, 1, 2)
+                _add_labeled(20, "Output channel order", self.output_channel_order_combo)
 
-                layout.addWidget(self.start_on_launch_checkbox, 20, 0, 1, 2)
-                layout.addWidget(self.mock_capture_checkbox, 21, 0, 1, 2)
-                _add_labeled(22, "Capture backend", self.capture_backend_combo)
-                _add_labeled(23, "LED gamma", self.led_gamma_slider, self.led_gamma_value)
-                layout.addWidget(self.preview_label, 24, 0, 1, 3)
-                layout.addWidget(buttons, 25, 0, 1, 3)
+                layout.addWidget(self.start_on_launch_checkbox, 21, 0, 1, 2)
+                layout.addWidget(self.mock_capture_checkbox, 22, 0, 1, 2)
+                _add_labeled(23, "Capture backend", self.capture_backend_combo)
+                _add_labeled(24, "LED gamma", self.led_gamma_slider, self.led_gamma_value)
+                layout.addWidget(self.preview_label, 25, 0, 1, 3)
+                layout.addWidget(buttons, 26, 0, 1, 3)
                 self.setLayout(layout)
 
             def _open_configurator(self) -> None:
@@ -227,6 +233,7 @@ class SettingsDialog:
                 self.smoothing_value.setText(f"{self.smoothing_slider.value()}%")
                 self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}")
                 self.fps_value.setText(f"{self.fps_slider.value()} fps")
+                self.zone_sampling_stride_value.setText(str(self.zone_sampling_stride_slider.value()))
                 self.zone_count_value.setText(str(self.zone_count_slider.value()))
                 self.zone_offset_value.setText(str(self.zone_offset_slider.value()))
                 if self.device_zone_count_auto_checkbox.isChecked():
@@ -260,6 +267,7 @@ class SettingsDialog:
                 return replace(
                     cfg,
                     fps=int(self.fps_slider.value()),
+                    zone_sampling_stride=int(self.zone_sampling_stride_slider.value()),
                     brightness=self.brightness_slider.value() / 100.0,
                     smoothing=self.smoothing_slider.value() / 100.0,
                     smoothing_speed=self.smoothing_speed_slider.value() / 100.0,

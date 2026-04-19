@@ -191,6 +191,17 @@ def test_settings_dialog_zone_count_updates_zones_without_forcing_manual_device_
     assert updated.device_zone_count == 0
 
 
+def test_settings_dialog_updates_zone_sampling_stride(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+
+    cfg = AppConfig(zones=[], zone_sampling_stride=1)
+    dialog = SettingsDialog(parent=None, cfg=cfg)
+    dialog._dialog.zone_sampling_stride_slider.setValue(3)
+
+    updated = dialog.updated_config()
+    assert updated.zone_sampling_stride == 3
+
+
 def test_mapping_preview_uses_explicit_auto_flag() -> None:
     from nanoleaf_sync.ui.settings_dialog import _mapping_preview_text
 
