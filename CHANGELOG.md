@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-04-20
+
+## What's Changed
+* Rework setup/settings UX and fix zone calibration plumbing by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/133
+* Fix probe tie-break and add Qt-stub fallbacks for dialogs by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/134
+* Fix calibration preview RGB scaling helper and remove unused import by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/135
+
+
+**Full Changelog**: https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/compare/v0.5.9...v0.6.0
+
 ## [0.5.9] - 2026-04-20
 
 ## What's Changed
