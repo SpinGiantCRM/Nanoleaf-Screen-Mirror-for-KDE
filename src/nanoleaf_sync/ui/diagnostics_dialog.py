@@ -37,6 +37,7 @@ class CalibrationDiagnosticsDialog:
         QPushButton = qt["QPushButton"]
         QComboBox = qt["QComboBox"]
         QCheckBox = qt["QCheckBox"]
+        QTimer = qt["QTimer"]
 
         class _Dialog(QDialog):
             def __init__(self):
@@ -46,12 +47,20 @@ class CalibrationDiagnosticsDialog:
                 self._status = runtime_status
                 self._sender = calibration_sender
                 self._step = 0
+                self._elapsed_ms = 0
+                self._auto_timer = QTimer(self)
+                self._auto_timer.timeout.connect(self._on_auto_step_tick)
 
                 self.mode_combo = QComboBox()
                 self.mode_combo.addItems(["coverage sanity", "direction walk", "corner anchors", "fine offset"])
                 self.zone_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.zone_slider.setRange(1, 128)
-                initial_zone_count = int(cfg.device_zone_count or runtime_status.get("device_zone_count") or (len(cfg.zones) or 8))
+                initial_zone_count = int(
+                    cfg.device_zone_count
+                    or runtime_status.get("device_zone_count")
+                    or (len(cfg.zones) if cfg.zones else 0)
+                    or 8
+                )
                 self.zone_slider.setValue(max(1, initial_zone_count))
                 self.zone_value = QLabel("")
                 self.duration_slider = QSlider(qt["Qt"].Orientation.Horizontal)
@@ -68,6 +77,7 @@ class CalibrationDiagnosticsDialog:
                 self.brightness_value = QLabel("")
                 self.loop_checkbox = QCheckBox("Loop")
                 self.loop_checkbox.setChecked(True)
+                self.auto_step_checkbox = QCheckBox("Auto-step")
                 self.off_except_active_checkbox = QCheckBox("All off except active zone")
                 self.off_except_active_checkbox.setChecked(True)
 
@@ -88,6 +98,8 @@ class CalibrationDiagnosticsDialog:
                 self.duration_slider.valueChanged.connect(self._refresh)
                 self.interval_slider.valueChanged.connect(self._refresh)
                 self.brightness_slider.valueChanged.connect(self._refresh)
+                self.interval_slider.valueChanged.connect(self._on_interval_changed)
+                self.auto_step_checkbox.stateChanged.connect(self._on_auto_step_toggled)
 
                 layout = QGridLayout()
                 layout.addWidget(QLabel("Backend selection"), 0, 0, 1, 3)
@@ -110,11 +122,12 @@ class CalibrationDiagnosticsDialog:
                 layout.addWidget(self.brightness_slider, 9, 1)
                 layout.addWidget(self.brightness_value, 9, 2)
                 layout.addWidget(self.loop_checkbox, 10, 0, 1, 2)
-                layout.addWidget(self.off_except_active_checkbox, 11, 0, 1, 2)
-                layout.addWidget(self.prev_button, 12, 0)
-                layout.addWidget(self.next_button, 12, 1)
-                layout.addWidget(self.send_button, 12, 2)
-                layout.addWidget(self.test_label, 13, 0, 1, 3)
+                layout.addWidget(self.auto_step_checkbox, 11, 0, 1, 2)
+                layout.addWidget(self.off_except_active_checkbox, 12, 0, 1, 2)
+                layout.addWidget(self.prev_button, 13, 0)
+                layout.addWidget(self.next_button, 13, 1)
+                layout.addWidget(self.send_button, 13, 2)
+                layout.addWidget(self.test_label, 14, 0, 1, 3)
                 self.setLayout(layout)
                 self._refresh()
 
@@ -135,9 +148,10 @@ class CalibrationDiagnosticsDialog:
             def _current_step(self):
                 mode = str(self.mode_combo.currentText())
                 count = self._effective_zone_count()
+                source_zone_count = max(1, len(self._cfg.zones) if self._cfg.zones else count)
                 if mode == "corner anchors":
                     anchors = corner_anchor_steps(
-                        zone_count=max(1, len(self._cfg.zones) or count),
+                        zone_count=source_zone_count,
                         device_zone_count=count,
                         zone_offset=int(self._cfg.zone_offset),
                         reverse_zones=bool(self._cfg.reverse_zones),
@@ -147,7 +161,7 @@ class CalibrationDiagnosticsDialog:
                 if mode == "coverage sanity":
                     return coverage_sanity_step(
                         step=self._step,
-                        zone_count=max(1, len(self._cfg.zones) or count),
+                        zone_count=source_zone_count,
                         device_zone_count=count,
                         zone_offset=int(self._cfg.zone_offset),
                         reverse_zones=bool(self._cfg.reverse_zones),
@@ -155,7 +169,7 @@ class CalibrationDiagnosticsDialog:
                     )
                 return single_zone_step(
                     step=self._step,
-                    zone_count=max(1, len(self._cfg.zones) or count),
+                    zone_count=source_zone_count,
                     device_zone_count=count,
                     zone_offset=int(self._cfg.zone_offset),
                     reverse_zones=bool(self._cfg.reverse_zones),
@@ -204,7 +218,44 @@ class CalibrationDiagnosticsDialog:
                 self._refresh()
                 self._send()
 
+            def _on_interval_changed(self) -> None:
+                if self._auto_timer.isActive():
+                    self._auto_timer.setInterval(max(100, int(self.interval_slider.value())))
+
+            def _on_auto_step_toggled(self) -> None:
+                self._elapsed_ms = 0
+                if self.auto_step_checkbox.isChecked():
+                    self._auto_timer.start(max(100, int(self.interval_slider.value())))
+                else:
+                    self._auto_timer.stop()
+
+            def _on_auto_step_tick(self) -> None:
+                self._elapsed_ms += max(100, int(self.interval_slider.value()))
+                duration_ms = int(self.duration_slider.value()) * 1000
+                if self._elapsed_ms >= duration_ms:
+                    if self.loop_checkbox.isChecked():
+                        self._elapsed_ms = 0
+                        self._step = 0
+                    else:
+                        self.auto_step_checkbox.setChecked(False)
+                        self._auto_timer.stop()
+                        return
+                self._next()
+
         self._dialog = _Dialog()
 
     def exec(self) -> int:
         return self._dialog.exec()
+
+    def show(self) -> None:
+        self._dialog.show()
+
+    def raise_(self) -> None:
+        self._dialog.raise_()
+
+    def activateWindow(self) -> None:
+        self._dialog.activateWindow()
+
+    def set_runtime_status(self, runtime_status: dict) -> None:
+        self._dialog._status = runtime_status
+        self._dialog._refresh()

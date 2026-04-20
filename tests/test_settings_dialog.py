@@ -140,12 +140,21 @@ def _qt_stub() -> dict[str, object]:
     class _Timer:
         def __init__(self, *_args, **_kwargs):
             self.timeout = _DummySignal()
+            self._active = False
+            self._interval = None
 
-        def start(self, _ms):
-            pass
+        def start(self, ms):
+            self._active = True
+            self._interval = ms
 
         def stop(self):
-            pass
+            self._active = False
+
+        def isActive(self):
+            return self._active
+
+        def setInterval(self, ms):
+            self._interval = ms
 
     return {
         "QDialog": _QDialog,
@@ -284,3 +293,12 @@ def test_settings_dialog_can_send_calibration_pattern(monkeypatch) -> None:
     dialog._dialog.test_send_button.clicked._callback()
     assert sent["colors"] is not None
     assert any(rgb != (0, 0, 0) for rgb in sent["colors"])
+
+
+def test_settings_dialog_interval_slider_updates_running_timer(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    dialog = SettingsDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=0))
+    dialog._dialog.test_auto_checkbox.setChecked(True)
+    dialog._dialog.test_step_interval_slider.setValue(750)
+
+    assert dialog._dialog._test_timer._interval == 750

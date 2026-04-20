@@ -147,6 +147,7 @@ class SettingsDialog:
                 self._test_elapsed_ms = 0
                 self._test_timer = QTimer(self)
                 self._test_timer.timeout.connect(self._on_test_timer_tick)
+                self.test_step_interval_slider.valueChanged.connect(self._on_interval_changed)
 
                 self.output_channel_order_combo = QComboBox()
                 self.output_channel_order_combo.addItems(["grb", "rgb", "rbg", "gbr", "brg", "bgr"])
@@ -454,7 +455,12 @@ class SettingsDialog:
                         reverse_zones=bool(self.reverse_checkbox.isChecked()),
                         explicit_zone_map=explicit_map,
                     )
-                prefix = "Direction walk" if mode == "direction walk" else "Start-point check" if mode == "start-point identification" else "Fine offset"
+                prefix_map = {
+                    "direction walk": "Direction walk",
+                    "start-point identification": "Start-point check",
+                    "fine offset": "Fine offset",
+                }
+                prefix = prefix_map.get(mode, "Fine offset")
                 return single_zone_step(
                     step=self._test_step,
                     zone_count=int(self.zone_count_slider.value()),
@@ -497,6 +503,10 @@ class SettingsDialog:
                         self._test_timer.stop()
                         return
                 self._step_test_zone()
+
+            def _on_interval_changed(self) -> None:
+                if self._test_timer.isActive():
+                    self._test_timer.setInterval(max(100, int(self.test_step_interval_slider.value())))
 
             def updated_config(self) -> AppConfig:
                 zone_count = int(self.zone_count_slider.value())

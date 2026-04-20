@@ -84,7 +84,7 @@ def derive_corner_anchor_device_indices(
         source_total // 4,
         source_total // 2,
         (3 * source_total) // 4,
-    ]
+    ][: min(4, len(mapping))]
 
     def _ring_distance(a: int, b: int, length: int) -> int:
         d = abs(a - b) % length
@@ -100,7 +100,9 @@ def derive_corner_anchor_device_indices(
             ),
             key=lambda item: (item[0], item[1]),
         )
-        pick = next((device for _, device in scored if device not in used), scored[0][1])
+        pick = next((device for _, device in scored if device not in used), None)
+        if pick is None:
+            break
         used.add(int(pick))
         chosen.append(int(pick))
     return chosen

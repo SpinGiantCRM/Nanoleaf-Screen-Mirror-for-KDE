@@ -32,3 +32,13 @@ def test_calibration_test_frame_never_truncates_device_zone_count() -> None:
     frame = calibration_test_frame(device_zone_count=24, active_indices=[23])
     assert len(frame) == 24
     assert frame[-1] != (0, 0, 0)
+
+
+def test_derive_corner_anchor_device_indices_limits_to_unique_device_zones() -> None:
+    anchors = derive_corner_anchor_device_indices(
+        zone_count=12,
+        device_zone_count=2,
+        zone_offset=0,
+        reverse_zones=False,
+    )
+    assert anchors == [0, 1]
