@@ -25,6 +25,7 @@ from nanoleaf_sync.desktop_entry import (
 from nanoleaf_sync.service import NanoleafSyncService
 from nanoleaf_sync.tools.output_format import describe_mode, summarize_command_output
 from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog
+from nanoleaf_sync.ui.diagnostics_dialog import CalibrationDiagnosticsDialog
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.settings_dialog import SettingsDialog
 
@@ -294,6 +295,7 @@ class NanoleafTrayApp:
         self.action_settings = self.QAction("Settings", menu)
         self.action_display_wizard = self.QAction("Display Configurator", menu)
         self.action_troubleshooting = self.QAction("Help / Troubleshooting", menu)
+        self.action_calibration_lab = self.QAction("Calibration / Diagnostics Lab", menu)
         self.action_mode = self.QAction("Mode: --", menu)
         self.action_mode.setEnabled(False)
         self.action_device = self.QAction("Device: --", menu)
@@ -311,6 +313,7 @@ class NanoleafTrayApp:
         self.action_settings.triggered.connect(self.on_settings)
         self.action_display_wizard.triggered.connect(self.on_display_configurator)
         self.action_troubleshooting.triggered.connect(self.on_troubleshooting)
+        self.action_calibration_lab.triggered.connect(self.on_calibration_lab)
         self.action_status.triggered.connect(self.on_status)
         self.action_enable_autostart.triggered.connect(self.on_enable_autostart)
         self.action_disable_autostart.triggered.connect(self.on_disable_autostart)
@@ -328,6 +331,7 @@ class NanoleafTrayApp:
         menu.addAction(self.action_settings)
         menu.addAction(self.action_display_wizard)
         menu.addAction(self.action_troubleshooting)
+        menu.addAction(self.action_calibration_lab)
         menu.addAction(self.action_status)
         menu.addAction(self.action_enable_autostart)
         menu.addAction(self.action_disable_autostart)
@@ -484,6 +488,15 @@ class NanoleafTrayApp:
             ]
         )
         self.tray_icon.showMessage("nanoleaf-kde-sync status", summary, self.QSystemTrayIcon.MessageIcon.Information, 9000)
+
+    def on_calibration_lab(self) -> None:
+        dlg = CalibrationDiagnosticsDialog(
+            parent=None,
+            cfg=self.config,
+            runtime_status=self.service.get_status(),
+            calibration_sender=self._send_calibration_preview,
+        )
+        dlg.exec()
 
     def on_doctor(self):
         self._run_command_async(label="doctor", argv=[sys.executable, "-m", "nanoleaf_sync.tools.doctor"])

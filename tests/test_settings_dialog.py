@@ -137,6 +137,16 @@ def _qt_stub() -> dict[str, object]:
             self.accepted = _DummySignal()
             self.rejected = _DummySignal()
 
+    class _Timer:
+        def __init__(self, *_args, **_kwargs):
+            self.timeout = _DummySignal()
+
+        def start(self, _ms):
+            pass
+
+        def stop(self):
+            pass
+
     return {
         "QDialog": _QDialog,
         "QDialogButtonBox": _Buttons,
@@ -146,6 +156,7 @@ def _qt_stub() -> dict[str, object]:
         "QLabel": _Label,
         "QSlider": _Slider,
         "QPushButton": _Button,
+        "QTimer": _Timer,
         "Qt": types.SimpleNamespace(Orientation=types.SimpleNamespace(Horizontal=1)),
     }
 

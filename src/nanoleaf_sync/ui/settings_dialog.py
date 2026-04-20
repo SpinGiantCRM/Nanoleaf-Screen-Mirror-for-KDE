@@ -5,7 +5,13 @@ from typing import Callable
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.qt_lazy import load_qt
-from nanoleaf_sync.ui.calibration_preview import calibration_test_frame, corner_anchor_steps, single_zone_step
+from nanoleaf_sync.ui.calibration_flow import calibration_sequence_text
+from nanoleaf_sync.ui.calibration_preview import (
+    calibration_test_frame,
+    corner_anchor_steps,
+    coverage_sanity_step,
+    single_zone_step,
+)
 from nanoleaf_sync.ui.zone_calibration import (
     mapping_preview_text as _mapping_preview_text,
     mapping_preview_visual,
@@ -36,6 +42,7 @@ class SettingsDialog:
         QLabel = qt["QLabel"]
         QSlider = qt["QSlider"]
         QPushButton = qt["QPushButton"]
+        QTimer = qt["QTimer"]
 
         class _Dialog(QDialog):  # type: ignore
             def __init__(self):
@@ -111,7 +118,35 @@ class SettingsDialog:
                 self.test_prev_button = QPushButton("Previous test zone")
                 self.test_send_button = QPushButton("Send test pattern")
                 self.test_mode_combo = QComboBox()
-                self.test_mode_combo.addItems(["single active zone", "corner anchors"])
+                self.test_mode_combo.addItems(
+                    [
+                        "coverage sanity",
+                        "start-point identification",
+                        "direction walk",
+                        "corner anchors",
+                        "fine offset",
+                    ]
+                )
+                self.test_auto_checkbox = QCheckBox("Auto-step")
+                self.test_loop_checkbox = QCheckBox("Loop")
+                self.test_loop_checkbox.setChecked(True)
+                self.test_duration_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.test_duration_slider.setRange(1, 60)
+                self.test_duration_slider.setValue(12)
+                self.test_step_interval_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.test_step_interval_slider.setRange(100, 2000)
+                self.test_step_interval_slider.setValue(500)
+                self.test_brightness_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.test_brightness_slider.setRange(5, 100)
+                self.test_brightness_slider.setValue(100)
+                self.test_background_checkbox = QCheckBox("All off except active zone")
+                self.test_background_checkbox.setChecked(True)
+                self.test_duration_value = QLabel("")
+                self.test_step_interval_value = QLabel("")
+                self.test_brightness_value = QLabel("")
+                self._test_elapsed_ms = 0
+                self._test_timer = QTimer(self)
+                self._test_timer.timeout.connect(self._on_test_timer_tick)
 
                 self.output_channel_order_combo = QComboBox()
                 self.output_channel_order_combo.addItems(["grb", "rgb", "rbg", "gbr", "brg", "bgr"])
@@ -213,6 +248,7 @@ class SettingsDialog:
                 self.test_step_button.clicked.connect(self._step_test_zone)
                 self.test_prev_button.clicked.connect(self._prev_test_zone)
                 self.test_send_button.clicked.connect(self._send_test_pattern)
+                self.test_auto_checkbox.stateChanged.connect(self._on_test_auto_toggled)
                 self.test_mode_combo.currentIndexChanged.connect(self._refresh_preview_label)
 
                 buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
@@ -249,8 +285,8 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Zone Calibration"), 13, 0, 1, 3)
                 layout.addWidget(
                     QLabel(
-                        "Calibrate strip order from left/right/top/bottom screen colours.\n"
-                        "Simple mode: choose count + preset, then adjust reverse/offset until the test order matches."
+                        "Calibration sequence:\n"
+                        f"{calibration_sequence_text()}"
                     ),
                     14,
                     0,
@@ -266,25 +302,31 @@ class SettingsDialog:
                 layout.addWidget(self.test_step_button, 21, 0, 1, 2)
                 layout.addWidget(self.test_prev_button, 21, 2, 1, 1)
                 _add_labeled(22, "Test mode", self.test_mode_combo)
-                layout.addWidget(self.test_send_button, 23, 0, 1, 2)
-                layout.addWidget(self.test_label, 24, 0, 1, 3)
-                layout.addWidget(self.manual_map_checkbox, 25, 0, 1, 2)
-                _add_labeled(26, "Manual map: strip zone", self.manual_map_device_slider)
-                _add_labeled(27, "Manual map: screen zone", self.manual_map_source_slider)
-                layout.addWidget(self.manual_map_apply_button, 28, 0, 1, 2)
-                _add_labeled(29, "Output channel order", self.output_channel_order_combo)
+                layout.addWidget(self.test_auto_checkbox, 23, 0, 1, 1)
+                layout.addWidget(self.test_loop_checkbox, 23, 1, 1, 1)
+                _add_labeled(24, "Test duration (s)", self.test_duration_slider, self.test_duration_value)
+                _add_labeled(25, "Step interval (ms)", self.test_step_interval_slider, self.test_step_interval_value)
+                _add_labeled(26, "Test brightness", self.test_brightness_slider, self.test_brightness_value)
+                layout.addWidget(self.test_background_checkbox, 27, 0, 1, 2)
+                layout.addWidget(self.test_send_button, 28, 0, 1, 2)
+                layout.addWidget(self.test_label, 29, 0, 1, 3)
+                layout.addWidget(self.manual_map_checkbox, 30, 0, 1, 2)
+                _add_labeled(31, "Manual map: strip zone", self.manual_map_device_slider)
+                _add_labeled(32, "Manual map: screen zone", self.manual_map_source_slider)
+                layout.addWidget(self.manual_map_apply_button, 33, 0, 1, 2)
+                _add_labeled(34, "Output channel order", self.output_channel_order_combo)
 
-                layout.addWidget(self.start_on_launch_checkbox, 30, 0, 1, 2)
-                layout.addWidget(self.mock_capture_checkbox, 31, 0, 1, 2)
-                _add_labeled(32, "Capture backend", self.capture_backend_combo)
-                _add_labeled(33, "Auto-probe policy", self.auto_probe_policy_combo)
-                layout.addWidget(self.capture_decision_label, 34, 0, 1, 3)
-                layout.addWidget(self.probe_policy_help_label, 35, 0, 1, 3)
-                layout.addWidget(self.probe_reset_help_label, 36, 0, 1, 3)
-                _add_labeled(37, "LED gamma", self.led_gamma_slider, self.led_gamma_value)
-                layout.addWidget(self.preview_label, 38, 0, 1, 3)
-                layout.addWidget(self.preview_visual_label, 39, 0, 1, 3)
-                layout.addWidget(buttons, 40, 0, 1, 3)
+                layout.addWidget(self.start_on_launch_checkbox, 35, 0, 1, 2)
+                layout.addWidget(self.mock_capture_checkbox, 36, 0, 1, 2)
+                _add_labeled(37, "Capture backend", self.capture_backend_combo)
+                _add_labeled(38, "Auto-probe policy", self.auto_probe_policy_combo)
+                layout.addWidget(self.capture_decision_label, 39, 0, 1, 3)
+                layout.addWidget(self.probe_policy_help_label, 40, 0, 1, 3)
+                layout.addWidget(self.probe_reset_help_label, 41, 0, 1, 3)
+                _add_labeled(42, "LED gamma", self.led_gamma_slider, self.led_gamma_value)
+                layout.addWidget(self.preview_label, 43, 0, 1, 3)
+                layout.addWidget(self.preview_visual_label, 44, 0, 1, 3)
+                layout.addWidget(buttons, 45, 0, 1, 3)
                 self.setLayout(layout)
 
             def _open_configurator(self) -> None:
@@ -316,6 +358,9 @@ class SettingsDialog:
                     self.device_zone_count_slider.setEnabled(True)
                 self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
                 self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}")
+                self.test_duration_value.setText(str(self.test_duration_slider.value()))
+                self.test_step_interval_value.setText(str(self.test_step_interval_slider.value()))
+                self.test_brightness_value.setText(f"{self.test_brightness_slider.value()}%")
 
             def _refresh_preview_label(self) -> None:
                 explicit_map = self._manual_map if self.manual_map_checkbox.isChecked() else []
@@ -344,8 +389,9 @@ class SettingsDialog:
                 self.test_label.setText(step.label)
 
             def _effective_device_zone_count(self) -> int:
+                detected = int((runtime_status or {}).get("device_zone_count") or 0)
                 return (
-                    int(self.zone_count_slider.value())
+                    (detected if detected > 0 else int(self.zone_count_slider.value()))
                     if self.device_zone_count_auto_checkbox.isChecked()
                     else int(self.device_zone_count_slider.value())
                 )
@@ -367,7 +413,13 @@ class SettingsDialog:
 
             def _test_cycle_length(self) -> int:
                 if str(self.test_mode_combo.currentText()) == "corner anchors":
-                    anchors = corner_anchor_steps(device_zone_count=self._effective_device_zone_count())
+                    anchors = corner_anchor_steps(
+                        zone_count=int(self.zone_count_slider.value()),
+                        device_zone_count=self._effective_device_zone_count(),
+                        zone_offset=int(self.zone_offset_slider.value()),
+                        reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                        explicit_zone_map=self._manual_map if self.manual_map_checkbox.isChecked() else [],
+                    )
                     return max(1, len(anchors))
                 return max(1, self._effective_device_zone_count())
 
@@ -382,10 +434,27 @@ class SettingsDialog:
                 self._send_test_pattern()
 
             def _current_calibration_step(self):
-                if str(self.test_mode_combo.currentText()) == "corner anchors":
-                    anchors = corner_anchor_steps(device_zone_count=self._effective_device_zone_count())
-                    return anchors[self._test_step % len(anchors)]
+                mode = str(self.test_mode_combo.currentText())
                 explicit_map = self._manual_map if self.manual_map_checkbox.isChecked() else []
+                if mode == "corner anchors":
+                    anchors = corner_anchor_steps(
+                        zone_count=int(self.zone_count_slider.value()),
+                        device_zone_count=self._effective_device_zone_count(),
+                        zone_offset=int(self.zone_offset_slider.value()),
+                        reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                        explicit_zone_map=explicit_map,
+                    )
+                    return anchors[self._test_step % len(anchors)]
+                if mode == "coverage sanity":
+                    return coverage_sanity_step(
+                        step=self._test_step,
+                        zone_count=int(self.zone_count_slider.value()),
+                        device_zone_count=self._effective_device_zone_count(),
+                        zone_offset=int(self.zone_offset_slider.value()),
+                        reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                        explicit_zone_map=explicit_map,
+                    )
+                prefix = "Direction walk" if mode == "direction walk" else "Start-point check" if mode == "start-point identification" else "Fine offset"
                 return single_zone_step(
                     step=self._test_step,
                     zone_count=int(self.zone_count_slider.value()),
@@ -393,17 +462,41 @@ class SettingsDialog:
                     zone_offset=int(self.zone_offset_slider.value()),
                     reverse_zones=bool(self.reverse_checkbox.isChecked()),
                     explicit_zone_map=explicit_map,
+                    label_prefix=prefix,
                 )
 
             def _send_test_pattern(self) -> None:
                 if self._calibration_sender is None:
                     return
                 step = self._current_calibration_step()
+                inactive_color = (0, 0, 0) if self.test_background_checkbox.isChecked() else (8, 8, 8)
                 colors = calibration_test_frame(
                     device_zone_count=self._effective_device_zone_count(),
                     active_indices=[step.device_zone_index],
+                    brightness=self.test_brightness_slider.value() / 100.0,
+                    inactive_color=inactive_color,
                 )
                 self._calibration_sender(colors)
+
+            def _on_test_auto_toggled(self) -> None:
+                self._test_elapsed_ms = 0
+                if self.test_auto_checkbox.isChecked():
+                    self._test_timer.start(max(100, int(self.test_step_interval_slider.value())))
+                else:
+                    self._test_timer.stop()
+
+            def _on_test_timer_tick(self) -> None:
+                self._test_elapsed_ms += max(100, int(self.test_step_interval_slider.value()))
+                duration_ms = int(self.test_duration_slider.value()) * 1000
+                if self._test_elapsed_ms >= duration_ms:
+                    if self.test_loop_checkbox.isChecked():
+                        self._test_elapsed_ms = 0
+                        self._test_step = 0
+                    else:
+                        self.test_auto_checkbox.setChecked(False)
+                        self._test_timer.stop()
+                        return
+                self._step_test_zone()
 
             def updated_config(self) -> AppConfig:
                 zone_count = int(self.zone_count_slider.value())

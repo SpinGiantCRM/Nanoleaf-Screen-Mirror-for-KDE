@@ -186,6 +186,13 @@ class NanoleafSyncService:
         status["effective_capture_backend"] = self._effective_capture_backend or capture_backend_name
         status["selection_reason"] = self._selection_reason
         status["from_auto_probe"] = self._selection_reason in {"cached-probe", "fresh-probe"}
+        status["auto_probe_policy"] = self.config.auto_probe_policy
+        status["auto_probe_timestamp"] = self.config.auto_probe_timestamp or ""
+        status["cached_probe_backend"] = self.config.auto_selected_backend or ""
+        status["backend_selection_details"] = (
+            f"policy={self.config.auto_probe_policy}, reason={self._selection_reason}, "
+            f"cached={self.config.auto_selected_backend or 'none'}"
+        )
         status["device_mode"] = "real-usb"
         status["device_discovered"] = self._device_discovered
         status["device_model"] = self._device_model
