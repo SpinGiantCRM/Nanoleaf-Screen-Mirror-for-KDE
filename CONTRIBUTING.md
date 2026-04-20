@@ -11,12 +11,6 @@ Thanks for contributing to Nanoleaf Screen Mirror for KDE.
 pip install -e .[test]
 ```
 
-Optional pinned dependency list used by docs/examples:
-
-```bash
-pip install -r docs/requirements.txt
-```
-
 3. Run tests:
 
 ```bash
@@ -53,6 +47,7 @@ If your change affects installation, configuration, commands, or runtime behavio
 1. Update `VERSION` and create/publish the GitHub release with complete release notes.
    (`CHANGELOG.md` is synced from release notes by the release workflow.)
 2. Open a release PR using `.github/PULL_REQUEST_TEMPLATE/release.md`.
-3. Fill out RC evidence in the PR body and/or `docs/RC_TEST_MATRIX.md`.
-4. Run `nanoleaf-kde-sync-doctor` and `nanoleaf-kde-sync-smoke-test` for required matrix rows.
-5. Create and push a tag only after the release checklist is fully complete.
+3. Fill out RC evidence in the PR body (source of truth). Optionally append rows to `docs/RC_TEST_MATRIX.md` after sign-off for historical tracking.
+4. Run `nanoleaf-kde-sync-rc-runner --mode diagnostic --env-id A1 --rc-version vX.Y.Z-rcN --tester @handle` to generate a matrix-ready row and status summary.
+5. Run `nanoleaf-kde-sync-doctor` and `nanoleaf-kde-sync-smoke-test` for required matrix rows.
+6. Create and push a tag only after the release checklist is fully complete.

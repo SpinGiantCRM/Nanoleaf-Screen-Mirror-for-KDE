@@ -8,12 +8,10 @@
 
 ## Linux permissions
 
-Install the provided udev rule and reload rules:
+Use the provided installer script (canonical path) to install the udev rule and reload rules:
 
 ```bash
-sudo install -Dm0644 assets/udev/60-nanoleaf-kde-sync.rules /etc/udev/rules.d/60-nanoleaf-kde-sync.rules
-sudo udevadm control --reload-rules
-sudo udevadm trigger --subsystem-match=hidraw --action=add
+./scripts/setup_udev.sh
 ```
 
 On Arch/CachyOS, if needed:

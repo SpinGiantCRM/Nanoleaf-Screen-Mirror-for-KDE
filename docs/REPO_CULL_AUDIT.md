@@ -2,6 +2,15 @@
 
 This audit is focused on reducing maintenance drag without changing core functionality.
 
+## Completion status (implemented)
+
+- ✅ Removed `docs/requirements.txt` and switched contributor install guidance to `pip install -e .[test]`.
+- ✅ Made release PR body the source of truth for RC evidence; matrix doc is now optional historical archive.
+- ✅ Documented `nanoleaf-kde-sync-rc-runner` invocation and added tests for row output contract.
+- ✅ Standardized on `scripts/setup_udev.sh` as the canonical udev installation path across docs.
+- ✅ Moved vendor protocol PDF from repo root to `docs/reference/` and recorded checksum metadata.
+- ✅ Fixed the failing runtime flow test (`tests/test_runtime_real_driver_flow.py::test_run_loop_with_usb_driver_initializes_then_sends_frame`) so cleanup proceeds from a green baseline.
+
 ## High-confidence keepers (providing clear value)
 
 - Core app/runtime/capture/device modules under `src/nanoleaf_sync/**` are covered by broad tests and are in active use via entry points.

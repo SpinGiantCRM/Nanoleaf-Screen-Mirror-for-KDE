@@ -41,9 +41,7 @@ If you see `NoAuthorized` / `NotAuthorized` (especially with `DESKTOP_STARTUP_ID
 2. Ensure the udev rule is installed:
 
 ```bash
-sudo install -Dm0644 assets/udev/60-nanoleaf-kde-sync.rules /etc/udev/rules.d/60-nanoleaf-kde-sync.rules
-sudo udevadm control --reload-rules
-sudo udevadm trigger --subsystem-match=hidraw --action=add
+./scripts/setup_udev.sh
 ```
 
 3. Reconnect the device.
