@@ -113,13 +113,18 @@ class XDGPortalCapture:
         from dbus_next.aio import MessageBus
 
         bus = await MessageBus(negotiate_unix_fd=True).connect()
-        sender = bus.unique_name.replace(".", "_").lstrip(":")
+        unique_name = getattr(bus, "unique_name", None)
+        if not unique_name:
+            raise XDGPortalError("Portal negotiation failed: D-Bus unique name is unavailable.")
+        sender = str(unique_name).replace(".", "_").lstrip(":")
 
         async def _call(method: str, signature: str, body: list, *, handle_token: str):
             portal_request_path = request_path(sender_name=sender, handle_token=handle_token)
             future: asyncio.Future = asyncio.get_event_loop().create_future()
 
             def _on_signal(msg):
+                if msg is None:
+                    return
                 if (
                     msg.path == portal_request_path
                     and msg.interface == self._REQUEST_IFACE
@@ -140,6 +145,8 @@ class XDGPortalCapture:
                         body=body,
                     )
                 )
+                if reply is None:
+                    raise XDGPortalError(f"Portal {method} call failed: empty D-Bus reply.")
                 if reply.message_type == MessageType.ERROR:
                     raise XDGPortalError(f"Portal {method} call failed: {reply.error_name}")
                 return await asyncio.wait_for(future, timeout=120.0)
@@ -324,6 +331,10 @@ class XDGPortalCapture:
             proc = getattr(self, "_gst_proc", None)
             if proc is not None:
                 proc.terminate()
+                try:
+                    proc.wait(timeout=1.0)
+                except Exception:
+                    proc.kill()
             mm = getattr(self, "_shm_mm", None)
             if mm is not None:
                 mm.close()
