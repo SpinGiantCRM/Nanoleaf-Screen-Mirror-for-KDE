@@ -330,11 +330,15 @@ class XDGPortalCapture:
         if self._use_gstreamer:
             proc = getattr(self, "_gst_proc", None)
             if proc is not None:
-                proc.terminate()
                 try:
+                    proc.terminate()
                     proc.wait(timeout=1.0)
                 except Exception:
-                    proc.kill()
+                    try:
+                        proc.kill()
+                        proc.wait(timeout=1.0)
+                    except Exception:
+                        pass
             mm = getattr(self, "_shm_mm", None)
             if mm is not None:
                 mm.close()
