@@ -89,6 +89,8 @@ class KWinDBusScreenshotCapture:
             primaries=str(hdr_primaries),
             max_nits=float(hdr_max_nits),
         )
+        self._resize_index_cache: dict[tuple[int, int, int, int], tuple[np.ndarray, np.ndarray]] = {}
+        self._resize_index_cache_limit = 8
 
     def capture(self) -> np.ndarray:
         """Return an RGB frame as a numpy array or raise ``KWinDBusCaptureError``."""
@@ -338,6 +340,8 @@ class KWinDBusScreenshotCapture:
                 reply = await bus.call(msg)
                 if reply.message_type == MessageType.ERROR:
                     self._raise_screenshot2_error(reply)
+                os.close(write_fd)
+                write_fd = -1
 
                 results = reply.body[0] if reply.body else {}
                 result_map = self._normalize_variant_dict(results)
@@ -351,7 +355,8 @@ class KWinDBusScreenshotCapture:
                 attempt_errors.append((method_name, signature, exc))
             finally:
                 os.close(read_fd)
-                os.close(write_fd)
+                if write_fd >= 0:
+                    os.close(write_fd)
 
         if not attempt_errors:
             raise KWinDBusCaptureError(
@@ -505,12 +510,13 @@ class KWinDBusScreenshotCapture:
         buffer = bytearray(expected_size)
         view = memoryview(buffer)
         read_total = 0
-        with os.fdopen(os.dup(fd), "rb", closefd=True) as handle:
-            while read_total < expected_size:
-                got = handle.readinto(view[read_total:])
-                if not got:
-                    break
-                read_total += got
+        while read_total < expected_size:
+            chunk = os.read(fd, expected_size - read_total)
+            if not chunk:
+                break
+            chunk_len = len(chunk)
+            view[read_total:read_total + chunk_len] = chunk
+            read_total += chunk_len
         return bytes(view[:read_total])
 
     def _candidate_args_for_method(self, method_name: str) -> tuple[tuple[object, ...], ...]:
@@ -744,15 +750,15 @@ class KWinDBusScreenshotCapture:
         return pixels[:, :, :3][:, :, ::-1].copy()
 
     def _resize_frame(self, *, frame: np.ndarray, width: int, height: int) -> np.ndarray:
-        from PyQt6.QtCore import Qt
-        from PyQt6.QtGui import QImage
-
-        src_h, src_w, _ = frame.shape
-        image = QImage(frame.data, src_w, src_h, src_w * 3, QImage.Format.Format_RGB888)
-        resized = image.scaled(
-            width,
-            height,
-            Qt.AspectRatioMode.IgnoreAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        return self._qimage_to_rgb_array(resized)
+        src_h, src_w = frame.shape[:2]
+        cache_key = (int(src_h), int(src_w), int(height), int(width))
+        cached = self._resize_index_cache.get(cache_key)
+        if cached is None:
+            y_idx = np.linspace(0, src_h - 1, height, dtype=np.float32).astype(np.intp)
+            x_idx = np.linspace(0, src_w - 1, width, dtype=np.float32).astype(np.intp)
+            self._resize_index_cache[cache_key] = (y_idx, x_idx)
+            if len(self._resize_index_cache) > self._resize_index_cache_limit:
+                self._resize_index_cache.pop(next(iter(self._resize_index_cache)))
+        else:
+            y_idx, x_idx = cached
+        return np.ascontiguousarray(frame[y_idx[:, None], x_idx[None, :], :])

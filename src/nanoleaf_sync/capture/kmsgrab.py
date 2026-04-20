@@ -128,6 +128,11 @@ class KMSGrabCapture:
                 "DRM capture must return a numpy.ndarray (or (ndarray, metadata))."
             )
 
+        target_h = int(self.params.height)
+        target_w = int(self.params.width)
+        if rgb.shape[0] != target_h or rgb.shape[1] != target_w:
+            rgb = self._resize_to_target(frame=rgb, target_height=target_h, target_width=target_w)
+
         if (
             rgb.dtype == np.uint8
             and meta.transfer == "srgb"
@@ -135,35 +140,28 @@ class KMSGrabCapture:
         ):
             return rgb
 
-        # Convert at native resolution first: transfer functions are nonlinear,
-        # so pre-conversion downsampling can produce incorrect HDR→SDR results.
-        converted = convert_frame_to_srgb8(rgb, metadata=meta)
-        return self._restore_converted_frame_shape(
-            converted=converted,
-            target_height=rgb.shape[0],
-            target_width=rgb.shape[1],
-        )
+        return convert_frame_to_srgb8(rgb, metadata=meta)
 
-    def _restore_converted_frame_shape(
-        self, *, converted: np.ndarray, target_height: int, target_width: int
+    def _resize_to_target(
+        self, *, frame: np.ndarray, target_height: int, target_width: int
     ) -> np.ndarray:
-        """Resize converted frame back to original capture dimensions if needed."""
-        if converted.shape[0] == target_height and converted.shape[1] == target_width:
-            return converted
+        """Resize frame to target capture dimensions if needed."""
+        if frame.shape[0] == target_height and frame.shape[1] == target_width:
+            return frame
 
         cache_key = (
-            int(converted.shape[0]),
-            int(converted.shape[1]),
+            int(frame.shape[0]),
+            int(frame.shape[1]),
             int(target_height),
             int(target_width),
         )
         cached = self._resize_index_cache.get(cache_key)
         if cached is None:
-            y_idx = np.linspace(0, converted.shape[0] - 1, target_height).astype(np.intp)
-            x_idx = np.linspace(0, converted.shape[1] - 1, target_width).astype(np.intp)
+            y_idx = np.linspace(0, frame.shape[0] - 1, target_height).astype(np.intp)
+            x_idx = np.linspace(0, frame.shape[1] - 1, target_width).astype(np.intp)
             self._resize_index_cache[cache_key] = (y_idx, x_idx)
             if len(self._resize_index_cache) > self._resize_index_cache_limit:
                 self._resize_index_cache.pop(next(iter(self._resize_index_cache)))
         else:
             y_idx, x_idx = cached
-        return converted[y_idx[:, None], x_idx[None, :], :]
+        return frame[y_idx[:, None], x_idx[None, :], :]

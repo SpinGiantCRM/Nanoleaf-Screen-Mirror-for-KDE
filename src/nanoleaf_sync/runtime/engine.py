@@ -253,9 +253,14 @@ def process_frame(
 
     gamma = max(1.0, min(4.0, float(led_gamma)))
     if abs(gamma - 1.0) > 1e-6:
-        mapped = 255.0 * np.power(np.clip(mapped / 255.0, 0.0, 1.0), 1.0 / gamma)
+        np.clip(mapped, 0.0, 255.0, out=mapped)
+        mapped /= 255.0
+        np.power(mapped, 1.0 / gamma, out=mapped)
+        mapped *= 255.0
 
-    out = np.clip(np.rint(mapped), 0.0, 255.0).astype(np.uint8, copy=False)
+    np.clip(mapped, 0.0, 255.0, out=mapped)
+    np.rint(mapped, out=mapped)
+    out = mapped.astype(np.uint8, copy=False)
     return [tuple(int(c) for c in row) for row in out.tolist()]
 
 
