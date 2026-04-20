@@ -10,6 +10,8 @@ It captures the active display, maps sampled colors to Nanoleaf zones, and sends
 
 ## Documentation
 
+- [Auto backend behavior and probe policies](docs/AUTO_BACKEND.md)
+- [Latency plan and tuning guidance](docs/LATENCY_PLAN.md)
 - [Troubleshooting guide](docs/TROUBLESHOOTING.md)
 - [Hardware setup](docs/HARDWARE_SETUP.md)
 - [Smoke test guide](docs/SMOKE_TEST.md)
@@ -19,6 +21,7 @@ It captures the active display, maps sampled colors to Nanoleaf zones, and sends
 ## Features
 
 - KDE Plasma 6 screen capture support (`auto`, `kwin-dbus`, `kmsgrab`, `xdg-portal`)
+- Policy-aware auto backend probing with cache + environment signature tracking
 - Nanoleaf USB HID output (`NL82K1` / `NL82K2`)
 - Configuration bootstrap and diagnostics commands
 - Tray-managed autostart enable/disable with KDE desktop authorization marker
@@ -80,7 +83,6 @@ nanoleaf-kde-sync-autostart enable
 nanoleaf-kde-sync-autostart disable
 ```
 
-
 ## Display configurator and presets
 
 On first launch, the tray app opens a **Display Configurator** wizard after startup.
@@ -99,6 +101,47 @@ Wizard flow:
 
 Tooltip help is included in Settings for these display fields.
 
+## Capture backends and auto policy
+
+### Backend tradeoffs
+
+- `kmsgrab`: often the fastest path when DRM/KMS access and bindings are available.
+- `kwin-dbus`: compatibility-first KDE path using `org.kde.KWin.ScreenShot2`.
+- `xdg-portal`: portable launch-context/compositor path through ScreenCast portal permissions.
+
+### `auto` is policy-aware (not capability-only)
+
+When `prefer_backend = "auto"`, backend selection uses:
+
+1. **Policy gate** (`auto_probe_policy`): decides *when* to run a fresh probe.
+2. **Cached winner** (`auto_selected_backend`): reused when policy says no fresh probe.
+3. **Probe result or fallback**: fresh probe picks a winner if one qualifies; otherwise capability fallback applies.
+
+Supported policies:
+
+- `first-run`: probe only when there is no cached winner.
+- `each-boot`: probe once at process boot, then reuse result for the process lifetime.
+- `on-change` (default): probe when the environment signature changes, or cache is missing.
+
+Cache metadata fields:
+
+- `auto_selected_backend`
+- `auto_probe_signature`
+- `auto_probe_timestamp`
+
+Probe can be disabled by config/env kill-switch:
+
+- `auto_probe_enabled = false`
+- `NANOLEAF_DISABLE_CAPTURE_PROBE=true`
+- `NANOLEAF_ENABLE_CAPTURE_PROBE=false`
+
+If probe is disabled or no candidate qualifies, `auto` falls back to capability detection:
+
+- `kmsgrab` when DRM/KMS device + bindings are available
+- otherwise `kwin-dbus`
+
+See [`docs/AUTO_BACKEND.md`](docs/AUTO_BACKEND.md) for full behavior and reset workflow.
+
 ## Developer quick start
 
 ```bash
@@ -112,7 +155,8 @@ pytest -q
 
 See the full guide at [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
 
-- **No frame capture**: Ensure you are running KDE Plasma 6 on Wayland and accepted the screenshot permission prompt.
+- **No frame capture**: Ensure you are running KDE Plasma 6 on Wayland and accepted capture permissions.
+- **Probe metadata looks stale**: reset auto-probe cache metadata and retry (see troubleshooting reset workflow).
 - **KWin ScreenShot2 authorization errors** (`...NoAuthorized` / `...NotAuthorized`):
   launching `nanoleaf-kde-sync-service` directly from a terminal can be denied by KDE policy.
   If diagnostics show `DESKTOP_STARTUP_ID=unset` and `XDG_ACTIVATION_TOKEN=unset`,
@@ -136,10 +180,3 @@ See the full guide at [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
 - Linux
 - KDE Plasma 6 (Wayland recommended)
 - Nanoleaf USB device with a supported VID/PID
-
-### Capture backend guidance (CachyOS/KDE)
-
-- `auto` (default): picks the lowest-latency backend available on the current system (prefers `kmsgrab` when DRM/KMS device + bindings are available, otherwise uses `kwin-dbus`).
-- `kmsgrab`: lowest-latency path when DRM/KMS bindings are available; automatically falls back to KWin screenshot capture if needed.
-- `kwin-dbus`: most compatible KDE path.
-- `xdg-portal`: best for strict portal-based security environments.
