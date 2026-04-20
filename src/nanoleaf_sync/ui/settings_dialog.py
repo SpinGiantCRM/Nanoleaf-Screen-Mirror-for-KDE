@@ -329,13 +329,19 @@ class SettingsDialog:
                 self._manual_map[idx] = val
                 self._refresh_preview_label()
 
+            def _test_cycle_length(self) -> int:
+                if str(self.test_mode_combo.currentText()) == "corner anchors":
+                    anchors = corner_anchor_steps(device_zone_count=self._effective_device_zone_count())
+                    return max(1, len(anchors))
+                return max(1, self._effective_device_zone_count())
+
             def _step_test_zone(self) -> None:
-                self._test_step = (self._test_step + 1) % max(1, self._effective_device_zone_count())
+                self._test_step = (self._test_step + 1) % self._test_cycle_length()
                 self._refresh_preview_label()
                 self._send_test_pattern()
 
             def _prev_test_zone(self) -> None:
-                self._test_step = (self._test_step - 1) % max(1, self._effective_device_zone_count())
+                self._test_step = (self._test_step - 1) % self._test_cycle_length()
                 self._refresh_preview_label()
                 self._send_test_pattern()
 

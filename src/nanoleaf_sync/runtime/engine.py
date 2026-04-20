@@ -326,19 +326,23 @@ def run_loop(
             if stop_requested:
                 break
             error_limit = max(1, int(getattr(config, "max_consecutive_errors", 5)))
-            with capture_worker_lock:
-                worker_error = capture_worker_error
-                worker_failures = capture_worker_failures
-            if worker_error is not None and worker_failures >= error_limit:
-                raise RuntimeError(
-                    f"capture worker failed {worker_failures} consecutive attempts"
-                ) from worker_error
 
             if state.is_reinitializing:
                 if stop_requested:
                     break
                 skip_tick = True
             else:
+                with capture_worker_lock:
+                    worker_error = capture_worker_error
+                    worker_failures = capture_worker_failures
+                    if worker_error is not None and worker_failures >= error_limit:
+                        capture_worker_error = None
+                        capture_worker_failures = 0
+                if worker_error is not None and worker_failures >= error_limit:
+                    raise RuntimeError(
+                        f"capture worker failed {worker_failures} consecutive attempts"
+                    ) from worker_error
+
                 driver = get_driver()
                 if driver is None:
                     if stop_requested:

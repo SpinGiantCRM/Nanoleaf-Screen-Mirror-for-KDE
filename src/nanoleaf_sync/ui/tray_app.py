@@ -211,8 +211,8 @@ class NanoleafTrayApp:
             if driver is not None:
                 try:
                     driver.close()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    _log.debug("Calibration preview driver close failed: %s", exc, exc_info=True)
 
     def _make_preview_driver(self):
         return self.service._make_device_driver()

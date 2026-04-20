@@ -44,14 +44,10 @@ def _dump_toml(payload: Dict[str, Any]) -> str:
                         lines.append(f"{zone_k} = {float(zone_v)}")
                     lines.append("")
                 continue
-            if isinstance(value, bool):
-                rendered = "true" if value else "false"
-            elif isinstance(value, str):
-                rendered = json.dumps(value)
-            elif isinstance(value, list):
+            if isinstance(value, list):
                 rendered = _toml_render_list(value)
             else:
-                rendered = str(value)
+                rendered = _toml_render_scalar(value)
             lines.append(f"{key} = {rendered}")
         return "\n".join(lines).rstrip() + "\n"
 
