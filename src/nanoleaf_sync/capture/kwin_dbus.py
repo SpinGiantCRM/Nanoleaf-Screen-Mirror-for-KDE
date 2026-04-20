@@ -89,6 +89,8 @@ class KWinDBusScreenshotCapture:
             primaries=str(hdr_primaries),
             max_nits=float(hdr_max_nits),
         )
+        self._resize_index_cache: dict[tuple[int, int, int, int], tuple[np.ndarray, np.ndarray]] = {}
+        self._resize_index_cache_limit = 8
 
     def capture(self) -> np.ndarray:
         """Return an RGB frame as a numpy array or raise ``KWinDBusCaptureError``."""
@@ -746,6 +748,14 @@ class KWinDBusScreenshotCapture:
 
     def _resize_frame(self, *, frame: np.ndarray, width: int, height: int) -> np.ndarray:
         src_h, src_w = frame.shape[:2]
-        y_idx = np.linspace(0, src_h - 1, height, dtype=np.float32).astype(np.intp)
-        x_idx = np.linspace(0, src_w - 1, width, dtype=np.float32).astype(np.intp)
+        cache_key = (int(src_h), int(src_w), int(height), int(width))
+        cached = self._resize_index_cache.get(cache_key)
+        if cached is None:
+            y_idx = np.linspace(0, src_h - 1, height, dtype=np.float32).astype(np.intp)
+            x_idx = np.linspace(0, src_w - 1, width, dtype=np.float32).astype(np.intp)
+            self._resize_index_cache[cache_key] = (y_idx, x_idx)
+            if len(self._resize_index_cache) > self._resize_index_cache_limit:
+                self._resize_index_cache.pop(next(iter(self._resize_index_cache)))
+        else:
+            y_idx, x_idx = cached
         return np.ascontiguousarray(frame[y_idx[:, None], x_idx[None, :], :])

@@ -37,10 +37,10 @@ def linear01_to_srgb_encoded(linear: np.ndarray) -> np.ndarray:
 
 
 def srgb_u8_to_linear01(rgb: np.ndarray) -> np.ndarray:
-    """Convert uint8 sRGB values to linear-light floats in [0, 1]."""
-    if rgb.dtype != np.uint8:
-        raise TypeError(f"Expected uint8 input for LUT conversion, got {rgb.dtype!r}")
-    return _SRGB_TO_LINEAR_LUT[rgb]
+    """Convert sRGB values to linear-light floats in [0, 1]."""
+    if rgb.dtype == np.uint8:
+        return _SRGB_TO_LINEAR_LUT[rgb]
+    return srgb_eotf_to_linear01(rgb.astype(np.float32, copy=False) / 255.0)
 
 
 def linear01_to_srgb_u8(linear: np.ndarray) -> np.ndarray:

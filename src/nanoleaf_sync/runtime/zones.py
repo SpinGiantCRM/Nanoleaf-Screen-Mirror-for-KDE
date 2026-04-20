@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from typing import List, Sequence, Tuple
 
 import numpy as np
@@ -46,8 +47,7 @@ _M2_T = np.ascontiguousarray(_M2.T)
 _M1_INV_T = np.ascontiguousarray(_M1_INV.T)
 _M2_INV_T = np.ascontiguousarray(_M2_INV.T)
 
-_integral_buffer: np.ndarray | None = None
-_integral_buffer_shape: tuple[int, int] | None = None
+_thread_local = threading.local()
 
 
 _COLOR_MODE_PROFILES = {
@@ -122,12 +122,14 @@ def _oklab_to_linear_srgb(oklab: np.ndarray) -> np.ndarray:
 
 
 def _get_integral_buffer(height: int, width: int) -> np.ndarray:
-    global _integral_buffer, _integral_buffer_shape
     shape = (int(height), int(width))
-    if _integral_buffer is None or _integral_buffer_shape != shape:
-        _integral_buffer = np.empty((shape[0], shape[1], 3), dtype=np.float64)
-        _integral_buffer_shape = shape
-    return _integral_buffer
+    buffer = getattr(_thread_local, "integral_buffer", None)
+    buffer_shape = getattr(_thread_local, "integral_buffer_shape", None)
+    if buffer is None or buffer_shape != shape:
+        buffer = np.empty((shape[0], shape[1], 3), dtype=np.float64)
+        _thread_local.integral_buffer = buffer
+        _thread_local.integral_buffer_shape = shape
+    return buffer
 
 
 def zone_colors(
