@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.5.9] - 2026-04-20
+
+## What's Changed
+* Unify calibration state; add combined corner+offset calibration and predictable latency checker by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/132
+
+
+**Full Changelog**: https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/compare/v0.5.8...v0.5.9
+
 ## [0.5.8] - 2026-04-20
 
 ## What's Changed
