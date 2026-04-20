@@ -103,3 +103,23 @@ def test_run_opens_display_configurator_without_delayed_balloon_when_wizard_inco
     assert opened["count"] == 1
     assert "delayed" not in opened
     assert "balloon" not in opened
+
+
+def test_startup_launch_diagnostic_disabled_by_default(monkeypatch) -> None:
+    monkeypatch.delenv("NANOLEAF_SHOW_STARTUP_DIAGNOSTIC", raising=False)
+    fake = SimpleNamespace(_startup_warning=None, config=AppConfig(verbose=False))
+    assert NanoleafTrayApp._should_show_startup_launch_diagnostic(fake) is False
+
+
+def test_startup_launch_diagnostic_enabled_for_verbose_or_failure(monkeypatch) -> None:
+    monkeypatch.delenv("NANOLEAF_SHOW_STARTUP_DIAGNOSTIC", raising=False)
+    verbose_fake = SimpleNamespace(_startup_warning=None, config=AppConfig(verbose=True))
+    failed_fake = SimpleNamespace(_startup_warning="load failed", config=AppConfig(verbose=False))
+    assert NanoleafTrayApp._should_show_startup_launch_diagnostic(verbose_fake) is True
+    assert NanoleafTrayApp._should_show_startup_launch_diagnostic(failed_fake) is True
+
+
+def test_startup_launch_diagnostic_enabled_by_env(monkeypatch) -> None:
+    monkeypatch.setenv("NANOLEAF_SHOW_STARTUP_DIAGNOSTIC", "debug")
+    fake = SimpleNamespace(_startup_warning=None, config=AppConfig(verbose=False))
+    assert NanoleafTrayApp._should_show_startup_launch_diagnostic(fake) is True

@@ -225,6 +225,8 @@ class NanoleafSyncService:
         self._capture = None
         self._driver = None
         self._device_discovered = False
+        self._device_model = None
+        self._device_zone_count = None
 
     def _close_backends(self) -> None:
         if self._capture is not None:

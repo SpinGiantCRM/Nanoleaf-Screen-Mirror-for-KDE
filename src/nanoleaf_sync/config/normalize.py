@@ -68,6 +68,12 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     zone_offset = int(cfg.zone_offset)
     explicit_zone_map = [int(i) for i in cfg.explicit_zone_map] if cfg.explicit_zone_map else []
     corner_start_anchor = int(getattr(cfg, "corner_start_anchor", -1))
+    corner_offsets_enabled = coerce_bool(
+        getattr(cfg, "corner_offsets_enabled", AppConfig.corner_offsets_enabled),
+        AppConfig.corner_offsets_enabled,
+    )
+    raw_corner_offsets = getattr(cfg, "corner_zone_offsets", []) or []
+    corner_zone_offsets = [int(i) for i in list(raw_corner_offsets)[:4]]
 
     max_consecutive_errors = max(1, int(cfg.max_consecutive_errors))
     reinit_backoff_ms = max(0, int(cfg.reinit_backoff_ms))
@@ -189,6 +195,8 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         reverse_zones=coerce_bool(getattr(cfg, "reverse_zones", False), False),
         explicit_zone_map=explicit_zone_map,
         corner_start_anchor=corner_start_anchor,
+        corner_offsets_enabled=corner_offsets_enabled,
+        corner_zone_offsets=corner_zone_offsets,
         auto_latency_policy=auto_latency_policy,
         latency_last_backend=latency_last_backend,
         latency_last_value_ms=latency_last_value_ms,

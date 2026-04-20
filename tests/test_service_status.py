@@ -153,3 +153,17 @@ def test_status_exposes_requested_vs_effective_backend_for_auto_cached_probe(mon
     assert status["selected_capture_backend"] == "kwin-dbus"
     assert status["backend_unresolved_reason"] == ""
     assert "policy=first-run" in status["backend_selection_details"]
+
+
+def test_clear_backends_resets_cached_device_metadata() -> None:
+    svc = NanoleafSyncService(config=_make_cfg())
+    svc._device_discovered = True
+    svc._device_model = "Nanoleaf USB Lightstrip"
+    svc._device_zone_count = 32
+
+    svc._clear_backends()
+    status = svc.get_status()
+
+    assert status["device_discovered"] is False
+    assert status["device_model"] is None
+    assert status["device_zone_count"] is None
