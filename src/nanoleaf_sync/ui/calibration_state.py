@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Sequence
-
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.calibration_preview import CalibrationStep, calibration_test_frame, corner_anchor_steps, coverage_sanity_step, single_zone_step
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text, mapping_preview_visual
