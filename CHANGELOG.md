@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.5.8] - 2026-04-20
+
+## What's Changed
+* Calibration sequencing, coverage sanity and visible Diagnostics/Calibration Lab by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/131
+
+
+**Full Changelog**: https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/compare/v0.5.7...v0.5.8
+
 ## [0.5.7] - 2026-04-20
 
 ## What's Changed
