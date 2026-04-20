@@ -120,3 +120,30 @@ def test_make_device_driver_requires_non_zero_vid_pid_for_real_device() -> None:
     with pytest.raises(ValueError) as excinfo:
         svc._make_device_driver()
     assert "non-zero device_vid/device_pid" in str(excinfo.value)
+
+
+def test_status_exposes_requested_vs_effective_backend_for_auto_cached_probe(monkeypatch) -> None:
+    cfg = AppConfig(
+        fps=30,
+        verbose=False,
+        use_mock_capture=False,
+        prefer_backend="auto",
+        auto_selected_backend="kwin-dbus",
+        auto_probe_policy="first-run",
+    )
+    svc = NanoleafSyncService(config=cfg, driver_override=FakeDriver())
+
+    class _FakeCaptureBackend:
+        name = "kwin-dbus"
+        last_capture_path = None
+
+        def close(self) -> None:
+            pass
+
+    monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", lambda **_kwargs: _FakeCaptureBackend())
+    svc._install_drivers()
+
+    status = svc.get_status()
+    assert status["requested_capture_backend"] == "auto"
+    assert status["effective_capture_backend"] == "kwin-dbus"
+    assert status["selection_reason"] == "cached-probe"

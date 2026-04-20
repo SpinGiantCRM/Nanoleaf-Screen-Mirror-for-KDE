@@ -91,3 +91,36 @@ def test_probe_backends_capture_timeout_is_reported() -> None:
     assert candidate.failure_count >= 1
     assert any("timed out" in message for message in candidate.error_messages)
     assert any(error.kind == "timeout" for error in candidate.errors)
+
+
+def test_probe_backends_tie_breaks_by_candidate_name() -> None:
+    def _factory(_candidate: str, _width: int, _height: int):
+        return _FakeBackend([0.001])
+
+    result = probe_backends(
+        32,
+        18,
+        ["zeta", "alpha"],
+        ProbeConfig(backend_factory=_factory, measure_iterations=3),
+    )
+
+    assert result.selected_backend == "alpha"
+    assert [entry.candidate for entry in result.candidates] == ["alpha", "zeta"]
+
+
+def test_probe_backends_records_instantiate_failures() -> None:
+    def _factory(candidate: str, _width: int, _height: int):
+        if candidate == "broken":
+            raise RuntimeError("backend init exploded")
+        return _FakeBackend([0.003])
+
+    result = probe_backends(
+        32,
+        18,
+        ["broken", "stable"],
+        ProbeConfig(backend_factory=_factory, measure_iterations=3),
+    )
+
+    broken = next(item for item in result.candidates if item.candidate == "broken")
+    assert any(error.kind == "backend-init" for error in broken.errors)
+    assert broken.qualified is False
