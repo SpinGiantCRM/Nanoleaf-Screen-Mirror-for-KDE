@@ -44,6 +44,13 @@ def main(argv: list[str] | None = None) -> int:
     if width <= 0 or height <= 0:
         width, height = DEFAULT_SMOKE_WIDTH, DEFAULT_SMOKE_HEIGHT
 
+    if int(cfg.device_vid) == 0 or int(cfg.device_pid) == 0:
+        print(
+            "device config error: VID/PID not configured "
+            "(set device_vid/device_pid in config before running smoke test)."
+        )
+        return 1
+
     capture = create_capture_backend(
         width=width,
         height=height,

@@ -211,6 +211,17 @@ def test_config_load_invalid_auto_probe_policy_falls_back_to_default(tmp_path: P
     assert cfg.auto_probe_policy == AppConfig.auto_probe_policy
 
 
+def test_config_load_unrecognized_color_mode_warns_and_falls_back(tmp_path: Path, caplog) -> None:
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text('color_mode = "vibrant"\n', encoding="utf-8")
+
+    with caplog.at_level("WARNING"):
+        cfg = ConfigManager(path=cfg_path).load()
+
+    assert cfg.color_mode == AppConfig.color_mode
+    assert "Unrecognized color_mode" in caplog.text
+
+
 def test_config_reset_auto_probe_cache(tmp_path: Path) -> None:
     cfg_path = tmp_path / "config.toml"
     mgr = ConfigManager(path=cfg_path)

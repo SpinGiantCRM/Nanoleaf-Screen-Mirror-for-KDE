@@ -82,3 +82,24 @@ def test_on_start_failed_result_reports_error_without_quitting() -> None:
 
     assert any("Start failed: device open failed" in message for message in fake_tray._messages)
     assert fake_tray._icon_updates[-1] == "idle"
+
+
+def test_run_opens_display_configurator_without_delayed_balloon_when_wizard_incomplete() -> None:
+    opened = {"count": 0}
+    app = SimpleNamespace(exec=lambda: 123)
+    fake_tray_icon = SimpleNamespace(showMessage=lambda *_args, **_kwargs: opened.setdefault("balloon", True))
+    fake = SimpleNamespace(
+        config=AppConfig(wizard_completed=False),
+        tray_icon=fake_tray_icon,
+        QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Information=1)),
+        QTimer=SimpleNamespace(singleShot=lambda *_args, **_kwargs: opened.setdefault("delayed", True)),
+        on_display_configurator=lambda: opened.__setitem__("count", opened["count"] + 1),
+        app=app,
+    )
+
+    rc = NanoleafTrayApp.run(fake)
+
+    assert rc == 123
+    assert opened["count"] == 1
+    assert "delayed" not in opened
+    assert "balloon" not in opened

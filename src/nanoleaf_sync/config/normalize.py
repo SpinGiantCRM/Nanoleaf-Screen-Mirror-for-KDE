@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, List
 
 from nanoleaf_sync.capture.backend_selection import (
@@ -7,6 +8,8 @@ from nanoleaf_sync.capture.backend_selection import (
     normalize_cached_backend,
 )
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
+
+logger = logging.getLogger(__name__)
 
 
 def coerce_bool(value: Any, default: bool) -> bool:
@@ -111,17 +114,21 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         },
         default=AppConfig.zone_preset,
     )
-    color_mode = normalize_enum(
-        getattr(cfg, "color_mode", AppConfig.color_mode),
-        allowed={
-            "default": "default",
-            "balanced": "balanced",
-            "dynamic": "dynamic",
-            "hyper": "hyper",
-            "vibrant": "dynamic",
-        },
-        default=AppConfig.color_mode,
-    )
+    raw_color_mode = getattr(cfg, "color_mode", AppConfig.color_mode)
+    normalized_color_mode = str(raw_color_mode).strip().lower()
+    color_mode_allowed = {
+        "default": "default",
+        "balanced": "balanced",
+        "dynamic": "dynamic",
+        "hyper": "hyper",
+    }
+    color_mode = color_mode_allowed.get(normalized_color_mode, AppConfig.color_mode)
+    if normalized_color_mode not in color_mode_allowed:
+        logger.warning(
+            "Unrecognized color_mode=%r; falling back to %r.",
+            raw_color_mode,
+            AppConfig.color_mode,
+        )
 
     hdr_max_nits = max(80.0, min(10000.0, float(cfg.hdr_max_nits)))
     sdr_boost_nits = max(80.0, min(1000.0, float(getattr(cfg, "sdr_boost_nits", 80.0))))
