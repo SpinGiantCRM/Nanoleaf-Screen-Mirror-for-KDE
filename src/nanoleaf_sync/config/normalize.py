@@ -64,6 +64,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     )
     zone_offset = int(cfg.zone_offset)
     explicit_zone_map = [int(i) for i in cfg.explicit_zone_map] if cfg.explicit_zone_map else []
+    corner_start_anchor = int(getattr(cfg, "corner_start_anchor", -1))
 
     max_consecutive_errors = max(1, int(cfg.max_consecutive_errors))
     reinit_backoff_ms = max(0, int(cfg.reinit_backoff_ms))
@@ -85,6 +86,22 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     auto_selected_backend = normalize_cached_backend(getattr(cfg, "auto_selected_backend", ""))
     auto_probe_signature = str(getattr(cfg, "auto_probe_signature", "") or "").strip()
     auto_probe_timestamp = str(getattr(cfg, "auto_probe_timestamp", "") or "").strip()
+    auto_latency_policy = normalize_enum(
+        getattr(cfg, "auto_latency_policy", "manual"),
+        allowed={
+            "manual": "manual",
+            "on-open": "on-open",
+            "on_open": "on-open",
+            "on-open-once-per-backend": "on-open-once-per-backend",
+            "on_open_once_per_backend": "on-open-once-per-backend",
+        },
+        default="manual",
+    )
+    latency_last_backend = str(getattr(cfg, "latency_last_backend", "") or "").strip()
+    latency_last_value_ms = max(0.0, float(getattr(cfg, "latency_last_value_ms", 0.0) or 0.0))
+    latency_last_trigger = str(getattr(cfg, "latency_last_trigger", "") or "").strip()
+    latency_last_timestamp = str(getattr(cfg, "latency_last_timestamp", "") or "").strip()
+
     zone_preset = normalize_enum(
         cfg.zone_preset,
         allowed={
@@ -164,6 +181,12 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         zone_offset=zone_offset,
         reverse_zones=coerce_bool(getattr(cfg, "reverse_zones", False), False),
         explicit_zone_map=explicit_zone_map,
+        corner_start_anchor=corner_start_anchor,
+        auto_latency_policy=auto_latency_policy,
+        latency_last_backend=latency_last_backend,
+        latency_last_value_ms=latency_last_value_ms,
+        latency_last_trigger=latency_last_trigger,
+        latency_last_timestamp=latency_last_timestamp,
         max_consecutive_errors=max_consecutive_errors,
         reinit_backoff_ms=reinit_backoff_ms,
         status_log_interval_s=status_log_interval_s,

@@ -93,6 +93,17 @@ class AppConfig:
     # If non-empty, it takes precedence over `zone_offset`/`reverse_zones`.
     explicit_zone_map: list[int] = field(default_factory=list)
 
+    # Guided corner calibration: optional explicit top-left device anchor index.
+    # Negative means inferred from current mapping.
+    corner_start_anchor: int = -1
+
+    # Latency diagnostics/checker policy and latest visible result.
+    auto_latency_policy: str = "manual"
+    latency_last_backend: str = ""
+    latency_last_value_ms: float = 0.0
+    latency_last_trigger: str = ""
+    latency_last_timestamp: str = ""
+
     # Recovery policy
     max_consecutive_errors: int = 5
     reinit_backoff_ms: int = 500
