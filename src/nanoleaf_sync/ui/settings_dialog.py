@@ -121,7 +121,7 @@ class SettingsDialog:
                 self.manual_map_checkbox = QCheckBox("Advanced: manual zone map"); self.manual_map_checkbox.setChecked(self._state.manual_mapping_enabled)
                 self.manual_map_device_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.manual_map_device_slider.setRange(0, max(0, self._state.effective_device_zone_count() - 1)); self.manual_map_device_slider.setValue(0)
                 self.manual_map_source_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.manual_map_source_slider.setRange(0, max(0, self._state.zone_count - 1)); self.manual_map_source_slider.setValue(0)
-                self.manual_map_apply_button = QPushButton("Apply mapping for selected strip zone")
+                self.manual_map_status_label = QLabel("")
                 self.corner_offsets_enabled_checkbox = QCheckBox("Advanced: per-corner refinement")
                 self.corner_offsets_enabled_checkbox.setChecked(self._state.corner_offsets_enabled)
                 self.corner_offset_sliders = []
@@ -136,7 +136,7 @@ class SettingsDialog:
                     self.corner_offset_values.append(value)
                 self.corner_anchor_button = QPushButton("Set next top-left anchor")
 
-                self.test_step_button = QPushButton("Next test zone"); self.test_prev_button = QPushButton("Previous test zone"); self.test_send_button = QPushButton("Send test pattern")
+                self.test_step_button = QPushButton("Next test zone"); self.test_prev_button = QPushButton("Previous test zone")
                 self.test_mode_combo = QComboBox(); self.test_mode_combo.addItems(list(TEST_MODES))
                 self.test_auto_checkbox = QCheckBox("Auto-step")
                 self.test_loop_checkbox = QCheckBox("Loop"); self.test_loop_checkbox.setChecked(True)
@@ -146,6 +146,11 @@ class SettingsDialog:
                 self.test_background_checkbox = QCheckBox("All off except active zone"); self.test_background_checkbox.setChecked(True)
                 self._test_elapsed_ms = 0
                 self._test_timer = QTimer(self); self._test_timer.timeout.connect(self._on_test_timer_tick)
+                self._live_preview_timer = QTimer(self)
+                live_single_shot = getattr(self._live_preview_timer, "setSingleShot", None)
+                if callable(live_single_shot):
+                    live_single_shot(True)
+                self._live_preview_timer.timeout.connect(self._flush_live_preview)
 
                 self.output_channel_order_combo = QComboBox(); self.output_channel_order_combo.addItems(["grb", "rgb", "rbg", "gbr", "brg", "bgr"]); self.output_channel_order_combo.setCurrentIndex(max(0, self.output_channel_order_combo.findText(str(getattr(cfg, "output_channel_order", "grb")))))
                 self.mock_capture_checkbox = QCheckBox("Mock capture (synthetic)"); self.mock_capture_checkbox.setChecked(bool(getattr(cfg, "use_mock_capture", True)))
@@ -182,13 +187,15 @@ class SettingsDialog:
                 ):
                     signal.connect(self._refresh_preview_label)
                 self.manual_map_device_slider.valueChanged.connect(self._sync_manual_source_slider)
-                self.manual_map_apply_button.clicked.connect(self._apply_manual_mapping)
+                self.manual_map_source_slider.valueChanged.connect(self._apply_manual_mapping)
                 for slider in self.corner_offset_sliders:
-                    slider.valueChanged.connect(self._refresh_preview_label)
+                    slider.valueChanged.connect(self._on_calibration_controls_changed)
                 self.corner_anchor_button.clicked.connect(self._rotate_anchor)
-                self.test_step_button.clicked.connect(self._step_test_zone); self.test_prev_button.clicked.connect(self._prev_test_zone); self.test_send_button.clicked.connect(self._send_test_pattern)
-                self.test_auto_checkbox.stateChanged.connect(self._on_test_auto_toggled); self.test_mode_combo.currentIndexChanged.connect(self._refresh_preview_label)
+                self.test_step_button.clicked.connect(self._step_test_zone); self.test_prev_button.clicked.connect(self._prev_test_zone)
+                self.test_auto_checkbox.stateChanged.connect(self._on_test_auto_toggled); self.test_mode_combo.currentIndexChanged.connect(self._on_calibration_controls_changed)
                 self.test_step_interval_slider.valueChanged.connect(self._on_interval_changed)
+                self.test_brightness_slider.valueChanged.connect(self._on_calibration_controls_changed)
+                self.test_background_checkbox.stateChanged.connect(self._on_calibration_controls_changed)
                 self.run_latency_button.clicked.connect(self._run_latency_probe_manual)
 
                 buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
@@ -285,7 +292,7 @@ class SettingsDialog:
                 layout.addWidget(self.manual_map_checkbox, 7, 0, 1, 2)
                 layout.addWidget(QLabel("Manual map: strip zone"), 8, 0); layout.addWidget(self.manual_map_device_slider, 8, 1, 1, 2)
                 layout.addWidget(QLabel("Manual map: screen zone"), 9, 0); layout.addWidget(self.manual_map_source_slider, 9, 1, 1, 2)
-                layout.addWidget(self.manual_map_apply_button, 10, 0, 1, 2)
+                layout.addWidget(self.manual_map_status_label, 10, 0, 1, 3)
                 layout.addWidget(self.corner_offsets_enabled_checkbox, 11, 0, 1, 3)
                 row = 12
                 for idx, name in enumerate(CORNER_NAMES):
@@ -310,7 +317,7 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Step interval (ms)"), 5, 0); layout.addWidget(self.test_step_interval_slider, 5, 1); layout.addWidget(self.test_step_interval_value, 5, 2)
                 layout.addWidget(QLabel("Test brightness"), 6, 0); layout.addWidget(self.test_brightness_slider, 6, 1); layout.addWidget(self.test_brightness_value, 6, 2)
                 layout.addWidget(self.test_background_checkbox, 7, 0, 1, 2)
-                layout.addWidget(self.test_send_button, 8, 0, 1, 2)
+                layout.addWidget(QLabel("Live preview: mapping changes are sent automatically."), 8, 0, 1, 3)
                 layout.addWidget(self.test_label, 9, 0, 1, 3)
                 group.setLayout(layout)
                 return group
@@ -357,7 +364,8 @@ class SettingsDialog:
                 self.device_zone_count_value.setText("auto" if self.device_zone_count_auto_checkbox.isChecked() else str(self.device_zone_count_slider.value()))
                 self.device_zone_status_label.setText(self._state.auto_detection_status())
 
-                self.manual_map_device_slider.setRange(0, max(0, self._state.effective_device_zone_count() - 1)); self.manual_map_source_slider.setRange(0, max(0, self._state.zone_count - 1)); enabled = self.manual_map_checkbox.isChecked(); self.manual_map_device_slider.setEnabled(enabled); self.manual_map_source_slider.setEnabled(enabled); self.manual_map_apply_button.setEnabled(enabled)
+                self.manual_map_device_slider.setRange(0, max(0, self._state.effective_device_zone_count() - 1)); self.manual_map_source_slider.setRange(0, max(0, self._state.zone_count - 1)); enabled = self.manual_map_checkbox.isChecked(); self.manual_map_device_slider.setEnabled(enabled); self.manual_map_source_slider.setEnabled(enabled)
+                self.manual_map_status_label.setText("Manual map is absolute (strip zone -> exact screen zone)." if enabled else "Manual map disabled.")
                 corners_enabled = self.corner_offsets_enabled_checkbox.isChecked()
                 for slider in self.corner_offset_sliders:
                     slider.setEnabled(corners_enabled)
@@ -382,15 +390,25 @@ class SettingsDialog:
             def _apply_manual_mapping(self):
                 idx = int(self.manual_map_device_slider.value()); val = int(self.manual_map_source_slider.value())
                 if idx >= len(self._manual_map): self._manual_map.extend([0] * (idx + 1 - len(self._manual_map)))
-                self._manual_map[idx] = val; self._refresh_preview_label()
+                self._manual_map[idx] = val; self._refresh_preview_label(); self._schedule_live_preview()
 
             def _rotate_anchor(self):
-                self._pull_state(); self._state.corner_start_anchor = next_corner_start_anchor(self._state.corner_start_anchor, device_zone_count=self._state.effective_device_zone_count()); self._refresh_preview_label()
+                self._pull_state(); self._state.corner_start_anchor = next_corner_start_anchor(self._state.corner_start_anchor, device_zone_count=self._state.effective_device_zone_count()); self._refresh_preview_label(); self._schedule_live_preview()
 
             def _current_calibration_step(self): return self._state.step_for_mode(str(self.test_mode_combo.currentText()), self._test_step)
             def _test_cycle_length(self): return self._state.cycle_length(str(self.test_mode_combo.currentText()))
             def _step_test_zone(self): self._test_step = (self._test_step + 1) % self._test_cycle_length(); self._refresh_preview_label(); self._send_test_pattern()
             def _prev_test_zone(self): self._test_step = (self._test_step - 1) % self._test_cycle_length(); self._refresh_preview_label(); self._send_test_pattern()
+            def _on_calibration_controls_changed(self): self._refresh_preview_label(); self._schedule_live_preview()
+
+            def _schedule_live_preview(self):
+                if self._calibration_sender is None:
+                    return
+                self._live_preview_timer.start(50)
+
+            def _flush_live_preview(self):
+                self._live_preview_timer.stop()
+                self._send_test_pattern()
 
             def _send_test_pattern(self):
                 if self._calibration_sender is None: return
@@ -402,6 +420,7 @@ class SettingsDialog:
                 self._test_elapsed_ms = 0
                 if self.test_auto_checkbox.isChecked(): self._test_timer.start(max(100, int(self.test_step_interval_slider.value())))
                 else: self._test_timer.stop()
+                self._schedule_live_preview()
 
             def _on_test_timer_tick(self):
                 self._test_elapsed_ms += max(100, int(self.test_step_interval_slider.value()))
