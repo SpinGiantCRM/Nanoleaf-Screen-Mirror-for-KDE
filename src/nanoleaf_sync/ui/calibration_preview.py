@@ -103,6 +103,7 @@ def corner_anchor_steps(
     zone_offset: int,
     reverse_zones: bool,
     explicit_zone_map: Sequence[int] | None = None,
+    start_anchor: int | None = None,
 ) -> list[CalibrationStep]:
     total = max(1, int(device_zone_count))
     if total == 1:
@@ -122,6 +123,7 @@ def corner_anchor_steps(
         zone_offset=zone_offset,
         reverse_zones=reverse_zones,
         explicit_zone_map=explicit_zone_map,
+        start_anchor=start_anchor,
     )
     steps: list[CalibrationStep] = []
     for name, device_idx in zip(corner_names, anchors):

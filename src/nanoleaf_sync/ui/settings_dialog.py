@@ -4,18 +4,17 @@ from dataclasses import replace
 from typing import Callable
 
 from nanoleaf_sync.config.model import AppConfig
-from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.calibration_flow import calibration_sequence_text
-from nanoleaf_sync.ui.calibration_preview import (
-    calibration_test_frame,
-    corner_anchor_steps,
-    coverage_sanity_step,
-    single_zone_step,
+from nanoleaf_sync.ui.calibration_state import (
+    CalibrationState,
+    TEST_MODES,
+    build_latency_result,
+    latency_result_summary,
+    next_corner_start_anchor,
+    should_auto_run_latency_probe,
 )
-from nanoleaf_sync.ui.zone_calibration import (
-    mapping_preview_text as _mapping_preview_text,
-    mapping_preview_visual,
-)
+from nanoleaf_sync.ui.qt_lazy import load_qt
+from nanoleaf_sync.ui.zone_calibration import mapping_preview_text as _mapping_preview_text
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
 FPS_MIN = 1
@@ -24,15 +23,10 @@ HDR_MAX_NITS_MIN = 80
 HDR_MAX_NITS_MAX = 10000
 ZONE_STRIDE_MIN = 1
 ZONE_STRIDE_MAX = 8
+
+
 class SettingsDialog:
-    def __init__(
-        self,
-        parent,
-        cfg: AppConfig,
-        *,
-        calibration_sender: Callable[[list[tuple[int, int, int]]], None] | None = None,
-        runtime_status: dict | None = None,
-    ):
+    def __init__(self, parent, cfg: AppConfig, *, calibration_sender: Callable[[list[tuple[int, int, int]]], None] | None = None, runtime_status: dict | None = None):
         qt = load_qt()
         QDialog = qt["QDialog"]
         QDialogButtonBox = qt["QDialogButtonBox"]
@@ -44,507 +38,195 @@ class SettingsDialog:
         QPushButton = qt["QPushButton"]
         QTimer = qt["QTimer"]
 
-        class _Dialog(QDialog):  # type: ignore
+        class _Dialog(QDialog):
             def __init__(self):
                 super().__init__(parent)
                 self.setWindowTitle("nanoleaf-kde-sync Settings")
                 self._open_display_configurator = False
                 self._calibration_sender = calibration_sender
-
-                self.brightness_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.brightness_slider.setRange(0, 100)
-                self.brightness_slider.setValue(int(round(cfg.brightness * 100)))
-
-                self.smoothing_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.smoothing_slider.setRange(0, 100)
-                self.smoothing_slider.setValue(int(round(cfg.smoothing * 100)))
-                self.smoothing_speed_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.smoothing_speed_slider.setRange(0, 400)
-                self.smoothing_speed_slider.setValue(int(round(getattr(cfg, "smoothing_speed", 0.75) * 100)))
-
-                self.fps_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.fps_slider.setRange(FPS_MIN, FPS_MAX)
-                self.fps_slider.setValue(int(cfg.fps))
-
-                self.display_mode_combo = QComboBox()
-                self.display_mode_combo.addItems(["sdr", "hdr"])
-                self.display_mode_combo.setCurrentIndex(1 if bool(getattr(cfg, "hdr_enabled", False)) else 0)
-
-                self.color_mode_combo = QComboBox()
-                self.color_mode_combo.addItems(["default", "balanced", "dynamic", "hyper"])
-                color_mode_idx = self.color_mode_combo.findText(str(getattr(cfg, "color_mode", "default")))
-                self.color_mode_combo.setCurrentIndex(max(0, color_mode_idx))
-
-                self.start_on_launch_checkbox = QCheckBox("Start mirroring automatically when tray app opens")
-                self.start_on_launch_checkbox.setChecked(bool(getattr(cfg, "start_on_launch", False)))
-                self.start_on_launch_checkbox.setToolTip("Automatically start mirroring after the tray icon appears.")
-
-                zone_count = len(cfg.zones) if cfg.zones else (int(getattr(cfg, "device_zone_count", 0)) or 8)
-                self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.zone_count_slider.setRange(1, 24)
-                self.zone_count_slider.setValue(int(zone_count))
-                self.zone_preset_combo = QComboBox()
-                self.zone_preset_combo.addItems(["edge-weighted", "horizontal"])
-                zone_preset_idx = self.zone_preset_combo.findText(str(getattr(cfg, "zone_preset", "edge-weighted")))
-                self.zone_preset_combo.setCurrentIndex(max(0, zone_preset_idx))
-
-                self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.zone_offset_slider.setRange(-20, 20)
-                self.zone_offset_slider.setValue(int(getattr(cfg, "zone_offset", 0)))
-
-                self.reverse_checkbox = QCheckBox("Reverse strip orientation")
-                self.reverse_checkbox.setChecked(bool(getattr(cfg, "reverse_zones", False)))
-                self.reverse_checkbox.setToolTip("Flip strip direction when colors appear mirrored left-to-right.")
-
-                device_zone_count = int(getattr(cfg, "device_zone_count", 0)) or int(zone_count)
-                self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.device_zone_count_slider.setRange(1, 128)
-                self.device_zone_count_slider.setValue(device_zone_count)
-                self.device_zone_count_auto_checkbox = QCheckBox("Auto device zone count (match detected strip length)")
-                self.device_zone_count_auto_checkbox.setChecked(int(getattr(cfg, "device_zone_count", 0)) == 0)
-                self.manual_map_checkbox = QCheckBox("Advanced: manual zone map")
-                self.manual_map_checkbox.setChecked(bool(getattr(cfg, "explicit_zone_map", [])))
-                self.manual_map_checkbox.setToolTip("Enable only for non-standard strip layouts.")
-                self.manual_map_device_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.manual_map_device_slider.setRange(0, max(0, device_zone_count - 1))
-                self.manual_map_device_slider.setValue(0)
-                self.manual_map_source_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.manual_map_source_slider.setRange(0, max(0, zone_count - 1))
-                explicit_map = [int(i) for i in (getattr(cfg, "explicit_zone_map", []) or [])]
-                first_manual = explicit_map[0] if explicit_map else 0
-                self.manual_map_source_slider.setValue(max(0, first_manual))
-                self.manual_map_apply_button = QPushButton("Apply mapping for selected strip zone")
-                self.test_step_button = QPushButton("Next test zone")
-                self.test_prev_button = QPushButton("Previous test zone")
-                self.test_send_button = QPushButton("Send test pattern")
-                self.test_mode_combo = QComboBox()
-                self.test_mode_combo.addItems(
-                    [
-                        "coverage sanity",
-                        "start-point identification",
-                        "direction walk",
-                        "corner anchors",
-                        "fine offset",
-                    ]
-                )
-                self.test_auto_checkbox = QCheckBox("Auto-step")
-                self.test_loop_checkbox = QCheckBox("Loop")
-                self.test_loop_checkbox.setChecked(True)
-                self.test_duration_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.test_duration_slider.setRange(1, 60)
-                self.test_duration_slider.setValue(12)
-                self.test_step_interval_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.test_step_interval_slider.setRange(100, 2000)
-                self.test_step_interval_slider.setValue(500)
-                self.test_brightness_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.test_brightness_slider.setRange(5, 100)
-                self.test_brightness_slider.setValue(100)
-                self.test_background_checkbox = QCheckBox("All off except active zone")
-                self.test_background_checkbox.setChecked(True)
-                self.test_duration_value = QLabel("")
-                self.test_step_interval_value = QLabel("")
-                self.test_brightness_value = QLabel("")
-                self._test_elapsed_ms = 0
-                self._test_timer = QTimer(self)
-                self._test_timer.timeout.connect(self._on_test_timer_tick)
-                self.test_step_interval_slider.valueChanged.connect(self._on_interval_changed)
-
-                self.output_channel_order_combo = QComboBox()
-                self.output_channel_order_combo.addItems(["grb", "rgb", "rbg", "gbr", "brg", "bgr"])
-                output_channel_order = str(getattr(cfg, "output_channel_order", "grb"))
-                output_channel_order_idx = self.output_channel_order_combo.findText(output_channel_order)
-                self.output_channel_order_combo.setCurrentIndex(max(0, output_channel_order_idx))
-
-                self.mock_capture_checkbox = QCheckBox("Mock capture (synthetic)")
-                self.mock_capture_checkbox.setChecked(bool(getattr(cfg, "use_mock_capture", True)))
-
-                self.capture_backend_combo = QComboBox()
-                self.capture_backend_combo.addItems(["auto", "kwin-dbus", "kmsgrab", "xdg-portal"])
-                backend_idx = self.capture_backend_combo.findText(str(getattr(cfg, "prefer_backend", "kwin-dbus")))
-                self.capture_backend_combo.setCurrentIndex(max(0, backend_idx))
-                self.auto_probe_policy_combo = QComboBox()
-                self.auto_probe_policy_combo.addItems(["on-change", "first-run", "each-boot"])
-                policy_idx = self.auto_probe_policy_combo.findText(str(getattr(cfg, "auto_probe_policy", "on-change")))
-                self.auto_probe_policy_combo.setCurrentIndex(max(0, policy_idx))
-                effective_backend = (
-                    (runtime_status or {}).get("effective_capture_backend")
-                    or (runtime_status or {}).get("capture_backend")
-                    or "not-started"
-                )
-                selection_reason = str((runtime_status or {}).get("selection_reason") or "unknown")
-                from_auto_probe = bool((runtime_status or {}).get("from_auto_probe"))
-                if from_auto_probe:
-                    source_text = f"auto-probe ({selection_reason})"
-                else:
-                    source_text = selection_reason
-                self.capture_decision_label = QLabel(
-                    f"Effective backend: {effective_backend} | source: {source_text}"
-                )
-                self.probe_policy_help_label = QLabel(
-                    "Auto-probe policy: first-run=only once unless reset; each-boot=once per app start; "
-                    "on-change=when display/session signature changes."
-                )
-                self.probe_reset_help_label = QLabel(
-                    "Need a fresh backend decision? Use tray action: Reset Auto-Probe Cache."
-                )
-
-                self.hdr_transfer_combo = QComboBox()
-                self.hdr_transfer_combo.addItems(["srgb", "pq"])
-                transfer_idx = self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))
-                self.hdr_transfer_combo.setCurrentIndex(max(0, transfer_idx))
-
-                self.hdr_primaries_combo = QComboBox()
-                self.hdr_primaries_combo.addItems(["bt709", "bt2020"])
-                primaries_idx = self.hdr_primaries_combo.findText(str(getattr(cfg, "hdr_primaries", "bt709")))
-                self.hdr_primaries_combo.setCurrentIndex(max(0, primaries_idx))
-
-                self.hdr_max_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.hdr_max_nits_slider.setRange(HDR_MAX_NITS_MIN, HDR_MAX_NITS_MAX)
-                self.hdr_max_nits_slider.setValue(int(getattr(cfg, "hdr_max_nits", 1000.0)))
-                self.zone_sampling_stride_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.zone_sampling_stride_slider.setRange(ZONE_STRIDE_MIN, ZONE_STRIDE_MAX)
-                self.zone_sampling_stride_slider.setValue(int(getattr(cfg, "zone_sampling_stride", 1)))
-                self.led_gamma_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.led_gamma_slider.setRange(100, 400)
-                self.led_gamma_slider.setValue(int(round(getattr(cfg, "led_gamma", 1.0) * 100)))
-
-                self.display_configurator_button = QPushButton("Re-run Display Setup")
-                self.display_configurator_button.clicked.connect(self._open_configurator)
-
-                self._manual_map = explicit_map[:]
+                self._state = CalibrationState.from_config(cfg, runtime_status)
+                self._manual_map = self._state.explicit_zone_map[:]
                 self._test_step = 0
-                self.preview_label = QLabel("")
-                self.preview_visual_label = QLabel("")
-                self.test_label = QLabel("")
-                self.brightness_value = QLabel("")
-                self.smoothing_value = QLabel("")
-                self.fps_value = QLabel("")
-                self.zone_count_value = QLabel("")
-                self.zone_offset_value = QLabel("")
-                self.device_zone_count_value = QLabel("")
-                self.hdr_max_nits_value = QLabel("")
-                self.zone_sampling_stride_value = QLabel("")
-                self.smoothing_speed_value = QLabel("")
-                self.led_gamma_value = QLabel("")
+                self._latest_latency = None
 
-                self._refresh_numeric_labels()
-                self._refresh_preview_label()
-                self.brightness_slider.valueChanged.connect(self._refresh_numeric_labels)
-                self.smoothing_slider.valueChanged.connect(self._refresh_numeric_labels)
-                self.smoothing_speed_slider.valueChanged.connect(self._refresh_numeric_labels)
-                self.fps_slider.valueChanged.connect(self._refresh_numeric_labels)
-                self.zone_count_slider.valueChanged.connect(self._on_calibration_control_changed)
-                self.zone_preset_combo.currentIndexChanged.connect(self._on_calibration_control_changed)
-                self.zone_offset_slider.valueChanged.connect(self._on_calibration_control_changed)
-                self.device_zone_count_slider.valueChanged.connect(self._on_calibration_control_changed)
-                self.device_zone_count_auto_checkbox.stateChanged.connect(self._on_calibration_control_changed)
-                self.hdr_max_nits_slider.valueChanged.connect(self._refresh_numeric_labels)
-                self.zone_sampling_stride_slider.valueChanged.connect(self._refresh_numeric_labels)
-                self.led_gamma_slider.valueChanged.connect(self._refresh_numeric_labels)
-                self.reverse_checkbox.stateChanged.connect(self._refresh_preview_label)
-                self.manual_map_checkbox.stateChanged.connect(self._refresh_preview_label)
+                self.brightness_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.brightness_slider.setRange(0, 100); self.brightness_slider.setValue(int(round(cfg.brightness * 100)))
+                self.smoothing_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.smoothing_slider.setRange(0, 100); self.smoothing_slider.setValue(int(round(cfg.smoothing * 100)))
+                self.smoothing_speed_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.smoothing_speed_slider.setRange(0, 400); self.smoothing_speed_slider.setValue(int(round(getattr(cfg, "smoothing_speed", 0.75) * 100)))
+                self.fps_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.fps_slider.setRange(FPS_MIN, FPS_MAX); self.fps_slider.setValue(int(cfg.fps))
+                self.display_mode_combo = QComboBox(); self.display_mode_combo.addItems(["sdr", "hdr"]); self.display_mode_combo.setCurrentIndex(1 if cfg.hdr_enabled else 0)
+                self.color_mode_combo = QComboBox(); self.color_mode_combo.addItems(["default", "balanced", "dynamic", "hyper"]); self.color_mode_combo.setCurrentIndex(max(0, self.color_mode_combo.findText(str(getattr(cfg, "color_mode", "default")))))
+                self.start_on_launch_checkbox = QCheckBox("Start mirroring automatically when tray app opens"); self.start_on_launch_checkbox.setChecked(bool(getattr(cfg, "start_on_launch", False)))
+
+                self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_count_slider.setRange(1, 24); self.zone_count_slider.setValue(self._state.zone_count)
+                self.zone_preset_combo = QComboBox(); self.zone_preset_combo.addItems(["edge-weighted", "horizontal"]); self.zone_preset_combo.setCurrentIndex(max(0, self.zone_preset_combo.findText(self._state.zone_preset)))
+                self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_offset_slider.setRange(-20, 20); self.zone_offset_slider.setValue(self._state.zone_offset)
+                self.reverse_checkbox = QCheckBox("Reverse strip orientation"); self.reverse_checkbox.setChecked(self._state.reverse_zones)
+                self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.device_zone_count_slider.setRange(1, 128); self.device_zone_count_slider.setValue(self._state.device_zone_count)
+                self.device_zone_count_auto_checkbox = QCheckBox("Auto device zone count (match detected strip length)"); self.device_zone_count_auto_checkbox.setChecked(self._state.auto_device_zone_count)
+                self.manual_map_checkbox = QCheckBox("Advanced: manual zone map"); self.manual_map_checkbox.setChecked(self._state.manual_mapping_enabled)
+                self.manual_map_device_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.manual_map_device_slider.setRange(0, max(0, self._state.effective_device_zone_count() - 1)); self.manual_map_device_slider.setValue(0)
+                self.manual_map_source_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.manual_map_source_slider.setRange(0, max(0, self._state.zone_count - 1)); self.manual_map_source_slider.setValue(0)
+                self.manual_map_apply_button = QPushButton("Apply mapping for selected strip zone")
+                self.corner_anchor_button = QPushButton("Set next top-left anchor")
+
+                self.test_step_button = QPushButton("Next test zone"); self.test_prev_button = QPushButton("Previous test zone"); self.test_send_button = QPushButton("Send test pattern")
+                self.test_mode_combo = QComboBox(); self.test_mode_combo.addItems(list(TEST_MODES))
+                self.test_auto_checkbox = QCheckBox("Auto-step")
+                self.test_loop_checkbox = QCheckBox("Loop"); self.test_loop_checkbox.setChecked(True)
+                self.test_duration_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.test_duration_slider.setRange(1, 60); self.test_duration_slider.setValue(12)
+                self.test_step_interval_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.test_step_interval_slider.setRange(100, 2000); self.test_step_interval_slider.setValue(500)
+                self.test_brightness_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.test_brightness_slider.setRange(5, 100); self.test_brightness_slider.setValue(100)
+                self.test_background_checkbox = QCheckBox("All off except active zone"); self.test_background_checkbox.setChecked(True)
+                self._test_elapsed_ms = 0
+                self._test_timer = QTimer(self); self._test_timer.timeout.connect(self._on_test_timer_tick)
+
+                self.output_channel_order_combo = QComboBox(); self.output_channel_order_combo.addItems(["grb", "rgb", "rbg", "gbr", "brg", "bgr"]); self.output_channel_order_combo.setCurrentIndex(max(0, self.output_channel_order_combo.findText(str(getattr(cfg, "output_channel_order", "grb")))))
+                self.mock_capture_checkbox = QCheckBox("Mock capture (synthetic)"); self.mock_capture_checkbox.setChecked(bool(getattr(cfg, "use_mock_capture", True)))
+                self.capture_backend_combo = QComboBox(); self.capture_backend_combo.addItems(["auto", "kwin-dbus", "kmsgrab", "xdg-portal"]); self.capture_backend_combo.setCurrentIndex(max(0, self.capture_backend_combo.findText(str(getattr(cfg, "prefer_backend", "kwin-dbus")))))
+                self.auto_probe_policy_combo = QComboBox(); self.auto_probe_policy_combo.addItems(["on-change", "first-run", "each-boot"]); self.auto_probe_policy_combo.setCurrentIndex(max(0, self.auto_probe_policy_combo.findText(str(getattr(cfg, "auto_probe_policy", "on-change")))))
+
+                self.auto_latency_policy_combo = QComboBox(); self.auto_latency_policy_combo.addItems(["manual", "on-open", "on-open-once-per-backend"]); self.auto_latency_policy_combo.setCurrentIndex(max(0, self.auto_latency_policy_combo.findText(str(getattr(cfg, "auto_latency_policy", "manual")))))
+                self.run_latency_button = QPushButton("Run latency checker now")
+                self.latency_label = QLabel(latency_result_summary(None))
+
+                self.hdr_transfer_combo = QComboBox(); self.hdr_transfer_combo.addItems(["srgb", "pq"]); self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))))
+                self.hdr_primaries_combo = QComboBox(); self.hdr_primaries_combo.addItems(["bt709", "bt2020"]); self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText(str(getattr(cfg, "hdr_primaries", "bt709")))))
+                self.hdr_max_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.hdr_max_nits_slider.setRange(HDR_MAX_NITS_MIN, HDR_MAX_NITS_MAX); self.hdr_max_nits_slider.setValue(int(getattr(cfg, "hdr_max_nits", 1000.0)))
+                self.zone_sampling_stride_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_sampling_stride_slider.setRange(ZONE_STRIDE_MIN, ZONE_STRIDE_MAX); self.zone_sampling_stride_slider.setValue(int(getattr(cfg, "zone_sampling_stride", 1)))
+                self.led_gamma_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.led_gamma_slider.setRange(100, 400); self.led_gamma_slider.setValue(int(round(getattr(cfg, "led_gamma", 1.0) * 100)))
+                self.display_configurator_button = QPushButton("Re-run Display Setup"); self.display_configurator_button.clicked.connect(self._open_configurator)
+
+                self.preview_label = QLabel(""); self.preview_visual_label = QLabel(""); self.test_label = QLabel("")
+                self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.zone_offset_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.zone_sampling_stride_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel(""); self.test_duration_value = QLabel(""); self.test_step_interval_value = QLabel(""); self.test_brightness_value = QLabel("")
+
+                for signal in (self.zone_count_slider.valueChanged, self.zone_preset_combo.currentIndexChanged, self.zone_offset_slider.valueChanged, self.device_zone_count_slider.valueChanged, self.device_zone_count_auto_checkbox.stateChanged, self.reverse_checkbox.stateChanged, self.manual_map_checkbox.stateChanged):
+                    signal.connect(self._refresh_preview_label)
                 self.manual_map_device_slider.valueChanged.connect(self._sync_manual_source_slider)
-                self.manual_map_source_slider.valueChanged.connect(self._refresh_preview_label)
                 self.manual_map_apply_button.clicked.connect(self._apply_manual_mapping)
-                self.test_step_button.clicked.connect(self._step_test_zone)
-                self.test_prev_button.clicked.connect(self._prev_test_zone)
-                self.test_send_button.clicked.connect(self._send_test_pattern)
-                self.test_auto_checkbox.stateChanged.connect(self._on_test_auto_toggled)
-                self.test_mode_combo.currentIndexChanged.connect(self._refresh_preview_label)
+                self.corner_anchor_button.clicked.connect(self._rotate_anchor)
+                self.test_step_button.clicked.connect(self._step_test_zone); self.test_prev_button.clicked.connect(self._prev_test_zone); self.test_send_button.clicked.connect(self._send_test_pattern)
+                self.test_auto_checkbox.stateChanged.connect(self._on_test_auto_toggled); self.test_mode_combo.currentIndexChanged.connect(self._refresh_preview_label)
+                self.test_step_interval_slider.valueChanged.connect(self._on_interval_changed)
+                self.run_latency_button.clicked.connect(self._run_latency_probe_manual)
 
                 buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
-                buttons.accepted.connect(self.accept)
-                buttons.rejected.connect(self.reject)
-
+                buttons.accepted.connect(self.accept); buttons.rejected.connect(self.reject)
                 layout = QGridLayout()
 
-                def _add_labeled(row: int, text: str, control, value_label=None, *, tooltip: str = "") -> None:
-                    label = QLabel(text)
-                    if tooltip:
-                        label.setToolTip(tooltip)
-                        control.setToolTip(tooltip)
-                    layout.addWidget(label, row, 0)
-                    layout.addWidget(control, row, 1)
-                    if value_label is not None:
-                        layout.addWidget(value_label, row, 2)
+                def _add(row: int, text: str, control, value=None):
+                    layout.addWidget(QLabel(text), row, 0); layout.addWidget(control, row, 1)
+                    if value is not None: layout.addWidget(value, row, 2)
 
                 layout.addWidget(QLabel("Display / Image Behaviour"), 0, 0, 1, 2)
-                _add_labeled(1, "SDR/HDR mode", self.display_mode_combo, tooltip="SDR is safest and simplest. HDR is for true HDR display/content paths.")
-                _add_labeled(2, "Colour behaviour preset", self.color_mode_combo, tooltip="Default (recommended) tuned look; Balanced safer; Dynamic more reactive; Hyper most intense.")
-                _add_labeled(3, "HDR transfer", self.hdr_transfer_combo, tooltip="sRGB is safer for SDR-like workflows. PQ is the HDR transfer curve for HDR content.")
-                _add_labeled(4, "HDR primaries", self.hdr_primaries_combo, tooltip="BT.709 is standard and safer. BT.2020 keeps wider HDR colour gamut when supported.")
-                _add_labeled(5, "HDR max brightness", self.hdr_max_nits_slider, self.hdr_max_nits_value, tooltip="Tone-mapping reference in nits. Too high/low can look dull, clipped, or wrong.")
+                _add(1, "SDR/HDR mode", self.display_mode_combo); _add(2, "Colour behaviour preset", self.color_mode_combo)
+                _add(3, "HDR transfer", self.hdr_transfer_combo); _add(4, "HDR primaries", self.hdr_primaries_combo); _add(5, "HDR max brightness", self.hdr_max_nits_slider, self.hdr_max_nits_value)
                 layout.addWidget(self.display_configurator_button, 6, 0, 1, 2)
-
                 layout.addWidget(QLabel("Runtime / Performance"), 7, 0, 1, 2)
-                _add_labeled(8, "Brightness", self.brightness_slider, self.brightness_value, tooltip="Controls LED intensity.")
-                _add_labeled(9, "Smoothing (min cutoff)", self.smoothing_slider, self.smoothing_value, tooltip="Higher smoothing reduces flicker but adds delay.")
-                _add_labeled(10, "Smoothing speed coefficient", self.smoothing_speed_slider, self.smoothing_speed_value, tooltip="How fast smoothing loosens when colours change quickly.")
-                _add_labeled(11, "Capture FPS", self.fps_slider, self.fps_value, tooltip="Higher values can reduce latency but use more resources.")
-                _add_labeled(12, "Zone sampling stride", self.zone_sampling_stride_slider, self.zone_sampling_stride_value, tooltip="Higher values sample fewer pixels per zone and reduce CPU at the cost of precision.")
-
-                layout.addWidget(QLabel("Zone Calibration"), 13, 0, 1, 3)
-                layout.addWidget(
-                    QLabel(
-                        "Calibration sequence:\n"
-                        f"{calibration_sequence_text()}"
-                    ),
-                    14,
-                    0,
-                    1,
-                    3,
-                )
-                _add_labeled(15, "Zone count", self.zone_count_slider, self.zone_count_value)
-                _add_labeled(16, "Zone layout preset", self.zone_preset_combo)
-                _add_labeled(17, "Start offset (rotation)", self.zone_offset_slider, self.zone_offset_value)
-                layout.addWidget(self.reverse_checkbox, 18, 0, 1, 2)
-                _add_labeled(19, "Device zone count", self.device_zone_count_slider, self.device_zone_count_value)
-                layout.addWidget(self.device_zone_count_auto_checkbox, 20, 0, 1, 2)
-                layout.addWidget(self.test_step_button, 21, 0, 1, 2)
-                layout.addWidget(self.test_prev_button, 21, 2, 1, 1)
-                _add_labeled(22, "Test mode", self.test_mode_combo)
-                layout.addWidget(self.test_auto_checkbox, 23, 0, 1, 1)
-                layout.addWidget(self.test_loop_checkbox, 23, 1, 1, 1)
-                _add_labeled(24, "Test duration (s)", self.test_duration_slider, self.test_duration_value)
-                _add_labeled(25, "Step interval (ms)", self.test_step_interval_slider, self.test_step_interval_value)
-                _add_labeled(26, "Test brightness", self.test_brightness_slider, self.test_brightness_value)
-                layout.addWidget(self.test_background_checkbox, 27, 0, 1, 2)
-                layout.addWidget(self.test_send_button, 28, 0, 1, 2)
-                layout.addWidget(self.test_label, 29, 0, 1, 3)
-                layout.addWidget(self.manual_map_checkbox, 30, 0, 1, 2)
-                _add_labeled(31, "Manual map: strip zone", self.manual_map_device_slider)
-                _add_labeled(32, "Manual map: screen zone", self.manual_map_source_slider)
-                layout.addWidget(self.manual_map_apply_button, 33, 0, 1, 2)
-                _add_labeled(34, "Output channel order", self.output_channel_order_combo)
-
-                layout.addWidget(self.start_on_launch_checkbox, 35, 0, 1, 2)
-                layout.addWidget(self.mock_capture_checkbox, 36, 0, 1, 2)
-                _add_labeled(37, "Capture backend", self.capture_backend_combo)
-                _add_labeled(38, "Auto-probe policy", self.auto_probe_policy_combo)
-                layout.addWidget(self.capture_decision_label, 39, 0, 1, 3)
-                layout.addWidget(self.probe_policy_help_label, 40, 0, 1, 3)
-                layout.addWidget(self.probe_reset_help_label, 41, 0, 1, 3)
-                _add_labeled(42, "LED gamma", self.led_gamma_slider, self.led_gamma_value)
-                layout.addWidget(self.preview_label, 43, 0, 1, 3)
-                layout.addWidget(self.preview_visual_label, 44, 0, 1, 3)
-                layout.addWidget(buttons, 45, 0, 1, 3)
+                _add(8, "Brightness", self.brightness_slider, self.brightness_value); _add(9, "Smoothing", self.smoothing_slider, self.smoothing_value); _add(10, "Smoothing speed", self.smoothing_speed_slider, self.smoothing_speed_value); _add(11, "Capture FPS", self.fps_slider, self.fps_value); _add(12, "Zone sampling stride", self.zone_sampling_stride_slider, self.zone_sampling_stride_value)
+                layout.addWidget(QLabel("Calibration / Testing (shared model)"), 13, 0, 1, 3)
+                layout.addWidget(QLabel(f"Calibration sequence:\n{calibration_sequence_text()}"), 14, 0, 1, 3)
+                _add(15, "Zone count", self.zone_count_slider, self.zone_count_value); _add(16, "Zone layout preset", self.zone_preset_combo); _add(17, "Start offset (rotation)", self.zone_offset_slider, self.zone_offset_value)
+                layout.addWidget(self.reverse_checkbox, 18, 0, 1, 2); _add(19, "Device zone count", self.device_zone_count_slider, self.device_zone_count_value); layout.addWidget(self.device_zone_count_auto_checkbox, 20, 0, 1, 2)
+                _add(21, "Test mode", self.test_mode_combo); layout.addWidget(self.test_step_button, 22, 0, 1, 2); layout.addWidget(self.test_prev_button, 22, 2, 1, 1)
+                layout.addWidget(self.test_auto_checkbox, 23, 0, 1, 1); layout.addWidget(self.test_loop_checkbox, 23, 1, 1, 1); _add(24, "Test duration (s)", self.test_duration_slider, self.test_duration_value); _add(25, "Step interval (ms)", self.test_step_interval_slider, self.test_step_interval_value); _add(26, "Test brightness", self.test_brightness_slider, self.test_brightness_value)
+                layout.addWidget(self.test_background_checkbox, 27, 0, 1, 2); layout.addWidget(self.test_send_button, 28, 0, 1, 2); layout.addWidget(self.test_label, 29, 0, 1, 3)
+                layout.addWidget(self.manual_map_checkbox, 30, 0, 1, 2); _add(31, "Manual map: strip zone", self.manual_map_device_slider); _add(32, "Manual map: screen zone", self.manual_map_source_slider); layout.addWidget(self.manual_map_apply_button, 33, 0, 1, 2); layout.addWidget(self.corner_anchor_button, 34, 0, 1, 2)
+                _add(35, "Output channel order", self.output_channel_order_combo)
+                layout.addWidget(self.start_on_launch_checkbox, 36, 0, 1, 2); layout.addWidget(self.mock_capture_checkbox, 37, 0, 1, 2); _add(38, "Capture backend", self.capture_backend_combo); _add(39, "Auto-probe policy", self.auto_probe_policy_combo); _add(40, "Latency auto-run policy", self.auto_latency_policy_combo)
+                layout.addWidget(self.run_latency_button, 41, 0, 1, 2); layout.addWidget(self.latency_label, 42, 0, 1, 3)
+                _add(43, "LED gamma", self.led_gamma_slider, self.led_gamma_value)
+                layout.addWidget(self.preview_label, 44, 0, 1, 3); layout.addWidget(self.preview_visual_label, 45, 0, 1, 3); layout.addWidget(buttons, 46, 0, 1, 3)
                 self.setLayout(layout)
 
-            def _open_configurator(self) -> None:
-                self._open_display_configurator = True
-                self.accept()
+                self._refresh_numeric_labels(); self._refresh_preview_label(); self._maybe_auto_run_latency_check()
 
-            def wants_display_configurator(self) -> bool:
-                return bool(self._open_display_configurator)
+            def _open_configurator(self): self._open_display_configurator = True; self.accept()
+            def wants_display_configurator(self) -> bool: return bool(self._open_display_configurator)
 
-            def _on_calibration_control_changed(self) -> None:
-                self._refresh_numeric_labels()
-                self.manual_map_device_slider.setRange(0, max(0, self._effective_device_zone_count() - 1))
-                self.manual_map_source_slider.setRange(0, max(0, int(self.zone_count_slider.value()) - 1))
-                self._refresh_preview_label()
+            def _pull_state(self):
+                self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = str(self.zone_preset_combo.currentText()); self._state.zone_offset = int(self.zone_offset_slider.value()); self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value()); self._state.auto_device_zone_count = bool(self.device_zone_count_auto_checkbox.isChecked()); self._state.manual_mapping_enabled = bool(self.manual_map_checkbox.isChecked()); self._state.explicit_zone_map = self._manual_map[:]
 
-            def _refresh_numeric_labels(self) -> None:
-                self.brightness_value.setText(f"{self.brightness_slider.value()}%")
-                self.smoothing_value.setText(f"{self.smoothing_slider.value()}%")
-                self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}")
-                self.fps_value.setText(f"{self.fps_slider.value()} fps")
-                self.zone_sampling_stride_value.setText(str(self.zone_sampling_stride_slider.value()))
-                self.zone_count_value.setText(str(self.zone_count_slider.value()))
-                self.zone_offset_value.setText(str(self.zone_offset_slider.value()))
-                if self.device_zone_count_auto_checkbox.isChecked():
-                    self.device_zone_count_value.setText("auto")
-                    self.device_zone_count_slider.setEnabled(False)
-                else:
-                    self.device_zone_count_value.setText(str(self.device_zone_count_slider.value()))
-                    self.device_zone_count_slider.setEnabled(True)
-                self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
-                self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}")
-                self.test_duration_value.setText(str(self.test_duration_slider.value()))
-                self.test_step_interval_value.setText(str(self.test_step_interval_slider.value()))
-                self.test_brightness_value.setText(f"{self.test_brightness_slider.value()}%")
+            def _refresh_numeric_labels(self):
+                self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.zone_sampling_stride_value.setText(str(self.zone_sampling_stride_slider.value())); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.zone_offset_value.setText(str(self.zone_offset_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}"); self.test_duration_value.setText(str(self.test_duration_slider.value())); self.test_step_interval_value.setText(str(self.test_step_interval_slider.value())); self.test_brightness_value.setText(f"{self.test_brightness_slider.value()}%")
 
-            def _refresh_preview_label(self) -> None:
-                explicit_map = self._manual_map if self.manual_map_checkbox.isChecked() else []
-                self.preview_label.setText(
-                    _mapping_preview_text(
-                        zone_count=int(self.zone_count_slider.value()),
-                        device_zone_count=self._effective_device_zone_count(),
-                        zone_offset=int(self.zone_offset_slider.value()),
-                        reverse_zones=bool(self.reverse_checkbox.isChecked()),
-                        explicit_zone_map=explicit_map,
-                    )
-                )
-                self.preview_visual_label.setText(
-                    mapping_preview_visual(
-                        zone_count=int(self.zone_count_slider.value()),
-                        device_zone_count=self._effective_device_zone_count(),
-                        zone_offset=int(self.zone_offset_slider.value()),
-                        reverse_zones=bool(self.reverse_checkbox.isChecked()),
-                        explicit_zone_map=explicit_map,
-                    )
-                )
-                self.manual_map_device_slider.setEnabled(self.manual_map_checkbox.isChecked())
-                self.manual_map_source_slider.setEnabled(self.manual_map_checkbox.isChecked())
-                self.manual_map_apply_button.setEnabled(self.manual_map_checkbox.isChecked())
-                step = self._current_calibration_step()
-                self.test_label.setText(step.label)
+            def _refresh_preview_label(self):
+                self._refresh_numeric_labels(); self._pull_state()
+                self.device_zone_count_slider.setEnabled(not self.device_zone_count_auto_checkbox.isChecked())
+                self.device_zone_count_value.setText("auto" if self.device_zone_count_auto_checkbox.isChecked() else str(self.device_zone_count_slider.value()))
+                self.manual_map_device_slider.setRange(0, max(0, self._state.effective_device_zone_count() - 1)); self.manual_map_source_slider.setRange(0, max(0, self._state.zone_count - 1)); enabled = self.manual_map_checkbox.isChecked(); self.manual_map_device_slider.setEnabled(enabled); self.manual_map_source_slider.setEnabled(enabled); self.manual_map_apply_button.setEnabled(enabled)
+                self.preview_label.setText(self._state.mapping_preview_text()); self.preview_visual_label.setText(self._state.mapping_preview_visual()); self.test_label.setText(self._current_calibration_step().label)
 
-            def _effective_device_zone_count(self) -> int:
-                detected = int((runtime_status or {}).get("device_zone_count") or 0)
-                return (
-                    (detected if detected > 0 else int(self.zone_count_slider.value()))
-                    if self.device_zone_count_auto_checkbox.isChecked()
-                    else int(self.device_zone_count_slider.value())
-                )
-
-            def _sync_manual_source_slider(self) -> None:
+            def _sync_manual_source_slider(self):
                 idx = int(self.manual_map_device_slider.value())
-                if idx < len(self._manual_map):
-                    self.manual_map_source_slider.setValue(int(self._manual_map[idx]))
-                else:
-                    self.manual_map_source_slider.setValue(0)
+                self.manual_map_source_slider.setValue(int(self._manual_map[idx]) if idx < len(self._manual_map) else 0)
 
-            def _apply_manual_mapping(self) -> None:
-                idx = int(self.manual_map_device_slider.value())
-                val = int(self.manual_map_source_slider.value())
-                if idx >= len(self._manual_map):
-                    self._manual_map.extend([0] * (idx + 1 - len(self._manual_map)))
-                self._manual_map[idx] = val
-                self._refresh_preview_label()
+            def _apply_manual_mapping(self):
+                idx = int(self.manual_map_device_slider.value()); val = int(self.manual_map_source_slider.value())
+                if idx >= len(self._manual_map): self._manual_map.extend([0] * (idx + 1 - len(self._manual_map)))
+                self._manual_map[idx] = val; self._refresh_preview_label()
 
-            def _test_cycle_length(self) -> int:
-                if str(self.test_mode_combo.currentText()) == "corner anchors":
-                    anchors = corner_anchor_steps(
-                        zone_count=int(self.zone_count_slider.value()),
-                        device_zone_count=self._effective_device_zone_count(),
-                        zone_offset=int(self.zone_offset_slider.value()),
-                        reverse_zones=bool(self.reverse_checkbox.isChecked()),
-                        explicit_zone_map=self._manual_map if self.manual_map_checkbox.isChecked() else [],
-                    )
-                    return max(1, len(anchors))
-                return max(1, self._effective_device_zone_count())
+            def _rotate_anchor(self):
+                self._pull_state(); self._state.corner_start_anchor = next_corner_start_anchor(self._state.corner_start_anchor, device_zone_count=self._state.effective_device_zone_count()); self._refresh_preview_label()
 
-            def _step_test_zone(self) -> None:
-                self._test_step = (self._test_step + 1) % self._test_cycle_length()
-                self._refresh_preview_label()
-                self._send_test_pattern()
+            def _current_calibration_step(self): return self._state.step_for_mode(str(self.test_mode_combo.currentText()), self._test_step)
+            def _test_cycle_length(self): return self._state.cycle_length(str(self.test_mode_combo.currentText()))
+            def _step_test_zone(self): self._test_step = (self._test_step + 1) % self._test_cycle_length(); self._refresh_preview_label(); self._send_test_pattern()
+            def _prev_test_zone(self): self._test_step = (self._test_step - 1) % self._test_cycle_length(); self._refresh_preview_label(); self._send_test_pattern()
 
-            def _prev_test_zone(self) -> None:
-                self._test_step = (self._test_step - 1) % self._test_cycle_length()
-                self._refresh_preview_label()
-                self._send_test_pattern()
-
-            def _current_calibration_step(self):
-                mode = str(self.test_mode_combo.currentText())
-                explicit_map = self._manual_map if self.manual_map_checkbox.isChecked() else []
-                if mode == "corner anchors":
-                    anchors = corner_anchor_steps(
-                        zone_count=int(self.zone_count_slider.value()),
-                        device_zone_count=self._effective_device_zone_count(),
-                        zone_offset=int(self.zone_offset_slider.value()),
-                        reverse_zones=bool(self.reverse_checkbox.isChecked()),
-                        explicit_zone_map=explicit_map,
-                    )
-                    return anchors[self._test_step % len(anchors)]
-                if mode == "coverage sanity":
-                    return coverage_sanity_step(
-                        step=self._test_step,
-                        zone_count=int(self.zone_count_slider.value()),
-                        device_zone_count=self._effective_device_zone_count(),
-                        zone_offset=int(self.zone_offset_slider.value()),
-                        reverse_zones=bool(self.reverse_checkbox.isChecked()),
-                        explicit_zone_map=explicit_map,
-                    )
-                prefix_map = {
-                    "direction walk": "Direction walk",
-                    "start-point identification": "Start-point check",
-                    "fine offset": "Fine offset",
-                }
-                prefix = prefix_map.get(mode, "Fine offset")
-                return single_zone_step(
-                    step=self._test_step,
-                    zone_count=int(self.zone_count_slider.value()),
-                    device_zone_count=self._effective_device_zone_count(),
-                    zone_offset=int(self.zone_offset_slider.value()),
-                    reverse_zones=bool(self.reverse_checkbox.isChecked()),
-                    explicit_zone_map=explicit_map,
-                    label_prefix=prefix,
-                )
-
-            def _send_test_pattern(self) -> None:
-                if self._calibration_sender is None:
-                    return
-                step = self._current_calibration_step()
-                inactive_color = (0, 0, 0) if self.test_background_checkbox.isChecked() else (8, 8, 8)
-                colors = calibration_test_frame(
-                    device_zone_count=self._effective_device_zone_count(),
-                    active_indices=[step.device_zone_index],
-                    brightness=self.test_brightness_slider.value() / 100.0,
-                    inactive_color=inactive_color,
-                )
+            def _send_test_pattern(self):
+                if self._calibration_sender is None: return
+                self._pull_state()
+                colors = self._state.frame_for_step(mode=str(self.test_mode_combo.currentText()), step=self._test_step, brightness=self.test_brightness_slider.value()/100.0, all_off_except_active=bool(self.test_background_checkbox.isChecked()))
                 self._calibration_sender(colors)
 
-            def _on_test_auto_toggled(self) -> None:
+            def _on_test_auto_toggled(self):
                 self._test_elapsed_ms = 0
-                if self.test_auto_checkbox.isChecked():
-                    self._test_timer.start(max(100, int(self.test_step_interval_slider.value())))
-                else:
-                    self._test_timer.stop()
+                if self.test_auto_checkbox.isChecked(): self._test_timer.start(max(100, int(self.test_step_interval_slider.value())))
+                else: self._test_timer.stop()
 
-            def _on_test_timer_tick(self) -> None:
+            def _on_test_timer_tick(self):
                 self._test_elapsed_ms += max(100, int(self.test_step_interval_slider.value()))
-                duration_ms = int(self.test_duration_slider.value()) * 1000
-                if self._test_elapsed_ms >= duration_ms:
-                    if self.test_loop_checkbox.isChecked():
-                        self._test_elapsed_ms = 0
-                        self._test_step = 0
-                    else:
-                        self.test_auto_checkbox.setChecked(False)
-                        self._test_timer.stop()
-                        return
+                if self._test_elapsed_ms >= int(self.test_duration_slider.value()) * 1000:
+                    if self.test_loop_checkbox.isChecked(): self._test_elapsed_ms = 0; self._test_step = 0
+                    else: self.test_auto_checkbox.setChecked(False); self._test_timer.stop(); return
                 self._step_test_zone()
 
-            def _on_interval_changed(self) -> None:
-                if self._test_timer.isActive():
-                    self._test_timer.setInterval(max(100, int(self.test_step_interval_slider.value())))
+            def _on_interval_changed(self):
+                if self._test_timer.isActive(): self._test_timer.setInterval(max(100, int(self.test_step_interval_slider.value())))
+
+            def _active_backend(self) -> str:
+                return str((runtime_status or {}).get("effective_capture_backend") or (runtime_status or {}).get("capture_backend") or str(self.capture_backend_combo.currentText()))
+
+            def _run_latency_probe_manual(self):
+                self._latest_latency = build_latency_result(backend=self._active_backend(), measured_latency_ms=1000.0 / max(1, int(self.fps_slider.value())), triggered_by="manual", details="Estimated from configured capture FPS")
+                self.latency_label.setText(latency_result_summary(self._latest_latency))
+
+            def _maybe_auto_run_latency_check(self):
+                if should_auto_run_latency_probe(policy=str(self.auto_latency_policy_combo.currentText()), last_result=self._latest_latency, active_backend=self._active_backend()):
+                    self._latest_latency = build_latency_result(backend=self._active_backend(), measured_latency_ms=1000.0 / max(1, int(self.fps_slider.value())), triggered_by="auto", details="Auto-run on settings open")
+                    self.latency_label.setText(latency_result_summary(self._latest_latency))
 
             def updated_config(self) -> AppConfig:
-                zone_count = int(self.zone_count_slider.value())
-                zone_preset = str(self.zone_preset_combo.currentText())
-                new_zones = make_edge_weighted_zones(zone_count) if zone_preset == "edge-weighted" else make_horizontal_zones(zone_count)
+                self._pull_state()
+                new_zones = make_edge_weighted_zones(self._state.zone_count) if self._state.zone_preset == "edge-weighted" else make_horizontal_zones(self._state.zone_count)
                 return replace(
                     cfg,
-                    fps=int(self.fps_slider.value()),
-                    zone_sampling_stride=int(self.zone_sampling_stride_slider.value()),
-                    brightness=self.brightness_slider.value() / 100.0,
-                    smoothing=self.smoothing_slider.value() / 100.0,
-                    smoothing_speed=self.smoothing_speed_slider.value() / 100.0,
-                    led_gamma=self.led_gamma_slider.value() / 100.0,
-                    zones=new_zones,
-                    zone_preset=zone_preset,
-                    color_mode=str(self.color_mode_combo.currentText()),
-                    hdr_enabled=str(self.display_mode_combo.currentText()) == "hdr",
-                    start_on_launch=bool(self.start_on_launch_checkbox.isChecked()),
-                    device_zone_count=0 if self.device_zone_count_auto_checkbox.isChecked() else int(self.device_zone_count_slider.value()),
-                    output_channel_order=str(self.output_channel_order_combo.currentText()),
-                    zone_offset=int(self.zone_offset_slider.value()),
-                    reverse_zones=bool(self.reverse_checkbox.isChecked()),
-                    explicit_zone_map=(self._manual_map[: self._effective_device_zone_count()] if self.manual_map_checkbox.isChecked() else []),
-                    use_mock_capture=bool(self.mock_capture_checkbox.isChecked()),
-                    prefer_backend=str(self.capture_backend_combo.currentText()),
-                    auto_probe_policy=str(self.auto_probe_policy_combo.currentText()),
-                    hdr_transfer=str(self.hdr_transfer_combo.currentText()),
-                    hdr_primaries=str(self.hdr_primaries_combo.currentText()),
-                    hdr_max_nits=float(self.hdr_max_nits_slider.value()),
+                    fps=int(self.fps_slider.value()), zone_sampling_stride=int(self.zone_sampling_stride_slider.value()), brightness=self.brightness_slider.value() / 100.0,
+                    smoothing=self.smoothing_slider.value() / 100.0, smoothing_speed=self.smoothing_speed_slider.value() / 100.0, led_gamma=self.led_gamma_slider.value() / 100.0,
+                    zones=new_zones, zone_preset=self._state.zone_preset, color_mode=str(self.color_mode_combo.currentText()), hdr_enabled=str(self.display_mode_combo.currentText()) == "hdr",
+                    start_on_launch=bool(self.start_on_launch_checkbox.isChecked()), device_zone_count=0 if self._state.auto_device_zone_count else self._state.device_zone_count,
+                    output_channel_order=str(self.output_channel_order_combo.currentText()), zone_offset=self._state.zone_offset, reverse_zones=self._state.reverse_zones,
+                    explicit_zone_map=(self._manual_map[: self._state.effective_device_zone_count()] if self._state.manual_mapping_enabled else []),
+                    corner_start_anchor=int(self._state.corner_start_anchor), use_mock_capture=bool(self.mock_capture_checkbox.isChecked()), prefer_backend=str(self.capture_backend_combo.currentText()), auto_probe_policy=str(self.auto_probe_policy_combo.currentText()), auto_latency_policy=str(self.auto_latency_policy_combo.currentText()),
+                    latency_last_backend=(self._latest_latency.backend if self._latest_latency else getattr(cfg, "latency_last_backend", "")),
+                    latency_last_value_ms=(self._latest_latency.measured_latency_ms if self._latest_latency else float(getattr(cfg, "latency_last_value_ms", 0.0))),
+                    latency_last_trigger=(self._latest_latency.triggered_by if self._latest_latency else getattr(cfg, "latency_last_trigger", "")),
+                    latency_last_timestamp=(self._latest_latency.recorded_at_utc if self._latest_latency else getattr(cfg, "latency_last_timestamp", "")),
+                    hdr_transfer=str(self.hdr_transfer_combo.currentText()), hdr_primaries=str(self.hdr_primaries_combo.currentText()), hdr_max_nits=float(self.hdr_max_nits_slider.value()),
                 )
 
         self._dialog = _Dialog()
 
-    def exec(self) -> int:
-        return self._dialog.exec()
-
-    def updated_config(self) -> AppConfig:
-        return self._dialog.updated_config()
-
-    def wants_display_configurator(self) -> bool:
-        return bool(self._dialog.wants_display_configurator())
+    def exec(self) -> int: return self._dialog.exec()
+    def updated_config(self) -> AppConfig: return self._dialog.updated_config()
+    def wants_display_configurator(self) -> bool: return bool(self._dialog.wants_display_configurator())

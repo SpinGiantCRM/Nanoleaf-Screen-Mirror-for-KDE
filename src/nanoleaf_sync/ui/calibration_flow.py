@@ -67,6 +67,7 @@ def derive_corner_anchor_device_indices(
     zone_offset: int,
     reverse_zones: bool,
     explicit_zone_map: Sequence[int] | None = None,
+    start_anchor: int | None = None,
 ) -> list[int]:
     mapping = mapping_indices(
         zone_count=zone_count,
@@ -78,6 +79,24 @@ def derive_corner_anchor_device_indices(
     if not mapping:
         return [0]
 
+
+    if start_anchor is not None and len(mapping) > 0:
+        total = len(mapping)
+        start = int(start_anchor) % total
+        if total == 1:
+            return [0]
+        quarter = max(1, total // 4)
+        ordered = [
+            start,
+            (start + quarter) % total,
+            (start + 2 * quarter) % total,
+            (start + 3 * quarter) % total,
+        ]
+        unique: list[int] = []
+        for idx in ordered:
+            if idx not in unique:
+                unique.append(idx)
+        return unique[: min(4, total)]
     source_total = max(1, int(zone_count))
     targets = [
         0,
