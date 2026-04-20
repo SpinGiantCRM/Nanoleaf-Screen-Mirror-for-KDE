@@ -69,9 +69,9 @@ def test_latency_policy_is_predictable_and_manual_vs_auto_labeled() -> None:
         active_backend="kmsgrab",
     ) is True
     summary = latency_result_summary(result)
-    assert "selected=kwin-dbus" in summary
+    assert "backend=kwin-dbus" in summary
     assert "measurement_kind" not in summary
-    assert "estimated" in summary
+    assert "[estimated]" in summary
 
 
 def test_testing_step_controls_and_frame_generation_stay_coherent() -> None:
@@ -112,9 +112,10 @@ def test_backend_and_testing_state_are_exposed_for_ui_surfaces() -> None:
     }
     state = CalibrationState.from_config(AppConfig(device_zone_count=48), runtime_status)
     backend = backend_selection_info(runtime_status, cfg)
+    assert backend.selected_backend == "kwin-dbus"
     assert backend.source == "auto-probe"
     panel = build_testing_panel_state(state=state, runtime_status=runtime_status, cfg=cfg, mode="direction walk", step=0)
-    assert "Effective backend: kwin-dbus" in panel.backend_summary
+    assert "Effective runtime backend: kwin-dbus" in panel.backend_summary
     assert panel.effective_zone_count == 48
     assert "Device zone mode:" in panel.zone_mode_summary
 
@@ -125,3 +126,25 @@ def test_corner_refinement_preview_mentions_corner_offsets() -> None:
     text = state.mapping_preview_text()
     assert "Per-corner refinement" in text
     assert "+1/-1/+2/-2" in text
+
+
+def test_corner_refinement_clamps_to_supported_limit() -> None:
+    cfg = AppConfig(device_zone_count=8, corner_offsets_enabled=True, corner_zone_offsets=[99, -99, 30, -30])
+    state = CalibrationState.from_config(cfg, {})
+    assert state.active_corner_zone_offsets() == [24, -24, 24, -24]
+
+
+def test_backend_selection_never_reports_auto_as_selected_backend() -> None:
+    cfg = AppConfig(prefer_backend="auto")
+    info = backend_selection_info({"requested_capture_backend": "auto", "running": True}, cfg)
+    assert info.selected_backend == "unresolved"
+    assert info.effective_backend == "unresolved"
+    assert "No concrete backend implementation resolved" in info.unresolved_reason
+
+
+def test_backend_selection_marks_not_started_state_explicitly() -> None:
+    cfg = AppConfig(prefer_backend="auto")
+    info = backend_selection_info({}, cfg)
+    assert info.effective_backend == "not-started"
+    assert info.runtime_started is False
+    assert "not started" in info.unresolved_reason

@@ -183,8 +183,18 @@ class NanoleafSyncService:
             reinit_backoff_ms=self.config.reinit_backoff_ms,
         )
         status["requested_capture_backend"] = self.config.prefer_backend
+        status["selected_capture_backend"] = self._effective_capture_backend or self.config.auto_selected_backend or ""
         status["effective_capture_backend"] = self._effective_capture_backend or capture_backend_name
         status["selection_reason"] = self._selection_reason
+        status["backend_unresolved_reason"] = (
+            ""
+            if bool(status["effective_capture_backend"])
+            else (
+                "Runtime has not started yet."
+                if not self.is_running()
+                else f"No concrete backend implementation resolved for policy '{self.config.prefer_backend}'."
+            )
+        )
         status["from_auto_probe"] = self._selection_reason in {"cached-probe", "fresh-probe"}
         status["auto_probe_policy"] = self.config.auto_probe_policy
         status["auto_probe_timestamp"] = self.config.auto_probe_timestamp or ""

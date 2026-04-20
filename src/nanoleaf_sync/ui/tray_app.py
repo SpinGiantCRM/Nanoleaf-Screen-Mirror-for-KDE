@@ -255,6 +255,8 @@ class NanoleafTrayApp:
             themed_idle = self.QIcon.fromTheme("preferences-desktop-color")
         themed_running = self.QIcon.fromTheme("media-playback-start")
         if themed_running.isNull():
+            themed_running = self.QIcon.fromTheme("media-record")
+        if themed_running.isNull():
             themed_running = self.QIcon.fromTheme("nanoleaf-kde-sync")
 
         fallback_icon = self.QIcon()
@@ -272,13 +274,16 @@ class NanoleafTrayApp:
         running_icon = themed_running if not themed_running.isNull() else idle_icon
         if idle_icon.isNull() or running_icon.isNull():
             qt = load_qt()
-            pixmap = qt["QPixmap"](16, 16)
-            pixmap.fill(qt["QColor"](88, 88, 88))
-            fallback_generated_icon = self.QIcon(pixmap)
+            idle_pixmap = qt["QPixmap"](16, 16)
+            idle_pixmap.fill(qt["QColor"](88, 88, 88))
+            fallback_generated_icon = self.QIcon(idle_pixmap)
+            running_pixmap = qt["QPixmap"](16, 16)
+            running_pixmap.fill(qt["QColor"](60, 180, 75))
+            fallback_running_icon = self.QIcon(running_pixmap)
             if idle_icon.isNull():
                 idle_icon = fallback_generated_icon
             if running_icon.isNull():
-                running_icon = fallback_generated_icon
+                running_icon = fallback_running_icon
 
         _log.info(
             "Icon resolution: themed_idle_null=%s themed_running_null=%s fallback=%s final_idle_null=%s",
@@ -343,9 +348,19 @@ class NanoleafTrayApp:
     def _refresh_mode_labels(self) -> None:
         capture_mode, device_mode = describe_mode(self.config.use_mock_capture, self.config.prefer_backend)
         running = self.service.is_running()
+        status = self.service.get_status()
+        effective_backend = status.get("effective_capture_backend") or ("not-started" if not running else "unresolved")
+        selected_backend = status.get("selected_capture_backend") or "unresolved"
+        unresolved_reason = status.get("backend_unresolved_reason") or ""
         self.tray_icon.setToolTip(
-            f"nanoleaf-kde-sync\nState: {'running' if running else 'stopped'}\n{capture_mode}\n{device_mode}"
+            "nanoleaf-kde-sync\n"
+            f"State: {'running' if running else 'idle'}\n{capture_mode}\n{device_mode}\n"
+            f"Requested backend policy: {self.config.prefer_backend}\n"
+            f"Selected backend: {selected_backend}\n"
+            f"Effective backend: {effective_backend}"
+            + (f"\nBackend note: {unresolved_reason}" if unresolved_reason else "")
         )
+        self.action_status.setText(f"Status / About ({'Running' if running else 'Idle'})")
 
     def on_start(self):
         started = self.service.start()
@@ -378,6 +393,7 @@ class NanoleafTrayApp:
 
     def _handle_auto_start_result(self, running: bool) -> None:
         self.tray_icon.setIcon(self._running_icon if running else self._idle_icon)
+        self._refresh_mode_labels()
         if running:
             return
         status = self.service.get_status()

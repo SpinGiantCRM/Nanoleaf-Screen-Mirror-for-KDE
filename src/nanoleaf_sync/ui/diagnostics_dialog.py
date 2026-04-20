@@ -7,6 +7,7 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.calibration_flow import calibration_sequence_text
 from nanoleaf_sync.ui.calibration_state import (
     CalibrationState,
+    CORNER_OFFSET_LIMIT,
     TEST_MODES,
     build_latency_result,
     latency_result_summary,
@@ -20,8 +21,12 @@ from nanoleaf_sync.ui.qt_lazy import load_qt
 @dataclass
 class DiagnosticsSnapshot:
     requested_backend: str
+    selected_backend: str
     effective_backend: str
     selection_reason: str
+    source: str
+    unresolved_reason: str
+    runtime_started: bool
     from_auto_probe: bool
     auto_probe_timestamp: str
     detected_device_zone_count: int
@@ -43,19 +48,25 @@ class CalibrationDiagnosticsDialog:
 
                 self.mode_combo = QComboBox(); self.mode_combo.addItems(list(TEST_MODES))
                 self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_offset_slider.setRange(-20, 20); self.zone_offset_slider.setValue(self._state.zone_offset)
+                self.zone_offset_value = QLabel("")
                 self.reverse_checkbox = QCheckBox("Reverse strip orientation"); self.reverse_checkbox.setChecked(self._state.reverse_zones)
                 self.anchor_button = QPushButton("Set next top-left anchor")
                 self.corner_offsets_enabled_checkbox = QCheckBox("Enable advanced corner refinement")
                 self.corner_offsets_enabled_checkbox.setChecked(self._state.corner_offsets_enabled)
                 self.corner_offset_sliders = []
+                self.corner_offset_values = []
                 for idx in range(4):
                     slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                    slider.setRange(-8, 8)
+                    slider.setRange(-CORNER_OFFSET_LIMIT, CORNER_OFFSET_LIMIT)
                     slider.setValue(int(self._state.active_corner_zone_offsets()[idx]))
                     self.corner_offset_sliders.append(slider)
+                    self.corner_offset_values.append(QLabel(""))
                 self.duration_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.duration_slider.setRange(1, 60); self.duration_slider.setValue(15)
+                self.duration_value = QLabel("")
                 self.interval_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.interval_slider.setRange(100, 2000); self.interval_slider.setValue(400)
+                self.interval_value = QLabel("")
                 self.brightness_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.brightness_slider.setRange(5, 100); self.brightness_slider.setValue(int(cfg.brightness * 100))
+                self.brightness_value = QLabel("")
                 self.loop_checkbox = QCheckBox("Loop"); self.loop_checkbox.setChecked(True)
                 self.auto_step_checkbox = QCheckBox("Auto-step")
                 self.off_except_active_checkbox = QCheckBox("All off except active zone"); self.off_except_active_checkbox.setChecked(True)
@@ -77,17 +88,20 @@ class CalibrationDiagnosticsDialog:
                 layout.addWidget(QLabel("Backend selection"), 0, 0, 1, 3); layout.addWidget(self.status_label, 1, 0, 1, 3); layout.addWidget(self.debug_label, 2, 0, 1, 3)
                 layout.addWidget(QLabel("Calibration sequence"), 3, 0, 1, 3); layout.addWidget(self.sequence_label, 4, 0, 1, 3)
                 layout.addWidget(QLabel("Test mode"), 5, 0); layout.addWidget(self.mode_combo, 5, 1, 1, 2)
-                layout.addWidget(QLabel("Offset"), 6, 0); layout.addWidget(self.zone_offset_slider, 6, 1, 1, 2); layout.addWidget(self.reverse_checkbox, 7, 0, 1, 2)
+                layout.addWidget(QLabel("Global offset"), 6, 0); layout.addWidget(self.zone_offset_slider, 6, 1); layout.addWidget(self.zone_offset_value, 6, 2); layout.addWidget(self.reverse_checkbox, 7, 0, 1, 2)
                 layout.addWidget(self.corner_offsets_enabled_checkbox, 8, 0, 1, 3)
-                layout.addWidget(QLabel("Top-left / top-right"), 9, 0); layout.addWidget(self.corner_offset_sliders[0], 9, 1); layout.addWidget(self.corner_offset_sliders[1], 9, 2)
-                layout.addWidget(QLabel("Bottom-right / bottom-left"), 10, 0); layout.addWidget(self.corner_offset_sliders[2], 10, 1); layout.addWidget(self.corner_offset_sliders[3], 10, 2)
-                layout.addWidget(self.anchor_button, 11, 0, 1, 2)
-                layout.addWidget(QLabel("Test duration (s)"), 12, 0); layout.addWidget(self.duration_slider, 12, 1, 1, 2); layout.addWidget(QLabel("Step interval (ms)"), 13, 0); layout.addWidget(self.interval_slider, 13, 1, 1, 2)
-                layout.addWidget(QLabel("Test brightness"), 14, 0); layout.addWidget(self.brightness_slider, 14, 1, 1, 2)
-                layout.addWidget(self.loop_checkbox, 15, 0, 1, 2); layout.addWidget(self.auto_step_checkbox, 16, 0, 1, 2); layout.addWidget(self.off_except_active_checkbox, 17, 0, 1, 2)
-                layout.addWidget(self.prev_button, 18, 0); layout.addWidget(self.next_button, 18, 1); layout.addWidget(self.send_button, 18, 2)
-                layout.addWidget(self.test_label, 19, 0, 1, 3); layout.addWidget(self.progress_label, 20, 0, 1, 3)
-                layout.addWidget(QLabel("Latency checker"), 21, 0, 1, 3); layout.addWidget(self.auto_latency_policy_combo, 22, 0, 1, 2); layout.addWidget(self.run_latency_button, 23, 0, 1, 2); layout.addWidget(self.latency_label, 24, 0, 1, 3)
+                layout.addWidget(QLabel("Top-left correction"), 9, 0); layout.addWidget(self.corner_offset_sliders[0], 9, 1); layout.addWidget(self.corner_offset_values[0], 9, 2)
+                layout.addWidget(QLabel("Top-right correction"), 10, 0); layout.addWidget(self.corner_offset_sliders[1], 10, 1); layout.addWidget(self.corner_offset_values[1], 10, 2)
+                layout.addWidget(QLabel("Bottom-right correction"), 11, 0); layout.addWidget(self.corner_offset_sliders[2], 11, 1); layout.addWidget(self.corner_offset_values[2], 11, 2)
+                layout.addWidget(QLabel("Bottom-left correction"), 12, 0); layout.addWidget(self.corner_offset_sliders[3], 12, 1); layout.addWidget(self.corner_offset_values[3], 12, 2)
+                layout.addWidget(self.anchor_button, 13, 0, 1, 2)
+                layout.addWidget(QLabel("Test duration (s)"), 14, 0); layout.addWidget(self.duration_slider, 14, 1); layout.addWidget(self.duration_value, 14, 2)
+                layout.addWidget(QLabel("Step interval (ms)"), 15, 0); layout.addWidget(self.interval_slider, 15, 1); layout.addWidget(self.interval_value, 15, 2)
+                layout.addWidget(QLabel("Test brightness"), 16, 0); layout.addWidget(self.brightness_slider, 16, 1); layout.addWidget(self.brightness_value, 16, 2)
+                layout.addWidget(self.loop_checkbox, 17, 0, 1, 2); layout.addWidget(self.auto_step_checkbox, 18, 0, 1, 2); layout.addWidget(self.off_except_active_checkbox, 19, 0, 1, 2)
+                layout.addWidget(self.prev_button, 20, 0); layout.addWidget(self.next_button, 20, 1); layout.addWidget(self.send_button, 20, 2)
+                layout.addWidget(self.test_label, 21, 0, 1, 3); layout.addWidget(self.progress_label, 22, 0, 1, 3)
+                layout.addWidget(QLabel("Latency checker"), 23, 0, 1, 3); layout.addWidget(self.auto_latency_policy_combo, 24, 0, 1, 2); layout.addWidget(self.run_latency_button, 25, 0, 1, 2); layout.addWidget(self.latency_label, 26, 0, 1, 3)
                 self.setLayout(layout)
                 self._restore_latency_from_cfg(); self._refresh(); self._maybe_auto_latency()
 
@@ -99,10 +113,15 @@ class CalibrationDiagnosticsDialog:
                     self.latency_label.setText(latency_result_summary(self._latest_latency))
 
             def _snapshot(self) -> DiagnosticsSnapshot:
+                info = backend_selection_info(self._status, self._cfg)
                 return DiagnosticsSnapshot(
-                    requested_backend=str(self._status.get("requested_capture_backend") or self._cfg.prefer_backend),
-                    effective_backend=str(self._status.get("effective_capture_backend") or self._status.get("capture_backend") or "unknown"),
-                    selection_reason=str(self._status.get("selection_reason") or "unknown"),
+                    requested_backend=info.requested_policy,
+                    selected_backend=info.selected_backend,
+                    effective_backend=info.effective_backend,
+                    selection_reason=info.reason,
+                    source=info.source,
+                    unresolved_reason=info.unresolved_reason,
+                    runtime_started=info.runtime_started,
                     from_auto_probe=bool(self._status.get("from_auto_probe")),
                     auto_probe_timestamp=str(getattr(self._cfg, "auto_probe_timestamp", "") or "n/a"),
                     detected_device_zone_count=int(self._status.get("device_zone_count") or 0),
@@ -112,14 +131,34 @@ class CalibrationDiagnosticsDialog:
             def _refresh_state(self):
                 self._state.zone_offset = int(self.zone_offset_slider.value()); self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.corner_offsets_enabled = bool(self.corner_offsets_enabled_checkbox.isChecked()); self._state.corner_zone_offsets = [int(slider.value()) for slider in self.corner_offset_sliders]
 
-            def _active_backend(self) -> str: return str(self._status.get("effective_capture_backend") or self._cfg.prefer_backend)
+            def _active_backend(self) -> str:
+                info = backend_selection_info(self._status, self._cfg)
+                if info.effective_backend in {"not-started", "unresolved"}:
+                    return info.selected_backend
+                return info.effective_backend
+
             def _current_step(self): self._refresh_state(); return self._state.step_for_mode(str(self.mode_combo.currentText()), self._step)
 
             def _refresh(self):
-                snapshot = self._snapshot(); self.status_label.setText(f"Requested backend: {snapshot.requested_backend} | Effective: {snapshot.effective_backend} | Reason: {snapshot.selection_reason}")
-                self.debug_label.setText(f"From auto probe: {snapshot.from_auto_probe} | Auto probe timestamp: {snapshot.auto_probe_timestamp} | Detected strip zones: {snapshot.detected_device_zone_count or 'unknown'} | Configured strip zones: {snapshot.configured_device_zone_count or 'auto'}")
+                snapshot = self._snapshot()
+                self.status_label.setText(
+                    f"Requested backend policy: {snapshot.requested_backend} | Selected backend: {snapshot.selected_backend}\n"
+                    f"Effective runtime backend: {snapshot.effective_backend} | Source: {snapshot.source} | Reason: {snapshot.selection_reason}"
+                    + (f"\nUnresolved reason: {snapshot.unresolved_reason}" if snapshot.unresolved_reason else "")
+                )
+                self.debug_label.setText(
+                    f"Runtime started: {snapshot.runtime_started} | From auto probe: {snapshot.from_auto_probe} | Auto probe timestamp: {snapshot.auto_probe_timestamp}\n"
+                    f"Detected strip zones: {snapshot.detected_device_zone_count or 'unknown'} | Configured strip zones: {snapshot.configured_device_zone_count or 'auto'} | Effective strip zones in cycle: {self._state.effective_device_zone_count()}"
+                )
                 self.test_label.setText(self._current_step().label)
                 self.progress_label.setText(f"Step {self._step + 1}/{self._state.cycle_length(str(self.mode_combo.currentText()))}")
+                self.zone_offset_value.setText(f"{self.zone_offset_slider.value():+d}")
+                for idx, value in enumerate(self.corner_offset_values):
+                    value.setText(f"{self.corner_offset_sliders[idx].value():+d}")
+                    self.corner_offset_sliders[idx].setEnabled(bool(self.corner_offsets_enabled_checkbox.isChecked()))
+                self.duration_value.setText(str(self.duration_slider.value()))
+                self.interval_value.setText(str(self.interval_slider.value()))
+                self.brightness_value.setText(f"{self.brightness_slider.value()}%")
 
             def _send(self):
                 if self._sender is None: return

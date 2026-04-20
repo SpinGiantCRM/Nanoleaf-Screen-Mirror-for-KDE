@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from nanoleaf_sync.config.model import AppConfig
-from nanoleaf_sync.ui.calibration_state import CalibrationState
+from nanoleaf_sync.ui.calibration_state import CORNER_OFFSET_LIMIT, CalibrationState
 from nanoleaf_sync.ui.display_configurator import MAX_WIZARD_ZONE_COUNT, WIZARD_STEPS, WizardFlowState
 from nanoleaf_sync.ui.settings_dialog import MAX_ZONE_COUNT, SETTINGS_SECTIONS
 
@@ -36,6 +36,7 @@ def test_wizard_is_step_driven_and_not_full_settings_dump() -> None:
 def test_zone_range_supports_real_strip_lengths() -> None:
     assert MAX_WIZARD_ZONE_COUNT >= 48
     assert MAX_ZONE_COUNT >= 48
+    assert CORNER_OFFSET_LIMIT >= 24
 
 
 def test_settings_dialog_has_grouped_sections_for_scrollable_layout() -> None:

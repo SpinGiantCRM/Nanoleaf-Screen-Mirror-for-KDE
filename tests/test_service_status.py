@@ -112,6 +112,7 @@ def test_status_exposes_device_mode_and_error_guidance() -> None:
     assert status["requested_capture_backend"] == svc.config.prefer_backend
     assert status["effective_capture_backend"] in {"mock", None}
     assert status["selection_reason"] == "explicit"
+    assert status["selected_capture_backend"] in {"mock", ""}
 
 
 def test_make_device_driver_requires_non_zero_vid_pid_for_real_device() -> None:
@@ -149,4 +150,6 @@ def test_status_exposes_requested_vs_effective_backend_for_auto_cached_probe(mon
     assert status["selection_reason"] == "cached-probe"
     assert status["auto_probe_policy"] == "first-run"
     assert status["cached_probe_backend"] == "kwin-dbus"
+    assert status["selected_capture_backend"] == "kwin-dbus"
+    assert status["backend_unresolved_reason"] == ""
     assert "policy=first-run" in status["backend_selection_details"]

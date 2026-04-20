@@ -14,14 +14,18 @@ TEST_MODES: tuple[str, ...] = (
     "corner+offset alignment",
     "fine offset",
 )
+CORNER_OFFSET_LIMIT = 24
 
 
 @dataclass
 class BackendSelectionInfo:
     requested_policy: str
+    selected_backend: str
     effective_backend: str
     source: str
     reason: str
+    runtime_started: bool
+    unresolved_reason: str
 
 
 @dataclass
@@ -90,6 +94,7 @@ class CalibrationState:
         offsets = self.corner_zone_offsets[:4]
         while len(offsets) < 4:
             offsets.append(0)
+        offsets = [max(-CORNER_OFFSET_LIMIT, min(CORNER_OFFSET_LIMIT, int(value))) for value in offsets]
         if not self.corner_offsets_enabled:
             return [0, 0, 0, 0]
         return offsets
@@ -200,7 +205,29 @@ class CalibrationState:
 def backend_selection_info(runtime_status: dict | None, cfg: AppConfig) -> BackendSelectionInfo:
     status = runtime_status or {}
     requested = str(status.get("requested_capture_backend") or cfg.prefer_backend)
-    effective = str(status.get("effective_capture_backend") or status.get("capture_backend") or "unknown")
+    selected_backend = str(
+        status.get("selected_capture_backend")
+        or status.get("effective_capture_backend")
+        or status.get("capture_backend")
+        or status.get("cached_probe_backend")
+        or ""
+    ).strip()
+    running = bool(status.get("running"))
+    effective = str(status.get("effective_capture_backend") or status.get("capture_backend") or "").strip()
+    unresolved_reason = ""
+    if effective.lower() in {"", "unknown", "auto"}:
+        if not running:
+            effective = "not-started"
+            unresolved_reason = "Runtime has not started yet."
+        elif selected_backend.lower() in {"", "unknown", "auto"}:
+            effective = "unresolved"
+            unresolved_reason = (
+                f"No concrete backend implementation resolved from requested policy '{requested}'."
+            )
+        else:
+            effective = selected_backend
+    if selected_backend.lower() in {"", "auto"}:
+        selected_backend = "unresolved"
     if requested == "auto":
         if bool(status.get("from_auto_probe")):
             source = "auto-probe"
@@ -213,9 +240,12 @@ def backend_selection_info(runtime_status: dict | None, cfg: AppConfig) -> Backe
     reason = str(status.get("selection_reason") or "No runtime reason text available.")
     return BackendSelectionInfo(
         requested_policy=requested,
+        selected_backend=selected_backend,
         effective_backend=effective,
         source=source,
         reason=reason,
+        runtime_started=running,
+        unresolved_reason=unresolved_reason,
     )
 
 
@@ -224,8 +254,9 @@ def build_testing_panel_state(*, state: CalibrationState, runtime_status: dict |
     active = state.step_for_mode(mode, step)
     return TestingPanelState(
         backend_summary=(
-            f"Requested backend policy: {backend.requested_policy} | Effective backend: {backend.effective_backend} "
-            f"| Source: {backend.source} | Reason: {backend.reason}"
+            f"Requested backend policy: {backend.requested_policy} | Selected backend: {backend.selected_backend} "
+            f"| Effective runtime backend: {backend.effective_backend} | Source: {backend.source} | Reason: {backend.reason}"
+            + (f" | Unresolved: {backend.unresolved_reason}" if backend.unresolved_reason else "")
         ),
         zone_mode_summary=(
             "Device zone mode: auto" if state.auto_device_zone_count else "Device zone mode: manual"
@@ -283,9 +314,14 @@ def should_auto_run_latency_probe(*, policy: str, last_result: LatencyProbeResul
 def latency_result_summary(result: LatencyProbeResult | None) -> str:
     if result is None:
         return "Latency checker has not been run yet."
+    summary_kind = (
+        "measured"
+        if result.measurement_kind == "measured"
+        else ("policy recommendation" if result.measurement_kind == "policy" else "estimated")
+    )
     return (
-        f"Latest latency check: {result.measured_latency_ms:.1f} ms ({result.measurement_kind}) | "
-        f"requested={result.requested_policy} | selected={result.selected_backend} | source={result.selection_source} | "
+        f"Latest latency check: {result.measured_latency_ms:.1f} ms [{summary_kind}] | "
+        f"requested_policy={result.requested_policy} | backend={result.selected_backend} | source={result.selection_source} | "
         f"trigger={result.triggered_by} | confidence={result.confidence_note} | at={result.recorded_at_utc}"
         + (f" | {result.details}" if result.details else "")
     )
