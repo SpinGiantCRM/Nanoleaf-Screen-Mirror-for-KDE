@@ -3,10 +3,12 @@ from __future__ import annotations
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.calibration_state import (
     CalibrationState,
+    backend_selection_info,
     build_latency_result,
     latency_result_summary,
     next_corner_start_anchor,
     should_auto_run_latency_probe,
+    build_testing_panel_state,
 )
 
 
@@ -67,3 +69,39 @@ def test_testing_step_controls_and_frame_generation_stay_coherent() -> None:
     frame = state.frame_for_step(mode=mode, step=2, brightness=0.5, all_off_except_active=True)
     assert len(frame) == 6
     assert sum(1 for rgb in frame if rgb != (0, 0, 0)) == 1
+
+
+def test_manual_device_zone_count_48_propagates_to_cycle_frame_and_preview() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=48, zone_offset=1), {})
+    assert state.auto_device_zone_count is False
+    assert state.effective_device_zone_count() == 48
+    assert state.cycle_length("direction walk") == 48
+
+    frame = state.frame_for_step(mode="direction walk", step=11, brightness=1.0, all_off_except_active=True)
+    assert len(frame) == 48
+    preview = state.mapping_preview_text()
+    assert "configured strip zone count 48" in preview
+
+
+def test_auto_device_zone_detection_failure_is_explicit() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=0), {"device_zone_count": 0})
+    assert state.auto_device_zone_count is True
+    assert "Auto detection failed" in state.auto_detection_status()
+    assert "fallback source zone count" in state.auto_detection_status()
+
+
+def test_backend_and_testing_state_are_exposed_for_ui_surfaces() -> None:
+    cfg = AppConfig(prefer_backend="auto")
+    runtime_status = {
+        "requested_capture_backend": "auto",
+        "effective_capture_backend": "kwin-dbus",
+        "selection_reason": "probe winner",
+        "from_auto_probe": True,
+    }
+    state = CalibrationState.from_config(AppConfig(device_zone_count=48), runtime_status)
+    backend = backend_selection_info(runtime_status, cfg)
+    assert backend.source == "auto-probe"
+    panel = build_testing_panel_state(state=state, runtime_status=runtime_status, cfg=cfg, mode="direction walk", step=0)
+    assert "Effective backend: kwin-dbus" in panel.backend_summary
+    assert panel.effective_zone_count == 48
+    assert "Device zone mode:" in panel.zone_mode_summary

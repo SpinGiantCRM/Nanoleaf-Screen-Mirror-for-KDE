@@ -19,6 +19,22 @@ TEST_MODES: tuple[str, ...] = (
 
 
 @dataclass
+class BackendSelectionInfo:
+    requested_policy: str
+    effective_backend: str
+    source: str
+    reason: str
+
+
+@dataclass
+class TestingPanelState:
+    backend_summary: str
+    zone_mode_summary: str
+    effective_zone_count: int
+    active_test_description: str
+
+
+@dataclass
 class LatencyProbeResult:
     backend: str
     measured_latency_ms: float
@@ -43,14 +59,19 @@ class CalibrationState:
     @classmethod
     def from_config(cls, cfg: AppConfig, runtime_status: dict | None = None) -> "CalibrationState":
         runtime_status = runtime_status or {}
-        zone_count = len(cfg.zones) if cfg.zones else (int(getattr(cfg, "device_zone_count", 0)) or 8)
+        configured_zone_count = len(cfg.zones) if cfg.zones else 0
+        if configured_zone_count <= 0:
+            configured_zone_count = int(getattr(cfg, "device_zone_count", 0))
+        if configured_zone_count <= 0:
+            configured_zone_count = 8
+
         detected = int(runtime_status.get("device_zone_count") or 0)
         return cls(
-            zone_count=max(1, int(zone_count)),
+            zone_count=max(1, int(configured_zone_count)),
             zone_preset=str(getattr(cfg, "zone_preset", "edge-weighted")),
             reverse_zones=bool(getattr(cfg, "reverse_zones", False)),
             zone_offset=int(getattr(cfg, "zone_offset", 0)),
-            device_zone_count=max(1, int(getattr(cfg, "device_zone_count", 0)) or max(1, int(zone_count))),
+            device_zone_count=max(1, int(getattr(cfg, "device_zone_count", 0)) or max(1, int(configured_zone_count))),
             auto_device_zone_count=int(getattr(cfg, "device_zone_count", 0)) == 0,
             detected_device_zone_count=max(0, detected),
             explicit_zone_map=[int(i) for i in (getattr(cfg, "explicit_zone_map", []) or [])],
@@ -58,24 +79,25 @@ class CalibrationState:
             corner_start_anchor=int(getattr(cfg, "corner_start_anchor", -1)),
         )
 
+    def auto_detection_status(self) -> str:
+        if not self.auto_device_zone_count:
+            return f"Manual mode: using configured strip zone count {self.device_zone_count}."
+        if self.detected_device_zone_count > 0:
+            return f"Auto detection succeeded: detected strip zone count {self.detected_device_zone_count}."
+        return (
+            "Auto detection failed: no device-reported strip zone count was available. "
+            f"Using fallback source zone count {self.zone_count}."
+        )
+
     def effective_device_zone_count(self) -> int:
         if self.auto_device_zone_count:
             return self.detected_device_zone_count if self.detected_device_zone_count > 0 else self.zone_count
-        return self.device_zone_count
+        return max(1, int(self.device_zone_count))
 
     def mapping_preview_text(self) -> str:
         explicit = self.explicit_zone_map if self.manual_mapping_enabled else []
-        detection = (
-            f"Device zone count: auto (detected {self.detected_device_zone_count})"
-            if self.auto_device_zone_count and self.detected_device_zone_count > 0
-            else (
-                "Device zone count: auto (using source zone count)"
-                if self.auto_device_zone_count
-                else f"Device zone count: manual {self.device_zone_count}"
-            )
-        )
         return (
-            f"{detection}\n"
+            f"{self.auto_detection_status()}\n"
             f"Offset currently applied: {self.zone_offset:+d}\n"
             f"{'Manual mapping enabled' if self.manual_mapping_enabled else 'Corner anchors inferred from current mapping'}\n"
             f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), zone_offset=self.zone_offset, reverse_zones=self.reverse_zones, explicit_zone_map=explicit)}"
@@ -153,6 +175,45 @@ class CalibrationState:
             brightness=brightness,
             inactive_color=inactive,
         )
+
+
+def backend_selection_info(runtime_status: dict | None, cfg: AppConfig) -> BackendSelectionInfo:
+    status = runtime_status or {}
+    requested = str(status.get("requested_capture_backend") or cfg.prefer_backend)
+    effective = str(status.get("effective_capture_backend") or status.get("capture_backend") or "unknown")
+    if requested == "auto":
+        if bool(status.get("from_auto_probe")):
+            source = "auto-probe"
+        elif str(status.get("cached_probe_backend") or ""):
+            source = "auto-cache"
+        else:
+            source = "auto-fallback"
+    else:
+        source = "manual-policy"
+    reason = str(status.get("selection_reason") or "No runtime reason text available.")
+    return BackendSelectionInfo(
+        requested_policy=requested,
+        effective_backend=effective,
+        source=source,
+        reason=reason,
+    )
+
+
+def build_testing_panel_state(*, state: CalibrationState, runtime_status: dict | None, cfg: AppConfig, mode: str, step: int) -> TestingPanelState:
+    backend = backend_selection_info(runtime_status, cfg)
+    active = state.step_for_mode(mode, step)
+    return TestingPanelState(
+        backend_summary=(
+            f"Requested backend policy: {backend.requested_policy} | Effective backend: {backend.effective_backend} "
+            f"| Source: {backend.source} | Reason: {backend.reason}"
+        ),
+        zone_mode_summary=(
+            "Device zone mode: auto" if state.auto_device_zone_count else "Device zone mode: manual"
+        )
+        + f" | {state.auto_detection_status()}",
+        effective_zone_count=state.effective_device_zone_count(),
+        active_test_description=active.label,
+    )
 
 
 def next_corner_start_anchor(current: int, *, device_zone_count: int) -> int:
