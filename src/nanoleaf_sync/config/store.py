@@ -15,6 +15,22 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.normalize import validate_config
 
 
+def _toml_render_scalar(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, str):
+        return json.dumps(value)
+    if isinstance(value, (int, float)):
+        return str(value)
+    if value is None:
+        return '""'
+    return json.dumps(str(value))
+
+
+def _toml_render_list(values: list[Any]) -> str:
+    return "[" + ", ".join(_toml_render_scalar(v) for v in values) + "]"
+
+
 def _dump_toml(payload: Dict[str, Any]) -> str:
     try:
         import tomli_w
@@ -33,7 +49,7 @@ def _dump_toml(payload: Dict[str, Any]) -> str:
             elif isinstance(value, str):
                 rendered = json.dumps(value)
             elif isinstance(value, list):
-                rendered = "[" + ", ".join(str(int(v)) for v in value) + "]"
+                rendered = _toml_render_list(value)
             else:
                 rendered = str(value)
             lines.append(f"{key} = {rendered}")

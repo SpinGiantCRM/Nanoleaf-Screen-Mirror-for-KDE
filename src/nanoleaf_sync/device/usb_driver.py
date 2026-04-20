@@ -150,3 +150,7 @@ class NanoleafUSBDriver(DeviceDriver):
     def close(self) -> None:
         self._transport.close()
         self._initialized = False
+        self.model_number = None
+        self.zone_count = None
+        self._cached_on_state = None
+        self._cached_brightness = None

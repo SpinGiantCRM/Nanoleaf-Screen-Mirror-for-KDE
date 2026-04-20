@@ -5,6 +5,7 @@ from functools import lru_cache
 import os
 from pathlib import Path
 
+from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
 from nanoleaf_sync.capture.interfaces import CaptureBackend
 from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture
 from nanoleaf_sync.capture.kwin_dbus import KWinDBusScreenshotCapture
@@ -41,15 +42,9 @@ def _resolve_auto_backend() -> str:
 
 
 def _resolve_prefer_backend(prefer_backend: str) -> str:
-    normalized = (prefer_backend or "").strip().lower()
-    if normalized in {"", "auto"}:
+    normalized = normalize_capture_backend(prefer_backend, default="auto")
+    if normalized == "auto":
         return _resolve_auto_backend()
-    if normalized in {"kwin-dbus", "kwin_dbus", "kwin-dbus-screenshot"}:
-        return "kwin-dbus"
-    if normalized in {"xdg-portal", "xdg_portal", "portal"}:
-        return "xdg-portal"
-    if normalized in {"kmsgrab", "kms-grab", "drm-kms", "drm_kms"}:
-        return "kmsgrab"
     return normalized
 
 

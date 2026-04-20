@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import threading
 
+from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.normalize import validate_config
 from nanoleaf_sync.config.store import ConfigManager
@@ -251,15 +252,9 @@ def _check_mode_consistency(config: AppConfig) -> DoctorCheck:
 
 def _normalized_backend(config: AppConfig) -> str:
     raw = (config.prefer_backend or "").strip().lower()
-    if raw == "auto":
-        return "auto"
-    if raw in {"xdg-portal", "xdg_portal", "portal"}:
-        return "xdg-portal"
-    if raw in {"kmsgrab", "kms-grab", "drm-kms", "drm_kms"}:
-        return "kmsgrab"
-    if raw in {"", "kwin-dbus", "kwin_dbus", "kwin-dbus-screenshot"}:
-        return "kwin-dbus" if raw else ""
-    return raw
+    if not raw:
+        return ""
+    return normalize_capture_backend(raw, default=raw)
 
 
 def _check_real_capture_probe(config: AppConfig) -> DoctorCheck:

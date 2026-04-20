@@ -159,6 +159,27 @@ def test_display_configurator_marks_wizard_complete_and_saves_calibration(monkey
     assert updated.reverse_zones is True
 
 
+def test_display_configurator_does_not_mutate_wizard_flag_until_saved(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    cfg = AppConfig(wizard_completed=False, zones=[])
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=cfg)
+    assert cfg.wizard_completed is False
+    assert dialog.updated_config().wizard_completed is True
+
+
+def test_display_configurator_can_send_real_calibration_pattern(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    sent = {"colors": None}
+
+    def _sender(colors):
+        sent["colors"] = colors
+
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[]), calibration_sender=_sender)
+    dialog._dialog.calibration_send_button.clicked.emit()
+    assert sent["colors"] is not None
+    assert any(rgb != (0, 0, 0) for rgb in sent["colors"])
+
+
 def test_display_configurator_can_set_manual_device_zone_count(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
     cfg = AppConfig(zones=[])

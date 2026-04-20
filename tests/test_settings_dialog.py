@@ -194,6 +194,24 @@ def test_settings_dialog_zone_count_updates_zones_without_forcing_manual_device_
     assert updated.device_zone_count == 0
 
 
+def test_settings_dialog_saves_zone_preset_reverse_and_offset(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    cfg = AppConfig(zones=[], device_zone_count=0, zone_preset="edge-weighted")
+    dialog = SettingsDialog(parent=None, cfg=cfg)
+
+    horizontal_idx = dialog._dialog.zone_preset_combo.findText("horizontal")
+    dialog._dialog.zone_preset_combo.setCurrentIndex(horizontal_idx)
+    dialog._dialog.reverse_checkbox.setChecked(True)
+    dialog._dialog.zone_offset_slider.setValue(3)
+    dialog._dialog.zone_count_slider.setValue(5)
+
+    updated = dialog.updated_config()
+    assert updated.zone_preset == "horizontal"
+    assert updated.reverse_zones is True
+    assert updated.zone_offset == 3
+    assert len(updated.zones) == 5
+
+
 def test_settings_dialog_updates_zone_sampling_stride(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
 
@@ -238,3 +256,16 @@ def test_settings_dialog_manual_map_is_saved(monkeypatch) -> None:
 
     updated = dialog.updated_config()
     assert updated.explicit_zone_map[:1] == [1]
+
+
+def test_settings_dialog_can_send_calibration_pattern(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    sent = {"colors": None}
+
+    def _sender(colors):
+        sent["colors"] = colors
+
+    dialog = SettingsDialog(parent=None, cfg=AppConfig(zones=[]), calibration_sender=_sender)
+    dialog._dialog.test_send_button.clicked._callback()
+    assert sent["colors"] is not None
+    assert any(rgb != (0, 0, 0) for rgb in sent["colors"])

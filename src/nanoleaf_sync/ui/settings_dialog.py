@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Callable
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.qt_lazy import load_qt
+from nanoleaf_sync.ui.calibration_preview import calibration_test_frame, corner_anchor_steps, single_zone_step
 from nanoleaf_sync.ui.zone_calibration import (
     mapping_preview_text as _mapping_preview_text,
     mapping_preview_visual,
-    zone_test_instruction,
 )
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
@@ -18,7 +19,7 @@ HDR_MAX_NITS_MAX = 10000
 ZONE_STRIDE_MIN = 1
 ZONE_STRIDE_MAX = 8
 class SettingsDialog:
-    def __init__(self, parent, cfg: AppConfig):
+    def __init__(self, parent, cfg: AppConfig, *, calibration_sender: Callable[[list[tuple[int, int, int]]], None] | None = None):
         qt = load_qt()
         QDialog = qt["QDialog"]
         QDialogButtonBox = qt["QDialogButtonBox"]
@@ -34,6 +35,7 @@ class SettingsDialog:
                 super().__init__(parent)
                 self.setWindowTitle("nanoleaf-kde-sync Settings")
                 self._open_display_configurator = False
+                self._calibration_sender = calibration_sender
 
                 self.brightness_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.brightness_slider.setRange(0, 100)
@@ -98,7 +100,11 @@ class SettingsDialog:
                 first_manual = explicit_map[0] if explicit_map else 0
                 self.manual_map_source_slider.setValue(max(0, first_manual))
                 self.manual_map_apply_button = QPushButton("Apply mapping for selected strip zone")
-                self.test_step_button = QPushButton("Step Test Zone Order")
+                self.test_step_button = QPushButton("Next test zone")
+                self.test_prev_button = QPushButton("Previous test zone")
+                self.test_send_button = QPushButton("Send test pattern")
+                self.test_mode_combo = QComboBox()
+                self.test_mode_combo.addItems(["single active zone", "corner anchors"])
 
                 self.output_channel_order_combo = QComboBox()
                 self.output_channel_order_combo.addItems(["grb", "rgb", "rbg", "gbr", "brg", "bgr"])
@@ -173,6 +179,9 @@ class SettingsDialog:
                 self.manual_map_source_slider.valueChanged.connect(self._refresh_preview_label)
                 self.manual_map_apply_button.clicked.connect(self._apply_manual_mapping)
                 self.test_step_button.clicked.connect(self._step_test_zone)
+                self.test_prev_button.clicked.connect(self._prev_test_zone)
+                self.test_send_button.clicked.connect(self._send_test_pattern)
+                self.test_mode_combo.currentIndexChanged.connect(self._refresh_preview_label)
 
                 buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
                 buttons.accepted.connect(self.accept)
@@ -223,20 +232,23 @@ class SettingsDialog:
                 _add_labeled(19, "Device zone count", self.device_zone_count_slider, self.device_zone_count_value)
                 layout.addWidget(self.device_zone_count_auto_checkbox, 20, 0, 1, 2)
                 layout.addWidget(self.test_step_button, 21, 0, 1, 2)
-                layout.addWidget(self.test_label, 22, 0, 1, 3)
-                layout.addWidget(self.manual_map_checkbox, 23, 0, 1, 2)
-                _add_labeled(24, "Manual map: strip zone", self.manual_map_device_slider)
-                _add_labeled(25, "Manual map: screen zone", self.manual_map_source_slider)
-                layout.addWidget(self.manual_map_apply_button, 26, 0, 1, 2)
-                _add_labeled(27, "Output channel order", self.output_channel_order_combo)
+                layout.addWidget(self.test_prev_button, 21, 2, 1, 1)
+                _add_labeled(22, "Test mode", self.test_mode_combo)
+                layout.addWidget(self.test_send_button, 23, 0, 1, 2)
+                layout.addWidget(self.test_label, 24, 0, 1, 3)
+                layout.addWidget(self.manual_map_checkbox, 25, 0, 1, 2)
+                _add_labeled(26, "Manual map: strip zone", self.manual_map_device_slider)
+                _add_labeled(27, "Manual map: screen zone", self.manual_map_source_slider)
+                layout.addWidget(self.manual_map_apply_button, 28, 0, 1, 2)
+                _add_labeled(29, "Output channel order", self.output_channel_order_combo)
 
-                layout.addWidget(self.start_on_launch_checkbox, 28, 0, 1, 2)
-                layout.addWidget(self.mock_capture_checkbox, 29, 0, 1, 2)
-                _add_labeled(30, "Capture backend", self.capture_backend_combo)
-                _add_labeled(31, "LED gamma", self.led_gamma_slider, self.led_gamma_value)
-                layout.addWidget(self.preview_label, 32, 0, 1, 3)
-                layout.addWidget(self.preview_visual_label, 33, 0, 1, 3)
-                layout.addWidget(buttons, 34, 0, 1, 3)
+                layout.addWidget(self.start_on_launch_checkbox, 30, 0, 1, 2)
+                layout.addWidget(self.mock_capture_checkbox, 31, 0, 1, 2)
+                _add_labeled(32, "Capture backend", self.capture_backend_combo)
+                _add_labeled(33, "LED gamma", self.led_gamma_slider, self.led_gamma_value)
+                layout.addWidget(self.preview_label, 34, 0, 1, 3)
+                layout.addWidget(self.preview_visual_label, 35, 0, 1, 3)
+                layout.addWidget(buttons, 36, 0, 1, 3)
                 self.setLayout(layout)
 
             def _open_configurator(self) -> None:
@@ -292,7 +304,8 @@ class SettingsDialog:
                 self.manual_map_device_slider.setEnabled(self.manual_map_checkbox.isChecked())
                 self.manual_map_source_slider.setEnabled(self.manual_map_checkbox.isChecked())
                 self.manual_map_apply_button.setEnabled(self.manual_map_checkbox.isChecked())
-                self.test_label.setText(zone_test_instruction(self._test_step, self._effective_device_zone_count()))
+                step = self._current_calibration_step()
+                self.test_label.setText(step.label)
 
             def _effective_device_zone_count(self) -> int:
                 return (
@@ -319,6 +332,36 @@ class SettingsDialog:
             def _step_test_zone(self) -> None:
                 self._test_step = (self._test_step + 1) % max(1, self._effective_device_zone_count())
                 self._refresh_preview_label()
+                self._send_test_pattern()
+
+            def _prev_test_zone(self) -> None:
+                self._test_step = (self._test_step - 1) % max(1, self._effective_device_zone_count())
+                self._refresh_preview_label()
+                self._send_test_pattern()
+
+            def _current_calibration_step(self):
+                if str(self.test_mode_combo.currentText()) == "corner anchors":
+                    anchors = corner_anchor_steps(device_zone_count=self._effective_device_zone_count())
+                    return anchors[self._test_step % len(anchors)]
+                explicit_map = self._manual_map if self.manual_map_checkbox.isChecked() else []
+                return single_zone_step(
+                    step=self._test_step,
+                    zone_count=int(self.zone_count_slider.value()),
+                    device_zone_count=self._effective_device_zone_count(),
+                    zone_offset=int(self.zone_offset_slider.value()),
+                    reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                    explicit_zone_map=explicit_map,
+                )
+
+            def _send_test_pattern(self) -> None:
+                if self._calibration_sender is None:
+                    return
+                step = self._current_calibration_step()
+                colors = calibration_test_frame(
+                    device_zone_count=self._effective_device_zone_count(),
+                    active_indices=[step.device_zone_index],
+                )
+                self._calibration_sender(colors)
 
             def updated_config(self) -> AppConfig:
                 zone_count = int(self.zone_count_slider.value())

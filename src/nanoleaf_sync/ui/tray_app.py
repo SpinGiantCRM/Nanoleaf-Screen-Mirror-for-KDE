@@ -193,6 +193,30 @@ class NanoleafTrayApp:
         if not self._config_created and bool(getattr(self.config, "start_on_launch", False)):
             self.QTimer.singleShot(0, self._start_after_launch)
 
+    def _send_calibration_preview(self, colors: list[tuple[int, int, int]]) -> None:
+        driver = None
+        try:
+            driver = self._make_preview_driver()
+            driver.initialize()
+            driver.send_frame(colors)
+        except Exception as exc:
+            _log.warning("Calibration preview send failed: %s", exc, exc_info=True)
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                f"Calibration test pattern failed: {exc}",
+                self.QSystemTrayIcon.MessageIcon.Warning,
+                5000,
+            )
+        finally:
+            if driver is not None:
+                try:
+                    driver.close()
+                except Exception:
+                    pass
+
+    def _make_preview_driver(self):
+        return self.service._make_device_driver()
+
     def _set_qt_desktop_identity(self) -> None:
         for method_name in ("setDesktopFileName", "setApplicationName"):
             method = getattr(self.QApplication, method_name, None)
@@ -358,7 +382,7 @@ class NanoleafTrayApp:
         )
 
     def on_display_configurator(self) -> None:
-        dlg = DisplayConfiguratorDialog(parent=None, cfg=self.config)
+        dlg = DisplayConfiguratorDialog(parent=None, cfg=self.config, calibration_sender=self._send_calibration_preview)
         if dlg.exec() != self.QDialog.DialogCode.Accepted:
             return
         was_running = self.service.is_running()
@@ -378,7 +402,7 @@ class NanoleafTrayApp:
         )
 
     def on_settings(self):
-        dlg = SettingsDialog(parent=None, cfg=self.config)
+        dlg = SettingsDialog(parent=None, cfg=self.config, calibration_sender=self._send_calibration_preview)
         if dlg.exec() != self.QDialog.DialogCode.Accepted:
             return
         if dlg.wants_display_configurator():

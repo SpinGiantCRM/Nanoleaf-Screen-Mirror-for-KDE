@@ -1,5 +1,6 @@
 import numpy as np
 
+from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
 from nanoleaf_sync.capture.factory import create_capture_backend
 from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture
 
@@ -39,6 +40,12 @@ def test_capture_factory_creates_xdg_portal_backend() -> None:
         prefer_backend="xdg-portal",
     )
     assert backend.name == "xdg-portal"
+
+
+def test_backend_alias_normalization_helper() -> None:
+    assert normalize_capture_backend("portal") == "xdg-portal"
+    assert normalize_capture_backend("KWIN_DBUS") == "kwin-dbus"
+    assert normalize_capture_backend("kms-grab") == "kmsgrab"
 
 
 def test_capture_factory_auto_prefers_kmsgrab_when_low_latency_path_is_available(

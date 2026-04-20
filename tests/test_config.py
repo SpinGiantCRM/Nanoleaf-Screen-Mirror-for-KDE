@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
-from nanoleaf_sync.config.store import ConfigManager
+from nanoleaf_sync.config.store import ConfigManager, _dump_toml
 
 
 def test_config_save_validates_and_is_toml_loadable(tmp_path: Path) -> None:
@@ -135,3 +135,39 @@ def test_config_normalizes_sdr_boost_fields(tmp_path: Path) -> None:
     cfg = ConfigManager(path=cfg_path).load()
     assert cfg.compositor_hdr_mode is True
     assert cfg.sdr_boost_nits == 1000.0
+
+
+def test_config_normalizes_boolean_fields_consistently(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text(
+        "\n".join(
+            [
+                'wizard_completed = "yes"',
+                "hdr_enabled = 0",
+                "start_on_launch = 1",
+                "use_mock_capture = 0",
+                'compositor_hdr_mode = "on"',
+                "reverse_zones = 1",
+                "verbose = 0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    cfg = ConfigManager(path=cfg_path).load()
+    assert cfg.wizard_completed is True
+    assert cfg.hdr_enabled is False
+    assert cfg.start_on_launch is True
+    assert cfg.use_mock_capture is False
+    assert cfg.compositor_hdr_mode is True
+    assert cfg.reverse_zones is True
+    assert cfg.verbose is False
+
+
+def test_dump_toml_handles_mixed_list_types() -> None:
+    encoded = _dump_toml({"mixed": [1, "two", True, 3.5], "zones": []})
+    assert "mixed" in encoded
+    assert '"two"' in encoded
+    assert "true" in encoded
+    assert "3.5" in encoded

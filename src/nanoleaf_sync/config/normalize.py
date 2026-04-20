@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
+from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
 
 
@@ -65,21 +66,8 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     reinit_backoff_ms = max(0, int(cfg.reinit_backoff_ms))
     status_log_interval_s = max(0.5, float(cfg.status_log_interval_s))
 
-    prefer_backend = normalize_enum(
+    prefer_backend = normalize_capture_backend(
         cfg.prefer_backend,
-        allowed={
-            "auto": "auto",
-            "kwin-dbus": "kwin-dbus",
-            "kwin_dbus": "kwin-dbus",
-            "kwin-dbus-screenshot": "kwin-dbus",
-            "xdg-portal": "xdg-portal",
-            "xdg_portal": "xdg-portal",
-            "portal": "xdg-portal",
-            "kmsgrab": "kmsgrab",
-            "kms-grab": "kmsgrab",
-            "drm-kms": "kmsgrab",
-            "drm_kms": "kmsgrab",
-        },
         default=AppConfig.prefer_backend,
     )
     zone_preset = normalize_enum(
@@ -140,7 +128,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         start_on_launch=coerce_bool(getattr(cfg, "start_on_launch", False), False),
         device_vid=cfg.device_vid,
         device_pid=cfg.device_pid,
-        use_mock_capture=cfg.use_mock_capture,
+        use_mock_capture=coerce_bool(getattr(cfg, "use_mock_capture", AppConfig.use_mock_capture), AppConfig.use_mock_capture),
         hdr_max_nits=hdr_max_nits,
         compositor_hdr_mode=coerce_bool(getattr(cfg, "compositor_hdr_mode", False), False),
         sdr_boost_nits=sdr_boost_nits,
@@ -149,10 +137,10 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         device_zone_count=device_zone_count,
         output_channel_order=output_channel_order,
         zone_offset=zone_offset,
-        reverse_zones=cfg.reverse_zones,
+        reverse_zones=coerce_bool(getattr(cfg, "reverse_zones", False), False),
         explicit_zone_map=explicit_zone_map,
         max_consecutive_errors=max_consecutive_errors,
         reinit_backoff_ms=reinit_backoff_ms,
         status_log_interval_s=status_log_interval_s,
-        verbose=cfg.verbose,
+        verbose=coerce_bool(getattr(cfg, "verbose", False), False),
     )

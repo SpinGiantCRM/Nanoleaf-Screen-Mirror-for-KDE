@@ -285,8 +285,12 @@ def run_loop(
     ewma_capture_to_send_ms = 0.0
 
     pending_slot = PendingFrameSlot()
+    capture_worker_lock = threading.Lock()
+    capture_worker_error: Exception | None = None
+    capture_worker_failures = 0
 
     def _capture_worker() -> None:
+        nonlocal capture_worker_error, capture_worker_failures
         while not state.stop_event.is_set():
             try:
                 if state.is_reinitializing:
@@ -300,8 +304,13 @@ def run_loop(
                 if frame is None:
                     continue
                 pending_slot.put_latest(frame=frame, captured_at=time.perf_counter())
-            except Exception:
-                # Main loop will handle backend reinitialization and logging.
+                with capture_worker_lock:
+                    capture_worker_error = None
+                    capture_worker_failures = 0
+            except Exception as exc:
+                with capture_worker_lock:
+                    capture_worker_failures += 1
+                    capture_worker_error = exc
                 time.sleep(0.005)
 
     capture_thread = threading.Thread(target=_capture_worker, name="capture-worker", daemon=True)
@@ -314,6 +323,17 @@ def run_loop(
         skip_tick = False
 
         try:
+            if stop_requested:
+                break
+            error_limit = max(1, int(getattr(config, "max_consecutive_errors", 5)))
+            with capture_worker_lock:
+                worker_error = capture_worker_error
+                worker_failures = capture_worker_failures
+            if worker_error is not None and worker_failures >= error_limit:
+                raise RuntimeError(
+                    f"capture worker failed {worker_failures} consecutive attempts"
+                ) from worker_error
+
             if state.is_reinitializing:
                 if stop_requested:
                     break
@@ -391,7 +411,6 @@ def run_loop(
             if config.verbose:
                 print(f"[service] frame error #{state.consecutive_errors}: {e}")
 
-            error_limit = max(1, int(getattr(config, "max_consecutive_errors", 5)))
             backoff_s = max(0.0, float(getattr(config, "reinit_backoff_ms", 500)) / 1000.0)
             now_ts = time.perf_counter()
             if should_reinitialize(
