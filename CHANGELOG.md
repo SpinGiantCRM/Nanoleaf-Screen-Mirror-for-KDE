@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.5.7] - 2026-04-20
+
+## What's Changed
+* Fix calibration wizard/test UX and harden runtime/config recovery paths by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/119
+* Add latency measurement and backend auto-selection plan by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/120
+* Add startup-safe capture backend auto-probing (probe_backends) by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/121
+* Add auto backend probe controls, caching, and fallback logging by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/122
+* Persist auto-probe policy/signature, implement re-probe rules, and add reset actions by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/123
+* Expose capture backend decision metadata across runtime, tray/settings, and diagnostics by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/124
+* Scoped cleanup: centralize capture backend selection, probe utilities, and config serialization by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/125
+* docs: document policy-aware auto backend behavior and troubleshooting by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/126
+* Add auto-probe, service status, config normalization, and doctor CLI tests by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/127
+* docs: add repo cull audit with trim recommendations by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/128
+* Complete repo cull audit: docs cleanup, udev standardization, rc_runner tests, and test fixes by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/129
+* Remove obsolete REPO_CULL_AUDIT document by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/130
+
+
+**Full Changelog**: https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/compare/v0.5.6...v0.5.7
+
 ## [0.5.6] - 2026-04-20
 
 ## What's Changed
