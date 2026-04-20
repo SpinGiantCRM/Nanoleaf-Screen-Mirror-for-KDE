@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
+from nanoleaf_sync.capture.backend_selection import (
+    normalize_backend_preference,
+    normalize_cached_backend,
+)
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
 
 
@@ -66,10 +69,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     reinit_backoff_ms = max(0, int(cfg.reinit_backoff_ms))
     status_log_interval_s = max(0.5, float(cfg.status_log_interval_s))
 
-    prefer_backend = normalize_capture_backend(
-        cfg.prefer_backend,
-        default=AppConfig.prefer_backend,
-    )
+    prefer_backend = normalize_backend_preference(cfg.prefer_backend)
     auto_probe_policy = normalize_enum(
         getattr(cfg, "auto_probe_policy", AppConfig.auto_probe_policy),
         allowed={
@@ -82,12 +82,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         },
         default=AppConfig.auto_probe_policy,
     )
-    auto_selected_backend = normalize_capture_backend(
-        getattr(cfg, "auto_selected_backend", ""),
-        default="",
-    )
-    if auto_selected_backend == "auto":
-        auto_selected_backend = ""
+    auto_selected_backend = normalize_cached_backend(getattr(cfg, "auto_selected_backend", ""))
     auto_probe_signature = str(getattr(cfg, "auto_probe_signature", "") or "").strip()
     auto_probe_timestamp = str(getattr(cfg, "auto_probe_timestamp", "") or "").strip()
     zone_preset = normalize_enum(
@@ -148,7 +143,9 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         start_on_launch=coerce_bool(getattr(cfg, "start_on_launch", False), False),
         device_vid=cfg.device_vid,
         device_pid=cfg.device_pid,
-        use_mock_capture=coerce_bool(getattr(cfg, "use_mock_capture", AppConfig.use_mock_capture), AppConfig.use_mock_capture),
+        use_mock_capture=coerce_bool(
+            getattr(cfg, "use_mock_capture", AppConfig.use_mock_capture), AppConfig.use_mock_capture
+        ),
         auto_probe_enabled=coerce_bool(
             getattr(cfg, "auto_probe_enabled", AppConfig.auto_probe_enabled),
             AppConfig.auto_probe_enabled,

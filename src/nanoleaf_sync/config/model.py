@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List
 
 
 @dataclass
@@ -35,7 +34,7 @@ class AppConfig:
     led_gamma: float = 1.0  # Output correction for LED electrical response.
 
     # Zones
-    zones: List[ZoneConfig] = field(default_factory=list)
+    zones: list[ZoneConfig] = field(default_factory=list)
     # If zones is empty, runtime derives zones from strip zone count + preset.
     # With the "horizontal" preset and count=1, this becomes a full-screen zone.
     # With the "edge-weighted" preset, make_edge_weighted_zones keeps edge strips.
@@ -92,7 +91,7 @@ class AppConfig:
     reverse_zones: bool = False
     # Optional explicit mapping: list of screen-zone indices for each device zone.
     # If non-empty, it takes precedence over `zone_offset`/`reverse_zones`.
-    explicit_zone_map: List[int] = field(default_factory=list)
+    explicit_zone_map: list[int] = field(default_factory=list)
 
     # Recovery policy
     max_consecutive_errors: int = 5

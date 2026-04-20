@@ -13,45 +13,12 @@ from dacite import from_dict
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.normalize import validate_config
-
-
-def _toml_render_scalar(value: Any) -> str:
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, str):
-        return json.dumps(value)
-    if isinstance(value, (int, float)):
-        return str(value)
-    if value is None:
-        return '""'
-    return json.dumps(str(value))
-
-
-def _toml_render_list(values: list[Any]) -> str:
-    return "[" + ", ".join(_toml_render_scalar(v) for v in values) + "]"
+from nanoleaf_sync.config.serialization import dump_toml
 
 
 def _dump_toml(payload: Dict[str, Any]) -> str:
-    try:
-        import tomli_w
-    except ImportError:
-        lines: list[str] = []
-        for key, value in payload.items():
-            if key == "zones" and isinstance(value, list):
-                for zone in value:
-                    lines.append("[[zones]]")
-                    for zone_k, zone_v in zone.items():
-                        lines.append(f"{zone_k} = {float(zone_v)}")
-                    lines.append("")
-                continue
-            if isinstance(value, list):
-                rendered = _toml_render_list(value)
-            else:
-                rendered = _toml_render_scalar(value)
-            lines.append(f"{key} = {rendered}")
-        return "\n".join(lines).rstrip() + "\n"
-
-    return tomli_w.dumps(payload)
+    """Backwards-compatible wrapper retained for tests."""
+    return dump_toml(payload)
 
 
 def default_config_path() -> Path:
@@ -67,9 +34,7 @@ def mode_config(mode: str) -> AppConfig:
         return validate_config(AppConfig(use_mock_capture=False, prefer_backend="auto"))
     if normalized in ("diagnostic", "diag", "full-mock", "mock"):
         return validate_config(AppConfig(use_mock_capture=True, prefer_backend="auto"))
-    raise ValueError(
-        f"Unsupported mode '{mode}'. Expected one of: full-real, diagnostic."
-    )
+    raise ValueError(f"Unsupported mode '{mode}'. Expected one of: full-real, diagnostic.")
 
 
 class ConfigManager:
@@ -94,7 +59,11 @@ class ConfigManager:
             if not isinstance(parsed, dict):
                 return
             cfg = validate_config(
-                from_dict(data_class=AppConfig, data=parsed, config=DaciteConfig(strict=False, cast=[int, float, str, bool]))
+                from_dict(
+                    data_class=AppConfig,
+                    data=parsed,
+                    config=DaciteConfig(strict=False, cast=[int, float, str, bool]),
+                )
             )
             self.save(cfg)
             old_path.rename(old_path.with_suffix(".json.bak"))
@@ -157,7 +126,7 @@ class ConfigManager:
         payload["zones"] = [asdict(z) for z in cfg.zones]
         payload["zone_sampling_stride"] = int(cfg.zone_sampling_stride)
 
-        encoded = _dump_toml(payload)
+        encoded = dump_toml(payload)
 
         tmp_path: Optional[Path] = None
         try:

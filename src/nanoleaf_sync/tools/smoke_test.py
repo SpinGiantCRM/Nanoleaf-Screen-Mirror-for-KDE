@@ -2,6 +2,11 @@ from __future__ import annotations
 
 import argparse
 
+from nanoleaf_sync.capture.backend_selection import (
+    AUTO_BACKEND,
+    AUTO_PROBE_CANDIDATES,
+    normalize_backend_preference,
+)
 from nanoleaf_sync.capture.factory import create_capture_backend
 from nanoleaf_sync.capture.dimensions import resolve_capture_dims
 from nanoleaf_sync.config.store import ConfigManager
@@ -12,7 +17,6 @@ from nanoleaf_sync.runtime.errors import translate_runtime_error
 
 DEFAULT_SMOKE_WIDTH = 320
 DEFAULT_SMOKE_HEIGHT = 180
-AUTO_PROBE_WINNERS = {"kwin-dbus", "xdg-portal", "kmsgrab"}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -50,11 +54,11 @@ def main(argv: list[str] | None = None) -> int:
         hdr_primaries=cfg.hdr_primaries,
     )
     effective_backend = getattr(capture, "name", "unknown")
-    if str(cfg.prefer_backend).strip().lower() != "auto":
+    if normalize_backend_preference(cfg.prefer_backend) != AUTO_BACKEND:
         selection_reason = "explicit"
     elif cfg.auto_selected_backend and cfg.auto_selected_backend == effective_backend:
         selection_reason = "cached-probe"
-    elif effective_backend in AUTO_PROBE_WINNERS:
+    elif effective_backend in AUTO_PROBE_CANDIDATES:
         selection_reason = "fresh-probe"
     else:
         selection_reason = "fallback"
@@ -85,7 +89,9 @@ def main(argv: list[str] | None = None) -> int:
             zone_count = int(zones or 8)
             colors = [(8, 0, 0)] * zone_count
             colors[max(0, zone_count // 3 - 1) : max(1, zone_count // 3 + 1)] = [(0, 8, 0)] * 2
-            colors[max(0, (2 * zone_count) // 3 - 1) : max(1, (2 * zone_count) // 3 + 1)] = [(0, 0, 8)] * 2
+            colors[max(0, (2 * zone_count) // 3 - 1) : max(1, (2 * zone_count) // 3 + 1)] = [
+                (0, 0, 8)
+            ] * 2
             driver.send_frame(colors)
             print("test frame sent (low brightness).")
         else:

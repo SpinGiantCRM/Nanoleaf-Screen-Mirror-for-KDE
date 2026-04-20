@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import asyncio
 import os
-import random
 import threading
+
+from nanoleaf_sync.capture.portal_helpers import random_token, request_path, unwrap_variant
 from pathlib import Path
 from typing import Optional
 
@@ -115,14 +116,12 @@ class XDGPortalCapture:
         sender = bus.unique_name.replace(".", "_").lstrip(":")
 
         async def _call(method: str, signature: str, body: list, *, handle_token: str):
-            request_path = (
-                f"/org/freedesktop/portal/desktop/request/{sender}/{handle_token}"
-            )
+            portal_request_path = request_path(sender_name=sender, handle_token=handle_token)
             future: asyncio.Future = asyncio.get_event_loop().create_future()
 
             def _on_signal(msg):
                 if (
-                    msg.path == request_path
+                    msg.path == portal_request_path
                     and msg.interface == self._REQUEST_IFACE
                     and msg.member == "Response"
                     and not future.done()
@@ -142,22 +141,18 @@ class XDGPortalCapture:
                     )
                 )
                 if reply.message_type == MessageType.ERROR:
-                    raise XDGPortalError(
-                        f"Portal {method} call failed: {reply.error_name}"
-                    )
+                    raise XDGPortalError(f"Portal {method} call failed: {reply.error_name}")
                 return await asyncio.wait_for(future, timeout=120.0)
             finally:
                 bus.remove_message_handler(_on_signal)
 
-        session_token = f"nanoleaf_{random.randint(10000, 99999)}"
-        handle_token = f"h{random.randint(10000, 99999)}"
+        session_token = random_token("nanoleaf_")
+        handle_token = random_token("h")
         create_options: dict[str, Variant] = {
             "handle_token": Variant("s", handle_token),
             "session_handle_token": Variant("s", session_token),
         }
-        msg = await _call(
-            "CreateSession", "a{sv}", [create_options], handle_token=handle_token
-        )
+        msg = await _call("CreateSession", "a{sv}", [create_options], handle_token=handle_token)
         response_code = msg.body[0]
         if response_code != 0:
             raise XDGPortalError(f"CreateSession denied (response={response_code}).")
@@ -165,7 +160,7 @@ class XDGPortalCapture:
         self._session_handle = str(session_handle)
 
         restore_token = self._load_restore_token()
-        handle_token2 = f"h{random.randint(10000, 99999)}"
+        handle_token2 = random_token("h")
         src_options: dict[str, Variant] = {
             "handle_token": Variant("s", handle_token2),
             "types": Variant("u", 1),
@@ -185,7 +180,7 @@ class XDGPortalCapture:
         if msg2.body[0] != 0:
             raise XDGPortalError(f"SelectSources denied (response={msg2.body[0]}).")
 
-        handle_token3 = f"h{random.randint(10000, 99999)}"
+        handle_token3 = random_token("h")
         start_options: dict[str, Variant] = {
             "handle_token": Variant("s", handle_token3),
         }
@@ -205,10 +200,9 @@ class XDGPortalCapture:
 
         new_restore = results.get("restore_token")
         if new_restore:
-            value = new_restore.value if hasattr(new_restore, "value") else new_restore
-            self._save_restore_token(str(value))
+            self._save_restore_token(str(unwrap_variant(new_restore)))
 
-        first_stream = streams.value[0] if hasattr(streams, "value") else streams[0]
+        first_stream = unwrap_variant(streams)[0]
         node_id = int(first_stream[0])
 
         pw_reply = await bus.call(

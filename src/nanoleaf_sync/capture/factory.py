@@ -6,7 +6,16 @@ import logging
 import os
 from pathlib import Path
 
-from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
+from nanoleaf_sync.capture.backend_selection import (
+    AUTO_BACKEND,
+    AUTO_PROBE_CANDIDATES,
+    KMSGRAB_BACKEND,
+    KWIN_DBUS_BACKEND,
+    XDG_PORTAL_BACKEND,
+    is_valid_probe_candidate,
+    normalize_backend_preference,
+)
+from nanoleaf_sync.capture.errors import CaptureBackendInitializationError
 from nanoleaf_sync.capture.interfaces import CaptureBackend
 from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture
 from nanoleaf_sync.capture.kwin_dbus import KWinDBusScreenshotCapture
@@ -15,7 +24,6 @@ from nanoleaf_sync.capture.xdg_portal import XDGPortalCapture
 
 logger = logging.getLogger(__name__)
 
-_AUTO_PROBE_CANDIDATES = ("kmsgrab", "kwin-dbus", "xdg-portal")
 _AUTO_PROBE_DISABLED_ENV = "NANOLEAF_DISABLE_CAPTURE_PROBE"
 _AUTO_PROBE_ENABLE_ENV = "NANOLEAF_ENABLE_CAPTURE_PROBE"
 _cached_probe_winner: str | None = None
@@ -61,10 +69,6 @@ def _env_bool(var_name: str) -> bool | None:
     return None
 
 
-def _is_valid_probe_candidate(candidate: str | None) -> bool:
-    return candidate in _AUTO_PROBE_CANDIDATES
-
-
 def _probe_enabled(config_probe_enabled: bool | None) -> tuple[bool, str | None]:
     env_disabled = _env_bool(_AUTO_PROBE_DISABLED_ENV)
     if env_disabled is True:
@@ -100,11 +104,11 @@ def _resolve_auto_backend_with_probe(
         return fallback
 
     cached = cached_probe_winner or _cached_probe_winner
-    if _is_valid_probe_candidate(cached):
+    if is_valid_probe_candidate(cached):
         logger.info("capture auto-probe using cached winner=%s", cached)
         return str(cached)
 
-    candidates = list(_AUTO_PROBE_CANDIDATES)
+    candidates = list(AUTO_PROBE_CANDIDATES)
     logger.info("capture auto-probe candidates=%s", ", ".join(candidates))
 
     try:
@@ -141,8 +145,8 @@ def _resolve_prefer_backend(
     auto_probe_enabled: bool | None,
     cached_probe_winner: str | None,
 ) -> str:
-    normalized = normalize_capture_backend(prefer_backend, default="auto")
-    if normalized == "auto":
+    normalized = normalize_backend_preference(prefer_backend)
+    if normalized == AUTO_BACKEND:
         return _resolve_auto_backend_with_probe(
             width=width,
             height=height,
@@ -181,26 +185,35 @@ def create_capture_backend(
         auto_probe_enabled=auto_probe_enabled,
         cached_probe_winner=cached_probe_winner,
     )
-    if normalized == "kwin-dbus":
-        return KWinDBusScreenshotCapture(
-            width=width,
-            height=height,
-            hdr_max_nits=hdr_max_nits,
-            hdr_transfer=hdr_transfer,
-            hdr_primaries=hdr_primaries,
-        )
+    if normalized == KWIN_DBUS_BACKEND:
+        try:
+            return KWinDBusScreenshotCapture(
+                width=width,
+                height=height,
+                hdr_max_nits=hdr_max_nits,
+                hdr_transfer=hdr_transfer,
+                hdr_primaries=hdr_primaries,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise CaptureBackendInitializationError(KWIN_DBUS_BACKEND, str(exc)) from exc
 
-    if normalized == "xdg-portal":
-        return XDGPortalCapture(width=width, height=height)
+    if normalized == XDG_PORTAL_BACKEND:
+        try:
+            return XDGPortalCapture(width=width, height=height)
+        except Exception as exc:  # noqa: BLE001
+            raise CaptureBackendInitializationError(XDG_PORTAL_BACKEND, str(exc)) from exc
 
-    if normalized == "kmsgrab":
-        return KMSGrabCapture(
-            width=width,
-            height=height,
-            hdr_max_nits=hdr_max_nits,
-            hdr_transfer=hdr_transfer,
-            hdr_primaries=hdr_primaries,
-        )
+    if normalized == KMSGRAB_BACKEND:
+        try:
+            return KMSGrabCapture(
+                width=width,
+                height=height,
+                hdr_max_nits=hdr_max_nits,
+                hdr_transfer=hdr_transfer,
+                hdr_primaries=hdr_primaries,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise CaptureBackendInitializationError(KMSGRAB_BACKEND, str(exc)) from exc
 
     raise ValueError(
         "Unsupported capture backend. Supported real backends are "

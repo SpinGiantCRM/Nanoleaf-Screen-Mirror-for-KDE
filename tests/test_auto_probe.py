@@ -90,3 +90,4 @@ def test_probe_backends_capture_timeout_is_reported() -> None:
     assert result.selected_backend is None
     assert candidate.failure_count >= 1
     assert any("timed out" in message for message in candidate.error_messages)
+    assert any(error.kind == "timeout" for error in candidate.errors)
