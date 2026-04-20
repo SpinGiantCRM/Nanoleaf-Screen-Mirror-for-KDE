@@ -27,6 +27,17 @@ def test_mapping_preview_visual_reflects_reverse_and_offset() -> None:
     assert "[D0→S0]" in normal
 
 
+def test_mapping_preview_text_mentions_corner_refinement_when_enabled() -> None:
+    text = mapping_preview_visual(
+        zone_count=8,
+        device_zone_count=8,
+        zone_offset=0,
+        reverse_zones=False,
+        corner_zone_offsets=[1, 0, -1, 0],
+    )
+    assert "D0" in text
+
+
 def test_zone_test_instruction_wraps_steps() -> None:
     assert zone_test_instruction(step=5, total=4).endswith("#2 now.")
 

@@ -12,6 +12,7 @@ from nanoleaf_sync.ui.calibration_state import (
     latency_result_summary,
     next_corner_start_anchor,
     should_auto_run_latency_probe,
+    backend_selection_info,
 )
 from nanoleaf_sync.ui.qt_lazy import load_qt
 
@@ -44,6 +45,14 @@ class CalibrationDiagnosticsDialog:
                 self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_offset_slider.setRange(-20, 20); self.zone_offset_slider.setValue(self._state.zone_offset)
                 self.reverse_checkbox = QCheckBox("Reverse strip orientation"); self.reverse_checkbox.setChecked(self._state.reverse_zones)
                 self.anchor_button = QPushButton("Set next top-left anchor")
+                self.corner_offsets_enabled_checkbox = QCheckBox("Enable advanced corner refinement")
+                self.corner_offsets_enabled_checkbox.setChecked(self._state.corner_offsets_enabled)
+                self.corner_offset_sliders = []
+                for idx in range(4):
+                    slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                    slider.setRange(-8, 8)
+                    slider.setValue(int(self._state.active_corner_zone_offsets()[idx]))
+                    self.corner_offset_sliders.append(slider)
                 self.duration_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.duration_slider.setRange(1, 60); self.duration_slider.setValue(15)
                 self.interval_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.interval_slider.setRange(100, 2000); self.interval_slider.setValue(400)
                 self.brightness_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.brightness_slider.setRange(5, 100); self.brightness_slider.setValue(int(cfg.brightness * 100))
@@ -58,6 +67,9 @@ class CalibrationDiagnosticsDialog:
 
                 self.prev_button.clicked.connect(self._prev); self.next_button.clicked.connect(self._next); self.send_button.clicked.connect(self._send)
                 self.mode_combo.currentIndexChanged.connect(self._refresh); self.zone_offset_slider.valueChanged.connect(self._refresh); self.reverse_checkbox.stateChanged.connect(self._refresh)
+                self.corner_offsets_enabled_checkbox.stateChanged.connect(self._refresh)
+                for slider in self.corner_offset_sliders:
+                    slider.valueChanged.connect(self._refresh)
                 self.duration_slider.valueChanged.connect(self._refresh); self.interval_slider.valueChanged.connect(self._refresh); self.brightness_slider.valueChanged.connect(self._refresh); self.interval_slider.valueChanged.connect(self._on_interval_changed)
                 self.auto_step_checkbox.stateChanged.connect(self._on_auto_step_toggled); self.run_latency_button.clicked.connect(self._run_latency_manual); self.anchor_button.clicked.connect(self._advance_anchor)
 
@@ -65,19 +77,24 @@ class CalibrationDiagnosticsDialog:
                 layout.addWidget(QLabel("Backend selection"), 0, 0, 1, 3); layout.addWidget(self.status_label, 1, 0, 1, 3); layout.addWidget(self.debug_label, 2, 0, 1, 3)
                 layout.addWidget(QLabel("Calibration sequence"), 3, 0, 1, 3); layout.addWidget(self.sequence_label, 4, 0, 1, 3)
                 layout.addWidget(QLabel("Test mode"), 5, 0); layout.addWidget(self.mode_combo, 5, 1, 1, 2)
-                layout.addWidget(QLabel("Offset"), 6, 0); layout.addWidget(self.zone_offset_slider, 6, 1, 1, 2); layout.addWidget(self.reverse_checkbox, 7, 0, 1, 2); layout.addWidget(self.anchor_button, 8, 0, 1, 2)
-                layout.addWidget(QLabel("Test duration (s)"), 9, 0); layout.addWidget(self.duration_slider, 9, 1, 1, 2); layout.addWidget(QLabel("Step interval (ms)"), 10, 0); layout.addWidget(self.interval_slider, 10, 1, 1, 2)
-                layout.addWidget(QLabel("Test brightness"), 11, 0); layout.addWidget(self.brightness_slider, 11, 1, 1, 2)
-                layout.addWidget(self.loop_checkbox, 12, 0, 1, 2); layout.addWidget(self.auto_step_checkbox, 13, 0, 1, 2); layout.addWidget(self.off_except_active_checkbox, 14, 0, 1, 2)
-                layout.addWidget(self.prev_button, 15, 0); layout.addWidget(self.next_button, 15, 1); layout.addWidget(self.send_button, 15, 2)
-                layout.addWidget(self.test_label, 16, 0, 1, 3); layout.addWidget(self.progress_label, 17, 0, 1, 3)
-                layout.addWidget(QLabel("Latency checker"), 18, 0, 1, 3); layout.addWidget(self.auto_latency_policy_combo, 19, 0, 1, 2); layout.addWidget(self.run_latency_button, 20, 0, 1, 2); layout.addWidget(self.latency_label, 21, 0, 1, 3)
+                layout.addWidget(QLabel("Offset"), 6, 0); layout.addWidget(self.zone_offset_slider, 6, 1, 1, 2); layout.addWidget(self.reverse_checkbox, 7, 0, 1, 2)
+                layout.addWidget(self.corner_offsets_enabled_checkbox, 8, 0, 1, 3)
+                layout.addWidget(QLabel("Top-left / top-right"), 9, 0); layout.addWidget(self.corner_offset_sliders[0], 9, 1); layout.addWidget(self.corner_offset_sliders[1], 9, 2)
+                layout.addWidget(QLabel("Bottom-right / bottom-left"), 10, 0); layout.addWidget(self.corner_offset_sliders[2], 10, 1); layout.addWidget(self.corner_offset_sliders[3], 10, 2)
+                layout.addWidget(self.anchor_button, 11, 0, 1, 2)
+                layout.addWidget(QLabel("Test duration (s)"), 12, 0); layout.addWidget(self.duration_slider, 12, 1, 1, 2); layout.addWidget(QLabel("Step interval (ms)"), 13, 0); layout.addWidget(self.interval_slider, 13, 1, 1, 2)
+                layout.addWidget(QLabel("Test brightness"), 14, 0); layout.addWidget(self.brightness_slider, 14, 1, 1, 2)
+                layout.addWidget(self.loop_checkbox, 15, 0, 1, 2); layout.addWidget(self.auto_step_checkbox, 16, 0, 1, 2); layout.addWidget(self.off_except_active_checkbox, 17, 0, 1, 2)
+                layout.addWidget(self.prev_button, 18, 0); layout.addWidget(self.next_button, 18, 1); layout.addWidget(self.send_button, 18, 2)
+                layout.addWidget(self.test_label, 19, 0, 1, 3); layout.addWidget(self.progress_label, 20, 0, 1, 3)
+                layout.addWidget(QLabel("Latency checker"), 21, 0, 1, 3); layout.addWidget(self.auto_latency_policy_combo, 22, 0, 1, 2); layout.addWidget(self.run_latency_button, 23, 0, 1, 2); layout.addWidget(self.latency_label, 24, 0, 1, 3)
                 self.setLayout(layout)
                 self._restore_latency_from_cfg(); self._refresh(); self._maybe_auto_latency()
 
             def _restore_latency_from_cfg(self):
                 if float(getattr(self._cfg, "latency_last_value_ms", 0.0)) > 0:
-                    self._latest_latency = build_latency_result(backend=str(getattr(self._cfg, "latency_last_backend", "unknown")), measured_latency_ms=float(getattr(self._cfg, "latency_last_value_ms", 0.0)), triggered_by=str(getattr(self._cfg, "latency_last_trigger", "unknown")), details="persisted result")
+                    info = backend_selection_info(self._status, self._cfg)
+                    self._latest_latency = build_latency_result(requested_policy=info.requested_policy, selected_backend=str(getattr(self._cfg, "latency_last_backend", "unknown")), selection_source=info.source, selection_reason=info.reason, measured_latency_ms=float(getattr(self._cfg, "latency_last_value_ms", 0.0)), measurement_kind="estimated", confidence_note="Persisted estimate from prior run", triggered_by=str(getattr(self._cfg, "latency_last_trigger", "unknown")), details="persisted result")
                     self._latest_latency.recorded_at_utc = str(getattr(self._cfg, "latency_last_timestamp", "")) or self._latest_latency.recorded_at_utc
                     self.latency_label.setText(latency_result_summary(self._latest_latency))
 
@@ -93,7 +110,7 @@ class CalibrationDiagnosticsDialog:
                 )
 
             def _refresh_state(self):
-                self._state.zone_offset = int(self.zone_offset_slider.value()); self._state.reverse_zones = bool(self.reverse_checkbox.isChecked())
+                self._state.zone_offset = int(self.zone_offset_slider.value()); self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.corner_offsets_enabled = bool(self.corner_offsets_enabled_checkbox.isChecked()); self._state.corner_zone_offsets = [int(slider.value()) for slider in self.corner_offset_sliders]
 
             def _active_backend(self) -> str: return str(self._status.get("effective_capture_backend") or self._cfg.prefer_backend)
             def _current_step(self): self._refresh_state(); return self._state.step_for_mode(str(self.mode_combo.currentText()), self._step)
@@ -129,12 +146,14 @@ class CalibrationDiagnosticsDialog:
                 self._next()
 
             def _run_latency_manual(self):
-                self._latest_latency = build_latency_result(backend=self._active_backend(), measured_latency_ms=1000.0 / max(1, int(getattr(self._cfg, "fps", 30))), triggered_by="manual", details="Estimated from configured FPS")
+                info = backend_selection_info(self._status, self._cfg)
+                self._latest_latency = build_latency_result(requested_policy=info.requested_policy, selected_backend=self._active_backend(), selection_source=info.source, selection_reason=info.reason, measured_latency_ms=1000.0 / max(1, int(getattr(self._cfg, "fps", 30))), measurement_kind="estimated", confidence_note="Derived from configured FPS; not hardware measured", triggered_by="manual", details="Manual latency estimate")
                 self.latency_label.setText(latency_result_summary(self._latest_latency))
 
             def _maybe_auto_latency(self):
                 if should_auto_run_latency_probe(policy=str(self.auto_latency_policy_combo.currentText()), last_result=self._latest_latency, active_backend=self._active_backend()):
-                    self._latest_latency = build_latency_result(backend=self._active_backend(), measured_latency_ms=1000.0 / max(1, int(getattr(self._cfg, "fps", 30))), triggered_by="auto", details="Auto-run per policy")
+                    info = backend_selection_info(self._status, self._cfg)
+                    self._latest_latency = build_latency_result(requested_policy=info.requested_policy, selected_backend=self._active_backend(), selection_source=info.source, selection_reason=info.reason, measured_latency_ms=1000.0 / max(1, int(getattr(self._cfg, "fps", 30))), measurement_kind="estimated", confidence_note="Auto policy estimate from configured FPS", triggered_by="auto", details="Auto-run per policy")
                     self.latency_label.setText(latency_result_summary(self._latest_latency))
 
         self._dialog = _Dialog()

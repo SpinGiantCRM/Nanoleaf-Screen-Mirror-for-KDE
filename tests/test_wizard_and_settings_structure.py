@@ -8,7 +8,7 @@ from nanoleaf_sync.ui.settings_dialog import MAX_ZONE_COUNT, SETTINGS_SECTIONS
 
 def test_wizard_navigation_and_finish_gating() -> None:
     flow = WizardFlowState(total_steps=len(WIZARD_STEPS), index=0)
-    assert flow.step_label() == "Step 1/5: Display Mode"
+    assert flow.step_label() == "Step 1/5: Welcome & Display"
     assert flow.can_go_back() is False
     assert flow.can_go_next() is True
 
@@ -19,17 +19,17 @@ def test_wizard_navigation_and_finish_gating() -> None:
 
     flow.next()
     flow.next()
-    assert flow.step_label() == "Step 5/5: Summary"
+    assert flow.step_label() == "Step 5/5: Review & Finish"
     assert flow.can_go_next() is False
 
 
 def test_wizard_is_step_driven_and_not_full_settings_dump() -> None:
     assert WIZARD_STEPS == (
-        "Display Mode",
-        "Color / HDR",
+        "Welcome & Display",
+        "Color & HDR",
         "Zone Basics",
-        "Calibration",
-        "Summary",
+        "Calibration Check",
+        "Review & Finish",
     )
 
 

@@ -34,8 +34,13 @@ class TestingPanelState:
 
 @dataclass
 class LatencyProbeResult:
-    backend: str
+    requested_policy: str
+    selected_backend: str
+    selection_source: str
+    selection_reason: str
     measured_latency_ms: float
+    measurement_kind: str  # measured | estimated
+    confidence_note: str
     triggered_by: str  # manual | auto
     recorded_at_utc: str
     details: str = ""
@@ -53,6 +58,8 @@ class CalibrationState:
     explicit_zone_map: list[int] = field(default_factory=list)
     manual_mapping_enabled: bool = False
     corner_start_anchor: int = -1
+    corner_offsets_enabled: bool = False
+    corner_zone_offsets: list[int] = field(default_factory=list)
 
     @classmethod
     def from_config(cls, cfg: AppConfig, runtime_status: dict | None = None) -> "CalibrationState":
@@ -75,7 +82,17 @@ class CalibrationState:
             explicit_zone_map=[int(i) for i in (getattr(cfg, "explicit_zone_map", []) or [])],
             manual_mapping_enabled=bool(getattr(cfg, "explicit_zone_map", [])),
             corner_start_anchor=int(getattr(cfg, "corner_start_anchor", -1)),
+            corner_offsets_enabled=bool(getattr(cfg, "corner_offsets_enabled", False)),
+            corner_zone_offsets=[int(i) for i in (getattr(cfg, "corner_zone_offsets", []) or [])][:4],
         )
+
+    def active_corner_zone_offsets(self) -> list[int]:
+        offsets = self.corner_zone_offsets[:4]
+        while len(offsets) < 4:
+            offsets.append(0)
+        if not self.corner_offsets_enabled:
+            return [0, 0, 0, 0]
+        return offsets
 
     def auto_detection_status(self) -> str:
         if not self.auto_device_zone_count:
@@ -97,8 +114,9 @@ class CalibrationState:
         return (
             f"{self.auto_detection_status()}\n"
             f"Offset currently applied: {self.zone_offset:+d}\n"
+            f"Per-corner refinement (TL/TR/BR/BL): {'/'.join(f'{value:+d}' for value in self.active_corner_zone_offsets())}\n"
             f"{'Manual mapping enabled' if self.manual_mapping_enabled else 'Corner anchors inferred from current mapping'}\n"
-            f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), zone_offset=self.zone_offset, reverse_zones=self.reverse_zones, explicit_zone_map=explicit)}"
+            f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), zone_offset=self.zone_offset, reverse_zones=self.reverse_zones, explicit_zone_map=explicit, corner_zone_offsets=self.active_corner_zone_offsets())}"
         )
 
     def mapping_preview_visual(self) -> str:
@@ -109,6 +127,7 @@ class CalibrationState:
             zone_offset=self.zone_offset,
             reverse_zones=self.reverse_zones,
             explicit_zone_map=explicit,
+            corner_zone_offsets=self.active_corner_zone_offsets(),
         )
 
     def _corner_steps(self) -> list[CalibrationStep]:
@@ -119,6 +138,7 @@ class CalibrationState:
             zone_offset=self.zone_offset,
             reverse_zones=self.reverse_zones,
             explicit_zone_map=explicit,
+            corner_zone_offsets=self.active_corner_zone_offsets(),
             start_anchor=self.corner_start_anchor if self.corner_start_anchor >= 0 else None,
         )
         return anchors
@@ -143,6 +163,7 @@ class CalibrationState:
                 zone_offset=self.zone_offset,
                 reverse_zones=self.reverse_zones,
                 explicit_zone_map=explicit,
+                corner_zone_offsets=self.active_corner_zone_offsets(),
             )
         prefix = "Direction walk"
         if mode == "start-point identification":
@@ -156,6 +177,7 @@ class CalibrationState:
             zone_offset=self.zone_offset,
             reverse_zones=self.reverse_zones,
             explicit_zone_map=explicit,
+            corner_zone_offsets=self.active_corner_zone_offsets(),
             label_prefix=prefix,
         )
 
@@ -219,10 +241,26 @@ def next_corner_start_anchor(current: int, *, device_zone_count: int) -> int:
     return (int(current) + 1) % total
 
 
-def build_latency_result(*, backend: str, measured_latency_ms: float, triggered_by: str, details: str = "") -> LatencyProbeResult:
+def build_latency_result(
+    *,
+    requested_policy: str,
+    selected_backend: str,
+    selection_source: str,
+    selection_reason: str,
+    measured_latency_ms: float,
+    measurement_kind: str,
+    confidence_note: str,
+    triggered_by: str,
+    details: str = "",
+) -> LatencyProbeResult:
     return LatencyProbeResult(
-        backend=str(backend),
+        requested_policy=str(requested_policy),
+        selected_backend=str(selected_backend),
+        selection_source=str(selection_source),
+        selection_reason=str(selection_reason),
         measured_latency_ms=float(measured_latency_ms),
+        measurement_kind=str(measurement_kind),
+        confidence_note=str(confidence_note),
         triggered_by=str(triggered_by),
         recorded_at_utc=datetime.now(timezone.utc).isoformat(),
         details=str(details),
@@ -238,7 +276,7 @@ def should_auto_run_latency_probe(*, policy: str, last_result: LatencyProbeResul
     if normalized == "on-open-once-per-backend":
         if last_result is None:
             return True
-        return str(last_result.backend) != str(active_backend)
+        return str(last_result.selected_backend) != str(active_backend)
     return False
 
 
@@ -246,7 +284,8 @@ def latency_result_summary(result: LatencyProbeResult | None) -> str:
     if result is None:
         return "Latency checker has not been run yet."
     return (
-        f"Latest latency check: {result.measured_latency_ms:.1f} ms | backend={result.backend} | "
-        f"trigger={result.triggered_by} | at={result.recorded_at_utc}"
+        f"Latest latency check: {result.measured_latency_ms:.1f} ms ({result.measurement_kind}) | "
+        f"requested={result.requested_policy} | selected={result.selected_backend} | source={result.selection_source} | "
+        f"trigger={result.triggered_by} | confidence={result.confidence_note} | at={result.recorded_at_utc}"
         + (f" | {result.details}" if result.details else "")
     )

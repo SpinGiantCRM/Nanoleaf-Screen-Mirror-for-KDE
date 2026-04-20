@@ -20,3 +20,4 @@ def test_core_calibration_defaults_do_not_drift() -> None:
     assert "zone_offset: int = 0" in model_text
     assert "reverse_zones: bool = False" in model_text
     assert "device_zone_count: int = 0" in model_text
+    assert "corner_offsets_enabled: bool = False" in model_text

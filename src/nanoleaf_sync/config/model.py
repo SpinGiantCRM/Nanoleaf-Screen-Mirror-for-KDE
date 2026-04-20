@@ -96,6 +96,11 @@ class AppConfig:
     # Guided corner calibration: optional explicit top-left device anchor index.
     # Negative means inferred from current mapping.
     corner_start_anchor: int = -1
+    # Optional advanced per-corner correction over the base mapping.
+    # Order: [top-left, top-right, bottom-right, bottom-left].
+    # Values are source-zone index offsets blended across each edge.
+    corner_offsets_enabled: bool = False
+    corner_zone_offsets: list[int] = field(default_factory=list)
 
     # Latency diagnostics/checker policy and latest visible result.
     auto_latency_policy: str = "manual"

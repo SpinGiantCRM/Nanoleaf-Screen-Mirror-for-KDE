@@ -11,11 +11,11 @@ from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizon
 
 MAX_WIZARD_ZONE_COUNT = 128
 WIZARD_STEPS: tuple[str, ...] = (
-    "Display Mode",
-    "Color / HDR",
+    "Welcome & Display",
+    "Color & HDR",
     "Zone Basics",
-    "Calibration",
-    "Summary",
+    "Calibration Check",
+    "Review & Finish",
 )
 
 class _FallbackStackedWidget:
@@ -88,7 +88,7 @@ class DisplayConfiguratorDialog:
         class _Dialog(QDialog):  # type: ignore
             def __init__(self):
                 super().__init__(parent)
-                self.setWindowTitle("Display Configurator")
+                self.setWindowTitle("Setup Wizard")
                 self._calibration_sender = calibration_sender
                 self._test_step = 0
                 self._state = CalibrationState.from_config(cfg)
@@ -138,10 +138,20 @@ class DisplayConfiguratorDialog:
                 # Step 4
                 self.reverse_checkbox = qt["QCheckBox"]("Reverse strip orientation")
                 self.reverse_checkbox.setChecked(self._state.reverse_zones)
+                self.corner_offsets_enabled_checkbox = qt["QCheckBox"]("Advanced: enable per-corner refinement")
+                self.corner_offsets_enabled_checkbox.setChecked(self._state.corner_offsets_enabled)
                 self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.zone_offset_slider.setRange(-64, 64)
                 self.zone_offset_slider.setValue(self._state.zone_offset)
                 self.zone_offset_value = QLabel("")
+                self.corner_offset_sliders = []
+                self.corner_offset_values = []
+                for idx in range(4):
+                    slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                    slider.setRange(-8, 8)
+                    slider.setValue(self._state.active_corner_zone_offsets()[idx])
+                    self.corner_offset_sliders.append(slider)
+                    self.corner_offset_values.append(QLabel(""))
                 self.preview_text = QLabel("")
                 self.preview_visual = QLabel("")
                 self.calibration_mode_combo = QComboBox()
@@ -172,8 +182,11 @@ class DisplayConfiguratorDialog:
                     self.device_zone_count_slider.valueChanged,
                     self.device_zone_count_auto_checkbox.stateChanged,
                     self.calibration_mode_combo.currentIndexChanged,
+                    self.corner_offsets_enabled_checkbox.stateChanged,
                 ):
                     signal.connect(self._refresh)
+                for slider in self.corner_offset_sliders:
+                    slider.valueChanged.connect(self._refresh)
 
                 self.hdr_max_nits_slider.valueChanged.connect(self._refresh)
                 self.calibration_next_button.clicked.connect(self._next_test_zone)
@@ -203,7 +216,7 @@ class DisplayConfiguratorDialog:
             def _build_step_1(self, QWidget, QGridLayout, QLabel):
                 page = QWidget()
                 layout = QGridLayout()
-                layout.addWidget(QLabel("Choose your display mode first."), 0, 0, 1, 2)
+                layout.addWidget(QLabel("Welcome. Choose your display mode first."), 0, 0, 1, 2)
                 layout.addWidget(QLabel("SDR / HDR mode"), 1, 0)
                 layout.addWidget(self.display_mode_combo, 1, 1)
                 page.setLayout(layout)
@@ -250,14 +263,21 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.zone_offset_slider, 1, 1)
                 layout.addWidget(self.zone_offset_value, 1, 2)
                 layout.addWidget(self.reverse_checkbox, 2, 0, 1, 2)
-                layout.addWidget(self.preview_text, 3, 0, 1, 3)
-                layout.addWidget(self.preview_visual, 4, 0, 1, 3)
-                layout.addWidget(QLabel("Calibration test mode"), 5, 0)
-                layout.addWidget(self.calibration_mode_combo, 5, 1, 1, 2)
-                layout.addWidget(self.calibration_next_button, 6, 0, 1, 2)
-                layout.addWidget(self.calibration_prev_button, 6, 2)
-                layout.addWidget(self.calibration_send_button, 7, 0, 1, 2)
-                layout.addWidget(self.calibration_test_label, 8, 0, 1, 3)
+                layout.addWidget(self.corner_offsets_enabled_checkbox, 3, 0, 1, 3)
+                labels = ["Top-left", "Top-right", "Bottom-right", "Bottom-left"]
+                for idx, name in enumerate(labels):
+                    row = 4 + idx
+                    layout.addWidget(QLabel(f"{name} correction"), row, 0)
+                    layout.addWidget(self.corner_offset_sliders[idx], row, 1)
+                    layout.addWidget(self.corner_offset_values[idx], row, 2)
+                layout.addWidget(self.preview_text, 8, 0, 1, 3)
+                layout.addWidget(self.preview_visual, 9, 0, 1, 3)
+                layout.addWidget(QLabel("Calibration test mode"), 10, 0)
+                layout.addWidget(self.calibration_mode_combo, 10, 1, 1, 2)
+                layout.addWidget(self.calibration_next_button, 11, 0, 1, 2)
+                layout.addWidget(self.calibration_prev_button, 11, 2)
+                layout.addWidget(self.calibration_send_button, 12, 0, 1, 2)
+                layout.addWidget(self.calibration_test_label, 13, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -284,6 +304,8 @@ class DisplayConfiguratorDialog:
                 self._state.reverse_zones = bool(self.reverse_checkbox.isChecked())
                 self._state.device_zone_count = int(self.device_zone_count_slider.value())
                 self._state.auto_device_zone_count = bool(self.device_zone_count_auto_checkbox.isChecked())
+                self._state.corner_offsets_enabled = bool(self.corner_offsets_enabled_checkbox.isChecked())
+                self._state.corner_zone_offsets = [int(slider.value()) for slider in self.corner_offset_sliders]
 
             def _refresh(self) -> None:
                 self._pull_state_from_controls()
@@ -314,6 +336,9 @@ class DisplayConfiguratorDialog:
                 self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
                 self.zone_count_value.setText(str(self.zone_count_slider.value()))
                 self.zone_offset_value.setText(str(self.zone_offset_slider.value()))
+                for idx, value_label in enumerate(self.corner_offset_values):
+                    value_label.setText(f"{self.corner_offset_sliders[idx].value():+d}")
+                    self.corner_offset_sliders[idx].setEnabled(self.corner_offsets_enabled_checkbox.isChecked())
                 self.device_zone_count_slider.setEnabled(not self.device_zone_count_auto_checkbox.isChecked())
                 self.device_zone_count_value.setText("auto" if self.device_zone_count_auto_checkbox.isChecked() else str(self.device_zone_count_slider.value()))
                 self.device_zone_status.setText(self._state.auto_detection_status())
@@ -336,6 +361,7 @@ class DisplayConfiguratorDialog:
                             f"Zone preset: {self._state.zone_preset}",
                             f"Source zones: {self._state.zone_count}",
                             f"Effective strip zones: {self._state.effective_device_zone_count()}",
+                            f"Per-corner refinement enabled: {self._state.corner_offsets_enabled}",
                             self._state.auto_detection_status(),
                         )
                     )
@@ -357,6 +383,8 @@ class DisplayConfiguratorDialog:
                     device_zone_count=0 if self._state.auto_device_zone_count else self._state.device_zone_count,
                     reverse_zones=self._state.reverse_zones,
                     zone_offset=self._state.zone_offset,
+                    corner_offsets_enabled=bool(self._state.corner_offsets_enabled),
+                    corner_zone_offsets=self._state.active_corner_zone_offsets(),
                     wizard_completed=True,
                 )
 

@@ -12,6 +12,7 @@ def mapping_indices(
     zone_offset: int,
     reverse_zones: bool,
     explicit_zone_map: Sequence[int] | None = None,
+    corner_zone_offsets: Sequence[int] | None = None,
 ) -> list[int]:
     return resolve_device_zone_indices(
         max(1, int(zone_count)),
@@ -19,6 +20,7 @@ def mapping_indices(
         zone_offset=int(zone_offset),
         reverse=bool(reverse_zones),
         explicit_zone_map=list(explicit_zone_map) if explicit_zone_map else None,
+        corner_zone_offsets=list(corner_zone_offsets) if corner_zone_offsets else None,
     )
 
 
@@ -29,6 +31,7 @@ def mapping_preview_text(
     zone_offset: int,
     reverse_zones: bool,
     explicit_zone_map: Sequence[int] | None = None,
+    corner_zone_offsets: Sequence[int] | None = None,
     show_limit: int = 16,
 ) -> str:
     indices = mapping_indices(
@@ -37,15 +40,20 @@ def mapping_preview_text(
         zone_offset=zone_offset,
         reverse_zones=reverse_zones,
         explicit_zone_map=explicit_zone_map,
+        corner_zone_offsets=corner_zone_offsets,
     )
     limit = max(1, int(show_limit))
     preview = ", ".join(str(i) for i in indices[:limit])
     suffix = "…" if len(indices) > limit else ""
     mode = "manual" if explicit_zone_map else "simple"
     direction = "counter-clockwise" if reverse_zones else "clockwise"
+    corner_text = "off"
+    if corner_zone_offsets and any(int(v) != 0 for v in corner_zone_offsets):
+        labels = ("TL", "TR", "BR", "BL")
+        corner_text = ", ".join(f"{label}:{int(value):+d}" for label, value in zip(labels, list(corner_zone_offsets)[:4]))
     return (
         f"Calibration mode: {mode} | source zones: {zone_count} | strip zones: {device_zone_count}\n"
-        f"Direction: {direction} | start offset: {zone_offset}\n"
+        f"Direction: {direction} | global start offset: {zone_offset} | corner refinement: {corner_text}\n"
         f"Device zone order (device→screen): {preview}{suffix}"
     )
 
@@ -57,6 +65,7 @@ def mapping_preview_visual(
     zone_offset: int,
     reverse_zones: bool,
     explicit_zone_map: Sequence[int] | None = None,
+    corner_zone_offsets: Sequence[int] | None = None,
     show_limit: int = 12,
 ) -> str:
     indices = mapping_indices(
@@ -65,6 +74,7 @@ def mapping_preview_visual(
         zone_offset=zone_offset,
         reverse_zones=reverse_zones,
         explicit_zone_map=explicit_zone_map,
+        corner_zone_offsets=corner_zone_offsets,
     )
     if not indices:
         return "No mapping available."

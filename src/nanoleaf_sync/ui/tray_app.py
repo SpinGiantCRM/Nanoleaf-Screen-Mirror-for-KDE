@@ -294,14 +294,10 @@ class NanoleafTrayApp:
         self.action_start = self.QAction("Start", menu)
         self.action_stop = self.QAction("Stop", menu)
         self.action_settings = self.QAction("Settings", menu)
-        self.action_display_wizard = self.QAction("Display Configurator", menu)
-        self.action_troubleshooting = self.QAction("Help / Troubleshooting", menu)
+        self.action_display_wizard = self.QAction("Setup Wizard", menu)
         self.action_calibration_lab = self.QAction("Calibration / Diagnostics Lab", menu)
-        self.action_mode = self.QAction("Mode: --", menu)
-        self.action_mode.setEnabled(False)
-        self.action_device = self.QAction("Device: --", menu)
-        self.action_device.setEnabled(False)
-        self.action_status = self.QAction("Status", menu)
+        self.action_status = self.QAction("Status / About", menu)
+        self.action_troubleshooting = self.QAction("Help / Troubleshooting", menu)
         self.action_enable_autostart = self.QAction("Enable autostart", menu)
         self.action_disable_autostart = self.QAction("Disable autostart", menu)
         self.action_reset_probe_cache = self.QAction("Reset Auto-Probe Cache (force fresh selection)", menu)
@@ -323,29 +319,33 @@ class NanoleafTrayApp:
         self.action_smoke.triggered.connect(self.on_smoke_test)
         self.action_quit.triggered.connect(self.on_quit)
 
+        advanced_menu = self.QMenu("Troubleshooting / Advanced", menu)
+        advanced_menu.addAction(self.action_troubleshooting)
+        advanced_menu.addSeparator()
+        advanced_menu.addAction(self.action_doctor)
+        advanced_menu.addAction(self.action_smoke)
+        advanced_menu.addAction(self.action_reset_probe_cache)
+        advanced_menu.addSeparator()
+        advanced_menu.addAction(self.action_enable_autostart)
+        advanced_menu.addAction(self.action_disable_autostart)
+
         menu.addAction(self.action_start)
         menu.addAction(self.action_stop)
-        menu.addSeparator()
-        menu.addAction(self.action_mode)
-        menu.addAction(self.action_device)
-        menu.addSeparator()
         menu.addAction(self.action_settings)
         menu.addAction(self.action_display_wizard)
-        menu.addAction(self.action_troubleshooting)
         menu.addAction(self.action_calibration_lab)
         menu.addAction(self.action_status)
-        menu.addAction(self.action_enable_autostart)
-        menu.addAction(self.action_disable_autostart)
-        menu.addAction(self.action_reset_probe_cache)
-        menu.addAction(self.action_doctor)
-        menu.addAction(self.action_smoke)
+        menu.addMenu(advanced_menu)
+        menu.addSeparator()
         menu.addAction(self.action_quit)
         return menu
 
     def _refresh_mode_labels(self) -> None:
         capture_mode, device_mode = describe_mode(self.config.use_mock_capture, self.config.prefer_backend)
-        self.action_mode.setText(f"Mode: {capture_mode}")
-        self.action_device.setText(f"Device: {device_mode}")
+        running = self.service.is_running()
+        self.tray_icon.setToolTip(
+            f"nanoleaf-kde-sync\nState: {'running' if running else 'stopped'}\n{capture_mode}\n{device_mode}"
+        )
 
     def on_start(self):
         started = self.service.start()
@@ -491,6 +491,7 @@ class NanoleafTrayApp:
             ]
         )
         self.tray_icon.showMessage("nanoleaf-kde-sync status", summary, self.QSystemTrayIcon.MessageIcon.Information, 9000)
+        self._refresh_mode_labels()
 
     def on_calibration_lab(self) -> None:
         status = self.service.get_status()
