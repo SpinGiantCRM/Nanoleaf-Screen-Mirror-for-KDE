@@ -16,6 +16,7 @@ from nanoleaf_sync.ui.calibration_state import (
     build_testing_panel_state,
 )
 from nanoleaf_sync.ui.qt_lazy import load_qt
+from nanoleaf_sync.ui.zone_calibration import mapping_preview_text as _mapping_preview_text
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
 FPS_MIN = 1
@@ -119,7 +120,17 @@ class SettingsDialog:
                 self.preview_label = QLabel(""); self.preview_visual_label = QLabel(""); self.test_label = QLabel("")
                 self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.zone_offset_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.zone_sampling_stride_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel(""); self.test_duration_value = QLabel(""); self.test_step_interval_value = QLabel(""); self.test_brightness_value = QLabel("")
 
-                for signal in (self.zone_count_slider.valueChanged, self.zone_preset_combo.currentIndexChanged, self.zone_offset_slider.valueChanged, self.device_zone_count_slider.valueChanged, self.device_zone_count_auto_checkbox.stateChanged, self.reverse_checkbox.stateChanged, self.manual_map_checkbox.stateChanged):
+                for signal in (
+                    self.zone_count_slider.valueChanged,
+                    self.zone_preset_combo.currentIndexChanged,
+                    self.zone_offset_slider.valueChanged,
+                    self.device_zone_count_slider.valueChanged,
+                    self.device_zone_count_auto_checkbox.stateChanged,
+                    self.reverse_checkbox.stateChanged,
+                    self.manual_map_checkbox.stateChanged,
+                    self.capture_backend_combo.currentIndexChanged,
+                    self.auto_probe_policy_combo.currentIndexChanged,
+                ):
                     signal.connect(self._refresh_preview_label)
                 self.manual_map_device_slider.valueChanged.connect(self._sync_manual_source_slider)
                 self.manual_map_apply_button.clicked.connect(self._apply_manual_mapping)
@@ -254,7 +265,16 @@ class SettingsDialog:
 
             def _refresh_preview_label(self):
                 self._refresh_numeric_labels(); self._pull_state()
-                info = backend_selection_info(self._runtime_status, cfg)
+                pending_cfg = replace(
+                    cfg,
+                    prefer_backend=str(self.capture_backend_combo.currentText()),
+                    auto_probe_policy=str(self.auto_probe_policy_combo.currentText()),
+                )
+                preview_status = {
+                    **self._runtime_status,
+                    "requested_capture_backend": pending_cfg.prefer_backend,
+                }
+                info = backend_selection_info(preview_status, pending_cfg)
                 self.backend_info_label.setText(
                     f"Requested backend policy: {info.requested_policy} | Effective backend: {info.effective_backend} | Source: {info.source} | Reason: {info.reason}"
                 )
@@ -267,8 +287,8 @@ class SettingsDialog:
 
                 panel = build_testing_panel_state(
                     state=self._state,
-                    runtime_status=self._runtime_status,
-                    cfg=cfg,
+                    runtime_status=preview_status,
+                    cfg=pending_cfg,
                     mode=str(self.test_mode_combo.currentText()),
                     step=self._test_step,
                 )

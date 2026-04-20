@@ -81,12 +81,15 @@ class DisplayConfiguratorDialog:
                 self.hdr_transfer_combo = QComboBox()
                 self.hdr_transfer_combo.addItems(["srgb", "pq"])
                 self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))))
+                self.hdr_transfer_label = QLabel("HDR transfer")
                 self.hdr_primaries_combo = QComboBox()
                 self.hdr_primaries_combo.addItems(["bt709", "bt2020"])
                 self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText(str(getattr(cfg, "hdr_primaries", "bt709")))))
+                self.hdr_primaries_label = QLabel("HDR primaries")
                 self.hdr_max_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.hdr_max_nits_slider.setRange(80, 10000)
                 self.hdr_max_nits_slider.setValue(min(int(getattr(cfg, "hdr_max_nits", 1000.0)), self.hdr_max_nits_slider.maximum()))
+                self.hdr_max_nits_label = QLabel("HDR max brightness")
                 self.hdr_max_nits_value = QLabel("")
 
                 # Step 3
@@ -185,11 +188,11 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(QLabel("Configure color behavior for the chosen mode."), 0, 0, 1, 3)
                 layout.addWidget(QLabel("Colour behavior"), 1, 0)
                 layout.addWidget(self.color_mode_combo, 1, 1, 1, 2)
-                layout.addWidget(QLabel("HDR transfer"), 2, 0)
+                layout.addWidget(self.hdr_transfer_label, 2, 0)
                 layout.addWidget(self.hdr_transfer_combo, 2, 1, 1, 2)
-                layout.addWidget(QLabel("HDR primaries"), 3, 0)
+                layout.addWidget(self.hdr_primaries_label, 3, 0)
                 layout.addWidget(self.hdr_primaries_combo, 3, 1, 1, 2)
-                layout.addWidget(QLabel("HDR max brightness"), 4, 0)
+                layout.addWidget(self.hdr_max_nits_label, 4, 0)
                 layout.addWidget(self.hdr_max_nits_slider, 4, 1)
                 layout.addWidget(self.hdr_max_nits_value, 4, 2)
                 page.setLayout(layout)
@@ -264,7 +267,15 @@ class DisplayConfiguratorDialog:
                 self.finish_button.setEnabled(not self._flow.can_go_next())
 
                 hdr_mode = str(self.display_mode_combo.currentText()) == "hdr"
-                for widget in (self.hdr_transfer_combo, self.hdr_primaries_combo, self.hdr_max_nits_slider, self.hdr_max_nits_value):
+                for widget in (
+                    self.hdr_transfer_label,
+                    self.hdr_transfer_combo,
+                    self.hdr_primaries_label,
+                    self.hdr_primaries_combo,
+                    self.hdr_max_nits_label,
+                    self.hdr_max_nits_slider,
+                    self.hdr_max_nits_value,
+                ):
                     widget.setVisible(hdr_mode)
 
                 self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
