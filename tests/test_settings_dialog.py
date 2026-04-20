@@ -174,11 +174,15 @@ def test_settings_dialog_constructs_and_opens_with_qt_stubs(monkeypatch) -> None
     assert updated.color_mode == "default"
     assert updated.start_on_launch is False
     assert updated.hdr_enabled is False
+    assert updated.auto_probe_policy in {"on-change", "first-run", "each-boot"}
 
     portal_idx = dialog._dialog.capture_backend_combo.findText("xdg-portal")
     dialog._dialog.capture_backend_combo.setCurrentIndex(portal_idx)
+    each_boot_idx = dialog._dialog.auto_probe_policy_combo.findText("each-boot")
+    dialog._dialog.auto_probe_policy_combo.setCurrentIndex(each_boot_idx)
     updated_portal = dialog.updated_config()
     assert updated_portal.prefer_backend == "xdg-portal"
+    assert updated_portal.auto_probe_policy == "each-boot"
 
 
 def test_settings_dialog_zone_count_updates_zones_without_forcing_manual_device_count(monkeypatch) -> None:

@@ -257,6 +257,41 @@ def _normalized_backend(config: AppConfig) -> str:
     return normalize_capture_backend(raw, default=raw)
 
 
+def _check_probe_status(config: AppConfig) -> DoctorCheck:
+    normalized = _normalized_backend(config)
+    if normalized != "auto":
+        return DoctorCheck(
+            "probe-status",
+            "pass",
+            f"Auto-probe inactive (requested backend={normalized or 'unset'}). Selection reason=explicit.",
+        )
+
+    cached = str(getattr(config, "auto_selected_backend", "") or "").strip()
+    signature = str(getattr(config, "auto_probe_signature", "") or "").strip()
+    timestamp = str(getattr(config, "auto_probe_timestamp", "") or "").strip()
+    policy = str(getattr(config, "auto_probe_policy", "on-change") or "on-change").strip()
+    enabled = bool(getattr(config, "auto_probe_enabled", True))
+
+    if cached:
+        return DoctorCheck(
+            "probe-status",
+            "pass",
+            (
+                f"Auto-probe enabled={enabled} policy={policy} cached_winner={cached} "
+                f"selection_reason=cached-probe signature={signature or 'none'} timestamp={timestamp or 'none'}."
+            ),
+        )
+    return DoctorCheck(
+        "probe-status",
+        "warn",
+        (
+            f"Auto-probe enabled={enabled} policy={policy} has no cached winner yet "
+            "(next decision likely fresh-probe/fallback)."
+        ),
+        "Start service once (or run smoke test) to record backend decision metadata.",
+    )
+
+
 def _check_real_capture_probe(config: AppConfig) -> DoctorCheck:
     from nanoleaf_sync.capture.factory import create_capture_backend
 
@@ -307,6 +342,7 @@ def run_doctor(
         _check_dependencies(),
         _check_session_bus(),
         _check_mode_consistency(cfg),
+        _check_probe_status(cfg),
         _check_hid_enumeration(cfg),
     ]
     if not cfg.use_mock_capture:

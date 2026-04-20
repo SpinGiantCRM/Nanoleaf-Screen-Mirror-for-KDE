@@ -301,7 +301,7 @@ class NanoleafTrayApp:
         self.action_status = self.QAction("Status", menu)
         self.action_enable_autostart = self.QAction("Enable autostart", menu)
         self.action_disable_autostart = self.QAction("Disable autostart", menu)
-        self.action_reset_probe_cache = self.QAction("Reset Auto-Probe Cache", menu)
+        self.action_reset_probe_cache = self.QAction("Reset Auto-Probe Cache (force fresh selection)", menu)
         self.action_doctor = self.QAction("Run Doctor", menu)
         self.action_smoke = self.QAction("Run Smoke Test", menu)
         self.action_quit = self.QAction("Quit", menu)
@@ -405,7 +405,12 @@ class NanoleafTrayApp:
         )
 
     def on_settings(self):
-        dlg = SettingsDialog(parent=None, cfg=self.config, calibration_sender=self._send_calibration_preview)
+        dlg = SettingsDialog(
+            parent=None,
+            cfg=self.config,
+            calibration_sender=self._send_calibration_preview,
+            runtime_status=self.service.get_status(),
+        )
         if dlg.exec() != self.QDialog.DialogCode.Accepted:
             return
         if dlg.wants_display_configurator():
@@ -463,7 +468,15 @@ class NanoleafTrayApp:
         summary = "\n".join(
             [
                 f"Running: {status.get('running')} | Capture: {status.get('capture_mode')} ({status.get('capture_backend') or 'not-started'})",
-                f"Requested backend: {status.get('requested_capture_backend')} | Device mode: {status.get('device_mode')}",
+                (
+                    f"Requested backend: {status.get('requested_capture_backend')} | "
+                    f"Effective backend: {status.get('effective_capture_backend') or 'unknown'}"
+                ),
+                (
+                    f"Selection reason: {status.get('selection_reason')} | "
+                    f"From auto probe: {status.get('from_auto_probe')}"
+                ),
+                f"Device mode: {status.get('device_mode')}",
                 f"Device: {connection_text} | model={status.get('device_model') or 'unknown'} zones={status.get('device_zone_count')}",
                 f"frames={status.get('frames_sent')} errors={status.get('consecutive_errors')} kind={status.get('last_error_kind')}",
                 f"last_error={status.get('last_error') or 'none'}",
