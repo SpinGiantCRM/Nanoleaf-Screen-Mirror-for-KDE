@@ -105,8 +105,11 @@ def test_run_doctor_skips_kwin_probe_for_portal_backend(monkeypatch) -> None:
 
     checks = run_doctor()
     desktop_auth = next(check for check in checks if check.name == "desktop-authorization")
+    probe_status = next(check for check in checks if check.name == "probe-status")
     assert desktop_auth.status == "pass"
     assert "not required for xdg-portal" in desktop_auth.message
+    assert probe_status.status == "pass"
+    assert "Selection reason=explicit" in probe_status.message
 
 
 def test_desktop_authorization_warns_when_only_installed_entry_exists(monkeypatch, tmp_path: Path) -> None:

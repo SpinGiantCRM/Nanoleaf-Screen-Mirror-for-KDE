@@ -19,7 +19,14 @@ HDR_MAX_NITS_MAX = 10000
 ZONE_STRIDE_MIN = 1
 ZONE_STRIDE_MAX = 8
 class SettingsDialog:
-    def __init__(self, parent, cfg: AppConfig, *, calibration_sender: Callable[[list[tuple[int, int, int]]], None] | None = None):
+    def __init__(
+        self,
+        parent,
+        cfg: AppConfig,
+        *,
+        calibration_sender: Callable[[list[tuple[int, int, int]]], None] | None = None,
+        runtime_status: dict | None = None,
+    ):
         qt = load_qt()
         QDialog = qt["QDialog"]
         QDialogButtonBox = qt["QDialogButtonBox"]
@@ -119,6 +126,31 @@ class SettingsDialog:
                 self.capture_backend_combo.addItems(["auto", "kwin-dbus", "kmsgrab", "xdg-portal"])
                 backend_idx = self.capture_backend_combo.findText(str(getattr(cfg, "prefer_backend", "kwin-dbus")))
                 self.capture_backend_combo.setCurrentIndex(max(0, backend_idx))
+                self.auto_probe_policy_combo = QComboBox()
+                self.auto_probe_policy_combo.addItems(["on-change", "first-run", "each-boot"])
+                policy_idx = self.auto_probe_policy_combo.findText(str(getattr(cfg, "auto_probe_policy", "on-change")))
+                self.auto_probe_policy_combo.setCurrentIndex(max(0, policy_idx))
+                effective_backend = (
+                    (runtime_status or {}).get("effective_capture_backend")
+                    or (runtime_status or {}).get("capture_backend")
+                    or "not-started"
+                )
+                selection_reason = str((runtime_status or {}).get("selection_reason") or "unknown")
+                from_auto_probe = bool((runtime_status or {}).get("from_auto_probe"))
+                if from_auto_probe:
+                    source_text = f"auto-probe ({selection_reason})"
+                else:
+                    source_text = selection_reason
+                self.capture_decision_label = QLabel(
+                    f"Effective backend: {effective_backend} | source: {source_text}"
+                )
+                self.probe_policy_help_label = QLabel(
+                    "Auto-probe policy: first-run=only once unless reset; each-boot=once per app start; "
+                    "on-change=when display/session signature changes."
+                )
+                self.probe_reset_help_label = QLabel(
+                    "Need a fresh backend decision? Use tray action: Reset Auto-Probe Cache."
+                )
 
                 self.hdr_transfer_combo = QComboBox()
                 self.hdr_transfer_combo.addItems(["srgb", "pq"])
@@ -245,10 +277,14 @@ class SettingsDialog:
                 layout.addWidget(self.start_on_launch_checkbox, 30, 0, 1, 2)
                 layout.addWidget(self.mock_capture_checkbox, 31, 0, 1, 2)
                 _add_labeled(32, "Capture backend", self.capture_backend_combo)
-                _add_labeled(33, "LED gamma", self.led_gamma_slider, self.led_gamma_value)
-                layout.addWidget(self.preview_label, 34, 0, 1, 3)
-                layout.addWidget(self.preview_visual_label, 35, 0, 1, 3)
-                layout.addWidget(buttons, 36, 0, 1, 3)
+                _add_labeled(33, "Auto-probe policy", self.auto_probe_policy_combo)
+                layout.addWidget(self.capture_decision_label, 34, 0, 1, 3)
+                layout.addWidget(self.probe_policy_help_label, 35, 0, 1, 3)
+                layout.addWidget(self.probe_reset_help_label, 36, 0, 1, 3)
+                _add_labeled(37, "LED gamma", self.led_gamma_slider, self.led_gamma_value)
+                layout.addWidget(self.preview_label, 38, 0, 1, 3)
+                layout.addWidget(self.preview_visual_label, 39, 0, 1, 3)
+                layout.addWidget(buttons, 40, 0, 1, 3)
                 self.setLayout(layout)
 
             def _open_configurator(self) -> None:
@@ -393,6 +429,7 @@ class SettingsDialog:
                     explicit_zone_map=(self._manual_map[: self._effective_device_zone_count()] if self.manual_map_checkbox.isChecked() else []),
                     use_mock_capture=bool(self.mock_capture_checkbox.isChecked()),
                     prefer_backend=str(self.capture_backend_combo.currentText()),
+                    auto_probe_policy=str(self.auto_probe_policy_combo.currentText()),
                     hdr_transfer=str(self.hdr_transfer_combo.currentText()),
                     hdr_primaries=str(self.hdr_primaries_combo.currentText()),
                     hdr_max_nits=float(self.hdr_max_nits_slider.value()),

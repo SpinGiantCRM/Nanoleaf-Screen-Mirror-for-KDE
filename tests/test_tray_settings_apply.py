@@ -21,9 +21,12 @@ class _FakeService:
     def is_running(self):
         return False
 
+    def get_status(self):
+        return {}
+
 
 class _FakeDialog:
-    def __init__(self, parent, cfg):
+    def __init__(self, parent, cfg, **_kwargs):
         self._cfg = cfg
 
     def exec(self):
@@ -55,6 +58,7 @@ def test_on_settings_replaces_service_with_updated_config(monkeypatch) -> None:
         service=_FakeService(config=AppConfig(device_zone_count=1)),
         QDialog=SimpleNamespace(DialogCode=SimpleNamespace(Accepted=1)),
         _refresh_mode_labels=lambda: None,
+        _send_calibration_preview=lambda _colors: None,
         on_stop=lambda: None,
         on_start=lambda: None,
     )
@@ -80,6 +84,7 @@ def test_on_settings_cancel_discards_changes(monkeypatch) -> None:
         service=_FakeService(config=original_cfg),
         QDialog=SimpleNamespace(DialogCode=SimpleNamespace(Accepted=1)),
         _refresh_mode_labels=lambda: None,
+        _send_calibration_preview=lambda _colors: None,
         on_stop=lambda: None,
         on_start=lambda: None,
     )

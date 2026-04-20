@@ -12,6 +12,7 @@ from nanoleaf_sync.runtime.errors import translate_runtime_error
 
 DEFAULT_SMOKE_WIDTH = 320
 DEFAULT_SMOKE_HEIGHT = 180
+AUTO_PROBE_WINNERS = {"kwin-dbus", "xdg-portal", "kmsgrab"}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -28,6 +29,13 @@ def main(argv: list[str] | None = None) -> int:
     print("== nanoleaf-kde-sync smoke test ==")
     print(f"capture mode: {'mock' if cfg.use_mock_capture else cfg.prefer_backend}")
     print("device mode: real-usb")
+    print(
+        "probe config: "
+        f"enabled={cfg.auto_probe_enabled} policy={cfg.auto_probe_policy} "
+        f"cached_winner={cfg.auto_selected_backend or 'none'} "
+        f"signature={cfg.auto_probe_signature or 'none'} "
+        f"timestamp={cfg.auto_probe_timestamp or 'none'}"
+    )
     width, height = resolve_capture_dims(cfg)
     if width <= 0 or height <= 0:
         width, height = DEFAULT_SMOKE_WIDTH, DEFAULT_SMOKE_HEIGHT
@@ -41,6 +49,20 @@ def main(argv: list[str] | None = None) -> int:
         hdr_transfer=cfg.hdr_transfer,
         hdr_primaries=cfg.hdr_primaries,
     )
+    effective_backend = getattr(capture, "name", "unknown")
+    if str(cfg.prefer_backend).strip().lower() != "auto":
+        selection_reason = "explicit"
+    elif cfg.auto_selected_backend and cfg.auto_selected_backend == effective_backend:
+        selection_reason = "cached-probe"
+    elif effective_backend in AUTO_PROBE_WINNERS:
+        selection_reason = "fresh-probe"
+    else:
+        selection_reason = "fallback"
+    print(
+        "backend decision: "
+        f"requested={cfg.prefer_backend} effective={effective_backend} selection_reason={selection_reason}"
+    )
+
     try:
         frame = capture.capture()
     except Exception as exc:

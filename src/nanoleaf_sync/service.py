@@ -137,6 +137,8 @@ class NanoleafSyncService:
 
         self._capture_width, self._capture_height = _resolve_capture_dims(self.config)
         self._cached_probe_winner: str | None = None
+        self._selection_reason: str = "fallback"
+        self._effective_capture_backend: str | None = None
         self._device_discovered = False
         self._device_model: str | None = None
         self._device_zone_count: int | None = None
@@ -181,6 +183,9 @@ class NanoleafSyncService:
             reinit_backoff_ms=self.config.reinit_backoff_ms,
         )
         status["requested_capture_backend"] = self.config.prefer_backend
+        status["effective_capture_backend"] = self._effective_capture_backend or capture_backend_name
+        status["selection_reason"] = self._selection_reason
+        status["from_auto_probe"] = self._selection_reason in {"cached-probe", "fresh-probe"}
         status["device_mode"] = "real-usb"
         status["device_discovered"] = self._device_discovered
         status["device_model"] = self._device_model
@@ -226,6 +231,7 @@ class NanoleafSyncService:
 
         if self._capture_backend_override is not None:
             self._capture = self._capture_backend_override
+            self._selection_reason = "explicit"
         else:
             normalized_preference = normalize_capture_backend(
                 self.config.prefer_backend, default="auto"
@@ -259,6 +265,14 @@ class NanoleafSyncService:
                 auto_probe_enabled=self.config.auto_probe_enabled,
                 cached_probe_winner=selected_cache,
             )
+            if normalized_preference != "auto":
+                self._selection_reason = "explicit"
+            elif _is_valid_auto_probe_winner(selected_cache):
+                self._selection_reason = "cached-probe"
+            elif should_probe:
+                self._selection_reason = "fresh-probe"
+            else:
+                self._selection_reason = "fallback"
             if normalized_preference == "auto":
                 winner = getattr(self._capture, "name", None)
                 if _is_valid_auto_probe_winner(winner):
@@ -282,6 +296,9 @@ class NanoleafSyncService:
                                     "Failed to persist auto-probe cache metadata: %s",
                                     exc,
                                 )
+                else:
+                    self._selection_reason = "fallback"
+        self._effective_capture_backend = getattr(self._capture, "name", None)
 
         if self._driver_override is not None:
             self._driver = self._driver_override

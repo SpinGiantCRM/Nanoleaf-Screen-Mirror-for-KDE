@@ -109,6 +109,9 @@ def test_status_exposes_device_mode_and_error_guidance() -> None:
     assert status["device_mode"] == "real-usb"
     assert status["last_error_kind"] is not None
     assert status["last_error_guidance"] is not None
+    assert status["requested_capture_backend"] == svc.config.prefer_backend
+    assert status["effective_capture_backend"] in {"mock", None}
+    assert status["selection_reason"] == "explicit"
 
 
 def test_make_device_driver_requires_non_zero_vid_pid_for_real_device() -> None:
