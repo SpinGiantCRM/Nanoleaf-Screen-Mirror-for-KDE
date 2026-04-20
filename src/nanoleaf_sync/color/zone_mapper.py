@@ -37,6 +37,50 @@ def _interpolated_corner_adjustment(
     return int(round(start + (end - start) * t))
 
 
+def _circular_distance(a: float, b: float, total: int) -> float:
+    span = max(1, int(total))
+    raw = abs(float(a) - float(b))
+    return min(raw, span - raw)
+
+
+def _local_corner_adjustment(
+    *,
+    device_index: int,
+    device_zone_count: int,
+    corner_zone_offsets: tuple[int, int, int, int],
+) -> int:
+    """Apply corner offsets locally so each corner behaves independently.
+
+    Each corner has a fixed anchor (quarter turns around the strip). Offset
+    influence decays linearly with circular distance from that anchor and is
+    clipped to a local neighborhood, so tuning one corner no longer drags the
+    entire adjacent side.
+    """
+
+    total = max(1, int(device_zone_count))
+    if total <= 1:
+        return int(corner_zone_offsets[0])
+
+    quarter = float(total) / 4.0
+    # Keep influence local to each corner (~half a side), which makes each
+    # slider feel stable and mostly independent.
+    influence_radius = max(1.0, quarter * 0.55)
+    idx = float(int(device_index) % total)
+    weighted_adjustment = 0.0
+
+    for corner_idx, offset in enumerate(corner_zone_offsets):
+        if int(offset) == 0:
+            continue
+        anchor = (corner_idx * quarter) % total
+        distance = _circular_distance(idx, anchor, total)
+        if distance > influence_radius:
+            continue
+        weight = 1.0 - (distance / influence_radius)
+        weighted_adjustment += float(offset) * weight
+
+    return int(round(weighted_adjustment))
+
+
 def resolve_device_zone_indices(
     source_zone_count: int,
     *,
@@ -68,7 +112,7 @@ def resolve_device_zone_indices(
         if reverse:
             src_idx = (src_n - 1) - src_idx
         if normalized_corner_offsets is not None:
-            src_idx += _interpolated_corner_adjustment(
+            src_idx += _local_corner_adjustment(
                 device_index=device_idx,
                 device_zone_count=dst_n,
                 corner_zone_offsets=normalized_corner_offsets,

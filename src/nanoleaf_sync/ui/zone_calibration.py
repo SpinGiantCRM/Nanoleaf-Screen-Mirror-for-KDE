@@ -53,7 +53,7 @@ def mapping_preview_text(
         corner_text = ", ".join(f"{label}:{int(value):+d}" for label, value in zip(labels, list(corner_zone_offsets)[:4]))
     return (
         f"Calibration mode: {mode} | source zones: {zone_count} | strip zones: {device_zone_count}\n"
-        f"Direction: {direction} | global start offset: {zone_offset} | corner refinement: {corner_text}\n"
+        f"Direction: {direction} | global start offset: {zone_offset} | local corner anchor nudges: {corner_text}\n"
         f"Device zone order (device→screen): {preview}{suffix}"
     )
 
