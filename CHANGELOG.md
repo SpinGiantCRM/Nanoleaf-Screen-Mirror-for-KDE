@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-04-20
+
+## What's Changed
+* Per-corner calibration + honest latency diagnostics and UX cleanup (tray & setup wizard) by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/136
+
+
+**Full Changelog**: https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/compare/v0.6.0...v0.6.1
+
 ## [0.6.0] - 2026-04-20
 
 ## What's Changed
