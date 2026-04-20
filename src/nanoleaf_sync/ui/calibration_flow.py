@@ -67,6 +67,7 @@ def derive_corner_anchor_device_indices(
     zone_offset: int,
     reverse_zones: bool,
     explicit_zone_map: Sequence[int] | None = None,
+    corner_zone_offsets: Sequence[int] | None = None,
     start_anchor: int | None = None,
 ) -> list[int]:
     mapping = mapping_indices(
@@ -75,6 +76,7 @@ def derive_corner_anchor_device_indices(
         zone_offset=zone_offset,
         reverse_zones=reverse_zones,
         explicit_zone_map=explicit_zone_map,
+        corner_zone_offsets=corner_zone_offsets,
     )
     if not mapping:
         return [0]

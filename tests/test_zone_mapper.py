@@ -38,3 +38,17 @@ def test_zone_mapper_wraps_large_positive_offset() -> None:
     screen = [(10, 0, 0), (20, 0, 0), (30, 0, 0)]
     out = map_colors_to_device_zones(screen, device_zone_count=3, zone_offset=10)
     assert out == [(20, 0, 0), (30, 0, 0), (10, 0, 0)]
+
+
+def test_zone_mapper_supports_per_corner_refinement() -> None:
+    screen = [(i, 0, 0) for i in range(8)]
+    out = map_colors_to_device_zones(
+        screen,
+        device_zone_count=8,
+        zone_offset=0,
+        corner_zone_offsets=[1, 0, -1, 0],
+    )
+    # Corners shift independently; output should differ from identity map.
+    assert out != screen
+    assert out[0][0] == 1
+    assert out[4][0] == 3

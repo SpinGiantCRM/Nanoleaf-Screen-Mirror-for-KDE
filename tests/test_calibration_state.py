@@ -48,7 +48,16 @@ def test_latency_policy_is_predictable_and_manual_vs_auto_labeled() -> None:
     assert should_auto_run_latency_probe(policy="manual", last_result=None, active_backend="kwin-dbus") is False
     assert should_auto_run_latency_probe(policy="on-open", last_result=None, active_backend="kwin-dbus") is True
 
-    result = build_latency_result(backend="kwin-dbus", measured_latency_ms=23.4, triggered_by="manual")
+    result = build_latency_result(
+        requested_policy="auto",
+        selected_backend="kwin-dbus",
+        selection_source="auto-probe",
+        selection_reason="probe winner",
+        measured_latency_ms=23.4,
+        measurement_kind="estimated",
+        confidence_note="fps-derived",
+        triggered_by="manual",
+    )
     assert should_auto_run_latency_probe(
         policy="on-open-once-per-backend",
         last_result=result,
@@ -59,7 +68,10 @@ def test_latency_policy_is_predictable_and_manual_vs_auto_labeled() -> None:
         last_result=result,
         active_backend="kmsgrab",
     ) is True
-    assert "trigger=manual" in latency_result_summary(result)
+    summary = latency_result_summary(result)
+    assert "selected=kwin-dbus" in summary
+    assert "measurement_kind" not in summary
+    assert "estimated" in summary
 
 
 def test_testing_step_controls_and_frame_generation_stay_coherent() -> None:
@@ -105,3 +117,11 @@ def test_backend_and_testing_state_are_exposed_for_ui_surfaces() -> None:
     assert "Effective backend: kwin-dbus" in panel.backend_summary
     assert panel.effective_zone_count == 48
     assert "Device zone mode:" in panel.zone_mode_summary
+
+
+def test_corner_refinement_preview_mentions_corner_offsets() -> None:
+    cfg = AppConfig(device_zone_count=8, corner_offsets_enabled=True, corner_zone_offsets=[1, -1, 2, -2])
+    state = CalibrationState.from_config(cfg, {})
+    text = state.mapping_preview_text()
+    assert "Per-corner refinement" in text
+    assert "+1/-1/+2/-2" in text

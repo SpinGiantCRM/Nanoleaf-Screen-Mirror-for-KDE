@@ -50,6 +50,7 @@ def single_zone_step(
     zone_offset: int,
     reverse_zones: bool,
     explicit_zone_map: Sequence[int] | None = None,
+    corner_zone_offsets: Sequence[int] | None = None,
     label_prefix: str = "Single-zone test",
 ) -> CalibrationStep:
     mapping = mapping_indices(
@@ -58,6 +59,7 @@ def single_zone_step(
         zone_offset=zone_offset,
         reverse_zones=reverse_zones,
         explicit_zone_map=explicit_zone_map,
+        corner_zone_offsets=corner_zone_offsets,
     )
     total = len(mapping)
     idx = int(step) % max(1, total)
@@ -80,6 +82,7 @@ def coverage_sanity_step(
     zone_offset: int,
     reverse_zones: bool,
     explicit_zone_map: Sequence[int] | None = None,
+    corner_zone_offsets: Sequence[int] | None = None,
 ) -> CalibrationStep:
     single = single_zone_step(
         step=step,
@@ -88,6 +91,7 @@ def coverage_sanity_step(
         zone_offset=zone_offset,
         reverse_zones=reverse_zones,
         explicit_zone_map=explicit_zone_map,
+        corner_zone_offsets=corner_zone_offsets,
         label_prefix="Coverage sanity",
     )
     return CalibrationStep(
@@ -108,6 +112,7 @@ def corner_anchor_steps(
     zone_offset: int,
     reverse_zones: bool,
     explicit_zone_map: Sequence[int] | None = None,
+    corner_zone_offsets: Sequence[int] | None = None,
     start_anchor: int | None = None,
 ) -> list[CalibrationStep]:
     total = max(1, int(device_zone_count))
@@ -121,6 +126,7 @@ def corner_anchor_steps(
         zone_offset=zone_offset,
         reverse_zones=reverse_zones,
         explicit_zone_map=explicit_zone_map,
+        corner_zone_offsets=corner_zone_offsets,
     )
     anchors = derive_corner_anchor_device_indices(
         zone_count=zone_count,
@@ -128,6 +134,7 @@ def corner_anchor_steps(
         zone_offset=zone_offset,
         reverse_zones=reverse_zones,
         explicit_zone_map=explicit_zone_map,
+        corner_zone_offsets=corner_zone_offsets,
         start_anchor=start_anchor,
     )
     steps: list[CalibrationStep] = []
