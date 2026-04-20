@@ -12,6 +12,7 @@ import time
 from typing import Optional, Tuple
 
 from nanoleaf_sync.capture.interfaces import CaptureBackend
+from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
 from nanoleaf_sync.capture.dimensions import (
     DEFAULT_CAPTURE_HEIGHT as _DEFAULT_CAPTURE_HEIGHT,
     DEFAULT_CAPTURE_WIDTH as _DEFAULT_CAPTURE_WIDTH,
@@ -68,6 +69,7 @@ class NanoleafSyncService:
         self._lifecycle = RuntimeLifecycle(state=self._runtime, runner=self._run_runtime)
 
         self._capture_width, self._capture_height = _resolve_capture_dims(self.config)
+        self._cached_probe_winner: str | None = None
         self._device_discovered = False
         self._device_model: str | None = None
         self._device_zone_count: int | None = None
@@ -165,7 +167,13 @@ class NanoleafSyncService:
                 hdr_max_nits=self.config.hdr_max_nits,
                 hdr_transfer=self.config.hdr_transfer,
                 hdr_primaries=self.config.hdr_primaries,
+                auto_probe_enabled=self.config.auto_probe_enabled,
+                cached_probe_winner=self._cached_probe_winner,
             )
+            if normalize_capture_backend(self.config.prefer_backend, default="auto") == "auto":
+                winner = getattr(self._capture, "name", None)
+                if winner in {"kwin-dbus", "xdg-portal", "kmsgrab"}:
+                    self._cached_probe_winner = winner
 
         if self._driver_override is not None:
             self._driver = self._driver_override

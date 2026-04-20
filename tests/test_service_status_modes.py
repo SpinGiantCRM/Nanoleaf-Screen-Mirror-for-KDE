@@ -136,3 +136,33 @@ class TestServiceStatusAndMode:
         svc.stop()
         svc.join(timeout=2.0)
         assert driver.frames_sent >= 1
+
+
+def test_service_passes_cached_probe_winner_on_reinitialize(monkeypatch) -> None:
+    cfg = AppConfig(fps=30, verbose=False, use_mock_capture=False, prefer_backend="auto")
+    driver = FakeDriver()
+    service = NanoleafSyncService(config=cfg, driver_override=driver)
+    seen_cached_values: list[str | None] = []
+
+    class _FakeCaptureBackend:
+        def __init__(self, name: str) -> None:
+            self.name = name
+            self.last_capture_path = None
+
+        def close(self) -> None:
+            pass
+
+    def _fake_create_capture_backend(**kwargs):
+        seen_cached_values.append(kwargs.get("cached_probe_winner"))
+        return _FakeCaptureBackend("kwin-dbus")
+
+    monkeypatch.setattr(
+        "nanoleaf_sync.service.create_capture_backend",
+        _fake_create_capture_backend,
+    )
+
+    service._install_drivers()
+    service._close_backends()
+    service._install_drivers()
+
+    assert seen_cached_values == [None, "kwin-dbus"]

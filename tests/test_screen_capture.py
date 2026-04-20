@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
 from nanoleaf_sync.capture.factory import create_capture_backend
@@ -78,6 +79,69 @@ def test_capture_factory_auto_falls_back_to_kwin_when_kmsgrab_is_unavailable(
         prefer_backend="auto",
     )
     assert backend.name == "kwin-dbus"
+
+
+def test_capture_factory_explicit_backend_bypasses_probe(monkeypatch) -> None:
+    def _fail_probe(*_args, **_kwargs):
+        raise AssertionError("probe should not run for explicit backend")
+
+    monkeypatch.setattr("nanoleaf_sync.capture.auto_probe.probe_backends", _fail_probe)
+    backend = create_capture_backend(
+        width=6,
+        height=4,
+        use_mock_capture=False,
+        prefer_backend="xdg-portal",
+    )
+    assert backend.name == "xdg-portal"
+
+
+def test_capture_factory_auto_uses_cached_probe_winner_without_probing(monkeypatch) -> None:
+    def _fail_probe(*_args, **_kwargs):
+        raise AssertionError("probe should not run when cached winner is valid")
+
+    monkeypatch.setattr("nanoleaf_sync.capture.auto_probe.probe_backends", _fail_probe)
+    backend = create_capture_backend(
+        width=6,
+        height=4,
+        use_mock_capture=False,
+        prefer_backend="auto",
+        cached_probe_winner="kwin-dbus",
+    )
+    assert backend.name == "kwin-dbus"
+
+
+def test_capture_factory_auto_respects_probe_kill_switch(monkeypatch, caplog: pytest.LogCaptureFixture) -> None:
+    monkeypatch.setenv("NANOLEAF_DISABLE_CAPTURE_PROBE", "1")
+    monkeypatch.setattr("nanoleaf_sync.capture.factory._resolve_auto_backend", lambda: "kwin-dbus")
+    caplog.set_level("INFO")
+    backend = create_capture_backend(
+        width=6,
+        height=4,
+        use_mock_capture=False,
+        prefer_backend="auto",
+    )
+    assert backend.name == "kwin-dbus"
+    assert "capture auto-probe skipped" in caplog.text
+
+
+def test_capture_factory_auto_probe_failure_falls_back_to_capability_logic(
+    monkeypatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    def _raise_probe(*_args, **_kwargs):
+        raise RuntimeError("synthetic probe failure")
+
+    monkeypatch.setattr("nanoleaf_sync.capture.auto_probe.probe_backends", _raise_probe)
+    monkeypatch.setattr("nanoleaf_sync.capture.factory._resolve_auto_backend", lambda: "kwin-dbus")
+    caplog.set_level("INFO")
+    backend = create_capture_backend(
+        width=6,
+        height=4,
+        use_mock_capture=False,
+        prefer_backend="auto",
+    )
+    assert backend.name == "kwin-dbus"
+    assert "capture auto-probe failed" in caplog.text
 
 
 def test_kmsgrab_converts_hdr_before_any_resizing(monkeypatch) -> None:

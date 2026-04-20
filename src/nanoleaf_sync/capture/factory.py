@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from importlib import import_module
 from functools import lru_cache
+import logging
 import os
 from pathlib import Path
 
@@ -11,6 +12,13 @@ from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture
 from nanoleaf_sync.capture.kwin_dbus import KWinDBusScreenshotCapture
 from nanoleaf_sync.capture.mock_capture import MockScreenCapture
 from nanoleaf_sync.capture.xdg_portal import XDGPortalCapture
+
+logger = logging.getLogger(__name__)
+
+_AUTO_PROBE_CANDIDATES = ("kmsgrab", "kwin-dbus", "xdg-portal")
+_AUTO_PROBE_DISABLED_ENV = "NANOLEAF_DISABLE_CAPTURE_PROBE"
+_AUTO_PROBE_ENABLE_ENV = "NANOLEAF_ENABLE_CAPTURE_PROBE"
+_cached_probe_winner: str | None = None
 
 
 @lru_cache(maxsize=1)
@@ -41,10 +49,107 @@ def _resolve_auto_backend() -> str:
     return "kwin-dbus"
 
 
-def _resolve_prefer_backend(prefer_backend: str) -> str:
+def _env_bool(var_name: str) -> bool | None:
+    raw = os.environ.get(var_name)
+    if raw is None:
+        return None
+    normalized = raw.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off", ""}:
+        return False
+    return None
+
+
+def _is_valid_probe_candidate(candidate: str | None) -> bool:
+    return candidate in _AUTO_PROBE_CANDIDATES
+
+
+def _probe_enabled(config_probe_enabled: bool | None) -> tuple[bool, str | None]:
+    env_disabled = _env_bool(_AUTO_PROBE_DISABLED_ENV)
+    if env_disabled is True:
+        return False, f"{_AUTO_PROBE_DISABLED_ENV}=true"
+
+    env_enabled = _env_bool(_AUTO_PROBE_ENABLE_ENV)
+    if env_enabled is False:
+        return False, f"{_AUTO_PROBE_ENABLE_ENV}=false"
+
+    if config_probe_enabled is False:
+        return False, "config auto_probe_enabled=false"
+
+    return True, None
+
+
+def _resolve_auto_backend_with_probe(
+    *,
+    width: int,
+    height: int,
+    auto_probe_enabled: bool | None,
+    cached_probe_winner: str | None,
+) -> str:
+    global _cached_probe_winner
+
+    fallback = _resolve_auto_backend()
+    enabled, disable_reason = _probe_enabled(auto_probe_enabled)
+    if not enabled:
+        logger.info(
+            "capture auto-probe skipped; using capability fallback=%s reason=%s",
+            fallback,
+            disable_reason,
+        )
+        return fallback
+
+    cached = cached_probe_winner or _cached_probe_winner
+    if _is_valid_probe_candidate(cached):
+        logger.info("capture auto-probe using cached winner=%s", cached)
+        return str(cached)
+
+    candidates = list(_AUTO_PROBE_CANDIDATES)
+    logger.info("capture auto-probe candidates=%s", ", ".join(candidates))
+
+    try:
+        from nanoleaf_sync.capture.auto_probe import ProbeConfig, probe_backends
+
+        result = probe_backends(width, height, candidates, ProbeConfig())
+        tested = ", ".join(item.candidate for item in result.candidates)
+        logger.info("capture auto-probe tested candidates=%s", tested)
+
+        if result.selected_backend is not None:
+            _cached_probe_winner = result.selected_backend
+            logger.info("capture auto-probe selected winner=%s", result.selected_backend)
+            return result.selected_backend
+
+        logger.warning(
+            "capture auto-probe yielded no qualified backend; using capability fallback=%s",
+            fallback,
+        )
+    except Exception as exc:  # noqa: BLE001 - preserve startup reliability
+        logger.warning(
+            "capture auto-probe failed; using capability fallback=%s reason=%s",
+            fallback,
+            exc,
+        )
+
+    return fallback
+
+
+def _resolve_prefer_backend(
+    *,
+    prefer_backend: str,
+    width: int,
+    height: int,
+    auto_probe_enabled: bool | None,
+    cached_probe_winner: str | None,
+) -> str:
     normalized = normalize_capture_backend(prefer_backend, default="auto")
     if normalized == "auto":
-        return _resolve_auto_backend()
+        return _resolve_auto_backend_with_probe(
+            width=width,
+            height=height,
+            auto_probe_enabled=auto_probe_enabled,
+            cached_probe_winner=cached_probe_winner,
+        )
+    logger.info("capture backend explicitly configured=%s; probe bypassed", normalized)
     return normalized
 
 
@@ -57,6 +162,8 @@ def create_capture_backend(
     hdr_max_nits: float = 1000.0,
     hdr_transfer: str = "srgb",
     hdr_primaries: str = "bt709",
+    auto_probe_enabled: bool | None = None,
+    cached_probe_winner: str | None = None,
 ) -> CaptureBackend:
     """Create capture backend for the runtime.
 
@@ -67,7 +174,13 @@ def create_capture_backend(
     if use_mock_capture:
         return MockScreenCapture(width=width, height=height)
 
-    normalized = _resolve_prefer_backend(prefer_backend)
+    normalized = _resolve_prefer_backend(
+        prefer_backend=prefer_backend,
+        width=width,
+        height=height,
+        auto_probe_enabled=auto_probe_enabled,
+        cached_probe_winner=cached_probe_winner,
+    )
     if normalized == "kwin-dbus":
         return KWinDBusScreenshotCapture(
             width=width,

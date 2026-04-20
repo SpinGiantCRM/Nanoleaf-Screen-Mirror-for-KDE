@@ -129,6 +129,10 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         device_vid=cfg.device_vid,
         device_pid=cfg.device_pid,
         use_mock_capture=coerce_bool(getattr(cfg, "use_mock_capture", AppConfig.use_mock_capture), AppConfig.use_mock_capture),
+        auto_probe_enabled=coerce_bool(
+            getattr(cfg, "auto_probe_enabled", AppConfig.auto_probe_enabled),
+            AppConfig.auto_probe_enabled,
+        ),
         hdr_max_nits=hdr_max_nits,
         compositor_hdr_mode=coerce_bool(getattr(cfg, "compositor_hdr_mode", False), False),
         sdr_boost_nits=sdr_boost_nits,
