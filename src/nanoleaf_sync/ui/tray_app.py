@@ -363,8 +363,22 @@ class NanoleafTrayApp:
         self.action_status.setText(f"Status / About ({'Running' if running else 'Idle'})")
 
     def on_start(self):
-        started = self.service.start()
-        running = started and self.service.is_running()
+        try:
+            started = self.service.start()
+            running = started and self.service.is_running()
+        except Exception as exc:
+            _log.exception("Unhandled exception while starting service from tray action")
+            running = False
+            # Recreate service instance so a failed start attempt does not leave
+            # runtime lifecycle objects in a broken/unreopenable state.
+            self.service = NanoleafSyncService(config=self.config)
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                f"Start failed with exception: {exc}",
+                self.QSystemTrayIcon.MessageIcon.Warning,
+                7000,
+            )
+
         self.tray_icon.setIcon(self._running_icon if running else self._idle_icon)
         self._refresh_mode_labels()
         if not running:
@@ -385,8 +399,12 @@ class NanoleafTrayApp:
 
     def _start_after_launch(self) -> None:
         def worker() -> None:
-            started = self.service.start()
-            running = started and self.service.is_running()
+            try:
+                started = self.service.start()
+                running = started and self.service.is_running()
+            except Exception:
+                _log.exception("Unhandled exception during auto-start")
+                running = False
             self._auto_start_bridge.result_ready.emit(running)
 
         threading.Thread(target=worker, daemon=True).start()

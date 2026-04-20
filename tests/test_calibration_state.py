@@ -124,7 +124,7 @@ def test_corner_refinement_preview_mentions_corner_offsets() -> None:
     cfg = AppConfig(device_zone_count=8, corner_offsets_enabled=True, corner_zone_offsets=[1, -1, 2, -2])
     state = CalibrationState.from_config(cfg, {})
     text = state.mapping_preview_text()
-    assert "Per-corner refinement" in text
+    assert "Local corner anchor nudges" in text
     assert "+1/-1/+2/-2" in text
 
 

@@ -92,7 +92,7 @@ class DisplayConfiguratorDialog:
                 self.setWindowTitle("Setup Wizard")
                 resize = getattr(self, "resize", None)
                 if callable(resize):
-                    resize(760, 560)
+                    resize(620, 470)
                 self._calibration_sender = calibration_sender
                 self._test_step = 0
                 self._state = CalibrationState.from_config(cfg)
@@ -206,9 +206,18 @@ class DisplayConfiguratorDialog:
                 self.pages.addWidget(self._build_step_5(QWidget, QVBoxLayout, QLabel))
 
                 layout = QVBoxLayout()
+                set_margins = getattr(layout, "setContentsMargins", None)
+                if callable(set_margins):
+                    set_margins(12, 10, 12, 10)
+                set_spacing = getattr(layout, "setSpacing", None)
+                if callable(set_spacing):
+                    set_spacing(8)
                 layout.addWidget(self.step_label)
                 layout.addWidget(self.pages)
                 actions = QHBoxLayout()
+                action_spacing = getattr(actions, "setSpacing", None)
+                if callable(action_spacing):
+                    action_spacing(6)
                 actions.addWidget(self.cancel_button)
                 actions.addWidget(self.back_button)
                 actions.addWidget(self.next_button)
@@ -221,16 +230,20 @@ class DisplayConfiguratorDialog:
             def _build_step_1(self, QWidget, QGridLayout, QLabel):
                 page = QWidget()
                 layout = QGridLayout()
+                if hasattr(layout, "setVerticalSpacing"):
+                    layout.setVerticalSpacing(6)
                 layout.addWidget(QLabel("Welcome. Choose your display mode first."), 0, 0, 1, 2)
-                layout.addWidget(QLabel("SDR / HDR mode"), 1, 0)
-                layout.addWidget(self.display_mode_combo, 1, 1)
-                layout.setRowStretch(2, 1)
+                layout.addWidget(QLabel("This decides whether HDR controls appear in the next step."), 1, 0, 1, 2)
+                layout.addWidget(QLabel("SDR / HDR mode"), 2, 0)
+                layout.addWidget(self.display_mode_combo, 2, 1)
                 page.setLayout(layout)
                 return page
 
             def _build_step_2(self, QWidget, QGridLayout, QLabel):
                 page = QWidget()
                 layout = QGridLayout()
+                if hasattr(layout, "setVerticalSpacing"):
+                    layout.setVerticalSpacing(6)
                 layout.addWidget(QLabel("Configure color behavior for the chosen mode."), 0, 0, 1, 3)
                 layout.addWidget(QLabel("Colour behavior"), 1, 0)
                 layout.addWidget(self.color_mode_combo, 1, 1, 1, 2)
@@ -241,13 +254,14 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.hdr_max_nits_label, 4, 0)
                 layout.addWidget(self.hdr_max_nits_slider, 4, 1)
                 layout.addWidget(self.hdr_max_nits_value, 4, 2)
-                layout.setRowStretch(5, 1)
                 page.setLayout(layout)
                 return page
 
             def _build_step_3(self, QWidget, QGridLayout, QLabel):
                 page = QWidget()
                 layout = QGridLayout()
+                if hasattr(layout, "setVerticalSpacing"):
+                    layout.setVerticalSpacing(6)
                 layout.addWidget(QLabel("Set strip and zone basics."), 0, 0, 1, 3)
                 layout.addWidget(QLabel("Source zone count"), 1, 0)
                 layout.addWidget(self.zone_count_slider, 1, 1)
@@ -260,13 +274,14 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.device_zone_count_auto_checkbox, 4, 0, 1, 3)
                 layout.addWidget(self.zone_count_explanation, 5, 0, 1, 3)
                 layout.addWidget(self.device_zone_status, 6, 0, 1, 3)
-                layout.setRowStretch(7, 1)
                 page.setLayout(layout)
                 return page
 
             def _build_step_4(self, QWidget, QGridLayout, QLabel):
                 page = QWidget()
                 layout = QGridLayout()
+                if hasattr(layout, "setVerticalSpacing"):
+                    layout.setVerticalSpacing(6)
                 layout.addWidget(QLabel(f"Calibration and testing\n{calibration_sequence_text()}"), 0, 0, 1, 3)
                 layout.addWidget(QLabel("Zone offset"), 1, 0)
                 layout.addWidget(self.zone_offset_slider, 1, 1)
@@ -287,17 +302,17 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.calibration_prev_button, 11, 2)
                 layout.addWidget(self.calibration_send_button, 12, 0, 1, 2)
                 layout.addWidget(self.calibration_test_label, 13, 0, 1, 3)
-                layout.setRowStretch(14, 1)
                 page.setLayout(layout)
                 return page
 
             def _build_step_5(self, QWidget, QVBoxLayout, QLabel):
                 page = QWidget()
                 layout = QVBoxLayout()
+                set_spacing = getattr(layout, "setSpacing", None)
+                if callable(set_spacing):
+                    set_spacing(6)
                 layout.addWidget(QLabel("Summary"))
                 layout.addWidget(self.summary_label)
-                if hasattr(layout, "addStretch"):
-                    layout.addStretch(1)
                 page.setLayout(layout)
                 return page
 

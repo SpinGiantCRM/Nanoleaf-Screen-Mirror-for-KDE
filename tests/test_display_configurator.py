@@ -26,7 +26,7 @@ def _qt_stub() -> dict[str, object]:
             Accepted = 1
 
         def __init__(self, _parent=None):
-            pass
+            self._resize = None
 
         def setWindowTitle(self, _title):
             pass
@@ -34,7 +34,7 @@ def _qt_stub() -> dict[str, object]:
         def setLayout(self, _layout):
             pass
         def resize(self, _w, _h):
-            pass
+            self._resize = (_w, _h)
 
         def accept(self):
             return None
@@ -209,3 +209,9 @@ def test_display_configurator_updates_live_numeric_labels(monkeypatch) -> None:
     assert dialog._dialog.zone_count_value._text == "14"
     assert dialog._dialog.zone_offset_value._text == "-3"
     assert dialog._dialog.corner_offset_values[0]._text == "+9"
+
+
+def test_display_configurator_uses_compact_default_window_size(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[]))
+    assert dialog._dialog._resize == (620, 470)

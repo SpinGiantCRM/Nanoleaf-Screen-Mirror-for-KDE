@@ -119,7 +119,7 @@ class CalibrationState:
         return (
             f"{self.auto_detection_status()}\n"
             f"Offset currently applied: {self.zone_offset:+d}\n"
-            f"Per-corner refinement (TL/TR/BR/BL): {'/'.join(f'{value:+d}' for value in self.active_corner_zone_offsets())}\n"
+            f"Local corner anchor nudges (TL/TR/BR/BL): {'/'.join(f'{value:+d}' for value in self.active_corner_zone_offsets())}\n"
             f"{'Manual mapping enabled' if self.manual_mapping_enabled else 'Corner anchors inferred from current mapping'}\n"
             f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), zone_offset=self.zone_offset, reverse_zones=self.reverse_zones, explicit_zone_map=explicit, corner_zone_offsets=self.active_corner_zone_offsets())}"
         )
