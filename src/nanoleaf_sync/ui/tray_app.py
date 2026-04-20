@@ -647,13 +647,7 @@ class NanoleafTrayApp:
 
     def run(self):
         if bool(getattr(self.config, "wizard_completed", False)) is False:
-            self.tray_icon.showMessage(
-                "nanoleaf-kde-sync",
-                "Display setup is not complete yet. Opening Display Configurator.",
-                self.QSystemTrayIcon.MessageIcon.Information,
-                5000,
-            )
-            self.QTimer.singleShot(200, self.on_display_configurator)
+            self.on_display_configurator()
         return self.app.exec()
 
 

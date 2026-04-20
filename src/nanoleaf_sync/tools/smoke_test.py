@@ -67,6 +67,13 @@ def main(argv: list[str] | None = None) -> int:
         f"requested={cfg.prefer_backend} effective={effective_backend} selection_reason={selection_reason}"
     )
 
+    if int(cfg.device_vid) == 0 or int(cfg.device_pid) == 0:
+        print(
+            "device config error: VID/PID not configured "
+            "(set device_vid/device_pid in config before running smoke test)."
+        )
+        return 1
+
     try:
         frame = capture.capture()
     except Exception as exc:

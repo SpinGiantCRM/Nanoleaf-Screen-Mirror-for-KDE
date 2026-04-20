@@ -37,6 +37,7 @@ def _qt_stub() -> dict[str, object]:
     class _Slider:
         def __init__(self, _orientation):
             self._value = 0
+            self._tooltip = ""
             self.valueChanged = _DummySignal()
 
         def setRange(self, _min, _max):
@@ -54,11 +55,12 @@ def _qt_stub() -> dict[str, object]:
             pass
 
         def setToolTip(self, _text):
-            pass
+            self._tooltip = _text
 
     class _Check:
         def __init__(self, _label):
             self._value = False
+            self._tooltip = ""
             self.stateChanged = _DummySignal()
 
         def setChecked(self, value):
@@ -70,12 +72,13 @@ def _qt_stub() -> dict[str, object]:
             return self._value
 
         def setToolTip(self, _text):
-            pass
+            self._tooltip = _text
 
     class _Combo:
         def __init__(self):
             self._items = []
             self._index = 0
+            self._tooltip = ""
             self.currentIndexChanged = _DummySignal()
 
         def addItems(self, items):
@@ -96,7 +99,7 @@ def _qt_stub() -> dict[str, object]:
             return self._items[self._index]
 
         def setToolTip(self, _text):
-            pass
+            self._tooltip = _text
 
     class _Grid:
         def addWidget(self, *_args):
@@ -302,3 +305,19 @@ def test_settings_dialog_interval_slider_updates_running_timer(monkeypatch) -> N
     dialog._dialog.test_step_interval_slider.setValue(750)
 
     assert dialog._dialog._test_timer._interval == 750
+
+
+def test_settings_dialog_applies_tooltips_to_key_controls(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    dialog = SettingsDialog(parent=None, cfg=AppConfig(zones=[]))
+
+    assert dialog._dialog.brightness_slider._tooltip
+    assert dialog._dialog.smoothing_slider._tooltip
+    assert dialog._dialog.fps_slider._tooltip
+    assert dialog._dialog.led_gamma_slider._tooltip
+    assert dialog._dialog.zone_count_slider._tooltip
+    assert dialog._dialog.zone_offset_slider._tooltip
+    assert dialog._dialog.reverse_checkbox._tooltip
+    assert dialog._dialog.display_mode_combo._tooltip
+    assert dialog._dialog.color_mode_combo._tooltip
+    assert dialog._dialog.hdr_max_nits_slider._tooltip

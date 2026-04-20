@@ -162,6 +162,7 @@ class SettingsDialog:
                 self.zone_sampling_stride_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_sampling_stride_slider.setRange(ZONE_STRIDE_MIN, ZONE_STRIDE_MAX); self.zone_sampling_stride_slider.setValue(int(getattr(cfg, "zone_sampling_stride", 1)))
                 self.led_gamma_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.led_gamma_slider.setRange(100, 400); self.led_gamma_slider.setValue(int(round(getattr(cfg, "led_gamma", 1.0) * 100)))
                 self.display_configurator_button = QPushButton("Re-run Display Setup"); self.display_configurator_button.clicked.connect(self._open_configurator)
+                self._apply_tooltips()
 
                 self.backend_info_label = QLabel("")
                 self.preview_label = QLabel(""); self.preview_visual_label = QLabel(""); self.test_label = QLabel("")
@@ -213,6 +214,18 @@ class SettingsDialog:
                 self.setLayout(root)
 
                 self._refresh_numeric_labels(); self._refresh_preview_label(); self._maybe_auto_run_latency_check()
+
+            def _apply_tooltips(self) -> None:
+                self.brightness_slider.setToolTip("Overall output intensity. Lower values reduce LED brightness.")
+                self.smoothing_slider.setToolTip("Blends frame-to-frame colors to reduce flicker.")
+                self.fps_slider.setToolTip("Capture/update target rate. Higher FPS uses more CPU/GPU.")
+                self.led_gamma_slider.setToolTip("Gamma correction for LED response. 1.00 keeps output linear.")
+                self.zone_count_slider.setToolTip("Number of source zones sampled from the display.")
+                self.zone_offset_slider.setToolTip("Rotate the start of strip mapping around device zones.")
+                self.reverse_checkbox.setToolTip("Flip strip direction if the mapping appears mirrored.")
+                self.display_mode_combo.setToolTip("Select SDR or HDR processing mode.")
+                self.color_mode_combo.setToolTip("Colour behavior preset used by the analyzer.")
+                self.hdr_max_nits_slider.setToolTip("Reference display peak brightness for HDR tone mapping.")
 
             def _build_backend_section(self, QGroupBox, QGridLayout, QLabel):
                 group = QGroupBox("Backend & Diagnostics")
