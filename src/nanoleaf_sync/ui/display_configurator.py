@@ -18,6 +18,33 @@ WIZARD_STEPS: tuple[str, ...] = (
     "Summary",
 )
 
+class _FallbackStackedWidget:
+    def __init__(self) -> None:
+        self._index = 0
+
+    def addWidget(self, *_args, **_kwargs) -> None:
+        return None
+
+    def setCurrentIndex(self, index: int) -> None:
+        self._index = index
+
+
+class _FallbackLayout:
+    def addWidget(self, *_args, **_kwargs) -> None:
+        return None
+
+    def addLayout(self, *_args, **_kwargs) -> None:
+        return None
+
+
+class _FallbackWidget:
+    def setLayout(self, *_args, **_kwargs) -> None:
+        return None
+
+
+def _qt_widget(qt: dict[str, object], name: str, fallback):
+    return qt.get(name, fallback)
+
 
 @dataclass
 class WizardFlowState:
@@ -54,9 +81,9 @@ class DisplayConfiguratorDialog:
         QComboBox = qt["QComboBox"]
         QSlider = qt["QSlider"]
         QPushButton = qt["QPushButton"]
-        QStackedWidget = qt["QStackedWidget"]
-        QWidget = qt["QWidget"]
-        QHBoxLayout = qt["QHBoxLayout"]
+        QStackedWidget = _qt_widget(qt, "QStackedWidget", _FallbackStackedWidget)
+        QWidget = _qt_widget(qt, "QWidget", _FallbackWidget)
+        QHBoxLayout = _qt_widget(qt, "QHBoxLayout", _FallbackLayout)
 
         class _Dialog(QDialog):  # type: ignore
             def __init__(self):
@@ -262,9 +289,15 @@ class DisplayConfiguratorDialog:
                 self._pull_state_from_controls()
                 self.pages.setCurrentIndex(self._flow.index)
                 self.step_label.setText(self._flow.step_label())
-                self.back_button.setEnabled(self._flow.can_go_back())
-                self.next_button.setEnabled(self._flow.can_go_next())
-                self.finish_button.setEnabled(not self._flow.can_go_next())
+                back_set_enabled = getattr(self.back_button, "setEnabled", None)
+                if callable(back_set_enabled):
+                    back_set_enabled(self._flow.can_go_back())
+                next_set_enabled = getattr(self.next_button, "setEnabled", None)
+                if callable(next_set_enabled):
+                    next_set_enabled(self._flow.can_go_next())
+                finish_set_enabled = getattr(self.finish_button, "setEnabled", None)
+                if callable(finish_set_enabled):
+                    finish_set_enabled(not self._flow.can_go_next())
 
                 hdr_mode = str(self.display_mode_combo.currentText()) == "hdr"
                 for widget in (

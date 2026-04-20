@@ -36,6 +36,36 @@ SETTINGS_SECTIONS: tuple[str, ...] = (
     "Output & Startup",
 )
 
+class _FallbackLayout:
+    def addWidget(self, *_args, **_kwargs) -> None:
+        return None
+
+    def addLayout(self, *_args, **_kwargs) -> None:
+        return None
+
+    def addStretch(self, *_args, **_kwargs) -> None:
+        return None
+
+
+class _FallbackWidget:
+    def __init__(self, *_args, **_kwargs) -> None:
+        return None
+
+    def setLayout(self, *_args, **_kwargs) -> None:
+        return None
+
+
+class _FallbackScrollArea:
+    def setWidgetResizable(self, *_args, **_kwargs) -> None:
+        return None
+
+    def setWidget(self, *_args, **_kwargs) -> None:
+        return None
+
+
+def _qt_widget(qt: dict[str, object], name: str, fallback):
+    return qt.get(name, fallback)
+
 
 class SettingsDialog:
     def __init__(self, parent, cfg: AppConfig, *, calibration_sender: Callable[[list[tuple[int, int, int]]], None] | None = None, runtime_status: dict | None = None):
@@ -49,16 +79,18 @@ class SettingsDialog:
         QSlider = qt["QSlider"]
         QPushButton = qt["QPushButton"]
         QTimer = qt["QTimer"]
-        QScrollArea = qt["QScrollArea"]
-        QVBoxLayout = qt["QVBoxLayout"]
-        QGroupBox = qt["QGroupBox"]
-        QWidget = qt["QWidget"]
+        QScrollArea = _qt_widget(qt, "QScrollArea", _FallbackScrollArea)
+        QVBoxLayout = _qt_widget(qt, "QVBoxLayout", _FallbackLayout)
+        QGroupBox = _qt_widget(qt, "QGroupBox", _FallbackWidget)
+        QWidget = _qt_widget(qt, "QWidget", _FallbackWidget)
 
         class _Dialog(QDialog):
             def __init__(self):
                 super().__init__(parent)
                 self.setWindowTitle("nanoleaf-kde-sync Settings")
-                self.resize(860, 760)
+                resize = getattr(self, "resize", None)
+                if callable(resize):
+                    resize(860, 760)
                 self._open_display_configurator = False
                 self._calibration_sender = calibration_sender
                 self._runtime_status = runtime_status or {}
