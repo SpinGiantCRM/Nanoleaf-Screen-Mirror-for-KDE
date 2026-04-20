@@ -30,7 +30,12 @@ def calibration_test_frame(
     scale = max(0.0, min(1.0, float(brightness)))
 
     def _scale(color: RGB) -> RGB:
-        return tuple(max(0, min(255, int(round(c * scale)))) for c in color)
+        red, green, blue = color
+        return (
+            max(0, min(255, int(round(red * scale)))),
+            max(0, min(255, int(round(green * scale)))),
+            max(0, min(255, int(round(blue * scale)))),
+        )
 
     active_scaled = _scale(active_color)
     inactive_scaled = _scale(inactive_color)
