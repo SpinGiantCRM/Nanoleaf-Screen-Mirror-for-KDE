@@ -8,6 +8,7 @@
 ## RC matrix sign-off (required before tagging)
 
 > Do not tag until every required matrix row/mode has evidence linked below.
+> The evidence in this PR body is the release source of truth.
 
 Reference:
 - `docs/RC_TEST_MATRIX.md`
@@ -25,7 +26,8 @@ Reference:
 - [ ] Doctor checks pass for required scenarios
 - [ ] Smoke checks pass for required scenarios
 - [ ] Tray Start/Stop/Status lifecycle verified
-- [ ] RC run results captured in artifact table (this PR body or `docs/RC_TEST_MATRIX.md`)
+- [ ] RC run results captured in artifact table in this PR body
+- [ ] Optional: mirrored rows appended to `docs/RC_TEST_MATRIX.md` after sign-off
 
 ## RC run results artifact
 

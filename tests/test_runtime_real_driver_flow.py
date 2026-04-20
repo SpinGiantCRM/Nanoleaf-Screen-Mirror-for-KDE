@@ -13,16 +13,10 @@ class _SingleFrameCapture:
     name = "kwin-dbus"
     last_capture_path = "kwin-dbus:CaptureScreen"
 
-    def __init__(self, frame: np.ndarray, stop_event) -> None:
+    def __init__(self, frame: np.ndarray) -> None:
         self._frame = frame
-        self._stop_event = stop_event
-        self._served = False
 
     def capture(self) -> np.ndarray:
-        if self._served:
-            # Stop cleanly after one frame to keep test deterministic.
-            self._stop_event.set()
-        self._served = True
         return self._frame
 
 
@@ -89,7 +83,15 @@ def test_run_loop_with_usb_driver_initializes_then_sends_frame() -> None:
     )
 
     state = RuntimeState()
-    capture = _SingleFrameCapture(frame, state.stop_event)
+    capture = _SingleFrameCapture(frame)
+
+    original_send_frame = driver.send_frame
+
+    def _send_frame_then_stop(zone_colors) -> None:
+        original_send_frame(zone_colors)
+        state.stop_event.set()
+
+    driver.send_frame = _send_frame_then_stop
 
     run_runtime_engine(
         config=cfg,

@@ -162,12 +162,10 @@ See the full guide at [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
   If diagnostics show `DESKTOP_STARTUP_ID=unset` and `XDG_ACTIVATION_TOKEN=unset`,
   start from the installed desktop entry/tray flow so KDE can apply the
   `X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2` authorization context.
-- **USB permission denied**: Install and reload the udev rule:
+- **USB permission denied**: Install/reload the udev rule with the helper script:
 
   ```bash
-  sudo install -Dm0644 assets/udev/60-nanoleaf-kde-sync.rules /etc/udev/rules.d/60-nanoleaf-kde-sync.rules
-  sudo udevadm control --reload-rules
-  sudo udevadm trigger --subsystem-match=hidraw --action=add
+  ./scripts/setup_udev.sh
   ```
 
   Then unplug and reconnect the device.
