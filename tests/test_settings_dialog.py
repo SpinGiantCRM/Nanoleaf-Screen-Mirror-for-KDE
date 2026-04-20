@@ -279,7 +279,6 @@ def test_settings_dialog_manual_map_is_saved(monkeypatch) -> None:
     dialog._dialog.manual_map_checkbox.setChecked(True)
     dialog._dialog.manual_map_device_slider.setValue(0)
     dialog._dialog.manual_map_source_slider.setValue(1)
-    dialog._dialog.manual_map_apply_button.clicked._callback()
 
     updated = dialog.updated_config()
     assert updated.explicit_zone_map[:1] == [1]
@@ -293,7 +292,7 @@ def test_settings_dialog_can_send_calibration_pattern(monkeypatch) -> None:
         sent["colors"] = colors
 
     dialog = SettingsDialog(parent=None, cfg=AppConfig(zones=[]), calibration_sender=_sender)
-    dialog._dialog.test_send_button.clicked._callback()
+    dialog._dialog.test_step_button.clicked._callback()
     assert sent["colors"] is not None
     assert any(rgb != (0, 0, 0) for rgb in sent["colors"])
 
