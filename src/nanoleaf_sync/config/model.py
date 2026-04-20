@@ -62,6 +62,8 @@ class AppConfig:
     # Capture backend toggle.
     # Default to real capture (kwin-dbus) for KDE Plasma; set True for diagnostics mode.
     use_mock_capture: bool = False
+    # Probe auto backend candidates at runtime; can still be overridden by env kill switch.
+    auto_probe_enabled: bool = True
 
     # HDR conversion controls (used by HDR-capable capture paths / metadata-aware conversion).
     hdr_max_nits: float = 1000.0
