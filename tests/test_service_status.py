@@ -147,3 +147,6 @@ def test_status_exposes_requested_vs_effective_backend_for_auto_cached_probe(mon
     assert status["requested_capture_backend"] == "auto"
     assert status["effective_capture_backend"] == "kwin-dbus"
     assert status["selection_reason"] == "cached-probe"
+    assert status["auto_probe_policy"] == "first-run"
+    assert status["cached_probe_backend"] == "kwin-dbus"
+    assert "policy=first-run" in status["backend_selection_details"]

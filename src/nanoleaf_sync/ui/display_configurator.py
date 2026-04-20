@@ -5,8 +5,9 @@ from typing import Callable
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.qt_lazy import load_qt
+from nanoleaf_sync.ui.calibration_flow import calibration_sequence_text
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text, mapping_preview_visual
-from nanoleaf_sync.ui.calibration_preview import calibration_test_frame, corner_anchor_steps, single_zone_step
+from nanoleaf_sync.ui.calibration_preview import calibration_test_frame, corner_anchor_steps, coverage_sanity_step, single_zone_step
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
 
@@ -108,7 +109,7 @@ class DisplayConfiguratorDialog:
                 self.preview_text = QLabel("")
                 self.preview_visual = QLabel("")
                 self.calibration_mode_combo = QComboBox()
-                self.calibration_mode_combo.addItems(["single active zone", "corner anchors"])
+                self.calibration_mode_combo.addItems(["coverage sanity", "direction walk", "corner anchors"])
                 self.calibration_test_label = QLabel("")
                 self.calibration_next_button = QPushButton("Next test zone")
                 self.calibration_prev_button = QPushButton("Previous")
@@ -182,7 +183,8 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(
                     QLabel(
                         "Step 4: Strip / Zone calibration\n"
-                        "Choose zone count + layout, then adjust reverse/offset until your strip order matches."
+                        "Choose zone count + layout, then adjust reverse/offset until your strip order matches.\n"
+                        f"{calibration_sequence_text()}"
                     )
                 )
                 step4 = QGridLayout()
@@ -284,14 +286,28 @@ class DisplayConfiguratorDialog:
 
             def _current_calibration_step_label(self) -> str:
                 if str(self.calibration_mode_combo.currentText()) == "corner anchors":
-                    anchors = corner_anchor_steps(device_zone_count=self._effective_device_zone_count())
+                    anchors = corner_anchor_steps(
+                        zone_count=int(self.zone_count_slider.value()),
+                        device_zone_count=self._effective_device_zone_count(),
+                        zone_offset=int(self.zone_offset_slider.value()),
+                        reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                    )
                     return anchors[self._test_step % len(anchors)].label
+                if str(self.calibration_mode_combo.currentText()) == "coverage sanity":
+                    return coverage_sanity_step(
+                        step=self._test_step,
+                        zone_count=int(self.zone_count_slider.value()),
+                        device_zone_count=self._effective_device_zone_count(),
+                        zone_offset=int(self.zone_offset_slider.value()),
+                        reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                    ).label
                 step = single_zone_step(
                     step=self._test_step,
                     zone_count=int(self.zone_count_slider.value()),
                     device_zone_count=self._effective_device_zone_count(),
                     zone_offset=int(self.zone_offset_slider.value()),
                     reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                    label_prefix="Direction walk",
                 )
                 return step.label
 
@@ -299,8 +315,21 @@ class DisplayConfiguratorDialog:
                 if self._calibration_sender is None:
                     return
                 if str(self.calibration_mode_combo.currentText()) == "corner anchors":
-                    anchors = corner_anchor_steps(device_zone_count=self._effective_device_zone_count())
+                    anchors = corner_anchor_steps(
+                        zone_count=int(self.zone_count_slider.value()),
+                        device_zone_count=self._effective_device_zone_count(),
+                        zone_offset=int(self.zone_offset_slider.value()),
+                        reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                    )
                     step = anchors[self._test_step % len(anchors)]
+                elif str(self.calibration_mode_combo.currentText()) == "coverage sanity":
+                    step = coverage_sanity_step(
+                        step=self._test_step,
+                        zone_count=int(self.zone_count_slider.value()),
+                        device_zone_count=self._effective_device_zone_count(),
+                        zone_offset=int(self.zone_offset_slider.value()),
+                        reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                    )
                 else:
                     step = single_zone_step(
                         step=self._test_step,
@@ -308,6 +337,7 @@ class DisplayConfiguratorDialog:
                         device_zone_count=self._effective_device_zone_count(),
                         zone_offset=int(self.zone_offset_slider.value()),
                         reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                        label_prefix="Direction walk",
                     )
                 colors = calibration_test_frame(
                     device_zone_count=self._effective_device_zone_count(),

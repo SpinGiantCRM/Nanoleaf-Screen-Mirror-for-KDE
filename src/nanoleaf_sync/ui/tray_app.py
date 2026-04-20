@@ -25,6 +25,7 @@ from nanoleaf_sync.desktop_entry import (
 from nanoleaf_sync.service import NanoleafSyncService
 from nanoleaf_sync.tools.output_format import describe_mode, summarize_command_output
 from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog
+from nanoleaf_sync.ui.diagnostics_dialog import CalibrationDiagnosticsDialog
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.settings_dialog import SettingsDialog
 
@@ -157,6 +158,7 @@ class NanoleafTrayApp:
             _log.warning("Failed to ensure user launcher entry: %s", exc, exc_info=True)
 
         self.cfg_mgr = ConfigManager()
+        self._calibration_dialog: CalibrationDiagnosticsDialog | None = None
         self._startup_warning: str | None = None
         try:
             self._config_created = self.cfg_mgr.initialize(mode="full-real", force=False)
@@ -294,6 +296,7 @@ class NanoleafTrayApp:
         self.action_settings = self.QAction("Settings", menu)
         self.action_display_wizard = self.QAction("Display Configurator", menu)
         self.action_troubleshooting = self.QAction("Help / Troubleshooting", menu)
+        self.action_calibration_lab = self.QAction("Calibration / Diagnostics Lab", menu)
         self.action_mode = self.QAction("Mode: --", menu)
         self.action_mode.setEnabled(False)
         self.action_device = self.QAction("Device: --", menu)
@@ -311,6 +314,7 @@ class NanoleafTrayApp:
         self.action_settings.triggered.connect(self.on_settings)
         self.action_display_wizard.triggered.connect(self.on_display_configurator)
         self.action_troubleshooting.triggered.connect(self.on_troubleshooting)
+        self.action_calibration_lab.triggered.connect(self.on_calibration_lab)
         self.action_status.triggered.connect(self.on_status)
         self.action_enable_autostart.triggered.connect(self.on_enable_autostart)
         self.action_disable_autostart.triggered.connect(self.on_disable_autostart)
@@ -328,6 +332,7 @@ class NanoleafTrayApp:
         menu.addAction(self.action_settings)
         menu.addAction(self.action_display_wizard)
         menu.addAction(self.action_troubleshooting)
+        menu.addAction(self.action_calibration_lab)
         menu.addAction(self.action_status)
         menu.addAction(self.action_enable_autostart)
         menu.addAction(self.action_disable_autostart)
@@ -392,6 +397,7 @@ class NanoleafTrayApp:
         if was_running:
             self.on_stop()
         self.config = dlg.updated_config()
+        self._calibration_dialog = None
         self.cfg_mgr.save(self.config)
         self.service = NanoleafSyncService(config=self.config)
         self._refresh_mode_labels()
@@ -419,6 +425,7 @@ class NanoleafTrayApp:
         new_cfg = dlg.updated_config()
         self.cfg_mgr.save(new_cfg)
         self.config = new_cfg
+        self._calibration_dialog = None
         was_running = self.service.is_running()
         if was_running:
             self.on_stop()
@@ -485,6 +492,21 @@ class NanoleafTrayApp:
         )
         self.tray_icon.showMessage("nanoleaf-kde-sync status", summary, self.QSystemTrayIcon.MessageIcon.Information, 9000)
 
+    def on_calibration_lab(self) -> None:
+        status = self.service.get_status()
+        if self._calibration_dialog is None:
+            self._calibration_dialog = CalibrationDiagnosticsDialog(
+                parent=None,
+                cfg=self.config,
+                runtime_status=status,
+                calibration_sender=self._send_calibration_preview,
+            )
+        else:
+            self._calibration_dialog.set_runtime_status(status)
+        self._calibration_dialog.show()
+        self._calibration_dialog.raise_()
+        self._calibration_dialog.activateWindow()
+
     def on_doctor(self):
         self._run_command_async(label="doctor", argv=[sys.executable, "-m", "nanoleaf_sync.tools.doctor"])
 
@@ -524,6 +546,7 @@ class NanoleafTrayApp:
     def on_reset_probe_cache(self) -> None:
         try:
             self.config = self.cfg_mgr.reset_auto_probe_cache()
+            self._calibration_dialog = None
             if self.service.is_running():
                 self.on_stop()
                 self.service = NanoleafSyncService(config=self.config)
