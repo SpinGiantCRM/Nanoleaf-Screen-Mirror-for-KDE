@@ -36,7 +36,9 @@ class AppConfig:
 
     # Zones
     zones: List[ZoneConfig] = field(default_factory=list)
-    # If zones is empty, the service will use a default single full-screen zone.
+    # If zones is empty, runtime derives zones from strip zone count + preset.
+    # With the "horizontal" preset and count=1, this becomes a full-screen zone.
+    # With the "edge-weighted" preset, make_edge_weighted_zones keeps edge strips.
     # Zone sampling stride (1 = every pixel, 2 = every other pixel, etc.).
     # Larger values reduce CPU cost at the expense of color precision.
     zone_sampling_stride: int = 1

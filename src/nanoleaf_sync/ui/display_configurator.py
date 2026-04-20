@@ -4,6 +4,8 @@ from dataclasses import replace
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.qt_lazy import load_qt
+from nanoleaf_sync.ui.zone_calibration import mapping_preview_text, mapping_preview_visual
+from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
 
 class DisplayConfiguratorDialog:
@@ -78,10 +80,41 @@ class DisplayConfiguratorDialog:
                     "Step 3 (HDR only): HDR transfer/primaries/max nits shape tone mapping. "
                     "Values that are too high/low can look dull, clipped, or wrong."
                 )
+                initial_zone_count = len(cfg.zones) if cfg.zones else (int(getattr(cfg, "device_zone_count", 0)) or 8)
+                self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.zone_count_slider.setRange(1, 24)
+                self.zone_count_slider.setValue(int(initial_zone_count))
+                self.zone_count_value = QLabel("")
+                self.zone_preset_combo = QComboBox()
+                self.zone_preset_combo.addItems(["edge-weighted", "horizontal"])
+                self.zone_preset_combo.setCurrentIndex(
+                    max(0, self.zone_preset_combo.findText(str(getattr(cfg, "zone_preset", "edge-weighted"))))
+                )
+                self.reverse_checkbox = qt["QCheckBox"]("Reverse strip orientation")
+                self.reverse_checkbox.setChecked(bool(getattr(cfg, "reverse_zones", False)))
+                self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.zone_offset_slider.setRange(-20, 20)
+                self.zone_offset_slider.setValue(int(getattr(cfg, "zone_offset", 0)))
+                self.zone_offset_value = QLabel("")
+                self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.device_zone_count_slider.setRange(1, 128)
+                self.device_zone_count_slider.setValue(int(getattr(cfg, "device_zone_count", 0)) or int(initial_zone_count))
+                self.device_zone_count_auto_checkbox = qt["QCheckBox"]("Auto-detect strip zone count")
+                self.device_zone_count_auto_checkbox.setChecked(int(getattr(cfg, "device_zone_count", 0)) == 0)
+                self.preview_text = QLabel("")
+                self.preview_visual = QLabel("")
 
                 self._refresh_numeric_labels()
                 self.hdr_max_nits_slider.valueChanged.connect(self._refresh_numeric_labels)
+                self.zone_count_slider.valueChanged.connect(self._refresh_numeric_labels)
+                self.zone_offset_slider.valueChanged.connect(self._refresh_numeric_labels)
                 self.display_mode_combo.currentIndexChanged.connect(self._refresh_visibility)
+                self.zone_count_slider.valueChanged.connect(self._refresh_mapping_preview)
+                self.zone_offset_slider.valueChanged.connect(self._refresh_mapping_preview)
+                self.zone_preset_combo.currentIndexChanged.connect(self._refresh_mapping_preview)
+                self.reverse_checkbox.stateChanged.connect(self._refresh_mapping_preview)
+                self.device_zone_count_slider.valueChanged.connect(self._refresh_mapping_preview)
+                self.device_zone_count_auto_checkbox.stateChanged.connect(self._refresh_mapping_preview)
 
                 layout = QVBoxLayout()
                 layout.addWidget(
@@ -132,6 +165,28 @@ class DisplayConfiguratorDialog:
                 step3.addWidget(self.hdr_max_nits_slider, 4, 1)
                 step3.addWidget(self.hdr_max_nits_value, 4, 2)
                 layout.addLayout(step3)
+                layout.addWidget(
+                    QLabel(
+                        "Step 4: Strip / Zone calibration\n"
+                        "Choose zone count + layout, then adjust reverse/offset until your strip order matches."
+                    )
+                )
+                step4 = QGridLayout()
+                step4.addWidget(QLabel("Zone count"), 0, 0)
+                step4.addWidget(self.zone_count_slider, 0, 1)
+                step4.addWidget(self.zone_count_value, 0, 2)
+                step4.addWidget(QLabel("Zone layout preset"), 1, 0)
+                step4.addWidget(self.zone_preset_combo, 1, 1)
+                step4.addWidget(QLabel("Zone offset"), 2, 0)
+                step4.addWidget(self.zone_offset_slider, 2, 1)
+                step4.addWidget(self.zone_offset_value, 2, 2)
+                step4.addWidget(self.reverse_checkbox, 3, 0, 1, 2)
+                step4.addWidget(QLabel("Device zone count"), 4, 0)
+                step4.addWidget(self.device_zone_count_slider, 4, 1)
+                step4.addWidget(self.device_zone_count_auto_checkbox, 5, 0, 1, 2)
+                step4.addWidget(self.preview_text, 6, 0, 1, 3)
+                step4.addWidget(self.preview_visual, 7, 0, 1, 3)
+                layout.addLayout(step4)
 
                 actions = QGridLayout()
                 actions.addWidget(self.cancel_button, 0, 0)
@@ -140,6 +195,7 @@ class DisplayConfiguratorDialog:
 
                 self.setLayout(layout)
                 self._refresh_visibility()
+                self._refresh_mapping_preview()
 
             def _refresh_visibility(self) -> None:
                 hdr_mode = str(self.display_mode_combo.currentText()) == "hdr"
@@ -159,8 +215,37 @@ class DisplayConfiguratorDialog:
 
             def _refresh_numeric_labels(self) -> None:
                 self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
+                self.zone_count_value.setText(str(self.zone_count_slider.value()))
+                self.zone_offset_value.setText(str(self.zone_offset_slider.value()))
+                self.device_zone_count_slider.setEnabled(not self.device_zone_count_auto_checkbox.isChecked())
+
+            def _effective_device_zone_count(self) -> int:
+                if self.device_zone_count_auto_checkbox.isChecked():
+                    return int(self.zone_count_slider.value())
+                return int(self.device_zone_count_slider.value())
+
+            def _refresh_mapping_preview(self) -> None:
+                self.preview_text.setText(
+                    mapping_preview_text(
+                        zone_count=int(self.zone_count_slider.value()),
+                        device_zone_count=self._effective_device_zone_count(),
+                        zone_offset=int(self.zone_offset_slider.value()),
+                        reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                    )
+                )
+                self.preview_visual.setText(
+                    mapping_preview_visual(
+                        zone_count=int(self.zone_count_slider.value()),
+                        device_zone_count=self._effective_device_zone_count(),
+                        zone_offset=int(self.zone_offset_slider.value()),
+                        reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                    )
+                )
 
             def updated_config(self) -> AppConfig:
+                zone_count = int(self.zone_count_slider.value())
+                zone_preset = str(self.zone_preset_combo.currentText())
+                new_zones = make_edge_weighted_zones(zone_count) if zone_preset == "edge-weighted" else make_horizontal_zones(zone_count)
                 return replace(
                     cfg,
                     hdr_enabled=str(self.display_mode_combo.currentText()) == "hdr",
@@ -168,6 +253,11 @@ class DisplayConfiguratorDialog:
                     hdr_transfer=str(self.hdr_transfer_combo.currentText()),
                     hdr_primaries=str(self.hdr_primaries_combo.currentText()),
                     hdr_max_nits=float(self.hdr_max_nits_slider.value()),
+                    zones=new_zones,
+                    zone_preset=zone_preset,
+                    device_zone_count=0 if self.device_zone_count_auto_checkbox.isChecked() else int(self.device_zone_count_slider.value()),
+                    reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                    zone_offset=int(self.zone_offset_slider.value()),
                     wizard_completed=True,
                 )
 
