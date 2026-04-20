@@ -125,6 +125,9 @@ def _qt_stub() -> dict[str, object]:
         def setToolTip(self, _text):
             pass
 
+        def setEnabled(self, _enabled):
+            pass
+
     class _Buttons:
         class StandardButton:
             Save = 1
@@ -210,15 +213,28 @@ def test_mapping_preview_uses_explicit_auto_flag() -> None:
         device_zone_count=8,
         zone_offset=0,
         reverse_zones=False,
-        auto_mapping=True,
     )
     manual_text = _mapping_preview_text(
         zone_count=8,
         device_zone_count=8,
         zone_offset=0,
         reverse_zones=False,
-        auto_mapping=False,
+        explicit_zone_map=[0, 1, 2],
     )
 
-    assert "Mapping mode: auto" in auto_text
-    assert "Mapping mode: manual" in manual_text
+    assert "Calibration mode: simple" in auto_text
+    assert "Calibration mode: manual" in manual_text
+
+
+def test_settings_dialog_manual_map_is_saved(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    cfg = AppConfig(zones=[ZoneConfig(x=0.0, y=0.0, w=0.5, h=1.0), ZoneConfig(x=0.5, y=0.0, w=0.5, h=1.0)])
+    dialog = SettingsDialog(parent=None, cfg=cfg)
+
+    dialog._dialog.manual_map_checkbox.setChecked(True)
+    dialog._dialog.manual_map_device_slider.setValue(0)
+    dialog._dialog.manual_map_source_slider.setValue(1)
+    dialog._dialog.manual_map_apply_button.clicked._callback()
+
+    updated = dialog.updated_config()
+    assert updated.explicit_zone_map[:1] == [1]

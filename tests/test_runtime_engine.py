@@ -116,6 +116,49 @@ def test_runtime_artifacts_manual_device_zone_count_overrides_detected_length() 
     assert mapping.tolist() == [0, 1, 0]
 
 
+def test_runtime_derives_source_zones_from_device_zone_count_when_config_zones_empty() -> None:
+    state = RuntimeState()
+    cfg = AppConfig(zones=[], zone_preset="horizontal", device_zone_count=6)
+
+    zones_px, mapping = _ensure_runtime_artifacts(
+        state=state,
+        config=cfg,
+        img_w=120,
+        img_h=60,
+        detected_device_zone_count=None,
+    )
+
+    assert len(zones_px) == 6
+    assert mapping.tolist() == [0, 1, 2, 3, 4, 5]
+
+
+def test_runtime_derives_source_zones_from_detected_device_count_when_auto() -> None:
+    state = RuntimeState()
+    cfg = AppConfig(zones=[], zone_preset="edge-weighted", device_zone_count=0)
+
+    zones_px, mapping = _ensure_runtime_artifacts(
+        state=state,
+        config=cfg,
+        img_w=100,
+        img_h=50,
+        detected_device_zone_count=5,
+    )
+
+    assert len(zones_px) == 5
+    assert mapping.tolist() == [0, 1, 2, 3, 4]
+
+
+def test_runtime_uses_explicit_saved_zones_when_present() -> None:
+    state = RuntimeState()
+    cfg = AppConfig(
+        zones=[ZoneConfig(x=0.0, y=0.0, w=1.0, h=1.0)],
+        zone_preset="horizontal",
+        device_zone_count=4,
+    )
+    zones_px, _ = _ensure_runtime_artifacts(state=state, config=cfg, img_w=200, img_h=100)
+    assert len(zones_px) == 1
+
+
 def test_process_frame_supports_zone_sampling_stride() -> None:
     frame = np.zeros((4, 4, 3), dtype=np.uint8)
     frame[:, :2] = [10, 20, 30]
@@ -133,6 +176,28 @@ def test_process_frame_supports_zone_sampling_stride() -> None:
     )
 
     assert colors == [(10, 20, 30), (50, 60, 70)]
+
+
+def test_synthetic_multicolor_edges_produce_distinct_device_zone_colors() -> None:
+    frame = np.zeros((8, 8, 3), dtype=np.uint8)
+    frame[0:2, :] = [255, 0, 0]      # top
+    frame[:, 6:8] = [0, 255, 0]      # right
+    frame[6:8, :] = [0, 0, 255]      # bottom
+    frame[:, 0:2] = [255, 255, 0]    # left
+    cfg = AppConfig(zones=[], zone_preset="edge-weighted", device_zone_count=4)
+    state = RuntimeState()
+    zones_px, mapping = _ensure_runtime_artifacts(state=state, config=cfg, img_w=8, img_h=8)
+
+    colors = process_frame(
+        frame=frame,
+        prev_smoothed_colors=[],
+        zones_px=zones_px,
+        device_zone_indices=mapping,
+        brightness=1.0,
+        smoothing=1.0,
+    )
+    assert len(colors) == 4
+    assert len(set(colors)) >= 3
 
 
 def test_adaptive_smoothing_is_more_responsive_on_large_deltas() -> None:

@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from nanoleaf_sync.color.zone_mapper import resolve_device_zone_indices
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.qt_lazy import load_qt
+from nanoleaf_sync.ui.zone_calibration import (
+    mapping_preview_text as _mapping_preview_text,
+    mapping_preview_visual,
+    zone_test_instruction,
+)
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
 FPS_MIN = 1
@@ -13,26 +17,6 @@ HDR_MAX_NITS_MIN = 80
 HDR_MAX_NITS_MAX = 10000
 ZONE_STRIDE_MIN = 1
 ZONE_STRIDE_MAX = 8
-
-
-def _mapping_preview_text(*, zone_count: int, device_zone_count: int, zone_offset: int, reverse_zones: bool, auto_mapping: bool = True) -> str:
-    indices = resolve_device_zone_indices(
-        zone_count,
-        device_zone_count=device_zone_count,
-        zone_offset=zone_offset,
-        reverse=reverse_zones,
-    )
-    if not indices:
-        return "Calibration preview: no zones configured."
-    preview = ", ".join(str(i) for i in indices[:12])
-    suffix = "…" if len(indices) > 12 else ""
-    mapping_mode = "auto" if auto_mapping else "manual"
-    return (
-        f"Mapping mode: {mapping_mode} | screen zones: {zone_count} | output zones: {device_zone_count}\n"
-        f"Calibration preview (device→screen zones): {preview}{suffix}"
-    )
-
-
 class SettingsDialog:
     def __init__(self, parent, cfg: AppConfig):
         qt = load_qt()
@@ -79,7 +63,7 @@ class SettingsDialog:
                 self.start_on_launch_checkbox.setChecked(bool(getattr(cfg, "start_on_launch", False)))
                 self.start_on_launch_checkbox.setToolTip("Automatically start mirroring after the tray icon appears.")
 
-                zone_count = len(cfg.zones) if cfg.zones else 1
+                zone_count = len(cfg.zones) if cfg.zones else (int(getattr(cfg, "device_zone_count", 0)) or 8)
                 self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.zone_count_slider.setRange(1, 24)
                 self.zone_count_slider.setValue(int(zone_count))
@@ -102,6 +86,19 @@ class SettingsDialog:
                 self.device_zone_count_slider.setValue(device_zone_count)
                 self.device_zone_count_auto_checkbox = QCheckBox("Auto device zone count (match detected strip length)")
                 self.device_zone_count_auto_checkbox.setChecked(int(getattr(cfg, "device_zone_count", 0)) == 0)
+                self.manual_map_checkbox = QCheckBox("Advanced: manual zone map")
+                self.manual_map_checkbox.setChecked(bool(getattr(cfg, "explicit_zone_map", [])))
+                self.manual_map_checkbox.setToolTip("Enable only for non-standard strip layouts.")
+                self.manual_map_device_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.manual_map_device_slider.setRange(0, max(0, device_zone_count - 1))
+                self.manual_map_device_slider.setValue(0)
+                self.manual_map_source_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.manual_map_source_slider.setRange(0, max(0, zone_count - 1))
+                explicit_map = [int(i) for i in (getattr(cfg, "explicit_zone_map", []) or [])]
+                first_manual = explicit_map[0] if explicit_map else 0
+                self.manual_map_source_slider.setValue(max(0, first_manual))
+                self.manual_map_apply_button = QPushButton("Apply mapping for selected strip zone")
+                self.test_step_button = QPushButton("Step Test Zone Order")
 
                 self.output_channel_order_combo = QComboBox()
                 self.output_channel_order_combo.addItems(["grb", "rgb", "rbg", "gbr", "brg", "bgr"])
@@ -140,15 +137,11 @@ class SettingsDialog:
                 self.display_configurator_button = QPushButton("Re-run Display Setup")
                 self.display_configurator_button.clicked.connect(self._open_configurator)
 
-                self.preview_label = QLabel(
-                    _mapping_preview_text(
-                        zone_count=zone_count,
-                        device_zone_count=device_zone_count,
-                        zone_offset=int(getattr(cfg, "zone_offset", 0)),
-                        reverse_zones=bool(getattr(cfg, "reverse_zones", False)),
-                        auto_mapping=int(getattr(cfg, "device_zone_count", 0)) == 0,
-                    )
-                )
+                self._manual_map = explicit_map[:]
+                self._test_step = 0
+                self.preview_label = QLabel("")
+                self.preview_visual_label = QLabel("")
+                self.test_label = QLabel("")
                 self.brightness_value = QLabel("")
                 self.smoothing_value = QLabel("")
                 self.fps_value = QLabel("")
@@ -175,6 +168,11 @@ class SettingsDialog:
                 self.zone_sampling_stride_slider.valueChanged.connect(self._refresh_numeric_labels)
                 self.led_gamma_slider.valueChanged.connect(self._refresh_numeric_labels)
                 self.reverse_checkbox.stateChanged.connect(self._refresh_preview_label)
+                self.manual_map_checkbox.stateChanged.connect(self._refresh_preview_label)
+                self.manual_map_device_slider.valueChanged.connect(self._sync_manual_source_slider)
+                self.manual_map_source_slider.valueChanged.connect(self._refresh_preview_label)
+                self.manual_map_apply_button.clicked.connect(self._apply_manual_mapping)
+                self.test_step_button.clicked.connect(self._step_test_zone)
 
                 buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
                 buttons.accepted.connect(self.accept)
@@ -207,21 +205,38 @@ class SettingsDialog:
                 _add_labeled(11, "Capture FPS", self.fps_slider, self.fps_value, tooltip="Higher values can reduce latency but use more resources.")
                 _add_labeled(12, "Zone sampling stride", self.zone_sampling_stride_slider, self.zone_sampling_stride_value, tooltip="Higher values sample fewer pixels per zone and reduce CPU at the cost of precision.")
 
-                layout.addWidget(QLabel("Strip / Zone Mapping"), 13, 0, 1, 2)
-                _add_labeled(14, "Zone count", self.zone_count_slider, self.zone_count_value)
-                _add_labeled(15, "Zone preset", self.zone_preset_combo)
-                _add_labeled(16, "Zone offset (calibration)", self.zone_offset_slider, self.zone_offset_value)
-                layout.addWidget(self.reverse_checkbox, 17, 0, 1, 2)
-                _add_labeled(18, "Device zone count", self.device_zone_count_slider, self.device_zone_count_value)
-                layout.addWidget(self.device_zone_count_auto_checkbox, 19, 0, 1, 2)
-                _add_labeled(20, "Output channel order", self.output_channel_order_combo)
+                layout.addWidget(QLabel("Zone Calibration"), 13, 0, 1, 3)
+                layout.addWidget(
+                    QLabel(
+                        "Calibrate strip order from left/right/top/bottom screen colours.\n"
+                        "Simple mode: choose count + preset, then adjust reverse/offset until the test order matches."
+                    ),
+                    14,
+                    0,
+                    1,
+                    3,
+                )
+                _add_labeled(15, "Zone count", self.zone_count_slider, self.zone_count_value)
+                _add_labeled(16, "Zone layout preset", self.zone_preset_combo)
+                _add_labeled(17, "Start offset (rotation)", self.zone_offset_slider, self.zone_offset_value)
+                layout.addWidget(self.reverse_checkbox, 18, 0, 1, 2)
+                _add_labeled(19, "Device zone count", self.device_zone_count_slider, self.device_zone_count_value)
+                layout.addWidget(self.device_zone_count_auto_checkbox, 20, 0, 1, 2)
+                layout.addWidget(self.test_step_button, 21, 0, 1, 2)
+                layout.addWidget(self.test_label, 22, 0, 1, 3)
+                layout.addWidget(self.manual_map_checkbox, 23, 0, 1, 2)
+                _add_labeled(24, "Manual map: strip zone", self.manual_map_device_slider)
+                _add_labeled(25, "Manual map: screen zone", self.manual_map_source_slider)
+                layout.addWidget(self.manual_map_apply_button, 26, 0, 1, 2)
+                _add_labeled(27, "Output channel order", self.output_channel_order_combo)
 
-                layout.addWidget(self.start_on_launch_checkbox, 21, 0, 1, 2)
-                layout.addWidget(self.mock_capture_checkbox, 22, 0, 1, 2)
-                _add_labeled(23, "Capture backend", self.capture_backend_combo)
-                _add_labeled(24, "LED gamma", self.led_gamma_slider, self.led_gamma_value)
-                layout.addWidget(self.preview_label, 25, 0, 1, 3)
-                layout.addWidget(buttons, 26, 0, 1, 3)
+                layout.addWidget(self.start_on_launch_checkbox, 28, 0, 1, 2)
+                layout.addWidget(self.mock_capture_checkbox, 29, 0, 1, 2)
+                _add_labeled(30, "Capture backend", self.capture_backend_combo)
+                _add_labeled(31, "LED gamma", self.led_gamma_slider, self.led_gamma_value)
+                layout.addWidget(self.preview_label, 32, 0, 1, 3)
+                layout.addWidget(self.preview_visual_label, 33, 0, 1, 3)
+                layout.addWidget(buttons, 34, 0, 1, 3)
                 self.setLayout(layout)
 
             def _open_configurator(self) -> None:
@@ -233,6 +248,8 @@ class SettingsDialog:
 
             def _on_calibration_control_changed(self) -> None:
                 self._refresh_numeric_labels()
+                self.manual_map_device_slider.setRange(0, max(0, self._effective_device_zone_count() - 1))
+                self.manual_map_source_slider.setRange(0, max(0, int(self.zone_count_slider.value()) - 1))
                 self._refresh_preview_label()
 
             def _refresh_numeric_labels(self) -> None:
@@ -253,19 +270,53 @@ class SettingsDialog:
                 self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}")
 
             def _refresh_preview_label(self) -> None:
+                explicit_map = self._manual_map if self.manual_map_checkbox.isChecked() else []
                 self.preview_label.setText(
                     _mapping_preview_text(
                         zone_count=int(self.zone_count_slider.value()),
-                        device_zone_count=(
-                            int(self.zone_count_slider.value())
-                            if self.device_zone_count_auto_checkbox.isChecked()
-                            else int(self.device_zone_count_slider.value())
-                        ),
+                        device_zone_count=self._effective_device_zone_count(),
                         zone_offset=int(self.zone_offset_slider.value()),
                         reverse_zones=bool(self.reverse_checkbox.isChecked()),
-                        auto_mapping=bool(self.device_zone_count_auto_checkbox.isChecked()),
+                        explicit_zone_map=explicit_map,
                     )
                 )
+                self.preview_visual_label.setText(
+                    mapping_preview_visual(
+                        zone_count=int(self.zone_count_slider.value()),
+                        device_zone_count=self._effective_device_zone_count(),
+                        zone_offset=int(self.zone_offset_slider.value()),
+                        reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                        explicit_zone_map=explicit_map,
+                    )
+                )
+                self.manual_map_device_slider.setEnabled(self.manual_map_checkbox.isChecked())
+                self.manual_map_source_slider.setEnabled(self.manual_map_checkbox.isChecked())
+                self.manual_map_apply_button.setEnabled(self.manual_map_checkbox.isChecked())
+                self.test_label.setText(zone_test_instruction(self._test_step, self._effective_device_zone_count()))
+
+            def _effective_device_zone_count(self) -> int:
+                return (
+                    int(self.zone_count_slider.value())
+                    if self.device_zone_count_auto_checkbox.isChecked()
+                    else int(self.device_zone_count_slider.value())
+                )
+
+            def _sync_manual_source_slider(self) -> None:
+                idx = int(self.manual_map_device_slider.value())
+                if idx < len(self._manual_map):
+                    self.manual_map_source_slider.setValue(int(self._manual_map[idx]))
+
+            def _apply_manual_mapping(self) -> None:
+                idx = int(self.manual_map_device_slider.value())
+                val = int(self.manual_map_source_slider.value())
+                if idx >= len(self._manual_map):
+                    self._manual_map.extend([0] * (idx + 1 - len(self._manual_map)))
+                self._manual_map[idx] = val
+                self._refresh_preview_label()
+
+            def _step_test_zone(self) -> None:
+                self._test_step = (self._test_step + 1) % max(1, self._effective_device_zone_count())
+                self._refresh_preview_label()
 
             def updated_config(self) -> AppConfig:
                 zone_count = int(self.zone_count_slider.value())
@@ -288,7 +339,7 @@ class SettingsDialog:
                     output_channel_order=str(self.output_channel_order_combo.currentText()),
                     zone_offset=int(self.zone_offset_slider.value()),
                     reverse_zones=bool(self.reverse_checkbox.isChecked()),
-                    explicit_zone_map=[],
+                    explicit_zone_map=(self._manual_map[: self._effective_device_zone_count()] if self.manual_map_checkbox.isChecked() else []),
                     use_mock_capture=bool(self.mock_capture_checkbox.isChecked()),
                     prefer_backend=str(self.capture_backend_combo.currentText()),
                     hdr_transfer=str(self.hdr_transfer_combo.currentText()),

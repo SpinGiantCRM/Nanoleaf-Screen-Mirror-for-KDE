@@ -18,6 +18,7 @@ from nanoleaf_sync.runtime.zones import zone_colors_array
 from nanoleaf_sync.color.zone_mapper import resolve_device_zone_indices
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.processing import zones_from_config
+from nanoleaf_sync.runtime.zone_derivation import derive_source_zones
 from nanoleaf_sync.runtime.compositor import (
     apply_sdr_boost_compensation,
     effective_sdr_boost,
@@ -92,11 +93,18 @@ def _adaptive_one_euro_blend(
     return alpha * current + (1.0 - alpha) * previous
 
 
-def _zones_signature(config: AppConfig, img_w: int, img_h: int) -> tuple[int, int, tuple[tuple[float, float, float, float], ...]]:
+def _zones_signature(
+    *,
+    zones,
+    zone_preset: str,
+    img_w: int,
+    img_h: int,
+) -> tuple[int, int, str, tuple[tuple[float, float, float, float], ...]]:
     return (
         int(img_w),
         int(img_h),
-        tuple((float(z.x), float(z.y), float(z.w), float(z.h)) for z in config.zones),
+        str(zone_preset),
+        tuple((float(z.x), float(z.y), float(z.w), float(z.h)) for z in zones),
     )
 
 
@@ -124,9 +132,18 @@ def _ensure_runtime_artifacts(
     img_h: int,
     detected_device_zone_count: int | None = None,
 ) -> tuple[list[ZoneRect], np.ndarray]:
-    zone_sig = _zones_signature(config, img_w, img_h)
+    effective_zones = derive_source_zones(
+        config=config,
+        detected_device_zone_count=detected_device_zone_count,
+    )
+    zone_sig = _zones_signature(
+        zones=effective_zones,
+        zone_preset=str(getattr(config, "zone_preset", "edge-weighted")),
+        img_w=img_w,
+        img_h=img_h,
+    )
     if state.zone_rects_signature != zone_sig or state.cached_zone_rects is None:
-        state.cached_zone_rects = zones_from_config(config.zones, img_w, img_h)
+        state.cached_zone_rects = zones_from_config(effective_zones, img_w, img_h)
         state.zone_rects_signature = zone_sig
 
     zones_px = state.cached_zone_rects
