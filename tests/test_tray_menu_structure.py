@@ -13,3 +13,11 @@ def test_tray_top_level_is_focused_for_daily_use() -> None:
     text = Path("src/nanoleaf_sync/ui/tray_app.py").read_text(encoding="utf-8")
     assert 'self.action_display_wizard = self.QAction("Setup Wizard", menu)' in text
     assert 'self.action_status = self.QAction("Status / About", menu)' in text
+
+
+def test_tray_tooltip_includes_backend_resolution_and_state_label() -> None:
+    text = Path("src/nanoleaf_sync/ui/tray_app.py").read_text(encoding="utf-8")
+    assert "Requested backend policy:" in text
+    assert "Selected backend:" in text
+    assert "Effective backend:" in text
+    assert "Status / About (" in text

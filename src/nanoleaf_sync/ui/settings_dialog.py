@@ -26,6 +26,7 @@ HDR_MAX_NITS_MAX = 10000
 ZONE_STRIDE_MIN = 1
 ZONE_STRIDE_MAX = 8
 MAX_ZONE_COUNT = 128
+CORNER_OFFSET_LIMIT = 24
 
 SETTINGS_SECTIONS: tuple[str, ...] = (
     "Backend & Diagnostics",
@@ -127,7 +128,7 @@ class SettingsDialog:
                 self.corner_offset_values = []
                 for idx, name in enumerate(CORNER_NAMES):
                     slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                    slider.setRange(-8, 8)
+                    slider.setRange(-CORNER_OFFSET_LIMIT, CORNER_OFFSET_LIMIT)
                     offsets = self._state.active_corner_zone_offsets()
                     slider.setValue(int(offsets[idx]))
                     value = QLabel("")
@@ -334,7 +335,9 @@ class SettingsDialog:
                 }
                 info = backend_selection_info(preview_status, pending_cfg)
                 self.backend_info_label.setText(
-                    f"Requested backend policy: {info.requested_policy} | Effective backend: {info.effective_backend} | Source: {info.source} | Reason: {info.reason}"
+                    f"Requested backend policy: {info.requested_policy} | Selected backend: {info.selected_backend} "
+                    f"| Effective runtime backend: {info.effective_backend} | Source: {info.source} | Reason: {info.reason}"
+                    + (f" | Unresolved: {info.unresolved_reason}" if info.unresolved_reason else "")
                 )
 
                 self.device_zone_count_slider.setEnabled(not self.device_zone_count_auto_checkbox.isChecked())
@@ -398,7 +401,14 @@ class SettingsDialog:
                 if self._test_timer.isActive(): self._test_timer.setInterval(max(100, int(self.test_step_interval_slider.value())))
 
             def _active_backend(self) -> str:
-                return str((runtime_status or {}).get("effective_capture_backend") or (runtime_status or {}).get("capture_backend") or str(self.capture_backend_combo.currentText()))
+                preview_status = {
+                    **(runtime_status or {}),
+                    "requested_capture_backend": str(self.capture_backend_combo.currentText()),
+                }
+                info = backend_selection_info(preview_status, cfg)
+                if info.effective_backend in {"not-started", "unresolved"}:
+                    return info.selected_backend
+                return info.effective_backend
 
             def _run_latency_probe_manual(self):
                 info = backend_selection_info(self._runtime_status, cfg)

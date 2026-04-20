@@ -33,6 +33,8 @@ def _qt_stub() -> dict[str, object]:
 
         def setLayout(self, _layout):
             pass
+        def resize(self, _w, _h):
+            pass
 
         def accept(self):
             return None
@@ -131,6 +133,12 @@ def _qt_stub() -> dict[str, object]:
         def addLayout(self, *_args):
             pass
 
+        def setRowStretch(self, *_args):
+            pass
+
+        def addStretch(self, *_args):
+            pass
+
     return {
         "QDialog": _Dialog,
         "QLabel": _Label,
@@ -188,3 +196,16 @@ def test_display_configurator_can_set_manual_device_zone_count(monkeypatch) -> N
     dialog._dialog.device_zone_count_slider.setValue(12)
     updated = dialog.updated_config()
     assert updated.device_zone_count == 12
+
+
+def test_display_configurator_updates_live_numeric_labels(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[]))
+    dialog._dialog.zone_count_slider.setValue(14)
+    dialog._dialog.zone_offset_slider.setValue(-3)
+    dialog._dialog.corner_offsets_enabled_checkbox.setChecked(True)
+    dialog._dialog.corner_offset_sliders[0].setValue(9)
+
+    assert dialog._dialog.zone_count_value._text == "14"
+    assert dialog._dialog.zone_offset_value._text == "-3"
+    assert dialog._dialog.corner_offset_values[0]._text == "+9"

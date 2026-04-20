@@ -10,6 +10,7 @@ from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
 MAX_WIZARD_ZONE_COUNT = 128
+CORNER_OFFSET_LIMIT = 24
 WIZARD_STEPS: tuple[str, ...] = (
     "Welcome & Display",
     "Color & HDR",
@@ -89,6 +90,9 @@ class DisplayConfiguratorDialog:
             def __init__(self):
                 super().__init__(parent)
                 self.setWindowTitle("Setup Wizard")
+                resize = getattr(self, "resize", None)
+                if callable(resize):
+                    resize(760, 560)
                 self._calibration_sender = calibration_sender
                 self._test_step = 0
                 self._state = CalibrationState.from_config(cfg)
@@ -134,6 +138,7 @@ class DisplayConfiguratorDialog:
                 self.device_zone_count_auto_checkbox = qt["QCheckBox"]("Auto-detect strip zone count")
                 self.device_zone_count_auto_checkbox.setChecked(self._state.auto_device_zone_count)
                 self.device_zone_status = QLabel("")
+                self.zone_count_explanation = QLabel("")
 
                 # Step 4
                 self.reverse_checkbox = qt["QCheckBox"]("Reverse strip orientation")
@@ -148,7 +153,7 @@ class DisplayConfiguratorDialog:
                 self.corner_offset_values = []
                 for idx in range(4):
                     slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                    slider.setRange(-8, 8)
+                    slider.setRange(-CORNER_OFFSET_LIMIT, CORNER_OFFSET_LIMIT)
                     slider.setValue(self._state.active_corner_zone_offsets()[idx])
                     self.corner_offset_sliders.append(slider)
                     self.corner_offset_values.append(QLabel(""))
@@ -219,6 +224,7 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(QLabel("Welcome. Choose your display mode first."), 0, 0, 1, 2)
                 layout.addWidget(QLabel("SDR / HDR mode"), 1, 0)
                 layout.addWidget(self.display_mode_combo, 1, 1)
+                layout.setRowStretch(2, 1)
                 page.setLayout(layout)
                 return page
 
@@ -235,6 +241,7 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.hdr_max_nits_label, 4, 0)
                 layout.addWidget(self.hdr_max_nits_slider, 4, 1)
                 layout.addWidget(self.hdr_max_nits_value, 4, 2)
+                layout.setRowStretch(5, 1)
                 page.setLayout(layout)
                 return page
 
@@ -251,7 +258,9 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.device_zone_count_slider, 3, 1)
                 layout.addWidget(self.device_zone_count_value, 3, 2)
                 layout.addWidget(self.device_zone_count_auto_checkbox, 4, 0, 1, 3)
-                layout.addWidget(self.device_zone_status, 5, 0, 1, 3)
+                layout.addWidget(self.zone_count_explanation, 5, 0, 1, 3)
+                layout.addWidget(self.device_zone_status, 6, 0, 1, 3)
+                layout.setRowStretch(7, 1)
                 page.setLayout(layout)
                 return page
 
@@ -278,6 +287,7 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.calibration_prev_button, 11, 2)
                 layout.addWidget(self.calibration_send_button, 12, 0, 1, 2)
                 layout.addWidget(self.calibration_test_label, 13, 0, 1, 3)
+                layout.setRowStretch(14, 1)
                 page.setLayout(layout)
                 return page
 
@@ -286,6 +296,8 @@ class DisplayConfiguratorDialog:
                 layout = QVBoxLayout()
                 layout.addWidget(QLabel("Summary"))
                 layout.addWidget(self.summary_label)
+                if hasattr(layout, "addStretch"):
+                    layout.addStretch(1)
                 page.setLayout(layout)
                 return page
 
@@ -341,6 +353,9 @@ class DisplayConfiguratorDialog:
                     self.corner_offset_sliders[idx].setEnabled(self.corner_offsets_enabled_checkbox.isChecked())
                 self.device_zone_count_slider.setEnabled(not self.device_zone_count_auto_checkbox.isChecked())
                 self.device_zone_count_value.setText("auto" if self.device_zone_count_auto_checkbox.isChecked() else str(self.device_zone_count_slider.value()))
+                self.zone_count_explanation.setText(
+                    "Source zones = sampling regions on the screen. Device zones = strip output LEDs / cycle length."
+                )
                 self.device_zone_status.setText(self._state.auto_detection_status())
 
                 preview = build_testing_panel_state(
