@@ -64,6 +64,17 @@ class AppConfig:
     use_mock_capture: bool = False
     # Probe auto backend candidates at runtime; can still be overridden by env kill switch.
     auto_probe_enabled: bool = True
+    # Auto-probe cache invalidation policy.
+    # - first-run: probe only if there is no cached winner.
+    # - each-boot: probe once per process start.
+    # - on-change: probe when environment signature changes.
+    auto_probe_policy: str = "on-change"
+    # Persisted winner from previous auto-probe runs.
+    auto_selected_backend: str = ""
+    # Persisted environment signature from previous auto-probe run.
+    auto_probe_signature: str = ""
+    # Last successful auto-probe timestamp in UTC ISO-8601 format.
+    auto_probe_timestamp: str = ""
 
     # HDR conversion controls (used by HDR-capable capture paths / metadata-aware conversion).
     hdr_max_nits: float = 1000.0

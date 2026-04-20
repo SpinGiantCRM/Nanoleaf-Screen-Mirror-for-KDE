@@ -140,6 +140,14 @@ class ConfigManager:
         self.save(mode_config(mode))
         return True
 
+    def reset_auto_probe_cache(self) -> AppConfig:
+        cfg = self.load()
+        cfg.auto_selected_backend = ""
+        cfg.auto_probe_signature = ""
+        cfg.auto_probe_timestamp = ""
+        self.save(cfg)
+        return self.load()
+
     def save(self, config: AppConfig) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
 

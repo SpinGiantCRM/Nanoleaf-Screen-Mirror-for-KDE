@@ -301,6 +301,7 @@ class NanoleafTrayApp:
         self.action_status = self.QAction("Status", menu)
         self.action_enable_autostart = self.QAction("Enable autostart", menu)
         self.action_disable_autostart = self.QAction("Disable autostart", menu)
+        self.action_reset_probe_cache = self.QAction("Reset Auto-Probe Cache", menu)
         self.action_doctor = self.QAction("Run Doctor", menu)
         self.action_smoke = self.QAction("Run Smoke Test", menu)
         self.action_quit = self.QAction("Quit", menu)
@@ -313,6 +314,7 @@ class NanoleafTrayApp:
         self.action_status.triggered.connect(self.on_status)
         self.action_enable_autostart.triggered.connect(self.on_enable_autostart)
         self.action_disable_autostart.triggered.connect(self.on_disable_autostart)
+        self.action_reset_probe_cache.triggered.connect(self.on_reset_probe_cache)
         self.action_doctor.triggered.connect(self.on_doctor)
         self.action_smoke.triggered.connect(self.on_smoke_test)
         self.action_quit.triggered.connect(self.on_quit)
@@ -329,6 +331,7 @@ class NanoleafTrayApp:
         menu.addAction(self.action_status)
         menu.addAction(self.action_enable_autostart)
         menu.addAction(self.action_disable_autostart)
+        menu.addAction(self.action_reset_probe_cache)
         menu.addAction(self.action_doctor)
         menu.addAction(self.action_smoke)
         menu.addAction(self.action_quit)
@@ -505,6 +508,30 @@ class NanoleafTrayApp:
     def on_smoke_test(self):
         self._run_command_async(label="smoke test", argv=[sys.executable, "-m", "nanoleaf_sync.tools.smoke_test"])
 
+    def on_reset_probe_cache(self) -> None:
+        try:
+            self.config = self.cfg_mgr.reset_auto_probe_cache()
+            if self.service.is_running():
+                self.on_stop()
+                self.service = NanoleafSyncService(config=self.config)
+                self.on_start()
+            else:
+                self.service = NanoleafSyncService(config=self.config)
+            self._refresh_mode_labels()
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                "Auto-probe cache reset. Next auto backend selection may re-probe.",
+                self.QSystemTrayIcon.MessageIcon.Information,
+                6000,
+            )
+        except Exception as exc:
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                f"Unable to reset auto-probe cache: {exc}",
+                self.QSystemTrayIcon.MessageIcon.Warning,
+                7000,
+            )
+
     def _run_command_async(self, label: str, argv: list[str]) -> None:
         self.action_doctor.setEnabled(False)
         self.action_smoke.setEnabled(False)
@@ -562,9 +589,23 @@ class NanoleafTrayApp:
 def main(argv: list[str] | None = None) -> int:  # pragma: no cover
     parser = argparse.ArgumentParser(description="nanoleaf-kde-sync tray entry point")
     parser.add_argument("--self-check", action="store_true", help="run non-interactive startup/import checks and exit")
+    parser.add_argument(
+        "--reset-probe-cache",
+        action="store_true",
+        help="clear persisted auto-probe winner/signature/timestamp and exit",
+    )
     args = parser.parse_args(argv)
     if args.self_check:
         return _run_self_check()
+    if args.reset_probe_cache:
+        mgr = ConfigManager()
+        cfg = mgr.reset_auto_probe_cache()
+        print(
+            f"Reset auto-probe cache in {mgr.path} "
+            f"(policy={cfg.auto_probe_policy}, selected_backend={cfg.auto_selected_backend or 'none'}).",
+            flush=True,
+        )
+        return 0
 
     log_path = _configure_startup_logging()
     try:

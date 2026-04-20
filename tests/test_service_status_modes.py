@@ -166,3 +166,55 @@ def test_service_passes_cached_probe_winner_on_reinitialize(monkeypatch) -> None
     service._install_drivers()
 
     assert seen_cached_values == [None, "kwin-dbus"]
+
+
+def test_service_first_run_policy_skips_probe_when_cached_winner_exists(monkeypatch) -> None:
+    cfg = AppConfig(
+        use_mock_capture=False,
+        prefer_backend="auto",
+        auto_probe_policy="first-run",
+        auto_selected_backend="kwin-dbus",
+    )
+    driver = FakeDriver()
+    service = NanoleafSyncService(config=cfg, driver_override=driver)
+    seen_cached_values: list[str | None] = []
+
+    class _FakeCaptureBackend:
+        name = "kwin-dbus"
+        last_capture_path = None
+
+        def close(self) -> None:
+            pass
+
+    def _fake_create_capture_backend(**kwargs):
+        seen_cached_values.append(kwargs.get("cached_probe_winner"))
+        return _FakeCaptureBackend()
+
+    monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend)
+    service._install_drivers()
+    assert seen_cached_values == ["kwin-dbus"]
+
+
+def test_service_each_boot_policy_probes_once_per_process(monkeypatch) -> None:
+    cfg = AppConfig(use_mock_capture=False, prefer_backend="auto", auto_probe_policy="each-boot")
+    driver = FakeDriver()
+    service = NanoleafSyncService(config=cfg, driver_override=driver)
+    seen_cached_values: list[str | None] = []
+
+    class _FakeCaptureBackend:
+        name = "kwin-dbus"
+        last_capture_path = None
+
+        def close(self) -> None:
+            pass
+
+    def _fake_create_capture_backend(**kwargs):
+        seen_cached_values.append(kwargs.get("cached_probe_winner"))
+        return _FakeCaptureBackend()
+
+    monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend)
+    monkeypatch.setattr("nanoleaf_sync.service._PROCESS_BOOT_PROBE_DONE", False)
+    service._install_drivers()
+    service._close_backends()
+    service._install_drivers()
+    assert seen_cached_values == [None, "kwin-dbus"]

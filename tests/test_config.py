@@ -171,3 +171,42 @@ def test_dump_toml_handles_mixed_list_types() -> None:
     assert '"two"' in encoded
     assert "true" in encoded
     assert "3.5" in encoded
+
+
+def test_config_load_normalizes_auto_probe_fields(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text(
+        "\n".join(
+            [
+                'auto_probe_policy = "each_boot"',
+                'auto_selected_backend = "KWIN_DBUS"',
+                "auto_probe_signature = 12345",
+                "auto_probe_timestamp = 67890",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    cfg = ConfigManager(path=cfg_path).load()
+    assert cfg.auto_probe_policy == "each-boot"
+    assert cfg.auto_selected_backend == "kwin-dbus"
+    assert cfg.auto_probe_signature == "12345"
+    assert cfg.auto_probe_timestamp == "67890"
+
+
+def test_config_reset_auto_probe_cache(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    mgr = ConfigManager(path=cfg_path)
+    mgr.save(
+        AppConfig(
+            auto_selected_backend="kwin-dbus",
+            auto_probe_signature="abc",
+            auto_probe_timestamp="2026-01-01T00:00:00+00:00",
+        )
+    )
+
+    updated = mgr.reset_auto_probe_cache()
+    assert updated.auto_selected_backend == ""
+    assert updated.auto_probe_signature == ""
+    assert updated.auto_probe_timestamp == ""

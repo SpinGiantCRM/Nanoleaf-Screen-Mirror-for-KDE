@@ -6,9 +6,13 @@ backend construction, and status reporting consumed by tray and CLI tools.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
+import os
 import signal
 import time
+from datetime import datetime, timezone
 from typing import Optional, Tuple
 
 from nanoleaf_sync.capture.interfaces import CaptureBackend
@@ -32,6 +36,23 @@ from nanoleaf_sync.runtime.state import RuntimeState
 
 
 logger = logging.getLogger(__name__)
+_AUTO_PROBE_WINNERS = {"kwin-dbus", "xdg-portal", "kmsgrab"}
+_PROCESS_BOOT_PROBE_DONE = False
+_AUTO_PROBE_ENV_VARS = (
+    "NANOLEAF_DISABLE_CAPTURE_PROBE",
+    "NANOLEAF_ENABLE_CAPTURE_PROBE",
+    "NANOLEAF_DRM_CARD",
+    "XDG_SESSION_TYPE",
+    "XDG_CURRENT_DESKTOP",
+    "DESKTOP_SESSION",
+    "KDE_FULL_SESSION",
+    "KDE_SESSION_VERSION",
+    "WAYLAND_DISPLAY",
+    "DISPLAY",
+    "DBUS_SESSION_BUS_ADDRESS",
+    "QT_SCALE_FACTOR",
+    "GDK_SCALE",
+)
 __all__ = (
     "NanoleafSyncService",
     "_DEFAULT_CAPTURE_WIDTH",
@@ -46,6 +67,52 @@ def _detect_primary_screen_dims(*, qt_widgets_module=None) -> Optional[Tuple[int
 
 def _resolve_capture_dims(config: AppConfig) -> Tuple[int, int]:
     return resolve_capture_dims(config)
+
+
+def _is_valid_auto_probe_winner(value: str | None) -> bool:
+    return value in _AUTO_PROBE_WINNERS
+
+
+def _build_auto_probe_signature(capture_width: int, capture_height: int) -> str:
+    try:
+        from nanoleaf_sync.capture import factory as capture_factory
+
+        has_drm_device = bool(capture_factory._has_drm_device())  # noqa: SLF001
+        kmsgrab_bindings = bool(capture_factory._kmsgrab_bindings_available())  # noqa: SLF001
+    except Exception:
+        has_drm_device = False
+        kmsgrab_bindings = False
+
+    dims = _detect_primary_screen_dims()
+    scale = (os.environ.get("QT_SCALE_FACTOR") or os.environ.get("GDK_SCALE") or "").strip()
+    payload = {
+        "backends": {
+            "kwin_dbus": True,
+            "xdg_portal": bool(os.environ.get("DBUS_SESSION_BUS_ADDRESS")),
+            "kmsgrab": has_drm_device and kmsgrab_bindings,
+            "drm_device_present": has_drm_device,
+            "kmsgrab_bindings": kmsgrab_bindings,
+        },
+        "session": {
+            "type": os.environ.get("XDG_SESSION_TYPE", ""),
+            "desktop": os.environ.get("XDG_CURRENT_DESKTOP", ""),
+            "desktop_session": os.environ.get("DESKTOP_SESSION", ""),
+            "kde_full_session": os.environ.get("KDE_FULL_SESSION", ""),
+            "kde_session_version": os.environ.get("KDE_SESSION_VERSION", ""),
+            "wayland_display": os.environ.get("WAYLAND_DISPLAY", ""),
+            "display": os.environ.get("DISPLAY", ""),
+        },
+        "display": {
+            "primary_width": int(dims[0]) if dims else None,
+            "primary_height": int(dims[1]) if dims else None,
+            "capture_width": int(capture_width),
+            "capture_height": int(capture_height),
+            "scale_hint": scale,
+        },
+        "env": {name: os.environ.get(name, "") for name in _AUTO_PROBE_ENV_VARS},
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 class NanoleafSyncService:
@@ -153,12 +220,34 @@ class NanoleafSyncService:
                 pass
 
     def _install_drivers(self) -> None:
+        global _PROCESS_BOOT_PROBE_DONE
         width = self._capture_width
         height = self._capture_height
 
         if self._capture_backend_override is not None:
             self._capture = self._capture_backend_override
         else:
+            normalized_preference = normalize_capture_backend(
+                self.config.prefer_backend, default="auto"
+            )
+            signature = _build_auto_probe_signature(width, height)
+            cached_winner = self._cached_probe_winner or self.config.auto_selected_backend
+            should_probe = False
+            policy = str(getattr(self.config, "auto_probe_policy", "on-change")).strip().lower()
+            if normalized_preference == "auto":
+                if policy == "first-run":
+                    should_probe = not _is_valid_auto_probe_winner(cached_winner)
+                elif policy == "each-boot":
+                    should_probe = not _PROCESS_BOOT_PROBE_DONE
+                    if should_probe:
+                        _PROCESS_BOOT_PROBE_DONE = True
+                else:
+                    signature_changed = signature != str(
+                        getattr(self.config, "auto_probe_signature", "") or ""
+                    )
+                    should_probe = signature_changed or not _is_valid_auto_probe_winner(cached_winner)
+
+            selected_cache = None if should_probe else cached_winner
             self._capture = create_capture_backend(
                 width=width,
                 height=height,
@@ -168,12 +257,31 @@ class NanoleafSyncService:
                 hdr_transfer=self.config.hdr_transfer,
                 hdr_primaries=self.config.hdr_primaries,
                 auto_probe_enabled=self.config.auto_probe_enabled,
-                cached_probe_winner=self._cached_probe_winner,
+                cached_probe_winner=selected_cache,
             )
-            if normalize_capture_backend(self.config.prefer_backend, default="auto") == "auto":
+            if normalized_preference == "auto":
                 winner = getattr(self._capture, "name", None)
-                if winner in {"kwin-dbus", "xdg-portal", "kmsgrab"}:
+                if _is_valid_auto_probe_winner(winner):
                     self._cached_probe_winner = winner
+                    previous_winner = str(getattr(self.config, "auto_selected_backend", "") or "")
+                    previous_signature = str(getattr(self.config, "auto_probe_signature", "") or "")
+                    needs_write = (
+                        should_probe
+                        or previous_winner != winner
+                        or previous_signature != signature
+                    )
+                    self.config.auto_selected_backend = winner
+                    self.config.auto_probe_signature = signature
+                    if needs_write:
+                        self.config.auto_probe_timestamp = datetime.now(timezone.utc).isoformat()
+                        if self._capture_backend_override is None and self._driver_override is None:
+                            try:
+                                ConfigManager().save(self.config)
+                            except Exception as exc:
+                                logger.warning(
+                                    "Failed to persist auto-probe cache metadata: %s",
+                                    exc,
+                                )
 
         if self._driver_override is not None:
             self._driver = self._driver_override

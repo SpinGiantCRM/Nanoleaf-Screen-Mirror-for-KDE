@@ -70,6 +70,26 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         cfg.prefer_backend,
         default=AppConfig.prefer_backend,
     )
+    auto_probe_policy = normalize_enum(
+        getattr(cfg, "auto_probe_policy", AppConfig.auto_probe_policy),
+        allowed={
+            "first-run": "first-run",
+            "first_run": "first-run",
+            "each-boot": "each-boot",
+            "each_boot": "each-boot",
+            "on-change": "on-change",
+            "on_change": "on-change",
+        },
+        default=AppConfig.auto_probe_policy,
+    )
+    auto_selected_backend = normalize_capture_backend(
+        getattr(cfg, "auto_selected_backend", ""),
+        default="",
+    )
+    if auto_selected_backend == "auto":
+        auto_selected_backend = ""
+    auto_probe_signature = str(getattr(cfg, "auto_probe_signature", "") or "").strip()
+    auto_probe_timestamp = str(getattr(cfg, "auto_probe_timestamp", "") or "").strip()
     zone_preset = normalize_enum(
         cfg.zone_preset,
         allowed={
@@ -133,6 +153,10 @@ def validate_config(cfg: AppConfig) -> AppConfig:
             getattr(cfg, "auto_probe_enabled", AppConfig.auto_probe_enabled),
             AppConfig.auto_probe_enabled,
         ),
+        auto_probe_policy=auto_probe_policy,
+        auto_selected_backend=auto_selected_backend,
+        auto_probe_signature=auto_probe_signature,
+        auto_probe_timestamp=auto_probe_timestamp,
         hdr_max_nits=hdr_max_nits,
         compositor_hdr_mode=coerce_bool(getattr(cfg, "compositor_hdr_mode", False), False),
         sdr_boost_nits=sdr_boost_nits,
