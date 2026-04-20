@@ -2,6 +2,16 @@ from __future__ import annotations
 
 import numpy as np
 
+_SRGB_TO_LINEAR_LUT = np.array(
+    [
+        (v / 255.0) / 12.92
+        if (v / 255.0) <= 0.04045
+        else np.float_power(((v / 255.0) + 0.055) / 1.055, 2.4)
+        for v in range(256)
+    ],
+    dtype=np.float32,
+)
+
 
 def srgb_eotf_to_linear01(c: np.ndarray) -> np.ndarray:
     """Convert sRGB-encoded floats in [0, 1] to linear-light floats."""
@@ -28,7 +38,9 @@ def linear01_to_srgb_encoded(linear: np.ndarray) -> np.ndarray:
 
 def srgb_u8_to_linear01(rgb: np.ndarray) -> np.ndarray:
     """Convert uint8 sRGB values to linear-light floats in [0, 1]."""
-    return srgb_eotf_to_linear01(rgb.astype(np.float32, copy=False) / 255.0)
+    if rgb.dtype != np.uint8:
+        raise TypeError(f"Expected uint8 input for LUT conversion, got {rgb.dtype!r}")
+    return _SRGB_TO_LINEAR_LUT[rgb]
 
 
 def linear01_to_srgb_u8(linear: np.ndarray) -> np.ndarray:

@@ -41,6 +41,13 @@ _M2_INV = np.array(
     ],
     dtype=np.float32,
 )
+_M1_T = np.ascontiguousarray(_M1.T)
+_M2_T = np.ascontiguousarray(_M2.T)
+_M1_INV_T = np.ascontiguousarray(_M1_INV.T)
+_M2_INV_T = np.ascontiguousarray(_M2_INV.T)
+
+_integral_buffer: np.ndarray | None = None
+_integral_buffer_shape: tuple[int, int] | None = None
 
 
 _COLOR_MODE_PROFILES = {
@@ -86,8 +93,7 @@ def _ensure_rgb_u8(image: np.ndarray) -> np.ndarray:
     if image.ndim != 3 or image.shape[2] != 3:
         raise ValueError(f"Expected image shape (H, W, 3), got {image.shape}")
     if image.dtype != np.uint8:
-        # Use a copy since the dtype conversion changes values.
-        return image.astype(np.uint8, copy=False)
+        return np.clip(image, 0.0, 255.0).astype(np.uint8)
     return image
 
 
@@ -104,15 +110,24 @@ def average_color(image: np.ndarray) -> RGBTuple:
 
 
 def _linear_srgb_to_oklab(linear_rgb: np.ndarray) -> np.ndarray:
-    lms = linear_rgb @ _M1.T
+    lms = linear_rgb @ _M1_T
     lms_cbrt = np.cbrt(np.clip(lms, 0.0, None))
-    return lms_cbrt @ _M2.T
+    return lms_cbrt @ _M2_T
 
 
 def _oklab_to_linear_srgb(oklab: np.ndarray) -> np.ndarray:
-    lms_cbrt = oklab @ _M2_INV.T
+    lms_cbrt = oklab @ _M2_INV_T
     lms = lms_cbrt * lms_cbrt * lms_cbrt
-    return lms @ _M1_INV.T
+    return lms @ _M1_INV_T
+
+
+def _get_integral_buffer(height: int, width: int) -> np.ndarray:
+    global _integral_buffer, _integral_buffer_shape
+    shape = (int(height), int(width))
+    if _integral_buffer is None or _integral_buffer_shape != shape:
+        _integral_buffer = np.empty((shape[0], shape[1], 3), dtype=np.float64)
+        _integral_buffer_shape = shape
+    return _integral_buffer
 
 
 def zone_colors(
@@ -172,7 +187,7 @@ def zone_colors_array(
 
     valid = areas > 0
 
-    sums = np.zeros((len(zones), 3), dtype=np.float32)
+    sums = np.zeros((len(zones), 3), dtype=np.float64)
     if valid.any():
         bx0 = int(np.min(x0[valid]))
         by0 = int(np.min(y0[valid]))
@@ -184,8 +199,10 @@ def zone_colors_array(
         oklab = _linear_srgb_to_oklab(linear_rgb)
 
         crop_h, crop_w, _ = cropped.shape
-        integral = np.zeros((crop_h + 1, crop_w + 1, 3), dtype=np.float32)
-        integral[1:, 1:, :] = oklab.cumsum(axis=0, dtype=np.float32).cumsum(axis=1, dtype=np.float32)
+        integral = _get_integral_buffer(crop_h + 1, crop_w + 1)
+        integral[0, :, :] = 0.0
+        integral[:, 0, :] = 0.0
+        integral[1:, 1:, :] = oklab.cumsum(axis=0, dtype=np.float64).cumsum(axis=1, dtype=np.float64)
 
         cx0 = x0 - bx0
         cy0 = y0 - by0
