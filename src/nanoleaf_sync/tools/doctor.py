@@ -9,7 +9,15 @@ from dataclasses import dataclass
 from pathlib import Path
 import threading
 
-from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
+from typing import Literal
+
+from nanoleaf_sync.capture.backend_selection import (
+    AUTO_BACKEND,
+    KMSGRAB_BACKEND,
+    KWIN_DBUS_BACKEND,
+    XDG_PORTAL_BACKEND,
+    normalize_backend_preference,
+)
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.normalize import validate_config
 from nanoleaf_sync.config.store import ConfigManager
@@ -25,10 +33,13 @@ from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
 from nanoleaf_sync.runtime.errors import translate_runtime_error
 
 
-@dataclass(frozen=True)
+Status = Literal["pass", "warn", "fail"]
+
+
+@dataclass(frozen=True, slots=True)
 class DoctorCheck:
     name: str
-    status: str  # pass | warn | fail
+    status: Status
     message: str
     action: str = ""
 
@@ -115,11 +126,16 @@ def _run_probe_sync() -> DoctorCheck:
         raise RuntimeError("KWin screenshot probe did not return a result.")
     return result
 
+
 def _check_desktop_authorization() -> DoctorCheck:
     autostart = user_autostart_path()
     if autostart.exists():
         if desktop_entry_has_restricted_marker(autostart):
-            return DoctorCheck("desktop-authorization", "pass", f"Autostart desktop entry is authorized ({autostart}).")
+            return DoctorCheck(
+                "desktop-authorization",
+                "pass",
+                f"Autostart desktop entry is authorized ({autostart}).",
+            )
         return DoctorCheck(
             "desktop-authorization",
             "warn",
@@ -208,14 +224,22 @@ def _check_hid_enumeration(config: AppConfig) -> DoctorCheck:
             "Connect the device and verify IDs with lsusb, then rerun doctor.",
         )
 
-    return DoctorCheck("hid-device", "pass", f"Found {len(devices)} matching HID device(s) for VID={vid:#06x} PID={pid:#06x}.")
+    return DoctorCheck(
+        "hid-device",
+        "pass",
+        f"Found {len(devices)} matching HID device(s) for VID={vid:#06x} PID={pid:#06x}.",
+    )
 
 
 def _check_real_device_probe(config: AppConfig) -> DoctorCheck:
     if int(config.device_vid) == 0 or int(config.device_pid) == 0:
-        return DoctorCheck("device-probe", "fail", "Cannot probe device because VID/PID are not configured.")
+        return DoctorCheck(
+            "device-probe", "fail", "Cannot probe device because VID/PID are not configured."
+        )
 
-    driver = NanoleafUSBDriver(ids=NanoleafUSBIds(vid=int(config.device_vid), pid=int(config.device_pid)))
+    driver = NanoleafUSBDriver(
+        ids=NanoleafUSBIds(vid=int(config.device_vid), pid=int(config.device_pid))
+    )
     try:
         driver.initialize()
         return DoctorCheck(
@@ -239,7 +263,7 @@ def _check_real_device_probe(config: AppConfig) -> DoctorCheck:
 
 def _check_mode_consistency(config: AppConfig) -> DoctorCheck:
     normalized = _normalized_backend(config)
-    valid_backends = {"", "auto", "kwin-dbus", "xdg-portal", "kmsgrab"}
+    valid_backends = {"", AUTO_BACKEND, KWIN_DBUS_BACKEND, XDG_PORTAL_BACKEND, KMSGRAB_BACKEND}
     if not config.use_mock_capture and normalized not in valid_backends:
         return DoctorCheck(
             "mode-consistency",
@@ -251,15 +275,13 @@ def _check_mode_consistency(config: AppConfig) -> DoctorCheck:
 
 
 def _normalized_backend(config: AppConfig) -> str:
-    raw = (config.prefer_backend or "").strip().lower()
-    if not raw:
-        return ""
-    return normalize_capture_backend(raw, default=raw)
+    normalized = normalize_backend_preference(config.prefer_backend)
+    return "" if not (config.prefer_backend or "").strip() else normalized
 
 
 def _check_probe_status(config: AppConfig) -> DoctorCheck:
     normalized = _normalized_backend(config)
-    if normalized != "auto":
+    if normalized != AUTO_BACKEND:
         return DoctorCheck(
             "probe-status",
             "pass",
@@ -346,10 +368,10 @@ def run_doctor(
         _check_hid_enumeration(cfg),
     ]
     if not cfg.use_mock_capture:
-        if normalized in {"", "auto", "kwin-dbus", "kmsgrab"}:
+        if normalized in {"", AUTO_BACKEND, KWIN_DBUS_BACKEND, KMSGRAB_BACKEND}:
             checks.append(_run_probe_sync())
             checks.append(_check_desktop_authorization())
-        elif normalized == "xdg-portal":
+        elif normalized == XDG_PORTAL_BACKEND:
             checks.append(
                 DoctorCheck(
                     "desktop-authorization",
@@ -383,7 +405,9 @@ def format_report(checks: list[DoctorCheck]) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run diagnostics for nanoleaf-kde-sync")
-    parser.add_argument("--device", action="store_true", help="Attempt real device initialize/model/zone probe")
+    parser.add_argument(
+        "--device", action="store_true", help="Attempt real device initialize/model/zone probe"
+    )
     parser.add_argument(
         "--capture",
         action="store_true",
@@ -391,9 +415,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    checks = run_doctor(
-        include_device_probe=args.device, include_capture_probe=args.capture
-    )
+    checks = run_doctor(include_device_probe=args.device, include_capture_probe=args.capture)
     print(format_report(checks))
     failures = [c for c in checks if c.status == "fail"]
     return 1 if failures else 0
