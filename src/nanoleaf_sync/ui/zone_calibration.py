@@ -38,8 +38,9 @@ def mapping_preview_text(
         reverse_zones=reverse_zones,
         explicit_zone_map=explicit_zone_map,
     )
-    preview = ", ".join(str(i) for i in indices[: max(1, int(show_limit))])
-    suffix = "…" if len(indices) > show_limit else ""
+    limit = max(1, int(show_limit))
+    preview = ", ".join(str(i) for i in indices[:limit])
+    suffix = "…" if len(indices) > limit else ""
     mode = "manual" if explicit_zone_map else "simple"
     direction = "counter-clockwise" if reverse_zones else "clockwise"
     return (
@@ -67,8 +68,9 @@ def mapping_preview_visual(
     )
     if not indices:
         return "No mapping available."
-    chunks = [f"[D{idx}→S{src}]" for idx, src in enumerate(indices[: max(1, int(show_limit))])]
-    suffix = " …" if len(indices) > show_limit else ""
+    limit = max(1, int(show_limit))
+    chunks = [f"[D{idx}→S{src}]" for idx, src in enumerate(indices[:limit])]
+    suffix = " …" if len(indices) > limit else ""
     return " ".join(chunks) + suffix
 
 

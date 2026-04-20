@@ -9,10 +9,17 @@ from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog
 def _qt_stub() -> dict[str, object]:
     class _DummySignal:
         def __init__(self):
-            self._callback = None
+            self._callbacks = []
 
         def connect(self, callback):
-            self._callback = callback
+            self._callbacks.append(callback)
+
+        def emit(self, *args, **kwargs):
+            for callback in self._callbacks:
+                try:
+                    callback(*args, **kwargs)
+                except TypeError:
+                    callback()
 
     class _Dialog:
         class DialogCode:
@@ -46,8 +53,7 @@ def _qt_stub() -> dict[str, object]:
 
         def setValue(self, value):
             self._value = value
-            if self.valueChanged._callback is not None:
-                self.valueChanged._callback()
+            self.valueChanged.emit(value)
 
         def value(self):
             return self._value
@@ -78,8 +84,7 @@ def _qt_stub() -> dict[str, object]:
 
         def setCurrentIndex(self, idx):
             self._index = idx
-            if self.currentIndexChanged._callback is not None:
-                self.currentIndexChanged._callback()
+            self.currentIndexChanged.emit(idx)
 
         def currentText(self):
             return self._items[self._index]
@@ -97,8 +102,7 @@ def _qt_stub() -> dict[str, object]:
 
         def setChecked(self, checked):
             self._checked = bool(checked)
-            if self.stateChanged._callback is not None:
-                self.stateChanged._callback()
+            self.stateChanged.emit(int(self._checked))
 
         def isChecked(self):
             return self._checked

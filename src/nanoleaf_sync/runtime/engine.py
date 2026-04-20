@@ -136,9 +136,14 @@ def _ensure_runtime_artifacts(
         config=config,
         detected_device_zone_count=detected_device_zone_count,
     )
+    uses_derived_zones = not bool(config.zones)
     zone_sig = _zones_signature(
         zones=effective_zones,
-        zone_preset=str(getattr(config, "zone_preset", "edge-weighted")),
+        zone_preset=(
+            str(getattr(config, "zone_preset", "edge-weighted"))
+            if uses_derived_zones
+            else ""
+        ),
         img_w=img_w,
         img_h=img_h,
     )

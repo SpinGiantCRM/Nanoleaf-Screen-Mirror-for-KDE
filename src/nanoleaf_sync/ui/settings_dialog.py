@@ -305,6 +305,8 @@ class SettingsDialog:
                 idx = int(self.manual_map_device_slider.value())
                 if idx < len(self._manual_map):
                     self.manual_map_source_slider.setValue(int(self._manual_map[idx]))
+                else:
+                    self.manual_map_source_slider.setValue(0)
 
             def _apply_manual_mapping(self) -> None:
                 idx = int(self.manual_map_device_slider.value())
