@@ -340,6 +340,8 @@ class KWinDBusScreenshotCapture:
                 reply = await bus.call(msg)
                 if reply.message_type == MessageType.ERROR:
                     self._raise_screenshot2_error(reply)
+                os.close(write_fd)
+                write_fd = -1
 
                 results = reply.body[0] if reply.body else {}
                 result_map = self._normalize_variant_dict(results)
@@ -353,7 +355,8 @@ class KWinDBusScreenshotCapture:
                 attempt_errors.append((method_name, signature, exc))
             finally:
                 os.close(read_fd)
-                os.close(write_fd)
+                if write_fd >= 0:
+                    os.close(write_fd)
 
         if not attempt_errors:
             raise KWinDBusCaptureError(
