@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Callable
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text, mapping_preview_visual
+from nanoleaf_sync.ui.calibration_preview import calibration_test_frame, corner_anchor_steps, single_zone_step
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
 
@@ -15,7 +17,7 @@ class DisplayConfiguratorDialog:
     reused from startup and from Settings without changing app architecture.
     """
 
-    def __init__(self, parent, cfg: AppConfig):
+    def __init__(self, parent, cfg: AppConfig, *, calibration_sender: Callable[[list[tuple[int, int, int]]], None] | None = None):
         qt = load_qt()
         QDialog = qt["QDialog"]
         QLabel = qt["QLabel"]
@@ -29,6 +31,8 @@ class DisplayConfiguratorDialog:
             def __init__(self):
                 super().__init__(parent)
                 self.setWindowTitle("Display Configurator")
+                self._calibration_sender = calibration_sender
+                self._test_step = 0
 
                 self.display_mode_combo = QComboBox()
                 self.display_mode_combo.addItems(["sdr", "hdr"])
@@ -103,6 +107,12 @@ class DisplayConfiguratorDialog:
                 self.device_zone_count_auto_checkbox.setChecked(int(getattr(cfg, "device_zone_count", 0)) == 0)
                 self.preview_text = QLabel("")
                 self.preview_visual = QLabel("")
+                self.calibration_mode_combo = QComboBox()
+                self.calibration_mode_combo.addItems(["single active zone", "corner anchors"])
+                self.calibration_test_label = QLabel("")
+                self.calibration_next_button = QPushButton("Next test zone")
+                self.calibration_prev_button = QPushButton("Previous")
+                self.calibration_send_button = QPushButton("Send test pattern")
 
                 self._refresh_numeric_labels()
                 self.hdr_max_nits_slider.valueChanged.connect(self._refresh_numeric_labels)
@@ -115,6 +125,10 @@ class DisplayConfiguratorDialog:
                 self.reverse_checkbox.stateChanged.connect(self._refresh_mapping_preview)
                 self.device_zone_count_slider.valueChanged.connect(self._refresh_mapping_preview)
                 self.device_zone_count_auto_checkbox.stateChanged.connect(self._refresh_mapping_preview)
+                self.calibration_mode_combo.currentIndexChanged.connect(self._refresh_mapping_preview)
+                self.calibration_next_button.clicked.connect(self._next_test_zone)
+                self.calibration_prev_button.clicked.connect(self._prev_test_zone)
+                self.calibration_send_button.clicked.connect(self._send_test_pattern)
 
                 layout = QVBoxLayout()
                 layout.addWidget(
@@ -186,6 +200,12 @@ class DisplayConfiguratorDialog:
                 step4.addWidget(self.device_zone_count_auto_checkbox, 5, 0, 1, 2)
                 step4.addWidget(self.preview_text, 6, 0, 1, 3)
                 step4.addWidget(self.preview_visual, 7, 0, 1, 3)
+                step4.addWidget(QLabel("Calibration test mode"), 8, 0)
+                step4.addWidget(self.calibration_mode_combo, 8, 1)
+                step4.addWidget(self.calibration_next_button, 9, 0, 1, 2)
+                step4.addWidget(self.calibration_prev_button, 9, 2)
+                step4.addWidget(self.calibration_send_button, 10, 0, 1, 2)
+                step4.addWidget(self.calibration_test_label, 11, 0, 1, 3)
                 layout.addLayout(step4)
 
                 actions = QGridLayout()
@@ -241,6 +261,7 @@ class DisplayConfiguratorDialog:
                         reverse_zones=bool(self.reverse_checkbox.isChecked()),
                     )
                 )
+                self.calibration_test_label.setText(self._current_calibration_step_label())
 
             def updated_config(self) -> AppConfig:
                 zone_count = int(self.zone_count_slider.value())
@@ -260,6 +281,49 @@ class DisplayConfiguratorDialog:
                     zone_offset=int(self.zone_offset_slider.value()),
                     wizard_completed=True,
                 )
+
+            def _current_calibration_step_label(self) -> str:
+                if str(self.calibration_mode_combo.currentText()) == "corner anchors":
+                    anchors = corner_anchor_steps(device_zone_count=self._effective_device_zone_count())
+                    return anchors[self._test_step % len(anchors)].label
+                step = single_zone_step(
+                    step=self._test_step,
+                    zone_count=int(self.zone_count_slider.value()),
+                    device_zone_count=self._effective_device_zone_count(),
+                    zone_offset=int(self.zone_offset_slider.value()),
+                    reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                )
+                return step.label
+
+            def _send_test_pattern(self) -> None:
+                if self._calibration_sender is None:
+                    return
+                if str(self.calibration_mode_combo.currentText()) == "corner anchors":
+                    anchors = corner_anchor_steps(device_zone_count=self._effective_device_zone_count())
+                    step = anchors[self._test_step % len(anchors)]
+                else:
+                    step = single_zone_step(
+                        step=self._test_step,
+                        zone_count=int(self.zone_count_slider.value()),
+                        device_zone_count=self._effective_device_zone_count(),
+                        zone_offset=int(self.zone_offset_slider.value()),
+                        reverse_zones=bool(self.reverse_checkbox.isChecked()),
+                    )
+                colors = calibration_test_frame(
+                    device_zone_count=self._effective_device_zone_count(),
+                    active_indices=[step.device_zone_index],
+                )
+                self._calibration_sender(colors)
+
+            def _next_test_zone(self) -> None:
+                self._test_step += 1
+                self._refresh_mapping_preview()
+                self._send_test_pattern()
+
+            def _prev_test_zone(self) -> None:
+                self._test_step -= 1
+                self._refresh_mapping_preview()
+                self._send_test_pattern()
 
         self._dialog = _Dialog()
 

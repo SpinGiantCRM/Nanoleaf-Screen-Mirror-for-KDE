@@ -216,3 +216,21 @@ def test_min_nonzero_brightness_clamps_to_255() -> None:
     driver.send_frame([(1, 2, 3), (4, 5, 6)])
 
     assert transport.requests[4][3:] == b"\xFF"
+
+
+def test_close_clears_cached_state() -> None:
+    transport = FakeTransport([])
+    driver = NanoleafUSBDriver(ids=NanoleafUSBIds(0x37FA, 0x8202), transport=transport)
+    driver._initialized = True
+    driver.model_number = "NL82K2"
+    driver.zone_count = 12
+    driver._cached_on_state = True
+    driver._cached_brightness = 22
+
+    driver.close()
+
+    assert driver._initialized is False
+    assert driver.model_number is None
+    assert driver.zone_count is None
+    assert driver._cached_on_state is None
+    assert driver._cached_brightness is None

@@ -237,6 +237,39 @@ def test_run_loop_skips_tick_when_backends_temporarily_missing() -> None:
     assert capture_calls["count"] >= 1
 
 
+def test_run_loop_surfaces_persistent_capture_worker_failures() -> None:
+    from nanoleaf_sync.runtime.engine import run_loop
+
+    class _FailingCapture:
+        def capture(self):
+            raise RuntimeError("capture permanently broken")
+
+    class _FakeDriver:
+        zone_count = 4
+
+        def send_frame(self, _colors):
+            raise AssertionError("send_frame should not be called when capture always fails")
+
+    cfg = AppConfig(fps=120, verbose=False, use_mock_capture=False, max_consecutive_errors=2, reinit_backoff_ms=0)
+    state = RuntimeState()
+    reinit_calls = {"count": 0}
+
+    stop_timer = threading.Timer(0.05, state.stop_event.set)
+    stop_timer.start()
+    run_loop(
+        config=cfg,
+        state=state,
+        get_capture=lambda: _FailingCapture(),
+        get_driver=lambda: _FakeDriver(),
+        install_drivers=lambda: reinit_calls.__setitem__("count", reinit_calls["count"] + 1),
+        close_backends=lambda: None,
+    )
+    stop_timer.cancel()
+
+    assert reinit_calls["count"] >= 1
+    assert state.frames_sent == 0
+
+
 def test_pending_frame_slot_last_write_wins() -> None:
     slot = PendingFrameSlot()
     frame_a = np.zeros((1, 1, 3), dtype=np.uint8)
