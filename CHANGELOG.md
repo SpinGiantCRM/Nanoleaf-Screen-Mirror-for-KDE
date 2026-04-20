@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-04-20
+
+## What's Changed
+* Fix tray Start crash path, localize corner calibration, and compact wizard layout by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/138
+* Harden XDG portal negotiation and stream shutdown by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/139
+* Improve settings UI tooltips, first-run tray behavior, and startup/config diagnostics by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/140
+
+
+**Full Changelog**: https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/compare/v0.6.2...v0.6.3
+
 ## [0.6.1] - 2026-04-20
 
 ## What's Changed
