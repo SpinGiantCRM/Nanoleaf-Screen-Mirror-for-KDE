@@ -45,7 +45,8 @@ def first_run_message(mode: str) -> str:
             "If the light is not detected, open Help → Troubleshooting from the tray menu."
         )
     return (
-        "Mock (no hardware) mode is enabled. You can switch to Real hardware mode any time in Settings.\n"
+        "Diagnostic mock-capture mode is enabled. Screen capture is simulated, but USB output still needs hardware.\n"
+        "You can switch to Real hardware mode any time in Settings.\n"
         "Start the app from the tray menu when ready."
     )
 
@@ -184,7 +185,8 @@ class NanoleafTrayApp:
                 f"Check StatusNotifier settings and startup log at {self.startup_log_path}."
             )
 
-        self._show_startup_launch_diagnostic()
+        if self._should_show_startup_launch_diagnostic():
+            self._show_startup_launch_diagnostic()
         if self._startup_warning:
             self.tray_icon.showMessage(
                 "nanoleaf-kde-sync",
@@ -249,6 +251,11 @@ class NanoleafTrayApp:
             6000,
         )
 
+    def _should_show_startup_launch_diagnostic(self) -> bool:
+        env_value = str(os.environ.get("NANOLEAF_SHOW_STARTUP_DIAGNOSTIC", "") or "").strip().lower()
+        env_enabled = env_value in {"1", "true", "yes", "on", "debug", "verbose"}
+        return bool(self._startup_warning) or bool(getattr(self.config, "verbose", False)) or env_enabled
+
     def _load_tray_icons(self):
         themed_idle = self.QIcon.fromTheme("nanoleaf-kde-sync")
         if themed_idle.isNull():
@@ -306,6 +313,7 @@ class NanoleafTrayApp:
         self.action_enable_autostart = self.QAction("Enable autostart", menu)
         self.action_disable_autostart = self.QAction("Disable autostart", menu)
         self.action_reset_probe_cache = self.QAction("Reset Auto-Probe Cache (force fresh selection)", menu)
+        self.action_launch_diagnostics = self.QAction("Show launch diagnostics", menu)
         self.action_doctor = self.QAction("Run Doctor", menu)
         self.action_smoke = self.QAction("Run Smoke Test", menu)
         self.action_quit = self.QAction("Quit", menu)
@@ -320,6 +328,7 @@ class NanoleafTrayApp:
         self.action_enable_autostart.triggered.connect(self.on_enable_autostart)
         self.action_disable_autostart.triggered.connect(self.on_disable_autostart)
         self.action_reset_probe_cache.triggered.connect(self.on_reset_probe_cache)
+        self.action_launch_diagnostics.triggered.connect(self.on_show_launch_diagnostics)
         self.action_doctor.triggered.connect(self.on_doctor)
         self.action_smoke.triggered.connect(self.on_smoke_test)
         self.action_quit.triggered.connect(self.on_quit)
@@ -330,6 +339,7 @@ class NanoleafTrayApp:
         advanced_menu.addAction(self.action_doctor)
         advanced_menu.addAction(self.action_smoke)
         advanced_menu.addAction(self.action_reset_probe_cache)
+        advanced_menu.addAction(self.action_launch_diagnostics)
         advanced_menu.addSeparator()
         advanced_menu.addAction(self.action_enable_autostart)
         advanced_menu.addAction(self.action_disable_autostart)
@@ -602,6 +612,9 @@ class NanoleafTrayApp:
                 self.QSystemTrayIcon.MessageIcon.Warning,
                 7000,
             )
+
+    def on_show_launch_diagnostics(self) -> None:
+        self._show_startup_launch_diagnostic()
 
     def _run_command_async(self, label: str, argv: list[str]) -> None:
         self.action_doctor.setEnabled(False)

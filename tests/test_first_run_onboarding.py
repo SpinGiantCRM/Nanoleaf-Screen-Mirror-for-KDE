@@ -5,7 +5,8 @@ from nanoleaf_sync.ui.tray_app import first_run_message
 
 def test_first_run_message_for_demo_mode() -> None:
     message = first_run_message("diagnostic")
-    assert "Mock (no hardware) mode" in message
+    assert "mock-capture mode" in message
+    assert "USB output still needs hardware" in message
     assert "Settings" in message
 
 

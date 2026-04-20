@@ -233,6 +233,20 @@ class SettingsDialog:
                 self.display_mode_combo.setToolTip("Select SDR or HDR processing mode.")
                 self.color_mode_combo.setToolTip("Colour behavior preset used by the analyzer.")
                 self.hdr_max_nits_slider.setToolTip("Reference display peak brightness for HDR tone mapping.")
+                self.capture_backend_combo.setToolTip("Select auto or force a specific capture backend.")
+                self.auto_probe_policy_combo.setToolTip("Choose when auto-backend probing should run.")
+                self.auto_latency_policy_combo.setToolTip("Automatically run latency checks on selected lifecycle events.")
+                self.manual_map_checkbox.setToolTip("Enable explicit per-zone mapping instead of offset/reverse logic.")
+                self.manual_map_device_slider.setToolTip("Choose the physical strip zone index to edit.")
+                self.manual_map_source_slider.setToolTip("Assign the selected strip zone to this screen zone.")
+                self.device_zone_count_auto_checkbox.setToolTip("Auto-use detected strip zone count when available.")
+                self.device_zone_count_slider.setToolTip("Manual strip zone count used when auto mode is off.")
+                self.output_channel_order_combo.setToolTip("Set RGB byte order expected by your strip controller.")
+                self.mock_capture_checkbox.setToolTip("Use synthetic capture frames for diagnostics; USB output remains real hardware.")
+                self.start_on_launch_checkbox.setToolTip("Start syncing automatically right after tray launch.")
+                self.corner_offsets_enabled_checkbox.setToolTip("Enable per-corner mapping nudges for finer edge alignment.")
+                for slider in self.corner_offset_sliders:
+                    slider.setToolTip("Adjust local mapping offset for this corner (negative/positive zone shift).")
 
             def _build_backend_section(self, QGroupBox, QGridLayout, QLabel):
                 group = QGroupBox("Backend & Diagnostics")

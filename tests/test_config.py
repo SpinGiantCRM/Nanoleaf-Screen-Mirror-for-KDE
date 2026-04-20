@@ -125,6 +125,21 @@ def test_config_persists_display_wizard_fields(tmp_path: Path) -> None:
     assert loaded.color_mode == "hyper"
 
 
+def test_config_persists_corner_refinement_settings(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    mgr = ConfigManager(path=cfg_path)
+
+    cfg = AppConfig(
+        corner_offsets_enabled=True,
+        corner_zone_offsets=[2, -1, 3, 0, 99],
+    )
+    mgr.save(cfg)
+    loaded = mgr.load()
+
+    assert loaded.corner_offsets_enabled is True
+    assert loaded.corner_zone_offsets == [2, -1, 3, 0]
+
+
 def test_config_normalizes_sdr_boost_fields(tmp_path: Path) -> None:
     cfg_path = tmp_path / "config.toml"
     cfg_path.write_text(

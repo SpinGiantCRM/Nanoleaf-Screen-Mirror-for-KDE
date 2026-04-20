@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import signal
+import threading
 import time
 from datetime import datetime, timezone
 from typing import Optional, Tuple
@@ -142,6 +143,7 @@ class NanoleafSyncService:
         self._device_discovered = False
         self._device_model: str | None = None
         self._device_zone_count: int | None = None
+        self._status_lock = threading.Lock()
 
     @property
     def last_error(self) -> Optional[str]:
@@ -164,6 +166,10 @@ class NanoleafSyncService:
         return self._lifecycle.is_running()
 
     def get_status(self) -> dict:
+        with self._status_lock:
+            device_discovered = self._device_discovered
+            device_model = self._device_model
+            device_zone_count = self._device_zone_count
         capture_backend_name = (
             getattr(self._capture, "name", None) if self._capture is not None else None
         )
@@ -204,9 +210,9 @@ class NanoleafSyncService:
             f"cached={self.config.auto_selected_backend or 'none'}"
         )
         status["device_mode"] = "real-usb"
-        status["device_discovered"] = self._device_discovered
-        status["device_model"] = self._device_model
-        status["device_zone_count"] = self._device_zone_count
+        status["device_discovered"] = device_discovered
+        status["device_model"] = device_model
+        status["device_zone_count"] = device_zone_count
         return status
 
     def _make_device_driver(self) -> DeviceDriver:
@@ -224,7 +230,10 @@ class NanoleafSyncService:
     def _clear_backends(self) -> None:
         self._capture = None
         self._driver = None
-        self._device_discovered = False
+        with self._status_lock:
+            self._device_discovered = False
+            self._device_model = None
+            self._device_zone_count = None
 
     def _close_backends(self) -> None:
         if self._capture is not None:
@@ -323,9 +332,10 @@ class NanoleafSyncService:
             self._driver = self._make_device_driver()
 
         self._driver.initialize()
-        self._device_discovered = True
-        self._device_model = getattr(self._driver, "model_number", None)
-        self._device_zone_count = getattr(self._driver, "zone_count", None)
+        with self._status_lock:
+            self._device_discovered = True
+            self._device_model = getattr(self._driver, "model_number", None)
+            self._device_zone_count = getattr(self._driver, "zone_count", None)
 
     def _run_runtime(self) -> None:
         run_runtime_engine(
