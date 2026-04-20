@@ -3,6 +3,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from pathlib import Path
 
+import pytest
+
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.tools import doctor
 from nanoleaf_sync.tools.doctor import DoctorCheck, _check_mode_consistency, format_report, run_doctor
@@ -133,3 +135,12 @@ def test_desktop_authorization_warns_when_only_installed_entry_exists(monkeypatc
     result = doctor._check_desktop_authorization()
     assert result.status == "warn"
     assert "autostart is disabled" in result.message.lower()
+
+
+def test_doctor_help_lists_documented_capture_and_device_flags(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        doctor.main(["--help"])
+    assert excinfo.value.code == 0
+    help_text = capsys.readouterr().out
+    assert "--capture" in help_text
+    assert "--device" in help_text

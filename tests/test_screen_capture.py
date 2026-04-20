@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import builtins
 
 from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
 from nanoleaf_sync.capture.factory import create_capture_backend
@@ -142,6 +143,29 @@ def test_capture_factory_auto_probe_failure_falls_back_to_capability_logic(
     )
     assert backend.name == "kwin-dbus"
     assert "capture auto-probe failed" in caplog.text
+
+
+def test_capture_factory_auto_legacy_fallback_works_without_probe_dependencies(
+    monkeypatch,
+) -> None:
+    original_import = builtins.__import__
+
+    def _import_hook(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "nanoleaf_sync.capture.auto_probe":
+            raise ImportError("probe module unavailable")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", _import_hook)
+    monkeypatch.setattr("nanoleaf_sync.capture.factory._resolve_auto_backend", lambda: "kwin-dbus")
+
+    backend = create_capture_backend(
+        width=6,
+        height=4,
+        use_mock_capture=False,
+        prefer_backend="auto",
+    )
+
+    assert backend.name == "kwin-dbus"
 
 
 def test_kmsgrab_converts_hdr_before_any_resizing(monkeypatch) -> None:

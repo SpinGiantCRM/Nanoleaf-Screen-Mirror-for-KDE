@@ -195,6 +195,22 @@ def test_config_load_normalizes_auto_probe_fields(tmp_path: Path) -> None:
     assert cfg.auto_probe_timestamp == "67890"
 
 
+def test_config_load_normalizes_auto_probe_policy_variants(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text('auto_probe_policy = "FIRST_RUN"\n', encoding="utf-8")
+
+    cfg = ConfigManager(path=cfg_path).load()
+    assert cfg.auto_probe_policy == "first-run"
+
+
+def test_config_load_invalid_auto_probe_policy_falls_back_to_default(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text('auto_probe_policy = "definitely-not-valid"\n', encoding="utf-8")
+
+    cfg = ConfigManager(path=cfg_path).load()
+    assert cfg.auto_probe_policy == AppConfig.auto_probe_policy
+
+
 def test_config_reset_auto_probe_cache(tmp_path: Path) -> None:
     cfg_path = tmp_path / "config.toml"
     mgr = ConfigManager(path=cfg_path)
