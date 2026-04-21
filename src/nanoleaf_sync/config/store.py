@@ -136,6 +136,7 @@ class ConfigManager:
         payload: Dict[str, Any] = asdict(cfg)
         payload["zones"] = [asdict(z) for z in cfg.zones]
         payload["zone_sampling_stride"] = int(cfg.zone_sampling_stride)
+        payload["sampling_quality"] = str(cfg.sampling_quality)
 
         encoded = dump_toml(payload)
 

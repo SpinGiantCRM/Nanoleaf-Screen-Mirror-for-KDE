@@ -42,7 +42,7 @@ def test_config_save_validates_and_is_toml_loadable(tmp_path: Path) -> None:
     assert loaded.smoothing == 0.0
     assert loaded.smoothing_speed == 4.0
     assert loaded.fps == 120
-    assert loaded.zone_sampling_stride == 1
+    assert loaded.zone_sampling_stride == 2
     assert loaded.led_gamma == 4.0
     assert loaded.device_zone_count == 0
     assert loaded.max_consecutive_errors >= 1
@@ -293,6 +293,15 @@ def test_config_load_unrecognized_color_mode_warns_and_falls_back(tmp_path: Path
 
     assert cfg.color_mode == AppConfig.color_mode
     assert "Unrecognized color_mode" in caplog.text
+
+
+def test_config_normalizes_sampling_quality_and_derives_stride(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text('sampling_quality = "performance"\n', encoding="utf-8")
+
+    cfg = ConfigManager(path=cfg_path).load()
+    assert cfg.sampling_quality == "low"
+    assert cfg.zone_sampling_stride == 4
 
 
 def test_config_reset_auto_probe_cache_replaces_config_instance(tmp_path: Path) -> None:

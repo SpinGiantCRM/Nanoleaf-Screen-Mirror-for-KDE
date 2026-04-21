@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from nanoleaf_sync.config.normalize import sampling_quality_to_zone_stride
 from nanoleaf_sync.runtime.processing import apply_brightness, ema_smooth
 
 
@@ -14,3 +15,9 @@ def test_ema_smooth_matches_expected_rounding() -> None:
     current = [(30, 60, 90), (200, 220, 240)]
     out = ema_smooth(prev, current, alpha=0.25)
     assert out == [(15, 30, 45), (125, 138, 150)]
+
+
+def test_sampling_quality_presets_map_to_expected_stride() -> None:
+    assert sampling_quality_to_zone_stride("low") == 4
+    assert sampling_quality_to_zone_stride("balanced") == 2
+    assert sampling_quality_to_zone_stride("high") == 1

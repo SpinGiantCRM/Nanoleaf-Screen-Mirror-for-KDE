@@ -150,7 +150,7 @@ def test_auto_device_zone_detection_failure_is_explicit() -> None:
     state = CalibrationState.from_config(AppConfig(device_zone_count=0), {"device_zone_count": 0})
     assert state.auto_device_zone_count is True
     assert "Auto detection failed" in state.auto_detection_status()
-    assert "fallback source zone count" in state.auto_detection_status()
+    assert "fallback screen sampling zone count" in state.auto_detection_status()
 
 
 def test_backend_and_testing_state_are_exposed_for_ui_surfaces() -> None:
@@ -168,7 +168,7 @@ def test_backend_and_testing_state_are_exposed_for_ui_surfaces() -> None:
     panel = build_testing_panel_state(state=state, runtime_status=runtime_status, cfg=cfg, mode="direction walk", step=0)
     assert "Effective runtime backend: kwin-dbus" in panel.backend_summary
     assert panel.effective_zone_count == 48
-    assert "Device zone mode:" in panel.zone_mode_summary
+    assert "Strip LED zone mode:" in panel.zone_mode_summary
 
 
 def test_corner_refinement_preview_mentions_corner_offsets() -> None:

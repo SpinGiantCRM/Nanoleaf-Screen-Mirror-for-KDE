@@ -130,6 +130,9 @@ class DisplayConfiguratorDialog:
                 self.zone_count_slider.setRange(1, MAX_WIZARD_ZONE_COUNT)
                 self.zone_count_slider.setValue(self._state.zone_count)
                 self.zone_count_value = QLabel("")
+                self.sampling_quality_combo = QComboBox()
+                self.sampling_quality_combo.addItems(["Low", "Balanced", "High"])
+                self.sampling_quality_combo.setCurrentIndex(max(0, self.sampling_quality_combo.findText(str(getattr(cfg, "sampling_quality", "balanced")).capitalize())))
                 self.zone_preset_combo = QComboBox()
                 self.zone_preset_combo.addItems(["Edge strip (recommended)", "Full-screen horizontal"])
                 self.zone_preset_combo.setCurrentIndex(0 if self._state.zone_preset == "edge-weighted" else 1)
@@ -177,6 +180,7 @@ class DisplayConfiguratorDialog:
                 for signal in (
                     self.display_mode_combo.currentIndexChanged,
                     self.zone_count_slider.valueChanged,
+                    self.sampling_quality_combo.currentIndexChanged,
                     self.zone_offset_slider.valueChanged,
                     self.zone_preset_combo.currentIndexChanged,
                     self.reverse_checkbox.stateChanged,
@@ -283,20 +287,23 @@ class DisplayConfiguratorDialog:
                 if hasattr(layout, "setVerticalSpacing"):
                     layout.setVerticalSpacing(6)
                 layout.addWidget(QLabel("Set strip and zone basics."), 0, 0, 1, 3)
-                layout.addWidget(QLabel("Source zone count"), 1, 0)
+                layout.addWidget(QLabel("Screen sampling zone count"), 1, 0)
                 layout.addWidget(self.zone_count_slider, 1, 1)
                 layout.addWidget(self.zone_count_value, 1, 2)
-                layout.addWidget(QLabel("Zone layout preset"), 2, 0)
-                layout.addWidget(self.zone_preset_combo, 2, 1, 1, 2)
-                layout.addWidget(QLabel("Device zone count"), 3, 0)
-                layout.addWidget(self.device_zone_count_slider, 3, 1)
-                layout.addWidget(self.device_zone_count_value, 3, 2)
-                layout.addWidget(self.device_zone_count_auto_checkbox, 4, 0, 1, 3)
-                layout.addWidget(self.zone_count_explanation, 5, 0, 1, 3)
-                layout.addWidget(self.device_zone_status, 6, 0, 1, 3)
+                layout.addWidget(QLabel("Sampling quality"), 2, 0)
+                layout.addWidget(self.sampling_quality_combo, 2, 1, 1, 2)
+                layout.addWidget(QLabel("Low = better performance | Balanced = default | High = best visual fidelity"), 3, 0, 1, 3)
+                layout.addWidget(QLabel("Zone layout preset"), 4, 0)
+                layout.addWidget(self.zone_preset_combo, 4, 1, 1, 2)
+                layout.addWidget(QLabel("Strip LED zone count"), 5, 0)
+                layout.addWidget(self.device_zone_count_slider, 5, 1)
+                layout.addWidget(self.device_zone_count_value, 5, 2)
+                layout.addWidget(self.device_zone_count_auto_checkbox, 6, 0, 1, 3)
+                layout.addWidget(self.zone_count_explanation, 7, 0, 1, 3)
+                layout.addWidget(self.device_zone_status, 8, 0, 1, 3)
                 row_stretch = getattr(layout, "setRowStretch", None)
                 if callable(row_stretch):
-                    row_stretch(7, 1)
+                    row_stretch(9, 1)
                 page.setLayout(layout)
                 return page
 
@@ -394,7 +401,7 @@ class DisplayConfiguratorDialog:
                 self.device_zone_count_slider.setEnabled(not self.device_zone_count_auto_checkbox.isChecked())
                 self.device_zone_count_value.setText("auto" if self.device_zone_count_auto_checkbox.isChecked() else str(self.device_zone_count_slider.value()))
                 self.zone_count_explanation.setText(
-                    "Source zones = sampling regions on the screen. Device zones = strip output LEDs / cycle length."
+                    "Screen sampling zones = sampled regions on your display. Strip LED zones = physical LEDs on the Nanoleaf strip."
                 )
                 self.device_zone_status.setText(self._state.auto_detection_status())
 
@@ -423,8 +430,9 @@ class DisplayConfiguratorDialog:
                             f"Display mode: {self.display_mode_combo.currentText()}",
                             f"Color mode: {self.color_mode_combo.currentText()}",
                             f"Zone preset: {self._state.zone_preset}",
-                            f"Source zones: {self._state.zone_count}",
-                            f"Effective strip zones: {self._state.effective_device_zone_count()}",
+                            f"Sampling quality: {self.sampling_quality_combo.currentText()}",
+                            f"Screen sampling zones: {self._state.zone_count}",
+                            f"Effective strip LED zones: {self._state.effective_device_zone_count()}",
                             "Calibration method: corner anchors + offset",
                             self._state.auto_detection_status(),
                         )
@@ -444,6 +452,7 @@ class DisplayConfiguratorDialog:
                     hdr_max_nits=float(self.hdr_max_nits_slider.value()),
                     zones=new_zones,
                     zone_preset=self._state.zone_preset,
+                    sampling_quality=str(self.sampling_quality_combo.currentText()).lower(),
                     device_zone_count=0 if self._state.auto_device_zone_count else self._state.device_zone_count,
                     reverse_zones=self._state.reverse_zones,
                     zone_offset=self._state.zone_offset,

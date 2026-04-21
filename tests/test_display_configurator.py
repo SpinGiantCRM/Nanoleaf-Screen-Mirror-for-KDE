@@ -157,12 +157,15 @@ def test_display_configurator_marks_wizard_complete_and_saves_calibration(monkey
     cfg = AppConfig(wizard_completed=False, zones=[])
     dialog = DisplayConfiguratorDialog(parent=None, cfg=cfg)
     dialog._dialog.zone_count_slider.setValue(6)
+    high_idx = dialog._dialog.sampling_quality_combo.findText("High")
+    dialog._dialog.sampling_quality_combo.setCurrentIndex(high_idx)
     dialog._dialog.zone_offset_slider.setValue(2)
     dialog._dialog.reverse_checkbox.setChecked(True)
 
     updated = dialog.updated_config()
     assert updated.wizard_completed is True
     assert len(updated.zones) == 6
+    assert updated.sampling_quality == "high"
     assert updated.zone_offset == 2
     assert updated.reverse_zones is True
 
@@ -206,6 +209,7 @@ def test_display_configurator_updates_live_numeric_labels(monkeypatch) -> None:
 
     assert dialog._dialog.zone_count_value._text == "14"
     assert dialog._dialog.zone_offset_value._text == "-3"
+    assert "Screen sampling zones" in dialog._dialog.zone_count_explanation._text
 
 
 def test_display_configurator_uses_compact_default_window_size(monkeypatch) -> None:
