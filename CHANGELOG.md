@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-04-21
+
+## What's Changed
+* Gate manual zone mapping behind explicit config flag by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/173
+* Route calibration tray action to Settings; deprecate legacy calibration dialog by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/174
+* Add measured runtime latency probe and distinguish measured vs estimated UI by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/175
+
+
+**Full Changelog**: https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/compare/v0.7.1...v0.7.2
+
 ## [0.7.1] - 2026-04-21
 
 ## What's Changed
