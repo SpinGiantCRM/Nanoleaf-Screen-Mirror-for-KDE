@@ -181,6 +181,11 @@ def validate_config(cfg: AppConfig) -> AppConfig:
                 anchors=anchor_values,
             )
             explicit_zone_map = derived.explicit_zone_map
+        else:
+            corner_anchor_top_left = -1
+            corner_anchor_top_right = -1
+            corner_anchor_bottom_right = -1
+            corner_anchor_bottom_left = -1
 
     return AppConfig(
         fps=fps,

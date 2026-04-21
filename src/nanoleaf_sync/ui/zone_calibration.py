@@ -19,23 +19,34 @@ def mapping_indices(
     corner_anchor_bottom_right: int = -1,
     corner_anchor_bottom_left: int = -1,
 ) -> list[int]:
+    normalized_device_zone_count = int(device_zone_count)
+    if normalized_device_zone_count <= 0:
+        return resolve_device_zone_indices(
+            max(1, int(zone_count)),
+            device_zone_count=1,
+            zone_offset=int(zone_offset),
+            reverse=bool(reverse_zones),
+            explicit_zone_map=list(explicit_zone_map) if explicit_zone_map else None,
+            corner_zone_offsets=list(corner_zone_offsets) if corner_zone_offsets else None,
+        )
+
     anchors = {
         "top_left": corner_anchor_top_left if corner_anchor_top_left >= 0 else None,
         "top_right": corner_anchor_top_right if corner_anchor_top_right >= 0 else None,
         "bottom_right": corner_anchor_bottom_right if corner_anchor_bottom_right >= 0 else None,
         "bottom_left": corner_anchor_bottom_left if corner_anchor_bottom_left >= 0 else None,
     }
-    validation = validate_corner_anchors(anchors=anchors, device_zone_count=max(1, int(device_zone_count)))
+    validation = validate_corner_anchors(anchors=anchors, device_zone_count=normalized_device_zone_count)
     if validation.valid:
         return derive_anchor_zone_map(
             zone_count=zone_count,
-            device_zone_count=device_zone_count,
+            device_zone_count=normalized_device_zone_count,
             anchors=anchors,
         ).explicit_zone_map
 
     return resolve_device_zone_indices(
         max(1, int(zone_count)),
-        device_zone_count=max(1, int(device_zone_count)),
+        device_zone_count=normalized_device_zone_count,
         zone_offset=int(zone_offset),
         reverse=bool(reverse_zones),
         explicit_zone_map=list(explicit_zone_map) if explicit_zone_map else None,
@@ -57,25 +68,33 @@ def mapping_preview_text(
     corner_anchor_bottom_left: int = -1,
     show_limit: int = 16,
 ) -> str:
+    normalized_device_zone_count = int(device_zone_count)
     anchors = {
         "top_left": corner_anchor_top_left if corner_anchor_top_left >= 0 else None,
         "top_right": corner_anchor_top_right if corner_anchor_top_right >= 0 else None,
         "bottom_right": corner_anchor_bottom_right if corner_anchor_bottom_right >= 0 else None,
         "bottom_left": corner_anchor_bottom_left if corner_anchor_bottom_left >= 0 else None,
     }
-    validation = validate_corner_anchors(anchors=anchors, device_zone_count=max(1, int(device_zone_count)))
     anchor_line = "Corner anchors: incomplete"
     direction = "n/a"
     edges = "n/a"
-    if validation.valid:
-        derived = derive_anchor_zone_map(zone_count=zone_count, device_zone_count=device_zone_count, anchors=anchors)
-        direction = derived.direction
-        edges = "/".join(str(v) for v in derived.edge_lengths)
-        anchor_line = (
-            f"Corner anchors (TL/TR/BR/BL): {corner_anchor_top_left}/{corner_anchor_top_right}/{corner_anchor_bottom_right}/{corner_anchor_bottom_left}"
-        )
+    if normalized_device_zone_count <= 0:
+        anchor_line = "Corner anchors: waiting for device zone count."
     else:
-        anchor_line = f"Corner anchors: {'; '.join(validation.errors)}"
+        validation = validate_corner_anchors(anchors=anchors, device_zone_count=normalized_device_zone_count)
+        if validation.valid:
+            derived = derive_anchor_zone_map(
+                zone_count=zone_count,
+                device_zone_count=normalized_device_zone_count,
+                anchors=anchors,
+            )
+            direction = derived.direction
+            edges = "/".join(str(v) for v in derived.edge_lengths)
+            anchor_line = (
+                f"Corner anchors (TL/TR/BR/BL): {corner_anchor_top_left}/{corner_anchor_top_right}/{corner_anchor_bottom_right}/{corner_anchor_bottom_left}"
+            )
+        else:
+            anchor_line = f"Corner anchors: {'; '.join(validation.errors)}"
 
     indices = mapping_indices(
         zone_count=zone_count,
