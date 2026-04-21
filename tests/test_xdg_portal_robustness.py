@@ -2,6 +2,7 @@ import asyncio
 import logging
 import sys
 import types
+from pathlib import Path
 
 import pytest
 
@@ -113,3 +114,65 @@ def test_open_pipewire_stream_falls_back_on_pipewire_attribute_error(
 
     assert calls == [(33, 44)]
     assert "falling back to GStreamer" in caplog.text
+
+
+class _FakeReadableMMap:
+    def __init__(self, payload: bytes) -> None:
+        self._payload = payload
+
+    def seek(self, _offset: int) -> None:
+        return
+
+    def read(self, size: int) -> bytes:
+        return self._payload[:size]
+
+
+def test_read_frame_gstreamer_waits_for_first_frame_then_returns_array(monkeypatch) -> None:
+    backend = XDGPortalCapture(width=2, height=2)
+    backend._frame_bytes = 12
+    backend._shm_file = types.SimpleNamespace(name="/tmp/fake.raw")
+    backend._shm_mm = _FakeReadableMMap(bytes(range(12)))
+    backend._first_frame_ready = False
+    backend._first_frame_deadline_s = 0.1
+    backend._first_frame_poll_interval_s = 0.0
+    backend._shm_initial_mtime_ns = 100
+
+    stats = iter(
+        [
+            types.SimpleNamespace(st_size=12, st_mtime_ns=100),
+            types.SimpleNamespace(st_size=12, st_mtime_ns=101),
+        ]
+    )
+    monotonic_values = iter([0.0, 0.01, 0.02, 0.03])
+
+    monkeypatch.setattr("os.stat", lambda _path: next(stats))
+    monkeypatch.setattr("time.monotonic", lambda: next(monotonic_values))
+    monkeypatch.setattr("time.sleep", lambda _seconds: None)
+
+    frame = backend._read_frame_gstreamer()
+
+    assert frame is not None
+    assert frame.shape == (2, 2, 3)
+    assert backend._first_frame_ready is True
+
+
+def test_read_frame_gstreamer_raises_clear_error_on_cold_start_timeout(monkeypatch) -> None:
+    backend = XDGPortalCapture(width=2, height=2)
+    backend._frame_bytes = 12
+    backend._shm_file = types.SimpleNamespace(name=str(Path("/tmp/fake.raw")))
+    backend._shm_mm = _FakeReadableMMap(b"")
+    backend._first_frame_ready = False
+    backend._first_frame_deadline_s = 0.01
+    backend._first_frame_poll_interval_s = 0.0
+    backend._shm_initial_mtime_ns = 100
+
+    monotonic_values = iter([0.0, 0.005, 0.02])
+    monkeypatch.setattr(
+        "os.stat",
+        lambda _path: types.SimpleNamespace(st_size=0, st_mtime_ns=100),
+    )
+    monkeypatch.setattr("time.monotonic", lambda: next(monotonic_values))
+    monkeypatch.setattr("time.sleep", lambda _seconds: None)
+
+    with pytest.raises(XDGPortalError, match="timed out waiting for first frame bytes"):
+        backend._read_frame_gstreamer()

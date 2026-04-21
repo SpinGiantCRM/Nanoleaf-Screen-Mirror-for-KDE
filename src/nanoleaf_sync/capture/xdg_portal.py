@@ -11,6 +11,7 @@ import asyncio
 import logging
 import os
 import threading
+import time
 
 from nanoleaf_sync.capture.portal_helpers import random_token, request_path, unwrap_variant
 from pathlib import Path
@@ -36,6 +37,8 @@ class XDGPortalCapture:
     _PORTAL_IFACE = "org.freedesktop.portal.ScreenCast"
     _SESSION_IFACE = "org.freedesktop.portal.Session"
     _REQUEST_IFACE = "org.freedesktop.portal.Request"
+    _GSTREAMER_FIRST_FRAME_TIMEOUT_S = 1.0
+    _GSTREAMER_FIRST_FRAME_POLL_INTERVAL_S = 0.02
 
     def __init__(
         self,
@@ -337,6 +340,10 @@ class XDGPortalCapture:
         self._gst_proc = subprocess.Popen(cmd, close_fds=True, pass_fds=(fd,))
         self._shm_mm = mmap.mmap(self._shm_file.fileno(), frame_bytes)
         self._frame_bytes = frame_bytes
+        self._first_frame_ready = False
+        self._first_frame_deadline_s = self._GSTREAMER_FIRST_FRAME_TIMEOUT_S
+        self._first_frame_poll_interval_s = self._GSTREAMER_FIRST_FRAME_POLL_INTERVAL_S
+        self._shm_initial_mtime_ns = os.stat(self._shm_file.name).st_mtime_ns
         self._use_gstreamer = True
 
     def _read_pipewire_frame(self) -> Optional[np.ndarray]:
@@ -353,11 +360,35 @@ class XDGPortalCapture:
         return np.frombuffer(data, dtype=np.uint8).reshape(self.height, self.width, 3).copy()
 
     def _read_frame_gstreamer(self) -> Optional[np.ndarray]:
+        if not getattr(self, "_first_frame_ready", True):
+            self._wait_for_first_gstreamer_frame()
         self._shm_mm.seek(0)
         raw = self._shm_mm.read(self._frame_bytes)
         if len(raw) < self._frame_bytes:
             return None
         return np.frombuffer(raw, dtype=np.uint8).reshape(self.height, self.width, 3).copy()
+
+    def _wait_for_first_gstreamer_frame(self) -> None:
+        deadline = time.monotonic() + self._first_frame_deadline_s
+        last_size = -1
+        last_mtime_ns = None
+
+        while time.monotonic() < deadline:
+            stat = os.stat(self._shm_file.name)
+            last_size = stat.st_size
+            last_mtime_ns = stat.st_mtime_ns
+            if stat.st_size >= self._frame_bytes and stat.st_mtime_ns > self._shm_initial_mtime_ns:
+                self._shm_mm.seek(0)
+                first_frame = self._shm_mm.read(self._frame_bytes)
+                if len(first_frame) == self._frame_bytes:
+                    self._first_frame_ready = True
+                    return
+            time.sleep(self._first_frame_poll_interval_s)
+
+        raise XDGPortalError(
+            "GStreamer capture initialization timed out waiting for first frame bytes "
+            f"(size={last_size}, mtime_ns={last_mtime_ns}, expected={self._frame_bytes})."
+        )
 
     def _close_pipewire_stream(self) -> None:
         if self._use_gstreamer:
