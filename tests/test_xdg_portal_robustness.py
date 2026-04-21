@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import sys
 import types
 
 import pytest
@@ -61,3 +63,53 @@ def test_close_pipewire_stream_kills_stuck_gstreamer_process(monkeypatch) -> Non
     assert backend._gst_proc.killed is True
     assert backend._shm_mm.closed is True
     assert unlinked == ["/tmp/fake-portal-frame.raw"]
+
+
+def test_open_pipewire_stream_falls_back_when_binding_symbols_missing(
+    monkeypatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    backend = XDGPortalCapture(width=4, height=4)
+    calls: list[tuple[int, int]] = []
+
+    class _FakePipewire:
+        MainLoop = object
+        Context = object
+        Stream = object
+        Direction = object
+        StreamFlags = object
+
+    def _fake_open_via_gstreamer(fd: int, node_id: int) -> None:
+        calls.append((fd, node_id))
+
+    monkeypatch.setitem(sys.modules, "pipewire", _FakePipewire())
+    monkeypatch.setattr(backend, "_open_via_gstreamer", _fake_open_via_gstreamer)
+
+    with caplog.at_level(logging.INFO):
+        backend._open_pipewire_stream(fd=11, node_id=22)
+
+    assert calls == [(11, 22)]
+    assert "unsupported" in caplog.text
+    assert "SpaPod" in caplog.text
+
+
+def test_open_pipewire_stream_falls_back_on_pipewire_attribute_error(
+    monkeypatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    backend = XDGPortalCapture(width=4, height=4)
+    calls: list[tuple[int, int]] = []
+
+    def _raise_attr_error(_fd: int, _node_id: int) -> None:
+        raise AttributeError("synthetic missing attribute")
+
+    def _fake_open_via_gstreamer(fd: int, node_id: int) -> None:
+        calls.append((fd, node_id))
+
+    monkeypatch.setattr(backend, "_pipewire_python_is_supported", lambda: (True, "supported"))
+    monkeypatch.setattr(backend, "_open_via_pipewire_python", _raise_attr_error)
+    monkeypatch.setattr(backend, "_open_via_gstreamer", _fake_open_via_gstreamer)
+
+    with caplog.at_level(logging.WARNING):
+        backend._open_pipewire_stream(fd=33, node_id=44)
+
+    assert calls == [(33, 44)]
+    assert "falling back to GStreamer" in caplog.text
