@@ -4,7 +4,7 @@ import json
 import os
 import tempfile
 import tomllib
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -40,6 +40,7 @@ def mode_config(mode: str) -> AppConfig:
 class ConfigManager:
     def __init__(self, path: Optional[os.PathLike[str] | str] = None) -> None:
         self.path = Path(path) if path is not None else default_config_path()
+        self._config: Optional[AppConfig] = None
 
     def _legacy_json_path(self) -> Path:
         if self.path.suffix.lower() == ".json":
@@ -74,21 +75,25 @@ class ConfigManager:
     def load(self) -> AppConfig:
         self._migrate_json_if_present()
         if not self.path.exists():
-            return AppConfig()
+            self._config = AppConfig()
+            return self._config
 
         try:
             raw = self.path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             # Config corruption/unreadable file should not prevent the app from starting.
-            return AppConfig()
+            self._config = AppConfig()
+            return self._config
         try:
             data = tomllib.loads(raw) if raw.strip() else {}
         except tomllib.TOMLDecodeError:
             # Config corruption should not prevent the app from starting.
-            return AppConfig()
+            self._config = AppConfig()
+            return self._config
 
         if not isinstance(data, dict):
-            return AppConfig()
+            self._config = AppConfig()
+            return self._config
 
         try:
             cfg = from_dict(
@@ -97,8 +102,10 @@ class ConfigManager:
                 config=DaciteConfig(strict=False, cast=[int, float, str, bool]),
             )
         except Exception:
-            return AppConfig()
-        return validate_config(cfg)
+            self._config = AppConfig()
+            return self._config
+        self._config = validate_config(cfg)
+        return self._config
 
     def exists(self) -> bool:
         return self.path.exists()
@@ -111,16 +118,20 @@ class ConfigManager:
 
     def reset_auto_probe_cache(self) -> AppConfig:
         cfg = self.load()
-        cfg.auto_selected_backend = ""
-        cfg.auto_probe_signature = ""
-        cfg.auto_probe_timestamp = ""
-        self.save(cfg)
-        return self.load()
+        updated_cfg = replace(
+            cfg,
+            auto_selected_backend="",
+            auto_probe_signature="",
+            auto_probe_timestamp="",
+        )
+        self.save(updated_cfg)
+        return updated_cfg
 
     def save(self, config: AppConfig) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
         cfg = validate_config(config)
+        self._config = cfg
 
         payload: Dict[str, Any] = asdict(cfg)
         payload["zones"] = [asdict(z) for z in cfg.zones]

@@ -260,7 +260,7 @@ def test_config_load_unrecognized_color_mode_warns_and_falls_back(tmp_path: Path
     assert "Unrecognized color_mode" in caplog.text
 
 
-def test_config_reset_auto_probe_cache(tmp_path: Path) -> None:
+def test_config_reset_auto_probe_cache_replaces_config_instance(tmp_path: Path) -> None:
     cfg_path = tmp_path / "config.toml"
     mgr = ConfigManager(path=cfg_path)
     mgr.save(
@@ -270,8 +270,20 @@ def test_config_reset_auto_probe_cache(tmp_path: Path) -> None:
             auto_probe_timestamp="2026-01-01T00:00:00+00:00",
         )
     )
+    original = mgr.load()
 
     updated = mgr.reset_auto_probe_cache()
+
+    assert updated is not original
+    assert original.auto_selected_backend == "kwin-dbus"
+    assert original.auto_probe_signature == "abc"
+    assert original.auto_probe_timestamp == "2026-01-01T00:00:00+00:00"
+
     assert updated.auto_selected_backend == ""
     assert updated.auto_probe_signature == ""
     assert updated.auto_probe_timestamp == ""
+
+    persisted = mgr.load()
+    assert persisted.auto_selected_backend == ""
+    assert persisted.auto_probe_signature == ""
+    assert persisted.auto_probe_timestamp == ""
