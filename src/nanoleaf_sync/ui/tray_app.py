@@ -169,6 +169,8 @@ class NanoleafTrayApp:
         self.cfg_mgr = ConfigManager()
         self._calibration_dialog: CalibrationDiagnosticsDialog | None = None
         self._startup_warning: str | None = None
+        self._preview_driver = None
+        self._preview_paused_service = False
         try:
             self._config_created = self.cfg_mgr.initialize(mode="full-real", force=False)
             self.config = self.cfg_mgr.load()
@@ -205,31 +207,43 @@ class NanoleafTrayApp:
         if not self._config_created and bool(getattr(self.config, "start_on_launch", False)):
             self.QTimer.singleShot(0, self._start_after_launch)
 
+    def _close_preview_driver(self, *, resume_service: bool = True) -> None:
+        if self._preview_driver is not None:
+            try:
+                self._preview_driver.close()
+            except Exception as exc:
+                _log.debug("Calibration preview driver close failed: %s", exc, exc_info=True)
+            self._preview_driver = None
+
+        was_paused = self._preview_paused_service
+        self._preview_paused_service = False
+        if was_paused and resume_service and not self.service.is_running():
+            self.service.start()
+
+    def _acquire_preview_driver(self):
+        if self._preview_driver is not None:
+            return self._preview_driver
+        if self.service.is_running():
+            self._preview_paused_service = True
+            self.on_stop()
+        driver = self._make_preview_driver()
+        driver.initialize()
+        self._preview_driver = driver
+        return driver
+
     def _send_calibration_preview(self, colors: list[tuple[int, int, int]]) -> None:
-        driver = None
-        was_running = self.service.is_running()
         try:
-            if was_running:
-                self.on_stop()
-            driver = self._make_preview_driver()
-            driver.initialize()
+            driver = self._acquire_preview_driver()
             driver.send_frame(colors)
         except Exception as exc:
             _log.warning("Calibration preview send failed: %s", exc, exc_info=True)
+            self._close_preview_driver(resume_service=False)
             self.tray_icon.showMessage(
                 "nanoleaf-kde-sync",
                 f"Calibration test pattern failed: {exc}",
                 self.QSystemTrayIcon.MessageIcon.Warning,
                 5000,
             )
-        finally:
-            if driver is not None:
-                try:
-                    driver.close()
-                except Exception as exc:
-                    _log.debug("Calibration preview driver close failed: %s", exc, exc_info=True)
-            if was_running:
-                self.on_start()
 
     def _make_preview_driver(self):
         return self.service._make_device_driver()
@@ -392,6 +406,9 @@ class NanoleafTrayApp:
         self.action_status.setText(f"About / Status ({'Running' if running else 'Idle'})")
 
     def on_start(self):
+        close_preview = getattr(self, "_close_preview_driver", None)
+        if callable(close_preview):
+            close_preview(resume_service=False)
         try:
             started = self.service.start()
             running = started and self.service.is_running()
@@ -456,11 +473,18 @@ class NanoleafTrayApp:
 
     def on_display_configurator(self) -> None:
         dlg = DisplayConfiguratorDialog(parent=None, cfg=self.config, calibration_sender=self._send_calibration_preview)
-        if dlg.exec() != self.QDialog.DialogCode.Accepted:
+        was_running = self.service.is_running() or bool(getattr(self, "_preview_paused_service", False))
+        accepted = dlg.exec() == self.QDialog.DialogCode.Accepted
+        close_preview = getattr(self, "_close_preview_driver", None)
+        if callable(close_preview):
+            close_preview(resume_service=False)
+        if not accepted:
+            if was_running:
+                self.on_start()
             return
+
         was_first_run = not bool(getattr(self.config, "wizard_completed", False))
-        was_running = self.service.is_running()
-        if was_running:
+        if was_running and self.service.is_running():
             self.on_stop()
         self.config = dlg.updated_config()
         self._calibration_dialog = None
@@ -482,8 +506,16 @@ class NanoleafTrayApp:
             calibration_sender=self._send_calibration_preview,
             runtime_status=self.service.get_status(),
         )
-        if dlg.exec() != self.QDialog.DialogCode.Accepted:
+        was_running = self.service.is_running() or bool(getattr(self, "_preview_paused_service", False))
+        accepted = dlg.exec() == self.QDialog.DialogCode.Accepted
+        close_preview = getattr(self, "_close_preview_driver", None)
+        if callable(close_preview):
+            close_preview(resume_service=False)
+        if not accepted:
+            if was_running:
+                self.on_start()
             return
+
         if dlg.wants_display_configurator():
             self.config = dlg.updated_config()
             self.cfg_mgr.save(self.config)
@@ -494,8 +526,7 @@ class NanoleafTrayApp:
         self.config = new_cfg
         if self._calibration_dialog is not None:
             self._calibration_dialog.set_config(self.config)
-        was_running = self.service.is_running()
-        if was_running:
+        if was_running and self.service.is_running():
             self.on_stop()
         self.service = NanoleafSyncService(config=self.config)
         self._refresh_mode_labels()
@@ -701,6 +732,7 @@ class NanoleafTrayApp:
 
     def on_quit(self):
         try:
+            self._close_preview_driver(resume_service=False)
             self.on_stop()
         finally:
             self.app.quit()

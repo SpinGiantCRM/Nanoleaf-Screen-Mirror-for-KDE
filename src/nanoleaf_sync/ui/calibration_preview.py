@@ -3,7 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
-from nanoleaf_sync.ui.calibration_flow import coverage_progress_label, derive_corner_anchor_device_indices
+from nanoleaf_sync.ui.calibration_flow import (
+    coverage_progress_label,
+    derive_corner_anchor_device_indices,
+)
 from nanoleaf_sync.ui.zone_calibration import mapping_indices
 
 
@@ -116,10 +119,6 @@ def corner_anchor_steps(
     start_anchor: int | None = None,
 ) -> list[CalibrationStep]:
     total = max(1, int(device_zone_count))
-    if total == 1:
-        return [CalibrationStep(0, 0, "Corner anchor: single-zone strip")]
-
-    corner_names = ["top-left", "top-right", "bottom-right", "bottom-left"]
     mapping = mapping_indices(
         zone_count=zone_count,
         device_zone_count=device_zone_count,
@@ -128,7 +127,10 @@ def corner_anchor_steps(
         explicit_zone_map=explicit_zone_map,
         corner_zone_offsets=corner_zone_offsets,
     )
-    anchors = derive_corner_anchor_device_indices(
+    if total == 1:
+        return [CalibrationStep(0, 0, "Corner marker: single-zone strip")]
+    corner_names = ["top-left", "top-right", "bottom-right", "bottom-left"]
+    indices = derive_corner_anchor_device_indices(
         zone_count=zone_count,
         device_zone_count=device_zone_count,
         zone_offset=zone_offset,
@@ -138,16 +140,14 @@ def corner_anchor_steps(
         start_anchor=start_anchor,
     )
     steps: list[CalibrationStep] = []
-    for name, device_idx in zip(corner_names, anchors):
+    for i, device_idx in enumerate(indices):
         source_idx = int(mapping[device_idx]) if mapping else 0
+        label_name = corner_names[i] if i < len(corner_names) else f"marker {i + 1}"
         steps.append(
             CalibrationStep(
-                device_zone_index=int(device_idx),
+                device_zone_index=device_idx,
                 source_zone_index=source_idx,
-                label=(
-                    f"Corner anchor {name}: light strip zone #{int(device_idx) + 1} "
-                    f"(mapped source zone #{source_idx + 1})."
-                ),
+                label=f"Corner marker {label_name}: strip zone #{device_idx + 1}.",
             )
         )
     return steps

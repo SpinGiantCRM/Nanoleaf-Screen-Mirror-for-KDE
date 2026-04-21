@@ -180,7 +180,7 @@ def test_config_normalizes_boolean_fields_consistently(tmp_path: Path) -> None:
     assert cfg.verbose is False
 
 
-def test_config_clears_invalid_corner_anchors_when_device_zone_count_is_known(tmp_path: Path) -> None:
+def test_config_preserves_legacy_corner_anchor_fields_without_validation(tmp_path: Path) -> None:
     cfg_path = tmp_path / "config.toml"
     cfg_path.write_text(
         "\n".join(
@@ -197,10 +197,10 @@ def test_config_clears_invalid_corner_anchors_when_device_zone_count_is_known(tm
     )
 
     cfg = ConfigManager(path=cfg_path).load()
-    assert cfg.corner_anchor_top_left == -1
-    assert cfg.corner_anchor_top_right == -1
-    assert cfg.corner_anchor_bottom_right == -1
-    assert cfg.corner_anchor_bottom_left == -1
+    assert cfg.corner_anchor_top_left == 0
+    assert cfg.corner_anchor_top_right == 1
+    assert cfg.corner_anchor_bottom_right == 2
+    assert cfg.corner_anchor_bottom_left == 2
 
 
 def test_dump_toml_handles_mixed_list_types() -> None:
