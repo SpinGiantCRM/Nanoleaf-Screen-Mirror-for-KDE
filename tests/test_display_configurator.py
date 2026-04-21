@@ -227,7 +227,7 @@ def test_display_configurator_uses_corner_anchor_model(monkeypatch) -> None:
     assert updated.corner_anchor_top_right >= 0
 
 
-def test_display_configurator_offset_change_keeps_current_walked_physical_zone(monkeypatch) -> None:
+def test_display_configurator_offset_change_updates_current_physical_zone(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
     cfg = AppConfig(zones=[], device_zone_count=48, zone_offset=-5)
     dialog = DisplayConfiguratorDialog(parent=None, cfg=cfg)
@@ -238,4 +238,4 @@ def test_display_configurator_offset_change_keeps_current_walked_physical_zone(m
     dialog._dialog.zone_offset_slider.setValue(17)
     after = dialog._dialog.current_zone_label._text
 
-    assert before == after
+    assert before != after

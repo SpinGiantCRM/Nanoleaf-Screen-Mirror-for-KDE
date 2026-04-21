@@ -406,7 +406,7 @@ class DisplayConfiguratorDialog:
                 self.preview_visual.setText(self._state.mapping_preview_visual())
                 self.calibration_test_label.setText(preview.active_test_description)
                 current_zone = self._state.step_for_mode(
-                    CALIBRATION_MODE_WALK,
+                    CALIBRATION_MODE_CORNER,
                     self._test_step,
                 ).device_zone_index
                 self.current_zone_label.setText(f"Current physical strip zone: {current_zone}")
@@ -468,20 +468,20 @@ class DisplayConfiguratorDialog:
                 if self._calibration_sender is None:
                     return
                 self._pull_state_from_controls()
-                mode = CALIBRATION_MODE_WALK
+                mode = CALIBRATION_MODE_CORNER
                 off_frame = [(0, 0, 0)] * self._state.effective_device_zone_count()
                 self._calibration_sender(off_frame)
                 self._calibration_sender(self._state.frame_for_step(mode=mode, step=self._test_step, brightness=1.0, all_off_except_active=True))
 
             def _next_test_zone(self) -> None:
                 self._pull_state_from_controls()
-                self._test_step = (self._test_step + 1) % self._state.cycle_length(CALIBRATION_MODE_WALK)
+                self._test_step = (self._test_step + 1) % self._state.cycle_length(CALIBRATION_MODE_CORNER)
                 self._refresh()
                 self._send_test_pattern()
 
             def _prev_test_zone(self) -> None:
                 self._pull_state_from_controls()
-                self._test_step = (self._test_step - 1) % self._state.cycle_length(CALIBRATION_MODE_WALK)
+                self._test_step = (self._test_step - 1) % self._state.cycle_length(CALIBRATION_MODE_CORNER)
                 self._refresh()
                 self._send_test_pattern()
 

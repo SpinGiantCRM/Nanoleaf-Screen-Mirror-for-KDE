@@ -7,7 +7,6 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.calibration_flow import calibration_sequence_text
 from nanoleaf_sync.ui.calibration_state import (
     CalibrationState,
-    TEST_MODES,
     backend_selection_info,
     build_latency_result,
     latency_result_summary,
@@ -26,9 +25,9 @@ HDR_MAX_NITS_MAX = 10000
 ZONE_STRIDE_MIN = 1
 ZONE_STRIDE_MAX = 8
 MAX_ZONE_COUNT = 128
-CORNER_OFFSET_LIMIT = 24
 SDR_BOOST_NITS_MIN = 80
 SDR_BOOST_NITS_MAX = 400
+CALIBRATION_MODE_CORNER = "corner+offset alignment"
 
 SETTINGS_SECTIONS: tuple[str, ...] = (
     "Backend & Diagnostics",
@@ -38,8 +37,6 @@ SETTINGS_SECTIONS: tuple[str, ...] = (
     "Calibration & Testing",
     "Output & Startup",
 )
-
-CORNER_NAMES: tuple[str, ...] = ("Top-left", "Top-right", "Bottom-right", "Bottom-left")
 
 class _FallbackLayout:
     def addWidget(self, *_args, **_kwargs) -> None:
@@ -100,7 +97,6 @@ class SettingsDialog:
                 self._calibration_sender = calibration_sender
                 self._runtime_status = runtime_status or {}
                 self._state = CalibrationState.from_config(cfg, runtime_status)
-                self._manual_map = self._state.explicit_zone_map[:]
                 self._test_step = 0
                 self._latest_latency = None
 
@@ -124,22 +120,6 @@ class SettingsDialog:
                 self.device_zone_count_auto_checkbox = QCheckBox("Auto device zone count")
                 self.device_zone_count_auto_checkbox.setChecked(self._state.auto_device_zone_count)
                 self.device_zone_status_label = QLabel("")
-                self.manual_map_checkbox = QCheckBox("Advanced: manual zone map"); self.manual_map_checkbox.setChecked(self._state.manual_mapping_enabled)
-                self.manual_map_device_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.manual_map_device_slider.setRange(0, max(0, self._state.effective_device_zone_count() - 1)); self.manual_map_device_slider.setValue(0)
-                self.manual_map_source_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.manual_map_source_slider.setRange(0, max(0, self._state.zone_count - 1)); self.manual_map_source_slider.setValue(0)
-                self.manual_map_status_label = QLabel("")
-                self.corner_offsets_enabled_checkbox = QCheckBox("Advanced: per-corner refinement")
-                self.corner_offsets_enabled_checkbox.setChecked(self._state.corner_offsets_enabled)
-                self.corner_offset_sliders = []
-                self.corner_offset_values = []
-                for idx, name in enumerate(CORNER_NAMES):
-                    slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                    slider.setRange(-CORNER_OFFSET_LIMIT, CORNER_OFFSET_LIMIT)
-                    offsets = self._state.active_corner_zone_offsets()
-                    slider.setValue(int(offsets[idx]))
-                    value = QLabel("")
-                    self.corner_offset_sliders.append(slider)
-                    self.corner_offset_values.append(value)
                 self.corner_anchor_button = QPushButton("Set next top-left anchor")
                 self.assign_top_left_button = QPushButton("Assign current zone → Top-left")
                 self.assign_top_right_button = QPushButton("Assign current zone → Top-right")
@@ -149,7 +129,10 @@ class SettingsDialog:
                 self.current_zone_label = QLabel("")
 
                 self.test_step_button = QPushButton("Next zone") ; self.test_prev_button = QPushButton("Previous zone")
-                self.test_mode_combo = QComboBox(); self.test_mode_combo.addItems(list(TEST_MODES))
+                self.test_mode_combo = QComboBox(); self.test_mode_combo.addItems([CALIBRATION_MODE_CORNER])
+                mode_set_enabled = getattr(self.test_mode_combo, "setEnabled", None)
+                if callable(mode_set_enabled):
+                    mode_set_enabled(False)
                 self.test_auto_checkbox = QCheckBox("Auto-step")
                 self.test_loop_checkbox = QCheckBox("Loop"); self.test_loop_checkbox.setChecked(True)
                 self.test_duration_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.test_duration_slider.setRange(1, 60); self.test_duration_slider.setValue(12)
@@ -210,16 +193,10 @@ class SettingsDialog:
                     self.device_zone_count_slider.valueChanged,
                     self.device_zone_count_auto_checkbox.stateChanged,
                     self.reverse_checkbox.stateChanged,
-                    self.manual_map_checkbox.stateChanged,
-                    self.corner_offsets_enabled_checkbox.stateChanged,
                     self.capture_backend_combo.currentIndexChanged,
                     self.auto_probe_policy_combo.currentIndexChanged,
                 ):
                     signal.connect(self._refresh_preview_label)
-                self.manual_map_device_slider.valueChanged.connect(self._sync_manual_source_slider)
-                self.manual_map_source_slider.valueChanged.connect(self._apply_manual_mapping)
-                for slider in self.corner_offset_sliders:
-                    slider.valueChanged.connect(self._on_calibration_controls_changed)
                 self.corner_anchor_button.clicked.connect(self._rotate_anchor)
                 self.assign_top_left_button.clicked.connect(lambda: self._assign_anchor("top_left"))
                 self.assign_top_right_button.clicked.connect(lambda: self._assign_anchor("top_right"))
@@ -276,9 +253,6 @@ class SettingsDialog:
                 self.device_pid_combo.setToolTip("USB product ID used to locate your hardware.")
                 self.auto_probe_policy_combo.setToolTip("Choose when auto-backend probing should run.")
                 self.auto_latency_policy_combo.setToolTip("Automatically run latency checks on selected lifecycle events.")
-                self.manual_map_checkbox.setToolTip("Enable explicit per-zone mapping instead of offset/reverse logic.")
-                self.manual_map_device_slider.setToolTip("Choose the physical strip zone index to edit.")
-                self.manual_map_source_slider.setToolTip("Assign the selected strip zone to this screen zone.")
                 self.device_zone_count_auto_checkbox.setToolTip("Auto-use detected strip zone count when available.")
                 self.device_zone_count_slider.setToolTip("Manual strip zone count used when auto mode is off.")
                 self.output_channel_order_combo.setToolTip("Set RGB byte order expected by your strip controller.")
@@ -286,9 +260,6 @@ class SettingsDialog:
                 self.start_on_launch_checkbox.setToolTip("Start syncing automatically right after tray launch.")
                 self.compositor_hdr_mode_checkbox.setToolTip("Enable compensation when KDE Plasma is running SDR content on HDR.")
                 self.sdr_boost_nits_slider.setToolTip("Plasma SDR white reference in nits when compositor HDR mode is enabled.")
-                self.corner_offsets_enabled_checkbox.setToolTip("Enable per-corner mapping nudges for finer edge alignment.")
-                for slider in self.corner_offset_sliders:
-                    slider.setToolTip("Adjust local mapping offset for this corner (negative/positive zone shift).")
 
             def _build_backend_section(self, QGroupBox, QGridLayout, QLabel):
                 group = QGroupBox("Backend & Diagnostics")
@@ -349,17 +320,7 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Device zone count"), 4, 0); layout.addWidget(self.device_zone_count_slider, 4, 1); layout.addWidget(self.device_zone_count_value, 4, 2)
                 layout.addWidget(self.device_zone_count_auto_checkbox, 5, 0, 1, 3)
                 layout.addWidget(self.device_zone_status_label, 6, 0, 1, 3)
-                layout.addWidget(self.manual_map_checkbox, 7, 0, 1, 2)
-                layout.addWidget(QLabel("Manual map: strip zone"), 8, 0); layout.addWidget(self.manual_map_device_slider, 8, 1, 1, 2)
-                layout.addWidget(QLabel("Manual map: screen zone"), 9, 0); layout.addWidget(self.manual_map_source_slider, 9, 1, 1, 2)
-                layout.addWidget(self.manual_map_status_label, 10, 0, 1, 3)
-                layout.addWidget(self.corner_offsets_enabled_checkbox, 11, 0, 1, 3)
-                row = 12
-                for idx, name in enumerate(CORNER_NAMES):
-                    layout.addWidget(QLabel(f"{name} correction"), row, 0)
-                    layout.addWidget(self.corner_offset_sliders[idx], row, 1)
-                    layout.addWidget(self.corner_offset_values[idx], row, 2)
-                    row += 1
+                row = 7
                 layout.addWidget(self.current_zone_label, row, 0, 1, 3)
                 layout.addWidget(self.assign_top_left_button, row + 1, 0, 1, 3)
                 layout.addWidget(self.assign_top_right_button, row + 2, 0, 1, 3)
@@ -405,12 +366,10 @@ class SettingsDialog:
 
             def _pull_state(self):
                 zone_preset_label = str(self.zone_preset_combo.currentText())
-                self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = "edge-weighted" if zone_preset_label.startswith("Edge strip") else "horizontal"; self._state.zone_offset = int(self.zone_offset_slider.value()); self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value()); self._state.auto_device_zone_count = bool(self.device_zone_count_auto_checkbox.isChecked()); self._state.manual_mapping_enabled = bool(self.manual_map_checkbox.isChecked()); self._state.explicit_zone_map = self._manual_map[:]; self._state.corner_offsets_enabled = bool(self.corner_offsets_enabled_checkbox.isChecked()); self._state.corner_zone_offsets = [int(slider.value()) for slider in self.corner_offset_sliders]
+                self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = "edge-weighted" if zone_preset_label.startswith("Edge strip") else "horizontal"; self._state.zone_offset = int(self.zone_offset_slider.value()); self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value()); self._state.auto_device_zone_count = bool(self.device_zone_count_auto_checkbox.isChecked()); self._state.manual_mapping_enabled = False; self._state.explicit_zone_map = []; self._state.corner_offsets_enabled = False; self._state.corner_zone_offsets = [0, 0, 0, 0]
 
             def _refresh_numeric_labels(self):
                 self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.zone_sampling_stride_value.setText(str(self.zone_sampling_stride_slider.value())); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.zone_offset_value.setText(str(self.zone_offset_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}"); self.test_duration_value.setText(str(self.test_duration_slider.value())); self.test_step_interval_value.setText(str(self.test_step_interval_slider.value())); self.test_brightness_value.setText(f"{self.test_brightness_slider.value()}%")
-                for idx, value in enumerate(self.corner_offset_values):
-                    value.setText(f"{self.corner_offset_sliders[idx].value():+d}")
 
             def _refresh_preview_label(self):
                 self._refresh_numeric_labels(); self._pull_state()
@@ -434,16 +393,11 @@ class SettingsDialog:
                 self.device_zone_count_value.setText("auto" if self.device_zone_count_auto_checkbox.isChecked() else str(self.device_zone_count_slider.value()))
                 self.device_zone_status_label.setText(self._state.auto_detection_status())
 
-                self.manual_map_device_slider.setRange(0, max(0, self._state.effective_device_zone_count() - 1)); self.manual_map_source_slider.setRange(0, max(0, self._state.zone_count - 1)); enabled = self.manual_map_checkbox.isChecked(); self.manual_map_device_slider.setEnabled(enabled); self.manual_map_source_slider.setEnabled(enabled)
-                self.manual_map_status_label.setText("Manual map is absolute (strip zone -> exact screen zone)." if enabled else "Manual map disabled.")
                 current_zone = self._state.step_for_mode(
                     str(self.test_mode_combo.currentText()),
                     self._test_step,
                 ).device_zone_index
                 self.current_zone_label.setText(f"Current physical strip zone: {current_zone}")
-                corners_enabled = self.corner_offsets_enabled_checkbox.isChecked()
-                for slider in self.corner_offset_sliders:
-                    slider.setEnabled(corners_enabled)
 
                 panel = build_testing_panel_state(
                     state=self._state,
@@ -458,10 +412,6 @@ class SettingsDialog:
                 self.preview_visual_label.setText(self._state.mapping_preview_visual())
                 self.test_label.setText(f"{panel.active_test_description}\n{panel.backend_summary}")
 
-            def _sync_manual_source_slider(self):
-                idx = int(self.manual_map_device_slider.value())
-                self.manual_map_source_slider.setValue(int(self._manual_map[idx]) if idx < len(self._manual_map) else 0)
-
             def _sync_device_model_selection(self):
                 selected_model = str(self.device_model_combo.currentText())
                 if selected_model.startswith("NL82K2"):
@@ -474,11 +424,6 @@ class SettingsDialog:
                     return
                 self.device_vid_combo.setCurrentIndex(max(0, self.device_vid_combo.findText(vid_text)))
                 self.device_pid_combo.setCurrentIndex(max(0, self.device_pid_combo.findText(pid_text)))
-
-            def _apply_manual_mapping(self):
-                idx = int(self.manual_map_device_slider.value()); val = int(self.manual_map_source_slider.value())
-                if idx >= len(self._manual_map): self._manual_map.extend([0] * (idx + 1 - len(self._manual_map)))
-                self._manual_map[idx] = val; self._refresh_preview_label(); self._schedule_live_preview()
 
             def _rotate_anchor(self):
                 self._pull_state(); self._state.corner_start_anchor = next_corner_start_anchor(self._state.corner_start_anchor, device_zone_count=self._state.effective_device_zone_count()); self._refresh_preview_label(); self._schedule_live_preview()
@@ -584,14 +529,14 @@ class SettingsDialog:
                     zones=new_zones, zone_preset=self._state.zone_preset, color_mode=str(self.color_mode_combo.currentText()), hdr_enabled=str(self.display_mode_combo.currentText()) == "hdr",
                     start_on_launch=bool(self.start_on_launch_checkbox.isChecked()), device_zone_count=0 if self._state.auto_device_zone_count else self._state.device_zone_count,
                     output_channel_order=str(self.output_channel_order_combo.currentText()), zone_offset=self._state.zone_offset, reverse_zones=self._state.reverse_zones,
-                    explicit_zone_map=(self._manual_map[: self._state.effective_device_zone_count()] if self._state.manual_mapping_enabled else []),
+                    explicit_zone_map=[],
                     corner_anchor_top_left=int(self._state.corner_anchor_top_left),
                     corner_anchor_top_right=int(self._state.corner_anchor_top_right),
                     corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
                     corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
                     corner_start_anchor=int(self._state.corner_start_anchor), use_mock_capture=bool(self.mock_capture_checkbox.isChecked()), prefer_backend=str(self.capture_backend_combo.currentText()), auto_probe_policy=str(self.auto_probe_policy_combo.currentText()), auto_latency_policy=str(self.auto_latency_policy_combo.currentText()),
-                    corner_offsets_enabled=bool(self._state.corner_offsets_enabled),
-                    corner_zone_offsets=self._state.active_corner_zone_offsets(),
+                    corner_offsets_enabled=False,
+                    corner_zone_offsets=[0, 0, 0, 0],
                     latency_last_backend=(self._latest_latency.selected_backend if self._latest_latency else getattr(cfg, "latency_last_backend", "")),
                     latency_last_value_ms=(self._latest_latency.measured_latency_ms if self._latest_latency else float(getattr(cfg, "latency_last_value_ms", 0.0))),
                     latency_last_trigger=(self._latest_latency.triggered_by if self._latest_latency else getattr(cfg, "latency_last_trigger", "")),

@@ -286,17 +286,25 @@ def test_mapping_preview_uses_explicit_auto_flag() -> None:
     assert "Device zone order" in manual_text
 
 
-def test_settings_dialog_manual_map_is_saved(monkeypatch) -> None:
+def test_settings_dialog_uses_wizard_calibration_model(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
     cfg = AppConfig(zones=[ZoneConfig(x=0.0, y=0.0, w=0.5, h=1.0), ZoneConfig(x=0.5, y=0.0, w=0.5, h=1.0)])
     dialog = SettingsDialog(parent=None, cfg=cfg)
 
-    dialog._dialog.manual_map_checkbox.setChecked(True)
-    dialog._dialog.manual_map_device_slider.setValue(0)
-    dialog._dialog.manual_map_source_slider.setValue(1)
-
     updated = dialog.updated_config()
-    assert updated.explicit_zone_map[:1] == [1]
+    assert updated.explicit_zone_map == []
+    assert updated.corner_offsets_enabled is False
+    assert updated.corner_zone_offsets == [0, 0, 0, 0]
+
+
+def test_settings_dialog_does_not_expose_legacy_manual_mapping_controls(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    dialog = SettingsDialog(parent=None, cfg=AppConfig(zones=[]))
+
+    assert not hasattr(dialog._dialog, "manual_map_checkbox")
+    assert not hasattr(dialog._dialog, "manual_map_device_slider")
+    assert not hasattr(dialog._dialog, "manual_map_source_slider")
+    assert not hasattr(dialog._dialog, "corner_offsets_enabled_checkbox")
 
 
 def test_settings_dialog_can_send_calibration_pattern(monkeypatch) -> None:
