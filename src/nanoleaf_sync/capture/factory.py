@@ -5,6 +5,7 @@ from functools import lru_cache
 import logging
 import os
 from pathlib import Path
+import threading
 
 from nanoleaf_sync.capture.backend_selection import (
     AUTO_BACKEND,
@@ -27,6 +28,16 @@ logger = logging.getLogger(__name__)
 _AUTO_PROBE_DISABLED_ENV = "NANOLEAF_DISABLE_CAPTURE_PROBE"
 _AUTO_PROBE_ENABLE_ENV = "NANOLEAF_ENABLE_CAPTURE_PROBE"
 _cached_probe_winner: str | None = None
+_cached_probe_winner_lock = threading.Lock()
+
+
+
+
+def reset_cached_probe_winner() -> None:
+    global _cached_probe_winner
+
+    with _cached_probe_winner_lock:
+        _cached_probe_winner = None
 
 
 @lru_cache(maxsize=1)
@@ -108,38 +119,39 @@ def _resolve_auto_backend_with_probe(
         )
         return fallback
 
-    cached = cached_probe_winner or _cached_probe_winner
-    if is_valid_probe_candidate(cached):
-        logger.info("capture auto-probe using cached winner=%s", cached)
-        return str(cached)
+    with _cached_probe_winner_lock:
+        cached = cached_probe_winner or _cached_probe_winner
+        if is_valid_probe_candidate(cached):
+            logger.info("capture auto-probe using cached winner=%s", cached)
+            return str(cached)
 
-    candidates = list(AUTO_PROBE_CANDIDATES)
-    logger.info("capture auto-probe candidates=%s", ", ".join(candidates))
+        candidates = list(AUTO_PROBE_CANDIDATES)
+        logger.info("capture auto-probe candidates=%s", ", ".join(candidates))
 
-    try:
-        from nanoleaf_sync.capture.auto_probe import ProbeConfig, probe_backends
+        try:
+            from nanoleaf_sync.capture.auto_probe import ProbeConfig, probe_backends
 
-        result = probe_backends(width, height, candidates, ProbeConfig())
-        tested = ", ".join(item.candidate for item in result.candidates)
-        logger.info("capture auto-probe tested candidates=%s", tested)
+            result = probe_backends(width, height, candidates, ProbeConfig())
+            tested = ", ".join(item.candidate for item in result.candidates)
+            logger.info("capture auto-probe tested candidates=%s", tested)
 
-        if result.selected_backend is not None:
-            _cached_probe_winner = result.selected_backend
-            logger.info("capture auto-probe selected winner=%s", result.selected_backend)
-            return result.selected_backend
+            if result.selected_backend is not None:
+                _cached_probe_winner = result.selected_backend
+                logger.info("capture auto-probe selected winner=%s", result.selected_backend)
+                return result.selected_backend
 
-        logger.warning(
-            "capture auto-probe yielded no qualified backend; using capability fallback=%s",
-            fallback,
-        )
-    except Exception as exc:  # noqa: BLE001 - preserve startup reliability
-        logger.warning(
-            "capture auto-probe failed; using capability fallback=%s reason=%s",
-            fallback,
-            exc,
-        )
+            logger.warning(
+                "capture auto-probe yielded no qualified backend; using capability fallback=%s",
+                fallback,
+            )
+        except Exception as exc:  # noqa: BLE001 - preserve startup reliability
+            logger.warning(
+                "capture auto-probe failed; using capability fallback=%s reason=%s",
+                fallback,
+                exc,
+            )
 
-    return fallback
+        return fallback
 
 
 def _resolve_prefer_backend(
