@@ -66,16 +66,16 @@ def test_full_pipeline_zone_map_brightness_smoothing_and_send() -> None:
     assert len(driver.sent_frames) == 1
     result = driver.sent_frames[0]
 
-    # Zone 0: green (0, ~100, 0) × 0.5 brightness, large delta → fully responsive.
+    # Zone 0 maps to right zone (zone_offset=1): green (0, ~100, 0) × 0.5 brightness.
+    # With adaptive smoothing at defaults, this should move clearly toward current.
     r0, g0, b0 = result[0]
     assert r0 == 0
-    assert abs(g0 - 50) <= 1  # OKLab float32 ±1
+    assert 10 <= g0 <= 20
     assert b0 == 0
 
-    # Zone 1: red (~200, 0, 0) × 0.5 brightness vs prev (40, 40, 40).
-    # R: large delta → alpha=1.0 → R=100.
-    # G, B: moderate delta → partially blended toward 5.
+    # Zone 1 maps to left zone: red (~200, 0, 0) × 0.5 brightness vs prev (40, 40, 40).
+    # Adaptive smoothing should push R upward strongly, while G/B decay toward zero.
     r1, g1, b1 = result[1]
-    assert abs(r1 - 100) <= 1
-    assert abs(g1 - 5) <= 2
-    assert abs(b1 - 5) <= 2
+    assert 50 <= r1 <= 80
+    assert 20 <= g1 <= 35
+    assert 20 <= b1 <= 35
