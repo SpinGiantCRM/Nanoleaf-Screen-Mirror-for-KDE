@@ -26,7 +26,26 @@ def make_horizontal_zones(zone_count: int) -> List[ZoneConfig]:
     return zones
 
 
-def make_edge_weighted_zones(zone_count: int) -> List[ZoneConfig]:
+def _adaptive_edge_thickness(zone_count: int, edge_sampling_thickness: float | None = None) -> float:
+    """
+    Compute inward edge-capture thickness for edge-weighted zones.
+
+    The thickness stays intentionally thin at low zone counts (to avoid center-heavy
+    sampling) and scales up for higher counts. `edge_sampling_thickness` controls the
+    high-count target thickness.
+    """
+
+    count = max(1, int(zone_count))
+    low_count_thickness = 0.07
+    high_count_target = 0.12 if edge_sampling_thickness is None else float(edge_sampling_thickness)
+    high_count_target = min(0.25, max(0.05, high_count_target))
+
+    # Keep low counts thin; gradually increase towards configured target by 48 zones.
+    normalized = min(1.0, max(0.0, (count - 8) / 40.0))
+    return low_count_thickness + (high_count_target - low_count_thickness) * normalized
+
+
+def make_edge_weighted_zones(zone_count: int, edge_sampling_thickness: float | None = None) -> List[ZoneConfig]:
     """
     Build edge-biased zones prioritizing top/left/right/bottom edges.
 
@@ -37,7 +56,7 @@ def make_edge_weighted_zones(zone_count: int) -> List[ZoneConfig]:
     - left edge strip (fourth quarter)
     """
     count = max(1, int(zone_count))
-    edge_thickness = 0.16
+    edge_thickness = _adaptive_edge_thickness(count, edge_sampling_thickness)
 
     per_side = count // 4
     remainder = count % 4
