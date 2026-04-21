@@ -93,7 +93,7 @@ class DisplayConfiguratorDialog:
                 self.setWindowTitle("Setup Wizard")
                 resize = getattr(self, "resize", None)
                 if callable(resize):
-                    resize(700, 560)
+                    resize(700, 440)
                 self._calibration_sender = calibration_sender
                 self._test_step = 0
                 self._state = CalibrationState.from_config(cfg)
@@ -334,6 +334,9 @@ class DisplayConfiguratorDialog:
                     set_spacing(6)
                 layout.addWidget(QLabel("Summary"))
                 layout.addWidget(self.summary_label)
+                add_stretch = getattr(layout, "addStretch", None)
+                if callable(add_stretch):
+                    add_stretch(1)
                 page.setLayout(layout)
                 return page
 

@@ -35,3 +35,26 @@ def test_derive_corner_anchor_device_indices_limits_to_unique_device_zones() -> 
         reverse_zones=False,
     )
     assert anchors == [0, 1]
+
+
+def test_derive_corner_anchor_device_indices_responds_to_offset_and_direction() -> None:
+    default = derive_corner_anchor_device_indices(
+        zone_count=16,
+        device_zone_count=16,
+        zone_offset=0,
+        reverse_zones=False,
+    )
+    shifted = derive_corner_anchor_device_indices(
+        zone_count=16,
+        device_zone_count=16,
+        zone_offset=3,
+        reverse_zones=False,
+    )
+    reversed_shifted = derive_corner_anchor_device_indices(
+        zone_count=16,
+        device_zone_count=16,
+        zone_offset=3,
+        reverse_zones=True,
+    )
+    assert shifted != default
+    assert reversed_shifted != shifted
