@@ -124,7 +124,7 @@ nanoleaf-kde-sync-smoke-test
 3. Keep all other settings fixed while testing:
    - `fps`
    - `zone_sampling_stride`
-   - `smoothing` / `smoothing_speed`
+   - `smoothing` / `smoothing_speed` (lower `smoothing_speed` = slower response and stronger smoothing; `0.0` is the slowest)
 
 Notes:
 

@@ -54,7 +54,7 @@ If behavior regresses after updates, reset probe metadata and let auto policy re
 If capture backend is healthy but output still feels slow, tune pipeline parameters in order:
 
 1. `zone_sampling_stride` (larger = less CPU, less precision)
-2. `smoothing` / `smoothing_speed`
+2. `smoothing` / `smoothing_speed` (`smoothing_speed` lower means slower response; `0.0` is strongest smoothing)
 3. `fps`
 
 Only change one variable at a time and retest using the same content.

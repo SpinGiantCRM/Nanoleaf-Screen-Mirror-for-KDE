@@ -357,6 +357,7 @@ def test_settings_dialog_applies_tooltips_to_key_controls(monkeypatch) -> None:
 
     assert dialog._dialog.brightness_slider._tooltip
     assert dialog._dialog.smoothing_slider._tooltip
+    assert dialog._dialog.smoothing_speed_slider._tooltip
     assert dialog._dialog.fps_slider._tooltip
     assert dialog._dialog.led_gamma_slider._tooltip
     assert dialog._dialog.zone_count_slider._tooltip

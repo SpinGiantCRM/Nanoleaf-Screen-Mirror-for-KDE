@@ -3,6 +3,7 @@ from __future__ import annotations
 import threading
 
 import numpy as np
+import pytest
 
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
 from nanoleaf_sync.runtime.engine import (
@@ -208,7 +209,47 @@ def test_adaptive_smoothing_is_more_responsive_on_large_deltas() -> None:
     # Small delta remains strongly smoothed.
     assert out[0, 0] < 13.0
     # Large delta gets a much larger current-frame contribution.
-    assert out[1, 0] > 150.0
+    small_response = float(out[0, 0] - prev[0, 0])
+    large_response = float(out[1, 0] - prev[1, 0])
+    assert large_response > small_response * 10.0
+
+
+@pytest.mark.parametrize("smoothing_speed", [0.0, 2.0, 4.0])
+def test_adaptive_smoothing_speed_monotonic_response(smoothing_speed: float) -> None:
+    prev = np.array([[10.0, 10.0, 10.0]], dtype=np.float32)
+    current = np.array([[200.0, 10.0, 10.0]], dtype=np.float32)
+
+    out = _adaptive_one_euro_blend(
+        current=current,
+        previous=prev,
+        smoothing=0.25,
+        smoothing_speed=smoothing_speed,
+    )
+    response = float(out[0, 0] - prev[0, 0])
+    expected_min = float((current[0, 0] - prev[0, 0]) * 0.25)
+
+    if smoothing_speed == 0.0:
+        assert response == pytest.approx(expected_min)
+
+    assert response >= expected_min
+
+
+def test_adaptive_smoothing_speed_monotonic_between_levels() -> None:
+    prev = np.array([[10.0, 10.0, 10.0]], dtype=np.float32)
+    current = np.array([[200.0, 10.0, 10.0]], dtype=np.float32)
+    speeds = [0.0, 2.0, 4.0]
+    responses: list[float] = []
+
+    for speed in speeds:
+        out = _adaptive_one_euro_blend(
+            current=current,
+            previous=prev,
+            smoothing=0.25,
+            smoothing_speed=speed,
+        )
+        responses.append(float(out[0, 0] - prev[0, 0]))
+
+    assert responses[0] < responses[1] < responses[2]
 
 
 def test_run_loop_skips_tick_when_backends_temporarily_missing() -> None:
