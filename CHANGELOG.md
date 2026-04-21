@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-04-21
+
+## What's Changed
+* Make edge-weighted zone thickness adaptive and configurable by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/176
+* Clarify test-zone step UI wording and preserve zone-offset semantics by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/177
+* Refocus tray calibration action to open Settings on targeted section by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/178
+* Introduce sampling_quality preset and clarify "screen sampling" vs "strip LED" zone terminology by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/179
+* Remove runtime auto strip-length mode; require concrete device zone count by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/180
+
+
+**Full Changelog**: https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/compare/v0.7.2...v0.7.3
+
 ## [0.7.2] - 2026-04-21
 
 ## What's Changed
