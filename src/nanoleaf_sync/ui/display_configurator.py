@@ -129,8 +129,8 @@ class DisplayConfiguratorDialog:
                 self.zone_count_slider.setValue(self._state.zone_count)
                 self.zone_count_value = QLabel("")
                 self.zone_preset_combo = QComboBox()
-                self.zone_preset_combo.addItems(["edge-weighted", "horizontal"])
-                self.zone_preset_combo.setCurrentIndex(max(0, self.zone_preset_combo.findText(self._state.zone_preset)))
+                self.zone_preset_combo.addItems(["Edge strip (recommended)", "Full-screen horizontal"])
+                self.zone_preset_combo.setCurrentIndex(0 if self._state.zone_preset == "edge-weighted" else 1)
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.device_zone_count_slider.setRange(1, MAX_WIZARD_ZONE_COUNT)
                 self.device_zone_count_slider.setValue(self._state.device_zone_count)
@@ -326,7 +326,7 @@ class DisplayConfiguratorDialog:
 
             def _pull_state_from_controls(self) -> None:
                 self._state.zone_count = int(self.zone_count_slider.value())
-                self._state.zone_preset = str(self.zone_preset_combo.currentText())
+                self._state.zone_preset = "edge-weighted" if str(self.zone_preset_combo.currentText()).startswith("Edge strip") else "horizontal"
                 self._state.zone_offset = int(self.zone_offset_slider.value())
                 self._state.reverse_zones = bool(self.reverse_checkbox.isChecked())
                 self._state.device_zone_count = int(self.device_zone_count_slider.value())

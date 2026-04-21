@@ -48,6 +48,11 @@ class _FakeDialogCancel(_FakeDialog):
         return 0
 
 
+class _FakeDialogRerun(_FakeDialog):
+    def wants_display_configurator(self):
+        return True
+
+
 class _FakeCalibrationDialog:
     def __init__(self, *, parent, cfg, runtime_status, calibration_sender):
         self.parent = parent
@@ -58,10 +63,14 @@ class _FakeCalibrationDialog:
         self.raise_calls = 0
         self.activate_calls = 0
         self.status_updates: list[dict] = []
+        self.config_updates: list[AppConfig] = []
 
     def set_runtime_status(self, status):
         self.status_updates.append(status)
         self.runtime_status = status
+    def set_config(self, cfg):
+        self.config_updates.append(cfg)
+        self.cfg = cfg
 
     def show(self):
         self.show_calls += 1
@@ -81,6 +90,7 @@ def test_on_settings_replaces_service_with_updated_config(monkeypatch) -> None:
         config=AppConfig(zones=[ZoneConfig(x=0.0, y=0.0, w=1.0, h=1.0)], device_zone_count=1),
         cfg_mgr=_FakeCfgMgr(),
         service=_FakeService(config=AppConfig(device_zone_count=1)),
+        _calibration_dialog=None,
         QDialog=SimpleNamespace(DialogCode=SimpleNamespace(Accepted=1)),
         _refresh_mode_labels=lambda: None,
         _send_calibration_preview=lambda _colors: None,
@@ -107,6 +117,7 @@ def test_on_settings_cancel_discards_changes(monkeypatch) -> None:
         config=original_cfg,
         cfg_mgr=_FakeCfgMgr(),
         service=_FakeService(config=original_cfg),
+        _calibration_dialog=None,
         QDialog=SimpleNamespace(DialogCode=SimpleNamespace(Accepted=1)),
         _refresh_mode_labels=lambda: None,
         _send_calibration_preview=lambda _colors: None,
@@ -157,3 +168,32 @@ def test_on_calibration_lab_reuses_single_dialog_instance(monkeypatch) -> None:
     assert created[0].raise_calls == 2
     assert created[0].activate_calls == 2
     assert created[0].status_updates == [status_values[1]]
+    assert len(created[0].config_updates) == 1
+
+
+def test_on_settings_rerun_display_setup_persists_pending_settings(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.SettingsDialog", _FakeDialogRerun)
+
+    fake_tray = SimpleNamespace(
+        config=AppConfig(zones=[ZoneConfig(x=0.0, y=0.0, w=1.0, h=1.0)], device_zone_count=1),
+        cfg_mgr=_FakeCfgMgr(),
+        service=_FakeService(config=AppConfig(device_zone_count=1)),
+        QDialog=SimpleNamespace(DialogCode=SimpleNamespace(Accepted=1)),
+        _refresh_mode_labels=lambda: None,
+        _send_calibration_preview=lambda _colors: None,
+        on_stop=lambda: None,
+        on_start=lambda: None,
+        _calibration_dialog=None,
+        wizard_opened=False,
+    )
+
+    def _open():
+        fake_tray.wizard_opened = True
+
+    fake_tray.on_display_configurator = _open
+
+    NanoleafTrayApp.on_settings(fake_tray)
+
+    assert fake_tray.wizard_opened is True
+    assert fake_tray.cfg_mgr.saved is not None
+    assert fake_tray.cfg_mgr.saved.device_zone_count == 0

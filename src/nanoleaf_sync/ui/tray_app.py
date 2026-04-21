@@ -51,6 +51,13 @@ def first_run_message(mode: str) -> str:
     )
 
 
+def _read_app_version() -> str:
+    try:
+        return (Path(__file__).resolve().parents[3] / "VERSION").read_text(encoding="utf-8").strip() or "unknown"
+    except Exception:
+        return "unknown"
+
+
 def _configure_startup_logging() -> Path:
     log_dir = Path.home() / ".cache" / "nanoleaf-kde-sync"
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -145,6 +152,7 @@ class NanoleafTrayApp:
         self.app.setDesktopFileName(QT_DESKTOP_FILE_NAME)
 
         self.startup_log_path = _configure_startup_logging()
+        self._app_version = _read_app_version()
         _log.info("Startup log initialized at %s", self.startup_log_path)
 
         if not self.QSystemTrayIcon.isSystemTrayAvailable():
@@ -199,7 +207,10 @@ class NanoleafTrayApp:
 
     def _send_calibration_preview(self, colors: list[tuple[int, int, int]]) -> None:
         driver = None
+        was_running = self.service.is_running()
         try:
+            if was_running:
+                self.on_stop()
             driver = self._make_preview_driver()
             driver.initialize()
             driver.send_frame(colors)
@@ -217,6 +228,8 @@ class NanoleafTrayApp:
                     driver.close()
                 except Exception as exc:
                     _log.debug("Calibration preview driver close failed: %s", exc, exc_info=True)
+            if was_running:
+                self.on_start()
 
     def _make_preview_driver(self):
         return self.service._make_device_driver()
@@ -307,8 +320,8 @@ class NanoleafTrayApp:
         self.action_stop = self.QAction("Stop", menu)
         self.action_settings = self.QAction("Settings", menu)
         self.action_display_wizard = self.QAction("Setup Wizard", menu)
-        self.action_calibration_lab = self.QAction("Calibration / Diagnostics Lab", menu)
-        self.action_status = self.QAction("Status / About", menu)
+        self.action_calibration_lab = self.QAction("Zone Alignment & Testing", menu)
+        self.action_status = self.QAction("About / Status", menu)
         self.action_troubleshooting = self.QAction("Help / Troubleshooting", menu)
         self.action_enable_autostart = self.QAction("Enable autostart", menu)
         self.action_disable_autostart = self.QAction("Disable autostart", menu)
@@ -335,6 +348,7 @@ class NanoleafTrayApp:
 
         advanced_menu = self.QMenu("Troubleshooting / Advanced", menu)
         advanced_menu.addAction(self.action_troubleshooting)
+        advanced_menu.addAction(self.action_calibration_lab)
         advanced_menu.addSeparator()
         advanced_menu.addAction(self.action_doctor)
         advanced_menu.addAction(self.action_smoke)
@@ -348,7 +362,6 @@ class NanoleafTrayApp:
         menu.addAction(self.action_stop)
         menu.addAction(self.action_settings)
         menu.addAction(self.action_display_wizard)
-        menu.addAction(self.action_calibration_lab)
         menu.addAction(self.action_status)
         menu.addMenu(advanced_menu)
         menu.addSeparator()
@@ -356,9 +369,15 @@ class NanoleafTrayApp:
         return menu
 
     def _refresh_mode_labels(self) -> None:
-        capture_mode, device_mode = describe_mode(self.config.use_mock_capture, self.config.prefer_backend)
         running = self.service.is_running()
         status = self.service.get_status()
+        capture_mode, device_mode = describe_mode(
+            self.config.use_mock_capture,
+            self.config.prefer_backend,
+            service_running=running,
+            device_discovered=bool(status.get("device_discovered")),
+            device_model=str(status.get("device_model") or ""),
+        )
         effective_backend = status.get("effective_capture_backend") or ("not-started" if not running else "unresolved")
         selected_backend = status.get("selected_capture_backend") or "unresolved"
         unresolved_reason = status.get("backend_unresolved_reason") or ""
@@ -370,7 +389,7 @@ class NanoleafTrayApp:
             f"Effective backend: {effective_backend}"
             + (f"\nBackend note: {unresolved_reason}" if unresolved_reason else "")
         )
-        self.action_status.setText(f"Status / About ({'Running' if running else 'Idle'})")
+        self.action_status.setText(f"About / Status ({'Running' if running else 'Idle'})")
 
     def on_start(self):
         try:
@@ -403,7 +422,9 @@ class NanoleafTrayApp:
 
     def on_stop(self):
         self.service.stop()
-        self.service.join(timeout=0.5)
+        self.service.join(timeout=1.5)
+        if self.service.is_running():
+            _log.warning("Service still running after stop timeout")
         self.tray_icon.setIcon(self._idle_icon)
         self._refresh_mode_labels()
 
@@ -437,6 +458,7 @@ class NanoleafTrayApp:
         dlg = DisplayConfiguratorDialog(parent=None, cfg=self.config, calibration_sender=self._send_calibration_preview)
         if dlg.exec() != self.QDialog.DialogCode.Accepted:
             return
+        was_first_run = not bool(getattr(self.config, "wizard_completed", False))
         was_running = self.service.is_running()
         if was_running:
             self.on_stop()
@@ -447,12 +469,11 @@ class NanoleafTrayApp:
         self._refresh_mode_labels()
         if was_running:
             self.on_start()
-        self.tray_icon.showMessage(
-            "nanoleaf-kde-sync",
-            "Display setup saved.",
-            self.QSystemTrayIcon.MessageIcon.Information,
-            4000,
-        )
+        message = "Display setup saved."
+        if was_first_run:
+            mode = "diagnostic" if bool(getattr(self.config, "use_mock_capture", False)) else "full-real"
+            message = f"{message}\n\n{first_run_message(mode)}"
+        self.tray_icon.showMessage("nanoleaf-kde-sync", message, self.QSystemTrayIcon.MessageIcon.Information, 6000)
 
     def on_settings(self):
         dlg = SettingsDialog(
@@ -464,12 +485,15 @@ class NanoleafTrayApp:
         if dlg.exec() != self.QDialog.DialogCode.Accepted:
             return
         if dlg.wants_display_configurator():
+            self.config = dlg.updated_config()
+            self.cfg_mgr.save(self.config)
             self.on_display_configurator()
             return
         new_cfg = dlg.updated_config()
         self.cfg_mgr.save(new_cfg)
         self.config = new_cfg
-        self._calibration_dialog = None
+        if self._calibration_dialog is not None:
+            self._calibration_dialog.set_config(self.config)
         was_running = self.service.is_running()
         if was_running:
             self.on_stop()
@@ -515,30 +539,52 @@ class NanoleafTrayApp:
 
     def on_status(self):
         status = self.service.get_status()
-        connection_text = "connected" if status.get("device_discovered") else "not connected"
+        running = bool(status.get("running"))
+        connected = bool(status.get("device_discovered"))
+        connection_text = "Connected" if connected else ("Searching / not connected" if running else "Not started")
+        last_error = status.get("last_error")
         summary = "\n".join(
             [
-                f"Running: {status.get('running')} | Capture: {status.get('capture_mode')} ({status.get('capture_backend') or 'not-started'})",
-                (
-                    f"Requested backend: {status.get('requested_capture_backend')} | "
-                    f"Effective backend: {status.get('effective_capture_backend') or 'unknown'}"
-                ),
-                (
-                    f"Selection reason: {status.get('selection_reason')} | "
-                    f"From auto probe: {status.get('from_auto_probe')}"
-                ),
-                f"Device mode: {status.get('device_mode')}",
-                f"Device: {connection_text} | model={status.get('device_model') or 'unknown'} zones={status.get('device_zone_count')}",
-                f"frames={status.get('frames_sent')} errors={status.get('consecutive_errors')} kind={status.get('last_error_kind')}",
-                f"last_error={status.get('last_error') or 'none'}",
-                f"guidance={status.get('last_error_guidance') or 'none'}",
+                f"Version: {self._app_version}",
+                f"State: {'Running' if running else 'Idle'}",
+                f"Capture method: {status.get('effective_capture_backend') or self.config.prefer_backend}",
+                f"USB device: {connection_text}",
+                f"Device model: {status.get('device_model') or 'unknown'}",
+                f"Last issue: {last_error or 'None'}",
+                f"Help: {status.get('last_error_guidance') or 'Open Help / Troubleshooting from the tray menu.'}",
             ]
         )
-        self.tray_icon.showMessage("nanoleaf-kde-sync status", summary, self.QSystemTrayIcon.MessageIcon.Information, 9000)
+        details = "\n".join(
+            [
+                f"Requested backend: {status.get('requested_capture_backend')}",
+                f"Selected backend: {status.get('selected_capture_backend')}",
+                f"Selection reason: {status.get('selection_reason')}",
+                f"Frames sent: {status.get('frames_sent')}",
+                f"Consecutive errors: {status.get('consecutive_errors')}",
+            ]
+        )
+        dialog = self.QDialog()
+        dialog.setWindowTitle("nanoleaf-kde-sync · About / Status")
+        layout = self.QVBoxLayout()
+        layout.addWidget(self.QLabel(summary))
+        details_label = self.QLabel(f"Technical details:\n{details}")
+        layout.addWidget(details_label)
+        close_button = self.QPushButton("Close")
+        close_button.clicked.connect(dialog.accept)
+        layout.addWidget(close_button)
+        dialog.setLayout(layout)
+        dialog.exec()
         self._refresh_mode_labels()
 
     def on_calibration_lab(self) -> None:
         status = self.service.get_status()
+        if bool(getattr(self.service, "is_running", lambda: False)()):
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                "Service is running. Calibration test patterns may briefly pause mirroring.",
+                self.QSystemTrayIcon.MessageIcon.Information,
+                4000,
+            )
         if self._calibration_dialog is None:
             self._calibration_dialog = CalibrationDiagnosticsDialog(
                 parent=None,
@@ -548,6 +594,7 @@ class NanoleafTrayApp:
             )
         else:
             self._calibration_dialog.set_runtime_status(status)
+            self._calibration_dialog.set_config(self.config)
         self._calibration_dialog.show()
         self._calibration_dialog.raise_()
         self._calibration_dialog.activateWindow()
