@@ -50,6 +50,39 @@ def test_backend_alias_normalization_helper() -> None:
     assert normalize_capture_backend("kms-grab") == "kmsgrab"
 
 
+@pytest.mark.parametrize(
+    ("requested_backend", "expected_backend"),
+    [
+        ("KWIN_DBUS", "kwin-dbus"),
+        ("portal", "xdg-portal"),
+        ("kms-grab", "kmsgrab"),
+        ("auto", "kwin-dbus"),
+    ],
+)
+def test_backend_preference_resolution_only_emits_supported_backend_tokens(
+    monkeypatch,
+    requested_backend: str,
+    expected_backend: str,
+) -> None:
+    from nanoleaf_sync.capture.factory import _resolve_prefer_backend
+
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.factory._resolve_auto_backend_with_probe",
+        lambda **_kwargs: "kwin-dbus",
+    )
+
+    resolved = _resolve_prefer_backend(
+        prefer_backend=requested_backend,
+        width=6,
+        height=4,
+        auto_probe_enabled=True,
+        cached_probe_winner=None,
+    )
+
+    assert resolved == expected_backend
+    assert resolved in {"kwin-dbus", "xdg-portal", "kmsgrab"}
+
+
 def test_capture_factory_auto_prefers_kmsgrab_when_low_latency_path_is_available(
     monkeypatch,
 ) -> None:

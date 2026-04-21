@@ -232,7 +232,8 @@ def create_capture_backend(
         except Exception as exc:  # noqa: BLE001
             raise CaptureBackendInitializationError(KMSGRAB_BACKEND, str(exc)) from exc
 
-    raise ValueError(
-        "Unsupported capture backend. Supported real backends are "
-        "'kwin-dbus', 'xdg-portal', and 'kmsgrab' (or mock capture for safe setup)."
+    raise AssertionError(
+        "Invariant violation: _resolve_prefer_backend returned unsupported backend "
+        f"{normalized!r}; expected one of "
+        f"{KWIN_DBUS_BACKEND!r}, {XDG_PORTAL_BACKEND!r}, or {KMSGRAB_BACKEND!r}."
     )
