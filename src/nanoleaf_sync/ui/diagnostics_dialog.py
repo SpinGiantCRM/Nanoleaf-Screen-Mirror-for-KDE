@@ -202,3 +202,4 @@ class CalibrationDiagnosticsDialog:
     def raise_(self) -> None: self._dialog.raise_()
     def activateWindow(self) -> None: self._dialog.activateWindow()
     def set_runtime_status(self, runtime_status: dict) -> None: self._dialog._status = runtime_status; self._dialog._refresh()
+    def set_config(self, cfg: AppConfig) -> None: self._dialog._cfg = cfg; self._dialog._state = CalibrationState.from_config(cfg, self._dialog._status); self._dialog._refresh()
