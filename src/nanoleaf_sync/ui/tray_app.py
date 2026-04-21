@@ -150,6 +150,9 @@ class NanoleafTrayApp:
         self.app = qt["QApplication"](sys.argv)
         self.app.setApplicationName(QT_DESKTOP_FILE_NAME)
         self.app.setDesktopFileName(QT_DESKTOP_FILE_NAME)
+        set_quit_on_last_window_closed = getattr(self.app, "setQuitOnLastWindowClosed", None)
+        if callable(set_quit_on_last_window_closed):
+            set_quit_on_last_window_closed(False)
 
         self.startup_log_path = _configure_startup_logging()
         self._app_version = _read_app_version()
