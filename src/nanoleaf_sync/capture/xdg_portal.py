@@ -8,6 +8,7 @@ PipeWire. A restore token is persisted so users are not repeatedly prompted.
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import threading
 
@@ -16,6 +17,9 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
+
+
+logger = logging.getLogger(__name__)
 
 
 class XDGPortalError(RuntimeError):
@@ -233,10 +237,42 @@ class XDGPortalCapture:
         return fd, node_id
 
     def _open_pipewire_stream(self, fd: int, node_id: int) -> None:
+        supported, reason = self._pipewire_python_is_supported()
+        if not supported:
+            logger.info(
+                "pipewire-python capture path unsupported (%s); falling back to GStreamer.",
+                reason,
+            )
+            self._open_via_gstreamer(fd, node_id)
+            return
+
         try:
             self._open_via_pipewire_python(fd, node_id)
-        except ImportError:
+        except (ImportError, AttributeError, TypeError) as exc:
+            logger.warning(
+                "pipewire-python stream initialization failed (%s: %s); "
+                "falling back to GStreamer.",
+                type(exc).__name__,
+                exc,
+            )
             self._open_via_gstreamer(fd, node_id)
+
+    def _pipewire_python_is_supported(self) -> tuple[bool, str]:
+        try:
+            import pipewire as pw  # type: ignore
+        except ImportError as exc:
+            return False, f"import failed: {exc}"
+
+        required_symbols = ("MainLoop", "Context", "Stream", "SpaPod", "Direction", "StreamFlags")
+        missing_symbols = [name for name in required_symbols if getattr(pw, name, None) is None]
+        if missing_symbols:
+            return False, f"missing symbols: {', '.join(missing_symbols)}"
+
+        spa_pod_from_dict = getattr(pw.SpaPod, "from_dict", None)
+        if spa_pod_from_dict is None:
+            return False, "missing symbol: SpaPod.from_dict"
+
+        return True, "supported"
 
     def _open_via_pipewire_python(self, fd: int, node_id: int) -> None:
         import pipewire as pw  # type: ignore
