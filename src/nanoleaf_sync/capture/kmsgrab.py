@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import inspect
 from importlib import import_module
 from dataclasses import dataclass
 from typing import Optional
@@ -87,12 +88,40 @@ class KMSGrabCapture:
                 "Using KWin D-Bus fallback."
             )
 
-        result = self._drm_capture_impl(
-            width=self.params.width,
-            height=self.params.height,
-            card_path=self.params.card_path,
+        keyword_call = (
+            f"{self._drm_capture_impl.__name__}(width=..., height=..., card_path=...)"
         )
-        return self._convert_if_needed(result)
+        try:
+            result = self._drm_capture_impl(
+                width=self.params.width,
+                height=self.params.height,
+                card_path=self.params.card_path,
+            )
+            return self._convert_if_needed(result)
+        except TypeError as keyword_error:
+            if not self._supports_positional_call(self._drm_capture_impl):
+                raise KMSGrabError(
+                    "DRM capture callable rejected keyword invocation and does not "
+                    f"support positional retry. Attempted signature: {keyword_call}. "
+                    f"Original error: {keyword_error}"
+                ) from keyword_error
+
+            positional_call = (
+                f"{self._drm_capture_impl.__name__}(width, height, card_path)"
+            )
+            try:
+                result = self._drm_capture_impl(
+                    self.params.width,
+                    self.params.height,
+                    self.params.card_path,
+                )
+                return self._convert_if_needed(result)
+            except TypeError as positional_error:
+                raise KMSGrabError(
+                    "DRM capture callable rejected both invocation conventions. "
+                    f"Attempted signatures: {keyword_call}, {positional_call}. "
+                    f"Keyword error: {keyword_error}. Positional error: {positional_error}"
+                ) from positional_error
 
     def _probe_drm_capture_impl(self):
         try:
@@ -112,6 +141,19 @@ class KMSGrabCapture:
             pass
 
         return None
+
+    def _supports_positional_call(self, capture_impl: object) -> bool:
+        """Return True when signature inspection indicates 3 positional args are accepted."""
+        try:
+            signature = inspect.signature(capture_impl)
+        except (TypeError, ValueError):
+            return True
+
+        try:
+            signature.bind_partial(1, 1, "/dev/dri/card0")
+            return True
+        except TypeError:
+            return False
 
     def _convert_if_needed(self, result: object) -> np.ndarray:
         """Convert DRM output to uint8 sRGB; accepts ndarray or (ndarray, metadata)."""
