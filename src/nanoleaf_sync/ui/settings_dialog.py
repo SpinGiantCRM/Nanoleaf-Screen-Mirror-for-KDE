@@ -127,8 +127,9 @@ class SettingsDialog:
                 self.assign_bottom_left_button = QPushButton("Assign current zone → Bottom-left")
                 self.reset_anchor_button = QPushButton("Reset corner anchors")
                 self.current_zone_label = QLabel("")
+                self.test_step_index_label = QLabel("")
 
-                self.test_step_button = QPushButton("Next zone") ; self.test_prev_button = QPushButton("Previous zone")
+                self.test_step_button = QPushButton("Next test zone step") ; self.test_prev_button = QPushButton("Previous test zone step")
                 self.test_mode_combo = QComboBox(); self.test_mode_combo.addItems([CALIBRATION_MODE_CORNER])
                 mode_set_enabled = getattr(self.test_mode_combo, "setEnabled", None)
                 if callable(mode_set_enabled):
@@ -243,7 +244,7 @@ class SettingsDialog:
                 self.fps_slider.setToolTip("Capture/update target rate. Higher FPS uses more CPU/GPU.")
                 self.led_gamma_slider.setToolTip("Gamma correction for LED response. 1.00 keeps output linear.")
                 self.zone_count_slider.setToolTip("Number of source zones sampled from the display.")
-                self.zone_offset_slider.setToolTip("Rotate the start of strip mapping around device zones.")
+                self.zone_offset_slider.setToolTip("Global mapping zone offset that rotates the strip mapping around device zones.")
                 self.reverse_checkbox.setToolTip("Flip strip direction if the mapping appears mirrored.")
                 self.display_mode_combo.setToolTip("Select SDR or HDR processing mode.")
                 self.color_mode_combo.setToolTip("Colour behavior preset used by the analyzer.")
@@ -316,7 +317,7 @@ class SettingsDialog:
                 layout = QGridLayout()
                 layout.addWidget(QLabel("Source zone count"), 0, 0); layout.addWidget(self.zone_count_slider, 0, 1); layout.addWidget(self.zone_count_value, 0, 2)
                 layout.addWidget(QLabel("Zone layout preset"), 1, 0); layout.addWidget(self.zone_preset_combo, 1, 1, 1, 2)
-                layout.addWidget(QLabel("Start offset (rotation)"), 2, 0); layout.addWidget(self.zone_offset_slider, 2, 1); layout.addWidget(self.zone_offset_value, 2, 2)
+                layout.addWidget(QLabel("Global mapping zone offset (rotation)"), 2, 0); layout.addWidget(self.zone_offset_slider, 2, 1); layout.addWidget(self.zone_offset_value, 2, 2)
                 layout.addWidget(self.reverse_checkbox, 3, 0, 1, 2)
                 layout.addWidget(QLabel("Device zone count"), 4, 0); layout.addWidget(self.device_zone_count_slider, 4, 1); layout.addWidget(self.device_zone_count_value, 4, 2)
                 layout.addWidget(self.device_zone_count_auto_checkbox, 5, 0, 1, 3)
@@ -340,13 +341,14 @@ class SettingsDialog:
                 layout.addWidget(QLabel(f"Calibration sequence:\n{calibration_sequence_text()}"), 0, 0, 1, 3)
                 layout.addWidget(QLabel("Test mode"), 1, 0); layout.addWidget(self.test_mode_combo, 1, 1, 1, 2)
                 layout.addWidget(self.test_step_button, 2, 0, 1, 2); layout.addWidget(self.test_prev_button, 2, 2)
-                layout.addWidget(self.test_auto_checkbox, 3, 0); layout.addWidget(self.test_loop_checkbox, 3, 1)
-                layout.addWidget(QLabel("Test duration (s)"), 4, 0); layout.addWidget(self.test_duration_slider, 4, 1); layout.addWidget(self.test_duration_value, 4, 2)
-                layout.addWidget(QLabel("Step interval (ms)"), 5, 0); layout.addWidget(self.test_step_interval_slider, 5, 1); layout.addWidget(self.test_step_interval_value, 5, 2)
-                layout.addWidget(QLabel("Test brightness"), 6, 0); layout.addWidget(self.test_brightness_slider, 6, 1); layout.addWidget(self.test_brightness_value, 6, 2)
-                layout.addWidget(self.test_background_checkbox, 7, 0, 1, 2)
-                layout.addWidget(QLabel("Live preview: mapping changes are sent automatically."), 8, 0, 1, 3)
-                layout.addWidget(self.test_label, 9, 0, 1, 3)
+                layout.addWidget(QLabel("Test zone step index"), 3, 0); layout.addWidget(self.test_step_index_label, 3, 1, 1, 2)
+                layout.addWidget(self.test_auto_checkbox, 4, 0); layout.addWidget(self.test_loop_checkbox, 4, 1)
+                layout.addWidget(QLabel("Test duration (s)"), 5, 0); layout.addWidget(self.test_duration_slider, 5, 1); layout.addWidget(self.test_duration_value, 5, 2)
+                layout.addWidget(QLabel("Test step interval (ms)"), 6, 0); layout.addWidget(self.test_step_interval_slider, 6, 1); layout.addWidget(self.test_step_interval_value, 6, 2)
+                layout.addWidget(QLabel("Test brightness"), 7, 0); layout.addWidget(self.test_brightness_slider, 7, 1); layout.addWidget(self.test_brightness_value, 7, 2)
+                layout.addWidget(self.test_background_checkbox, 8, 0, 1, 2)
+                layout.addWidget(QLabel("Live preview: mapping changes are sent automatically."), 9, 0, 1, 3)
+                layout.addWidget(self.test_label, 10, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -398,7 +400,11 @@ class SettingsDialog:
                     str(self.test_mode_combo.currentText()),
                     self._test_step,
                 ).device_zone_index
-                self.current_zone_label.setText(f"Current physical strip zone: {current_zone}")
+                step_total = self._test_cycle_length()
+                self.current_zone_label.setText(
+                    f"Test zone step: {self._test_step + 1}/{step_total} | Current physical strip zone: {current_zone}"
+                )
+                self.test_step_index_label.setText(f"{self._test_step + 1}/{step_total}")
 
                 panel = build_testing_panel_state(
                     state=self._state,

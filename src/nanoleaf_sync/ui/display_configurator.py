@@ -149,11 +149,12 @@ class DisplayConfiguratorDialog:
                 self.zone_offset_slider.setRange(-64, 64)
                 self.zone_offset_slider.setValue(self._state.zone_offset)
                 self.zone_offset_value = QLabel("")
+                self.test_step_index_value = QLabel("")
                 self.preview_text = QLabel("")
                 self.preview_visual = QLabel("")
                 self.calibration_test_label = QLabel("")
-                self.calibration_next_button = QPushButton("Next test zone")
-                self.calibration_prev_button = QPushButton("Previous")
+                self.calibration_next_button = QPushButton("Next test zone step")
+                self.calibration_prev_button = QPushButton("Previous test zone step")
                 self.calibration_send_button = QPushButton("Send test pattern")
                 self.assign_tl_button = QPushButton("Assign current zone → Top-left")
                 self.assign_tr_button = QPushButton("Assign current zone → Top-right")
@@ -229,11 +230,11 @@ class DisplayConfiguratorDialog:
                     setter(text)
 
             def _configure_tooltips(self) -> None:
-                self._set_tooltip(self.zone_offset_slider, "Shifts the strip mapping ring by whole zones.")
+                self._set_tooltip(self.zone_offset_slider, "Global mapping zone offset that shifts the strip mapping ring by whole zones.")
                 self._set_tooltip(self.reverse_checkbox, "Flip mapping direction if strip order is reversed.")
                 self._set_tooltip(self.calibration_send_button, "Send a fresh calibration frame to the strip right now.")
-                self._set_tooltip(self.calibration_next_button, "Move to the next physical strip zone and transmit it.")
-                self._set_tooltip(self.calibration_prev_button, "Move to the previous physical strip zone and transmit it.")
+                self._set_tooltip(self.calibration_next_button, "Move to the next test zone step and transmit it.")
+                self._set_tooltip(self.calibration_prev_button, "Move to the previous test zone step and transmit it.")
                 self._set_tooltip(self.assign_tl_button, "Assign the currently lit strip zone as top-left screen corner.")
                 self._set_tooltip(self.assign_tr_button, "Assign the currently lit strip zone as top-right screen corner.")
                 self._set_tooltip(self.assign_br_button, "Assign the currently lit strip zone as bottom-right screen corner.")
@@ -305,7 +306,7 @@ class DisplayConfiguratorDialog:
                 if hasattr(layout, "setVerticalSpacing"):
                     layout.setVerticalSpacing(6)
                 layout.addWidget(QLabel(f"Calibration and testing\n{calibration_sequence_text()}"), 0, 0, 1, 3)
-                layout.addWidget(QLabel("Zone offset"), 1, 0)
+                layout.addWidget(QLabel("Global mapping zone offset"), 1, 0)
                 layout.addWidget(self.zone_offset_slider, 1, 1)
                 layout.addWidget(self.zone_offset_value, 1, 2)
                 layout.addWidget(self.reverse_checkbox, 2, 0, 1, 2)
@@ -314,16 +315,18 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.preview_visual, 5, 0, 1, 3)
                 layout.addWidget(self.calibration_next_button, 6, 0, 1, 2)
                 layout.addWidget(self.calibration_prev_button, 6, 2)
-                layout.addWidget(self.calibration_send_button, 7, 0, 1, 3)
-                layout.addWidget(self.current_zone_label, 8, 0, 1, 3)
-                layout.addWidget(self.assign_tl_button, 9, 0, 1, 3)
-                layout.addWidget(self.assign_tr_button, 10, 0, 1, 3)
-                layout.addWidget(self.assign_br_button, 11, 0, 1, 3)
-                layout.addWidget(self.assign_bl_button, 12, 0, 1, 3)
-                layout.addWidget(self.calibration_test_label, 13, 0, 1, 3)
+                layout.addWidget(QLabel("Test zone step index"), 7, 0)
+                layout.addWidget(self.test_step_index_value, 7, 1, 1, 2)
+                layout.addWidget(self.calibration_send_button, 8, 0, 1, 3)
+                layout.addWidget(self.current_zone_label, 9, 0, 1, 3)
+                layout.addWidget(self.assign_tl_button, 10, 0, 1, 3)
+                layout.addWidget(self.assign_tr_button, 11, 0, 1, 3)
+                layout.addWidget(self.assign_br_button, 12, 0, 1, 3)
+                layout.addWidget(self.assign_bl_button, 13, 0, 1, 3)
+                layout.addWidget(self.calibration_test_label, 14, 0, 1, 3)
                 row_stretch = getattr(layout, "setRowStretch", None)
                 if callable(row_stretch):
-                    row_stretch(14, 1)
+                    row_stretch(15, 1)
                 page.setLayout(layout)
                 return page
 
@@ -409,7 +412,11 @@ class DisplayConfiguratorDialog:
                     CALIBRATION_MODE_CORNER,
                     self._test_step,
                 ).device_zone_index
-                self.current_zone_label.setText(f"Current physical strip zone: {current_zone}")
+                step_total = self._state.cycle_length(CALIBRATION_MODE_CORNER)
+                self.test_step_index_value.setText(f"{self._test_step + 1}/{step_total}")
+                self.current_zone_label.setText(
+                    f"Test zone step: {self._test_step + 1}/{step_total} | Current physical strip zone: {current_zone}"
+                )
                 self.summary_label.setText(
                     "\n".join(
                         (

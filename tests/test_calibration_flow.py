@@ -58,3 +58,19 @@ def test_derive_corner_anchor_device_indices_responds_to_offset_and_direction() 
     )
     assert shifted != default
     assert reversed_shifted != shifted
+
+
+def test_corner_anchor_traversal_wraps_without_mutating_zone_offset_input() -> None:
+    zone_offset = 4
+    anchors = derive_corner_anchor_device_indices(
+        zone_count=12,
+        device_zone_count=12,
+        zone_offset=zone_offset,
+        reverse_zones=False,
+    )
+    cycle = len(anchors)
+    step0 = anchors[0]
+    wrapped = anchors[cycle % cycle]
+
+    assert zone_offset == 4
+    assert step0 == wrapped
