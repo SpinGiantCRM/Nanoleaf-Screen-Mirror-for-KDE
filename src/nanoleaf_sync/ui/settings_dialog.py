@@ -111,7 +111,7 @@ class SettingsDialog:
                 self.start_on_launch_checkbox = QCheckBox("Start mirroring automatically when tray app opens"); self.start_on_launch_checkbox.setChecked(bool(getattr(cfg, "start_on_launch", False)))
 
                 self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_count_slider.setRange(1, MAX_ZONE_COUNT); self.zone_count_slider.setValue(self._state.zone_count)
-                self.zone_preset_combo = QComboBox(); self.zone_preset_combo.addItems(["edge-weighted", "horizontal"]); self.zone_preset_combo.setCurrentIndex(max(0, self.zone_preset_combo.findText(self._state.zone_preset)))
+                self.zone_preset_combo = QComboBox(); self.zone_preset_combo.addItems(["Edge strip (recommended)", "Full-screen horizontal"]); self.zone_preset_combo.setCurrentIndex(0 if self._state.zone_preset == "edge-weighted" else 1)
                 self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_offset_slider.setRange(-64, 64); self.zone_offset_slider.setValue(self._state.zone_offset)
                 self.reverse_checkbox = QCheckBox("Reverse strip orientation"); self.reverse_checkbox.setChecked(self._state.reverse_zones)
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.device_zone_count_slider.setRange(1, MAX_ZONE_COUNT); self.device_zone_count_slider.setValue(self._state.device_zone_count)
@@ -158,7 +158,7 @@ class SettingsDialog:
                 self.auto_probe_policy_combo = QComboBox(); self.auto_probe_policy_combo.addItems(["on-change", "first-run", "each-boot"]); self.auto_probe_policy_combo.setCurrentIndex(max(0, self.auto_probe_policy_combo.findText(str(getattr(cfg, "auto_probe_policy", "on-change")))))
 
                 self.auto_latency_policy_combo = QComboBox(); self.auto_latency_policy_combo.addItems(["manual", "on-open", "on-open-once-per-backend"]); self.auto_latency_policy_combo.setCurrentIndex(max(0, self.auto_latency_policy_combo.findText(str(getattr(cfg, "auto_latency_policy", "manual")))))
-                self.run_latency_button = QPushButton("Run latency checker now")
+                self.run_latency_button = QPushButton("Calculate frame interval")
                 self.latency_label = QLabel(latency_result_summary(None))
 
                 self.hdr_transfer_combo = QComboBox(); self.hdr_transfer_combo.addItems(["srgb", "pq"]); self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))))
@@ -349,7 +349,8 @@ class SettingsDialog:
             def wants_display_configurator(self) -> bool: return bool(self._open_display_configurator)
 
             def _pull_state(self):
-                self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = str(self.zone_preset_combo.currentText()); self._state.zone_offset = int(self.zone_offset_slider.value()); self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value()); self._state.auto_device_zone_count = bool(self.device_zone_count_auto_checkbox.isChecked()); self._state.manual_mapping_enabled = bool(self.manual_map_checkbox.isChecked()); self._state.explicit_zone_map = self._manual_map[:]; self._state.corner_offsets_enabled = bool(self.corner_offsets_enabled_checkbox.isChecked()); self._state.corner_zone_offsets = [int(slider.value()) for slider in self.corner_offset_sliders]
+                zone_preset_label = str(self.zone_preset_combo.currentText())
+                self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = "edge-weighted" if zone_preset_label.startswith("Edge strip") else "horizontal"; self._state.zone_offset = int(self.zone_offset_slider.value()); self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value()); self._state.auto_device_zone_count = bool(self.device_zone_count_auto_checkbox.isChecked()); self._state.manual_mapping_enabled = bool(self.manual_map_checkbox.isChecked()); self._state.explicit_zone_map = self._manual_map[:]; self._state.corner_offsets_enabled = bool(self.corner_offsets_enabled_checkbox.isChecked()); self._state.corner_zone_offsets = [int(slider.value()) for slider in self.corner_offset_sliders]
 
             def _refresh_numeric_labels(self):
                 self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.zone_sampling_stride_value.setText(str(self.zone_sampling_stride_slider.value())); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.zone_offset_value.setText(str(self.zone_offset_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}"); self.test_duration_value.setText(str(self.test_duration_slider.value())); self.test_step_interval_value.setText(str(self.test_step_interval_slider.value())); self.test_brightness_value.setText(f"{self.test_brightness_slider.value()}%")
@@ -458,7 +459,7 @@ class SettingsDialog:
 
             def _run_latency_probe_manual(self):
                 info = backend_selection_info(self._runtime_status, cfg)
-                self._latest_latency = build_latency_result(requested_policy=info.requested_policy, selected_backend=self._active_backend(), selection_source=info.source, selection_reason=info.reason, measured_latency_ms=1000.0 / max(1, int(self.fps_slider.value())), measurement_kind="estimated", confidence_note="Derived from configured FPS; not a hardware timing sample", triggered_by="manual", details="Manual latency estimate")
+                self._latest_latency = build_latency_result(requested_policy=info.requested_policy, selected_backend=self._active_backend(), selection_source=info.source, selection_reason=info.reason, measured_latency_ms=1000.0 / max(1, int(self.fps_slider.value())), measurement_kind="estimated", confidence_note="Frame-interval estimate from configured FPS; not a hardware timing sample", triggered_by="manual", details="Manual latency estimate")
                 self.latency_label.setText(latency_result_summary(self._latest_latency))
 
             def _maybe_auto_run_latency_check(self):

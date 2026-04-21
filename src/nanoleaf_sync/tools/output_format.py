@@ -1,9 +1,22 @@
 from __future__ import annotations
 
 
-def describe_mode(use_mock_capture: bool, prefer_backend: str) -> tuple[str, str]:
+def describe_mode(
+    use_mock_capture: bool,
+    prefer_backend: str,
+    *,
+    service_running: bool,
+    device_discovered: bool,
+    device_model: str | None = None,
+) -> tuple[str, str]:
     capture_mode = "Mock capture" if use_mock_capture else f"Capture: {prefer_backend}"
-    device_mode = "Real USB device"
+    if not service_running:
+        device_mode = "USB device: not started"
+    elif not device_discovered:
+        device_mode = "USB device: not connected"
+    else:
+        model = (device_model or "").strip()
+        device_mode = f"USB device: connected ({model})" if model else "USB device: connected"
     return capture_mode, device_mode
 
 

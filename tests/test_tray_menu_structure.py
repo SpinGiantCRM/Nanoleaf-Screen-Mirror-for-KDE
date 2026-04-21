@@ -12,7 +12,8 @@ def test_tray_menu_groups_advanced_actions_under_submenu() -> None:
 def test_tray_top_level_is_focused_for_daily_use() -> None:
     text = Path("src/nanoleaf_sync/ui/tray_app.py").read_text(encoding="utf-8")
     assert 'self.action_display_wizard = self.QAction("Setup Wizard", menu)' in text
-    assert 'self.action_status = self.QAction("Status / About", menu)' in text
+    assert 'self.action_status = self.QAction("About / Status", menu)' in text
+    assert 'advanced_menu.addAction(self.action_calibration_lab)' in text
 
 
 def test_tray_tooltip_includes_backend_resolution_and_state_label() -> None:
@@ -20,4 +21,4 @@ def test_tray_tooltip_includes_backend_resolution_and_state_label() -> None:
     assert "Requested backend policy:" in text
     assert "Selected backend:" in text
     assert "Effective backend:" in text
-    assert "Status / About (" in text
+    assert "About / Status (" in text
