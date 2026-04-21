@@ -12,7 +12,7 @@ def test_setup_settings_and_testing_surfaces_use_shared_calibration_state() -> N
     for path in files:
         text = path.read_text(encoding="utf-8")
         assert "CalibrationState" in text
-        assert "calibration_state" in text
+        assert "CalibrationState.from_config" in text
 
 
 def test_core_calibration_defaults_do_not_drift() -> None:
