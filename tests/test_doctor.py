@@ -144,3 +144,23 @@ def test_doctor_help_lists_documented_capture_and_device_flags(capsys: pytest.Ca
     help_text = capsys.readouterr().out
     assert "--capture" in help_text
     assert "--device" in help_text
+    assert "configured backend policy" in help_text
+
+
+def test_capture_probe_returns_structured_failure_when_backend_creation_fails(monkeypatch) -> None:
+    def _raise_create(*_args, **_kwargs):
+        raise RuntimeError("backend blew up")
+
+    monkeypatch.setattr("nanoleaf_sync.capture.factory.create_capture_backend", _raise_create)
+    check = doctor._check_real_capture_probe(AppConfig(use_mock_capture=False))
+    assert check.name == "capture-probe"
+    assert check.status == "fail"
+    assert "backend blew up" in check.message
+
+
+def test_probe_status_reports_effective_env_override(monkeypatch) -> None:
+    monkeypatch.setenv("NANOLEAF_DISABLE_CAPTURE_PROBE", "true")
+    check = doctor._check_probe_status(AppConfig(prefer_backend="auto", auto_probe_enabled=True))
+    assert check.name == "probe-status"
+    assert "effective_enabled=False" in check.message
+    assert "NANOLEAF_DISABLE_CAPTURE_PROBE=true" in check.message
