@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-04-21
+
+## What's Changed
+* ci: sync VERSION/CHANGELOG in parallel with release asset build by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/172
+
+
+**Full Changelog**: https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/compare/v0.7.0...v0.7.1
+
 ## [0.6.9] - 2026-04-21
 
 ## What's Changed
