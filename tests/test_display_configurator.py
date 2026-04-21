@@ -177,15 +177,15 @@ def test_display_configurator_does_not_mutate_wizard_flag_until_saved(monkeypatc
 
 def test_display_configurator_can_send_real_calibration_pattern(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
-    sent = {"colors": None}
+    sent = {"colors": []}
 
     def _sender(colors):
-        sent["colors"] = colors
+        sent["colors"].append(colors)
 
     dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[]), calibration_sender=_sender)
     dialog._dialog.calibration_send_button.clicked.emit()
-    assert sent["colors"] is not None
-    assert any(rgb != (0, 0, 0) for rgb in sent["colors"])
+    assert len(sent["colors"]) == 2
+    assert any(rgb != (0, 0, 0) for rgb in sent["colors"][-1])
 
 
 def test_display_configurator_can_set_manual_device_zone_count(monkeypatch) -> None:
@@ -203,18 +203,15 @@ def test_display_configurator_updates_live_numeric_labels(monkeypatch) -> None:
     dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[]))
     dialog._dialog.zone_count_slider.setValue(14)
     dialog._dialog.zone_offset_slider.setValue(-3)
-    dialog._dialog.corner_offsets_enabled_checkbox.setChecked(True)
-    dialog._dialog.corner_offset_sliders[0].setValue(9)
 
     assert dialog._dialog.zone_count_value._text == "14"
     assert dialog._dialog.zone_offset_value._text == "-3"
-    assert dialog._dialog.corner_offset_values[0]._text == "+9"
 
 
 def test_display_configurator_uses_compact_default_window_size(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
     dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[]))
-    assert dialog._dialog._resize == (620, 470)
+    assert dialog._dialog._resize == (700, 560)
 
 def test_display_configurator_uses_corner_anchor_model(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)

@@ -7,14 +7,11 @@ from nanoleaf_sync.ui.calibration_preview import calibration_test_frame
 def test_calibration_sequence_contains_required_order() -> None:
     keys = [step.key for step in CALIBRATION_SEQUENCE]
     assert keys == [
-        "coverage-sanity",
-        "start-point",
-        "direction-walk",
-        "corner-anchors",
-        "fine-offset",
-        "manual-remap",
+        "corner-anchor-pass",
+        "offset-trim",
+        "verify-repeatability",
     ]
-    assert "Coverage sanity" in calibration_sequence_text()
+    assert "Corner anchor pass" in calibration_sequence_text()
 
 
 def test_derive_corner_anchor_device_indices_stays_unique_with_more_device_zones() -> None:
