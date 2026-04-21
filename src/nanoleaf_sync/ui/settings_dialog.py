@@ -126,9 +126,6 @@ class SettingsDialog:
                 self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_offset_slider.setRange(-64, 64); self.zone_offset_slider.setValue(self._state.zone_offset)
                 self.reverse_checkbox = QCheckBox("Reverse strip orientation"); self.reverse_checkbox.setChecked(self._state.reverse_zones)
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.device_zone_count_slider.setRange(1, MAX_ZONE_COUNT); self.device_zone_count_slider.setValue(self._state.device_zone_count)
-                self.device_zone_count_auto_checkbox = QCheckBox("Auto strip LED zone count")
-                self.device_zone_count_auto_checkbox.setChecked(self._state.auto_device_zone_count)
-                self.device_zone_status_label = QLabel("")
                 self.corner_anchor_button = QPushButton("Set next top-left anchor")
                 self.assign_top_left_button = QPushButton("Assign current zone → Top-left")
                 self.assign_top_right_button = QPushButton("Assign current zone → Top-right")
@@ -202,7 +199,6 @@ class SettingsDialog:
                     self.zone_preset_combo.currentIndexChanged,
                     self.zone_offset_slider.valueChanged,
                     self.device_zone_count_slider.valueChanged,
-                    self.device_zone_count_auto_checkbox.stateChanged,
                     self.reverse_checkbox.stateChanged,
                     self.capture_backend_combo.currentIndexChanged,
                     self.auto_probe_policy_combo.currentIndexChanged,
@@ -284,8 +280,7 @@ class SettingsDialog:
                 self.device_pid_combo.setToolTip("USB product ID used to locate your hardware.")
                 self.auto_probe_policy_combo.setToolTip("Choose when auto-backend probing should run.")
                 self.auto_latency_policy_combo.setToolTip("Automatically run latency checks on selected lifecycle events.")
-                self.device_zone_count_auto_checkbox.setToolTip("Auto-use detected strip zone count when available.")
-                self.device_zone_count_slider.setToolTip("Manual strip zone count used when auto mode is off.")
+                self.device_zone_count_slider.setToolTip("Configured strip zone count used for device mapping.")
                 self.output_channel_order_combo.setToolTip("Set RGB byte order expected by your strip controller.")
                 self.mock_capture_checkbox.setToolTip("Use synthetic capture frames for diagnostics; USB output remains real hardware.")
                 self.start_on_launch_checkbox.setToolTip("Start syncing automatically right after tray launch.")
@@ -349,9 +344,7 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Global mapping zone offset (rotation)"), 2, 0); layout.addWidget(self.zone_offset_slider, 2, 1); layout.addWidget(self.zone_offset_value, 2, 2)
                 layout.addWidget(self.reverse_checkbox, 3, 0, 1, 2)
                 layout.addWidget(QLabel("Strip LED zone count"), 4, 0); layout.addWidget(self.device_zone_count_slider, 4, 1); layout.addWidget(self.device_zone_count_value, 4, 2)
-                layout.addWidget(self.device_zone_count_auto_checkbox, 5, 0, 1, 3)
-                layout.addWidget(self.device_zone_status_label, 6, 0, 1, 3)
-                row = 7
+                row = 5
                 layout.addWidget(self.current_zone_label, row, 0, 1, 3)
                 layout.addWidget(self.assign_top_left_button, row + 1, 0, 1, 3)
                 layout.addWidget(self.assign_top_right_button, row + 2, 0, 1, 3)
@@ -398,7 +391,7 @@ class SettingsDialog:
 
             def _pull_state(self):
                 zone_preset_label = str(self.zone_preset_combo.currentText())
-                self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = "edge-weighted" if zone_preset_label.startswith("Edge strip") else "horizontal"; self._state.zone_offset = int(self.zone_offset_slider.value()); self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value()); self._state.auto_device_zone_count = bool(self.device_zone_count_auto_checkbox.isChecked())
+                self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = "edge-weighted" if zone_preset_label.startswith("Edge strip") else "horizontal"; self._state.zone_offset = int(self.zone_offset_slider.value()); self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value())
 
             def _refresh_numeric_labels(self):
                 self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.sampling_quality_value.setText({"Low": "Better performance", "Balanced": "Default", "High": "Best visual fidelity"}.get(str(self.sampling_quality_combo.currentText()), "Default")); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.zone_offset_value.setText(str(self.zone_offset_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}"); self.test_duration_value.setText(str(self.test_duration_slider.value())); self.test_step_interval_value.setText(str(self.test_step_interval_slider.value())); self.test_brightness_value.setText(f"{self.test_brightness_slider.value()}%")
@@ -421,9 +414,7 @@ class SettingsDialog:
                     + (f" | Unresolved: {info.unresolved_reason}" if info.unresolved_reason else "")
                 )
 
-                self.device_zone_count_slider.setEnabled(not self.device_zone_count_auto_checkbox.isChecked())
-                self.device_zone_count_value.setText("auto" if self.device_zone_count_auto_checkbox.isChecked() else str(self.device_zone_count_slider.value()))
-                self.device_zone_status_label.setText(self._state.auto_detection_status())
+                self.device_zone_count_value.setText(str(self.device_zone_count_slider.value()))
 
                 current_zone = self._state.step_for_mode(
                     str(self.test_mode_combo.currentText()),
@@ -633,7 +624,7 @@ class SettingsDialog:
                     fps=int(self.fps_slider.value()), sampling_quality=str(self.sampling_quality_combo.currentText()).lower(), brightness=self.brightness_slider.value() / 100.0,
                     smoothing=self.smoothing_slider.value() / 100.0, smoothing_speed=self.smoothing_speed_slider.value() / 100.0, led_gamma=self.led_gamma_slider.value() / 100.0,
                     zones=new_zones, zone_preset=self._state.zone_preset, color_mode=str(self.color_mode_combo.currentText()), hdr_enabled=str(self.display_mode_combo.currentText()) == "hdr",
-                    start_on_launch=bool(self.start_on_launch_checkbox.isChecked()), device_zone_count=0 if self._state.auto_device_zone_count else self._state.device_zone_count,
+                    start_on_launch=bool(self.start_on_launch_checkbox.isChecked()), device_zone_count=self._state.device_zone_count,
                     output_channel_order=str(self.output_channel_order_combo.currentText()), zone_offset=self._state.zone_offset, reverse_zones=self._state.reverse_zones,
                     manual_mapping_enabled=bool(self._state.manual_mapping_enabled),
                     explicit_zone_map=[int(i) for i in self._state.explicit_zone_map] if self._state.manual_mapping_enabled else [],

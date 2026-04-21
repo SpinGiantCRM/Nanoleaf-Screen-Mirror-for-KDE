@@ -57,8 +57,6 @@ class CalibrationState:
     reverse_zones: bool
     zone_offset: int
     device_zone_count: int
-    auto_device_zone_count: bool
-    detected_device_zone_count: int
     explicit_zone_map: list[int] = field(default_factory=list)
     manual_mapping_enabled: bool = False
     corner_start_anchor: int = -1
@@ -75,10 +73,12 @@ class CalibrationState:
         configured_zone_count = len(cfg.zones) if cfg.zones else 0
         if configured_zone_count <= 0:
             configured_zone_count = int(getattr(cfg, "device_zone_count", 0))
+        detected = int(runtime_status.get("device_zone_count") or 0)
+        if configured_zone_count <= 0 and detected > 0:
+            configured_zone_count = detected
         if configured_zone_count <= 0:
             configured_zone_count = 8
 
-        detected = int(runtime_status.get("device_zone_count") or 0)
         explicit_zone_map = [int(i) for i in (getattr(cfg, "explicit_zone_map", []) or [])]
         anchor_values = (
             int(getattr(cfg, "corner_anchor_top_left", -1)),
@@ -92,8 +92,6 @@ class CalibrationState:
             reverse_zones=bool(getattr(cfg, "reverse_zones", False)),
             zone_offset=int(getattr(cfg, "zone_offset", 0)),
             device_zone_count=max(1, int(getattr(cfg, "device_zone_count", 0)) or max(1, int(configured_zone_count))),
-            auto_device_zone_count=int(getattr(cfg, "device_zone_count", 0)) == 0,
-            detected_device_zone_count=max(0, detected),
             explicit_zone_map=explicit_zone_map,
             manual_mapping_enabled=bool(getattr(cfg, "manual_mapping_enabled", False)),
             corner_start_anchor=int(getattr(cfg, "corner_start_anchor", -1)),
@@ -115,18 +113,9 @@ class CalibrationState:
         return offsets
 
     def auto_detection_status(self) -> str:
-        if not self.auto_device_zone_count:
-            return f"Manual mode: using configured strip zone count {self.device_zone_count}."
-        if self.detected_device_zone_count > 0:
-            return f"Auto detection succeeded: detected strip zone count {self.detected_device_zone_count}."
-        return (
-            "Auto detection failed: no device-reported strip zone count was available. "
-            f"Using fallback screen sampling zone count {self.zone_count}."
-        )
+        return f"Using configured strip zone count {self.device_zone_count}."
 
     def effective_device_zone_count(self) -> int:
-        if self.auto_device_zone_count:
-            return self.detected_device_zone_count if self.detected_device_zone_count > 0 else self.zone_count
         return max(1, int(self.device_zone_count))
 
     def mapping_preview_text(self) -> str:
@@ -278,7 +267,7 @@ def build_testing_panel_state(*, state: CalibrationState, runtime_status: dict |
             + (f" | Unresolved: {backend.unresolved_reason}" if backend.unresolved_reason else "")
         ),
         zone_mode_summary=(
-            "Strip LED zone mode: auto" if state.auto_device_zone_count else "Strip LED zone mode: manual"
+            "Strip LED zone mode: configured"
         )
         + f" | {state.auto_detection_status()}",
         effective_zone_count=state.effective_device_zone_count(),

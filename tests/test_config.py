@@ -44,7 +44,7 @@ def test_config_save_validates_and_is_toml_loadable(tmp_path: Path) -> None:
     assert loaded.fps == 120
     assert loaded.zone_sampling_stride == 2
     assert loaded.led_gamma == 4.0
-    assert loaded.device_zone_count == 0
+    assert loaded.device_zone_count == 1
     assert loaded.max_consecutive_errors >= 1
     assert loaded.reinit_backoff_ms >= 0
     assert loaded.status_log_interval_s >= 0.5
@@ -58,6 +58,25 @@ def test_config_load_normalizes_backend(tmp_path: Path) -> None:
 
     cfg = ConfigManager(path=cfg_path).load()
     assert cfg.prefer_backend == "kwin-dbus"
+
+
+def test_config_load_migrates_legacy_auto_device_zone_count_to_concrete_value(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text(
+        "\n".join(
+            [
+                "device_zone_count = 0",
+                "zones = [{ x = 0.0, y = 0.0, w = 0.5, h = 1.0 }, { x = 0.5, y = 0.0, w = 0.5, h = 1.0 }]",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    cfg = ConfigManager(path=cfg_path).load()
+    assert cfg.device_zone_count == 2
+    persisted = cfg_path.read_text(encoding="utf-8")
+    assert "device_zone_count = 2" in persisted
 
 
 def test_config_load_normalizes_portal_backend_alias(tmp_path: Path) -> None:

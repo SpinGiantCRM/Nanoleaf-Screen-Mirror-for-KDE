@@ -74,7 +74,11 @@ def validate_config(cfg: AppConfig) -> AppConfig:
             continue
         zones.append(ZoneConfig(x=x, y=y, w=w, h=h))
 
-    device_zone_count = max(0, int(cfg.device_zone_count))
+    raw_device_zone_count = int(cfg.device_zone_count)
+    if raw_device_zone_count > 0:
+        device_zone_count = raw_device_zone_count
+    else:
+        device_zone_count = len(zones) if zones else 8
     output_channel_order = normalize_enum(
         getattr(cfg, "output_channel_order", "grb"),
         allowed={

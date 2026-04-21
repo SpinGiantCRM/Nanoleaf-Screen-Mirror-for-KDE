@@ -81,7 +81,7 @@ def test_process_frame_uses_precomputed_artifacts() -> None:
     assert colors == [(0, 255, 0), (255, 0, 0)]
 
 
-def test_runtime_artifacts_use_detected_device_zone_count_when_config_is_auto() -> None:
+def test_runtime_artifacts_no_longer_use_detected_device_zone_count_when_config_is_legacy_auto() -> None:
     state = RuntimeState()
     cfg = AppConfig(
         zones=[ZoneConfig(x=0.0, y=0.0, w=0.5, h=1.0), ZoneConfig(x=0.5, y=0.0, w=0.5, h=1.0)],
@@ -96,7 +96,7 @@ def test_runtime_artifacts_use_detected_device_zone_count_when_config_is_auto() 
         detected_device_zone_count=5,
     )
 
-    assert mapping.tolist() == [0, 1, 0, 1, 0]
+    assert mapping.tolist() == [0, 1]
 
 
 def test_runtime_artifacts_manual_device_zone_count_overrides_detected_length() -> None:
@@ -133,7 +133,7 @@ def test_runtime_derives_source_zones_from_device_zone_count_when_config_zones_e
     assert mapping.tolist() == [0, 1, 2, 3, 4, 5]
 
 
-def test_runtime_derives_source_zones_from_detected_device_count_when_auto() -> None:
+def test_runtime_derives_source_zones_from_default_count_when_legacy_auto() -> None:
     state = RuntimeState()
     cfg = AppConfig(zones=[], zone_preset="edge-weighted", device_zone_count=0)
 
@@ -145,8 +145,8 @@ def test_runtime_derives_source_zones_from_detected_device_count_when_auto() -> 
         detected_device_zone_count=5,
     )
 
-    assert len(zones_px) == 5
-    assert mapping.tolist() == [0, 1, 2, 3, 4]
+    assert len(zones_px) == 8
+    assert mapping.tolist() == [0, 1, 2, 3, 4, 5, 6, 7]
 
 
 def test_runtime_edge_weighted_does_not_activate_explicit_map_without_manual_toggle() -> None:
@@ -167,7 +167,7 @@ def test_runtime_edge_weighted_does_not_activate_explicit_map_without_manual_tog
         detected_device_zone_count=5,
     )
 
-    assert mapping.tolist() == [0, 1, 2, 3, 4]
+    assert mapping.tolist() == [0, 1, 2, 3, 4, 5, 6, 7]
 
 
 def test_runtime_edge_weighted_honors_explicit_map_when_manual_toggle_enabled() -> None:
@@ -188,7 +188,7 @@ def test_runtime_edge_weighted_honors_explicit_map_when_manual_toggle_enabled() 
         detected_device_zone_count=5,
     )
 
-    assert mapping.tolist() == [0, 0, 0, 0, 0]
+    assert mapping.tolist() == [0, 0, 0, 0, 0, 0, 0, 0]
 
 
 def test_runtime_uses_explicit_saved_zones_when_present() -> None:
@@ -222,14 +222,14 @@ def test_process_frame_supports_zone_sampling_stride() -> None:
 
 
 def test_synthetic_multicolor_edges_produce_distinct_device_zone_colors() -> None:
-    frame = np.zeros((8, 8, 3), dtype=np.uint8)
-    frame[0:2, :] = [255, 0, 0]      # top
-    frame[:, 6:8] = [0, 255, 0]      # right
-    frame[6:8, :] = [0, 0, 255]      # bottom
-    frame[:, 0:2] = [255, 255, 0]    # left
+    frame = np.zeros((80, 80, 3), dtype=np.uint8)
+    frame[0:16, :] = [255, 0, 0]      # top
+    frame[:, 64:80] = [0, 255, 0]     # right
+    frame[64:80, :] = [0, 0, 255]     # bottom
+    frame[:, 0:16] = [255, 255, 0]    # left
     cfg = AppConfig(zones=[], zone_preset="edge-weighted", device_zone_count=4)
     state = RuntimeState()
-    zones_px, mapping = _ensure_runtime_artifacts(state=state, config=cfg, img_w=8, img_h=8)
+    zones_px, mapping = _ensure_runtime_artifacts(state=state, config=cfg, img_w=80, img_h=80)
 
     colors = process_frame(
         frame=frame,

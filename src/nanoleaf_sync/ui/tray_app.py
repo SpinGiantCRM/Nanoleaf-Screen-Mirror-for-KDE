@@ -499,7 +499,12 @@ class NanoleafTrayApp:
         )
 
     def on_display_configurator(self) -> None:
-        dlg = DisplayConfiguratorDialog(parent=None, cfg=self.config, calibration_sender=self._send_calibration_preview)
+        dlg = DisplayConfiguratorDialog(
+            parent=None,
+            cfg=self.config,
+            calibration_sender=self._send_calibration_preview,
+            runtime_status=self.service.get_status(),
+        )
         was_running = self.service.is_running() or bool(getattr(self, "_preview_paused_service", False))
         accepted = dlg.exec() == self.QDialog.DialogCode.Accepted
         close_preview = getattr(self, "_close_preview_driver", None)

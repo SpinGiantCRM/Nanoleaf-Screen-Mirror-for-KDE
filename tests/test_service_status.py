@@ -60,6 +60,11 @@ def _make_cfg() -> AppConfig:
     )
 
 
+def test_service_status_retains_configured_strip_zone_count_without_auto_mode() -> None:
+    svc = NanoleafSyncService(config=AppConfig(device_zone_count=24))
+    assert svc.config.device_zone_count == 24
+
+
 def test_service_startup_failure_sets_error_and_not_running() -> None:
     svc = NanoleafSyncService(
         config=_make_cfg(),

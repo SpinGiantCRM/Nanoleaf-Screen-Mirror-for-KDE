@@ -87,8 +87,8 @@ class AppConfig:
     hdr_primaries: str = "bt709"
 
     # Device zone calibration (mapping sampled screen zones to physical strip zones)
-    # If `device_zone_count` is 0, runtime auto-mapping prefers detected device strip length.
-    # Fallback is source zone count (`len(zones)`, or 1 if zones are empty).
+    # Persisted config should always carry a concrete value.
+    # Legacy configs with 0 are migrated during normalization.
     device_zone_count: int = 0
     # Physical channel order expected by the LED strip controller.
     # Defaults to GRB for currently supported Nanoleaf USB strip hardware.

@@ -195,10 +195,17 @@ def test_display_configurator_can_set_manual_device_zone_count(monkeypatch) -> N
     monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
     cfg = AppConfig(zones=[])
     dialog = DisplayConfiguratorDialog(parent=None, cfg=cfg)
-    dialog._dialog.device_zone_count_auto_checkbox.setChecked(False)
     dialog._dialog.device_zone_count_slider.setValue(12)
     updated = dialog.updated_config()
     assert updated.device_zone_count == 12
+
+
+def test_display_configurator_prefills_device_zone_count_from_runtime_metadata(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    cfg = AppConfig(zones=[], device_zone_count=0)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=cfg, runtime_status={"device_zone_count": 48})
+    updated = dialog.updated_config()
+    assert updated.device_zone_count == 48
 
 
 def test_display_configurator_updates_live_numeric_labels(monkeypatch) -> None:
