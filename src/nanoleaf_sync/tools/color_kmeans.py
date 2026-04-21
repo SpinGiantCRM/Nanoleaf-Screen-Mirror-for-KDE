@@ -34,7 +34,7 @@ def dominant_colors_kmeans(
     # Sample pixels to limit runtime.
     total = pixels.shape[0]
     if total == 0:
-        return [(0, 0, 0)]
+        return [(0, 0, 0)] * n_clusters
 
     n = min(total, int(sample_pixels))
     rng = np.random.default_rng(rng_seed)
