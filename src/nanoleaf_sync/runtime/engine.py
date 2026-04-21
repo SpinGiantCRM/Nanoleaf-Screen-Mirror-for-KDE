@@ -115,13 +115,14 @@ def _mapping_signature(
     source_zone_count: int,
     config: AppConfig,
     detected_device_zone_count: int | None,
-) -> tuple[int, int, int, int, bool, tuple[int, ...], bool, tuple[int, ...]]:
+) -> tuple[int, int, int, int, bool, bool, tuple[int, ...], bool, tuple[int, ...]]:
     return (
         int(source_zone_count),
         int(config.device_zone_count),
         int(detected_device_zone_count or 0),
         int(config.zone_offset),
         bool(config.reverse_zones),
+        bool(getattr(config, "manual_mapping_enabled", False)),
         tuple(int(i) for i in (config.explicit_zone_map or [])),
         bool(getattr(config, "corner_offsets_enabled", False)),
         tuple(int(i) for i in (getattr(config, "corner_zone_offsets", []) or [])),
@@ -180,6 +181,7 @@ def _ensure_runtime_artifacts(
             device_zone_count=device_zone_count,
             zone_offset=config.zone_offset,
             reverse=config.reverse_zones,
+            manual_mapping_enabled=bool(getattr(config, "manual_mapping_enabled", False)),
             explicit_zone_map=config.explicit_zone_map or None,
             corner_zone_offsets=(config.corner_zone_offsets if bool(getattr(config, "corner_offsets_enabled", False)) else None),
         )

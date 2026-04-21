@@ -149,6 +149,48 @@ def test_runtime_derives_source_zones_from_detected_device_count_when_auto() -> 
     assert mapping.tolist() == [0, 1, 2, 3, 4]
 
 
+def test_runtime_edge_weighted_does_not_activate_explicit_map_without_manual_toggle() -> None:
+    state = RuntimeState()
+    cfg = AppConfig(
+        zones=[],
+        zone_preset="edge-weighted",
+        device_zone_count=0,
+        manual_mapping_enabled=False,
+        explicit_zone_map=[0, 0, 0, 0, 0],
+    )
+
+    _, mapping = _ensure_runtime_artifacts(
+        state=state,
+        config=cfg,
+        img_w=100,
+        img_h=50,
+        detected_device_zone_count=5,
+    )
+
+    assert mapping.tolist() == [0, 1, 2, 3, 4]
+
+
+def test_runtime_edge_weighted_honors_explicit_map_when_manual_toggle_enabled() -> None:
+    state = RuntimeState()
+    cfg = AppConfig(
+        zones=[],
+        zone_preset="edge-weighted",
+        device_zone_count=0,
+        manual_mapping_enabled=True,
+        explicit_zone_map=[0, 0, 0, 0, 0],
+    )
+
+    _, mapping = _ensure_runtime_artifacts(
+        state=state,
+        config=cfg,
+        img_w=100,
+        img_h=50,
+        detected_device_zone_count=5,
+    )
+
+    assert mapping.tolist() == [0, 0, 0, 0, 0]
+
+
 def test_runtime_uses_explicit_saved_zones_when_present() -> None:
     state = RuntimeState()
     cfg = AppConfig(

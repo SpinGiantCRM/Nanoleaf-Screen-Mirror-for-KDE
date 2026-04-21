@@ -87,6 +87,7 @@ def resolve_device_zone_indices(
     device_zone_count: int,
     zone_offset: int = 0,
     reverse: bool = False,
+    manual_mapping_enabled: bool = False,
     explicit_zone_map: Optional[Sequence[int]] = None,
     corner_zone_offsets: Optional[Sequence[int]] = None,
 ) -> List[int]:
@@ -96,7 +97,7 @@ def resolve_device_zone_indices(
     if src_n == 0 or dst_n == 0:
         return []
 
-    if explicit_zone_map:
+    if manual_mapping_enabled and explicit_zone_map:
         out: List[int] = []
         for i in range(dst_n):
             if i < len(explicit_zone_map):
@@ -127,6 +128,7 @@ def map_colors_to_device_zones(
     device_zone_count: int,
     zone_offset: int = 0,
     reverse: bool = False,
+    manual_mapping_enabled: bool = False,
     explicit_zone_map: Optional[Sequence[int]] = None,
     corner_zone_offsets: Optional[Sequence[int]] = None,
 ) -> List[RGBTuple]:
@@ -138,8 +140,7 @@ def map_colors_to_device_zones(
       the correct physical segment.
     - `reverse` flips orientation.
     - `explicit_zone_map` allows fully custom mapping where each device zone
-      indexes a screen color (protocol-compatible with the official app's
-      "zone order" concept).
+      indexes a screen color, but only when `manual_mapping_enabled` is True.
     """
 
     src = list(screen_colors)
@@ -151,6 +152,7 @@ def map_colors_to_device_zones(
         device_zone_count=device_zone_count,
         zone_offset=zone_offset,
         reverse=reverse,
+        manual_mapping_enabled=manual_mapping_enabled,
         explicit_zone_map=explicit_zone_map,
         corner_zone_offsets=corner_zone_offsets,
     )

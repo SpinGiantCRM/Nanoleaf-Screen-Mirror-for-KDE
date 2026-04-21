@@ -530,6 +530,7 @@ class SettingsDialog:
                     zones=new_zones, zone_preset=self._state.zone_preset, color_mode=str(self.color_mode_combo.currentText()), hdr_enabled=str(self.display_mode_combo.currentText()) == "hdr",
                     start_on_launch=bool(self.start_on_launch_checkbox.isChecked()), device_zone_count=0 if self._state.auto_device_zone_count else self._state.device_zone_count,
                     output_channel_order=str(self.output_channel_order_combo.currentText()), zone_offset=self._state.zone_offset, reverse_zones=self._state.reverse_zones,
+                    manual_mapping_enabled=bool(self._state.manual_mapping_enabled),
                     explicit_zone_map=[int(i) for i in self._state.explicit_zone_map] if self._state.manual_mapping_enabled else [],
                     corner_anchor_top_left=int(self._state.corner_anchor_top_left),
                     corner_anchor_top_right=int(self._state.corner_anchor_top_right),

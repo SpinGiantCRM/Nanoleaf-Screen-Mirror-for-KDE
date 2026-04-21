@@ -301,6 +301,7 @@ def test_settings_dialog_preserves_manual_and_corner_mapping(monkeypatch) -> Non
     monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
     cfg = AppConfig(
         zones=[ZoneConfig(x=0.0, y=0.0, w=1.0, h=1.0)],
+        manual_mapping_enabled=True,
         explicit_zone_map=[3, 2, 1, 0],
         corner_offsets_enabled=True,
         corner_zone_offsets=[1, -1, 2, -2],
@@ -308,9 +309,24 @@ def test_settings_dialog_preserves_manual_and_corner_mapping(monkeypatch) -> Non
     dialog = SettingsDialog(parent=None, cfg=cfg)
 
     updated = dialog.updated_config()
+    assert updated.manual_mapping_enabled is True
     assert updated.explicit_zone_map == [3, 2, 1, 0]
     assert updated.corner_offsets_enabled is True
     assert updated.corner_zone_offsets == [1, -1, 2, -2]
+
+
+def test_settings_dialog_disables_manual_mapping_when_not_enabled(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    cfg = AppConfig(
+        zones=[ZoneConfig(x=0.0, y=0.0, w=1.0, h=1.0)],
+        manual_mapping_enabled=False,
+        explicit_zone_map=[3, 2, 1, 0],
+    )
+    dialog = SettingsDialog(parent=None, cfg=cfg)
+
+    updated = dialog.updated_config()
+    assert updated.manual_mapping_enabled is False
+    assert updated.explicit_zone_map == []
 
 
 def test_settings_dialog_defaults_mock_capture_to_config_default(monkeypatch) -> None:

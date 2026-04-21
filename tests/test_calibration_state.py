@@ -44,6 +44,20 @@ def test_manual_corner_anchor_assignment_guides_corner_steps() -> None:
     assert next_corner_start_anchor(5, device_zone_count=8) == 6
 
 
+def test_manual_mapping_uses_explicit_config_flag_not_map_presence() -> None:
+    disabled = CalibrationState.from_config(
+        AppConfig(device_zone_count=4, manual_mapping_enabled=False, explicit_zone_map=[0, 0, 0, 0]),
+        {},
+    )
+    enabled = CalibrationState.from_config(
+        AppConfig(device_zone_count=4, manual_mapping_enabled=True, explicit_zone_map=[0, 0, 0, 0]),
+        {},
+    )
+
+    assert disabled.manual_mapping_enabled is False
+    assert enabled.manual_mapping_enabled is True
+
+
 def test_latency_policy_is_predictable_and_manual_vs_auto_labeled() -> None:
     assert should_auto_run_latency_probe(policy="manual", last_result=None, active_backend="kwin-dbus") is False
     assert should_auto_run_latency_probe(policy="on-open", last_result=None, active_backend="kwin-dbus") is True

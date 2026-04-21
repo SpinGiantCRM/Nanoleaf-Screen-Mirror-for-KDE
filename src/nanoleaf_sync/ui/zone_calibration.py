@@ -26,6 +26,7 @@ def mapping_indices(
             device_zone_count=1,
             zone_offset=int(zone_offset),
             reverse=bool(reverse_zones),
+            manual_mapping_enabled=bool(explicit_zone_map),
             explicit_zone_map=list(explicit_zone_map) if explicit_zone_map else None,
             corner_zone_offsets=list(corner_zone_offsets) if corner_zone_offsets else None,
         )
@@ -35,6 +36,7 @@ def mapping_indices(
         device_zone_count=normalized_device_zone_count,
         zone_offset=int(zone_offset),
         reverse=bool(reverse_zones),
+        manual_mapping_enabled=bool(explicit_zone_map),
         explicit_zone_map=list(explicit_zone_map) if explicit_zone_map else None,
         corner_zone_offsets=list(corner_zone_offsets) if corner_zone_offsets else None,
     )
