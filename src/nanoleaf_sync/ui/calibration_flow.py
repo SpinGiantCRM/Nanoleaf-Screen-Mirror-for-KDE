@@ -66,26 +66,29 @@ def derive_corner_anchor_device_indices(
     )
     source_total = max(1, int(zone_count))
     corner_targets = [0, source_total // 4, source_total // 2, (3 * source_total) // 4]
-    start = int(start_anchor) % len(corner_targets) if start_anchor is not None else 0
-
     def _ring_distance(a: int, b: int, length: int) -> int:
         diff = abs(int(a) - int(b)) % length
         return min(diff, length - diff)
 
+    anchored_device_idx = (int(start_anchor) % total) if start_anchor is not None else None
+    used: set[int] = set()
     ordered: list[int] = []
     for corner_idx in range(4):
-        target = corner_targets[(start + corner_idx) % len(corner_targets)]
+        if corner_idx == 0 and anchored_device_idx is not None:
+            ordered.append(anchored_device_idx)
+            used.add(anchored_device_idx)
+            continue
+        target = corner_targets[corner_idx % len(corner_targets)]
+        candidates = [idx for idx in range(total) if idx not in used]
+        if not candidates:
+            break
         best = min(
-            range(total),
+            candidates,
             key=lambda device_idx: (
                 _ring_distance(int(mapping[device_idx]), target, source_total),
                 device_idx,
             ),
         )
         ordered.append(best)
-
-    out: list[int] = []
-    for idx in ordered:
-        if idx not in out:
-            out.append(idx)
-    return out[: min(4, total)]
+        used.add(best)
+    return ordered[: min(4, total)]
