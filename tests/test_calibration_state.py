@@ -122,6 +122,18 @@ def test_testing_step_controls_and_frame_generation_stay_coherent() -> None:
     assert sum(1 for rgb in frame if rgb != (0, 0, 0)) == 1
 
 
+def test_corner_alignment_zone_offset_and_test_zone_step_are_independent() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=8, zone_offset=5), {})
+    cycle = state.cycle_length("corner+offset alignment")
+    first = state.step_for_mode("corner+offset alignment", 0)
+    wrapped = state.step_for_mode("corner+offset alignment", cycle)
+
+    assert state.zone_offset == 5
+    assert first.device_zone_index == wrapped.device_zone_index
+    assert "mapping zone offset=+5" in first.label
+    assert "test zone step 1/" in first.label
+
+
 def test_manual_device_zone_count_48_propagates_to_cycle_frame_and_preview() -> None:
     state = CalibrationState.from_config(AppConfig(device_zone_count=48, zone_offset=1), {})
     assert state.auto_device_zone_count is False

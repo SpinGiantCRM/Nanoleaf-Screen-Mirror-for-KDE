@@ -176,7 +176,7 @@ class CalibrationState:
                 device_zone_index=anchor.device_zone_index,
                 source_zone_index=anchor.source_zone_index,
                 label=(
-                    f"Corner+offset alignment | reverse={'on' if self.reverse_zones else 'off'} | offset={self.zone_offset:+d} | {anchor.label}"
+                    f"Corner+offset alignment | mapping zone offset={self.zone_offset:+d} | test zone step {step % len(anchors) + 1}/{len(anchors)} | reverse={'on' if self.reverse_zones else 'off'} | {anchor.label}"
                 ),
             )
         if mode == "coverage sanity":
