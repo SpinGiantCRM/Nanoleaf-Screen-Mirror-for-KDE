@@ -7,6 +7,7 @@ service code without hardware or Qt.
 
 from __future__ import annotations
 
+import threading
 import time
 from dataclasses import dataclass
 from typing import Sequence, Tuple
@@ -218,6 +219,46 @@ def test_service_each_boot_policy_probes_once_per_process(monkeypatch) -> None:
     service._close_backends()
     service._install_drivers()
     assert seen_cached_values == [None, "kwin-dbus"]
+
+
+def test_service_each_boot_policy_probes_once_per_process_under_concurrent_starts(monkeypatch) -> None:
+    cfg = AppConfig(use_mock_capture=False, prefer_backend="auto", auto_probe_policy="each-boot")
+    service_one = NanoleafSyncService(config=cfg, driver_override=FakeDriver())
+    service_two = NanoleafSyncService(config=cfg, driver_override=FakeDriver())
+    seen_cached_values: list[str | None] = []
+    seen_lock = threading.Lock()
+    start_barrier = threading.Barrier(2)
+
+    class _FakeCaptureBackend:
+        name = "kwin-dbus"
+        last_capture_path = None
+
+        def close(self) -> None:
+            pass
+
+    def _fake_build_auto_probe_signature(_width: int, _height: int) -> str:
+        start_barrier.wait(timeout=2.0)
+        return "stable-sig"
+
+    def _fake_create_capture_backend(**kwargs):
+        with seen_lock:
+            seen_cached_values.append(kwargs.get("cached_probe_winner"))
+        return _FakeCaptureBackend()
+
+    monkeypatch.setattr("nanoleaf_sync.service._build_auto_probe_signature", _fake_build_auto_probe_signature)
+    monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend)
+    monkeypatch.setattr("nanoleaf_sync.service._PROCESS_BOOT_PROBE_DONE", False)
+
+    first = threading.Thread(target=service_one._install_drivers)
+    second = threading.Thread(target=service_two._install_drivers)
+    first.start()
+    second.start()
+    first.join(timeout=2.0)
+    second.join(timeout=2.0)
+
+    assert not first.is_alive()
+    assert not second.is_alive()
+    assert sorted(seen_cached_values, key=lambda value: value is not None) == [None, "kwin-dbus"]
 
 
 def test_service_first_run_policy_creates_cache_and_persists_metadata(monkeypatch) -> None:

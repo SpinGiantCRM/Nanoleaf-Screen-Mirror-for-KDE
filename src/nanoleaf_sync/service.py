@@ -39,6 +39,7 @@ from nanoleaf_sync.runtime.state import RuntimeState
 logger = logging.getLogger(__name__)
 _AUTO_PROBE_WINNERS = {"kwin-dbus", "xdg-portal", "kmsgrab"}
 _PROCESS_BOOT_PROBE_DONE = False
+_PROCESS_BOOT_PROBE_LOCK = threading.Lock()
 _AUTO_PROBE_ENV_VARS = (
     "NANOLEAF_DISABLE_CAPTURE_PROBE",
     "NANOLEAF_ENABLE_CAPTURE_PROBE",
@@ -270,9 +271,10 @@ class NanoleafSyncService:
                 if policy == "first-run":
                     should_probe = not _is_valid_auto_probe_winner(cached_winner)
                 elif policy == "each-boot":
-                    should_probe = not _PROCESS_BOOT_PROBE_DONE
-                    if should_probe:
-                        _PROCESS_BOOT_PROBE_DONE = True
+                    with _PROCESS_BOOT_PROBE_LOCK:
+                        should_probe = not _PROCESS_BOOT_PROBE_DONE
+                        if should_probe:
+                            _PROCESS_BOOT_PROBE_DONE = True
                 else:
                     signature_changed = signature != str(
                         getattr(self.config, "auto_probe_signature", "") or ""
