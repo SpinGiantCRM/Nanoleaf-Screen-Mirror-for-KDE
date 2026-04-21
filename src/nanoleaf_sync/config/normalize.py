@@ -169,17 +169,18 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         "bottom_right": corner_anchor_bottom_right if corner_anchor_bottom_right >= 0 else None,
         "bottom_left": corner_anchor_bottom_left if corner_anchor_bottom_left >= 0 else None,
     }
-    anchor_validation = validate_corner_anchors(
-        anchors=anchor_values,
-        device_zone_count=(device_zone_count if device_zone_count > 0 else max(1, len(zones) or 8)),
-    )
-    if anchor_validation.valid:
-        derived = derive_anchor_zone_map(
-            zone_count=max(1, len(zones) or (device_zone_count if device_zone_count > 0 else 8)),
-            device_zone_count=(device_zone_count if device_zone_count > 0 else max(1, len(zones) or 8)),
+    if device_zone_count > 0:
+        anchor_validation = validate_corner_anchors(
             anchors=anchor_values,
+            device_zone_count=device_zone_count,
         )
-        explicit_zone_map = derived.explicit_zone_map
+        if anchor_validation.valid:
+            derived = derive_anchor_zone_map(
+                zone_count=max(1, len(zones) or device_zone_count),
+                device_zone_count=device_zone_count,
+                anchors=anchor_values,
+            )
+            explicit_zone_map = derived.explicit_zone_map
 
     return AppConfig(
         fps=fps,

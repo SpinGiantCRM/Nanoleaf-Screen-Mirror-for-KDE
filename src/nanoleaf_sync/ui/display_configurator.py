@@ -397,7 +397,10 @@ class DisplayConfiguratorDialog:
                 self.preview_text.setText(self._state.mapping_preview_text())
                 self.preview_visual.setText(self._state.mapping_preview_visual())
                 self.calibration_test_label.setText(preview.active_test_description)
-                current_zone = int(self._test_step) % max(1, self._state.effective_device_zone_count())
+                current_zone = self._state.step_for_mode(
+                    str(self.calibration_mode_combo.currentText()),
+                    self._test_step,
+                ).device_zone_index
                 self.current_zone_label.setText(f"Current physical strip zone: {current_zone}")
                 self.summary_label.setText(
                     "\n".join(
@@ -439,7 +442,10 @@ class DisplayConfiguratorDialog:
                 )
 
             def _assign_anchor(self, corner: str) -> None:
-                current_zone = int(self._test_step) % max(1, self._state.effective_device_zone_count())
+                current_zone = self._state.step_for_mode(
+                    str(self.calibration_mode_combo.currentText()),
+                    self._test_step,
+                ).device_zone_index
                 if corner == "top_left":
                     self._state.corner_anchor_top_left = current_zone
                 elif corner == "top_right":

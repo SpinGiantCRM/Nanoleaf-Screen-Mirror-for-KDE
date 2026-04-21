@@ -436,7 +436,10 @@ class SettingsDialog:
 
                 self.manual_map_device_slider.setRange(0, max(0, self._state.effective_device_zone_count() - 1)); self.manual_map_source_slider.setRange(0, max(0, self._state.zone_count - 1)); enabled = self.manual_map_checkbox.isChecked(); self.manual_map_device_slider.setEnabled(enabled); self.manual_map_source_slider.setEnabled(enabled)
                 self.manual_map_status_label.setText("Manual map is absolute (strip zone -> exact screen zone)." if enabled else "Manual map disabled.")
-                current_zone = int(self._test_step) % max(1, self._state.effective_device_zone_count())
+                current_zone = self._state.step_for_mode(
+                    str(self.test_mode_combo.currentText()),
+                    self._test_step,
+                ).device_zone_index
                 self.current_zone_label.setText(f"Current physical strip zone: {current_zone}")
                 corners_enabled = self.corner_offsets_enabled_checkbox.isChecked()
                 for slider in self.corner_offset_sliders:
@@ -482,7 +485,10 @@ class SettingsDialog:
 
 
             def _assign_anchor(self, corner: str):
-                current_zone = int(self._test_step) % max(1, self._state.effective_device_zone_count())
+                current_zone = self._state.step_for_mode(
+                    str(self.test_mode_combo.currentText()),
+                    self._test_step,
+                ).device_zone_index
                 if corner == "top_left":
                     self._state.corner_anchor_top_left = current_zone
                 elif corner == "top_right":

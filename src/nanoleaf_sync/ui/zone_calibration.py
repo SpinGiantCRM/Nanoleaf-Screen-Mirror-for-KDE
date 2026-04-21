@@ -89,8 +89,9 @@ def mapping_preview_text(
         corner_anchor_bottom_right=corner_anchor_bottom_right,
         corner_anchor_bottom_left=corner_anchor_bottom_left,
     )
-    preview = ", ".join(str(i) for i in indices[: max(1, int(show_limit))])
-    suffix = "…" if len(indices) > show_limit else ""
+    limit = max(1, int(show_limit))
+    preview = ", ".join(str(i) for i in indices[:limit])
+    suffix = "…" if len(indices) > limit else ""
     return (
         f"Calibration model: corner anchors | source zones: {zone_count} | strip zones: {device_zone_count}\n"
         f"{anchor_line}\n"
@@ -99,12 +100,13 @@ def mapping_preview_text(
     )
 
 
-def mapping_preview_visual(**kwargs) -> str:
+def mapping_preview_visual(*, show_limit: int = 12, **kwargs) -> str:
     indices = mapping_indices(**kwargs)
     if not indices:
         return "No mapping available."
-    chunks = [f"[D{idx}→S{src}]" for idx, src in enumerate(indices[:12])]
-    return " ".join(chunks) + (" …" if len(indices) > 12 else "")
+    limit = max(1, int(show_limit))
+    chunks = [f"[D{idx}→S{src}]" for idx, src in enumerate(indices[:limit])]
+    return " ".join(chunks) + (" …" if len(indices) > limit else "")
 
 
 def zone_test_instruction(step: int, total: int) -> str:
