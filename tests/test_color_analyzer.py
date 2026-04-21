@@ -114,6 +114,14 @@ class TestDominantColorsKmeans:
         colors = dominant_colors_kmeans(img, n_clusters=3)
         assert len(colors) == 3
 
+    def test_empty_image_returns_requested_cluster_count(self):
+        img = np.zeros((0, 0, 3), dtype=np.uint8)
+
+        for k in (2, 4):
+            colors = dominant_colors_kmeans(img, n_clusters=k)
+            assert len(colors) == k
+            assert colors == [(0, 0, 0)] * k
+
 
 # ---------------------------------------------------------------------------
 # zone_colors
