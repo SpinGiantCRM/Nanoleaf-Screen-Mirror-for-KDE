@@ -78,6 +78,8 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     )
     raw_corner_offsets = getattr(cfg, "corner_zone_offsets", []) or []
     corner_zone_offsets = [int(i) for i in list(raw_corner_offsets)[:4]]
+    while len(corner_zone_offsets) < 4:
+        corner_zone_offsets.append(0)
 
     max_consecutive_errors = max(1, int(cfg.max_consecutive_errors))
     reinit_backoff_ms = max(0, int(cfg.reinit_backoff_ms))

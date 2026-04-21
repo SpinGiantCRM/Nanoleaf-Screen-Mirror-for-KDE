@@ -134,6 +134,12 @@ def test_corner_refinement_clamps_to_supported_limit() -> None:
     assert state.active_corner_zone_offsets() == [24, -24, 24, -24]
 
 
+def test_corner_refinement_active_offsets_pad_missing_values() -> None:
+    cfg = AppConfig(device_zone_count=8, corner_offsets_enabled=True, corner_zone_offsets=[3, -2])
+    state = CalibrationState.from_config(cfg, {})
+    assert state.active_corner_zone_offsets() == [3, -2, 0, 0]
+
+
 def test_backend_selection_never_reports_auto_as_selected_backend() -> None:
     cfg = AppConfig(prefer_backend="auto")
     info = backend_selection_info({"requested_capture_backend": "auto", "running": True}, cfg)
