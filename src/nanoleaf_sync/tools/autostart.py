@@ -16,12 +16,22 @@ from nanoleaf_sync.desktop_entry import (
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Manage nanoleaf-kde-sync desktop autostart.")
     parser.add_argument("action", choices=("enable", "disable", "status"))
-    parser.add_argument("--method", choices=("desktop", "systemd"), default="desktop")
+    parser.add_argument(
+        "--method",
+        choices=("desktop", "systemd"),
+        default="desktop",
+        help="Autostart method. Use desktop for KWin ScreenShot2 authorization; systemd may miss desktop-session DBus authorization context.",
+    )
     args = parser.parse_args(argv)
 
     if args.action == "enable":
         path = enable_autostart() if args.method == "desktop" else enable_systemd_autostart()
         print(f"Enabled autostart: {path}")
+        if args.method == "systemd":
+            print(
+                "WARNING: systemd --user autostart can fail KWin ScreenShot2 authorization because it "
+                "may not inherit desktop-entry launch context. Prefer `--method desktop` for reliable capture."
+            )
         return 0
 
     if args.action == "disable":

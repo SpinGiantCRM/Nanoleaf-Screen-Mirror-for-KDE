@@ -18,6 +18,7 @@ from nanoleaf_sync.capture.backend_selection import (
     XDG_PORTAL_BACKEND,
     normalize_backend_preference,
 )
+from nanoleaf_sync.capture.factory import auto_probe_effective_state
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.normalize import validate_config
 from nanoleaf_sync.config.store import ConfigManager
@@ -292,14 +293,16 @@ def _check_probe_status(config: AppConfig) -> DoctorCheck:
     signature = str(getattr(config, "auto_probe_signature", "") or "").strip()
     timestamp = str(getattr(config, "auto_probe_timestamp", "") or "").strip()
     policy = str(getattr(config, "auto_probe_policy", "on-change") or "on-change").strip()
-    enabled = bool(getattr(config, "auto_probe_enabled", True))
+    configured_enabled = bool(getattr(config, "auto_probe_enabled", True))
+    effective_enabled, effective_reason = auto_probe_effective_state(configured_enabled)
 
     if cached:
         return DoctorCheck(
             "probe-status",
             "pass",
             (
-                f"Auto-probe enabled={enabled} policy={policy} cached_winner={cached} "
+                f"Auto-probe configured_enabled={configured_enabled} policy={policy} cached_winner={cached} "
+                f"effective_enabled={effective_enabled} effective_reason={effective_reason} "
                 f"selection_reason=cached-probe signature={signature or 'none'} timestamp={timestamp or 'none'}."
             ),
         )
@@ -307,7 +310,8 @@ def _check_probe_status(config: AppConfig) -> DoctorCheck:
         "probe-status",
         "warn",
         (
-            f"Auto-probe enabled={enabled} policy={policy} has no cached winner yet "
+            f"Auto-probe configured_enabled={configured_enabled} effective_enabled={effective_enabled} "
+            f"effective_reason={effective_reason} policy={policy} has no cached winner yet "
             "(next decision likely fresh-probe/fallback)."
         ),
         "Start service once (or run smoke test) to record backend decision metadata.",
@@ -317,34 +321,37 @@ def _check_probe_status(config: AppConfig) -> DoctorCheck:
 def _check_real_capture_probe(config: AppConfig) -> DoctorCheck:
     from nanoleaf_sync.capture.factory import create_capture_backend
 
-    capture = create_capture_backend(
-        width=64,
-        height=36,
-        use_mock_capture=False,
-        prefer_backend=config.prefer_backend,
-        hdr_max_nits=config.hdr_max_nits,
-        hdr_transfer=config.hdr_transfer,
-        hdr_primaries=config.hdr_primaries,
-    )
+    capture = None
     try:
+        capture = create_capture_backend(
+            width=64,
+            height=36,
+            use_mock_capture=False,
+            prefer_backend=config.prefer_backend,
+            hdr_max_nits=config.hdr_max_nits,
+            hdr_transfer=config.hdr_transfer,
+            hdr_primaries=config.hdr_primaries,
+            auto_probe_enabled=config.auto_probe_enabled,
+            cached_probe_winner=config.auto_selected_backend or None,
+        )
         frame = capture.capture()
         path = getattr(capture, "last_capture_path", None) or "unknown"
         return DoctorCheck(
             "capture-probe",
             "pass",
-            f"Real capture probe succeeded via {path} with frame shape={getattr(frame, 'shape', '?')}.",
+            f"Capture probe succeeded via {path} with frame shape={getattr(frame, 'shape', '?')}.",
         )
     except Exception as exc:
         translated = translate_runtime_error(exc)
         return DoctorCheck(
             "capture-probe",
             "fail",
-            f"Real capture probe failed ({translated.kind}): {translated.summary}",
+            f"Capture probe failed ({translated.kind}): {translated.summary}",
             translated.guidance,
         )
     finally:
         try:
-            close_fn = getattr(capture, "close", None)
+            close_fn = getattr(capture, "close", None) if capture is not None else None
             if close_fn is not None:
                 close_fn()
         except Exception:
@@ -411,7 +418,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--capture",
         action="store_true",
-        help="Attempt a real kwin-dbus capture and report the exact root cause on failure",
+        help="Attempt a capture probe using your configured backend policy and report exact failure causes",
     )
     args = parser.parse_args(argv)
 

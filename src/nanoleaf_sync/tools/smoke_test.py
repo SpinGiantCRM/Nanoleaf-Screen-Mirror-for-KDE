@@ -7,7 +7,7 @@ from nanoleaf_sync.capture.backend_selection import (
     AUTO_PROBE_CANDIDATES,
     normalize_backend_preference,
 )
-from nanoleaf_sync.capture.factory import create_capture_backend
+from nanoleaf_sync.capture.factory import auto_probe_effective_state, create_capture_backend
 from nanoleaf_sync.capture.dimensions import resolve_capture_dims
 from nanoleaf_sync.config.store import ConfigManager
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
@@ -35,10 +35,15 @@ def main(argv: list[str] | None = None) -> int:
     print("device mode: real-usb")
     print(
         "probe config: "
-        f"enabled={cfg.auto_probe_enabled} policy={cfg.auto_probe_policy} "
+        f"configured_enabled={cfg.auto_probe_enabled} policy={cfg.auto_probe_policy} "
         f"cached_winner={cfg.auto_selected_backend or 'none'} "
         f"signature={cfg.auto_probe_signature or 'none'} "
         f"timestamp={cfg.auto_probe_timestamp or 'none'}"
+    )
+    effective_probe_enabled, effective_probe_reason = auto_probe_effective_state(cfg.auto_probe_enabled)
+    print(
+        "probe effective: "
+        f"enabled={effective_probe_enabled} reason={effective_probe_reason}"
     )
     width, height = resolve_capture_dims(cfg)
     if width <= 0 or height <= 0:

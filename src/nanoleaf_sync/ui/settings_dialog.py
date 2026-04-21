@@ -166,7 +166,7 @@ class SettingsDialog:
                     self.device_model_combo.setCurrentIndex(0)
                 else:
                     self.device_model_combo.setCurrentIndex(2)
-                self.mock_capture_checkbox = QCheckBox("Mock capture (synthetic)"); self.mock_capture_checkbox.setChecked(bool(getattr(cfg, "use_mock_capture", True)))
+                self.mock_capture_checkbox = QCheckBox("Mock capture (synthetic)"); self.mock_capture_checkbox.setChecked(bool(getattr(cfg, "use_mock_capture", False)))
                 self.capture_backend_combo = QComboBox(); self.capture_backend_combo.addItems(["auto", "kwin-dbus", "kmsgrab", "xdg-portal"]); self.capture_backend_combo.setCurrentIndex(max(0, self.capture_backend_combo.findText(str(getattr(cfg, "prefer_backend", "kwin-dbus")))))
                 self.auto_probe_policy_combo = QComboBox(); self.auto_probe_policy_combo.addItems(["on-change", "first-run", "each-boot"]); self.auto_probe_policy_combo.setCurrentIndex(max(0, self.auto_probe_policy_combo.findText(str(getattr(cfg, "auto_probe_policy", "on-change")))))
 
@@ -366,7 +366,7 @@ class SettingsDialog:
 
             def _pull_state(self):
                 zone_preset_label = str(self.zone_preset_combo.currentText())
-                self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = "edge-weighted" if zone_preset_label.startswith("Edge strip") else "horizontal"; self._state.zone_offset = int(self.zone_offset_slider.value()); self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value()); self._state.auto_device_zone_count = bool(self.device_zone_count_auto_checkbox.isChecked()); self._state.manual_mapping_enabled = False; self._state.explicit_zone_map = []; self._state.corner_offsets_enabled = False; self._state.corner_zone_offsets = [0, 0, 0, 0]
+                self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = "edge-weighted" if zone_preset_label.startswith("Edge strip") else "horizontal"; self._state.zone_offset = int(self.zone_offset_slider.value()); self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value()); self._state.auto_device_zone_count = bool(self.device_zone_count_auto_checkbox.isChecked())
 
             def _refresh_numeric_labels(self):
                 self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.zone_sampling_stride_value.setText(str(self.zone_sampling_stride_slider.value())); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.zone_offset_value.setText(str(self.zone_offset_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}"); self.test_duration_value.setText(str(self.test_duration_slider.value())); self.test_step_interval_value.setText(str(self.test_step_interval_slider.value())); self.test_brightness_value.setText(f"{self.test_brightness_slider.value()}%")
@@ -529,14 +529,14 @@ class SettingsDialog:
                     zones=new_zones, zone_preset=self._state.zone_preset, color_mode=str(self.color_mode_combo.currentText()), hdr_enabled=str(self.display_mode_combo.currentText()) == "hdr",
                     start_on_launch=bool(self.start_on_launch_checkbox.isChecked()), device_zone_count=0 if self._state.auto_device_zone_count else self._state.device_zone_count,
                     output_channel_order=str(self.output_channel_order_combo.currentText()), zone_offset=self._state.zone_offset, reverse_zones=self._state.reverse_zones,
-                    explicit_zone_map=[],
+                    explicit_zone_map=[int(i) for i in self._state.explicit_zone_map] if self._state.manual_mapping_enabled else [],
                     corner_anchor_top_left=int(self._state.corner_anchor_top_left),
                     corner_anchor_top_right=int(self._state.corner_anchor_top_right),
                     corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
                     corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
                     corner_start_anchor=int(self._state.corner_start_anchor), use_mock_capture=bool(self.mock_capture_checkbox.isChecked()), prefer_backend=str(self.capture_backend_combo.currentText()), auto_probe_policy=str(self.auto_probe_policy_combo.currentText()), auto_latency_policy=str(self.auto_latency_policy_combo.currentText()),
-                    corner_offsets_enabled=False,
-                    corner_zone_offsets=[0, 0, 0, 0],
+                    corner_offsets_enabled=bool(self._state.corner_offsets_enabled),
+                    corner_zone_offsets=self._state.active_corner_zone_offsets(),
                     latency_last_backend=(self._latest_latency.selected_backend if self._latest_latency else getattr(cfg, "latency_last_backend", "")),
                     latency_last_value_ms=(self._latest_latency.measured_latency_ms if self._latest_latency else float(getattr(cfg, "latency_last_value_ms", 0.0))),
                     latency_last_trigger=(self._latest_latency.triggered_by if self._latest_latency else getattr(cfg, "latency_last_trigger", "")),

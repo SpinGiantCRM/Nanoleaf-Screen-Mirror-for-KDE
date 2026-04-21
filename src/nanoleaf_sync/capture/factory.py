@@ -84,6 +84,11 @@ def _probe_enabled(config_probe_enabled: bool | None) -> tuple[bool, str | None]
     return True, None
 
 
+def auto_probe_effective_state(config_probe_enabled: bool | None) -> tuple[bool, str]:
+    enabled, disable_reason = _probe_enabled(config_probe_enabled)
+    return enabled, (disable_reason or "enabled")
+
+
 def _resolve_auto_backend_with_probe(
     *,
     width: int,
