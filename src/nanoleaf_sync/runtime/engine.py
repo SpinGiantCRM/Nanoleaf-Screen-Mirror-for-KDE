@@ -327,6 +327,7 @@ def run_loop(
         stop_requested = state.stop_event.is_set()
         start = time.perf_counter()
         processing_end = start
+        send_done = start
         skip_tick = False
         frame = None
         pending = None
@@ -404,10 +405,16 @@ def run_loop(
                     sdr_boost_nits=getattr(config, "sdr_boost_nits", 80.0),
                     hdr_max_nits=getattr(config, "hdr_max_nits", 1000.0),
                 )
+                processing_end = time.perf_counter()
                 state.prev_smoothed_colors = smoothed_colors
                 driver.send_frame(smoothed_colors)
-                processing_end = time.perf_counter()
-                capture_to_send_ms = (processing_end - captured_at) * 1000.0
+                send_done = time.perf_counter()
+                state.latency_probe.add_sample(
+                    capture_ts=captured_at,
+                    process_done_ts=processing_end,
+                    send_done_ts=send_done,
+                )
+                capture_to_send_ms = (send_done - captured_at) * 1000.0
                 ewma_capture_to_send_ms = (
                     (0.9 * ewma_capture_to_send_ms) + (0.1 * capture_to_send_ms)
                     if ewma_capture_to_send_ms > 0.0

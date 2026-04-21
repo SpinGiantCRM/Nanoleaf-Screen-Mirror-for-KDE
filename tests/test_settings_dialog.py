@@ -122,7 +122,8 @@ def _qt_stub() -> dict[str, object]:
             pass
 
     class _Button:
-        def __init__(self, _text):
+        def __init__(self, text):
+            self._text = text
             self.clicked = _DummySignal()
 
         def setToolTip(self, _text):
@@ -130,6 +131,12 @@ def _qt_stub() -> dict[str, object]:
 
         def setEnabled(self, _enabled):
             pass
+
+        def setText(self, text):
+            self._text = text
+
+        def text(self):
+            return self._text
 
     class _Buttons:
         class StandardButton:
@@ -263,6 +270,48 @@ def test_settings_dialog_updates_zone_sampling_stride(monkeypatch) -> None:
 
     updated = dialog.updated_config()
     assert updated.zone_sampling_stride == 3
+
+
+def test_settings_dialog_uses_measured_latency_when_runtime_samples_available(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    cfg = AppConfig(fps=60, prefer_backend="kwin-dbus")
+    dialog = SettingsDialog(
+        parent=None,
+        cfg=cfg,
+        runtime_status={
+            "running": True,
+            "effective_capture_backend": "kwin-dbus",
+            "latency_measurement": {
+                "sample_count": 12,
+                "capture_interval_median_ms": 16.7,
+                "capture_interval_p95_ms": 19.1,
+                "pipeline_median_ms": 28.3,
+                "pipeline_p95_ms": 35.0,
+                "pipeline_jitter_ms": 9.4,
+            },
+        },
+    )
+
+    dialog._dialog._run_latency_probe_manual()
+    assert dialog._dialog._latest_latency is not None
+    assert dialog._dialog._latest_latency.measurement_kind == "measured"
+    assert "samples=12" in dialog._dialog._latest_latency.details
+    assert dialog._dialog.run_latency_button.text() == "Measure frame interval"
+
+
+def test_settings_dialog_falls_back_to_estimate_when_no_runtime_samples(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    cfg = AppConfig(fps=40, prefer_backend="kwin-dbus")
+    dialog = SettingsDialog(
+        parent=None,
+        cfg=cfg,
+        runtime_status={"running": False, "effective_capture_backend": "not-started"},
+    )
+
+    dialog._dialog._run_latency_probe_manual()
+    assert dialog._dialog._latest_latency is not None
+    assert dialog._dialog._latest_latency.measurement_kind == "estimated"
+    assert dialog._dialog.run_latency_button.text() == "Estimate frame interval"
 
 
 def test_mapping_preview_uses_explicit_auto_flag() -> None:

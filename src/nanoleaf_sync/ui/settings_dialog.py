@@ -171,7 +171,7 @@ class SettingsDialog:
                 self.auto_probe_policy_combo = QComboBox(); self.auto_probe_policy_combo.addItems(["on-change", "first-run", "each-boot"]); self.auto_probe_policy_combo.setCurrentIndex(max(0, self.auto_probe_policy_combo.findText(str(getattr(cfg, "auto_probe_policy", "on-change")))))
 
                 self.auto_latency_policy_combo = QComboBox(); self.auto_latency_policy_combo.addItems(["manual", "on-open", "on-open-once-per-backend"]); self.auto_latency_policy_combo.setCurrentIndex(max(0, self.auto_latency_policy_combo.findText(str(getattr(cfg, "auto_latency_policy", "manual")))))
-                self.run_latency_button = QPushButton("Calculate frame interval")
+                self.run_latency_button = QPushButton("Estimate frame interval")
                 self.latency_label = QLabel(latency_result_summary(None))
 
                 self.hdr_transfer_combo = QComboBox(); self.hdr_transfer_combo.addItems(["srgb", "pq"]); self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))))
@@ -501,14 +501,71 @@ class SettingsDialog:
 
             def _run_latency_probe_manual(self):
                 info = backend_selection_info(self._runtime_status, cfg)
-                self._latest_latency = build_latency_result(requested_policy=info.requested_policy, selected_backend=self._active_backend(), selection_source=info.source, selection_reason=info.reason, measured_latency_ms=1000.0 / max(1, int(self.fps_slider.value())), measurement_kind="estimated", confidence_note="Frame-interval estimate from configured FPS; not a hardware timing sample", triggered_by="manual", details="Manual latency estimate")
+                measured = self._measured_latency_from_runtime(triggered_by="manual")
+                if measured is not None:
+                    self._latest_latency = build_latency_result(
+                        requested_policy=info.requested_policy,
+                        selected_backend=self._active_backend(),
+                        selection_source=info.source,
+                        selection_reason=info.reason,
+                        measured_latency_ms=measured["latency_ms"],
+                        measurement_kind="measured",
+                        confidence_note=measured["confidence_note"],
+                        triggered_by="manual",
+                        details=measured["details"],
+                    )
+                    self.run_latency_button.setText("Measure frame interval")
+                else:
+                    self._latest_latency = build_latency_result(requested_policy=info.requested_policy, selected_backend=self._active_backend(), selection_source=info.source, selection_reason=info.reason, measured_latency_ms=1000.0 / max(1, int(self.fps_slider.value())), measurement_kind="estimated", confidence_note="Frame-interval estimate from configured FPS; not a hardware timing sample", triggered_by="manual", details="Manual latency estimate")
+                    self.run_latency_button.setText("Estimate frame interval")
                 self.latency_label.setText(latency_result_summary(self._latest_latency))
 
             def _maybe_auto_run_latency_check(self):
                 if should_auto_run_latency_probe(policy=str(self.auto_latency_policy_combo.currentText()), last_result=self._latest_latency, active_backend=self._active_backend()):
                     info = backend_selection_info(self._runtime_status, cfg)
-                    self._latest_latency = build_latency_result(requested_policy=info.requested_policy, selected_backend=self._active_backend(), selection_source=info.source, selection_reason=info.reason, measured_latency_ms=1000.0 / max(1, int(self.fps_slider.value())), measurement_kind="estimated", confidence_note="Derived from configured FPS; auto-run estimate", triggered_by="auto", details="Auto-run on settings open")
+                    measured = self._measured_latency_from_runtime(triggered_by="auto")
+                    if measured is not None:
+                        self._latest_latency = build_latency_result(
+                            requested_policy=info.requested_policy,
+                            selected_backend=self._active_backend(),
+                            selection_source=info.source,
+                            selection_reason=info.reason,
+                            measured_latency_ms=measured["latency_ms"],
+                            measurement_kind="measured",
+                            confidence_note=measured["confidence_note"],
+                            triggered_by="auto",
+                            details=measured["details"],
+                        )
+                        self.run_latency_button.setText("Measure frame interval")
+                    else:
+                        self._latest_latency = build_latency_result(requested_policy=info.requested_policy, selected_backend=self._active_backend(), selection_source=info.source, selection_reason=info.reason, measured_latency_ms=1000.0 / max(1, int(self.fps_slider.value())), measurement_kind="estimated", confidence_note="Derived from configured FPS; auto-run estimate", triggered_by="auto", details="Auto-run on settings open")
+                        self.run_latency_button.setText("Estimate frame interval")
                     self.latency_label.setText(latency_result_summary(self._latest_latency))
+
+            def _measured_latency_from_runtime(self, *, triggered_by: str) -> dict[str, object] | None:
+                measurement = self._runtime_status.get("latency_measurement")
+                if not isinstance(measurement, dict):
+                    return None
+                sample_count = int(measurement.get("sample_count") or 0)
+                if sample_count <= 0:
+                    return None
+                pipeline_median = float(measurement.get("pipeline_median_ms") or 0.0)
+                pipeline_p95 = float(measurement.get("pipeline_p95_ms") or 0.0)
+                cadence_median = float(measurement.get("capture_interval_median_ms") or 0.0)
+                cadence_p95 = float(measurement.get("capture_interval_p95_ms") or 0.0)
+                jitter = float(measurement.get("pipeline_jitter_ms") or 0.0)
+                return {
+                    "latency_ms": pipeline_median,
+                    "confidence_note": (
+                        f"Measured runtime samples (n={sample_count}, median={pipeline_median:.1f}ms, p95={pipeline_p95:.1f}ms, jitter={jitter:.1f}ms)"
+                    ),
+                    "details": (
+                        f"{'Manual' if triggered_by == 'manual' else 'Auto'} measured runtime latency | "
+                        f"cadence median/p95={cadence_median:.1f}/{cadence_p95:.1f}ms | "
+                        f"pipeline median/p95={pipeline_median:.1f}/{pipeline_p95:.1f}ms | "
+                        f"jitter={jitter:.1f}ms | samples={sample_count}"
+                    ),
+                }
 
             def updated_config(self) -> AppConfig:
                 self._pull_state()
