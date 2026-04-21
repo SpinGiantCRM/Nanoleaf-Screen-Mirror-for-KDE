@@ -3,7 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
-from nanoleaf_sync.ui.calibration_flow import coverage_progress_label
+from nanoleaf_sync.ui.calibration_flow import (
+    coverage_progress_label,
+    derive_corner_anchor_device_indices,
+)
 from nanoleaf_sync.ui.zone_calibration import mapping_indices
 
 
@@ -126,12 +129,25 @@ def corner_anchor_steps(
     )
     if total == 1:
         return [CalibrationStep(0, 0, "Corner marker: single-zone strip")]
-    start = int(start_anchor) % total if start_anchor is not None else 0
-    quarter = max(1, total // 4)
     corner_names = ["top-left", "top-right", "bottom-right", "bottom-left"]
+    indices = derive_corner_anchor_device_indices(
+        zone_count=zone_count,
+        device_zone_count=device_zone_count,
+        zone_offset=zone_offset,
+        reverse_zones=reverse_zones,
+        explicit_zone_map=explicit_zone_map,
+        corner_zone_offsets=corner_zone_offsets,
+        start_anchor=start_anchor,
+    )
     steps: list[CalibrationStep] = []
-    for i, name in enumerate(corner_names):
-        device_idx = (start + i * quarter) % total
+    for i, device_idx in enumerate(indices):
         source_idx = int(mapping[device_idx]) if mapping else 0
-        steps.append(CalibrationStep(device_zone_index=device_idx, source_zone_index=source_idx, label=f"Corner marker {name}: strip zone #{device_idx + 1}."))
+        label_name = corner_names[i] if i < len(corner_names) else f"marker {i + 1}"
+        steps.append(
+            CalibrationStep(
+                device_zone_index=device_idx,
+                source_zone_index=source_idx,
+                label=f"Corner marker {label_name}: strip zone #{device_idx + 1}.",
+            )
+        )
     return steps

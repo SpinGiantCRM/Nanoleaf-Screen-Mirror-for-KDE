@@ -55,8 +55,7 @@ def derive_corner_anchor_device_indices(
     if total == 1:
         return [0]
     start = int(start_anchor) % total if start_anchor is not None else 0
-    quarter = max(1, total // 4)
-    ordered = [start, (start + quarter) % total, (start + 2 * quarter) % total, (start + 3 * quarter) % total]
+    ordered = [(start + (i * total) // 4) % total for i in range(4)]
     out: list[int] = []
     for idx in ordered:
         if idx not in out:
