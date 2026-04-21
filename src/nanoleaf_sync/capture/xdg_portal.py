@@ -50,6 +50,7 @@ class XDGPortalCapture:
         self._pw_fd: Optional[int] = None
         self._node_id: Optional[int] = None
         self._session_handle: Optional[str] = None
+        self._portal_bus = None
         self._initialized = False
         self._use_gstreamer = False
 
@@ -113,6 +114,7 @@ class XDGPortalCapture:
         from dbus_next.aio import MessageBus
 
         bus = await MessageBus(negotiate_unix_fd=True).connect()
+        self._portal_bus = bus
         unique_name = getattr(bus, "unique_name", None)
         if not unique_name:
             raise XDGPortalError("Portal negotiation failed: D-Bus unique name is unavailable.")
@@ -228,11 +230,6 @@ class XDGPortalCapture:
         if not pw_reply.unix_fds:
             raise XDGPortalError("OpenPipeWireRemote did not return a PipeWire fd.")
         fd = os.dup(pw_reply.unix_fds[0])
-        disconnect = getattr(bus, "disconnect", None)
-        if disconnect is not None:
-            maybe = disconnect()
-            if asyncio.iscoroutine(maybe):
-                await maybe
         return fd, node_id
 
     def _open_pipewire_stream(self, fd: int, node_id: int) -> None:
@@ -356,9 +353,14 @@ class XDGPortalCapture:
 
     async def _close_portal_session(self, session_handle: str) -> None:
         from dbus_next import Message
-        from dbus_next.aio import MessageBus
 
-        bus = await MessageBus().connect()
+        bus = self._portal_bus
+        owns_bus = False
+        if bus is None:
+            from dbus_next.aio import MessageBus
+
+            bus = await MessageBus().connect()
+            owns_bus = True
         try:
             await bus.call(
                 Message(
@@ -369,11 +371,19 @@ class XDGPortalCapture:
                 )
             )
         finally:
-            disconnect = getattr(bus, "disconnect", None)
-            if disconnect is not None:
-                maybe = disconnect()
-                if asyncio.iscoroutine(maybe):
-                    await maybe
+            if owns_bus:
+                disconnect = getattr(bus, "disconnect", None)
+                if disconnect is not None:
+                    maybe = disconnect()
+                    if asyncio.iscoroutine(maybe):
+                        await maybe
+            else:
+                self._portal_bus = None
+                disconnect = getattr(bus, "disconnect", None)
+                if disconnect is not None:
+                    maybe = disconnect()
+                    if asyncio.iscoroutine(maybe):
+                        await maybe
 
     def _close_portal_session_sync(self) -> None:
         if not self._session_handle:
