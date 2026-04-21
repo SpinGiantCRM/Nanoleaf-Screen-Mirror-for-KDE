@@ -237,19 +237,25 @@ class NanoleafSyncService:
             self._device_zone_count = None
 
     def _close_backends(self) -> None:
-        if self._capture is not None:
-            try:
-                close_fn = getattr(self._capture, "close", None)
+        capture = self._capture
+        try:
+            if capture is not None:
+                close_fn = getattr(capture, "close", None)
                 if close_fn is not None:
                     close_fn()
-            except Exception:
-                pass
+        except Exception:
+            pass
+        finally:
+            self._capture = None
 
-        if self._driver is not None:
-            try:
-                self._driver.close()
-            except Exception:
-                pass
+        driver = self._driver
+        try:
+            if driver is not None:
+                driver.close()
+        except Exception:
+            pass
+        finally:
+            self._driver = None
 
     def _install_drivers(self) -> None:
         global _PROCESS_BOOT_PROBE_DONE
