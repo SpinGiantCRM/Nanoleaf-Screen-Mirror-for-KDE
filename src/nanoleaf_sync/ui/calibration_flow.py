@@ -15,34 +15,19 @@ class CalibrationSequenceStep:
 
 CALIBRATION_SEQUENCE: tuple[CalibrationSequenceStep, ...] = (
     CalibrationSequenceStep(
-        key="coverage-sanity",
-        title="1) Coverage sanity",
-        guidance="Walk a single lit segment across all device zones and confirm the whole strip responds.",
+        key="corner-anchor-pass",
+        title="1) Corner anchor pass",
+        guidance="Walk the active zone to each physical corner and assign Top-left/Top-right/Bottom-right/Bottom-left.",
     ),
     CalibrationSequenceStep(
-        key="start-point",
-        title="2) Start-point identification",
-        guidance="Identify where strip zone #1 physically starts on your setup.",
+        key="offset-trim",
+        title="2) Offset trim",
+        guidance="Nudge global zone offset until corner transitions line up with real screen transitions.",
     ),
     CalibrationSequenceStep(
-        key="direction-walk",
-        title="3) Direction walk",
-        guidance="Advance one zone at a time and confirm travel direction around the strip.",
-    ),
-    CalibrationSequenceStep(
-        key="corner-anchors",
-        title="4) Corner anchors",
-        guidance="Verify screen corner anchors using the current mapped strip order.",
-    ),
-    CalibrationSequenceStep(
-        key="fine-offset",
-        title="5) Fine offset",
-        guidance="Nudge offset until transitions align with your real corner transitions.",
-    ),
-    CalibrationSequenceStep(
-        key="manual-remap",
-        title="6) Manual remap",
-        guidance="Only for unusual layouts: assign strip zones to source zones manually.",
+        key="verify-repeatability",
+        title="3) Verify repeatability",
+        guidance="Re-send test pattern after each small offset change and verify movement is predictable.",
     ),
 )
 

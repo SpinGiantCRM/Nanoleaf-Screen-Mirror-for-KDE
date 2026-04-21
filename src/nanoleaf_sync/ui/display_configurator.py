@@ -11,6 +11,7 @@ from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizon
 
 MAX_WIZARD_ZONE_COUNT = 128
 CORNER_OFFSET_LIMIT = 24
+CALIBRATION_MODE_CORNER = "corner+offset alignment"
 WIZARD_STEPS: tuple[str, ...] = (
     "Welcome & Display",
     "Color & HDR",
@@ -92,7 +93,7 @@ class DisplayConfiguratorDialog:
                 self.setWindowTitle("Setup Wizard")
                 resize = getattr(self, "resize", None)
                 if callable(resize):
-                    resize(620, 470)
+                    resize(700, 560)
                 self._calibration_sender = calibration_sender
                 self._test_step = 0
                 self._state = CalibrationState.from_config(cfg)
@@ -143,24 +144,12 @@ class DisplayConfiguratorDialog:
                 # Step 4
                 self.reverse_checkbox = qt["QCheckBox"]("Reverse strip orientation")
                 self.reverse_checkbox.setChecked(self._state.reverse_zones)
-                self.corner_offsets_enabled_checkbox = qt["QCheckBox"]("Advanced: enable per-corner refinement")
-                self.corner_offsets_enabled_checkbox.setChecked(self._state.corner_offsets_enabled)
                 self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.zone_offset_slider.setRange(-64, 64)
                 self.zone_offset_slider.setValue(self._state.zone_offset)
                 self.zone_offset_value = QLabel("")
-                self.corner_offset_sliders = []
-                self.corner_offset_values = []
-                for idx in range(4):
-                    slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                    slider.setRange(-CORNER_OFFSET_LIMIT, CORNER_OFFSET_LIMIT)
-                    slider.setValue(self._state.active_corner_zone_offsets()[idx])
-                    self.corner_offset_sliders.append(slider)
-                    self.corner_offset_values.append(QLabel(""))
                 self.preview_text = QLabel("")
                 self.preview_visual = QLabel("")
-                self.calibration_mode_combo = QComboBox()
-                self.calibration_mode_combo.addItems(["coverage sanity", "direction walk", "corner+offset alignment"])
                 self.calibration_test_label = QLabel("")
                 self.calibration_next_button = QPushButton("Next test zone")
                 self.calibration_prev_button = QPushButton("Previous")
@@ -191,12 +180,8 @@ class DisplayConfiguratorDialog:
                     self.reverse_checkbox.stateChanged,
                     self.device_zone_count_slider.valueChanged,
                     self.device_zone_count_auto_checkbox.stateChanged,
-                    self.calibration_mode_combo.currentIndexChanged,
-                    self.corner_offsets_enabled_checkbox.stateChanged,
                 ):
                     signal.connect(self._refresh)
-                for slider in self.corner_offset_sliders:
-                    slider.valueChanged.connect(self._refresh)
 
                 self.hdr_max_nits_slider.valueChanged.connect(self._refresh)
                 self.calibration_next_button.clicked.connect(self._next_test_zone)
@@ -235,6 +220,23 @@ class DisplayConfiguratorDialog:
                 self.setLayout(layout)
 
                 self._refresh()
+                self._configure_tooltips()
+
+            def _set_tooltip(self, widget, text: str) -> None:
+                setter = getattr(widget, "setToolTip", None)
+                if callable(setter):
+                    setter(text)
+
+            def _configure_tooltips(self) -> None:
+                self._set_tooltip(self.zone_offset_slider, "Shifts the strip mapping ring by whole zones.")
+                self._set_tooltip(self.reverse_checkbox, "Flip mapping direction if strip order is reversed.")
+                self._set_tooltip(self.calibration_send_button, "Send a fresh calibration frame to the strip right now.")
+                self._set_tooltip(self.calibration_next_button, "Move to the next physical strip zone and transmit it.")
+                self._set_tooltip(self.calibration_prev_button, "Move to the previous physical strip zone and transmit it.")
+                self._set_tooltip(self.assign_tl_button, "Assign the currently lit strip zone as top-left screen corner.")
+                self._set_tooltip(self.assign_tr_button, "Assign the currently lit strip zone as top-right screen corner.")
+                self._set_tooltip(self.assign_br_button, "Assign the currently lit strip zone as bottom-right screen corner.")
+                self._set_tooltip(self.assign_bl_button, "Assign the currently lit strip zone as bottom-left screen corner.")
 
             def _build_step_1(self, QWidget, QGridLayout, QLabel):
                 page = QWidget()
@@ -242,9 +244,13 @@ class DisplayConfiguratorDialog:
                 if hasattr(layout, "setVerticalSpacing"):
                     layout.setVerticalSpacing(6)
                 layout.addWidget(QLabel("Welcome. Choose your display mode first."), 0, 0, 1, 2)
-                layout.addWidget(QLabel("This decides whether HDR controls appear in the next step."), 1, 0, 1, 2)
-                layout.addWidget(QLabel("SDR / HDR mode"), 2, 0)
-                layout.addWidget(self.display_mode_combo, 2, 1)
+                layout.addWidget(QLabel("HDR mode unlocks HDR transfer/primaries/brightness controls in the next step."), 1, 0, 1, 2)
+                layout.addWidget(QLabel("SDR mode keeps a simpler color path for lower-latency setups."), 2, 0, 1, 2)
+                layout.addWidget(QLabel("SDR / HDR mode"), 3, 0)
+                layout.addWidget(self.display_mode_combo, 3, 1)
+                row_stretch = getattr(layout, "setRowStretch", None)
+                if callable(row_stretch):
+                    row_stretch(4, 1)
                 page.setLayout(layout)
                 return page
 
@@ -263,6 +269,9 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.hdr_max_nits_label, 4, 0)
                 layout.addWidget(self.hdr_max_nits_slider, 4, 1)
                 layout.addWidget(self.hdr_max_nits_value, 4, 2)
+                row_stretch = getattr(layout, "setRowStretch", None)
+                if callable(row_stretch):
+                    row_stretch(5, 1)
                 page.setLayout(layout)
                 return page
 
@@ -283,6 +292,9 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.device_zone_count_auto_checkbox, 4, 0, 1, 3)
                 layout.addWidget(self.zone_count_explanation, 5, 0, 1, 3)
                 layout.addWidget(self.device_zone_status, 6, 0, 1, 3)
+                row_stretch = getattr(layout, "setRowStretch", None)
+                if callable(row_stretch):
+                    row_stretch(7, 1)
                 page.setLayout(layout)
                 return page
 
@@ -296,26 +308,21 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.zone_offset_slider, 1, 1)
                 layout.addWidget(self.zone_offset_value, 1, 2)
                 layout.addWidget(self.reverse_checkbox, 2, 0, 1, 2)
-                layout.addWidget(self.corner_offsets_enabled_checkbox, 3, 0, 1, 3)
-                labels = ["Top-left", "Top-right", "Bottom-right", "Bottom-left"]
-                for idx, name in enumerate(labels):
-                    row = 4 + idx
-                    layout.addWidget(QLabel(f"{name} correction"), row, 0)
-                    layout.addWidget(self.corner_offset_sliders[idx], row, 1)
-                    layout.addWidget(self.corner_offset_values[idx], row, 2)
-                layout.addWidget(self.preview_text, 8, 0, 1, 3)
-                layout.addWidget(self.preview_visual, 9, 0, 1, 3)
-                layout.addWidget(QLabel("Calibration test mode"), 10, 0)
-                layout.addWidget(self.calibration_mode_combo, 10, 1, 1, 2)
-                layout.addWidget(self.calibration_next_button, 11, 0, 1, 2)
-                layout.addWidget(self.calibration_prev_button, 11, 2)
-                layout.addWidget(self.calibration_send_button, 12, 0, 1, 2)
-                layout.addWidget(self.current_zone_label, 13, 0, 1, 3)
-                layout.addWidget(self.assign_tl_button, 14, 0, 1, 3)
-                layout.addWidget(self.assign_tr_button, 15, 0, 1, 3)
-                layout.addWidget(self.assign_br_button, 16, 0, 1, 3)
-                layout.addWidget(self.assign_bl_button, 17, 0, 1, 3)
-                layout.addWidget(self.calibration_test_label, 18, 0, 1, 3)
+                layout.addWidget(QLabel("Calibration method: corner anchors + offset"), 3, 0, 1, 3)
+                layout.addWidget(self.preview_text, 4, 0, 1, 3)
+                layout.addWidget(self.preview_visual, 5, 0, 1, 3)
+                layout.addWidget(self.calibration_next_button, 6, 0, 1, 2)
+                layout.addWidget(self.calibration_prev_button, 6, 2)
+                layout.addWidget(self.calibration_send_button, 7, 0, 1, 3)
+                layout.addWidget(self.current_zone_label, 8, 0, 1, 3)
+                layout.addWidget(self.assign_tl_button, 9, 0, 1, 3)
+                layout.addWidget(self.assign_tr_button, 10, 0, 1, 3)
+                layout.addWidget(self.assign_br_button, 11, 0, 1, 3)
+                layout.addWidget(self.assign_bl_button, 12, 0, 1, 3)
+                layout.addWidget(self.calibration_test_label, 13, 0, 1, 3)
+                row_stretch = getattr(layout, "setRowStretch", None)
+                if callable(row_stretch):
+                    row_stretch(14, 1)
                 page.setLayout(layout)
                 return page
 
@@ -345,8 +352,8 @@ class DisplayConfiguratorDialog:
                 self._state.reverse_zones = bool(self.reverse_checkbox.isChecked())
                 self._state.device_zone_count = int(self.device_zone_count_slider.value())
                 self._state.auto_device_zone_count = bool(self.device_zone_count_auto_checkbox.isChecked())
-                self._state.corner_offsets_enabled = bool(self.corner_offsets_enabled_checkbox.isChecked())
-                self._state.corner_zone_offsets = [int(slider.value()) for slider in self.corner_offset_sliders]
+                self._state.corner_offsets_enabled = False
+                self._state.corner_zone_offsets = [0, 0, 0, 0]
 
             def _refresh(self) -> None:
                 self._pull_state_from_controls()
@@ -377,9 +384,6 @@ class DisplayConfiguratorDialog:
                 self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
                 self.zone_count_value.setText(str(self.zone_count_slider.value()))
                 self.zone_offset_value.setText(str(self.zone_offset_slider.value()))
-                for idx, value_label in enumerate(self.corner_offset_values):
-                    value_label.setText(f"{self.corner_offset_sliders[idx].value():+d}")
-                    self.corner_offset_sliders[idx].setEnabled(self.corner_offsets_enabled_checkbox.isChecked())
                 self.device_zone_count_slider.setEnabled(not self.device_zone_count_auto_checkbox.isChecked())
                 self.device_zone_count_value.setText("auto" if self.device_zone_count_auto_checkbox.isChecked() else str(self.device_zone_count_slider.value()))
                 self.zone_count_explanation.setText(
@@ -391,14 +395,14 @@ class DisplayConfiguratorDialog:
                     state=self._state,
                     runtime_status={},
                     cfg=cfg,
-                    mode=str(self.calibration_mode_combo.currentText()),
+                    mode=CALIBRATION_MODE_CORNER,
                     step=self._test_step,
                 )
                 self.preview_text.setText(self._state.mapping_preview_text())
                 self.preview_visual.setText(self._state.mapping_preview_visual())
                 self.calibration_test_label.setText(preview.active_test_description)
                 current_zone = self._state.step_for_mode(
-                    str(self.calibration_mode_combo.currentText()),
+                    CALIBRATION_MODE_CORNER,
                     self._test_step,
                 ).device_zone_index
                 self.current_zone_label.setText(f"Current physical strip zone: {current_zone}")
@@ -410,7 +414,7 @@ class DisplayConfiguratorDialog:
                             f"Zone preset: {self._state.zone_preset}",
                             f"Source zones: {self._state.zone_count}",
                             f"Effective strip zones: {self._state.effective_device_zone_count()}",
-                            f"Per-corner refinement enabled: {self._state.corner_offsets_enabled}",
+                            "Calibration method: corner anchors + offset",
                             self._state.auto_detection_status(),
                         )
                     )
@@ -443,7 +447,7 @@ class DisplayConfiguratorDialog:
 
             def _assign_anchor(self, corner: str) -> None:
                 current_zone = self._state.step_for_mode(
-                    str(self.calibration_mode_combo.currentText()),
+                    CALIBRATION_MODE_CORNER,
                     self._test_step,
                 ).device_zone_index
                 if corner == "top_left":
@@ -460,18 +464,20 @@ class DisplayConfiguratorDialog:
                 if self._calibration_sender is None:
                     return
                 self._pull_state_from_controls()
-                mode = str(self.calibration_mode_combo.currentText())
+                mode = CALIBRATION_MODE_CORNER
+                off_frame = [(0, 0, 0)] * self._state.effective_device_zone_count()
+                self._calibration_sender(off_frame)
                 self._calibration_sender(self._state.frame_for_step(mode=mode, step=self._test_step, brightness=1.0, all_off_except_active=True))
 
             def _next_test_zone(self) -> None:
                 self._pull_state_from_controls()
-                self._test_step = (self._test_step + 1) % self._state.cycle_length(str(self.calibration_mode_combo.currentText()))
+                self._test_step = (self._test_step + 1) % self._state.cycle_length(CALIBRATION_MODE_CORNER)
                 self._refresh()
                 self._send_test_pattern()
 
             def _prev_test_zone(self) -> None:
                 self._pull_state_from_controls()
-                self._test_step = (self._test_step - 1) % self._state.cycle_length(str(self.calibration_mode_combo.currentText()))
+                self._test_step = (self._test_step - 1) % self._state.cycle_length(CALIBRATION_MODE_CORNER)
                 self._refresh()
                 self._send_test_pattern()
 
