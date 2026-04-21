@@ -23,15 +23,37 @@ def test_zone_mapper_reverse() -> None:
 def test_zone_mapper_explicit_map() -> None:
     screen = [(10, 0, 0), (20, 0, 0), (30, 0, 0)]
     out = map_colors_to_device_zones(
-        screen, device_zone_count=2, explicit_zone_map=[2, 0]
+        screen, device_zone_count=2, manual_mapping_enabled=True, explicit_zone_map=[2, 0]
     )
     assert out == [(30, 0, 0), (10, 0, 0)]
 
     # If explicit map is shorter than device zone count, remaining zones use src[0]
     out2 = map_colors_to_device_zones(
-        screen, device_zone_count=4, explicit_zone_map=[2, 0]
+        screen, device_zone_count=4, manual_mapping_enabled=True, explicit_zone_map=[2, 0]
     )
     assert out2 == [(30, 0, 0), (10, 0, 0), (10, 0, 0), (10, 0, 0)]
+
+
+def test_zone_mapper_ignores_explicit_map_when_manual_mapping_disabled() -> None:
+    screen = [(10, 0, 0), (20, 0, 0), (30, 0, 0), (40, 0, 0)]
+    out = map_colors_to_device_zones(
+        screen,
+        device_zone_count=4,
+        manual_mapping_enabled=False,
+        explicit_zone_map=[0, 0, 0, 0],
+    )
+    assert out == screen
+
+
+def test_zone_mapper_applies_explicit_map_when_manual_mapping_enabled() -> None:
+    screen = [(10, 0, 0), (20, 0, 0), (30, 0, 0), (40, 0, 0)]
+    out = map_colors_to_device_zones(
+        screen,
+        device_zone_count=4,
+        manual_mapping_enabled=True,
+        explicit_zone_map=[0, 0, 0, 0],
+    )
+    assert out == [screen[0], screen[0], screen[0], screen[0]]
 
 
 def test_zone_mapper_wraps_large_positive_offset() -> None:

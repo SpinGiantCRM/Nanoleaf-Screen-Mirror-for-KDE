@@ -89,8 +89,10 @@ class AppConfig:
     output_channel_order: str = "grb"
     zone_offset: int = 0
     reverse_zones: bool = False
+    # Explicitly controls whether `explicit_zone_map` is active.
+    manual_mapping_enabled: bool = False
     # Optional explicit mapping: list of screen-zone indices for each device zone.
-    # If non-empty, it takes precedence over `zone_offset`/`reverse_zones`.
+    # Applied only when `manual_mapping_enabled` is True.
     explicit_zone_map: list[int] = field(default_factory=list)
 
     # Canonical calibration anchors (physical strip zones at monitor corners).

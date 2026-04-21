@@ -66,6 +66,10 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         default="grb",
     )
     zone_offset = int(cfg.zone_offset)
+    manual_mapping_enabled = coerce_bool(
+        getattr(cfg, "manual_mapping_enabled", AppConfig.manual_mapping_enabled),
+        AppConfig.manual_mapping_enabled,
+    )
     explicit_zone_map = [int(i) for i in cfg.explicit_zone_map] if cfg.explicit_zone_map else []
     corner_anchor_top_left = int(getattr(cfg, "corner_anchor_top_left", -1))
     corner_anchor_top_right = int(getattr(cfg, "corner_anchor_top_right", -1))
@@ -200,6 +204,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         output_channel_order=output_channel_order,
         zone_offset=zone_offset,
         reverse_zones=coerce_bool(getattr(cfg, "reverse_zones", False), False),
+        manual_mapping_enabled=manual_mapping_enabled,
         explicit_zone_map=explicit_zone_map,
         corner_anchor_top_left=corner_anchor_top_left,
         corner_anchor_top_right=corner_anchor_top_right,

@@ -86,7 +86,6 @@ class CalibrationState:
             int(getattr(cfg, "corner_anchor_bottom_right", -1)),
             int(getattr(cfg, "corner_anchor_bottom_left", -1)),
         )
-        has_anchor_assignments = any(value >= 0 for value in anchor_values)
         return cls(
             zone_count=max(1, int(configured_zone_count)),
             zone_preset=str(getattr(cfg, "zone_preset", "edge-weighted")),
@@ -96,7 +95,7 @@ class CalibrationState:
             auto_device_zone_count=int(getattr(cfg, "device_zone_count", 0)) == 0,
             detected_device_zone_count=max(0, detected),
             explicit_zone_map=explicit_zone_map,
-            manual_mapping_enabled=bool(explicit_zone_map) and not has_anchor_assignments,
+            manual_mapping_enabled=bool(getattr(cfg, "manual_mapping_enabled", False)),
             corner_start_anchor=int(getattr(cfg, "corner_start_anchor", -1)),
             corner_offsets_enabled=bool(getattr(cfg, "corner_offsets_enabled", False)),
             corner_zone_offsets=[int(i) for i in (getattr(cfg, "corner_zone_offsets", []) or [])][:4],

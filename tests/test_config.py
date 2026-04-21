@@ -141,6 +141,18 @@ def test_config_persists_corner_refinement_settings(tmp_path: Path) -> None:
     assert loaded.corner_zone_offsets == [2, -1, 3, 0]
 
 
+def test_config_persists_manual_mapping_enabled_flag(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    mgr = ConfigManager(path=cfg_path)
+
+    cfg = AppConfig(manual_mapping_enabled=True, explicit_zone_map=[2, 1, 0])
+    mgr.save(cfg)
+    loaded = mgr.load()
+
+    assert loaded.manual_mapping_enabled is True
+    assert loaded.explicit_zone_map == [2, 1, 0]
+
+
 def test_config_load_pads_corner_refinement_offsets_to_four_values(tmp_path: Path) -> None:
     cfg_path = tmp_path / "config.toml"
     cfg_path.write_text(
@@ -184,6 +196,7 @@ def test_config_normalizes_boolean_fields_consistently(tmp_path: Path) -> None:
                 "use_mock_capture = 0",
                 'compositor_hdr_mode = "on"',
                 "reverse_zones = 1",
+                "manual_mapping_enabled = 0",
                 "verbose = 0",
             ]
         )
@@ -198,6 +211,7 @@ def test_config_normalizes_boolean_fields_consistently(tmp_path: Path) -> None:
     assert cfg.use_mock_capture is False
     assert cfg.compositor_hdr_mode is True
     assert cfg.reverse_zones is True
+    assert cfg.manual_mapping_enabled is False
     assert cfg.verbose is False
 
 
