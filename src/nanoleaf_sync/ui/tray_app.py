@@ -10,6 +10,7 @@ from pathlib import Path
 import subprocess
 import sys
 import threading
+import time
 import traceback
 
 from nanoleaf_sync.config.store import ConfigManager, mode_config
@@ -209,6 +210,12 @@ class NanoleafTrayApp:
             )
         if not self._config_created and bool(getattr(self.config, "start_on_launch", False)):
             self.QTimer.singleShot(0, self._start_after_launch)
+
+        self._shutdown_in_progress = False
+        self._shutdown_deadline = 0.0
+        self._shutdown_poll_interval_s = 0.05
+        self._shutdown_timeout_s = 1.5
+        self._quit_finalized = False
 
     def _close_preview_driver(self, *, resume_service: bool = True) -> None:
         if self._preview_driver is not None:
@@ -440,13 +447,32 @@ class NanoleafTrayApp:
                 7000,
             )
 
-    def on_stop(self):
-        self.service.stop()
-        self.service.join(timeout=1.5)
-        if self.service.is_running():
-            _log.warning("Service still running after stop timeout")
+    def _request_stop(self) -> None:
+        try:
+            self.service.stop()
+        except Exception as exc:
+            _log.warning("Service stop request failed: %s", exc, exc_info=True)
+
+    def _set_idle_ui_state(self) -> None:
         self.tray_icon.setIcon(self._idle_icon)
         self._refresh_mode_labels()
+
+    def _schedule_stop_warning(self, service) -> None:
+        def _warn_if_still_running() -> None:
+            try:
+                if service.is_running():
+                    _log.warning("Service still running after stop timeout")
+            except Exception as exc:
+                _log.warning("Unable to query service stop status: %s", exc, exc_info=True)
+
+        self.QTimer.singleShot(int(self._shutdown_timeout_s * 1000), _warn_if_still_running)
+
+    def on_stop(self):
+        service = self.service
+        self._request_stop()
+        self._set_idle_ui_state()
+        if not bool(getattr(self, "_shutdown_in_progress", False)):
+            self._schedule_stop_warning(service)
 
     def _start_after_launch(self) -> None:
         def worker() -> None:
@@ -733,12 +759,37 @@ class NanoleafTrayApp:
         self.action_smoke.setEnabled(True)
         self.tray_icon.showMessage(f"nanoleaf-kde-sync {label}", f"Failed to launch: {error}", self.QSystemTrayIcon.MessageIcon.Warning, 8000)
 
+    def _poll_shutdown_completion(self) -> None:
+        if not self._shutdown_in_progress:
+            return
+        if not self.service.is_running():
+            self._finalize_quit()
+            return
+        if time.monotonic() >= self._shutdown_deadline:
+            _log.warning("Service still running at quit timeout; forcing app exit")
+            self._finalize_quit()
+            return
+        self.QTimer.singleShot(int(self._shutdown_poll_interval_s * 1000), self._poll_shutdown_completion)
+
+    def _finalize_quit(self) -> None:
+        if self._quit_finalized:
+            return
+        self._quit_finalized = True
+        self._shutdown_in_progress = False
+        self.app.quit()
+
     def on_quit(self):
-        try:
-            self._close_preview_driver(resume_service=False)
-            self.on_stop()
-        finally:
-            self.app.quit()
+        if self._quit_finalized:
+            return
+        if self._shutdown_in_progress:
+            return
+
+        self._shutdown_in_progress = True
+        self._shutdown_deadline = time.monotonic() + self._shutdown_timeout_s
+        self._close_preview_driver(resume_service=False)
+        self._request_stop()
+        self._set_idle_ui_state()
+        self.QTimer.singleShot(0, self._poll_shutdown_completion)
 
     def run(self):
         if bool(getattr(self.config, "wizard_completed", False)) is False:
