@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-04-21
+
+## What's Changed
+* Refactor calibration to live auto-send workflow and remove manual send/apply actions by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/141
+* Preserve corner-refinement config, clear stale device metadata, and quiet startup diagnostics by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/142
+* Improve tray UX, fix calibration preview HID conflict, and preserve settings on rerun by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/143
+
+
+**Full Changelog**: https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/compare/v0.6.3...v0.6.4
+
 ## [0.6.3] - 2026-04-20
 
 ## What's Changed
