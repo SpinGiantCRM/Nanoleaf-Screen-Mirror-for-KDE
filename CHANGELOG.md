@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.9] - 2026-04-21
+
+## What's Changed
+* Switch calibration UI to corner+offset flow, remove legacy manual-mapping, and fix corner anchor indexing by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/151
+* ci: install lint and type tools explicitly by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/152
+
+
+**Full Changelog**: https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/compare/v0.6.8...v0.6.9
+
 ## [0.6.8] - 2026-04-21
 
 ## What's Changed
