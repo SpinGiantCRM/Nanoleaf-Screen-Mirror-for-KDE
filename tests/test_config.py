@@ -137,7 +137,28 @@ def test_config_persists_corner_refinement_settings(tmp_path: Path) -> None:
     loaded = mgr.load()
 
     assert loaded.corner_offsets_enabled is True
+    assert len(loaded.corner_zone_offsets) == 4
     assert loaded.corner_zone_offsets == [2, -1, 3, 0]
+
+
+def test_config_load_pads_corner_refinement_offsets_to_four_values(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text(
+        "\n".join(
+            [
+                "corner_offsets_enabled = true",
+                "corner_zone_offsets = [5, -2]",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    loaded = ConfigManager(path=cfg_path).load()
+
+    assert loaded.corner_offsets_enabled is True
+    assert len(loaded.corner_zone_offsets) == 4
+    assert loaded.corner_zone_offsets == [5, -2, 0, 0]
 
 
 def test_config_normalizes_sdr_boost_fields(tmp_path: Path) -> None:
