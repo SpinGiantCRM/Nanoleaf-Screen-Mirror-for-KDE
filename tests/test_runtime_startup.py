@@ -4,6 +4,8 @@ import threading
 
 from nanoleaf_sync.runtime.startup import reinitialize_backends
 from nanoleaf_sync.runtime.state import RuntimeState
+from nanoleaf_sync.runtime.zone_derivation import effective_zone_count
+from nanoleaf_sync.config.model import AppConfig, ZoneConfig
 
 
 class _Closable:
@@ -68,3 +70,11 @@ def test_reinitialize_backends_exposes_none_between_close_and_reinstall() -> Non
     assert not thread.is_alive()
     assert get_capture() is not None
     assert get_driver() is not None
+
+
+def test_zone_derivation_ignores_detected_strip_length_when_config_is_legacy_auto() -> None:
+    cfg = AppConfig(
+        zones=[ZoneConfig(x=0.0, y=0.0, w=1.0, h=0.5), ZoneConfig(x=0.0, y=0.5, w=1.0, h=0.5)],
+        device_zone_count=0,
+    )
+    assert effective_zone_count(config=cfg, detected_device_zone_count=64) == 2

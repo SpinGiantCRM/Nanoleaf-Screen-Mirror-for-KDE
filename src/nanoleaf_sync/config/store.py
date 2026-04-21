@@ -104,7 +104,10 @@ class ConfigManager:
         except Exception:
             self._config = AppConfig()
             return self._config
+        loaded_device_zone_count = int(data.get("device_zone_count") or 0)
         self._config = validate_config(cfg)
+        if loaded_device_zone_count <= 0 and self._config.device_zone_count > 0:
+            self.save(self._config)
         return self._config
 
     def exists(self) -> bool:

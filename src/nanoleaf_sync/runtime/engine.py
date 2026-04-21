@@ -170,12 +170,11 @@ def _ensure_runtime_artifacts(
         or state.cached_device_zone_indices_np is None
     ):
         configured_device_zone_count = int(config.device_zone_count)
-        if configured_device_zone_count > 0:
-            device_zone_count = configured_device_zone_count
-        elif detected_device_zone_count is not None and int(detected_device_zone_count) > 0:
-            device_zone_count = int(detected_device_zone_count)
-        else:
-            device_zone_count = source_zone_count
+        device_zone_count = (
+            configured_device_zone_count
+            if configured_device_zone_count > 0
+            else source_zone_count
+        )
         state.cached_device_zone_indices = resolve_device_zone_indices(
             source_zone_count,
             device_zone_count=device_zone_count,

@@ -199,7 +199,7 @@ def test_settings_dialog_constructs_and_opens_with_qt_stubs(monkeypatch) -> None
     assert updated.prefer_backend == "kwin-dbus"
     assert updated.hdr_transfer in {"srgb", "pq"}
     assert updated.hdr_primaries in {"bt709", "bt2020"}
-    assert updated.device_zone_count == 0
+    assert updated.device_zone_count == 1
     assert updated.output_channel_order == "grb"
     assert updated.color_mode == "default"
     assert updated.start_on_launch is False
@@ -230,7 +230,7 @@ def test_settings_dialog_supports_device_model_selection(monkeypatch) -> None:
     assert updated.device_pid == 0x8201
 
 
-def test_settings_dialog_zone_count_updates_zones_without_forcing_manual_device_count(monkeypatch) -> None:
+def test_settings_dialog_zone_count_updates_zones_without_changing_configured_device_count(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
 
     cfg = AppConfig(zones=[], device_zone_count=0)
@@ -240,7 +240,7 @@ def test_settings_dialog_zone_count_updates_zones_without_forcing_manual_device_
     updated = dialog.updated_config()
 
     assert len(updated.zones) == 6
-    assert updated.device_zone_count == 0
+    assert updated.device_zone_count == 8
 
 
 def test_settings_dialog_saves_zone_preset_reverse_and_offset(monkeypatch) -> None:

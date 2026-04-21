@@ -75,7 +75,14 @@ class WizardFlowState:
 class DisplayConfiguratorDialog:
     """First-run step-by-step display setup wizard."""
 
-    def __init__(self, parent, cfg: AppConfig, *, calibration_sender: Callable[[list[tuple[int, int, int]]], None] | None = None):
+    def __init__(
+        self,
+        parent,
+        cfg: AppConfig,
+        *,
+        calibration_sender: Callable[[list[tuple[int, int, int]]], None] | None = None,
+        runtime_status: dict | None = None,
+    ):
         qt = load_qt()
         QDialog = qt["QDialog"]
         QLabel = qt["QLabel"]
@@ -99,6 +106,14 @@ class DisplayConfiguratorDialog:
                 self._test_step = 0
                 self._state = CalibrationState.from_config(cfg)
                 self._flow = WizardFlowState()
+                status = runtime_status or {}
+                detected_device_zone_count = int(status.get("device_zone_count") or 0)
+                self._requires_manual_device_zone_count = (
+                    int(getattr(cfg, "device_zone_count", 0)) <= 0 and detected_device_zone_count <= 0
+                )
+                self._device_zone_count_confirmed = not self._requires_manual_device_zone_count
+                if int(getattr(cfg, "device_zone_count", 0)) <= 0 and detected_device_zone_count > 0:
+                    self._state.device_zone_count = detected_device_zone_count
 
                 self.step_label = QLabel("")
 
@@ -140,8 +155,6 @@ class DisplayConfiguratorDialog:
                 self.device_zone_count_slider.setRange(1, MAX_WIZARD_ZONE_COUNT)
                 self.device_zone_count_slider.setValue(self._state.device_zone_count)
                 self.device_zone_count_value = QLabel("")
-                self.device_zone_count_auto_checkbox = qt["QCheckBox"]("Auto-detect strip zone count")
-                self.device_zone_count_auto_checkbox.setChecked(self._state.auto_device_zone_count)
                 self.device_zone_status = QLabel("")
                 self.zone_count_explanation = QLabel("")
 
@@ -184,10 +197,9 @@ class DisplayConfiguratorDialog:
                     self.zone_offset_slider.valueChanged,
                     self.zone_preset_combo.currentIndexChanged,
                     self.reverse_checkbox.stateChanged,
-                    self.device_zone_count_slider.valueChanged,
-                    self.device_zone_count_auto_checkbox.stateChanged,
                 ):
                     signal.connect(self._refresh)
+                self.device_zone_count_slider.valueChanged.connect(self._on_device_zone_count_changed)
 
                 self.hdr_max_nits_slider.valueChanged.connect(self._refresh)
                 self.calibration_next_button.clicked.connect(self._next_test_zone)
@@ -298,12 +310,11 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(QLabel("Strip LED zone count"), 5, 0)
                 layout.addWidget(self.device_zone_count_slider, 5, 1)
                 layout.addWidget(self.device_zone_count_value, 5, 2)
-                layout.addWidget(self.device_zone_count_auto_checkbox, 6, 0, 1, 3)
-                layout.addWidget(self.zone_count_explanation, 7, 0, 1, 3)
-                layout.addWidget(self.device_zone_status, 8, 0, 1, 3)
+                layout.addWidget(self.zone_count_explanation, 6, 0, 1, 3)
+                layout.addWidget(self.device_zone_status, 7, 0, 1, 3)
                 row_stretch = getattr(layout, "setRowStretch", None)
                 if callable(row_stretch):
-                    row_stretch(9, 1)
+                    row_stretch(8, 1)
                 page.setLayout(layout)
                 return page
 
@@ -365,9 +376,12 @@ class DisplayConfiguratorDialog:
                 self._state.zone_offset = int(self.zone_offset_slider.value())
                 self._state.reverse_zones = bool(self.reverse_checkbox.isChecked())
                 self._state.device_zone_count = int(self.device_zone_count_slider.value())
-                self._state.auto_device_zone_count = bool(self.device_zone_count_auto_checkbox.isChecked())
                 self._state.corner_offsets_enabled = False
                 self._state.corner_zone_offsets = [0, 0, 0, 0]
+
+            def _on_device_zone_count_changed(self, *_args) -> None:
+                self._device_zone_count_confirmed = True
+                self._refresh()
 
             def _refresh(self) -> None:
                 self._pull_state_from_controls()
@@ -381,7 +395,7 @@ class DisplayConfiguratorDialog:
                     next_set_enabled(self._flow.can_go_next())
                 finish_set_enabled = getattr(self.finish_button, "setEnabled", None)
                 if callable(finish_set_enabled):
-                    finish_set_enabled(not self._flow.can_go_next())
+                    finish_set_enabled(not self._flow.can_go_next() and self._device_zone_count_confirmed)
 
                 hdr_mode = str(self.display_mode_combo.currentText()) == "hdr"
                 for widget in (
@@ -398,12 +412,15 @@ class DisplayConfiguratorDialog:
                 self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
                 self.zone_count_value.setText(str(self.zone_count_slider.value()))
                 self.zone_offset_value.setText(str(self.zone_offset_slider.value()))
-                self.device_zone_count_slider.setEnabled(not self.device_zone_count_auto_checkbox.isChecked())
-                self.device_zone_count_value.setText("auto" if self.device_zone_count_auto_checkbox.isChecked() else str(self.device_zone_count_slider.value()))
+                self.device_zone_count_value.setText(str(self.device_zone_count_slider.value()))
                 self.zone_count_explanation.setText(
                     "Screen sampling zones = sampled regions on your display. Strip LED zones = physical LEDs on the Nanoleaf strip."
                 )
-                self.device_zone_status.setText(self._state.auto_detection_status())
+                if self._requires_manual_device_zone_count:
+                    device_zone_status_text = "Device metadata unavailable: set strip LED zone count manually before finishing setup."
+                else:
+                    device_zone_status_text = "Strip LED zone count initialized from saved/device metadata."
+                self.device_zone_status.setText(device_zone_status_text)
 
                 preview = build_testing_panel_state(
                     state=self._state,
@@ -434,7 +451,7 @@ class DisplayConfiguratorDialog:
                             f"Screen sampling zones: {self._state.zone_count}",
                             f"Effective strip LED zones: {self._state.effective_device_zone_count()}",
                             "Calibration method: corner anchors + offset",
-                            self._state.auto_detection_status(),
+                            device_zone_status_text,
                         )
                     )
                 )
@@ -453,7 +470,7 @@ class DisplayConfiguratorDialog:
                     zones=new_zones,
                     zone_preset=self._state.zone_preset,
                     sampling_quality=str(self.sampling_quality_combo.currentText()).lower(),
-                    device_zone_count=0 if self._state.auto_device_zone_count else self._state.device_zone_count,
+                    device_zone_count=self._state.device_zone_count,
                     reverse_zones=self._state.reverse_zones,
                     zone_offset=self._state.zone_offset,
                     corner_offsets_enabled=bool(self._state.corner_offsets_enabled),

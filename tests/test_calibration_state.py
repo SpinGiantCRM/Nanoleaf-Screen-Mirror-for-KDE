@@ -19,7 +19,6 @@ def test_shared_calibration_state_round_trips_core_fields() -> None:
     assert state.zone_preset == "horizontal"
     assert state.zone_offset == 3
     assert state.reverse_zones is True
-    assert state.auto_device_zone_count is True
     assert state.effective_device_zone_count() == 18
 
 
@@ -136,21 +135,18 @@ def test_corner_alignment_zone_offset_and_test_zone_step_are_independent() -> No
 
 def test_manual_device_zone_count_48_propagates_to_cycle_frame_and_preview() -> None:
     state = CalibrationState.from_config(AppConfig(device_zone_count=48, zone_offset=1), {})
-    assert state.auto_device_zone_count is False
     assert state.effective_device_zone_count() == 48
     assert state.cycle_length("direction walk") == 48
 
     frame = state.frame_for_step(mode="direction walk", step=11, brightness=1.0, all_off_except_active=True)
     assert len(frame) == 48
     preview = state.mapping_preview_text()
-    assert "configured strip zone count 48" in preview
+    assert "Using configured strip zone count 48" in preview
 
 
-def test_auto_device_zone_detection_failure_is_explicit() -> None:
+def test_configured_device_zone_mode_no_longer_reports_auto_detection() -> None:
     state = CalibrationState.from_config(AppConfig(device_zone_count=0), {"device_zone_count": 0})
-    assert state.auto_device_zone_count is True
-    assert "Auto detection failed" in state.auto_detection_status()
-    assert "fallback screen sampling zone count" in state.auto_detection_status()
+    assert "Using configured strip zone count" in state.auto_detection_status()
 
 
 def test_backend_and_testing_state_are_exposed_for_ui_surfaces() -> None:
