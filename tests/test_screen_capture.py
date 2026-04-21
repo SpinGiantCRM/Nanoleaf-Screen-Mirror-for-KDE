@@ -4,7 +4,7 @@ import builtins
 
 from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
 from nanoleaf_sync.capture.factory import create_capture_backend
-from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture
+from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture, KMSGrabError
 
 
 def test_capture_factory_mock_is_reusable() -> None:
@@ -242,3 +242,50 @@ def test_kmsgrab_probes_modules_once_and_falls_back_without_import_exceptions(mo
     assert second.shape == (3, 4, 3)
     # Two probes only (internal module + external kmsgrab), not per frame.
     assert calls["imports"] == 2
+
+
+def test_kmsgrab_drm_capture_keyword_only_callable_is_used() -> None:
+    backend = KMSGrabCapture(width=4, height=3)
+    calls: list[str] = []
+
+    def _keyword_only(*, width, height, card_path):
+        calls.append(f"{width}x{height}@{card_path}")
+        return np.zeros((height, width, 3), dtype=np.uint8)
+
+    backend._drm_capture_impl = _keyword_only
+    out = backend._capture_drm_rgb()
+
+    assert out.shape == (3, 4, 3)
+    assert calls == ["4x3@/dev/dri/card0"]
+
+
+def test_kmsgrab_drm_capture_positional_only_retry_on_keyword_typeerror() -> None:
+    backend = KMSGrabCapture(width=4, height=3)
+    calls: list[tuple[int, int, str]] = []
+
+    def _positional_only(width, height, card_path, /):
+        calls.append((width, height, card_path))
+        return np.zeros((height, width, 3), dtype=np.uint8)
+
+    backend._drm_capture_impl = _positional_only
+    out = backend._capture_drm_rgb()
+
+    assert out.shape == (3, 4, 3)
+    assert calls == [(4, 3, "/dev/dri/card0")]
+
+
+def test_kmsgrab_drm_capture_mismatched_signature_raises_actionable_kmsgrab_error() -> None:
+    backend = KMSGrabCapture(width=4, height=3)
+
+    def _mismatched(foo, /):
+        return np.zeros((1, 1, 3), dtype=np.uint8)
+
+    backend._drm_capture_impl = _mismatched
+
+    with pytest.raises(KMSGrabError) as excinfo:
+        backend._capture_drm_rgb()
+
+    msg = str(excinfo.value)
+    assert "Attempted signature" in msg
+    assert "_mismatched(width=..., height=..., card_path=...)" in msg
+    assert "does not support positional retry" in msg
