@@ -324,6 +324,8 @@ def run_loop(
         start = time.perf_counter()
         processing_end = start
         skip_tick = False
+        frame = None
+        pending = None
 
         try:
             if stop_requested:
@@ -366,9 +368,9 @@ def run_loop(
                         if stop_requested:
                             break
                         skip_tick = True
-                    else:
-                        frame = pending.frame
-                        captured_at = pending.captured_at
+                        continue
+                    frame = pending.frame
+                    captured_at = pending.captured_at
 
             if skip_tick:
                 pass

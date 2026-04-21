@@ -270,6 +270,48 @@ def test_run_loop_surfaces_persistent_capture_worker_failures() -> None:
     assert state.frames_sent == 0
 
 
+def test_run_loop_skips_when_second_pending_pop_is_none_without_unboundlocalerror(monkeypatch) -> None:
+    from nanoleaf_sync.runtime import engine
+
+    class _FakePendingSlot:
+        instances: list["_FakePendingSlot"] = []
+
+        def __init__(self) -> None:
+            self.pop_calls = 0
+            _FakePendingSlot.instances.append(self)
+
+        def put_latest(self, frame, captured_at) -> None:
+            return None
+
+        def pop(self):
+            self.pop_calls += 1
+            return None
+
+        def wait(self, timeout: float) -> bool:
+            state.stop_event.set()
+            return False
+
+        def get_replaced_count(self) -> int:
+            return 0
+
+    monkeypatch.setattr(engine, "PendingFrameSlot", _FakePendingSlot)
+
+    cfg = AppConfig(fps=120, verbose=False, use_mock_capture=False)
+    state = RuntimeState()
+
+    engine.run_loop(
+        config=cfg,
+        state=state,
+        get_capture=lambda: None,
+        get_driver=lambda: type("_Driver", (), {"zone_count": 4, "send_frame": lambda self, _c: None})(),
+        install_drivers=lambda: None,
+        close_backends=lambda: None,
+    )
+
+    assert _FakePendingSlot.instances
+    assert _FakePendingSlot.instances[0].pop_calls >= 2
+
+
 def test_pending_frame_slot_last_write_wins() -> None:
     slot = PendingFrameSlot()
     frame_a = np.zeros((1, 1, 3), dtype=np.uint8)
