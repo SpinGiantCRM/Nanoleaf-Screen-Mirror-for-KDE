@@ -64,6 +64,10 @@ class CalibrationState:
     corner_start_anchor: int = -1
     corner_offsets_enabled: bool = False
     corner_zone_offsets: list[int] = field(default_factory=list)
+    corner_anchor_top_left: int = -1
+    corner_anchor_top_right: int = -1
+    corner_anchor_bottom_right: int = -1
+    corner_anchor_bottom_left: int = -1
 
     @classmethod
     def from_config(cls, cfg: AppConfig, runtime_status: dict | None = None) -> "CalibrationState":
@@ -75,6 +79,14 @@ class CalibrationState:
             configured_zone_count = 8
 
         detected = int(runtime_status.get("device_zone_count") or 0)
+        explicit_zone_map = [int(i) for i in (getattr(cfg, "explicit_zone_map", []) or [])]
+        anchor_values = (
+            int(getattr(cfg, "corner_anchor_top_left", -1)),
+            int(getattr(cfg, "corner_anchor_top_right", -1)),
+            int(getattr(cfg, "corner_anchor_bottom_right", -1)),
+            int(getattr(cfg, "corner_anchor_bottom_left", -1)),
+        )
+        has_anchor_assignments = any(value >= 0 for value in anchor_values)
         return cls(
             zone_count=max(1, int(configured_zone_count)),
             zone_preset=str(getattr(cfg, "zone_preset", "edge-weighted")),
@@ -83,11 +95,15 @@ class CalibrationState:
             device_zone_count=max(1, int(getattr(cfg, "device_zone_count", 0)) or max(1, int(configured_zone_count))),
             auto_device_zone_count=int(getattr(cfg, "device_zone_count", 0)) == 0,
             detected_device_zone_count=max(0, detected),
-            explicit_zone_map=[int(i) for i in (getattr(cfg, "explicit_zone_map", []) or [])],
-            manual_mapping_enabled=bool(getattr(cfg, "explicit_zone_map", [])),
+            explicit_zone_map=explicit_zone_map,
+            manual_mapping_enabled=bool(explicit_zone_map) and not has_anchor_assignments,
             corner_start_anchor=int(getattr(cfg, "corner_start_anchor", -1)),
             corner_offsets_enabled=bool(getattr(cfg, "corner_offsets_enabled", False)),
             corner_zone_offsets=[int(i) for i in (getattr(cfg, "corner_zone_offsets", []) or [])][:4],
+            corner_anchor_top_left=anchor_values[0],
+            corner_anchor_top_right=anchor_values[1],
+            corner_anchor_bottom_right=anchor_values[2],
+            corner_anchor_bottom_left=anchor_values[3],
         )
 
     def active_corner_zone_offsets(self) -> list[int]:
@@ -118,10 +134,10 @@ class CalibrationState:
         explicit = self.explicit_zone_map if self.manual_mapping_enabled else []
         return (
             f"{self.auto_detection_status()}\n"
-            f"Offset currently applied: {self.zone_offset:+d}\n"
+            f"Anchors TL/TR/BR/BL: {self.corner_anchor_top_left}/{self.corner_anchor_top_right}/{self.corner_anchor_bottom_right}/{self.corner_anchor_bottom_left}\n"
             f"Local corner anchor nudges (TL/TR/BR/BL): {'/'.join(f'{value:+d}' for value in self.active_corner_zone_offsets())}\n"
             f"{'Manual mapping enabled' if self.manual_mapping_enabled else 'Corner anchors inferred from current mapping'}\n"
-            f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), zone_offset=self.zone_offset, reverse_zones=self.reverse_zones, explicit_zone_map=explicit, corner_zone_offsets=self.active_corner_zone_offsets())}"
+            f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), zone_offset=self.zone_offset, reverse_zones=self.reverse_zones, explicit_zone_map=explicit, corner_zone_offsets=self.active_corner_zone_offsets(), corner_anchor_top_left=self.corner_anchor_top_left, corner_anchor_top_right=self.corner_anchor_top_right, corner_anchor_bottom_right=self.corner_anchor_bottom_right, corner_anchor_bottom_left=self.corner_anchor_bottom_left)}"
         )
 
     def mapping_preview_visual(self) -> str:
@@ -133,6 +149,10 @@ class CalibrationState:
             reverse_zones=self.reverse_zones,
             explicit_zone_map=explicit,
             corner_zone_offsets=self.active_corner_zone_offsets(),
+            corner_anchor_top_left=self.corner_anchor_top_left,
+            corner_anchor_top_right=self.corner_anchor_top_right,
+            corner_anchor_bottom_right=self.corner_anchor_bottom_right,
+            corner_anchor_bottom_left=self.corner_anchor_bottom_left,
         )
 
     def _corner_steps(self) -> list[CalibrationStep]:

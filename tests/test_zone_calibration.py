@@ -7,7 +7,11 @@ from nanoleaf_sync.ui.calibration_preview import (
     coverage_sanity_step,
     single_zone_step,
 )
-from nanoleaf_sync.ui.zone_calibration import mapping_preview_visual, zone_test_instruction
+from nanoleaf_sync.ui.zone_calibration import (
+    mapping_preview_text,
+    mapping_preview_visual,
+    zone_test_instruction,
+)
 
 
 def test_mapping_preview_visual_reflects_reverse_and_offset() -> None:
@@ -36,6 +40,21 @@ def test_mapping_preview_text_mentions_corner_refinement_when_enabled() -> None:
         corner_zone_offsets=[1, 0, -1, 0],
     )
     assert "D0" in text
+
+
+def test_mapping_preview_text_waits_for_device_zone_count_in_auto_mode() -> None:
+    text = mapping_preview_text(
+        zone_count=8,
+        device_zone_count=0,
+        zone_offset=0,
+        reverse_zones=False,
+        corner_anchor_top_left=0,
+        corner_anchor_top_right=2,
+        corner_anchor_bottom_right=4,
+        corner_anchor_bottom_left=6,
+    )
+    assert "waiting for device zone count" in text
+    assert "outside 0..0" not in text
 
 
 def test_zone_test_instruction_wraps_steps() -> None:

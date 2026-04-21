@@ -141,8 +141,14 @@ class SettingsDialog:
                     self.corner_offset_sliders.append(slider)
                     self.corner_offset_values.append(value)
                 self.corner_anchor_button = QPushButton("Set next top-left anchor")
+                self.assign_top_left_button = QPushButton("Assign current zone → Top-left")
+                self.assign_top_right_button = QPushButton("Assign current zone → Top-right")
+                self.assign_bottom_right_button = QPushButton("Assign current zone → Bottom-right")
+                self.assign_bottom_left_button = QPushButton("Assign current zone → Bottom-left")
+                self.reset_anchor_button = QPushButton("Reset corner anchors")
+                self.current_zone_label = QLabel("")
 
-                self.test_step_button = QPushButton("Next test zone"); self.test_prev_button = QPushButton("Previous test zone")
+                self.test_step_button = QPushButton("Next zone") ; self.test_prev_button = QPushButton("Previous zone")
                 self.test_mode_combo = QComboBox(); self.test_mode_combo.addItems(list(TEST_MODES))
                 self.test_auto_checkbox = QCheckBox("Auto-step")
                 self.test_loop_checkbox = QCheckBox("Loop"); self.test_loop_checkbox.setChecked(True)
@@ -215,6 +221,11 @@ class SettingsDialog:
                 for slider in self.corner_offset_sliders:
                     slider.valueChanged.connect(self._on_calibration_controls_changed)
                 self.corner_anchor_button.clicked.connect(self._rotate_anchor)
+                self.assign_top_left_button.clicked.connect(lambda: self._assign_anchor("top_left"))
+                self.assign_top_right_button.clicked.connect(lambda: self._assign_anchor("top_right"))
+                self.assign_bottom_right_button.clicked.connect(lambda: self._assign_anchor("bottom_right"))
+                self.assign_bottom_left_button.clicked.connect(lambda: self._assign_anchor("bottom_left"))
+                self.reset_anchor_button.clicked.connect(self._reset_anchors)
                 self.test_step_button.clicked.connect(self._step_test_zone); self.test_prev_button.clicked.connect(self._prev_test_zone)
                 self.test_auto_checkbox.stateChanged.connect(self._on_test_auto_toggled); self.test_mode_combo.currentIndexChanged.connect(self._on_calibration_controls_changed)
                 self.test_step_interval_slider.valueChanged.connect(self._on_interval_changed)
@@ -349,9 +360,15 @@ class SettingsDialog:
                     layout.addWidget(self.corner_offset_sliders[idx], row, 1)
                     layout.addWidget(self.corner_offset_values[idx], row, 2)
                     row += 1
-                layout.addWidget(self.corner_anchor_button, row, 0, 1, 2)
-                layout.addWidget(self.preview_label, row + 1, 0, 1, 3)
-                layout.addWidget(self.preview_visual_label, row + 2, 0, 1, 3)
+                layout.addWidget(self.current_zone_label, row, 0, 1, 3)
+                layout.addWidget(self.assign_top_left_button, row + 1, 0, 1, 3)
+                layout.addWidget(self.assign_top_right_button, row + 2, 0, 1, 3)
+                layout.addWidget(self.assign_bottom_right_button, row + 3, 0, 1, 3)
+                layout.addWidget(self.assign_bottom_left_button, row + 4, 0, 1, 3)
+                layout.addWidget(self.reset_anchor_button, row + 5, 0, 1, 3)
+                layout.addWidget(self.corner_anchor_button, row + 6, 0, 1, 2)
+                layout.addWidget(self.preview_label, row + 7, 0, 1, 3)
+                layout.addWidget(self.preview_visual_label, row + 8, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -419,6 +436,11 @@ class SettingsDialog:
 
                 self.manual_map_device_slider.setRange(0, max(0, self._state.effective_device_zone_count() - 1)); self.manual_map_source_slider.setRange(0, max(0, self._state.zone_count - 1)); enabled = self.manual_map_checkbox.isChecked(); self.manual_map_device_slider.setEnabled(enabled); self.manual_map_source_slider.setEnabled(enabled)
                 self.manual_map_status_label.setText("Manual map is absolute (strip zone -> exact screen zone)." if enabled else "Manual map disabled.")
+                current_zone = self._state.step_for_mode(
+                    str(self.test_mode_combo.currentText()),
+                    self._test_step,
+                ).device_zone_index
+                self.current_zone_label.setText(f"Current physical strip zone: {current_zone}")
                 corners_enabled = self.corner_offsets_enabled_checkbox.isChecked()
                 for slider in self.corner_offset_sliders:
                     slider.setEnabled(corners_enabled)
@@ -460,6 +482,29 @@ class SettingsDialog:
 
             def _rotate_anchor(self):
                 self._pull_state(); self._state.corner_start_anchor = next_corner_start_anchor(self._state.corner_start_anchor, device_zone_count=self._state.effective_device_zone_count()); self._refresh_preview_label(); self._schedule_live_preview()
+
+
+            def _assign_anchor(self, corner: str):
+                current_zone = self._state.step_for_mode(
+                    str(self.test_mode_combo.currentText()),
+                    self._test_step,
+                ).device_zone_index
+                if corner == "top_left":
+                    self._state.corner_anchor_top_left = current_zone
+                elif corner == "top_right":
+                    self._state.corner_anchor_top_right = current_zone
+                elif corner == "bottom_right":
+                    self._state.corner_anchor_bottom_right = current_zone
+                elif corner == "bottom_left":
+                    self._state.corner_anchor_bottom_left = current_zone
+                self._refresh_preview_label(); self._schedule_live_preview()
+
+            def _reset_anchors(self):
+                self._state.corner_anchor_top_left = -1
+                self._state.corner_anchor_top_right = -1
+                self._state.corner_anchor_bottom_right = -1
+                self._state.corner_anchor_bottom_left = -1
+                self._refresh_preview_label(); self._schedule_live_preview()
 
             def _current_calibration_step(self): return self._state.step_for_mode(str(self.test_mode_combo.currentText()), self._test_step)
             def _test_cycle_length(self): return self._state.cycle_length(str(self.test_mode_combo.currentText()))
@@ -540,6 +585,10 @@ class SettingsDialog:
                     start_on_launch=bool(self.start_on_launch_checkbox.isChecked()), device_zone_count=0 if self._state.auto_device_zone_count else self._state.device_zone_count,
                     output_channel_order=str(self.output_channel_order_combo.currentText()), zone_offset=self._state.zone_offset, reverse_zones=self._state.reverse_zones,
                     explicit_zone_map=(self._manual_map[: self._state.effective_device_zone_count()] if self._state.manual_mapping_enabled else []),
+                    corner_anchor_top_left=int(self._state.corner_anchor_top_left),
+                    corner_anchor_top_right=int(self._state.corner_anchor_top_right),
+                    corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
+                    corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
                     corner_start_anchor=int(self._state.corner_start_anchor), use_mock_capture=bool(self.mock_capture_checkbox.isChecked()), prefer_backend=str(self.capture_backend_combo.currentText()), auto_probe_policy=str(self.auto_probe_policy_combo.currentText()), auto_latency_policy=str(self.auto_latency_policy_combo.currentText()),
                     corner_offsets_enabled=bool(self._state.corner_offsets_enabled),
                     corner_zone_offsets=self._state.active_corner_zone_offsets(),

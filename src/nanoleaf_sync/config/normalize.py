@@ -8,6 +8,7 @@ from nanoleaf_sync.capture.backend_selection import (
     normalize_cached_backend,
 )
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
+from nanoleaf_sync.runtime.anchor_calibration import derive_anchor_zone_map, validate_corner_anchors
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,10 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     )
     zone_offset = int(cfg.zone_offset)
     explicit_zone_map = [int(i) for i in cfg.explicit_zone_map] if cfg.explicit_zone_map else []
+    corner_anchor_top_left = int(getattr(cfg, "corner_anchor_top_left", -1))
+    corner_anchor_top_right = int(getattr(cfg, "corner_anchor_top_right", -1))
+    corner_anchor_bottom_right = int(getattr(cfg, "corner_anchor_bottom_right", -1))
+    corner_anchor_bottom_left = int(getattr(cfg, "corner_anchor_bottom_left", -1))
     corner_start_anchor = int(getattr(cfg, "corner_start_anchor", -1))
     corner_offsets_enabled = coerce_bool(
         getattr(cfg, "corner_offsets_enabled", AppConfig.corner_offsets_enabled),
@@ -157,6 +162,31 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         default=AppConfig.hdr_primaries,
     )
 
+
+    anchor_values = {
+        "top_left": corner_anchor_top_left if corner_anchor_top_left >= 0 else None,
+        "top_right": corner_anchor_top_right if corner_anchor_top_right >= 0 else None,
+        "bottom_right": corner_anchor_bottom_right if corner_anchor_bottom_right >= 0 else None,
+        "bottom_left": corner_anchor_bottom_left if corner_anchor_bottom_left >= 0 else None,
+    }
+    if device_zone_count > 0:
+        anchor_validation = validate_corner_anchors(
+            anchors=anchor_values,
+            device_zone_count=device_zone_count,
+        )
+        if anchor_validation.valid:
+            derived = derive_anchor_zone_map(
+                zone_count=max(1, len(zones) or device_zone_count),
+                device_zone_count=device_zone_count,
+                anchors=anchor_values,
+            )
+            explicit_zone_map = derived.explicit_zone_map
+        else:
+            corner_anchor_top_left = -1
+            corner_anchor_top_right = -1
+            corner_anchor_bottom_right = -1
+            corner_anchor_bottom_left = -1
+
     return AppConfig(
         fps=fps,
         prefer_backend=prefer_backend,
@@ -194,6 +224,10 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         zone_offset=zone_offset,
         reverse_zones=coerce_bool(getattr(cfg, "reverse_zones", False), False),
         explicit_zone_map=explicit_zone_map,
+        corner_anchor_top_left=corner_anchor_top_left,
+        corner_anchor_top_right=corner_anchor_top_right,
+        corner_anchor_bottom_right=corner_anchor_bottom_right,
+        corner_anchor_bottom_left=corner_anchor_bottom_left,
         corner_start_anchor=corner_start_anchor,
         corner_offsets_enabled=corner_offsets_enabled,
         corner_zone_offsets=corner_zone_offsets,

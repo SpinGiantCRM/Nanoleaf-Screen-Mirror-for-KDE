@@ -93,6 +93,13 @@ class AppConfig:
     # If non-empty, it takes precedence over `zone_offset`/`reverse_zones`.
     explicit_zone_map: list[int] = field(default_factory=list)
 
+    # Canonical calibration anchors (physical strip zones at monitor corners).
+    # Negative value means unassigned.
+    corner_anchor_top_left: int = -1
+    corner_anchor_top_right: int = -1
+    corner_anchor_bottom_right: int = -1
+    corner_anchor_bottom_left: int = -1
+
     # Guided corner calibration: optional explicit top-left device anchor index.
     # Negative means inferred from current mapping.
     corner_start_anchor: int = -1
