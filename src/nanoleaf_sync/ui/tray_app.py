@@ -554,11 +554,37 @@ class NanoleafTrayApp:
                 f"Help: {status.get('last_error_guidance') or 'Open Help / Troubleshooting from the tray menu.'}",
             ]
         )
-        self.tray_icon.showMessage("nanoleaf-kde-sync status", summary, self.QSystemTrayIcon.MessageIcon.Information, 9000)
+        details = "\n".join(
+            [
+                f"Requested backend: {status.get('requested_capture_backend')}",
+                f"Selected backend: {status.get('selected_capture_backend')}",
+                f"Selection reason: {status.get('selection_reason')}",
+                f"Frames sent: {status.get('frames_sent')}",
+                f"Consecutive errors: {status.get('consecutive_errors')}",
+            ]
+        )
+        dialog = self.QDialog()
+        dialog.setWindowTitle("nanoleaf-kde-sync · About / Status")
+        layout = self.QVBoxLayout()
+        layout.addWidget(self.QLabel(summary))
+        details_label = self.QLabel(f"Technical details:\n{details}")
+        layout.addWidget(details_label)
+        close_button = self.QPushButton("Close")
+        close_button.clicked.connect(dialog.accept)
+        layout.addWidget(close_button)
+        dialog.setLayout(layout)
+        dialog.exec()
         self._refresh_mode_labels()
 
     def on_calibration_lab(self) -> None:
         status = self.service.get_status()
+        if bool(getattr(self.service, "is_running", lambda: False)()):
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                "Service is running. Calibration test patterns may briefly pause mirroring.",
+                self.QSystemTrayIcon.MessageIcon.Information,
+                4000,
+            )
         if self._calibration_dialog is None:
             self._calibration_dialog = CalibrationDiagnosticsDialog(
                 parent=None,

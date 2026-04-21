@@ -198,6 +198,9 @@ def test_settings_dialog_constructs_and_opens_with_qt_stubs(monkeypatch) -> None
     assert updated.start_on_launch is False
     assert updated.hdr_enabled is False
     assert updated.auto_probe_policy in {"on-change", "first-run", "each-boot"}
+    assert updated.device_vid == 0x37FA
+    assert updated.device_pid in {0x8201, 0x8202}
+    assert updated.sdr_boost_nits >= 80.0
 
     portal_idx = dialog._dialog.capture_backend_combo.findText("xdg-portal")
     dialog._dialog.capture_backend_combo.setCurrentIndex(portal_idx)
@@ -206,6 +209,18 @@ def test_settings_dialog_constructs_and_opens_with_qt_stubs(monkeypatch) -> None
     updated_portal = dialog.updated_config()
     assert updated_portal.prefer_backend == "xdg-portal"
     assert updated_portal.auto_probe_policy == "each-boot"
+
+
+def test_settings_dialog_supports_device_model_selection(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    cfg = AppConfig(device_vid=0x37FA, device_pid=0x8202)
+    dialog = SettingsDialog(parent=None, cfg=cfg)
+
+    k1_idx = dialog._dialog.device_model_combo.findText("NL82K1 Dock (PID 0x8201)")
+    dialog._dialog.device_model_combo.setCurrentIndex(k1_idx)
+    updated = dialog.updated_config()
+    assert updated.device_vid == 0x37FA
+    assert updated.device_pid == 0x8201
 
 
 def test_settings_dialog_zone_count_updates_zones_without_forcing_manual_device_count(monkeypatch) -> None:

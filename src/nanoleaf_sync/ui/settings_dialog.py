@@ -27,6 +27,8 @@ ZONE_STRIDE_MIN = 1
 ZONE_STRIDE_MAX = 8
 MAX_ZONE_COUNT = 128
 CORNER_OFFSET_LIMIT = 24
+SDR_BOOST_NITS_MIN = 80
+SDR_BOOST_NITS_MAX = 400
 
 SETTINGS_SECTIONS: tuple[str, ...] = (
     "Backend & Diagnostics",
@@ -107,6 +109,10 @@ class SettingsDialog:
                 self.smoothing_speed_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.smoothing_speed_slider.setRange(0, 400); self.smoothing_speed_slider.setValue(int(round(getattr(cfg, "smoothing_speed", 0.75) * 100)))
                 self.fps_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.fps_slider.setRange(FPS_MIN, FPS_MAX); self.fps_slider.setValue(int(cfg.fps))
                 self.display_mode_combo = QComboBox(); self.display_mode_combo.addItems(["sdr", "hdr"]); self.display_mode_combo.setCurrentIndex(1 if cfg.hdr_enabled else 0)
+                self.compositor_hdr_mode_checkbox = QCheckBox("Compositor HDR mode (KDE Plasma SDR-on-HDR)")
+                self.compositor_hdr_mode_checkbox.setChecked(bool(getattr(cfg, "compositor_hdr_mode", False)))
+                self.sdr_boost_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.sdr_boost_nits_slider.setRange(SDR_BOOST_NITS_MIN, SDR_BOOST_NITS_MAX); self.sdr_boost_nits_slider.setValue(int(getattr(cfg, "sdr_boost_nits", 80.0)))
+                self.sdr_boost_nits_value = QLabel("")
                 self.color_mode_combo = QComboBox(); self.color_mode_combo.addItems(["default", "balanced", "dynamic", "hyper"]); self.color_mode_combo.setCurrentIndex(max(0, self.color_mode_combo.findText(str(getattr(cfg, "color_mode", "default")))))
                 self.start_on_launch_checkbox = QCheckBox("Start mirroring automatically when tray app opens"); self.start_on_launch_checkbox.setChecked(bool(getattr(cfg, "start_on_launch", False)))
 
@@ -153,6 +159,24 @@ class SettingsDialog:
                 self._live_preview_timer.timeout.connect(self._flush_live_preview)
 
                 self.output_channel_order_combo = QComboBox(); self.output_channel_order_combo.addItems(["grb", "rgb", "rbg", "gbr", "brg", "bgr"]); self.output_channel_order_combo.setCurrentIndex(max(0, self.output_channel_order_combo.findText(str(getattr(cfg, "output_channel_order", "grb")))))
+                self.device_model_combo = QComboBox()
+                self.device_model_combo.addItems(["NL82K2 Lightstrip (PID 0x8202)", "NL82K1 Dock (PID 0x8201)", "Custom VID/PID"])
+                self.device_vid_combo = QComboBox(); self.device_vid_combo.addItems(["0x37FA"])
+                self.device_pid_combo = QComboBox(); self.device_pid_combo.addItems(["0x8202", "0x8201"])
+                vid_hex = f"0x{int(getattr(cfg, 'device_vid', 0x37FA)):04X}"
+                pid_hex = f"0x{int(getattr(cfg, 'device_pid', 0x8202)):04X}"
+                if self.device_vid_combo.findText(vid_hex) < 0:
+                    self.device_vid_combo.addItems([vid_hex])
+                if self.device_pid_combo.findText(pid_hex) < 0:
+                    self.device_pid_combo.addItems([pid_hex])
+                self.device_vid_combo.setCurrentIndex(max(0, self.device_vid_combo.findText(vid_hex)))
+                self.device_pid_combo.setCurrentIndex(max(0, self.device_pid_combo.findText(pid_hex)))
+                if pid_hex == "0x8201":
+                    self.device_model_combo.setCurrentIndex(1)
+                elif pid_hex == "0x8202":
+                    self.device_model_combo.setCurrentIndex(0)
+                else:
+                    self.device_model_combo.setCurrentIndex(2)
                 self.mock_capture_checkbox = QCheckBox("Mock capture (synthetic)"); self.mock_capture_checkbox.setChecked(bool(getattr(cfg, "use_mock_capture", True)))
                 self.capture_backend_combo = QComboBox(); self.capture_backend_combo.addItems(["auto", "kwin-dbus", "kmsgrab", "xdg-portal"]); self.capture_backend_combo.setCurrentIndex(max(0, self.capture_backend_combo.findText(str(getattr(cfg, "prefer_backend", "kwin-dbus")))))
                 self.auto_probe_policy_combo = QComboBox(); self.auto_probe_policy_combo.addItems(["on-change", "first-run", "each-boot"]); self.auto_probe_policy_combo.setCurrentIndex(max(0, self.auto_probe_policy_combo.findText(str(getattr(cfg, "auto_probe_policy", "on-change")))))
@@ -171,7 +195,7 @@ class SettingsDialog:
 
                 self.backend_info_label = QLabel("")
                 self.preview_label = QLabel(""); self.preview_visual_label = QLabel(""); self.test_label = QLabel("")
-                self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.zone_offset_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.zone_sampling_stride_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel(""); self.test_duration_value = QLabel(""); self.test_step_interval_value = QLabel(""); self.test_brightness_value = QLabel("")
+                self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.zone_offset_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.zone_sampling_stride_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel(""); self.test_duration_value = QLabel(""); self.test_step_interval_value = QLabel(""); self.test_brightness_value = QLabel("")
 
                 for signal in (
                     self.zone_count_slider.valueChanged,
@@ -197,6 +221,7 @@ class SettingsDialog:
                 self.test_brightness_slider.valueChanged.connect(self._on_calibration_controls_changed)
                 self.test_background_checkbox.stateChanged.connect(self._on_calibration_controls_changed)
                 self.run_latency_button.clicked.connect(self._run_latency_probe_manual)
+                self.device_model_combo.currentIndexChanged.connect(self._sync_device_model_selection)
 
                 buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
                 buttons.accepted.connect(self.accept); buttons.rejected.connect(self.reject)
@@ -220,6 +245,7 @@ class SettingsDialog:
                 root.addWidget(buttons)
                 self.setLayout(root)
 
+                self._sync_device_model_selection()
                 self._refresh_numeric_labels(); self._refresh_preview_label(); self._maybe_auto_run_latency_check()
 
             def _apply_tooltips(self) -> None:
@@ -234,6 +260,9 @@ class SettingsDialog:
                 self.color_mode_combo.setToolTip("Colour behavior preset used by the analyzer.")
                 self.hdr_max_nits_slider.setToolTip("Reference display peak brightness for HDR tone mapping.")
                 self.capture_backend_combo.setToolTip("Select auto or force a specific capture backend.")
+                self.device_model_combo.setToolTip("Select your Nanoleaf USB hardware model.")
+                self.device_vid_combo.setToolTip("USB vendor ID used to locate your hardware.")
+                self.device_pid_combo.setToolTip("USB product ID used to locate your hardware.")
                 self.auto_probe_policy_combo.setToolTip("Choose when auto-backend probing should run.")
                 self.auto_latency_policy_combo.setToolTip("Automatically run latency checks on selected lifecycle events.")
                 self.manual_map_checkbox.setToolTip("Enable explicit per-zone mapping instead of offset/reverse logic.")
@@ -244,6 +273,8 @@ class SettingsDialog:
                 self.output_channel_order_combo.setToolTip("Set RGB byte order expected by your strip controller.")
                 self.mock_capture_checkbox.setToolTip("Use synthetic capture frames for diagnostics; USB output remains real hardware.")
                 self.start_on_launch_checkbox.setToolTip("Start syncing automatically right after tray launch.")
+                self.compositor_hdr_mode_checkbox.setToolTip("Enable compensation when KDE Plasma is running SDR content on HDR.")
+                self.sdr_boost_nits_slider.setToolTip("Plasma SDR white reference in nits when compositor HDR mode is enabled.")
                 self.corner_offsets_enabled_checkbox.setToolTip("Enable per-corner mapping nudges for finer edge alignment.")
                 for slider in self.corner_offset_sliders:
                     slider.setToolTip("Adjust local mapping offset for this corner (negative/positive zone shift).")
@@ -270,14 +301,18 @@ class SettingsDialog:
                 layout.addWidget(self.display_mode_combo, 0, 1, 1, 2)
                 layout.addWidget(QLabel("Colour behavior preset"), 1, 0)
                 layout.addWidget(self.color_mode_combo, 1, 1, 1, 2)
-                layout.addWidget(QLabel("HDR transfer"), 2, 0)
-                layout.addWidget(self.hdr_transfer_combo, 2, 1, 1, 2)
-                layout.addWidget(QLabel("HDR primaries"), 3, 0)
-                layout.addWidget(self.hdr_primaries_combo, 3, 1, 1, 2)
-                layout.addWidget(QLabel("HDR max brightness"), 4, 0)
-                layout.addWidget(self.hdr_max_nits_slider, 4, 1)
-                layout.addWidget(self.hdr_max_nits_value, 4, 2)
-                layout.addWidget(self.display_configurator_button, 5, 0, 1, 3)
+                layout.addWidget(self.compositor_hdr_mode_checkbox, 2, 0, 1, 3)
+                layout.addWidget(QLabel("SDR white reference"), 3, 0)
+                layout.addWidget(self.sdr_boost_nits_slider, 3, 1)
+                layout.addWidget(self.sdr_boost_nits_value, 3, 2)
+                layout.addWidget(QLabel("HDR transfer"), 4, 0)
+                layout.addWidget(self.hdr_transfer_combo, 4, 1, 1, 2)
+                layout.addWidget(QLabel("HDR primaries"), 5, 0)
+                layout.addWidget(self.hdr_primaries_combo, 5, 1, 1, 2)
+                layout.addWidget(QLabel("HDR max brightness"), 6, 0)
+                layout.addWidget(self.hdr_max_nits_slider, 6, 1)
+                layout.addWidget(self.hdr_max_nits_value, 6, 2)
+                layout.addWidget(self.display_configurator_button, 7, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -340,8 +375,11 @@ class SettingsDialog:
                 group = QGroupBox("Output & Startup")
                 layout = QGridLayout()
                 layout.addWidget(QLabel("Output channel order"), 0, 0); layout.addWidget(self.output_channel_order_combo, 0, 1, 1, 2)
-                layout.addWidget(self.start_on_launch_checkbox, 1, 0, 1, 3)
-                layout.addWidget(self.mock_capture_checkbox, 2, 0, 1, 3)
+                layout.addWidget(QLabel("Device model"), 1, 0); layout.addWidget(self.device_model_combo, 1, 1, 1, 2)
+                layout.addWidget(QLabel("Device VID"), 2, 0); layout.addWidget(self.device_vid_combo, 2, 1, 1, 2)
+                layout.addWidget(QLabel("Device PID"), 3, 0); layout.addWidget(self.device_pid_combo, 3, 1, 1, 2)
+                layout.addWidget(self.start_on_launch_checkbox, 4, 0, 1, 3)
+                layout.addWidget(self.mock_capture_checkbox, 5, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -353,7 +391,7 @@ class SettingsDialog:
                 self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = "edge-weighted" if zone_preset_label.startswith("Edge strip") else "horizontal"; self._state.zone_offset = int(self.zone_offset_slider.value()); self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value()); self._state.auto_device_zone_count = bool(self.device_zone_count_auto_checkbox.isChecked()); self._state.manual_mapping_enabled = bool(self.manual_map_checkbox.isChecked()); self._state.explicit_zone_map = self._manual_map[:]; self._state.corner_offsets_enabled = bool(self.corner_offsets_enabled_checkbox.isChecked()); self._state.corner_zone_offsets = [int(slider.value()) for slider in self.corner_offset_sliders]
 
             def _refresh_numeric_labels(self):
-                self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.zone_sampling_stride_value.setText(str(self.zone_sampling_stride_slider.value())); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.zone_offset_value.setText(str(self.zone_offset_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}"); self.test_duration_value.setText(str(self.test_duration_slider.value())); self.test_step_interval_value.setText(str(self.test_step_interval_slider.value())); self.test_brightness_value.setText(f"{self.test_brightness_slider.value()}%")
+                self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.zone_sampling_stride_value.setText(str(self.zone_sampling_stride_slider.value())); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.zone_offset_value.setText(str(self.zone_offset_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}"); self.test_duration_value.setText(str(self.test_duration_slider.value())); self.test_step_interval_value.setText(str(self.test_step_interval_slider.value())); self.test_brightness_value.setText(f"{self.test_brightness_slider.value()}%")
                 for idx, value in enumerate(self.corner_offset_values):
                     value.setText(f"{self.corner_offset_sliders[idx].value():+d}")
 
@@ -401,6 +439,19 @@ class SettingsDialog:
             def _sync_manual_source_slider(self):
                 idx = int(self.manual_map_device_slider.value())
                 self.manual_map_source_slider.setValue(int(self._manual_map[idx]) if idx < len(self._manual_map) else 0)
+
+            def _sync_device_model_selection(self):
+                selected_model = str(self.device_model_combo.currentText())
+                if selected_model.startswith("NL82K2"):
+                    vid_text = "0x37FA"
+                    pid_text = "0x8202"
+                elif selected_model.startswith("NL82K1"):
+                    vid_text = "0x37FA"
+                    pid_text = "0x8201"
+                else:
+                    return
+                self.device_vid_combo.setCurrentIndex(max(0, self.device_vid_combo.findText(vid_text)))
+                self.device_pid_combo.setCurrentIndex(max(0, self.device_pid_combo.findText(pid_text)))
 
             def _apply_manual_mapping(self):
                 idx = int(self.manual_map_device_slider.value()); val = int(self.manual_map_source_slider.value())
@@ -470,6 +521,16 @@ class SettingsDialog:
 
             def updated_config(self) -> AppConfig:
                 self._pull_state()
+                selected_model = str(self.device_model_combo.currentText())
+                if selected_model.startswith("NL82K2"):
+                    vid_value = 0x37FA
+                    pid_value = 0x8202
+                elif selected_model.startswith("NL82K1"):
+                    vid_value = 0x37FA
+                    pid_value = 0x8201
+                else:
+                    vid_value = int(str(self.device_vid_combo.currentText()), 0)
+                    pid_value = int(str(self.device_pid_combo.currentText()), 0)
                 new_zones = make_edge_weighted_zones(self._state.zone_count) if self._state.zone_preset == "edge-weighted" else make_horizontal_zones(self._state.zone_count)
                 return replace(
                     cfg,
@@ -487,6 +548,8 @@ class SettingsDialog:
                     latency_last_trigger=(self._latest_latency.triggered_by if self._latest_latency else getattr(cfg, "latency_last_trigger", "")),
                     latency_last_timestamp=(self._latest_latency.recorded_at_utc if self._latest_latency else getattr(cfg, "latency_last_timestamp", "")),
                     hdr_transfer=str(self.hdr_transfer_combo.currentText()), hdr_primaries=str(self.hdr_primaries_combo.currentText()), hdr_max_nits=float(self.hdr_max_nits_slider.value()),
+                    compositor_hdr_mode=bool(self.compositor_hdr_mode_checkbox.isChecked()), sdr_boost_nits=float(self.sdr_boost_nits_slider.value()),
+                    device_vid=int(vid_value), device_pid=int(pid_value),
                 )
 
         self._dialog = _Dialog()
