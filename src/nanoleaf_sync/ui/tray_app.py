@@ -342,7 +342,7 @@ class NanoleafTrayApp:
         self.action_stop = self.QAction("Stop", menu)
         self.action_settings = self.QAction("Settings", menu)
         self.action_display_wizard = self.QAction("Setup Wizard", menu)
-        self.action_calibration_settings = self.QAction("Calibration & Testing (Settings)", menu)
+        self.action_calibration_settings = self.QAction("Calibration & Testing", menu)
         self.action_status = self.QAction("About / Status", menu)
         self.action_troubleshooting = self.QAction("Help / Troubleshooting", menu)
         self.action_enable_autostart = self.QAction("Enable autostart", menu)
@@ -525,12 +525,13 @@ class NanoleafTrayApp:
             message = f"{message}\n\n{first_run_message(mode)}"
         self.tray_icon.showMessage("nanoleaf-kde-sync", message, self.QSystemTrayIcon.MessageIcon.Information, 6000)
 
-    def on_settings(self):
+    def on_settings(self, *, initial_section: str | None = None):
         dlg = SettingsDialog(
             parent=None,
             cfg=self.config,
             calibration_sender=self._send_calibration_preview,
             runtime_status=self.service.get_status(),
+            initial_section=initial_section,
         )
         was_running = self.service.is_running() or bool(getattr(self, "_preview_paused_service", False))
         accepted = dlg.exec() == self.QDialog.DialogCode.Accepted
@@ -632,13 +633,7 @@ class NanoleafTrayApp:
         self._refresh_mode_labels()
 
     def on_open_calibration_settings(self) -> None:
-        self.tray_icon.showMessage(
-            "nanoleaf-kde-sync",
-            "Calibration tools moved to Settings → Calibration & Testing.",
-            self.QSystemTrayIcon.MessageIcon.Information,
-            4500,
-        )
-        self.on_settings()
+        self.on_settings(initial_section="Calibration & Testing")
 
     def on_doctor(self):
         self._run_command_async(label="doctor", argv=[sys.executable, "-m", "nanoleaf_sync.tools.doctor"])

@@ -70,7 +70,15 @@ def _qt_widget(qt: dict[str, object], name: str, fallback):
 
 
 class SettingsDialog:
-    def __init__(self, parent, cfg: AppConfig, *, calibration_sender: Callable[[list[tuple[int, int, int]]], None] | None = None, runtime_status: dict | None = None):
+    def __init__(
+        self,
+        parent,
+        cfg: AppConfig,
+        *,
+        calibration_sender: Callable[[list[tuple[int, int, int]]], None] | None = None,
+        runtime_status: dict | None = None,
+        initial_section: str | None = None,
+    ):
         qt = load_qt()
         QDialog = qt["QDialog"]
         QDialogButtonBox = qt["QDialogButtonBox"]
@@ -99,6 +107,8 @@ class SettingsDialog:
                 self._state = CalibrationState.from_config(cfg, runtime_status)
                 self._test_step = 0
                 self._latest_latency = None
+                self._section_widgets: dict[str, object] = {}
+                self._settings_scroll = None
 
                 self.brightness_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.brightness_slider.setRange(0, 100); self.brightness_slider.setValue(int(round(cfg.brightness * 100)))
                 self.smoothing_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.smoothing_slider.setRange(0, 100); self.smoothing_slider.setValue(int(round(cfg.smoothing * 100)))
@@ -218,15 +228,31 @@ class SettingsDialog:
                 root = QVBoxLayout()
                 scroll = QScrollArea()
                 scroll.setWidgetResizable(True)
+                self._settings_scroll = scroll
                 content = QWidget()
                 content_layout = QVBoxLayout()
 
-                content_layout.addWidget(self._build_backend_section(QGroupBox, QGridLayout, QLabel))
-                content_layout.addWidget(self._build_display_section(QGroupBox, QGridLayout, QLabel))
-                content_layout.addWidget(self._build_runtime_section(QGroupBox, QGridLayout, QLabel))
-                content_layout.addWidget(self._build_zone_mapping_section(QGroupBox, QGridLayout, QLabel))
-                content_layout.addWidget(self._build_calibration_testing_section(QGroupBox, QGridLayout, QLabel))
-                content_layout.addWidget(self._build_output_startup_section(QGroupBox, QGridLayout, QLabel))
+                backend_section = self._build_backend_section(QGroupBox, QGridLayout, QLabel)
+                display_section = self._build_display_section(QGroupBox, QGridLayout, QLabel)
+                runtime_section = self._build_runtime_section(QGroupBox, QGridLayout, QLabel)
+                zone_mapping_section = self._build_zone_mapping_section(QGroupBox, QGridLayout, QLabel)
+                calibration_section = self._build_calibration_testing_section(QGroupBox, QGridLayout, QLabel)
+                output_section = self._build_output_startup_section(QGroupBox, QGridLayout, QLabel)
+
+                self._section_widgets = {
+                    "Backend & Diagnostics": backend_section,
+                    "Display & Color": display_section,
+                    "Runtime & Performance": runtime_section,
+                    "Zone Mapping": zone_mapping_section,
+                    "Calibration & Testing": calibration_section,
+                    "Output & Startup": output_section,
+                }
+                content_layout.addWidget(backend_section)
+                content_layout.addWidget(display_section)
+                content_layout.addWidget(runtime_section)
+                content_layout.addWidget(zone_mapping_section)
+                content_layout.addWidget(calibration_section)
+                content_layout.addWidget(output_section)
                 content_layout.addStretch(1)
                 content.setLayout(content_layout)
                 scroll.setWidget(content)
@@ -236,6 +262,8 @@ class SettingsDialog:
 
                 self._sync_device_model_selection()
                 self._refresh_numeric_labels(); self._refresh_preview_label(); self._maybe_auto_run_latency_check()
+                if initial_section:
+                    self.focus_section(initial_section)
 
             def _apply_tooltips(self) -> None:
                 self.brightness_slider.setToolTip("Overall output intensity. Lower values reduce LED brightness.")
@@ -573,6 +601,19 @@ class SettingsDialog:
                     ),
                 }
 
+            def focus_section(self, section_name: str) -> bool:
+                target = self._section_widgets.get(section_name)
+                if target is None:
+                    return False
+                scroll = self._settings_scroll
+                if scroll is None:
+                    return False
+                ensure_widget_visible = getattr(scroll, "ensureWidgetVisible", None)
+                if callable(ensure_widget_visible):
+                    ensure_widget_visible(target, 0, 40)
+                    return True
+                return False
+
             def updated_config(self) -> AppConfig:
                 self._pull_state()
                 selected_model = str(self.device_model_combo.currentText())
@@ -616,3 +657,4 @@ class SettingsDialog:
     def exec(self) -> int: return self._dialog.exec()
     def updated_config(self) -> AppConfig: return self._dialog.updated_config()
     def wants_display_configurator(self) -> bool: return bool(self._dialog.wants_display_configurator())
+    def focus_section(self, section_name: str) -> bool: return bool(self._dialog.focus_section(section_name))
