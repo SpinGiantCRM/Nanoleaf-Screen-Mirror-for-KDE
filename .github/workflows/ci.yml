@@ -28,9 +28,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Keep coverage plugin explicit so the pytest --cov flags are always available,
+          # Keep CI tooling explicit so lint/type/test commands remain available,
           # even if optional extras resolution changes across pip/setuptools versions.
-          pip install -e .[test] pytest-cov
+          pip install -e .[test] pytest-cov ruff mypy
 
       - name: Validate version metadata
         run: python scripts/check_release_versions.py
