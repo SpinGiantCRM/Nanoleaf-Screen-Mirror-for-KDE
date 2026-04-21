@@ -56,6 +56,13 @@ class FakeDriver:
         self.closed = True
 
 
+@dataclass
+class FailingCloseDriver(FakeDriver):
+    def close(self) -> None:
+        self.closed = True
+        raise RuntimeError("driver close failed")
+
+
 class TestServiceStatusAndMode:
     def _make_service(
         self, capture_name="mock"
@@ -137,6 +144,24 @@ class TestServiceStatusAndMode:
         svc.stop()
         svc.join(timeout=2.0)
         assert driver.frames_sent >= 1
+
+
+def test_close_backends_clears_references_on_close_failures() -> None:
+    class _FailingCloseCapture(FakeCapture):
+        def close(self) -> None:
+            raise RuntimeError("capture close failed")
+
+    service = NanoleafSyncService(
+        config=AppConfig(fps=30, verbose=False, use_mock_capture=False),
+        capture_backend_override=_FailingCloseCapture(name="kwin-dbus"),
+        driver_override=FailingCloseDriver(),
+    )
+    service._install_drivers()
+
+    service._close_backends()
+
+    assert service._capture is None
+    assert service._driver is None
 
 
 def test_service_passes_cached_probe_winner_on_reinitialize(monkeypatch) -> None:
