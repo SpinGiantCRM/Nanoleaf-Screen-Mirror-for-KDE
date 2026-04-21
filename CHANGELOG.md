@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.7] - 2026-04-21
+
+## What's Changed
+* Reduce wizard vertical spacing and make corner-anchor calibration honor offset/direction by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/149
+
+
+**Full Changelog**: https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/compare/v0.6.6...v0.6.7
+
 ## [0.6.6] - 2026-04-21
 
 ## What's Changed
