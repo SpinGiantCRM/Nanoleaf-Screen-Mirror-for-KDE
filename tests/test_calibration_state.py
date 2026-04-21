@@ -85,7 +85,32 @@ def test_latency_policy_is_predictable_and_manual_vs_auto_labeled() -> None:
     summary = latency_result_summary(result)
     assert "backend=kwin-dbus" in summary
     assert "measurement_kind" not in summary
-    assert "[estimated]" in summary
+    assert "[heuristic frame-interval estimate]" in summary
+
+
+def test_latency_summary_distinguishes_measured_vs_estimated() -> None:
+    measured = build_latency_result(
+        requested_policy="auto",
+        selected_backend="kwin-dbus",
+        selection_source="auto-probe",
+        selection_reason="probe winner",
+        measured_latency_ms=21.0,
+        measurement_kind="measured",
+        confidence_note="runtime samples",
+        triggered_by="manual",
+    )
+    estimated = build_latency_result(
+        requested_policy="auto",
+        selected_backend="kwin-dbus",
+        selection_source="auto-probe",
+        selection_reason="probe winner",
+        measured_latency_ms=16.7,
+        measurement_kind="estimated",
+        confidence_note="fps-derived",
+        triggered_by="manual",
+    )
+    assert "[measured pipeline latency]" in latency_result_summary(measured)
+    assert "[heuristic frame-interval estimate]" in latency_result_summary(estimated)
 
 
 def test_testing_step_controls_and_frame_generation_stay_coherent() -> None:

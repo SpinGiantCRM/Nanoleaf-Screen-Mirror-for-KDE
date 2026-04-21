@@ -7,6 +7,8 @@ from typing import Any, List, Optional, Tuple
 
 import numpy as np
 
+from nanoleaf_sync.capture.latency_probe import LatencyProbe
+
 RGBTuple = Tuple[int, int, int]
 ZoneRect = Tuple[int, int, int, int]
 
@@ -32,6 +34,7 @@ class RuntimeState:
     last_error_guidance: Optional[str] = None
     frames_sent: int = 0
     last_frame_timestamp: Optional[float] = None
+    latency_probe: LatencyProbe = field(default_factory=LatencyProbe)
     last_reinit_ts: float = 0.0
     is_reinitializing: bool = False
 
@@ -48,6 +51,7 @@ class RuntimeState:
         self.last_error_guidance = None
         self.frames_sent = 0
         self.last_frame_timestamp = None
+        self.latency_probe = LatencyProbe()
         self.is_reinitializing = False
 
     def mark_startup(self, succeeded: bool) -> None:
@@ -83,6 +87,7 @@ class RuntimeState:
         max_consecutive_errors: int,
         reinit_backoff_ms: int,
     ) -> dict[str, Any]:
+        measurement = self.latency_probe.measurement()
         return {
             "running": running,
             "last_error": self.last_error,
@@ -99,6 +104,18 @@ class RuntimeState:
             "consecutive_errors": self.consecutive_errors,
             "frames_sent": self.frames_sent,
             "last_frame_timestamp": self.last_frame_timestamp,
+            "latency_measurement": (
+                None
+                if measurement is None
+                else {
+                    "sample_count": measurement.sample_count,
+                    "capture_interval_median_ms": measurement.capture_interval_median_ms,
+                    "capture_interval_p95_ms": measurement.capture_interval_p95_ms,
+                    "pipeline_median_ms": measurement.pipeline_median_ms,
+                    "pipeline_p95_ms": measurement.pipeline_p95_ms,
+                    "pipeline_jitter_ms": measurement.pipeline_jitter_ms,
+                }
+            ),
             "max_consecutive_errors": max_consecutive_errors,
             "reinit_backoff_ms": reinit_backoff_ms,
         }
