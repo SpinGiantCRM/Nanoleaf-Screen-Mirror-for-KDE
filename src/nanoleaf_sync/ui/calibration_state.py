@@ -121,7 +121,7 @@ class CalibrationState:
             return f"Auto detection succeeded: detected strip zone count {self.detected_device_zone_count}."
         return (
             "Auto detection failed: no device-reported strip zone count was available. "
-            f"Using fallback source zone count {self.zone_count}."
+            f"Using fallback screen sampling zone count {self.zone_count}."
         )
 
     def effective_device_zone_count(self) -> int:
@@ -278,7 +278,7 @@ def build_testing_panel_state(*, state: CalibrationState, runtime_status: dict |
             + (f" | Unresolved: {backend.unresolved_reason}" if backend.unresolved_reason else "")
         ),
         zone_mode_summary=(
-            "Device zone mode: auto" if state.auto_device_zone_count else "Device zone mode: manual"
+            "Strip LED zone mode: auto" if state.auto_device_zone_count else "Strip LED zone mode: manual"
         )
         + f" | {state.auto_detection_status()}",
         effective_zone_count=state.effective_device_zone_count(),

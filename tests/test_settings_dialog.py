@@ -261,15 +261,16 @@ def test_settings_dialog_saves_zone_preset_reverse_and_offset(monkeypatch) -> No
     assert len(updated.zones) == 5
 
 
-def test_settings_dialog_updates_zone_sampling_stride(monkeypatch) -> None:
+def test_settings_dialog_updates_sampling_quality(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
 
-    cfg = AppConfig(zones=[], zone_sampling_stride=1)
+    cfg = AppConfig(zones=[], sampling_quality="balanced")
     dialog = SettingsDialog(parent=None, cfg=cfg)
-    dialog._dialog.zone_sampling_stride_slider.setValue(3)
+    high_idx = dialog._dialog.sampling_quality_combo.findText("High")
+    dialog._dialog.sampling_quality_combo.setCurrentIndex(high_idx)
 
     updated = dialog.updated_config()
-    assert updated.zone_sampling_stride == 3
+    assert updated.sampling_quality == "high"
 
 
 def test_settings_dialog_uses_measured_latency_when_runtime_samples_available(monkeypatch) -> None:
@@ -424,6 +425,7 @@ def test_settings_dialog_applies_tooltips_to_key_controls(monkeypatch) -> None:
     assert dialog._dialog.smoothing_slider._tooltip
     assert dialog._dialog.smoothing_speed_slider._tooltip
     assert dialog._dialog.fps_slider._tooltip
+    assert dialog._dialog.sampling_quality_combo._tooltip
     assert dialog._dialog.led_gamma_slider._tooltip
     assert dialog._dialog.zone_count_slider._tooltip
     assert dialog._dialog.zone_offset_slider._tooltip

@@ -26,6 +26,8 @@ def dump_toml(payload: dict[str, Any]) -> str:
     except ImportError:
         lines: list[str] = []
         for key, value in payload.items():
+            if key == "sampling_quality":
+                value = str(value).strip().lower()
             if key == "zones" and isinstance(value, list):
                 for zone in value:
                     lines.append("[[zones]]")

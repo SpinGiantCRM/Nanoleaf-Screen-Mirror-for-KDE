@@ -41,6 +41,9 @@ class AppConfig:
     # Zone sampling stride (1 = every pixel, 2 = every other pixel, etc.).
     # Larger values reduce CPU cost at the expense of color precision.
     zone_sampling_stride: int = 1
+    # User-facing quality preset for screen sampling.
+    # Low = best performance, Balanced = default, High = best visual fidelity.
+    sampling_quality: str = "balanced"
     # High-count target for edge preset capture thickness in normalized units.
     # Lower zone counts are automatically thinner to avoid center-heavy sampling.
     edge_sampling_thickness: float = 0.12

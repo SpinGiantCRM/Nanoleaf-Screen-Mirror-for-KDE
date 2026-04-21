@@ -11,6 +11,16 @@ from nanoleaf_sync.config.model import AppConfig, ZoneConfig
 
 logger = logging.getLogger(__name__)
 
+SAMPLING_QUALITY_TO_ZONE_STRIDE: dict[str, int] = {
+    "low": 4,
+    "balanced": 2,
+    "high": 1,
+}
+
+
+def sampling_quality_to_zone_stride(quality: str) -> int:
+    return SAMPLING_QUALITY_TO_ZONE_STRIDE.get(str(quality).strip().lower(), 2)
+
 
 def coerce_bool(value: Any, default: bool) -> bool:
     if isinstance(value, bool):
@@ -40,7 +50,19 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     smoothing_speed = max(0.0, min(4.0, float(cfg.smoothing_speed)))
     led_gamma = max(1.0, min(4.0, float(cfg.led_gamma)))
     fps = max(1, min(120, int(cfg.fps)))
-    zone_sampling_stride = max(1, int(cfg.zone_sampling_stride))
+    sampling_quality = normalize_enum(
+        getattr(cfg, "sampling_quality", AppConfig.sampling_quality),
+        allowed={
+            "low": "low",
+            "balanced": "balanced",
+            "high": "high",
+            "performance": "low",
+            "default": "balanced",
+            "quality": "high",
+        },
+        default=AppConfig.sampling_quality,
+    )
+    zone_sampling_stride = sampling_quality_to_zone_stride(sampling_quality)
 
     zones: List[ZoneConfig] = []
     for z in cfg.zones:
@@ -177,6 +199,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         led_gamma=led_gamma,
         zones=zones,
         zone_sampling_stride=zone_sampling_stride,
+        sampling_quality=sampling_quality,
         zone_preset=zone_preset,
         color_mode=color_mode,
         wizard_completed=coerce_bool(getattr(cfg, "wizard_completed", False), False),

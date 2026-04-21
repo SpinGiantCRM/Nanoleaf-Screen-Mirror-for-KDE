@@ -22,8 +22,7 @@ FPS_MIN = 1
 FPS_MAX = 120
 HDR_MAX_NITS_MIN = 80
 HDR_MAX_NITS_MAX = 10000
-ZONE_STRIDE_MIN = 1
-ZONE_STRIDE_MAX = 8
+SAMPLING_QUALITY_OPTIONS: tuple[str, ...] = ("Low", "Balanced", "High")
 MAX_ZONE_COUNT = 128
 SDR_BOOST_NITS_MIN = 80
 SDR_BOOST_NITS_MAX = 400
@@ -127,7 +126,7 @@ class SettingsDialog:
                 self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_offset_slider.setRange(-64, 64); self.zone_offset_slider.setValue(self._state.zone_offset)
                 self.reverse_checkbox = QCheckBox("Reverse strip orientation"); self.reverse_checkbox.setChecked(self._state.reverse_zones)
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.device_zone_count_slider.setRange(1, MAX_ZONE_COUNT); self.device_zone_count_slider.setValue(self._state.device_zone_count)
-                self.device_zone_count_auto_checkbox = QCheckBox("Auto device zone count")
+                self.device_zone_count_auto_checkbox = QCheckBox("Auto strip LED zone count")
                 self.device_zone_count_auto_checkbox.setChecked(self._state.auto_device_zone_count)
                 self.device_zone_status_label = QLabel("")
                 self.corner_anchor_button = QPushButton("Set next top-left anchor")
@@ -188,17 +187,18 @@ class SettingsDialog:
                 self.hdr_transfer_combo = QComboBox(); self.hdr_transfer_combo.addItems(["srgb", "pq"]); self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))))
                 self.hdr_primaries_combo = QComboBox(); self.hdr_primaries_combo.addItems(["bt709", "bt2020"]); self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText(str(getattr(cfg, "hdr_primaries", "bt709")))))
                 self.hdr_max_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.hdr_max_nits_slider.setRange(HDR_MAX_NITS_MIN, HDR_MAX_NITS_MAX); self.hdr_max_nits_slider.setValue(int(getattr(cfg, "hdr_max_nits", 1000.0)))
-                self.zone_sampling_stride_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_sampling_stride_slider.setRange(ZONE_STRIDE_MIN, ZONE_STRIDE_MAX); self.zone_sampling_stride_slider.setValue(int(getattr(cfg, "zone_sampling_stride", 1)))
+                self.sampling_quality_combo = QComboBox(); self.sampling_quality_combo.addItems(list(SAMPLING_QUALITY_OPTIONS)); self.sampling_quality_combo.setCurrentIndex(max(0, self.sampling_quality_combo.findText(str(getattr(cfg, "sampling_quality", "balanced")).capitalize())))
                 self.led_gamma_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.led_gamma_slider.setRange(100, 400); self.led_gamma_slider.setValue(int(round(getattr(cfg, "led_gamma", 1.0) * 100)))
                 self.display_configurator_button = QPushButton("Re-run Display Setup"); self.display_configurator_button.clicked.connect(self._open_configurator)
                 self._apply_tooltips()
 
                 self.backend_info_label = QLabel("")
                 self.preview_label = QLabel(""); self.preview_visual_label = QLabel(""); self.test_label = QLabel("")
-                self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.zone_offset_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.zone_sampling_stride_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel(""); self.test_duration_value = QLabel(""); self.test_step_interval_value = QLabel(""); self.test_brightness_value = QLabel("")
+                self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.zone_offset_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.sampling_quality_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel(""); self.test_duration_value = QLabel(""); self.test_step_interval_value = QLabel(""); self.test_brightness_value = QLabel("")
 
                 for signal in (
                     self.zone_count_slider.valueChanged,
+                    self.sampling_quality_combo.currentIndexChanged,
                     self.zone_preset_combo.currentIndexChanged,
                     self.zone_offset_slider.valueChanged,
                     self.device_zone_count_slider.valueChanged,
@@ -270,9 +270,10 @@ class SettingsDialog:
                 self.smoothing_slider.setToolTip("Blends frame-to-frame colors to reduce flicker.")
                 self.smoothing_speed_slider.setToolTip("Motion response gain for smoothing. Lower values react slower (more smoothing); 0 keeps the strongest smoothing.")
                 self.fps_slider.setToolTip("Capture/update target rate. Higher FPS uses more CPU/GPU.")
+                self.sampling_quality_combo.setToolTip("Low = better performance, Balanced = default, High = best visual fidelity.")
                 self.led_gamma_slider.setToolTip("Gamma correction for LED response. 1.00 keeps output linear.")
-                self.zone_count_slider.setToolTip("Number of source zones sampled from the display.")
-                self.zone_offset_slider.setToolTip("Global mapping zone offset that rotates the strip mapping around device zones.")
+                self.zone_count_slider.setToolTip("Number of screen sampling zones sampled from the display.")
+                self.zone_offset_slider.setToolTip("Global mapping zone offset that rotates the strip mapping around strip LED zones.")
                 self.reverse_checkbox.setToolTip("Flip strip direction if the mapping appears mirrored.")
                 self.display_mode_combo.setToolTip("Select SDR or HDR processing mode.")
                 self.color_mode_combo.setToolTip("Colour behavior preset used by the analyzer.")
@@ -335,7 +336,7 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Smoothing"), 1, 0); layout.addWidget(self.smoothing_slider, 1, 1); layout.addWidget(self.smoothing_value, 1, 2)
                 layout.addWidget(QLabel("Smoothing speed"), 2, 0); layout.addWidget(self.smoothing_speed_slider, 2, 1); layout.addWidget(self.smoothing_speed_value, 2, 2)
                 layout.addWidget(QLabel("Capture FPS"), 3, 0); layout.addWidget(self.fps_slider, 3, 1); layout.addWidget(self.fps_value, 3, 2)
-                layout.addWidget(QLabel("Zone sampling stride"), 4, 0); layout.addWidget(self.zone_sampling_stride_slider, 4, 1); layout.addWidget(self.zone_sampling_stride_value, 4, 2)
+                layout.addWidget(QLabel("Sampling quality"), 4, 0); layout.addWidget(self.sampling_quality_combo, 4, 1); layout.addWidget(self.sampling_quality_value, 4, 2)
                 layout.addWidget(QLabel("LED gamma"), 5, 0); layout.addWidget(self.led_gamma_slider, 5, 1); layout.addWidget(self.led_gamma_value, 5, 2)
                 group.setLayout(layout)
                 return group
@@ -343,11 +344,11 @@ class SettingsDialog:
             def _build_zone_mapping_section(self, QGroupBox, QGridLayout, QLabel):
                 group = QGroupBox("Zone Mapping")
                 layout = QGridLayout()
-                layout.addWidget(QLabel("Source zone count"), 0, 0); layout.addWidget(self.zone_count_slider, 0, 1); layout.addWidget(self.zone_count_value, 0, 2)
+                layout.addWidget(QLabel("Screen sampling zone count"), 0, 0); layout.addWidget(self.zone_count_slider, 0, 1); layout.addWidget(self.zone_count_value, 0, 2)
                 layout.addWidget(QLabel("Zone layout preset"), 1, 0); layout.addWidget(self.zone_preset_combo, 1, 1, 1, 2)
                 layout.addWidget(QLabel("Global mapping zone offset (rotation)"), 2, 0); layout.addWidget(self.zone_offset_slider, 2, 1); layout.addWidget(self.zone_offset_value, 2, 2)
                 layout.addWidget(self.reverse_checkbox, 3, 0, 1, 2)
-                layout.addWidget(QLabel("Device zone count"), 4, 0); layout.addWidget(self.device_zone_count_slider, 4, 1); layout.addWidget(self.device_zone_count_value, 4, 2)
+                layout.addWidget(QLabel("Strip LED zone count"), 4, 0); layout.addWidget(self.device_zone_count_slider, 4, 1); layout.addWidget(self.device_zone_count_value, 4, 2)
                 layout.addWidget(self.device_zone_count_auto_checkbox, 5, 0, 1, 3)
                 layout.addWidget(self.device_zone_status_label, 6, 0, 1, 3)
                 row = 7
@@ -400,7 +401,7 @@ class SettingsDialog:
                 self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = "edge-weighted" if zone_preset_label.startswith("Edge strip") else "horizontal"; self._state.zone_offset = int(self.zone_offset_slider.value()); self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value()); self._state.auto_device_zone_count = bool(self.device_zone_count_auto_checkbox.isChecked())
 
             def _refresh_numeric_labels(self):
-                self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.zone_sampling_stride_value.setText(str(self.zone_sampling_stride_slider.value())); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.zone_offset_value.setText(str(self.zone_offset_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}"); self.test_duration_value.setText(str(self.test_duration_slider.value())); self.test_step_interval_value.setText(str(self.test_step_interval_slider.value())); self.test_brightness_value.setText(f"{self.test_brightness_slider.value()}%")
+                self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.sampling_quality_value.setText({"Low": "Better performance", "Balanced": "Default", "High": "Best visual fidelity"}.get(str(self.sampling_quality_combo.currentText()), "Default")); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.zone_offset_value.setText(str(self.zone_offset_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}"); self.test_duration_value.setText(str(self.test_duration_slider.value())); self.test_step_interval_value.setText(str(self.test_step_interval_slider.value())); self.test_brightness_value.setText(f"{self.test_brightness_slider.value()}%")
 
             def _refresh_preview_label(self):
                 self._refresh_numeric_labels(); self._pull_state()
@@ -442,7 +443,7 @@ class SettingsDialog:
                     step=self._test_step,
                 )
                 self.preview_label.setText(
-                    f"{panel.zone_mode_summary}\nEffective zone count in use: {panel.effective_zone_count}\n{self._state.mapping_preview_text()}"
+                    f"{panel.zone_mode_summary}\nEffective strip LED zone count in use: {panel.effective_zone_count}\n{self._state.mapping_preview_text()}"
                 )
                 self.preview_visual_label.setText(self._state.mapping_preview_visual())
                 self.test_label.setText(f"{panel.active_test_description}\n{panel.backend_summary}")
@@ -629,7 +630,7 @@ class SettingsDialog:
                 new_zones = make_edge_weighted_zones(self._state.zone_count) if self._state.zone_preset == "edge-weighted" else make_horizontal_zones(self._state.zone_count)
                 return replace(
                     cfg,
-                    fps=int(self.fps_slider.value()), zone_sampling_stride=int(self.zone_sampling_stride_slider.value()), brightness=self.brightness_slider.value() / 100.0,
+                    fps=int(self.fps_slider.value()), sampling_quality=str(self.sampling_quality_combo.currentText()).lower(), brightness=self.brightness_slider.value() / 100.0,
                     smoothing=self.smoothing_slider.value() / 100.0, smoothing_speed=self.smoothing_speed_slider.value() / 100.0, led_gamma=self.led_gamma_slider.value() / 100.0,
                     zones=new_zones, zone_preset=self._state.zone_preset, color_mode=str(self.color_mode_combo.currentText()), hdr_enabled=str(self.display_mode_combo.currentText()) == "hdr",
                     start_on_launch=bool(self.start_on_launch_checkbox.isChecked()), device_zone_count=0 if self._state.auto_device_zone_count else self._state.device_zone_count,
