@@ -34,4 +34,4 @@ def derive_source_zones(
     preset = str(getattr(config, "zone_preset", "edge-weighted"))
     if preset == "horizontal":
         return make_horizontal_zones(count)
-    return make_edge_weighted_zones(count)
+    return make_edge_weighted_zones(count, edge_sampling_thickness=float(config.edge_sampling_thickness))

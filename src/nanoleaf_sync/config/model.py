@@ -41,6 +41,9 @@ class AppConfig:
     # Zone sampling stride (1 = every pixel, 2 = every other pixel, etc.).
     # Larger values reduce CPU cost at the expense of color precision.
     zone_sampling_stride: int = 1
+    # High-count target for edge preset capture thickness in normalized units.
+    # Lower zone counts are automatically thinner to avoid center-heavy sampling.
+    edge_sampling_thickness: float = 0.12
     zone_preset: str = "edge-weighted"
     color_mode: str = "default"
     # Tracks whether the first-run display configurator has been completed.

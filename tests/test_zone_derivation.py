@@ -22,3 +22,11 @@ def test_derive_source_zones_preserves_explicit_configured_zones() -> None:
     zones = derive_source_zones(config=cfg, detected_device_zone_count=10)
     assert len(zones) == 1
     assert zones == cfg.zones
+
+
+def test_derive_source_zones_threads_edge_sampling_thickness() -> None:
+    cfg = AppConfig(zones=[], zone_preset="edge-weighted", device_zone_count=48, edge_sampling_thickness=0.2)
+    zones = derive_source_zones(config=cfg, detected_device_zone_count=None)
+    assert len(zones) == 48
+    assert any(zone.w == 0.2 for zone in zones)
+    assert any(zone.h == 0.2 for zone in zones)

@@ -18,3 +18,22 @@ def test_make_edge_weighted_zones_shape() -> None:
 def test_make_edge_weighted_zones_honors_low_counts() -> None:
     zones = make_edge_weighted_zones(1)
     assert len(zones) == 1
+
+
+def test_make_edge_weighted_zones_stay_perimeter_biased_across_common_counts() -> None:
+    for count in (8, 12, 24, 48):
+        zones = make_edge_weighted_zones(count)
+        assert len(zones) == count
+        for zone in zones:
+            assert (
+                (zone.y == 0.0 and zone.h <= 0.12)
+                or (zone.x + zone.w == 1.0 and zone.w <= 0.12)
+                or (zone.y + zone.h == 1.0 and zone.h <= 0.12)
+                or (zone.x == 0.0 and zone.w <= 0.12)
+            )
+
+
+def test_make_edge_weighted_zones_uses_configured_high_count_thickness() -> None:
+    zones = make_edge_weighted_zones(48, edge_sampling_thickness=0.2)
+    assert any(zone.w == 0.2 for zone in zones)
+    assert any(zone.h == 0.2 for zone in zones)
