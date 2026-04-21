@@ -30,7 +30,7 @@ class AppConfig:
     # Color -> device mapping
     brightness: float = 1.0  # [0.0, 1.0]
     smoothing: float = 0.5  # One-Euro minimum responsiveness in [0.0, 1.0]
-    smoothing_speed: float = 0.75  # One-Euro speed coefficient in [0.0, 4.0]
+    smoothing_speed: float = 0.75  # Adaptive motion gain in [0.0, 4.0]; lower = slower response / more smoothing.
     led_gamma: float = 1.0  # Output correction for LED electrical response.
 
     # Zones

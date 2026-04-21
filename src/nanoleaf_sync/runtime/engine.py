@@ -86,9 +86,11 @@ def _adaptive_one_euro_blend(
         return current
 
     velocity = np.abs(current - previous)
-    # Scale 8-bit channel deltas into a 0..~1 adaptive range.
-    speed_scale = max(0.01, float(smoothing_speed)) * 64.0
-    speed = np.clip(velocity / speed_scale, 0.0, 1.0)
+    # Higher smoothing_speed should respond faster to motion.
+    # 0.0 intentionally disables adaptive acceleration so the blend remains
+    # at `min_alpha` (slowest response / strongest smoothing).
+    speed_gain = np.clip(float(smoothing_speed) / 4.0, 0.0, 1.0) ** 2
+    speed = np.clip((velocity / 64.0) * speed_gain, 0.0, 1.0)
     alpha = min_alpha + (1.0 - min_alpha) * speed
     return alpha * current + (1.0 - alpha) * previous
 

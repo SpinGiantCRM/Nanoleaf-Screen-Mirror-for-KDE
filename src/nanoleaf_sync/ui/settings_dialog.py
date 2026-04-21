@@ -239,6 +239,7 @@ class SettingsDialog:
             def _apply_tooltips(self) -> None:
                 self.brightness_slider.setToolTip("Overall output intensity. Lower values reduce LED brightness.")
                 self.smoothing_slider.setToolTip("Blends frame-to-frame colors to reduce flicker.")
+                self.smoothing_speed_slider.setToolTip("Motion response gain for smoothing. Lower values react slower (more smoothing); 0 keeps the strongest smoothing.")
                 self.fps_slider.setToolTip("Capture/update target rate. Higher FPS uses more CPU/GPU.")
                 self.led_gamma_slider.setToolTip("Gamma correction for LED response. 1.00 keeps output linear.")
                 self.zone_count_slider.setToolTip("Number of source zones sampled from the display.")
