@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Sequence
 
 from nanoleaf_sync.color.zone_mapper import resolve_device_zone_indices
-from nanoleaf_sync.runtime.anchor_calibration import derive_anchor_zone_map, validate_corner_anchors
 
 
 def mapping_indices(
@@ -19,6 +18,7 @@ def mapping_indices(
     corner_anchor_bottom_right: int = -1,
     corner_anchor_bottom_left: int = -1,
 ) -> list[int]:
+    _ = (corner_anchor_top_left, corner_anchor_top_right, corner_anchor_bottom_right, corner_anchor_bottom_left)
     normalized_device_zone_count = int(device_zone_count)
     if normalized_device_zone_count <= 0:
         return resolve_device_zone_indices(
@@ -29,20 +29,6 @@ def mapping_indices(
             explicit_zone_map=list(explicit_zone_map) if explicit_zone_map else None,
             corner_zone_offsets=list(corner_zone_offsets) if corner_zone_offsets else None,
         )
-
-    anchors = {
-        "top_left": corner_anchor_top_left if corner_anchor_top_left >= 0 else None,
-        "top_right": corner_anchor_top_right if corner_anchor_top_right >= 0 else None,
-        "bottom_right": corner_anchor_bottom_right if corner_anchor_bottom_right >= 0 else None,
-        "bottom_left": corner_anchor_bottom_left if corner_anchor_bottom_left >= 0 else None,
-    }
-    validation = validate_corner_anchors(anchors=anchors, device_zone_count=normalized_device_zone_count)
-    if validation.valid:
-        return derive_anchor_zone_map(
-            zone_count=zone_count,
-            device_zone_count=normalized_device_zone_count,
-            anchors=anchors,
-        ).explicit_zone_map
 
     return resolve_device_zone_indices(
         max(1, int(zone_count)),
@@ -68,34 +54,7 @@ def mapping_preview_text(
     corner_anchor_bottom_left: int = -1,
     show_limit: int = 16,
 ) -> str:
-    normalized_device_zone_count = int(device_zone_count)
-    anchors = {
-        "top_left": corner_anchor_top_left if corner_anchor_top_left >= 0 else None,
-        "top_right": corner_anchor_top_right if corner_anchor_top_right >= 0 else None,
-        "bottom_right": corner_anchor_bottom_right if corner_anchor_bottom_right >= 0 else None,
-        "bottom_left": corner_anchor_bottom_left if corner_anchor_bottom_left >= 0 else None,
-    }
-    anchor_line = "Corner anchors: incomplete"
-    direction = "n/a"
-    edges = "n/a"
-    if normalized_device_zone_count <= 0:
-        anchor_line = "Corner anchors: waiting for device zone count."
-    else:
-        validation = validate_corner_anchors(anchors=anchors, device_zone_count=normalized_device_zone_count)
-        if validation.valid:
-            derived = derive_anchor_zone_map(
-                zone_count=zone_count,
-                device_zone_count=normalized_device_zone_count,
-                anchors=anchors,
-            )
-            direction = derived.direction
-            edges = "/".join(str(v) for v in derived.edge_lengths)
-            anchor_line = (
-                f"Corner anchors (TL/TR/BR/BL): {corner_anchor_top_left}/{corner_anchor_top_right}/{corner_anchor_bottom_right}/{corner_anchor_bottom_left}"
-            )
-        else:
-            anchor_line = f"Corner anchors: {'; '.join(validation.errors)}"
-
+    anchors_supplied = any(v >= 0 for v in (corner_anchor_top_left, corner_anchor_top_right, corner_anchor_bottom_right, corner_anchor_bottom_left))
     indices = mapping_indices(
         zone_count=zone_count,
         device_zone_count=device_zone_count,
@@ -103,18 +62,15 @@ def mapping_preview_text(
         reverse_zones=reverse_zones,
         explicit_zone_map=explicit_zone_map,
         corner_zone_offsets=corner_zone_offsets,
-        corner_anchor_top_left=corner_anchor_top_left,
-        corner_anchor_top_right=corner_anchor_top_right,
-        corner_anchor_bottom_right=corner_anchor_bottom_right,
-        corner_anchor_bottom_left=corner_anchor_bottom_left,
     )
     limit = max(1, int(show_limit))
     preview = ", ".join(str(i) for i in indices[:limit])
     suffix = "…" if len(indices) > limit else ""
+    model = "explicit map" if explicit_zone_map else "offset + direction"
+    notes = "\nNote: legacy corner anchors are ignored; calibration uses only offset + direction." if anchors_supplied else ""
     return (
-        f"Calibration model: corner anchors | source zones: {zone_count} | strip zones: {device_zone_count}\n"
-        f"{anchor_line}\n"
-        f"Derived direction: {direction} | edge spans: {edges}\n"
+        f"Calibration model: {model} | source zones: {zone_count} | strip zones: {device_zone_count}\n"
+        f"Offset: {int(zone_offset):+d} | Direction: {'counter-clockwise' if reverse_zones else 'clockwise'}{notes}\n"
         f"Device zone order (device→screen): {preview}{suffix}"
     )
 
