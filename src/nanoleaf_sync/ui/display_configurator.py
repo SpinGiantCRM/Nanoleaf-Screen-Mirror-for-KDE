@@ -165,6 +165,11 @@ class DisplayConfiguratorDialog:
                 self.calibration_next_button = QPushButton("Next test zone")
                 self.calibration_prev_button = QPushButton("Previous")
                 self.calibration_send_button = QPushButton("Send test pattern")
+                self.assign_tl_button = QPushButton("Assign current zone → Top-left")
+                self.assign_tr_button = QPushButton("Assign current zone → Top-right")
+                self.assign_br_button = QPushButton("Assign current zone → Bottom-right")
+                self.assign_bl_button = QPushButton("Assign current zone → Bottom-left")
+                self.current_zone_label = QLabel("")
 
                 # Step 5
                 self.summary_label = QLabel("")
@@ -197,6 +202,10 @@ class DisplayConfiguratorDialog:
                 self.calibration_next_button.clicked.connect(self._next_test_zone)
                 self.calibration_prev_button.clicked.connect(self._prev_test_zone)
                 self.calibration_send_button.clicked.connect(self._send_test_pattern)
+                self.assign_tl_button.clicked.connect(lambda: self._assign_anchor("top_left"))
+                self.assign_tr_button.clicked.connect(lambda: self._assign_anchor("top_right"))
+                self.assign_br_button.clicked.connect(lambda: self._assign_anchor("bottom_right"))
+                self.assign_bl_button.clicked.connect(lambda: self._assign_anchor("bottom_left"))
 
                 self.pages = QStackedWidget()
                 self.pages.addWidget(self._build_step_1(QWidget, QGridLayout, QLabel))
@@ -301,7 +310,12 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.calibration_next_button, 11, 0, 1, 2)
                 layout.addWidget(self.calibration_prev_button, 11, 2)
                 layout.addWidget(self.calibration_send_button, 12, 0, 1, 2)
-                layout.addWidget(self.calibration_test_label, 13, 0, 1, 3)
+                layout.addWidget(self.current_zone_label, 13, 0, 1, 3)
+                layout.addWidget(self.assign_tl_button, 14, 0, 1, 3)
+                layout.addWidget(self.assign_tr_button, 15, 0, 1, 3)
+                layout.addWidget(self.assign_br_button, 16, 0, 1, 3)
+                layout.addWidget(self.assign_bl_button, 17, 0, 1, 3)
+                layout.addWidget(self.calibration_test_label, 18, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -383,6 +397,8 @@ class DisplayConfiguratorDialog:
                 self.preview_text.setText(self._state.mapping_preview_text())
                 self.preview_visual.setText(self._state.mapping_preview_visual())
                 self.calibration_test_label.setText(preview.active_test_description)
+                current_zone = int(self._test_step) % max(1, self._state.effective_device_zone_count())
+                self.current_zone_label.setText(f"Current physical strip zone: {current_zone}")
                 self.summary_label.setText(
                     "\n".join(
                         (
@@ -415,8 +431,24 @@ class DisplayConfiguratorDialog:
                     zone_offset=self._state.zone_offset,
                     corner_offsets_enabled=bool(self._state.corner_offsets_enabled),
                     corner_zone_offsets=self._state.active_corner_zone_offsets(),
+                    corner_anchor_top_left=int(self._state.corner_anchor_top_left),
+                    corner_anchor_top_right=int(self._state.corner_anchor_top_right),
+                    corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
+                    corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
                     wizard_completed=True,
                 )
+
+            def _assign_anchor(self, corner: str) -> None:
+                current_zone = int(self._test_step) % max(1, self._state.effective_device_zone_count())
+                if corner == "top_left":
+                    self._state.corner_anchor_top_left = current_zone
+                elif corner == "top_right":
+                    self._state.corner_anchor_top_right = current_zone
+                elif corner == "bottom_right":
+                    self._state.corner_anchor_bottom_right = current_zone
+                elif corner == "bottom_left":
+                    self._state.corner_anchor_bottom_left = current_zone
+                self._refresh()
 
             def _send_test_pattern(self) -> None:
                 if self._calibration_sender is None:

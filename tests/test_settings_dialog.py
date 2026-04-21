@@ -282,8 +282,8 @@ def test_mapping_preview_uses_explicit_auto_flag() -> None:
         explicit_zone_map=[0, 1, 2],
     )
 
-    assert "Calibration mode: simple" in auto_text
-    assert "Calibration mode: manual" in manual_text
+    assert "Calibration model: corner anchors" in auto_text
+    assert "Device zone order" in manual_text
 
 
 def test_settings_dialog_manual_map_is_saved(monkeypatch) -> None:
@@ -335,3 +335,17 @@ def test_settings_dialog_applies_tooltips_to_key_controls(monkeypatch) -> None:
     assert dialog._dialog.display_mode_combo._tooltip
     assert dialog._dialog.color_mode_combo._tooltip
     assert dialog._dialog.hdr_max_nits_slider._tooltip
+
+def test_settings_dialog_saves_corner_anchor_assignments(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    cfg = AppConfig(zones=[], device_zone_count=8)
+    dialog = SettingsDialog(parent=None, cfg=cfg)
+
+    dialog._dialog._test_step = 2
+    dialog._dialog._assign_anchor("top_left")
+    dialog._dialog._test_step = 4
+    dialog._dialog._assign_anchor("top_right")
+
+    updated = dialog.updated_config()
+    assert updated.corner_anchor_top_left >= 0
+    assert updated.corner_anchor_top_right >= 0
