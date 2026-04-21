@@ -240,7 +240,7 @@ class NanoleafTrayApp:
             driver.send_frame(colors)
         except Exception as exc:
             _log.warning("Calibration preview send failed: %s", exc, exc_info=True)
-            self._close_preview_driver(resume_service=False)
+            self._close_preview_driver(resume_service=True)
             self.tray_icon.showMessage(
                 "nanoleaf-kde-sync",
                 f"Calibration test pattern failed: {exc}",
