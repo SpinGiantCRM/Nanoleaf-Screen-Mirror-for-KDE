@@ -21,6 +21,11 @@ DeviceZoneMappingSignature = Tuple[
     Tuple[int, ...],
     bool,
     Tuple[int, ...],
+    str,
+    int,
+    int,
+    int,
+    int,
 ]
 
 

@@ -2,15 +2,10 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from nanoleaf_sync.color.zone_mapper import resolve_device_zone_indices
-from nanoleaf_sync.runtime.anchor_calibration import derive_anchor_zone_map, validate_corner_anchors
-
-
-def _normalize_anchor(value: int | None) -> int | None:
-    if value is None:
-        return None
-    parsed = int(value)
-    return parsed if parsed >= 0 else None
+from nanoleaf_sync.runtime.calibration_resolver import (
+    CalibrationMappingSnapshot,
+    resolve_calibration_mapping,
+)
 
 
 def mapping_indices(
@@ -27,43 +22,21 @@ def mapping_indices(
     corner_anchor_bottom_left: int = -1,
     calibration_model: str = "offset_direction",
 ) -> list[int]:
-    normalized_model = str(calibration_model).strip().lower().replace("-", "_")
-    anchor_map: list[int] | None = None
-    if normalized_model == "corner_anchored":
-        anchors = {
-            "top_left": _normalize_anchor(corner_anchor_top_left),
-            "top_right": _normalize_anchor(corner_anchor_top_right),
-            "bottom_right": _normalize_anchor(corner_anchor_bottom_right),
-            "bottom_left": _normalize_anchor(corner_anchor_bottom_left),
-        }
-        validation = validate_corner_anchors(anchors=anchors, device_zone_count=device_zone_count)
-        if validation.valid:
-            anchor_map = derive_anchor_zone_map(
-                zone_count=zone_count,
-                device_zone_count=device_zone_count,
-                anchors=anchors,
-            ).explicit_zone_map
-    normalized_device_zone_count = int(device_zone_count)
-    if normalized_device_zone_count <= 0:
-        return resolve_device_zone_indices(
-            max(1, int(zone_count)),
-            device_zone_count=1,
-            zone_offset=int(zone_offset),
-            reverse=bool(reverse_zones),
-            manual_mapping_enabled=bool(anchor_map or explicit_zone_map),
-            explicit_zone_map=list(anchor_map or explicit_zone_map) if (anchor_map or explicit_zone_map) else None,
-            corner_zone_offsets=list(corner_zone_offsets) if corner_zone_offsets else None,
-        )
-
-    return resolve_device_zone_indices(
-        max(1, int(zone_count)),
-        device_zone_count=normalized_device_zone_count,
-        zone_offset=int(zone_offset),
-        reverse=bool(reverse_zones),
-        manual_mapping_enabled=bool(anchor_map or explicit_zone_map),
-        explicit_zone_map=list(anchor_map or explicit_zone_map) if (anchor_map or explicit_zone_map) else None,
-        corner_zone_offsets=list(corner_zone_offsets) if corner_zone_offsets else None,
+    snapshot = resolve_calibration_mapping(
+        zone_count=zone_count,
+        device_zone_count=device_zone_count,
+        zone_offset=zone_offset,
+        reverse_zones=reverse_zones,
+        manual_mapping_enabled=bool(explicit_zone_map),
+        explicit_zone_map=explicit_zone_map,
+        corner_zone_offsets=corner_zone_offsets,
+        corner_anchor_top_left=corner_anchor_top_left,
+        corner_anchor_top_right=corner_anchor_top_right,
+        corner_anchor_bottom_right=corner_anchor_bottom_right,
+        corner_anchor_bottom_left=corner_anchor_bottom_left,
+        calibration_model=calibration_model,
     )
+    return snapshot.device_to_source_indices
 
 
 def mapping_preview_text(
@@ -79,37 +52,32 @@ def mapping_preview_text(
     corner_anchor_bottom_right: int = -1,
     corner_anchor_bottom_left: int = -1,
     calibration_model: str = "offset_direction",
+    resolved_mapping: CalibrationMappingSnapshot | None = None,
     show_limit: int = 16,
 ) -> str:
-    normalized_model = str(calibration_model).strip().lower().replace("-", "_")
-    anchors = {
-        "top_left": _normalize_anchor(corner_anchor_top_left),
-        "top_right": _normalize_anchor(corner_anchor_top_right),
-        "bottom_right": _normalize_anchor(corner_anchor_bottom_right),
-        "bottom_left": _normalize_anchor(corner_anchor_bottom_left),
-    }
-    anchor_validation = validate_corner_anchors(anchors=anchors, device_zone_count=device_zone_count)
-    indices = mapping_indices(
+    snapshot = resolved_mapping or resolve_calibration_mapping(
         zone_count=zone_count,
         device_zone_count=device_zone_count,
         zone_offset=zone_offset,
         reverse_zones=reverse_zones,
+        manual_mapping_enabled=bool(explicit_zone_map),
         explicit_zone_map=explicit_zone_map,
         corner_zone_offsets=corner_zone_offsets,
         corner_anchor_top_left=corner_anchor_top_left,
         corner_anchor_top_right=corner_anchor_top_right,
         corner_anchor_bottom_right=corner_anchor_bottom_right,
         corner_anchor_bottom_left=corner_anchor_bottom_left,
-        calibration_model=normalized_model,
+        calibration_model=calibration_model,
     )
+    indices = snapshot.device_to_source_indices
     limit = max(1, int(show_limit))
     preview = ", ".join(str(i) for i in indices[:limit])
     suffix = "…" if len(indices) > limit else ""
-    if normalized_model == "corner_anchored":
+    if snapshot.calibration_model == "corner_anchored":
         model = "corner anchored"
         notes = ""
-        if not anchor_validation.valid:
-            notes = f"\nCorner anchor validation: {'; '.join(anchor_validation.errors)}"
+        if snapshot.anchor_validation_errors:
+            notes = f"\nCorner anchor validation: {'; '.join(snapshot.anchor_validation_errors)}"
     else:
         model = "explicit map" if explicit_zone_map else "offset + direction"
         notes = ""
@@ -120,8 +88,8 @@ def mapping_preview_text(
     )
 
 
-def mapping_preview_visual(*, show_limit: int = 12, **kwargs) -> str:
-    indices = mapping_indices(**kwargs)
+def mapping_preview_visual(*, show_limit: int = 12, resolved_mapping: CalibrationMappingSnapshot | None = None, **kwargs) -> str:
+    indices = resolved_mapping.device_to_source_indices if resolved_mapping else mapping_indices(**kwargs)
     if not indices:
         return "No mapping available."
     limit = max(1, int(show_limit))
