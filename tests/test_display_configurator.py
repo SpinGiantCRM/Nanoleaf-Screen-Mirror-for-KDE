@@ -549,10 +549,11 @@ def test_display_configurator_blocks_finish_on_hard_fail_with_strict_message(mon
     dialog._dialog._refresh()
 
     assert dialog._dialog.finish_button._enabled is False
-    assert "strict calibration policy requires confidence=1.00 and sentinel consistency" in dialog._dialog.finish_override_note._text
+    assert "warning overrides are not allowed" in dialog._dialog.finish_policy_note._text
+    assert hasattr(dialog._dialog, "finish_override_checkbox") is False
 
 
-def test_display_configurator_blocks_finish_on_warning_sentinel_mismatch(monkeypatch) -> None:
+def test_display_configurator_blocks_finish_on_sentinel_mismatch_without_override(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
     dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=8))
     for step_id in dialog._dialog._state.calibration_steps():
@@ -568,7 +569,8 @@ def test_display_configurator_blocks_finish_on_warning_sentinel_mismatch(monkeyp
 
     assert dialog._dialog._state.validation_report().hard_fail is True
     assert dialog._dialog.finish_button._enabled is False
-    assert "strict calibration policy requires confidence=1.00 and sentinel consistency" in dialog._dialog.finish_override_note._text
+    assert "warning overrides are not allowed" in dialog._dialog.finish_policy_note._text
+    assert hasattr(dialog._dialog, "finish_override_checkbox") is False
 
 
 def test_display_configurator_summary_shows_model_and_phase_distinctly(monkeypatch) -> None:
