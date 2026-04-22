@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.calibration_state import (
     MIN_CALIBRATION_VALIDATION_CONFIDENCE,
@@ -328,3 +330,31 @@ def test_zone_count_change_invalidates_dependent_phase_progress() -> None:
         assert validation.valid is False
         assert validation.details == ""
     assert state.can_complete_calibration_flow() is False
+
+
+def test_calibration_step_markers_emit_non_sensitive_phase_events(caplog) -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=8), {})
+    with caplog.at_level(logging.INFO):
+        state.mark_calibration_step("direction-verification", passed=False, notes="Phase is not marked as passed yet.")
+
+    assert "telemetry.calibration.phase_complete phase=direction-verification passed=False" in caplog.text
+    assert "failure_cause=not_marked_passed" in caplog.text
+
+
+def test_calibration_flow_markers_emit_blocked_and_evaluated_events(caplog) -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=8), {})
+    with caplog.at_level(logging.INFO):
+        assert state.can_complete_calibration_flow() is False
+    assert "telemetry.calibration.flow_blocked phase=start-point-detection" in caplog.text
+
+    caplog.clear()
+    for step_id in state.calibration_steps():
+        state.mark_calibration_step(step_id, passed=True)
+    expected = state.validation_report().expected_sentinels
+    state.corner_anchor_top_left = expected[0]
+    state.corner_anchor_top_right = expected[1]
+    state.corner_anchor_bottom_right = expected[2]
+    state.corner_anchor_bottom_left = expected[3]
+    with caplog.at_level(logging.INFO):
+        assert state.can_complete_calibration_flow() is True
+    assert "telemetry.calibration.flow_evaluated allowed=True outcome=pass confidence=1.00" in caplog.text

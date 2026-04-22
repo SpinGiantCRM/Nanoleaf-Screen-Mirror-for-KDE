@@ -38,6 +38,58 @@ nanoleaf-kde-sync-rc-runner --mode full-real --env-id C1 --rc-version vX.Y.Z-rcN
 
 Attach command output snippets (or CI links) in the release PR for traceability.
 
+## Staged rollout safety plan (calibration-sensitive releases)
+
+Use phased rollout to catch edge-case calibration regressions before broad exposure.
+
+### 1) Gate rollout and collect focused feedback
+
+- **Alpha (internal + power users, 5-10% of active install base, Days 1-2):**
+  - Enable release only for opt-in testers.
+  - Ask for feedback on calibration reliability with a short template:
+    - "Did calibration finish end-to-end?"
+    - "Were repeated re-calibrations needed within 24h?"
+    - "Was anchor validation messaging clear/confusing?"
+- **Beta (25-40% of active install base, Days 3-5):**
+  - Expand only if alpha rollback criteria are not triggered.
+  - Continue collecting the same calibration-focused feedback fields.
+- **Canary broad (60-80%, Days 6-7):**
+  - Expand if beta remains healthy.
+  - Monitor telemetry markers and user reports daily.
+
+### 2) Rollback criteria (trigger immediate pause + patch triage)
+
+Rollback to previous stable build (or halt further rollout) if any of the following occur during any phase:
+
+- Calibration completion failure rate rises above **3%** of calibration attempts.
+- Repeated re-calibration reports exceed **10%** of feedback responses.
+- Anchor validation confusion reports exceed **5%** of feedback responses.
+- Any hard regression causes blocked completion in required phases (`direction-verification`, `corner-assignment`, `validation-replay`) across multiple environments.
+
+### 3) Lightweight telemetry/log markers (no sensitive payloads)
+
+Track only phase IDs and generic failure causes; never log user-entered free-text or display content.
+
+- `telemetry.calibration.phase_complete`:
+  - `phase=<step_id>`, `passed=<true|false>`, `failure_cause=<enum>`
+- `telemetry.calibration.flow_blocked`:
+  - `phase=<step_id>`, `failure_cause=<enum>`
+- `telemetry.calibration.flow_evaluated`:
+  - `allowed=<true|false>`, `outcome=<pass|fail>`, `confidence=<0.00-1.00>`, `sentinel_consistency=<true|false>`
+- `telemetry.calibration.phase_invalidation`:
+  - `trigger=zone_count_change`, `invalidated_count=<n>`, `next_phase=<step_id>`
+
+Failure-cause enums should remain low-cardinality (e.g., `prerequisites`, `not_marked_passed`, `anchor_validation`, `confidence`, `sentinel_mismatch`, `validation_failed`, `unknown`).
+
+### 4) End-of-window release decision
+
+At the close of the rollout window (recommended: 7 days):
+
+- **Full release** if rollback criteria were never met and telemetry remains stable through canary.
+- **Patch cycle** if any rollback criterion triggered, or if qualitative feedback indicates persistent anchor-validation confusion despite acceptable quantitative rates.
+
+Record the decision and rationale in the release PR body and changelog notes.
+
 | Env ID | OS | Session | Mode | Doctor | Smoke | Tray lifecycle | Notes |
 |---|---|---|---|---|---|---|---|
 | A1 | Arch | Wayland | full-mock |  |  |  |  |
