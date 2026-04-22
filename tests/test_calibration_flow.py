@@ -1,13 +1,22 @@
 from __future__ import annotations
 
+from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE, calibration_sequence_text, derive_corner_anchor_device_indices
+from nanoleaf_sync.ui.calibration_state import CalibrationState
 from nanoleaf_sync.ui.calibration_preview import calibration_test_frame
 
 
 def test_calibration_sequence_contains_required_order() -> None:
-    keys = [step.key for step in CALIBRATION_SEQUENCE]
-    assert keys == ["find-top-left", "set-offset", "set-direction"]
-    assert "Find top-left strip zone" in calibration_sequence_text()
+    keys = [step.step_id for step in CALIBRATION_SEQUENCE]
+    assert keys == [
+        "start-point-detection",
+        "direction-verification",
+        "corner-assignment",
+        "edge-refinement",
+        "validation-replay",
+    ]
+    assert "Start-point detection" in calibration_sequence_text()
+    assert CALIBRATION_SEQUENCE[2].prerequisites == ("direction-verification",)
 
 
 def test_derive_corner_anchor_device_indices_stays_unique_with_more_device_zones() -> None:
@@ -74,3 +83,24 @@ def test_corner_anchor_traversal_wraps_without_mutating_zone_offset_input() -> N
 
     assert zone_offset == 4
     assert step0 == wrapped
+
+
+def test_calibration_step_prerequisites_gate_completion() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=8), {})
+    assert state.calibration_prerequisites_met("start-point-detection") is True
+    assert state.calibration_prerequisites_met("direction-verification") is False
+    state.mark_calibration_step("start-point-detection", passed=True)
+    assert state.calibration_prerequisites_met("direction-verification") is True
+    state.mark_calibration_step("direction-verification", passed=True)
+    state.mark_calibration_step("corner-assignment", passed=True)
+    state.mark_calibration_step("edge-refinement", passed=True)
+    state.mark_calibration_step("validation-replay", passed=True)
+    assert state.can_complete_calibration_flow() is True
+
+
+def test_calibration_step_fail_keeps_completion_gate_closed() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=8), {})
+    for step in CALIBRATION_SEQUENCE[:-1]:
+        state.mark_calibration_step(step.step_id, passed=True)
+    state.mark_calibration_step(CALIBRATION_SEQUENCE[-1].step_id, passed=False, notes="missed zone")
+    assert state.can_complete_calibration_flow() is False
