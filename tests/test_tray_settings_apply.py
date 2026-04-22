@@ -24,6 +24,9 @@ class _FakeService:
     def get_status(self):
         return {}
 
+    def start(self):
+        return True
+
 
 class _FakeDialog:
     def __init__(self, parent, cfg, **_kwargs):
@@ -137,7 +140,8 @@ def test_on_settings_rerun_display_setup_persists_pending_settings(monkeypatch) 
         wizard_opened=False,
     )
 
-    def _open():
+    def _open(*, was_running_intent=None):
+        assert was_running_intent is False
         fake_tray.wizard_opened = True
 
     fake_tray.on_display_configurator = _open
@@ -147,3 +151,55 @@ def test_on_settings_rerun_display_setup_persists_pending_settings(monkeypatch) 
     assert fake_tray.wizard_opened is True
     assert fake_tray.cfg_mgr.saved is not None
     assert fake_tray.cfg_mgr.saved.device_zone_count == 0
+
+
+def test_on_settings_rerun_display_setup_restarts_when_running_before_settings(monkeypatch) -> None:
+    class _FakeDisplayConfiguratorDialog:
+        def __init__(self, parent, cfg, **_kwargs):
+            self._cfg = cfg
+
+        def exec(self):
+            return 1
+
+        def updated_config(self):
+            return AppConfig(
+                zones=[ZoneConfig(x=0.0, y=0.0, w=1.0, h=1.0)],
+                device_zone_count=0,
+                wizard_completed=True,
+            )
+
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.SettingsDialog", _FakeDialogRerun)
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.DisplayConfiguratorDialog", _FakeDisplayConfiguratorDialog)
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.NanoleafSyncService", _FakeService)
+
+    class _TrayIcon:
+        def showMessage(self, *_args, **_kwargs):
+            return None
+
+    starts = {"count": 0}
+    fake_tray = SimpleNamespace(
+        config=AppConfig(zones=[ZoneConfig(x=0.0, y=0.0, w=1.0, h=1.0)], device_zone_count=1),
+        cfg_mgr=_FakeCfgMgr(),
+        service=_FakeService(config=AppConfig(device_zone_count=1)),
+        QDialog=SimpleNamespace(DialogCode=SimpleNamespace(Accepted=1)),
+        QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Information=1)),
+        _refresh_mode_labels=lambda: None,
+        _send_calibration_preview=lambda _colors: None,
+        _close_preview_driver=lambda *, resume_service=False: setattr(fake_tray, "_preview_paused_service", False),
+        _preview_paused_service=True,
+        tray_icon=_TrayIcon(),
+        _calibration_dialog=None,
+    )
+
+    def _on_start():
+        starts["count"] += 1
+
+    fake_tray.on_start = _on_start
+    fake_tray.on_stop = lambda: None
+    fake_tray.on_display_configurator = lambda *, was_running_intent=None: NanoleafTrayApp.on_display_configurator(
+        fake_tray, was_running_intent=was_running_intent
+    )
+
+    NanoleafTrayApp.on_settings(fake_tray)
+
+    assert starts["count"] == 1
