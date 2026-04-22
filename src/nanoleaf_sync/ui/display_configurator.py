@@ -37,7 +37,18 @@ class _FallbackLayout:
 
 
 class _FallbackWidget:
+    def __init__(self, *_args, **_kwargs) -> None:
+        return None
+
     def setLayout(self, *_args, **_kwargs) -> None:
+        return None
+
+
+class _FallbackGroupBox(_FallbackWidget):
+    def setCheckable(self, *_args, **_kwargs) -> None:
+        return None
+
+    def setChecked(self, *_args, **_kwargs) -> None:
         return None
 
 
@@ -88,7 +99,7 @@ class DisplayConfiguratorDialog:
         QSlider = qt["QSlider"]
         QPushButton = qt["QPushButton"]
         QTimer = _qt_widget(qt, "QTimer", None)
-        QGroupBox = _qt_widget(qt, "QGroupBox", _FallbackWidget)
+        QGroupBox = _qt_widget(qt, "QGroupBox", _FallbackGroupBox)
         QStackedWidget = _qt_widget(qt, "QStackedWidget", _FallbackStackedWidget)
         QWidget = _qt_widget(qt, "QWidget", _FallbackWidget)
         QHBoxLayout = _qt_widget(qt, "QHBoxLayout", _FallbackLayout)
@@ -400,12 +411,18 @@ class DisplayConfiguratorDialog:
                 self._refresh()
 
             def _cancel(self) -> None:
-                self._stop_live_preview()
                 self.reject()
 
             def _finish(self) -> None:
-                self._stop_live_preview()
                 self.accept()
+
+            def reject(self) -> None:  # type: ignore[override]
+                self._stop_live_preview()
+                super().reject()
+
+            def accept(self) -> None:  # type: ignore[override]
+                self._stop_live_preview()
+                super().accept()
 
             def _set_sampling_preset(self, preset: str) -> None:
                 self.sampling_quality_combo.setCurrentIndex(max(0, self.sampling_quality_combo.findText(str(preset).capitalize())))

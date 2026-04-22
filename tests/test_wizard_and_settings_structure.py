@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.calibration_state import CORNER_OFFSET_LIMIT, CalibrationState
-from nanoleaf_sync.ui.display_configurator import MAX_WIZARD_ZONE_COUNT, WIZARD_STEPS, WizardFlowState
+from nanoleaf_sync.ui.display_configurator import (
+    MAX_WIZARD_ZONE_COUNT,
+    WIZARD_STEPS,
+    WizardFlowState,
+    _FallbackGroupBox,
+)
 from nanoleaf_sync.ui.settings_dialog import MAX_ZONE_COUNT, SETTINGS_SECTIONS
 
 
@@ -52,3 +57,9 @@ def test_setup_and_settings_share_zone_preset_default() -> None:
     state = CalibrationState.from_config(cfg, runtime_status={})
     assert cfg.zone_preset == "edge-weighted"
     assert state.zone_preset == cfg.zone_preset
+
+
+def test_qgroupbox_fallback_accepts_constructor_args() -> None:
+    group = _FallbackGroupBox("Advanced calibration")
+    group.setCheckable(True)
+    group.setChecked(False)
