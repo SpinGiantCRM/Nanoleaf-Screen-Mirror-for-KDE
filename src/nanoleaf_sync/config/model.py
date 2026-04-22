@@ -45,6 +45,9 @@ class CalibrationConfig:
     corner_anchor_top_right: int = -1
     corner_anchor_bottom_right: int = -1
     corner_anchor_bottom_left: int = -1
+    corner_anchor_fallback_active: bool = False
+    corner_anchor_fallback_strategy: str = ""
+    corner_anchor_warning_codes: list[str] = field(default_factory=list)
     corner_start_anchor: int = -1
     corner_offsets_enabled: bool = False
     corner_zone_offsets: list[int] = field(default_factory=list)
@@ -149,6 +152,9 @@ class AppConfig:
     corner_anchor_top_right: int = -1
     corner_anchor_bottom_right: int = -1
     corner_anchor_bottom_left: int = -1
+    corner_anchor_fallback_active: bool = False
+    corner_anchor_fallback_strategy: str = ""
+    corner_anchor_warning_codes: list[str] = field(default_factory=list)
 
     # Guided corner calibration: optional explicit top-left device anchor index.
     # Negative means inferred from current mapping.
@@ -248,6 +254,18 @@ class AppConfig:
             corner_anchor_bottom_left=int(
                 calibration_or_legacy("corner_anchor_bottom_left", defaults.corner_anchor_bottom_left)
             ),
+            corner_anchor_fallback_active=bool(
+                calibration_or_legacy("corner_anchor_fallback_active", defaults.corner_anchor_fallback_active)
+            ),
+            corner_anchor_fallback_strategy=str(
+                calibration_or_legacy("corner_anchor_fallback_strategy", defaults.corner_anchor_fallback_strategy)
+            ),
+            corner_anchor_warning_codes=[
+                str(i)
+                for i in (
+                    calibration_or_legacy("corner_anchor_warning_codes", defaults.corner_anchor_warning_codes) or []
+                )
+            ],
             corner_start_anchor=int(calibration_or_legacy("corner_start_anchor", defaults.corner_start_anchor)),
             corner_offsets_enabled=bool(
                 calibration_or_legacy("corner_offsets_enabled", defaults.corner_offsets_enabled)

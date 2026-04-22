@@ -80,6 +80,9 @@ def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:
         "corner_anchor_top_right",
         "corner_anchor_bottom_right",
         "corner_anchor_bottom_left",
+        "corner_anchor_fallback_active",
+        "corner_anchor_fallback_strategy",
+        "corner_anchor_warning_codes",
         "corner_start_anchor",
         "corner_offsets_enabled",
         "corner_zone_offsets",
@@ -199,6 +202,19 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     corner_anchor_top_right = int(calibration_or_legacy("corner_anchor_top_right", -1))
     corner_anchor_bottom_right = int(calibration_or_legacy("corner_anchor_bottom_right", -1))
     corner_anchor_bottom_left = int(calibration_or_legacy("corner_anchor_bottom_left", -1))
+    corner_anchor_fallback_active = coerce_bool(
+        calibration_or_legacy("corner_anchor_fallback_active", False),
+        False,
+    )
+    corner_anchor_fallback_strategy = str(
+        calibration_or_legacy("corner_anchor_fallback_strategy", "")
+        or ""
+    ).strip()
+    corner_anchor_warning_codes = [
+        str(i).strip()
+        for i in (calibration_or_legacy("corner_anchor_warning_codes", []) or [])
+        if str(i).strip()
+    ]
     corner_start_anchor = int(calibration_or_legacy("corner_start_anchor", -1))
     corner_offsets_enabled = coerce_bool(
         calibration_or_legacy("corner_offsets_enabled", AppConfig.corner_offsets_enabled),
@@ -241,6 +257,9 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         corner_anchor_top_right=corner_anchor_top_right,
         corner_anchor_bottom_right=corner_anchor_bottom_right,
         corner_anchor_bottom_left=corner_anchor_bottom_left,
+        corner_anchor_fallback_active=corner_anchor_fallback_active,
+        corner_anchor_fallback_strategy=corner_anchor_fallback_strategy,
+        corner_anchor_warning_codes=corner_anchor_warning_codes,
         corner_start_anchor=corner_start_anchor,
         corner_offsets_enabled=corner_offsets_enabled,
         corner_zone_offsets=corner_zone_offsets,
@@ -388,6 +407,9 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         corner_anchor_top_right=corner_anchor_top_right,
         corner_anchor_bottom_right=corner_anchor_bottom_right,
         corner_anchor_bottom_left=corner_anchor_bottom_left,
+        corner_anchor_fallback_active=corner_anchor_fallback_active,
+        corner_anchor_fallback_strategy=corner_anchor_fallback_strategy,
+        corner_anchor_warning_codes=corner_anchor_warning_codes,
         corner_start_anchor=corner_start_anchor,
         corner_offsets_enabled=corner_offsets_enabled,
         corner_zone_offsets=corner_zone_offsets,

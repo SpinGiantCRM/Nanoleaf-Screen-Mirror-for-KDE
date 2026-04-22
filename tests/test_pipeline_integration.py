@@ -196,3 +196,32 @@ def test_manual_explicit_model_forces_explicit_mapping_without_manual_flag() -> 
     assert runtime_snapshot.mode == "manual_explicit_map"
     assert preview_snapshot.device_to_source_indices == [3, 1, 0, 2]
     assert runtime_snapshot.device_to_source_indices == [3, 1, 0, 2]
+
+
+def test_corner_anchored_invalid_anchors_emit_fallback_indicator_and_warning_codes() -> None:
+    cfg = validate_config(
+        AppConfig(
+            zones=[
+                ZoneConfig(x=0.0, y=0.0, w=0.25, h=1.0),
+                ZoneConfig(x=0.25, y=0.0, w=0.25, h=1.0),
+                ZoneConfig(x=0.5, y=0.0, w=0.25, h=1.0),
+                ZoneConfig(x=0.75, y=0.0, w=0.25, h=1.0),
+            ],
+            device_zone_count=8,
+            calibration_model="corner_anchored",
+            zone_offset=2,
+            reverse_zones=True,
+            corner_anchor_top_left=1,
+            corner_anchor_top_right=1,
+            corner_anchor_bottom_right=-1,
+            corner_anchor_bottom_left=3,
+        )
+    )
+    snapshot = resolve_calibration_mapping_from_config(config=cfg, source_zone_count=len(cfg.zones))
+
+    assert snapshot.calibration_model == "corner_anchored"
+    assert snapshot.strategy == "offset_direction"
+    assert snapshot.fallback_strategy == "offset_direction"
+    assert snapshot.invalid_corner_anchor_fallback_active is True
+    assert "CORNER_ANCHOR_MISSING" in snapshot.warning_codes
+    assert "CORNER_ANCHOR_DUPLICATE" in snapshot.warning_codes

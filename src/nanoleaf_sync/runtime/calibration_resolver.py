@@ -14,8 +14,10 @@ class CalibrationMappingSnapshot:
     mode: str
     direction: str
     validation_warnings: tuple[str, ...]
+    warning_codes: tuple[str, ...]
     calibration_model: str
     strategy: str
+    fallback_strategy: str | None = None
 
     @property
     def anchor_validation_ok(self) -> bool:
@@ -25,6 +27,29 @@ class CalibrationMappingSnapshot:
     def anchor_validation_errors(self) -> tuple[str, ...]:
         # Backwards-compatible alias for older call-sites/tests.
         return self.validation_warnings
+
+    @property
+    def invalid_corner_anchor_fallback_active(self) -> bool:
+        return self.calibration_model == "corner_anchored" and bool(self.warning_codes)
+
+
+def _corner_anchor_warning_codes(
+    *,
+    anchors: dict[str, int | None],
+    device_zone_count: int,
+) -> tuple[str, ...]:
+    total = max(0, int(device_zone_count))
+    codes: list[str] = []
+    assigned_values = [int(value) for value in anchors.values() if value is not None]
+    if any(value is None for value in anchors.values()):
+        codes.append("CORNER_ANCHOR_MISSING")
+    if len(set(assigned_values)) != len(assigned_values):
+        codes.append("CORNER_ANCHOR_DUPLICATE")
+    if any(value < 0 or value >= total for value in assigned_values):
+        codes.append("CORNER_ANCHOR_OUT_OF_RANGE")
+    if total < 4:
+        codes.append("DEVICE_ZONE_COUNT_TOO_LOW")
+    return tuple(codes)
 
 
 @dataclass(frozen=True)
@@ -67,8 +92,10 @@ def resolve_calibration_mapping(
     }
 
     validation_warnings: tuple[str, ...] = ()
+    warning_codes: tuple[str, ...] = ()
     selected_explicit_map: list[int] | None = None
     strategy = "offset_direction"
+    fallback_strategy: str | None = None
     direction = "counter-clockwise" if bool(reverse_zones) else "clockwise"
 
     if normalized_model == "corner_anchored":
@@ -84,6 +111,11 @@ def resolve_calibration_mapping(
             direction = anchor_map.direction
         else:
             validation_warnings = tuple(anchor_validation.errors)
+            warning_codes = _corner_anchor_warning_codes(
+                anchors=anchors,
+                device_zone_count=device_zone_count,
+            )
+            fallback_strategy = "offset_direction"
 
     manual_explicit_mode = normalized_model == "manual_explicit_map"
     if selected_explicit_map is None and (manual_mapping_enabled or manual_explicit_mode) and explicit_zone_map:
@@ -109,7 +141,9 @@ def resolve_calibration_mapping(
         mode=strategy,
         direction=direction,
         validation_warnings=validation_warnings,
+        warning_codes=warning_codes,
         strategy=strategy,
+        fallback_strategy=fallback_strategy,
         calibration_model=normalized_model,
     )
 
