@@ -131,6 +131,17 @@ def test_config_persists_start_on_launch_and_color_mode(tmp_path: Path) -> None:
     assert loaded.color_mode == "dynamic"
 
 
+def test_config_persists_edge_sampling_thickness(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    mgr = ConfigManager(path=cfg_path)
+
+    cfg = AppConfig(edge_sampling_thickness=0.2)
+    mgr.save(cfg)
+    loaded = mgr.load()
+
+    assert loaded.edge_sampling_thickness == 0.2
+
+
 def test_config_persists_display_wizard_fields(tmp_path: Path) -> None:
     cfg_path = tmp_path / "config.toml"
     mgr = ConfigManager(path=cfg_path)
