@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 
@@ -24,6 +24,24 @@ class HIDTransport:
         self._handle: Optional[object] = None
 
     @staticmethod
+    def _fmt_path(value: Any) -> str:
+        if isinstance(value, bytes):
+            return value.decode("utf-8", errors="replace")
+        return str(value or "<unknown>")
+
+    @classmethod
+    def _describe_candidate(cls, device: dict[str, Any]) -> str:
+        path = cls._fmt_path(device.get("path"))
+        interface = device.get("interface_number")
+        usage_page = device.get("usage_page")
+        usage = device.get("usage")
+        serial = device.get("serial_number")
+        return (
+            f"path={path} interface={interface!r} usage_page={usage_page!r} "
+            f"usage={usage!r} serial={serial!r}"
+        )
+
+    @staticmethod
     def _tlv_expected_len(buf: bytearray, expected_type: int) -> int | None:
         if len(buf) < 3:
             return None
@@ -39,23 +57,54 @@ class HIDTransport:
                 "hidapi bindings not installed. Install `hidapi` package."
             ) from e
 
-        found = False
-        for _dev in hid.enumerate(self.ids.vid, self.ids.pid):
-            found = True
-            break
-        if not found:
+        devices = list(hid.enumerate(self.ids.vid, self.ids.pid))
+        if not devices:
             raise RuntimeError(
                 f"Nanoleaf device not found VID={self.ids.vid:#06x} PID={self.ids.pid:#06x}"
             )
 
         self._handle = hid.device()
+        open_errors: list[str] = []
+        seen_paths: set[str] = set()
+        candidates = [dev for dev in devices if isinstance(dev, dict)]
+        sorted_devices = sorted(
+            candidates,
+            key=lambda dev: (
+                9999 if dev.get("interface_number") is None else int(dev.get("interface_number")),
+                self._fmt_path(dev.get("path")),
+            ),
+        )
+        if not sorted_devices:
+            sorted_devices = [{}]
+        for dev in sorted_devices:
+            path = dev.get("path")
+            path_text = self._fmt_path(path)
+            if path_text in seen_paths:
+                continue
+            seen_paths.add(path_text)
+            if not path:
+                continue
+            try:
+                self._handle.open_path(path)
+                return
+            except Exception as exc:
+                open_errors.append(
+                    f"open_path({path_text}) failed: {type(exc).__name__}: {exc}"
+                )
+
         try:
             self._handle.open(self.ids.vid, self.ids.pid)
+            return
         except Exception as exc:
+            open_errors.append(f"open({self.ids.vid:#06x}, {self.ids.pid:#06x}) failed: {type(exc).__name__}: {exc}")
             self._handle = None
+            candidates = "; ".join(self._describe_candidate(dev) for dev in sorted_devices)
+            attempts = "; ".join(open_errors) if open_errors else "no open attempts were made"
             raise RuntimeError(
-                "Failed to open Nanoleaf HID device. Check Linux HID permissions "
-                "(udev/group access) and that no other process has claimed the device."
+                "Failed to open Nanoleaf HID device after enumeration. "
+                f"Enumerated candidates: {candidates}. Attempt results: {attempts}. "
+                "This usually indicates one of: wrong interface/path selected by backend, busy device handle, "
+                "hidapi backend mismatch, or insufficient permissions."
             ) from exc
 
     def _build_report(self, payload: bytes) -> bytes:

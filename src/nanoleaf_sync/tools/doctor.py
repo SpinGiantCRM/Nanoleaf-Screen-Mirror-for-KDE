@@ -225,10 +225,23 @@ def _check_hid_enumeration(config: AppConfig) -> DoctorCheck:
             "Connect the device and verify IDs with lsusb, then rerun doctor.",
         )
 
+    details: list[str] = []
+    for idx, dev in enumerate(devices):
+        path = dev.get("path")
+        if isinstance(path, bytes):
+            path = path.decode("utf-8", errors="replace")
+        details.append(
+            f"#{idx} path={path or '<unknown>'} interface={dev.get('interface_number')!r} "
+            f"usage_page={dev.get('usage_page')!r} usage={dev.get('usage')!r}"
+        )
+
     return DoctorCheck(
         "hid-device",
         "pass",
-        f"Found {len(devices)} matching HID device(s) for VID={vid:#06x} PID={pid:#06x}.",
+        (
+            f"Found {len(devices)} matching HID device(s) for VID={vid:#06x} PID={pid:#06x}. "
+            + " ".join(details)
+        ),
     )
 
 
@@ -249,11 +262,23 @@ def _check_real_device_probe(config: AppConfig) -> DoctorCheck:
             f"Device initialized successfully (model={driver.model_number}, zones={driver.zone_count}).",
         )
     except Exception as exc:
+        lowered = str(exc).lower()
+        if "failed to open nanoleaf hid device after enumeration" in lowered:
+            action = (
+                "Run `nanoleaf-kde-sync-doctor` and review hid-device interface/path details, "
+                "then retry with `--device`. If open_path/open failures persist, capture the full "
+                "attempt results to distinguish busy-handle vs backend mismatch vs permission issues."
+            )
+        else:
+            action = (
+                "Verify permissions and supported models first. If permissions are already correct, "
+                "rerun `nanoleaf-kde-sync-doctor --device` and capture the full exception text for deeper HID diagnosis."
+            )
         return DoctorCheck(
             "device-probe",
             "fail",
             f"Device probe failed: {exc}",
-            "Check udev permissions and supported model list (NL82K1/NL82K2).",
+            action,
         )
     finally:
         try:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 
 from nanoleaf_sync.capture.backend_selection import (
     AUTO_BACKEND,
@@ -90,6 +91,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"capture failed: kind={translated.kind}")
         print(f"capture error: {translated.summary}")
         print(f"guidance: {translated.guidance}")
+        if translated.kind == "kwin-authorization":
+            desktop_startup = (os.environ.get("DESKTOP_STARTUP_ID") or "unset").strip() or "unset"
+            activation_token = (os.environ.get("XDG_ACTIVATION_TOKEN") or "unset").strip() or "unset"
+            print(
+                "context: CLI smoke tests run outside KDE launcher policy unless launched from an authorized "
+                "desktop entry. "
+                f"DESKTOP_STARTUP_ID={desktop_startup} XDG_ACTIVATION_TOKEN={activation_token}"
+            )
         raise SystemExit(1) from exc
     print(f"capture ok: frame shape={frame.shape}")
 

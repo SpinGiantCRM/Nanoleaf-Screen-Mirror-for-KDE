@@ -35,6 +35,8 @@ makepkg -si
 
 If you see `NoAuthorized` / `NotAuthorized` (especially with `DESKTOP_STARTUP_ID=unset` and `XDG_ACTIVATION_TOKEN=unset` in diagnostics), launch from the desktop entry or tray app so KDE policy applies `X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2`.
 
+Important: a shell-launched CLI smoke test is not equivalent to launching from an installed desktop entry. A `kwin-authorization` failure from shell often indicates launch-context limitations, not a broken desktop-entry launch path.
+
 ### No HID device found
 
 1. Confirm USB IDs with `lsusb` (Nanoleaf USB: `37fa:8201` or `37fa:8202`).
@@ -45,6 +47,27 @@ If you see `NoAuthorized` / `NotAuthorized` (especially with `DESKTOP_STARTUP_ID
 ```
 
 3. Reconnect the device.
+
+### HID device is found but open still fails
+
+Symptoms:
+- `hid-device: PASS` with one or more matching devices
+- `device-probe: FAIL` with "Failed to open Nanoleaf HID device after enumeration"
+
+Next step:
+1. Re-run:
+   ```bash
+   nanoleaf-kde-sync-doctor
+   nanoleaf-kde-sync-doctor --device
+   ```
+2. Inspect `hid-device` details (path/interface/usage fields).
+3. Inspect `device-probe` `Attempt results` for each `open_path(...)` and VID/PID fallback.
+
+Interpretation:
+- no devices listed: enumeration / hardware visibility problem
+- per-path permission errors: udev/group/ACL problem
+- per-path busy/resource errors: another process likely holds the handle
+- all per-path opens fail with non-permission errors while ACLs are correct: likely interface/layout/backend mismatch on this session
 
 ### Colors look wrong on an HDR display
 

@@ -35,6 +35,22 @@ class _FailingOpenHandle(FakeHIDHandle):
         raise OSError("access denied")
 
 
+class _PathAwareHandle(FakeHIDHandle):
+    def __init__(self, *, fail_paths: set[bytes] | None = None) -> None:
+        super().__init__(reads=[])
+        self.fail_paths = fail_paths or set()
+        self.opened_path: bytes | None = None
+        self.opened_vidpid: tuple[int, int] | None = None
+
+    def open_path(self, path: bytes) -> None:
+        if path in self.fail_paths:
+            raise OSError("busy")
+        self.opened_path = path
+
+    def open(self, vid: int, pid: int) -> None:
+        self.opened_vidpid = (vid, pid)
+
+
 def test_transceive_round_trip_with_report_id_prefix() -> None:
     # response TLV: type=0x83, len=3, payload=00 00 0A
     fake = FakeHIDHandle([b"\x00\x83\x00\x03\x00\x00\x0A" + b"\x00" * 58])
@@ -126,5 +142,31 @@ def test_open_wraps_hid_permission_error_with_actionable_message(monkeypatch) ->
     monkeypatch.setitem(sys.modules, "hid", fake_hid)
 
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
-    with pytest.raises(RuntimeError, match="Linux HID permissions"):
+    with pytest.raises(RuntimeError, match="Attempt results"):
         transport.open()
+
+
+def test_open_prefers_enumerated_path_before_vid_pid(monkeypatch) -> None:
+    handle = _PathAwareHandle()
+    fake_hid = types.SimpleNamespace(
+        enumerate=lambda _vid, _pid: [{"path": b"/dev/hidraw3", "interface_number": 0}],
+        device=lambda: handle,
+    )
+    monkeypatch.setitem(sys.modules, "hid", fake_hid)
+    transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
+    transport.open()
+    assert handle.opened_path == b"/dev/hidraw3"
+    assert handle.opened_vidpid is None
+
+
+def test_open_uses_vid_pid_fallback_when_all_paths_fail(monkeypatch) -> None:
+    handle = _PathAwareHandle(fail_paths={b"/dev/hidraw3"})
+    fake_hid = types.SimpleNamespace(
+        enumerate=lambda _vid, _pid: [{"path": b"/dev/hidraw3", "interface_number": 1}],
+        device=lambda: handle,
+    )
+    monkeypatch.setitem(sys.modules, "hid", fake_hid)
+    transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
+    transport.open()
+    assert handle.opened_path is None
+    assert handle.opened_vidpid == (0x37FA, 0x8202)

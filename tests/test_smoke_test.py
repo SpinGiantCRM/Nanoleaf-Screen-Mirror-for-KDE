@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.tools import smoke_test
 
@@ -76,3 +78,35 @@ def test_smoke_test_forwards_auto_probe_kwargs(monkeypatch, capsys) -> None:
     assert captured_kwargs["auto_probe_enabled"] is False
     assert captured_kwargs["cached_probe_winner"] == "xdg-portal"
     assert "selection_reason=fresh-probe" in out
+
+
+def test_smoke_test_prints_kwin_auth_context_for_shell_launch(monkeypatch, capsys) -> None:
+    class _CfgMgr:
+        def load(self):
+            return AppConfig(device_vid=0x37FA, device_pid=0x8202, prefer_backend="kwin-dbus")
+
+    class _CaptureFail:
+        name = "kwin-dbus"
+
+        def capture(self):
+            raise RuntimeError("denied")
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(smoke_test, "ConfigManager", _CfgMgr)
+    monkeypatch.setattr(smoke_test, "create_capture_backend", lambda **_kwargs: _CaptureFail())
+    monkeypatch.setattr(
+        smoke_test,
+        "translate_runtime_error",
+        lambda _exc: type("Translated", (), {"kind": "kwin-authorization", "summary": "auth", "guidance": "launch differently"})(),
+    )
+    monkeypatch.delenv("DESKTOP_STARTUP_ID", raising=False)
+    monkeypatch.delenv("XDG_ACTIVATION_TOKEN", raising=False)
+
+    with pytest.raises(SystemExit) as excinfo:
+        smoke_test.main([])
+    assert excinfo.value.code == 1
+    out = capsys.readouterr().out
+    assert "CLI smoke tests run outside KDE launcher policy" in out
+    assert "DESKTOP_STARTUP_ID=unset" in out

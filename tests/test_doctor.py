@@ -164,3 +164,33 @@ def test_probe_status_reports_effective_env_override(monkeypatch) -> None:
     assert check.name == "probe-status"
     assert "effective_enabled=False" in check.message
     assert "NANOLEAF_DISABLE_CAPTURE_PROBE=true" in check.message
+
+
+def test_hid_enumeration_reports_interface_details(monkeypatch) -> None:
+    fake_hid = SimpleNamespace(
+        enumerate=lambda _vid, _pid: [
+            {"path": b"/dev/hidraw3", "interface_number": 2, "usage_page": 65280, "usage": 1}
+        ]
+    )
+    monkeypatch.setitem(doctor.sys.modules, "hid", fake_hid)
+    check = doctor._check_hid_enumeration(AppConfig(device_vid=0x37FA, device_pid=0x8202))
+    assert check.status == "pass"
+    assert "path=/dev/hidraw3" in check.message
+    assert "interface=2" in check.message
+
+
+def test_device_probe_open_failure_returns_targeted_action(monkeypatch) -> None:
+    class _Driver:
+        def __init__(self, **_kwargs) -> None:
+            return None
+
+        def initialize(self) -> None:
+            raise RuntimeError("Failed to open Nanoleaf HID device after enumeration")
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(doctor, "NanoleafUSBDriver", _Driver)
+    check = doctor._check_real_device_probe(AppConfig(device_vid=0x37FA, device_pid=0x8202))
+    assert check.status == "fail"
+    assert "review hid-device interface/path details" in check.action
