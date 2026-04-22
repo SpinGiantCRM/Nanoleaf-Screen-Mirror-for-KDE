@@ -52,9 +52,10 @@ def test_mapping_preview_text_waits_for_device_zone_count_in_auto_mode() -> None
         corner_anchor_top_right=2,
         corner_anchor_bottom_right=4,
         corner_anchor_bottom_left=6,
+        calibration_model="corner_anchored",
     )
     assert "strip zones: 0" in text
-    assert "legacy corner anchors are ignored" in text
+    assert "Corner anchor validation:" in text
 
 
 def test_zone_test_instruction_wraps_steps() -> None:

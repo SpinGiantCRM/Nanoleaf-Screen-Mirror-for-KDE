@@ -253,7 +253,7 @@ def test_display_configurator_uses_compact_default_window_size(monkeypatch) -> N
 
 def test_display_configurator_uses_corner_anchor_model(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
-    cfg = AppConfig(zones=[], device_zone_count=8)
+    cfg = AppConfig(zones=[], device_zone_count=8, calibration_model="corner_anchored")
     dialog = DisplayConfiguratorDialog(parent=None, cfg=cfg)
     dialog._dialog._test_step = 1
     dialog._dialog._assign_anchor("top_left")

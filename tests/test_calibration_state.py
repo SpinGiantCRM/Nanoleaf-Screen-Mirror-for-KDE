@@ -57,6 +57,22 @@ def test_manual_mapping_uses_explicit_config_flag_not_map_presence() -> None:
     assert enabled.manual_mapping_enabled is True
 
 
+def test_corner_anchored_model_changes_mapping_when_anchors_change() -> None:
+    cfg = AppConfig(
+        device_zone_count=12,
+        calibration_model="corner_anchored",
+        corner_anchor_top_left=0,
+        corner_anchor_top_right=3,
+        corner_anchor_bottom_right=6,
+        corner_anchor_bottom_left=9,
+    )
+    state = CalibrationState.from_config(cfg, {})
+    base = state.step_for_mode("direction walk", 0)
+    state.corner_anchor_top_left = 1
+    changed = state.step_for_mode("direction walk", 0)
+    assert changed.source_zone_index != base.source_zone_index
+
+
 def test_latency_policy_is_predictable_and_manual_vs_auto_labeled() -> None:
     assert should_auto_run_latency_probe(policy="manual", last_result=None, active_backend="kwin-dbus") is False
     assert should_auto_run_latency_probe(policy="on-open", last_result=None, active_backend="kwin-dbus") is True

@@ -97,6 +97,10 @@ class AppConfig:
     reverse_zones: bool = False
     # Explicitly controls whether `explicit_zone_map` is active.
     manual_mapping_enabled: bool = False
+    # Authoritative calibration model for resolving mapping.
+    # - offset_direction: legacy global offset + reverse toggle.
+    # - corner_anchored: derive explicit map from four corner anchors.
+    calibration_model: str = "offset_direction"
     # Optional explicit mapping: list of screen-zone indices for each device zone.
     # Applied only when `manual_mapping_enabled` is True.
     explicit_zone_map: list[int] = field(default_factory=list)

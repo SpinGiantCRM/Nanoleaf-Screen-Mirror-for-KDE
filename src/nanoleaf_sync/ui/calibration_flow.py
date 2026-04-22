@@ -51,6 +51,7 @@ def derive_corner_anchor_device_indices(
     explicit_zone_map=None,
     corner_zone_offsets=None,
     start_anchor: int | None = None,
+    calibration_model: str = "offset_direction",
 ) -> list[int]:
     total = max(1, int(device_zone_count))
     if total == 1:
@@ -63,6 +64,7 @@ def derive_corner_anchor_device_indices(
         reverse_zones=reverse_zones,
         explicit_zone_map=explicit_zone_map,
         corner_zone_offsets=corner_zone_offsets,
+        calibration_model=calibration_model,
     )
     source_total = max(1, int(zone_count))
     corner_targets = [0, source_total // 4, source_total // 2, (3 * source_total) // 4]
