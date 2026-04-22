@@ -209,6 +209,7 @@ class DisplayConfiguratorDialog:
                 self.device_zone_count_slider.setValue(self._state.device_zone_count)
                 self.device_zone_count_value = QLabel("")
                 self.device_zone_status = QLabel("")
+                self.device_zone_summary = QLabel("")
                 self.zone_count_explanation = QLabel("")
 
                 # Step 1
@@ -340,17 +341,21 @@ class DisplayConfiguratorDialog:
                     layout.setVerticalSpacing(4)
                 layout.addWidget(QLabel(f"Calibration and testing\n{calibration_sequence_text()}"), 0, 0, 1, 3)
                 layout.addWidget(self.calibration_hint, 1, 0, 1, 3)
-                layout.addWidget(self.preview_text, 2, 0, 1, 3)
-                layout.addWidget(self.preview_visual, 3, 0, 1, 3)
-                layout.addWidget(self.calibration_next_button, 4, 0, 1, 2)
-                layout.addWidget(self.calibration_prev_button, 4, 2)
-                layout.addWidget(self.calibration_send_button, 5, 0, 1, 3)
-                layout.addWidget(self.current_zone_label, 6, 0, 1, 3)
-                layout.addWidget(self.assign_tl_button, 7, 0, 1, 3)
-                layout.addWidget(self.assign_tr_button, 8, 0, 1, 3)
-                layout.addWidget(self.assign_br_button, 9, 0, 1, 3)
-                layout.addWidget(self.assign_bl_button, 10, 0, 1, 3)
-                layout.addWidget(self.calibration_test_label, 11, 0, 1, 3)
+                layout.addWidget(QLabel("Strip LED zone count"), 2, 0)
+                layout.addWidget(self.device_zone_count_slider, 2, 1)
+                layout.addWidget(self.device_zone_count_value, 2, 2)
+                layout.addWidget(self.device_zone_status, 3, 0, 1, 3)
+                layout.addWidget(self.preview_text, 4, 0, 1, 3)
+                layout.addWidget(self.preview_visual, 5, 0, 1, 3)
+                layout.addWidget(self.calibration_next_button, 6, 0, 1, 2)
+                layout.addWidget(self.calibration_prev_button, 6, 2)
+                layout.addWidget(self.calibration_send_button, 7, 0, 1, 3)
+                layout.addWidget(self.current_zone_label, 8, 0, 1, 3)
+                layout.addWidget(self.assign_tl_button, 9, 0, 1, 3)
+                layout.addWidget(self.assign_tr_button, 10, 0, 1, 3)
+                layout.addWidget(self.assign_br_button, 11, 0, 1, 3)
+                layout.addWidget(self.assign_bl_button, 12, 0, 1, 3)
+                layout.addWidget(self.calibration_test_label, 13, 0, 1, 3)
 
                 advanced_layout = QGridLayout()
                 advanced_layout.addWidget(QLabel("Global mapping zone offset"), 0, 0)
@@ -360,7 +365,7 @@ class DisplayConfiguratorDialog:
                 advanced_layout.addWidget(QLabel("Test zone step index"), 2, 0)
                 advanced_layout.addWidget(self.test_step_index_value, 2, 1, 1, 2)
                 self.advanced_calibration_group.setLayout(advanced_layout)
-                layout.addWidget(self.advanced_calibration_group, 12, 0, 1, 3)
+                layout.addWidget(self.advanced_calibration_group, 14, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -404,11 +409,9 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(QLabel("Zone layout preset"), 5, 0)
                 layout.addWidget(self.zone_preset_combo, 5, 1, 1, 2)
                 layout.addWidget(QLabel("Strip LED zone count"), 6, 0)
-                layout.addWidget(self.device_zone_count_slider, 6, 1)
-                layout.addWidget(self.device_zone_count_value, 6, 2)
+                layout.addWidget(self.device_zone_summary, 6, 1, 1, 2)
                 layout.addWidget(self.zone_count_explanation, 7, 0, 1, 3)
-                layout.addWidget(self.device_zone_status, 8, 0, 1, 3)
-                layout.addWidget(self.summary_label, 9, 0, 1, 3)
+                layout.addWidget(self.summary_label, 8, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -560,22 +563,28 @@ class DisplayConfiguratorDialog:
                 self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
                 self.zone_count_value.setText(str(self.zone_count_slider.value()))
                 self.vibrancy_value.setText(f"{self.vibrancy_slider.value()}%")
+                effective_zone_count = self._state.effective_device_zone_count()
                 normalized_offset = self._normalize_offset_for_count(
                     int(self.zone_offset_slider.value()),
-                    self._state.effective_device_zone_count(),
+                    effective_zone_count,
                 )
                 self.zone_offset_value.setText(
                     f"{normalized_offset:+d} (raw {int(self.zone_offset_slider.value()):+d})"
                 )
-                self.device_zone_count_value.setText(str(self.device_zone_count_slider.value()))
+                self.device_zone_count_value.setText(str(effective_zone_count))
                 self.zone_count_explanation.setText(
                     "Screen sampling zones = sampled regions on your display. Strip LED zones = physical LEDs on the Nanoleaf strip."
                 )
                 if self._requires_manual_device_zone_count:
-                    device_zone_status_text = "Device metadata unavailable: set strip LED zone count manually before finishing setup."
+                    device_zone_status_text = (
+                        f"Device metadata unavailable: manually set strip LED zone count (currently {effective_zone_count})."
+                    )
                 else:
-                    device_zone_status_text = "Strip LED zone count initialized from saved/device metadata."
+                    device_zone_status_text = (
+                        f"Strip LED zone count initialized from saved/device metadata (currently {effective_zone_count})."
+                    )
                 self.device_zone_status.setText(device_zone_status_text)
+                self.device_zone_summary.setText(f"{effective_zone_count} physical strip LED zones")
 
                 preview = build_testing_panel_state(
                     state=self._state,
@@ -603,7 +612,7 @@ class DisplayConfiguratorDialog:
                             f"Sampling quality: {self.sampling_quality_combo.currentText()}",
                             f"Vibrancy: {self.vibrancy_slider.value()}%",
                             f"Screen sampling zones: {self._state.zone_count}",
-                            f"Effective strip LED zones: {self._state.effective_device_zone_count()}",
+                            f"Effective strip LED zones: {effective_zone_count}",
                             "Calibration method: corner anchors + offset",
                             device_zone_status_text,
                         )

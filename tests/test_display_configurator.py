@@ -191,6 +191,25 @@ def test_display_configurator_can_send_real_calibration_pattern(monkeypatch) -> 
     assert any(rgb != (0, 0, 0) for rgb in sent["colors"][-1])
 
 
+def test_display_configurator_uses_step_1_device_zone_count_for_calibration_frames(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    sent = {"colors": []}
+
+    def _sender(colors):
+        sent["colors"].append(colors)
+
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[]), calibration_sender=_sender)
+    dialog._dialog.device_zone_count_slider.setValue(48)
+    dialog._dialog.calibration_send_button.clicked.emit()
+
+    assert len(sent["colors"]) == 2
+    off_frame, active_frame = sent["colors"]
+    assert len(off_frame) == 48
+    assert len(active_frame) == 48
+    assert all(rgb == (0, 0, 0) for rgb in off_frame)
+    assert any(rgb != (0, 0, 0) for rgb in active_frame)
+
+
 def test_display_configurator_can_set_manual_device_zone_count(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
     cfg = AppConfig(zones=[])
