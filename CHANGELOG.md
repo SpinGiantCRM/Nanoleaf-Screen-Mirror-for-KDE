@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-04-22
+
+## What's Changed
+* Normalize calibration offset by strip zone count by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/181
+* Revamp Display Configurator UI: presets, vibrancy, live preview and wizard reflow by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/182
+* Fix CI failures in display configurator, runtime zones, and tray settings shortcut by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/183
+
+
+**Full Changelog**: https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/compare/v0.7.3...v0.7.4
+
 ## [0.7.3] - 2026-04-21
 
 ## What's Changed
