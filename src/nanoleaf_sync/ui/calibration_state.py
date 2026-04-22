@@ -19,6 +19,12 @@ TEST_MODES: tuple[str, ...] = (
 )
 CORNER_OFFSET_LIMIT = 24
 MIN_CALIBRATION_VALIDATION_CONFIDENCE = 1.0
+ZONE_COUNT_INVALIDATION_PHASES: tuple[str, ...] = (
+    "direction-verification",
+    "corner-assignment",
+    "edge-refinement",
+    "validation-replay",
+)
 
 
 @dataclass
@@ -239,6 +245,30 @@ class CalibrationState:
             if not valid:
                 return False
         return self.validation_report().confidence_score >= MIN_CALIBRATION_VALIDATION_CONFIDENCE
+
+    def invalidate_for_zone_count_change(
+        self,
+        *,
+        affected_phases: tuple[str, ...] = ZONE_COUNT_INVALIDATION_PHASES,
+    ) -> tuple[str, ...]:
+        ordered_steps = set(self.calibration_steps())
+        invalidated: list[str] = []
+        for step_id in affected_phases:
+            phase_id = str(step_id)
+            if phase_id not in ordered_steps:
+                continue
+            progress = self.calibration_step_state(phase_id)
+            progress.complete = False
+            progress.passed = False
+            progress.notes = ""
+            self.phase_completion_flags[phase_id] = False
+            self.phase_validation_state[phase_id] = CalibrationPhaseValidation(valid=False, details="")
+            self.phase_rollback_checkpoints.pop(phase_id, None)
+            self.phase_boundary_checkpoints.pop(phase_id, None)
+            invalidated.append(phase_id)
+        if invalidated:
+            self.current_phase = invalidated[0]
+        return tuple(invalidated)
 
     def validation_report(self) -> CalibrationVerificationReport:
         direction_confirmed = self.calibration_step_progress.get(

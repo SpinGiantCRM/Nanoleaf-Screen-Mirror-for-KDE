@@ -302,15 +302,20 @@ def test_display_configurator_offset_change_updates_current_physical_zone(monkey
 
 def test_display_configurator_blocks_next_until_calibration_phases_pass(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
-    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[]))
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=8))
     assert dialog._dialog.next_button._enabled is False
 
-    dialog._dialog.device_zone_count_slider.setValue(8)
     for step in dialog._dialog._state.calibration_steps():
         dialog._dialog._state.mark_calibration_step(step, passed=True)
     dialog._dialog._refresh()
 
     assert dialog._dialog.next_button._enabled is True
+    dialog._dialog.device_zone_count_slider.setValue(16)
+
+    assert dialog._dialog.next_button._enabled is False
+    assert dialog._dialog._state.calibration_step_state("direction-verification").passed is False
+    assert dialog._dialog._state.calibration_step_state("corner-assignment").passed is False
+    assert "invalidated direction-verification" in dialog._dialog.zone_change_notice._text
 
 
 def test_display_configurator_preserves_passed_phase_when_navigating_back(monkeypatch) -> None:
@@ -423,7 +428,8 @@ def test_display_configurator_zone_count_change_remaps_anchors_and_shows_notice(
     dialog._dialog.device_zone_count_slider.setValue(16)
 
     assert dialog._dialog._state.corner_anchor_top_left == 8
-    assert "remapped offset and corner anchors" in dialog._dialog.zone_change_notice._text
+    assert "remapped offset/corner anchors" in dialog._dialog.zone_change_notice._text
+    assert "invalidated direction-verification" in dialog._dialog.zone_change_notice._text
 
 
 def test_display_configurator_keeps_next_disabled_when_validation_fails(monkeypatch) -> None:
