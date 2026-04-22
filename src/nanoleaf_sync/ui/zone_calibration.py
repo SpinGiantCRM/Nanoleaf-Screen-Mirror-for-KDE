@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from typing import Sequence
 
+from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.calibration_resolver import (
     CalibrationMappingSnapshot,
     resolve_calibration_mapping,
+    resolve_calibration_mapping_from_config,
 )
 
 
@@ -112,3 +114,16 @@ def zone_test_instruction(step: int, total: int) -> str:
         return "No zones available for test mode."
     idx = int(step) % int(total)
     return f"Test mode: highlight physical strip segment #{idx + 1} now."
+
+
+def mapping_snapshot_from_config(
+    *,
+    config: AppConfig,
+    source_zone_count: int,
+    detected_device_zone_count: int | None = None,
+) -> CalibrationMappingSnapshot:
+    return resolve_calibration_mapping_from_config(
+        config=config,
+        source_zone_count=source_zone_count,
+        detected_device_zone_count=detected_device_zone_count,
+    )

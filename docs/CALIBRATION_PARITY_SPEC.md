@@ -20,6 +20,8 @@ Primary implementation surfaces:
 - `src/nanoleaf_sync/runtime/calibration_resolver.py`
 - `src/nanoleaf_sync/color/zone_mapper.py`
 - `src/nanoleaf_sync/ui/zone_calibration.py`
+- `src/nanoleaf_sync/config/model.py`
+- `src/nanoleaf_sync/config/normalize.py`
 
 ---
 
@@ -99,6 +101,19 @@ Primary implementation surfaces:
 
 - Inputs like `[99, -99, 30, -30]` resolve to `[24, -24, 24, -24]`.
 - Single-corner tuning changes near-corner mapping while opposite corner remains stable.
+
+### 5b) Canonical calibration payload + migration
+
+1. Persisted config must include `calibration_schema_version` and `[calibration]`.
+2. Runtime and wizard surfaces must resolve mapping from canonical nested calibration payload.
+3. Top-level legacy calibration keys remain compatibility aliases only; normalization must mirror canonical values back to top-level fields.
+4. Invalid or missing schema/version values must coerce safely to a supported version (currently `1`).
+
+**Observable evidence**
+
+- Loading legacy top-level-only config produces populated `[calibration]` on save.
+- Resolver chooses nested `calibration_model`/anchors when present.
+- Setup wizard save writes consistent top-level + nested calibration fields.
 
 ### 6) Final validation flow
 
@@ -206,10 +221,10 @@ Use this checklist for every UX/calibration change PR. A release candidate must 
 | P-06 | Fine-tuning enforces 4-slot shape, pads missing values, and clamps to ±24. | Automated | `tests/test_calibration_state.py::test_corner_refinement_clamps_to_supported_limit`; `tests/test_calibration_state.py::test_corner_refinement_active_offsets_pad_missing_values`; `tests/test_zone_mapper.py::test_zone_mapper_corner_adjustments_stay_local_to_each_corner` | `src/nanoleaf_sync/ui/calibration_state.py`; `src/nanoleaf_sync/color/zone_mapper.py` |
 | P-07 | Final completion gate requires all steps passed and confidence >= 1.0 with sentinel consistency. | Automated | `tests/test_calibration_flow.py::test_calibration_step_fail_keeps_completion_gate_closed`; `tests/test_calibration_flow.py::test_calibration_completion_requires_validation_score_threshold`; `tests/test_calibration_state.py::test_validation_report_tracks_confidence_and_sentinel_consistency` | `src/nanoleaf_sync/ui/calibration_state.py`; `src/nanoleaf_sync/ui/calibration_flow.py` |
 | P-08 | Failure paths provide remediation hints (direction, anchors, replay, sentinel mismatch). | Automated + manual review | `tests/test_calibration_flow.py::test_calibration_completion_requires_validation_score_threshold`; `tests/test_calibration_state.py::test_validation_report_tracks_confidence_and_sentinel_consistency` | `src/nanoleaf_sync/ui/calibration_state.py`; `src/nanoleaf_sync/ui/calibration_flow.py` |
+| P-09 | Canonical nested calibration payload is migration-safe and used as mapping source across runtime/UI. | Automated | `tests/test_config.py::test_resolver_reads_nested_calibration_model_and_anchors`; `tests/test_zone_calibration.py::test_mapping_snapshot_from_config_uses_nested_calibration_payload`; `tests/test_display_configurator.py::test_display_configurator_uses_corner_anchor_model` | `src/nanoleaf_sync/config/model.py`; `src/nanoleaf_sync/config/normalize.py`; `src/nanoleaf_sync/runtime/calibration_resolver.py`; `src/nanoleaf_sync/ui/display_configurator.py` |
 
 ### Release gate usage
 
 - **Required:** P-01 through P-08 green in CI (or documented waiver).
 - **Required:** at least one manual walkthrough for Journey A or B and one recovery journey (C/D/E).
 - **Required:** if any checklist item’s owning tests/files change, update this spec in the same PR.
-

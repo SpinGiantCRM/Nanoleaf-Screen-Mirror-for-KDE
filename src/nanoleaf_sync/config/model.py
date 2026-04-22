@@ -164,3 +164,65 @@ class AppConfig:
     # Logging / misc
     status_log_interval_s: float = 5.0
     verbose: bool = False
+
+    def effective_calibration(self) -> CalibrationConfig:
+        """
+        Return a canonical calibration snapshot for runtime/UI consumers.
+
+        The nested ``calibration`` payload is authoritative. Top-level fields are
+        retained for backward compatibility and mirrored by normalization.
+        """
+        calibration = self.calibration or CalibrationConfig()
+        defaults = CalibrationConfig()
+        has_explicit_block = calibration != CalibrationConfig()
+
+        def calibration_or_legacy(field: str, default):
+            calibration_value = getattr(calibration, field, default)
+            legacy_value = getattr(self, field, default)
+            if has_explicit_block:
+                return calibration_value
+            if calibration_value == default and legacy_value != default:
+                return legacy_value
+            return calibration_value
+
+        return CalibrationConfig(
+            schema_version=int(
+                getattr(self, "calibration_schema_version", getattr(calibration, "schema_version", 1)) or 1
+            ),
+            calibration_model=str(calibration_or_legacy("calibration_model", defaults.calibration_model)),
+            device_zone_count=int(calibration_or_legacy("device_zone_count", defaults.device_zone_count)),
+            output_channel_order=str(calibration_or_legacy("output_channel_order", defaults.output_channel_order)),
+            zone_offset=int(calibration_or_legacy("zone_offset", defaults.zone_offset)),
+            reverse_zones=bool(calibration_or_legacy("reverse_zones", defaults.reverse_zones)),
+            manual_mapping_enabled=bool(
+                calibration_or_legacy("manual_mapping_enabled", defaults.manual_mapping_enabled)
+            ),
+            explicit_zone_map=[
+                int(i)
+                for i in (
+                    calibration_or_legacy("explicit_zone_map", defaults.explicit_zone_map) or []
+                )
+            ],
+            corner_anchor_top_left=int(
+                calibration_or_legacy("corner_anchor_top_left", defaults.corner_anchor_top_left)
+            ),
+            corner_anchor_top_right=int(
+                calibration_or_legacy("corner_anchor_top_right", defaults.corner_anchor_top_right)
+            ),
+            corner_anchor_bottom_right=int(
+                calibration_or_legacy("corner_anchor_bottom_right", defaults.corner_anchor_bottom_right)
+            ),
+            corner_anchor_bottom_left=int(
+                calibration_or_legacy("corner_anchor_bottom_left", defaults.corner_anchor_bottom_left)
+            ),
+            corner_start_anchor=int(calibration_or_legacy("corner_start_anchor", defaults.corner_start_anchor)),
+            corner_offsets_enabled=bool(
+                calibration_or_legacy("corner_offsets_enabled", defaults.corner_offsets_enabled)
+            ),
+            corner_zone_offsets=[
+                int(i)
+                for i in (
+                    calibration_or_legacy("corner_zone_offsets", defaults.corner_zone_offsets) or []
+                )
+            ],
+        )

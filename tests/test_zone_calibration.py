@@ -8,10 +8,12 @@ from nanoleaf_sync.ui.calibration_preview import (
     single_zone_step,
 )
 from nanoleaf_sync.ui.zone_calibration import (
+    mapping_snapshot_from_config,
     mapping_preview_text,
     mapping_preview_visual,
     zone_test_instruction,
 )
+from nanoleaf_sync.config.model import AppConfig
 
 
 def test_mapping_preview_visual_reflects_reverse_and_offset() -> None:
@@ -120,3 +122,16 @@ def test_calibration_test_frame_supports_brightness_scaling() -> None:
         brightness=0.5,
     )
     assert frame[1] == (50, 40, 30)
+
+
+def test_mapping_snapshot_from_config_uses_nested_calibration_payload() -> None:
+    cfg = AppConfig(zone_offset=0, device_zone_count=8)
+    cfg.calibration.calibration_model = "corner_anchored"
+    cfg.calibration.device_zone_count = 8
+    cfg.calibration.corner_anchor_top_left = 0
+    cfg.calibration.corner_anchor_top_right = 2
+    cfg.calibration.corner_anchor_bottom_right = 4
+    cfg.calibration.corner_anchor_bottom_left = 6
+
+    snapshot = mapping_snapshot_from_config(config=cfg, source_zone_count=8)
+    assert snapshot.strategy == "corner_anchored"

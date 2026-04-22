@@ -5,7 +5,7 @@ import logging
 from dataclasses import dataclass, field, replace
 from typing import Callable
 
-from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
 from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE, calibration_sequence_text
 from nanoleaf_sync.ui.calibration_state import (
@@ -139,6 +139,7 @@ class DisplayConfiguratorDialog:
                 self._state = CalibrationState.from_config(cfg)
                 self._state.save_checkpoint()
                 self._flow = WizardFlowState()
+                self._initial_calibration = cfg.effective_calibration()
                 status = runtime_status or {}
                 detected_device_zone_count = int(status.get("device_zone_count") or 0)
                 self._requires_manual_device_zone_count = (
@@ -523,7 +524,7 @@ class DisplayConfiguratorDialog:
                 self._state.device_zone_count = int(self.device_zone_count_slider.value())
                 self._state.corner_offsets_enabled = False
                 self._state.corner_zone_offsets = [0, 0, 0, 0]
-                self._state.calibration_model = str(getattr(cfg, "calibration_model", "offset_direction"))
+                self._state.calibration_model = str(self._initial_calibration.calibration_model)
 
             def _normalize_offset_for_count(self, offset: int, zone_count: int) -> int:
                 total = max(1, int(zone_count))
@@ -858,6 +859,23 @@ class DisplayConfiguratorDialog:
                 verification = self._state.validation_report()
                 zone_count = self._state.zone_count
                 new_zones = make_edge_weighted_zones(zone_count) if self._state.zone_preset == "edge-weighted" else make_horizontal_zones(zone_count)
+                calibration_payload = CalibrationConfig(
+                    schema_version=int(getattr(cfg, "calibration_schema_version", 1) or 1),
+                    calibration_model=str(self._state.calibration_model),
+                    device_zone_count=int(self._state.device_zone_count),
+                    output_channel_order=str(self._initial_calibration.output_channel_order),
+                    zone_offset=int(self._state.zone_offset),
+                    reverse_zones=bool(self._state.reverse_zones),
+                    manual_mapping_enabled=bool(self._state.manual_mapping_enabled),
+                    explicit_zone_map=[int(i) for i in self._state.explicit_zone_map],
+                    corner_anchor_top_left=int(self._state.corner_anchor_top_left),
+                    corner_anchor_top_right=int(self._state.corner_anchor_top_right),
+                    corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
+                    corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
+                    corner_start_anchor=int(self._state.corner_start_anchor),
+                    corner_offsets_enabled=bool(self._state.corner_offsets_enabled),
+                    corner_zone_offsets=self._state.active_corner_zone_offsets(),
+                )
                 return replace(
                     cfg,
                     hdr_enabled=str(self.display_mode_combo.currentText()) == "hdr",
@@ -879,6 +897,8 @@ class DisplayConfiguratorDialog:
                     corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
                     corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
                     calibration_model=str(self._state.calibration_model),
+                    calibration_schema_version=int(calibration_payload.schema_version),
+                    calibration=calibration_payload,
                     calibration_validation_confidence=float(verification.confidence_score),
                     calibration_validation_summary=(
                         verification.compact_summary()

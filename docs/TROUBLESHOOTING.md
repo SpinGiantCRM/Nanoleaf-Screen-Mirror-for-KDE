@@ -64,6 +64,33 @@ Use tray **Settings**:
 
 If the strip is mounted upside-down, enable reverse first, then fine-tune the offset.
 
+If setup was interrupted, reopen the setup wizard. In-progress calibration state is persisted and should resume from the previous phase/step. If the current phase is now inconsistent, use **Reset this section** or the phase-specific **Rollback** controls before continuing.
+
+### Corner-anchored calibration errors
+
+If the preview shows a corner anchor validation warning:
+
+1. Ensure all four corners (TL/TR/BR/BL) are assigned.
+2. Ensure each anchor index is unique.
+3. Ensure each anchor index is in range `0..device_zone_count-1`.
+
+Expected behavior: invalid anchors block final completion and emit remediation hints; mapping should fall back safely instead of crashing.
+
+### Calibration migrated from older config but looks stale
+
+The app now stores canonical calibration values in a nested `[calibration]` payload while retaining top-level compatibility fields. If values appear inconsistent after manual edits:
+
+1. Close tray/service.
+2. Open `~/.config/nanoleaf-kde-sync/config.toml`.
+3. Keep `[calibration]` as source-of-truth and remove conflicting legacy top-level calibration keys.
+4. Start app and verify with:
+
+```bash
+nanoleaf-kde-sync-smoke-test
+```
+
+Then rerun setup wizard once to re-save a clean, normalized payload.
+
 ## Auto-backend probe failures
 
 When `prefer_backend = "auto"`, the service chooses backend via policy-aware probing + cache metadata.

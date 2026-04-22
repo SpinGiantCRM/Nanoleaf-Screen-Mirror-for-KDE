@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
+from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping_from_config
 from nanoleaf_sync.config.store import ConfigManager, _dump_toml
 
 
@@ -237,7 +238,6 @@ def test_config_normalizes_boolean_fields_consistently(tmp_path: Path) -> None:
         + "\n",
         encoding="utf-8",
     )
-
     cfg = ConfigManager(path=cfg_path).load()
     assert cfg.wizard_completed is True
     assert cfg.hdr_enabled is False
@@ -247,6 +247,42 @@ def test_config_normalizes_boolean_fields_consistently(tmp_path: Path) -> None:
     assert cfg.reverse_zones is True
     assert cfg.manual_mapping_enabled is False
     assert cfg.verbose is False
+
+
+def test_effective_calibration_prefers_nested_payload_when_present() -> None:
+    cfg = AppConfig(
+        zone_offset=2,
+        reverse_zones=False,
+        calibration=AppConfig().calibration,
+    )
+    assert cfg.effective_calibration().zone_offset == 2
+
+    cfg = AppConfig(
+        zone_offset=2,
+        reverse_zones=False,
+        calibration=AppConfig().calibration,
+    )
+    cfg.calibration.zone_offset = 5
+    cfg.calibration.reverse_zones = True
+    calibration = cfg.effective_calibration()
+    assert calibration.zone_offset == 5
+    assert calibration.reverse_zones is True
+
+
+def test_resolver_reads_nested_calibration_model_and_anchors() -> None:
+    cfg = AppConfig(device_zone_count=12, calibration_model="offset_direction")
+    cfg.calibration.calibration_model = "corner_anchored"
+    cfg.calibration.device_zone_count = 12
+    cfg.calibration.corner_anchor_top_left = 1
+    cfg.calibration.corner_anchor_top_right = 4
+    cfg.calibration.corner_anchor_bottom_right = 7
+    cfg.calibration.corner_anchor_bottom_left = 10
+
+    snapshot = resolve_calibration_mapping_from_config(
+        config=cfg,
+        source_zone_count=12,
+    )
+    assert snapshot.strategy == "corner_anchored"
 
 
 def test_config_preserves_legacy_corner_anchor_fields_without_validation(tmp_path: Path) -> None:
