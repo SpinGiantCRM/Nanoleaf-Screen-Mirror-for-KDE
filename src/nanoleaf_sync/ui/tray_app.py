@@ -638,7 +638,16 @@ class NanoleafTrayApp:
         self._refresh_mode_labels()
 
     def on_open_calibration_settings(self) -> None:
-        self.on_settings(initial_section="Calibration & Testing")
+        try:
+            self.on_settings(initial_section="Calibration & Testing")
+        except TypeError:
+            self.on_settings()
+        self.tray_icon.showMessage(
+            "nanoleaf-kde-sync",
+            "Opened Settings → Calibration & Testing.",
+            self.QSystemTrayIcon.MessageIcon.Information,
+            3000,
+        )
 
     def on_doctor(self):
         self._run_command_async(label="doctor", argv=[sys.executable, "-m", "nanoleaf_sync.tools.doctor"])

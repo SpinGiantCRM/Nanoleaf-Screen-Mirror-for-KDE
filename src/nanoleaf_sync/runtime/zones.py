@@ -211,11 +211,12 @@ def zone_colors_array(
         cx1 = x1 - bx0
         cy1 = y1 - by0
 
-        sums = (
-            integral[cy1, cx1]
-            - integral[cy0, cx1]
-            - integral[cy1, cx0]
-            + integral[cy0, cx0]
+        valid_idx = np.flatnonzero(valid)
+        sums[valid_idx] = (
+            integral[cy1[valid_idx], cx1[valid_idx]]
+            - integral[cy0[valid_idx], cx1[valid_idx]]
+            - integral[cy1[valid_idx], cx0[valid_idx]]
+            + integral[cy0[valid_idx], cx0[valid_idx]]
         )
 
     means = np.zeros((len(zones), 3), dtype=np.uint8)
