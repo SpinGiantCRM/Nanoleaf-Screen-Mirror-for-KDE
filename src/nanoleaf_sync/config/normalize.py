@@ -186,8 +186,10 @@ def validate_config(cfg: AppConfig) -> AppConfig:
             "offset-direction": "offset_direction",
             "corner_anchored": "corner_anchored",
             "corner-anchored": "corner_anchored",
-            "manual_map": "manual_map",
-            "manual-map": "manual_map",
+            "manual_explicit_map": "manual_explicit_map",
+            "manual-explicit-map": "manual_explicit_map",
+            "manual_map": "manual_explicit_map",
+            "manual-map": "manual_explicit_map",
         },
         default=AppConfig.calibration_model,
     )
@@ -220,7 +222,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     )
     raw_normalized_manual_zone_map = calibration_or_legacy("normalized_manual_zone_map", explicit_zone_map) or []
     normalized_manual_zone_map = [int(i) for i in raw_normalized_manual_zone_map]
-    effective_manual_mapping_enabled = manual_mapping_enabled or calibration_model == "manual_map"
+    effective_manual_mapping_enabled = manual_mapping_enabled or calibration_model == "manual_explicit_map"
     normalized_calibration = CalibrationConfig(
         schema_version=calibration_schema_version,
         calibration_schema_version=calibration_schema_version,

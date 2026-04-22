@@ -365,12 +365,12 @@ def test_config_migrates_legacy_calibration_fields_into_normalized_structure(tmp
     assert cfg.calibration.normalized_corner_anchors == [11, 2, 5, 8]
 
 
-def test_config_manual_map_model_sets_manual_mapping_enabled(tmp_path: Path) -> None:
+def test_config_manual_explicit_map_model_sets_manual_mapping_enabled(tmp_path: Path) -> None:
     cfg_path = tmp_path / "config.toml"
     cfg_path.write_text(
         "\n".join(
             [
-                "calibration_model = \"manual_map\"",
+                "calibration_model = \"manual_explicit_map\"",
                 "manual_mapping_enabled = false",
                 "explicit_zone_map = [6, 7, 0, 1]",
             ]
@@ -380,10 +380,30 @@ def test_config_manual_map_model_sets_manual_mapping_enabled(tmp_path: Path) -> 
     )
 
     cfg = ConfigManager(path=cfg_path).load()
-    assert cfg.calibration_model == "manual_map"
+    assert cfg.calibration_model == "manual_explicit_map"
     assert cfg.manual_mapping_enabled is True
     assert cfg.calibration.manual_mapping_enabled is True
     assert cfg.calibration.normalized_manual_zone_map == [6, 7, 0, 1]
+
+
+def test_config_manual_map_alias_migrates_to_manual_explicit_map(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text(
+        "\n".join(
+            [
+                "calibration_model = \"manual_map\"",
+                "manual_mapping_enabled = false",
+                "explicit_zone_map = [2, 1]",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    cfg = ConfigManager(path=cfg_path).load()
+    assert cfg.calibration_model == "manual_explicit_map"
+    assert cfg.calibration.calibration_model == "manual_explicit_map"
+    assert cfg.manual_mapping_enabled is True
 
 
 def test_dump_toml_stabilizes_calibration_schema_aliases() -> None:

@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## What's Changed
+* Align calibration schema/model naming to `manual_explicit_map` while keeping `manual_map` as a compatibility alias.
+* Make manual explicit-map resolver semantics authoritative for preview/runtime parity even when legacy manual toggle is disabled.
+* Finalize calibration parity batch checklist coverage and release gating ledger for batches A-E.
+
 ## [0.7.5] - 2026-04-22
 
 ## What's Changed
