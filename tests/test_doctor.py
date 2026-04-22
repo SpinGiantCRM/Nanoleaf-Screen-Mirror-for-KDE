@@ -176,7 +176,9 @@ def test_hid_enumeration_reports_interface_details(monkeypatch) -> None:
     check = doctor._check_hid_enumeration(AppConfig(device_vid=0x37FA, device_pid=0x8202))
     assert check.status == "pass"
     assert "path=/dev/hidraw3" in check.message
-    assert "interface=2" in check.message
+    assert "interface_number=2" in check.message
+    assert "usage_page=65280" in check.message
+    assert "usage=1" in check.message
 
 
 def test_device_probe_open_failure_returns_targeted_action(monkeypatch) -> None:
@@ -193,4 +195,5 @@ def test_device_probe_open_failure_returns_targeted_action(monkeypatch) -> None:
     monkeypatch.setattr(doctor, "NanoleafUSBDriver", _Driver)
     check = doctor._check_real_device_probe(AppConfig(device_vid=0x37FA, device_pid=0x8202))
     assert check.status == "fail"
-    assert "review hid-device interface/path details" in check.action
+    assert "inspect hid-device per-path details" in check.action
+    assert "open_path(...)" in check.action
