@@ -108,5 +108,6 @@ def test_smoke_test_prints_kwin_auth_context_for_shell_launch(monkeypatch, capsy
         smoke_test.main([])
     assert excinfo.value.code == 1
     out = capsys.readouterr().out
-    assert "CLI smoke tests run outside KDE launcher policy" in out
+    assert "context warning: shell-run smoke tests may lack KDE launcher policy" in out
     assert "DESKTOP_STARTUP_ID=unset" in out
+    assert "XDG_ACTIVATION_TOKEN=unset" in out

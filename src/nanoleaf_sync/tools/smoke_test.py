@@ -95,8 +95,11 @@ def main(argv: list[str] | None = None) -> int:
             desktop_startup = (os.environ.get("DESKTOP_STARTUP_ID") or "unset").strip() or "unset"
             activation_token = (os.environ.get("XDG_ACTIVATION_TOKEN") or "unset").strip() or "unset"
             print(
-                "context: CLI smoke tests run outside KDE launcher policy unless launched from an authorized "
-                "desktop entry. "
+                "context warning: shell-run smoke tests may lack KDE launcher policy unless launched from "
+                "an authorized desktop entry."
+            )
+            print(
+                "effective activation context: "
                 f"DESKTOP_STARTUP_ID={desktop_startup} XDG_ACTIVATION_TOKEN={activation_token}"
             )
         raise SystemExit(1) from exc
