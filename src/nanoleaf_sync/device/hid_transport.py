@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Optional, Sequence
 
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
@@ -111,7 +112,15 @@ class HIDTransport:
             {"strip_prefix": not preferred_first, "buffer": bytearray(), "expected_len": None},
         ]
 
+        guard_window_s = max(1.0, float(self.read_timeout_ms) / 1000.0 * 4.0)
+        deadline = time.monotonic() + guard_window_s
         while True:
+            if time.monotonic() >= deadline:
+                received = max(len(c["buffer"]) for c in candidates)
+                raise RuntimeError(
+                    "Malformed HID response: failed to assemble expected TLV "
+                    f"within {guard_window_s:.2f}s after receiving {received} bytes"
+                )
             # Read up to report-size + report-id byte. hidapi may still return 64 bytes.
             raw_chunk = self._handle.read(self.report_size + 1, self.read_timeout_ms)
             if not raw_chunk:

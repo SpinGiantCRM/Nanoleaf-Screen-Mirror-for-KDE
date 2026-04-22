@@ -409,6 +409,10 @@ class XDGPortalCapture:
             f = getattr(self, "_shm_file", None)
             if f is not None:
                 try:
+                    f.close()
+                except Exception:
+                    pass
+                try:
                     os.unlink(f.name)
                 except OSError:
                     pass

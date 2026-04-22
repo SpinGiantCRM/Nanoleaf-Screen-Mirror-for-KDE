@@ -16,12 +16,15 @@ from nanoleaf_sync.capture.factory import (  # noqa: E402
     reset_cached_probe_winner,
     reset_capability_check_cache,
 )
+from nanoleaf_sync import service as service_module  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
 def _reset_capture_factory_caches() -> None:
     reset_cached_probe_winner()
     reset_capability_check_cache()
+    service_module._PROCESS_BOOT_PROBE_DONE = False  # noqa: SLF001
     yield
     reset_cached_probe_winner()
     reset_capability_check_cache()
+    service_module._PROCESS_BOOT_PROBE_DONE = False  # noqa: SLF001

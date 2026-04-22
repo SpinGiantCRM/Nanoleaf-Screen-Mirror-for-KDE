@@ -101,6 +101,23 @@ def test_transceive_times_out_on_empty_read() -> None:
         transport.transceive(b"\x03\x00\x00")
 
 
+def test_transceive_raises_on_malformed_continuous_data() -> None:
+    class _InfiniteMalformedHandle(FakeHIDHandle):
+        def __init__(self) -> None:
+            super().__init__(reads=[])
+            self._chunk = b"\x00\x99\x00\x01\xFF" + b"\x00" * 59
+
+        def read(self, _size: int, _timeout_ms: int):
+            return list(self._chunk)
+
+    fake = _InfiniteMalformedHandle()
+    transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
+    transport._handle = fake
+
+    with pytest.raises(RuntimeError, match="Malformed HID response"):
+        transport.transceive(b"\x03\x00\x00")
+
+
 def test_open_wraps_hid_permission_error_with_actionable_message(monkeypatch) -> None:
     fake_hid = types.SimpleNamespace(
         enumerate=lambda _vid, _pid: [object()],

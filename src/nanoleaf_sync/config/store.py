@@ -106,11 +106,18 @@ class ConfigManager:
             self._config = AppConfig()
             return self._config
         loaded_device_zone_count = int(data.get("device_zone_count") or 0)
+        loaded_zones = data.get("zones")
+        has_legacy_zones = isinstance(loaded_zones, list) and len(loaded_zones) > 0
         should_persist_migration = (
             "calibration_schema_version" not in data or "calibration" not in data
         )
         self._config = validate_config(cfg)
-        if (loaded_device_zone_count <= 0 and self._config.device_zone_count > 0) or should_persist_migration:
+        should_persist_legacy_auto_zone_count = (
+            loaded_device_zone_count <= 0
+            and self._config.device_zone_count > 0
+            and has_legacy_zones
+        )
+        if should_persist_legacy_auto_zone_count or should_persist_migration:
             self.save(self._config)
         return self._config
 
