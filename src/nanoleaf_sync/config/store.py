@@ -12,7 +12,7 @@ from dacite import Config as DaciteConfig
 from dacite import from_dict
 
 from nanoleaf_sync.config.model import AppConfig
-from nanoleaf_sync.config.normalize import validate_config
+from nanoleaf_sync.config.normalize import migrate_config_dict, validate_config
 from nanoleaf_sync.config.serialization import dump_toml
 
 
@@ -95,18 +95,22 @@ class ConfigManager:
             self._config = AppConfig()
             return self._config
 
+        migrated_data = migrate_config_dict(data)
         try:
             cfg = from_dict(
                 data_class=AppConfig,
-                data=data,
+                data=migrated_data,
                 config=DaciteConfig(strict=False, cast=[int, float, str, bool]),
             )
         except Exception:
             self._config = AppConfig()
             return self._config
         loaded_device_zone_count = int(data.get("device_zone_count") or 0)
+        should_persist_migration = (
+            "calibration_schema_version" not in data or "calibration" not in data
+        )
         self._config = validate_config(cfg)
-        if loaded_device_zone_count <= 0 and self._config.device_zone_count > 0:
+        if (loaded_device_zone_count <= 0 and self._config.device_zone_count > 0) or should_persist_migration:
             self.save(self._config)
         return self._config
 
