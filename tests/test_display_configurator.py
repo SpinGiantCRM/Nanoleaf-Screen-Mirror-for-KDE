@@ -267,6 +267,10 @@ def test_display_configurator_uses_corner_anchor_model(monkeypatch) -> None:
     dialog._dialog._assign_anchor("top_left")
     dialog._dialog._test_step = 3
     dialog._dialog._assign_anchor("top_right")
+    dialog._dialog._test_step = 5
+    dialog._dialog._assign_anchor("bottom_right")
+    dialog._dialog._test_step = 7
+    dialog._dialog._assign_anchor("bottom_left")
 
     updated = dialog.updated_config()
     assert updated.corner_anchor_top_left >= 0
