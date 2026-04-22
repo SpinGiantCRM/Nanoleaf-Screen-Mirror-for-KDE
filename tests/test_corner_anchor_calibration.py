@@ -72,3 +72,27 @@ def test_backward_compatibility_old_configs_do_not_crash(tmp_path: Path) -> None
     assert cfg.zone_offset == 2
     assert cfg.calibration.zone_offset == 2
     assert cfg.calibration.reverse_zones is True
+
+
+def test_backward_compatibility_with_new_normalized_calibration_block(tmp_path: Path) -> None:
+    path = tmp_path / "config.toml"
+    path.write_text(
+        "\n".join(
+            [
+                "calibration_schema_version = 2",
+                "[calibration]",
+                "calibration_model = \"corner_anchored\"",
+                "normalized_corner_anchors = [0, 3, 6, 9]",
+                "normalized_zone_offset = 1",
+                "normalized_reverse_zones = true",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    cfg = ConfigManager(path=path).load()
+    assert cfg.calibration_schema_version == 2
+    assert cfg.calibration.calibration_model == "corner_anchored"
+    assert cfg.calibration.normalized_corner_anchors == [0, 3, 6, 9]
+    assert cfg.calibration.normalized_zone_offset == 1
+    assert cfg.calibration.normalized_reverse_zones is True

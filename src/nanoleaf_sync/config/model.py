@@ -23,10 +23,20 @@ class ZoneConfig:
 class CalibrationConfig:
     # Versioned schema for calibration payload migrations.
     schema_version: int = 1
+    # Canonical version marker used by schema migrations.
+    calibration_schema_version: int = 1
     # Authoritative calibration model for resolving mapping.
     calibration_model: str = "offset_direction"
+    # Canonical normalization of calibration modes:
+    # - offset_direction: use `normalized_zone_offset` + `normalized_reverse_zones`
+    # - corner_anchored: use `normalized_corner_anchors`
+    # - manual_map: use `normalized_manual_zone_map`
     device_zone_count: int = 0
     output_channel_order: str = "grb"
+    normalized_zone_offset: int = 0
+    normalized_reverse_zones: bool = False
+    normalized_corner_anchors: list[int] = field(default_factory=list)
+    normalized_manual_zone_map: list[int] = field(default_factory=list)
     zone_offset: int = 0
     reverse_zones: bool = False
     manual_mapping_enabled: bool = False
@@ -189,9 +199,31 @@ class AppConfig:
             schema_version=int(
                 getattr(self, "calibration_schema_version", getattr(calibration, "schema_version", 1)) or 1
             ),
+            calibration_schema_version=int(
+                getattr(self, "calibration_schema_version", getattr(calibration, "calibration_schema_version", 1))
+                or 1
+            ),
             calibration_model=str(calibration_or_legacy("calibration_model", defaults.calibration_model)),
             device_zone_count=int(calibration_or_legacy("device_zone_count", defaults.device_zone_count)),
             output_channel_order=str(calibration_or_legacy("output_channel_order", defaults.output_channel_order)),
+            normalized_zone_offset=int(
+                calibration_or_legacy("normalized_zone_offset", defaults.normalized_zone_offset)
+            ),
+            normalized_reverse_zones=bool(
+                calibration_or_legacy("normalized_reverse_zones", defaults.normalized_reverse_zones)
+            ),
+            normalized_corner_anchors=[
+                int(i)
+                for i in (
+                    calibration_or_legacy("normalized_corner_anchors", defaults.normalized_corner_anchors) or []
+                )
+            ],
+            normalized_manual_zone_map=[
+                int(i)
+                for i in (
+                    calibration_or_legacy("normalized_manual_zone_map", defaults.normalized_manual_zone_map) or []
+                )
+            ],
             zone_offset=int(calibration_or_legacy("zone_offset", defaults.zone_offset)),
             reverse_zones=bool(calibration_or_legacy("reverse_zones", defaults.reverse_zones)),
             manual_mapping_enabled=bool(

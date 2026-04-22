@@ -88,7 +88,22 @@ def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:
         if key not in calibration and key in migrated:
             calibration[key] = migrated[key]
 
+    if "normalized_zone_offset" not in calibration:
+        calibration["normalized_zone_offset"] = calibration.get("zone_offset", migrated.get("zone_offset", 0))
+    if "normalized_reverse_zones" not in calibration:
+        calibration["normalized_reverse_zones"] = calibration.get("reverse_zones", migrated.get("reverse_zones", False))
+    if "normalized_corner_anchors" not in calibration:
+        calibration["normalized_corner_anchors"] = [
+            calibration.get("corner_anchor_top_left", migrated.get("corner_anchor_top_left", -1)),
+            calibration.get("corner_anchor_top_right", migrated.get("corner_anchor_top_right", -1)),
+            calibration.get("corner_anchor_bottom_right", migrated.get("corner_anchor_bottom_right", -1)),
+            calibration.get("corner_anchor_bottom_left", migrated.get("corner_anchor_bottom_left", -1)),
+        ]
+    if "normalized_manual_zone_map" not in calibration:
+        calibration["normalized_manual_zone_map"] = calibration.get("explicit_zone_map", migrated.get("explicit_zone_map", []))
+
     calibration["schema_version"] = calibration_schema_version
+    calibration["calibration_schema_version"] = calibration_schema_version
     migrated["calibration_schema_version"] = calibration_schema_version
     migrated["calibration"] = calibration
     return migrated
@@ -171,6 +186,8 @@ def validate_config(cfg: AppConfig) -> AppConfig:
             "offset-direction": "offset_direction",
             "corner_anchored": "corner_anchored",
             "corner-anchored": "corner_anchored",
+            "manual_map": "manual_map",
+            "manual-map": "manual_map",
         },
         default=AppConfig.calibration_model,
     )
@@ -189,14 +206,34 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     corner_zone_offsets = [int(i) for i in list(raw_corner_offsets)[:4]]
     while len(corner_zone_offsets) < 4:
         corner_zone_offsets.append(0)
+    raw_normalized_corner_anchors = calibration_or_legacy("normalized_corner_anchors", []) or []
+    normalized_corner_anchors = [int(i) for i in list(raw_normalized_corner_anchors)[:4]]
+    while len(normalized_corner_anchors) < 4:
+        normalized_corner_anchors.append(-1)
+    normalized_zone_offset = _coerce_int(
+        calibration_or_legacy("normalized_zone_offset", zone_offset),
+        zone_offset,
+    )
+    normalized_reverse_zones = coerce_bool(
+        calibration_or_legacy("normalized_reverse_zones", coerce_bool(calibration_or_legacy("reverse_zones", False), False)),
+        coerce_bool(calibration_or_legacy("reverse_zones", False), False),
+    )
+    raw_normalized_manual_zone_map = calibration_or_legacy("normalized_manual_zone_map", explicit_zone_map) or []
+    normalized_manual_zone_map = [int(i) for i in raw_normalized_manual_zone_map]
+    effective_manual_mapping_enabled = manual_mapping_enabled or calibration_model == "manual_map"
     normalized_calibration = CalibrationConfig(
         schema_version=calibration_schema_version,
+        calibration_schema_version=calibration_schema_version,
         calibration_model=calibration_model,
         device_zone_count=device_zone_count,
         output_channel_order=output_channel_order,
+        normalized_zone_offset=normalized_zone_offset,
+        normalized_reverse_zones=normalized_reverse_zones,
+        normalized_corner_anchors=normalized_corner_anchors,
+        normalized_manual_zone_map=normalized_manual_zone_map,
         zone_offset=zone_offset,
         reverse_zones=coerce_bool(calibration_or_legacy("reverse_zones", False), False),
-        manual_mapping_enabled=manual_mapping_enabled,
+        manual_mapping_enabled=effective_manual_mapping_enabled,
         explicit_zone_map=explicit_zone_map,
         corner_anchor_top_left=corner_anchor_top_left,
         corner_anchor_top_right=corner_anchor_top_right,
@@ -342,7 +379,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         output_channel_order=output_channel_order,
         zone_offset=zone_offset,
         reverse_zones=normalized_calibration.reverse_zones,
-        manual_mapping_enabled=manual_mapping_enabled,
+        manual_mapping_enabled=effective_manual_mapping_enabled,
         calibration_model=calibration_model,
         explicit_zone_map=explicit_zone_map,
         corner_anchor_top_left=corner_anchor_top_left,

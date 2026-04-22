@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from typing import Any
 
 
@@ -60,10 +61,25 @@ def _dump_toml_fallback(payload: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _prepare_payload_for_round_trip(payload: dict[str, Any]) -> dict[str, Any]:
+    prepared = deepcopy(payload)
+    calibration = prepared.get("calibration")
+    if isinstance(calibration, dict):
+        schema_version = calibration.get(
+            "calibration_schema_version",
+            calibration.get("schema_version", prepared.get("calibration_schema_version", 1)),
+        )
+        calibration["schema_version"] = schema_version
+        calibration["calibration_schema_version"] = schema_version
+        prepared["calibration_schema_version"] = schema_version
+    return prepared
+
+
 def dump_toml(payload: dict[str, Any]) -> str:
+    prepared_payload = _prepare_payload_for_round_trip(payload)
     try:
         import tomli_w
     except ImportError:
-        return _dump_toml_fallback(payload)
+        return _dump_toml_fallback(prepared_payload)
 
-    return tomli_w.dumps(payload)
+    return tomli_w.dumps(prepared_payload)
