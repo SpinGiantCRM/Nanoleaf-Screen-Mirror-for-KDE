@@ -5,6 +5,7 @@ import logging
 import os
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+from time import perf_counter
 from typing import Callable
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
@@ -167,6 +168,8 @@ class DisplayConfiguratorDialog:
                 self._first_run_defaults = not bool(getattr(cfg, "wizard_completed", False))
                 self._live_preview_timer = QTimer(self) if callable(QTimer) else None
                 self._calibration_phase_index = 0
+                self._last_preview_refresh_ms = 0.0
+                self._last_phase_transition_ms = 0.0
 
                 # Step 2
                 self.display_mode_combo = QComboBox()
@@ -273,12 +276,15 @@ class DisplayConfiguratorDialog:
                 self.current_zone_label = QLabel("")
                 self.calibration_phase_label = QLabel("")
                 self.calibration_phase_status_label = QLabel("")
+                self.responsiveness_label = QLabel("")
                 self.advanced_calibration_group = QGroupBox("Advanced calibration")
                 set_checkable = getattr(self.advanced_calibration_group, "setCheckable", None)
                 if callable(set_checkable):
                     set_checkable(True)
                     self.advanced_calibration_group.setChecked(False)
-                self.calibration_hint = QLabel("Align strip start and orientation, then continue.")
+                self.calibration_hint = QLabel(
+                    "Align strip start and orientation, then continue. If calibration looks wrong: reset this phase, send a test pattern, then confirm again."
+                )
 
                 # Summary
                 self.summary_label = QLabel("")
@@ -417,28 +423,29 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.preview_visual, 6, 0, 1, 3)
                 layout.addWidget(self.calibration_phase_label, 7, 0, 1, 3)
                 layout.addWidget(self.calibration_phase_status_label, 8, 0, 1, 3)
-                layout.addWidget(self.calibration_phase_prev_button, 9, 0)
-                layout.addWidget(self.calibration_phase_next_button, 9, 1, 1, 2)
-                layout.addWidget(self.calibration_mark_pass_button, 10, 0, 1, 2)
-                layout.addWidget(self.calibration_mark_fail_button, 10, 2)
-                layout.addWidget(self.calibration_phase_rerun_button, 11, 0, 1, 2)
-                layout.addWidget(self.calibration_phase_reset_button, 11, 2)
-                layout.addWidget(self.calibration_undo_button, 12, 0, 1, 2)
-                layout.addWidget(self.calibration_phase_boundary_reset_button, 12, 2)
-                layout.addWidget(self.confirm_direction_button, 13, 0, 1, 2)
-                layout.addWidget(self.rollback_direction_button, 13, 2)
-                layout.addWidget(self.calibration_next_button, 14, 0, 1, 2)
-                layout.addWidget(self.calibration_prev_button, 14, 2)
-                layout.addWidget(self.calibration_send_button, 15, 0, 1, 3)
-                layout.addWidget(self.current_zone_label, 16, 0, 1, 3)
-                layout.addWidget(self.assign_tl_button, 17, 0, 1, 3)
-                layout.addWidget(self.assign_tr_button, 18, 0, 1, 3)
-                layout.addWidget(self.assign_br_button, 19, 0, 1, 3)
-                layout.addWidget(self.assign_bl_button, 20, 0, 1, 3)
-                layout.addWidget(self.confirm_anchor_button, 21, 0, 1, 2)
-                layout.addWidget(self.rollback_anchor_button, 21, 2)
-                layout.addWidget(self.anchor_validation_label, 22, 0, 1, 3)
-                layout.addWidget(self.calibration_test_label, 23, 0, 1, 3)
+                layout.addWidget(self.responsiveness_label, 9, 0, 1, 3)
+                layout.addWidget(self.calibration_phase_prev_button, 10, 0)
+                layout.addWidget(self.calibration_phase_next_button, 10, 1, 1, 2)
+                layout.addWidget(self.calibration_mark_pass_button, 11, 0, 1, 2)
+                layout.addWidget(self.calibration_mark_fail_button, 11, 2)
+                layout.addWidget(self.calibration_phase_rerun_button, 12, 0, 1, 2)
+                layout.addWidget(self.calibration_phase_reset_button, 12, 2)
+                layout.addWidget(self.calibration_undo_button, 13, 0, 1, 2)
+                layout.addWidget(self.calibration_phase_boundary_reset_button, 13, 2)
+                layout.addWidget(self.confirm_direction_button, 14, 0, 1, 2)
+                layout.addWidget(self.rollback_direction_button, 14, 2)
+                layout.addWidget(self.calibration_next_button, 15, 0, 1, 2)
+                layout.addWidget(self.calibration_prev_button, 15, 2)
+                layout.addWidget(self.calibration_send_button, 16, 0, 1, 3)
+                layout.addWidget(self.current_zone_label, 17, 0, 1, 3)
+                layout.addWidget(self.assign_tl_button, 18, 0, 1, 3)
+                layout.addWidget(self.assign_tr_button, 19, 0, 1, 3)
+                layout.addWidget(self.assign_br_button, 20, 0, 1, 3)
+                layout.addWidget(self.assign_bl_button, 21, 0, 1, 3)
+                layout.addWidget(self.confirm_anchor_button, 22, 0, 1, 2)
+                layout.addWidget(self.rollback_anchor_button, 22, 2)
+                layout.addWidget(self.anchor_validation_label, 23, 0, 1, 3)
+                layout.addWidget(self.calibration_test_label, 24, 0, 1, 3)
 
                 advanced_layout = QGridLayout()
                 advanced_layout.addWidget(QLabel("Global mapping zone offset"), 0, 0)
@@ -448,7 +455,7 @@ class DisplayConfiguratorDialog:
                 advanced_layout.addWidget(QLabel("Test zone step index"), 2, 0)
                 advanced_layout.addWidget(self.test_step_index_value, 2, 1, 1, 2)
                 self.advanced_calibration_group.setLayout(advanced_layout)
-                layout.addWidget(self.advanced_calibration_group, 24, 0, 1, 3)
+                layout.addWidget(self.advanced_calibration_group, 25, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -536,17 +543,21 @@ class DisplayConfiguratorDialog:
                 self._refresh()
 
             def _go_next(self) -> None:
+                start = perf_counter()
                 previous_step = self._flow.index
                 self._flow.next()
                 if previous_step == 0 and self._flow.index == 1:
                     self._send_live_preview()
                     self._ensure_live_preview_running()
+                self._last_phase_transition_ms = (perf_counter() - start) * 1000.0
                 self._refresh()
 
             def _go_back(self) -> None:
+                start = perf_counter()
                 self._flow.back()
                 if self._flow.index == 0:
                     self._stop_live_preview()
+                self._last_phase_transition_ms = (perf_counter() - start) * 1000.0
                 self._refresh()
 
             def _pull_state_from_controls(self) -> None:
@@ -803,6 +814,7 @@ class DisplayConfiguratorDialog:
                 self._refresh()
 
             def _refresh(self) -> None:
+                refresh_started = perf_counter()
                 self._pull_state_from_controls()
                 if not bool(self._suspend_session_persist):
                     self._save_wizard_session()
@@ -916,14 +928,16 @@ class DisplayConfiguratorDialog:
                     f"Calibration phase {self._calibration_phase_index + 1}/{len(CALIBRATION_SEQUENCE)}: {current_phase.title}"
                 )
                 phase_state_label = "passed" if phase_passed else ("failed" if current_progress.complete else "pending")
-                prereq_text = "ready" if prerequisites_met else f"blocked by prerequisites: {', '.join(current_phase.prerequisites)}"
+                if prerequisites_met:
+                    blocking_reason = "None"
+                    next_action = current_phase.required_actions[0] if current_phase.required_actions else "Continue to the next phase."
+                else:
+                    blocking_reason = f"Waiting for: {', '.join(current_phase.prerequisites)}"
+                    next_action = "Complete the blocked prerequisite phase(s)."
                 self.calibration_phase_status_label.setText(
-                    f"Phase state: {phase_state_label} ({prereq_text})\n"
-                    f"Pass criteria: {current_phase.pass_criteria}\n"
-                    f"Fail criteria: {current_phase.fail_criteria}\n"
-                    f"Required actions: {'; '.join(current_phase.required_actions)}\n"
-                    f"Validation: {validation_details}\n"
-                    f"Remediation: {'; '.join(current_phase.remediation_hints)}"
+                    f"State: {phase_state_label} | Validation: {validation_details}\n"
+                    f"Blocking reason: {blocking_reason}\n"
+                    f"Next action: {next_action}"
                 )
 
                 finish_set_enabled = getattr(self.finish_button, "setEnabled", None)
@@ -944,12 +958,12 @@ class DisplayConfiguratorDialog:
                 if bool(self.finish_override_checkbox.isChecked()):
                     self.finish_override_checkbox.setChecked(False)
                 self.finish_override_note.setText(
-                    "Finish blocked: strict calibration policy requires confidence=1.00 and sentinel consistency."
+                    "Finish blocked. Reason: strict calibration policy requires confidence=1.00 and sentinel consistency. Next action: complete calibration remediation hints."
                     if verification.hard_fail
                     else (
                         "Verification pass: calibration meets strict completion policy."
                         if verification.outcome_status == "pass"
-                        else "Finish blocked: strict calibration policy requires full validation pass."
+                        else "Finish blocked. Reason: strict calibration policy requires full validation pass. Next action: complete remaining calibration phases."
                     )
                 )
 
@@ -1017,7 +1031,8 @@ class DisplayConfiguratorDialog:
                             f"Vibrancy: {self.vibrancy_slider.value()}%",
                             f"Screen sampling zones: {self._state.zone_count}",
                             f"Effective strip LED zones: {effective_zone_count}",
-                            f"Calibration method: {current_phase.title} ({'passed' if phase_passed else 'in progress'})",
+                            f"Calibration model: {self._state.calibration_model}",
+                            f"Calibration phase: {current_phase.title} ({'passed' if phase_passed else 'in progress'})",
                             (
                                 "Verification: "
                                 + verification.compact_summary()
@@ -1032,6 +1047,10 @@ class DisplayConfiguratorDialog:
                             device_zone_status_text,
                         )
                     )
+                )
+                self._last_preview_refresh_ms = (perf_counter() - refresh_started) * 1000.0
+                self.responsiveness_label.setText(
+                    f"Responsiveness: step transition {self._last_phase_transition_ms:.1f} ms | preview refresh {self._last_preview_refresh_ms:.1f} ms"
                 )
                 if self._flow.index >= 1 and self._calibration_sender is not None:
                     self._ensure_live_preview_running()

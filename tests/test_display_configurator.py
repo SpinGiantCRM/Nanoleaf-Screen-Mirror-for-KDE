@@ -259,6 +259,21 @@ def test_display_configurator_updates_live_numeric_labels(monkeypatch) -> None:
     assert dialog._dialog.zone_count_value._text == "14"
     assert dialog._dialog.zone_offset_value._text == "-3 (raw -3)"
     assert "Screen sampling zones" in dialog._dialog.zone_count_explanation._text
+    assert "Responsiveness: step transition" in dialog._dialog.responsiveness_label._text
+
+
+def test_display_configurator_surfaces_primary_phase_state_and_next_action(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[]))
+    status_text = dialog._dialog.calibration_phase_status_label._text
+    assert "Blocking reason:" in status_text
+    assert "Next action:" in status_text
+
+
+def test_display_configurator_includes_calibration_recovery_helper(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[]))
+    assert "If calibration looks wrong" in dialog._dialog.calibration_hint._text
 
 
 def test_display_configurator_uses_compact_default_window_size(monkeypatch) -> None:
@@ -474,3 +489,12 @@ def test_display_configurator_blocks_finish_on_warning_sentinel_mismatch(monkeyp
     assert dialog._dialog._state.validation_report().hard_fail is True
     assert dialog._dialog.finish_button._enabled is False
     assert "strict calibration policy requires confidence=1.00 and sentinel consistency" in dialog._dialog.finish_override_note._text
+
+
+def test_display_configurator_summary_shows_model_and_phase_distinctly(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    cfg = AppConfig(zones=[], device_zone_count=8, calibration_model="corner_anchored")
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=cfg)
+    summary = dialog._dialog.summary_label._text
+    assert "Calibration model: corner_anchored" in summary
+    assert "Calibration phase:" in summary
