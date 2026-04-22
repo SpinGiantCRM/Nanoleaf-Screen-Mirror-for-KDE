@@ -269,3 +269,34 @@ def test_validation_report_can_pass_with_warning_when_sentinels_mismatch() -> No
     assert report.hard_fail is False
     assert "sentinel mismatch" not in report.compact_summary().lower()
     assert state.can_complete_calibration_flow() is True
+
+
+def test_state_checkpoint_restore_round_trips_phase_progress() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=8), {})
+    state.mark_calibration_step("start-point-detection", passed=True, notes="confirmed")
+    state.mark_calibration_step("direction-verification", passed=True, notes="forward")
+    state.zone_offset = 5
+    state.reverse_zones = True
+    checkpoint = state.save_checkpoint()
+
+    state.mark_calibration_step("direction-verification", passed=False, notes="regressed")
+    state.zone_offset = -3
+    state.reverse_zones = False
+
+    restored = state.restore_checkpoint(checkpoint)
+    assert restored is True
+    assert state.zone_offset == 5
+    assert state.reverse_zones is True
+    assert state.calibration_step_state("direction-verification").passed is True
+
+
+def test_state_phase_boundary_restore_rewinds_only_from_saved_boundary() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=8), {})
+    state.current_phase = "direction-verification"
+    state.zone_offset = 2
+    state.save_phase_boundary_checkpoint("direction-verification")
+
+    state.zone_offset = 6
+    assert state.restore_phase_boundary_checkpoint("direction-verification") is True
+    assert state.zone_offset == 2
+    assert state.restore_phase_boundary_checkpoint("corner-assignment") is False
