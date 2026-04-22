@@ -75,15 +75,25 @@ def mapping_preview_text(
     suffix = "…" if len(indices) > limit else ""
     if snapshot.calibration_model == "corner_anchored":
         model = "corner anchored"
+        detail_line = (
+            f"Anchors (TL/TR/BR/BL): {corner_anchor_top_left}, "
+            f"{corner_anchor_top_right}, "
+            f"{corner_anchor_bottom_right}, "
+            f"{corner_anchor_bottom_left}"
+        )
         notes = ""
         if snapshot.anchor_validation_errors:
             notes = f"\nCorner anchor validation: {'; '.join(snapshot.anchor_validation_errors)}"
     else:
         model = "explicit map" if explicit_zone_map else "offset + direction"
+        detail_line = (
+            f"Offset: {int(zone_offset):+d} | "
+            f"Direction: {'counter-clockwise' if reverse_zones else 'clockwise'}"
+        )
         notes = ""
     return (
         f"Calibration model: {model} | source zones: {zone_count} | strip zones: {device_zone_count}\n"
-        f"Offset: {int(zone_offset):+d} | Direction: {'counter-clockwise' if reverse_zones else 'clockwise'}{notes}\n"
+        f"{detail_line}{notes}\n"
         f"Device zone order (device→screen): {preview}{suffix}"
     )
 

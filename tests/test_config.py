@@ -75,8 +75,12 @@ def test_config_load_migrates_legacy_auto_device_zone_count_to_concrete_value(tm
 
     cfg = ConfigManager(path=cfg_path).load()
     assert cfg.device_zone_count == 2
+    assert cfg.calibration_schema_version == 1
+    assert cfg.calibration.device_zone_count == 2
     persisted = cfg_path.read_text(encoding="utf-8")
     assert "device_zone_count = 2" in persisted
+    assert "calibration_schema_version = 1" in persisted
+    assert "[calibration]" in persisted
 
 
 def test_config_load_normalizes_portal_backend_alias(tmp_path: Path) -> None:
@@ -266,6 +270,36 @@ def test_config_preserves_legacy_corner_anchor_fields_without_validation(tmp_pat
     assert cfg.corner_anchor_top_right == 1
     assert cfg.corner_anchor_bottom_right == 2
     assert cfg.corner_anchor_bottom_left == 2
+    assert cfg.calibration.corner_anchor_top_left == 0
+    assert cfg.calibration.corner_anchor_top_right == 1
+    assert cfg.calibration.corner_anchor_bottom_right == 2
+    assert cfg.calibration.corner_anchor_bottom_left == 2
+
+
+def test_config_prefers_canonical_calibration_block_over_legacy_aliases(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text(
+        "\n".join(
+            [
+                "zone_offset = 8",
+                "reverse_zones = true",
+                "calibration_schema_version = 1",
+                "[calibration]",
+                "zone_offset = -3",
+                "reverse_zones = false",
+                "device_zone_count = 12",
+                "calibration_model = \"corner_anchored\"",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    cfg = ConfigManager(path=cfg_path).load()
+    assert cfg.zone_offset == -3
+    assert cfg.reverse_zones is False
+    assert cfg.device_zone_count == 12
+    assert cfg.calibration.calibration_model == "corner_anchored"
 
 
 def test_dump_toml_handles_mixed_list_types() -> None:
@@ -274,6 +308,18 @@ def test_dump_toml_handles_mixed_list_types() -> None:
     assert '"two"' in encoded
     assert "true" in encoded
     assert "3.5" in encoded
+
+
+def test_dump_toml_renders_nested_calibration_table() -> None:
+    encoded = _dump_toml(
+        {
+            "calibration_schema_version": 1,
+            "calibration": {"zone_offset": 3, "reverse_zones": True},
+        }
+    )
+    assert "calibration_schema_version = 1" in encoded
+    assert "[calibration]" in encoded
+    assert "zone_offset = 3" in encoded
 
 
 def test_config_load_normalizes_auto_probe_fields(tmp_path: Path) -> None:

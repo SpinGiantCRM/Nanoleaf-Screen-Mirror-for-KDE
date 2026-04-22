@@ -20,6 +20,27 @@ class ZoneConfig:
 
 
 @dataclass
+class CalibrationConfig:
+    # Versioned schema for calibration payload migrations.
+    schema_version: int = 1
+    # Authoritative calibration model for resolving mapping.
+    calibration_model: str = "offset_direction"
+    device_zone_count: int = 0
+    output_channel_order: str = "grb"
+    zone_offset: int = 0
+    reverse_zones: bool = False
+    manual_mapping_enabled: bool = False
+    explicit_zone_map: list[int] = field(default_factory=list)
+    corner_anchor_top_left: int = -1
+    corner_anchor_top_right: int = -1
+    corner_anchor_bottom_right: int = -1
+    corner_anchor_bottom_left: int = -1
+    corner_start_anchor: int = -1
+    corner_offsets_enabled: bool = False
+    corner_zone_offsets: list[int] = field(default_factory=list)
+
+
+@dataclass
 class AppConfig:
     # Capture
     fps: int = 30
@@ -90,6 +111,9 @@ class AppConfig:
     hdr_primaries: str = "bt709"
 
     # Device zone calibration (mapping sampled screen zones to physical strip zones)
+    calibration_schema_version: int = 1
+    # Canonical, migration-safe calibration payload.
+    calibration: CalibrationConfig = field(default_factory=CalibrationConfig)
     # Persisted config should always carry a concrete value.
     # Legacy configs with 0 are migrated during normalization.
     device_zone_count: int = 0

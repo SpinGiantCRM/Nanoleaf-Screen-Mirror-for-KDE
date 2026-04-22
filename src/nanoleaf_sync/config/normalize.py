@@ -7,7 +7,7 @@ from nanoleaf_sync.capture.backend_selection import (
     normalize_backend_preference,
     normalize_cached_backend,
 )
-from nanoleaf_sync.config.model import AppConfig, ZoneConfig
+from nanoleaf_sync.config.model import AppConfig, CalibrationConfig, ZoneConfig
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +16,7 @@ SAMPLING_QUALITY_TO_ZONE_STRIDE: dict[str, int] = {
     "balanced": 2,
     "high": 1,
 }
+CURRENT_CALIBRATION_SCHEMA_VERSION = 1
 
 
 def sampling_quality_to_zone_stride(quality: str) -> int:
@@ -42,6 +43,48 @@ def coerce_bool(value: Any, default: bool) -> bool:
 def normalize_enum(value: Any, *, allowed: Dict[str, str], default: str) -> str:
     normalized = str(value).strip().lower()
     return allowed.get(normalized, default)
+
+
+def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:
+    migrated: Dict[str, Any] = dict(data)
+    calibration_payload = migrated.get("calibration")
+    calibration = dict(calibration_payload) if isinstance(calibration_payload, dict) else {}
+
+    calibration_schema_version = int(
+        migrated.get(
+            "calibration_schema_version",
+            calibration.get("schema_version", CURRENT_CALIBRATION_SCHEMA_VERSION),
+        )
+        or CURRENT_CALIBRATION_SCHEMA_VERSION
+    )
+    calibration_schema_version = max(1, calibration_schema_version)
+
+    # Top-level values are treated as legacy aliases and copied only when the
+    # canonical calibration block does not already provide a value.
+    alias_keys = (
+        "calibration_model",
+        "device_zone_count",
+        "output_channel_order",
+        "zone_offset",
+        "reverse_zones",
+        "manual_mapping_enabled",
+        "explicit_zone_map",
+        "corner_anchor_top_left",
+        "corner_anchor_top_right",
+        "corner_anchor_bottom_right",
+        "corner_anchor_bottom_left",
+        "corner_start_anchor",
+        "corner_offsets_enabled",
+        "corner_zone_offsets",
+    )
+    for key in alias_keys:
+        if key not in calibration and key in migrated:
+            calibration[key] = migrated[key]
+
+    calibration["schema_version"] = calibration_schema_version
+    migrated["calibration_schema_version"] = calibration_schema_version
+    migrated["calibration"] = calibration
+    return migrated
 
 
 def validate_config(cfg: AppConfig) -> AppConfig:
@@ -74,13 +117,30 @@ def validate_config(cfg: AppConfig) -> AppConfig:
             continue
         zones.append(ZoneConfig(x=x, y=y, w=w, h=h))
 
-    raw_device_zone_count = int(cfg.device_zone_count)
+    raw_calibration = cfg.calibration or CalibrationConfig()
+
+    has_explicit_calibration_block = raw_calibration != CalibrationConfig()
+
+    def calibration_or_legacy(field: str, default: Any) -> Any:
+        calibration_value = getattr(raw_calibration, field, default)
+        legacy_value = getattr(cfg, field, default)
+        if has_explicit_calibration_block:
+            return calibration_value
+        if calibration_value == default and legacy_value != default:
+            return legacy_value
+        return calibration_value
+
+    calibration_schema_version = int(
+        getattr(cfg, "calibration_schema_version", getattr(raw_calibration, "schema_version", 1)) or 1
+    )
+    calibration_schema_version = max(1, calibration_schema_version)
+    raw_device_zone_count = int(calibration_or_legacy("device_zone_count", 0))
     if raw_device_zone_count > 0:
         device_zone_count = raw_device_zone_count
     else:
         device_zone_count = len(zones) if zones else 8
     output_channel_order = normalize_enum(
-        getattr(cfg, "output_channel_order", "grb"),
+        calibration_or_legacy("output_channel_order", "grb"),
         allowed={
             "rgb": "rgb",
             "rbg": "rbg",
@@ -91,13 +151,13 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         },
         default="grb",
     )
-    zone_offset = int(cfg.zone_offset)
+    zone_offset = int(calibration_or_legacy("zone_offset", 0))
     manual_mapping_enabled = coerce_bool(
-        getattr(cfg, "manual_mapping_enabled", AppConfig.manual_mapping_enabled),
+        calibration_or_legacy("manual_mapping_enabled", AppConfig.manual_mapping_enabled),
         AppConfig.manual_mapping_enabled,
     )
     calibration_model = normalize_enum(
-        getattr(cfg, "calibration_model", AppConfig.calibration_model),
+        calibration_or_legacy("calibration_model", AppConfig.calibration_model),
         allowed={
             "offset_direction": "offset_direction",
             "offset-direction": "offset_direction",
@@ -106,21 +166,38 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         },
         default=AppConfig.calibration_model,
     )
-    explicit_zone_map = [int(i) for i in cfg.explicit_zone_map] if cfg.explicit_zone_map else []
-    corner_anchor_top_left = int(getattr(cfg, "corner_anchor_top_left", -1))
-    corner_anchor_top_right = int(getattr(cfg, "corner_anchor_top_right", -1))
-    corner_anchor_bottom_right = int(getattr(cfg, "corner_anchor_bottom_right", -1))
-    corner_anchor_bottom_left = int(getattr(cfg, "corner_anchor_bottom_left", -1))
-    corner_start_anchor = int(getattr(cfg, "corner_start_anchor", -1))
+    raw_explicit_zone_map = calibration_or_legacy("explicit_zone_map", [])
+    explicit_zone_map = [int(i) for i in raw_explicit_zone_map] if raw_explicit_zone_map else []
+    corner_anchor_top_left = int(calibration_or_legacy("corner_anchor_top_left", -1))
+    corner_anchor_top_right = int(calibration_or_legacy("corner_anchor_top_right", -1))
+    corner_anchor_bottom_right = int(calibration_or_legacy("corner_anchor_bottom_right", -1))
+    corner_anchor_bottom_left = int(calibration_or_legacy("corner_anchor_bottom_left", -1))
+    corner_start_anchor = int(calibration_or_legacy("corner_start_anchor", -1))
     corner_offsets_enabled = coerce_bool(
-        getattr(cfg, "corner_offsets_enabled", AppConfig.corner_offsets_enabled),
+        calibration_or_legacy("corner_offsets_enabled", AppConfig.corner_offsets_enabled),
         AppConfig.corner_offsets_enabled,
     )
-    raw_corner_offsets = getattr(cfg, "corner_zone_offsets", []) or []
+    raw_corner_offsets = calibration_or_legacy("corner_zone_offsets", []) or []
     corner_zone_offsets = [int(i) for i in list(raw_corner_offsets)[:4]]
     while len(corner_zone_offsets) < 4:
         corner_zone_offsets.append(0)
-
+    normalized_calibration = CalibrationConfig(
+        schema_version=calibration_schema_version,
+        calibration_model=calibration_model,
+        device_zone_count=device_zone_count,
+        output_channel_order=output_channel_order,
+        zone_offset=zone_offset,
+        reverse_zones=coerce_bool(calibration_or_legacy("reverse_zones", False), False),
+        manual_mapping_enabled=manual_mapping_enabled,
+        explicit_zone_map=explicit_zone_map,
+        corner_anchor_top_left=corner_anchor_top_left,
+        corner_anchor_top_right=corner_anchor_top_right,
+        corner_anchor_bottom_right=corner_anchor_bottom_right,
+        corner_anchor_bottom_left=corner_anchor_bottom_left,
+        corner_start_anchor=corner_start_anchor,
+        corner_offsets_enabled=corner_offsets_enabled,
+        corner_zone_offsets=corner_zone_offsets,
+    )
     max_consecutive_errors = max(1, int(cfg.max_consecutive_errors))
     reinit_backoff_ms = max(0, int(cfg.reinit_backoff_ms))
     status_log_interval_s = max(0.5, float(cfg.status_log_interval_s))
@@ -251,10 +328,12 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         sdr_boost_nits=sdr_boost_nits,
         hdr_transfer=hdr_transfer,
         hdr_primaries=hdr_primaries,
+        calibration_schema_version=calibration_schema_version,
+        calibration=normalized_calibration,
         device_zone_count=device_zone_count,
         output_channel_order=output_channel_order,
         zone_offset=zone_offset,
-        reverse_zones=coerce_bool(getattr(cfg, "reverse_zones", False), False),
+        reverse_zones=normalized_calibration.reverse_zones,
         manual_mapping_enabled=manual_mapping_enabled,
         calibration_model=calibration_model,
         explicit_zone_map=explicit_zone_map,

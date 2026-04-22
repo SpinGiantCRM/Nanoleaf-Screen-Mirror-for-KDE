@@ -61,6 +61,8 @@ def test_corner_anchored_model_uses_assigned_anchors_deterministically() -> None
         calibration_model="corner_anchored",
     )
     assert "Calibration model: corner anchored" in preview
+    assert "Offset:" not in preview
+    assert "Anchors (TL/TR/BR/BL): 2, 5, 8, 11" in preview
 
 
 def test_backward_compatibility_old_configs_do_not_crash(tmp_path: Path) -> None:
@@ -68,3 +70,5 @@ def test_backward_compatibility_old_configs_do_not_crash(tmp_path: Path) -> None
     path.write_text("zone_offset = 2\nreverse_zones = true\n", encoding="utf-8")
     cfg = ConfigManager(path=path).load()
     assert cfg.zone_offset == 2
+    assert cfg.calibration.zone_offset == 2
+    assert cfg.calibration.reverse_zones is True
