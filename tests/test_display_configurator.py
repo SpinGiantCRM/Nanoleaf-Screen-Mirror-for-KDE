@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import types
 
+import pytest
+
 from nanoleaf_sync.config.model import AppConfig
-from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog
+from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog, WIZARD_SESSION_ENV
 
 
 def _qt_stub() -> dict[str, object]:
@@ -158,6 +160,11 @@ def _qt_stub() -> dict[str, object]:
         "QCheckBox": _Check,
         "Qt": types.SimpleNamespace(Orientation=types.SimpleNamespace(Horizontal=1)),
     }
+
+
+@pytest.fixture(autouse=True)
+def _session_storage_path(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv(WIZARD_SESSION_ENV, str(tmp_path / "wizard-session.json"))
 
 
 def test_display_configurator_marks_wizard_complete_and_saves_calibration(monkeypatch) -> None:
@@ -364,3 +371,56 @@ def test_display_configurator_retry_and_reset_do_not_clear_other_completed_phase
     dialog._dialog.calibration_phase_reset_button.clicked.emit()
     assert dialog._dialog._state.calibration_step_state("start-point-detection").passed is True
     assert dialog._dialog._state.calibration_step_state("direction-verification").passed is True
+
+
+def test_display_configurator_undo_last_calibration_action(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=8))
+    dialog._dialog._calibration_phase_index = 1
+    dialog._dialog.zone_offset_slider.setValue(3)
+    before = dialog._dialog.zone_offset_slider.value()
+    dialog._dialog.calibration_next_button.clicked.emit()
+    dialog._dialog.zone_offset_slider.setValue(-2)
+
+    dialog._dialog.calibration_undo_button.clicked.emit()
+    assert dialog._dialog.zone_offset_slider.value() == before
+
+
+def test_display_configurator_reset_current_phase_restores_boundary_snapshot(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=8))
+    dialog._dialog._calibration_phase_index = 1
+    dialog._dialog._capture_phase_boundary_snapshot()
+    expected_reverse = dialog._dialog.reverse_checkbox.isChecked()
+    dialog._dialog.zone_offset_slider.setValue(6)
+    dialog._dialog.reverse_checkbox.setChecked(True)
+
+    dialog._dialog.calibration_phase_boundary_reset_button.clicked.emit()
+    assert dialog._dialog.zone_offset_slider.value() == 0
+    assert dialog._dialog.reverse_checkbox.isChecked() is expected_reverse
+
+
+def test_display_configurator_recovers_local_session_on_reopen(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[]))
+    dialog._dialog._flow.index = 2
+    dialog._dialog._test_step = 4
+    dialog._dialog.zone_offset_slider.setValue(5)
+    dialog._dialog._save_wizard_session()
+
+    resumed = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[]))
+    assert resumed._dialog._flow.index == 2
+    assert resumed._dialog._test_step == 4
+    assert resumed._dialog.zone_offset_slider.value() == -3
+    assert "Recovered unfinished calibration session" in resumed._dialog.zone_change_notice._text
+
+
+def test_display_configurator_zone_count_change_remaps_anchors_and_shows_notice(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    cfg = AppConfig(zones=[], device_zone_count=8, calibration_model="corner_anchored")
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=cfg)
+    dialog._dialog._state.corner_anchor_top_left = 4
+    dialog._dialog.device_zone_count_slider.setValue(16)
+
+    assert dialog._dialog._state.corner_anchor_top_left == 8
+    assert "remapped offset and corner anchors" in dialog._dialog.zone_change_notice._text

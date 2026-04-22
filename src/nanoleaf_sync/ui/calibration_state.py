@@ -135,6 +135,8 @@ class CalibrationState:
     checkpoint: CalibrationCheckpoint | None = None
     rollback_checkpoint: CalibrationCheckpoint | None = None
     phase_rollback_checkpoints: dict[str, CalibrationCheckpoint] = field(default_factory=dict)
+    phase_boundary_checkpoints: dict[str, CalibrationCheckpoint] = field(default_factory=dict)
+    action_history: list[CalibrationCheckpoint] = field(default_factory=list)
 
     @classmethod
     def from_config(cls, cfg: AppConfig, runtime_status: dict | None = None) -> "CalibrationState":
@@ -211,6 +213,16 @@ class CalibrationState:
             details=str(notes),
         )
         self.current_phase = str(step_id)
+
+    def push_action_snapshot(self, *, history_limit: int = 64) -> None:
+        self.action_history.append(self.snapshot_checkpoint())
+        if len(self.action_history) > int(history_limit):
+            self.action_history = self.action_history[-int(history_limit) :]
+
+    def undo_last_action(self) -> bool:
+        if not self.action_history:
+            return False
+        return self.restore_checkpoint(self.action_history.pop())
 
     def evaluate_phase(self, step_id: str) -> tuple[bool, str]:
         phase = calibration_step_by_id(step_id)
@@ -380,8 +392,19 @@ class CalibrationState:
         self.rollback_checkpoint = checkpoint
         return checkpoint
 
+    def save_phase_boundary_checkpoint(self, step_id: str) -> CalibrationCheckpoint:
+        checkpoint = self.snapshot_checkpoint()
+        self.phase_boundary_checkpoints[str(step_id)] = checkpoint
+        return checkpoint
+
     def restore_phase_checkpoint(self, step_id: str) -> bool:
         checkpoint = self.phase_rollback_checkpoints.get(str(step_id))
+        if checkpoint is None:
+            return False
+        return self.restore_checkpoint(checkpoint)
+
+    def restore_phase_boundary_checkpoint(self, step_id: str) -> bool:
+        checkpoint = self.phase_boundary_checkpoints.get(str(step_id))
         if checkpoint is None:
             return False
         return self.restore_checkpoint(checkpoint)
