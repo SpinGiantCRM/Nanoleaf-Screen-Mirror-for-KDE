@@ -16,9 +16,16 @@ def call_with_timeout(func: Callable[[], T], timeout_s: float, *, op_name: str) 
     if timeout_s <= 0.0:
         raise TimeoutError(f"{op_name} timeout must be > 0 seconds")
 
-    with ThreadPoolExecutor(max_workers=1, thread_name_prefix="capture-probe") as pool:
-        future = pool.submit(func)
-        try:
-            return future.result(timeout=timeout_s)
-        except FutureTimeoutError as exc:
-            raise TimeoutError(f"{op_name} timed out after {timeout_s:.2f}s") from exc
+    pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="capture-probe")
+    future = pool.submit(func)
+    timed_out = False
+    try:
+        return future.result(timeout=timeout_s)
+    except FutureTimeoutError as exc:
+        timed_out = True
+        future.cancel()
+        pool.shutdown(wait=False, cancel_futures=True)
+        raise TimeoutError(f"{op_name} timed out after {timeout_s:.2f}s") from exc
+    finally:
+        if not timed_out:
+            pool.shutdown(wait=True)

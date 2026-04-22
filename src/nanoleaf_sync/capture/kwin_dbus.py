@@ -348,7 +348,12 @@ class KWinDBusScreenshotCapture:
                 stride = int(result_map.get("stride", 0) or 0)
                 height = int(result_map.get("height", 0) or 0)
                 expected_bytes = stride * height if stride > 0 and height > 0 else None
-                frame_data = self._read_fd_exact(read_fd, expected_bytes)
+                frame_data = self._read_fd_exact(
+                    read_fd,
+                    expected_bytes,
+                    stride=stride,
+                    height=height,
+                )
                 self.last_capture_path = f"kwin-dbus:{method_name}"
                 return _ScreenShot2Payload(data=frame_data, results=results)
             except Exception as exc:
@@ -503,9 +508,26 @@ class KWinDBusScreenshotCapture:
             chunks.append(chunk)
         return b"".join(chunks)
 
-    def _read_fd_exact(self, fd: int, expected_size: int | None) -> bytes:
-        if expected_size is None or expected_size <= 0:
+    def _read_fd_exact(
+        self,
+        fd: int,
+        expected_size: int | None,
+        *,
+        stride: int | None = None,
+        height: int | None = None,
+    ) -> bytes:
+        if expected_size is None:
             return self._read_all_bytes_from_fd(fd)
+        if expected_size == 0:
+            raise KWinDBusCaptureError(
+                "KWin ScreenShot2 reported zero expected bytes "
+                f"(stride={stride!r}, height={height!r}, expected_bytes={expected_size})."
+            )
+        if expected_size < 0:
+            raise KWinDBusCaptureError(
+                "KWin ScreenShot2 reported a negative expected byte count "
+                f"(stride={stride!r}, height={height!r}, expected_bytes={expected_size})."
+            )
 
         buffer = bytearray(expected_size)
         view = memoryview(buffer)
