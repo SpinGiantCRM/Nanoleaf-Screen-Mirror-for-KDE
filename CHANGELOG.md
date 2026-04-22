@@ -10,6 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 * Align calibration schema/model naming to `manual_explicit_map` while keeping `manual_map` as a compatibility alias.
 * Make manual explicit-map resolver semantics authoritative for preview/runtime parity even when legacy manual toggle is disabled.
 * Finalize calibration parity batch checklist coverage and release gating ledger for batches A-E.
+* Calibration parity evidence (`EV-CHANGELOG-UNREL-2026-04-22`): P-01/P-02/P-03/P-04/P-05/P-07/P-08/P-09/P-10 passed; P-06 failed (see `docs/CALIBRATION_PARITY_RELEASE_GATE.md`).
+* Batch sign-off snapshot (`EV-CHANGELOG-UNREL-2026-04-22`): Batch A/B/C approved; Batch D/E not approved pending P-06 remediation.
 
 ## [0.7.5] - 2026-04-22
 
