@@ -13,6 +13,7 @@ import os
 import signal
 import threading
 import time
+from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Optional, Tuple
 
@@ -318,18 +319,27 @@ class NanoleafSyncService:
                         or previous_winner != winner
                         or previous_signature != signature
                     )
-                    self.config.auto_selected_backend = winner
-                    self.config.auto_probe_signature = signature
+                    updated_config = replace(
+                        self.config,
+                        auto_selected_backend=winner,
+                        auto_probe_signature=signature,
+                    )
                     if needs_write:
-                        self.config.auto_probe_timestamp = datetime.now(timezone.utc).isoformat()
+                        updated_config = replace(
+                            updated_config,
+                            auto_probe_timestamp=datetime.now(timezone.utc).isoformat(),
+                        )
                         if self._capture_backend_override is None and self._driver_override is None:
                             try:
-                                ConfigManager().save(self.config)
+                                ConfigManager().save(updated_config)
                             except Exception as exc:
                                 logger.warning(
                                     "Failed to persist auto-probe cache metadata: %s",
                                     exc,
                                 )
+                    self.config.auto_selected_backend = updated_config.auto_selected_backend
+                    self.config.auto_probe_signature = updated_config.auto_probe_signature
+                    self.config.auto_probe_timestamp = updated_config.auto_probe_timestamp
                 else:
                     self._selection_reason = "fallback"
         self._effective_capture_backend = getattr(self._capture, "name", None)

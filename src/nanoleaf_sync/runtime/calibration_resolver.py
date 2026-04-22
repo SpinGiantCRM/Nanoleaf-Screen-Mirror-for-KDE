@@ -174,8 +174,6 @@ def resolve_calibration_mapping_with_context(
     device_zone_count = max(1, int(context.effective_device_zone_count))
     if configured_device_zone_count > 0:
         device_zone_count = configured_device_zone_count
-    elif context.detected_device_zone_count:
-        device_zone_count = max(1, int(context.detected_device_zone_count))
     return resolve_calibration_mapping(
         zone_count=int(context.source_zone_count),
         device_zone_count=device_zone_count,

@@ -84,6 +84,31 @@ def test_config_load_migrates_legacy_auto_device_zone_count_to_concrete_value(tm
     assert "[calibration]" in persisted
 
 
+def test_config_load_does_not_persist_legacy_auto_zone_count_when_no_zones_defined(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text(
+        "\n".join(
+            [
+                "device_zone_count = 0",
+                "zones = []",
+                "calibration_schema_version = 1",
+                "[calibration]",
+                "schema_version = 1",
+                "calibration_schema_version = 1",
+                "device_zone_count = 0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    original = cfg_path.read_text(encoding="utf-8")
+
+    cfg = ConfigManager(path=cfg_path).load()
+
+    assert cfg.device_zone_count == 8
+    assert cfg_path.read_text(encoding="utf-8") == original
+
+
 def test_config_load_normalizes_portal_backend_alias(tmp_path: Path) -> None:
     cfg_path = tmp_path / "config.toml"
     cfg_path.write_text("prefer_backend = \"portal\"\n", encoding="utf-8")
