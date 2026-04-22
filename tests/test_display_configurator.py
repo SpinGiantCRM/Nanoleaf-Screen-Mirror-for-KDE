@@ -210,6 +210,14 @@ def test_display_configurator_uses_step_1_device_zone_count_for_calibration_fram
     assert any(rgb != (0, 0, 0) for rgb in active_frame)
 
 
+def test_display_configurator_calibration_step_cycle_uses_strip_zone_count(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=48))
+    dialog._dialog._refresh()
+
+    assert "1/48" in dialog._dialog.current_zone_label._text
+
+
 def test_display_configurator_can_set_manual_device_zone_count(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
     cfg = AppConfig(zones=[])
