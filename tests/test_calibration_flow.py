@@ -121,8 +121,31 @@ def test_calibration_completion_requires_validation_score_threshold() -> None:
     report = state.validation_report()
     assert report.sentinel_consistency is False
     assert report.anchors_unique_valid is False
+    assert report.outcome_status == "fail"
+    assert report.hard_fail is True
+    assert "override" in report.remediation_action.lower()
     assert report.remediation_hints
     assert state.can_complete_calibration_flow() is False
+
+
+def test_calibration_completion_allows_warning_status_when_core_checks_pass() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=8), {})
+    for step in CALIBRATION_SEQUENCE:
+        state.mark_calibration_step(step.step_id, passed=True)
+    expected = state.validation_report().expected_sentinels
+    state.corner_anchor_top_left = (expected[0] + 1) % 8
+    state.corner_anchor_top_right = (expected[1] + 1) % 8
+    state.corner_anchor_bottom_right = (expected[2] + 1) % 8
+    state.corner_anchor_bottom_left = (expected[3] + 1) % 8
+
+    report = state.validation_report()
+    assert report.direction_confirmed is True
+    assert report.anchors_unique_valid is True
+    assert report.cycle_replay_confirmed is True
+    assert report.sentinel_consistency is False
+    assert report.outcome_status == "pass_with_warning"
+    assert report.hard_fail is False
+    assert state.can_complete_calibration_flow() is True
 
 
 def test_phase_validation_tracks_failures_until_actions_pass() -> None:

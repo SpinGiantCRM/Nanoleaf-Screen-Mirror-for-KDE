@@ -9,7 +9,6 @@ from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
 from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE, calibration_sequence_text
 from nanoleaf_sync.ui.calibration_state import (
-    MIN_CALIBRATION_VALIDATION_CONFIDENCE,
     CalibrationPhaseValidation,
     CalibrationState,
     build_testing_panel_state,
@@ -268,6 +267,8 @@ class DisplayConfiguratorDialog:
 
                 # Summary
                 self.summary_label = QLabel("")
+                self.finish_override_checkbox = qt["QCheckBox"]("Allow Finish despite verification fail")
+                self.finish_override_note = QLabel("")
 
                 self.cancel_button = QPushButton("Cancel")
                 self.back_button = QPushButton("Back")
@@ -290,6 +291,7 @@ class DisplayConfiguratorDialog:
                     self.zone_offset_slider.valueChanged,
                     self.zone_preset_combo.currentIndexChanged,
                     self.reverse_checkbox.stateChanged,
+                    self.finish_override_checkbox.stateChanged,
                 ):
                     signal.connect(self._refresh)
                 self.preset_sdr_button.clicked.connect(lambda: self._apply_display_preset("sdr"))
@@ -467,6 +469,8 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.device_zone_summary, 6, 1, 1, 2)
                 layout.addWidget(self.zone_count_explanation, 7, 0, 1, 3)
                 layout.addWidget(self.summary_label, 8, 0, 1, 3)
+                layout.addWidget(self.finish_override_checkbox, 9, 0, 1, 3)
+                layout.addWidget(self.finish_override_note, 10, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -820,13 +824,30 @@ class DisplayConfiguratorDialog:
                 )
 
                 finish_set_enabled = getattr(self.finish_button, "setEnabled", None)
+                allow_finish_override = bool(self.finish_override_checkbox.isChecked())
+                can_finish_without_override = (
+                    not self._flow.can_go_next()
+                    and self._device_zone_count_confirmed
+                    and (not corner_mode or anchor_validation.valid)
+                    and not verification.hard_fail
+                )
                 if callable(finish_set_enabled):
-                    finish_set_enabled(
-                        not self._flow.can_go_next()
-                        and self._device_zone_count_confirmed
-                        and (not corner_mode or anchor_validation.valid)
-                        and verification.confidence_score >= MIN_CALIBRATION_VALIDATION_CONFIDENCE
+                    finish_set_enabled(can_finish_without_override or allow_finish_override)
+                override_set_enabled = getattr(self.finish_override_checkbox, "setEnabled", None)
+                if callable(override_set_enabled):
+                    override_set_enabled(bool(verification.hard_fail))
+                if not verification.hard_fail:
+                    if bool(self.finish_override_checkbox.isChecked()):
+                        self.finish_override_checkbox.setChecked(False)
+                self.finish_override_note.setText(
+                    "Finish blocked: verification hard-fail. Re-run failed phases or explicitly override."
+                    if verification.hard_fail
+                    else (
+                        "Verification warning: sentinel replay differs from expected mapping; finishing is allowed."
+                        if verification.outcome_status == "pass_with_warning"
+                        else "Verification pass: calibration is reliable."
                     )
+                )
 
                 hdr_mode = str(self.display_mode_combo.currentText()) == "hdr"
                 for widget in (
@@ -896,11 +917,13 @@ class DisplayConfiguratorDialog:
                             (
                                 "Verification: "
                                 + verification.compact_summary()
+                                + f" | Sentinel expected/assigned: {verification.expected_sentinels}/{verification.assigned_sentinels}"
                                 + (
                                     ""
                                     if not verification.remediation_hints
                                     else f" | Remediation: {'; '.join(verification.remediation_hints)}"
                                 )
+                                + f" | Action: {verification.remediation_action}"
                             ),
                             device_zone_status_text,
                         )
@@ -974,11 +997,13 @@ class DisplayConfiguratorDialog:
                     calibration_validation_confidence=float(verification.confidence_score),
                     calibration_validation_summary=(
                         verification.compact_summary()
+                        + f" | sentinel_expected={verification.expected_sentinels} sentinel_assigned={verification.assigned_sentinels}"
                         + (
                             ""
                             if not verification.remediation_hints
                             else f" | Remediation: {'; '.join(verification.remediation_hints)}"
                         )
+                        + f" | Action: {verification.remediation_action}"
                     ),
                     wizard_in_progress_state="",
                     wizard_completed=True,

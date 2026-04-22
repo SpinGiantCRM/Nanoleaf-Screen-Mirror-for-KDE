@@ -86,18 +86,24 @@ class CalibrationCheckpoint:
 
 @dataclass(frozen=True)
 class CalibrationVerificationReport:
+    outcome_status: str
     direction_confirmed: bool
     anchors_unique_valid: bool
     cycle_replay_confirmed: bool
     sentinel_consistency: bool
     expected_sentinels: tuple[int, ...]
     assigned_sentinels: tuple[int, ...]
+    direction_confidence_component: float
+    anchors_confidence_component: float
+    cycle_confidence_component: float
     confidence_score: float
+    hard_fail: bool
+    remediation_action: str
     remediation_hints: tuple[str, ...]
 
     def compact_summary(self) -> str:
         return (
-            f"confidence={self.confidence_score:.2f} "
+            f"verification={self.outcome_status} confidence={self.confidence_score:.2f} "
             f"(direction={'ok' if self.direction_confirmed else 'fix'}, "
             f"anchors={'ok' if self.anchors_unique_valid else 'fix'}, "
             f"cycle={'ok' if self.cycle_replay_confirmed else 'fix'}, "
@@ -264,8 +270,17 @@ class CalibrationState:
         anchors_unique_valid = bool(anchor_validation.valid)
         sentinel_consistency = tuple(expected[:4]) == tuple(assigned[:4])
 
-        confidence_checks = (direction_confirmed, anchors_unique_valid, cycle_replay_confirmed)
-        confidence_score = float(sum(1 for flag in confidence_checks if flag)) / float(len(confidence_checks))
+        direction_component = 1.0 if direction_confirmed else 0.0
+        anchors_component = 1.0 if anchors_unique_valid else 0.0
+        cycle_component = 1.0 if cycle_replay_confirmed else 0.0
+        confidence_score = (direction_component + anchors_component + cycle_component) / 3.0
+        hard_fail = confidence_score < MIN_CALIBRATION_VALIDATION_CONFIDENCE
+        if hard_fail:
+            outcome_status = "fail"
+        elif sentinel_consistency:
+            outcome_status = "pass"
+        else:
+            outcome_status = "pass_with_warning"
         hints: list[str] = []
         if not direction_confirmed:
             hints.append("Re-run direction verification and confirm reverse/offset orientation.")
@@ -275,14 +290,25 @@ class CalibrationState:
             hints.append("Complete end-to-end validation replay for one full cycle.")
         if not sentinel_consistency:
             hints.append("Replay sentinel corners and re-assign anchors until expected and assigned corners match.")
+        remediation_action = (
+            "Use override only if you accept reduced reliability."
+            if hard_fail
+            else ("Review sentinel mismatch before saving." if not sentinel_consistency else "No action needed.")
+        )
         return CalibrationVerificationReport(
+            outcome_status=outcome_status,
             direction_confirmed=direction_confirmed,
             anchors_unique_valid=anchors_unique_valid,
             cycle_replay_confirmed=cycle_replay_confirmed,
             sentinel_consistency=sentinel_consistency,
             expected_sentinels=tuple(expected[:4]),
             assigned_sentinels=tuple(assigned[:4]),
+            direction_confidence_component=direction_component,
+            anchors_confidence_component=anchors_component,
+            cycle_confidence_component=cycle_component,
             confidence_score=confidence_score,
+            hard_fail=hard_fail,
+            remediation_action=remediation_action,
             remediation_hints=tuple(hints),
         )
 
