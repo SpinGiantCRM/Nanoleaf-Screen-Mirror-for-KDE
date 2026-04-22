@@ -242,5 +242,30 @@ def test_validation_report_tracks_confidence_and_sentinel_consistency() -> None:
     state.corner_anchor_bottom_left = report.expected_sentinels[3]
     passed_report = state.validation_report()
     assert passed_report.confidence_score == 1.0
+    assert passed_report.direction_confidence_component == 1.0
+    assert passed_report.anchors_confidence_component == 1.0
+    assert passed_report.cycle_confidence_component == 1.0
+    assert passed_report.outcome_status == "pass"
+    assert passed_report.hard_fail is False
     assert passed_report.sentinel_consistency is True
+    assert state.can_complete_calibration_flow() is True
+
+
+def test_validation_report_can_pass_with_warning_when_sentinels_mismatch() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=8), {})
+    for step_id in state.calibration_steps():
+        state.mark_calibration_step(step_id, passed=True)
+    expected = state.validation_report().expected_sentinels
+    shifted = tuple((value + 1) % state.effective_device_zone_count() for value in expected)
+    state.corner_anchor_top_left = shifted[0]
+    state.corner_anchor_top_right = shifted[1]
+    state.corner_anchor_bottom_right = shifted[2]
+    state.corner_anchor_bottom_left = shifted[3]
+
+    report = state.validation_report()
+    assert report.confidence_score == 1.0
+    assert report.sentinel_consistency is False
+    assert report.outcome_status == "pass_with_warning"
+    assert report.hard_fail is False
+    assert "sentinel mismatch" not in report.compact_summary().lower()
     assert state.can_complete_calibration_flow() is True
