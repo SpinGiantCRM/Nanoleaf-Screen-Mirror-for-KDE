@@ -277,6 +277,22 @@ def test_kmsgrab_probes_modules_once_and_falls_back_without_import_exceptions(mo
     assert calls["imports"] == 2
 
 
+def test_kmsgrab_reuses_cached_probe_result_across_instances(monkeypatch) -> None:
+    calls = {"imports": 0}
+
+    def _fake_import(_name):
+        calls["imports"] += 1
+        raise ImportError("missing")
+
+    monkeypatch.setattr("nanoleaf_sync.capture.kmsgrab.import_module", _fake_import)
+
+    KMSGrabCapture(width=4, height=3)
+    KMSGrabCapture(width=8, height=6)
+
+    # Probe should run only once per process lifecycle (two import attempts total).
+    assert calls["imports"] == 2
+
+
 def test_kmsgrab_drm_capture_keyword_only_callable_is_used() -> None:
     backend = KMSGrabCapture(width=4, height=3)
     calls: list[str] = []

@@ -475,4 +475,9 @@ def run_loop(
         elif now < next_deadline:
             time.sleep(next_deadline - now)
 
-    capture_thread.join(timeout=0.2)
+    capture_thread.join(timeout=1.0)
+    if capture_thread.is_alive():
+        logger.warning(
+            "capture worker thread did not exit within shutdown timeout; "
+            "it may still be blocked in capture backend IO"
+        )
