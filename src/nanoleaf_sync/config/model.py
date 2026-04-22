@@ -130,6 +130,8 @@ class AppConfig:
     latency_last_value_ms: float = 0.0
     latency_last_trigger: str = ""
     latency_last_timestamp: str = ""
+    calibration_validation_confidence: float = 0.0
+    calibration_validation_summary: str = ""
 
     # Recovery policy
     max_consecutive_errors: int = 5

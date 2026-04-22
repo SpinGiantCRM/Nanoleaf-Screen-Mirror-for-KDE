@@ -156,6 +156,11 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     latency_last_value_ms = max(0.0, float(getattr(cfg, "latency_last_value_ms", 0.0) or 0.0))
     latency_last_trigger = str(getattr(cfg, "latency_last_trigger", "") or "").strip()
     latency_last_timestamp = str(getattr(cfg, "latency_last_timestamp", "") or "").strip()
+    calibration_validation_confidence = max(
+        0.0,
+        min(1.0, float(getattr(cfg, "calibration_validation_confidence", 0.0) or 0.0)),
+    )
+    calibration_validation_summary = str(getattr(cfg, "calibration_validation_summary", "") or "").strip()
 
     zone_preset = normalize_enum(
         cfg.zone_preset,
@@ -265,6 +270,8 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         latency_last_value_ms=latency_last_value_ms,
         latency_last_trigger=latency_last_trigger,
         latency_last_timestamp=latency_last_timestamp,
+        calibration_validation_confidence=calibration_validation_confidence,
+        calibration_validation_summary=calibration_validation_summary,
         max_consecutive_errors=max_consecutive_errors,
         reinit_backoff_ms=reinit_backoff_ms,
         status_log_interval_s=status_log_interval_s,
