@@ -404,10 +404,14 @@ class SettingsDialog:
             def _remap_offset_between_counts(self, offset: int, previous_count: int, new_count: int) -> int:
                 previous_total = max(1, int(previous_count))
                 new_total = max(1, int(new_count))
+                # Preserve rotational position on the ring; signed offset may change after
+                # normalization when the strip LED zone count changes.
                 preserved_position = int(offset) % previous_total
                 return self._normalize_offset_for_count(preserved_position, new_total)
 
             def _set_slider_value_safely(self, slider, value: int) -> None:
+                if int(slider.value()) == int(value):
+                    return
                 block_signals = getattr(slider, "blockSignals", None)
                 previous = False
                 if callable(block_signals):
@@ -416,7 +420,7 @@ class SettingsDialog:
                 if callable(block_signals):
                     block_signals(previous)
 
-            def _sync_zone_offset_slider(self, previous_zone_count: int | None = None) -> None:
+            def _sync_zone_offset_slider(self, *, previous_zone_count: int | None = None) -> None:
                 current_zone_count = max(1, int(self.device_zone_count_slider.value()))
                 old_zone_count = max(1, int(previous_zone_count or current_zone_count))
                 remapped_offset = self._remap_offset_between_counts(
@@ -534,6 +538,7 @@ class SettingsDialog:
             def _send_test_pattern(self):
                 if self._calibration_sender is None: return
                 self._pull_state()
+                # Normalize self._test_step before generating the frame.
                 self._current_calibration_step()
                 colors = self._state.frame_for_step(mode=CALIBRATION_MODE_CORNER, step=self._test_step, brightness=self.test_brightness_slider.value()/100.0, all_off_except_active=bool(self.test_background_checkbox.isChecked()))
                 self._calibration_sender(colors)

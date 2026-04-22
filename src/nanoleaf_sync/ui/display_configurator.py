@@ -389,6 +389,8 @@ class DisplayConfiguratorDialog:
             def _remap_offset_between_counts(self, offset: int, previous_count: int, new_count: int) -> int:
                 previous_total = max(1, int(previous_count))
                 new_total = max(1, int(new_count))
+                # Preserve rotational position on the ring; signed offset may change after
+                # normalization when the strip LED zone count changes.
                 preserved_position = int(offset) % previous_total
                 return self._normalize_offset_for_count(preserved_position, new_total)
 
@@ -396,6 +398,8 @@ class DisplayConfiguratorDialog:
                 return max(1, int(zone_count) - 1)
 
             def _set_slider_value_safely(self, slider, value: int) -> None:
+                if int(slider.value()) == int(value):
+                    return
                 block_signals = getattr(slider, "blockSignals", None)
                 previous = False
                 if callable(block_signals):
@@ -428,7 +432,6 @@ class DisplayConfiguratorDialog:
                 self._refresh()
 
             def _refresh(self) -> None:
-                self._sync_zone_offset_slider(previous_zone_count=self._state.effective_device_zone_count())
                 self._pull_state_from_controls()
                 self.pages.setCurrentIndex(self._flow.index)
                 self.step_label.setText(self._flow.step_label())
@@ -547,6 +550,7 @@ class DisplayConfiguratorDialog:
                 if self._calibration_sender is None:
                     return
                 self._pull_state_from_controls()
+                # Normalize self._test_step before generating the frame.
                 self._active_calibration_step()
                 mode = CALIBRATION_MODE_CORNER
                 off_frame = [(0, 0, 0)] * self._state.effective_device_zone_count()
