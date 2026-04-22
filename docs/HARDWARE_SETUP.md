@@ -23,20 +23,29 @@ sudo usermod -aG plugdev "$USER"
 
 Then log out and back in, and reconnect the device.
 
-## If permissions are correct but `--device` still fails
+## Workflow: `hid-device PASS` + `device-probe FAIL`
 
-If `nanoleaf-kde-sync-doctor` reports `hid-device: PASS` but `nanoleaf-kde-sync-doctor --device` still fails to open:
+Use this short workflow when enumeration succeeds but open fails.
 
-1. Run doctor again and inspect the `hid-device` line. It now prints each matching HID path/interface:
+1. Run both views:
+
+   ```bash
+   nanoleaf-kde-sync-doctor
+   nanoleaf-kde-sync-doctor --device
+   ```
+
+2. Read `hid-device` per-interface/per-path details:
    - `path=/dev/hidrawN`
    - `interface=<number>`
-   - `usage_page` / `usage`
-2. In the `device-probe` failure text, review `Attempt results`:
-   - `open_path(...) failed ...` entries show exact per-path failures.
-   - `open(vid, pid) failed ...` shows fallback failure by VID/PID.
-3. Use this to distinguish:
-   - permission error (for example `access denied`, `permission denied`)
-   - busy handle (`resource busy`, `device or resource busy`)
-   - backend mismatch / wrong interface selection (path opens all fail despite correct ACLs)
+   - `usage_page` and `usage`
 
-Why this matters: some Nanoleaf hardware exposes multiple HID interfaces. Opening by only VID/PID can be ambiguous on Linux; opening the enumerated path is deterministic and gives actionable per-interface errors.
+3. Read `device-probe` `Attempt results`:
+   - `open_path(...) failed ...` = result for a specific HID path/interface.
+   - `open(vid, pid) failed ...` = fallback attempt by VID/PID only.
+
+4. Interpret open failures:
+   - permission/ACL issue: `permission denied`, `access denied`
+   - busy handle: `resource busy`, `device or resource busy`
+   - backend/interface mismatch: all path opens fail with non-permission errors even when ACLs look correct
+
+Why this matters: some Nanoleaf units expose multiple HID interfaces. Path-based opens are deterministic; VID/PID fallback can be ambiguous on Linux.

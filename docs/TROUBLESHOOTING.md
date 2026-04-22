@@ -37,6 +37,13 @@ If you see `NoAuthorized` / `NotAuthorized` (especially with `DESKTOP_STARTUP_ID
 
 Important: a shell-launched CLI smoke test is not equivalent to launching from an installed desktop entry. A `kwin-authorization` failure from shell often indicates launch-context limitations, not a broken desktop-entry launch path.
 
+Quick distinction workflow:
+1. Run smoke test from shell and note if auth vars are unset (`DESKTOP_STARTUP_ID`, `XDG_ACTIVATION_TOKEN`).
+2. Launch from the installed desktop entry/tray and retest.
+3. Interpret:
+   - fails only from shell launch: launch authorization context limitation
+   - fails from desktop-entry launch too: true app/runtime failure on KWin path
+
 ### No HID device found
 
 1. Confirm USB IDs with `lsusb` (Nanoleaf USB: `37fa:8201` or `37fa:8202`).
@@ -54,20 +61,24 @@ Symptoms:
 - `hid-device: PASS` with one or more matching devices
 - `device-probe: FAIL` with "Failed to open Nanoleaf HID device after enumeration"
 
-Next step:
+Workflow:
 1. Re-run:
    ```bash
    nanoleaf-kde-sync-doctor
    nanoleaf-kde-sync-doctor --device
    ```
-2. Inspect `hid-device` details (path/interface/usage fields).
-3. Inspect `device-probe` `Attempt results` for each `open_path(...)` and VID/PID fallback.
-
-Interpretation:
-- no devices listed: enumeration / hardware visibility problem
-- per-path permission errors: udev/group/ACL problem
-- per-path busy/resource errors: another process likely holds the handle
-- all per-path opens fail with non-permission errors while ACLs are correct: likely interface/layout/backend mismatch on this session
+2. Read `hid-device` details per path/interface:
+   - `path=/dev/hidrawN`
+   - `interface=<number>`
+   - `usage_page` / `usage`
+3. Read `device-probe` `Attempt results`:
+   - `open_path(...) failed ...` (per-path/interface result)
+   - `open(vid, pid) failed ...` (VID/PID fallback result)
+4. Interpret:
+   - no devices listed: enumeration/hardware visibility issue
+   - permission text (`permission denied`, `access denied`): udev/group/ACL issue
+   - busy text (`resource busy`, `device or resource busy`): handle held by another process
+   - all path opens fail with non-permission errors while ACLs are correct: backend/interface mismatch for this session
 
 ### Colors look wrong on an HDR display
 
