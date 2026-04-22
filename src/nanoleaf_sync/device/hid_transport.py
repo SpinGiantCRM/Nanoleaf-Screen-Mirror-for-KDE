@@ -64,18 +64,19 @@ class HIDTransport:
             )
 
         self._handle = hid.device()
-        open_errors: list[str] = []
+        attempt_results: list[str] = []
         seen_paths: set[str] = set()
         candidates = [dev for dev in devices if isinstance(dev, dict)]
-        sorted_devices = sorted(
-            candidates,
-            key=lambda dev: (
-                9999 if dev.get("interface_number") is None else int(dev.get("interface_number")),
-                self._fmt_path(dev.get("path")),
-            ),
-        )
-        if not sorted_devices:
-            sorted_devices = [{}]
+
+        def _candidate_sort_key(dev: dict[str, Any]) -> tuple[int, str]:
+            interface = dev.get("interface_number")
+            try:
+                interface_key = 9999 if interface is None else int(interface)
+            except Exception:
+                interface_key = 9999
+            return (interface_key, self._fmt_path(dev.get("path")))
+
+        sorted_devices = sorted(candidates, key=_candidate_sort_key)
         for dev in sorted_devices:
             path = dev.get("path")
             path_text = self._fmt_path(path)
@@ -83,12 +84,13 @@ class HIDTransport:
                 continue
             seen_paths.add(path_text)
             if not path:
+                attempt_results.append(f"open_path({path_text}) skipped: missing path")
                 continue
             try:
                 self._handle.open_path(path)
                 return
             except Exception as exc:
-                open_errors.append(
+                attempt_results.append(
                     f"open_path({path_text}) failed: {type(exc).__name__}: {exc}"
                 )
 
@@ -96,13 +98,21 @@ class HIDTransport:
             self._handle.open(self.ids.vid, self.ids.pid)
             return
         except Exception as exc:
-            open_errors.append(f"open({self.ids.vid:#06x}, {self.ids.pid:#06x}) failed: {type(exc).__name__}: {exc}")
+            attempt_results.append(
+                f"open({self.ids.vid:#06x}, {self.ids.pid:#06x}) failed: {type(exc).__name__}: {exc}"
+            )
             self._handle = None
-            candidates = "; ".join(self._describe_candidate(dev) for dev in sorted_devices)
-            attempts = "; ".join(open_errors) if open_errors else "no open attempts were made"
+            candidate_text = "; ".join(self._describe_candidate(dev) for dev in sorted_devices)
+            if not candidate_text:
+                candidate_text = "<none>"
+            attempts = (
+                "; ".join(attempt_results)
+                if attempt_results
+                else "no open attempts were made"
+            )
             raise RuntimeError(
                 "Failed to open Nanoleaf HID device after enumeration. "
-                f"Enumerated candidates: {candidates}. Attempt results: {attempts}. "
+                f"Enumerated candidates: {candidate_text}. Attempt results: {attempts}. "
                 "This usually indicates one of: wrong interface/path selected by backend, busy device handle, "
                 "hidapi backend mismatch, or insufficient permissions."
             ) from exc
