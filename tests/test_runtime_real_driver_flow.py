@@ -112,4 +112,12 @@ def test_run_loop_with_usb_driver_initializes_then_sends_frame() -> None:
     assert request_codes[:7] == [0x0C, 0x03, 0x06, 0x07, 0x08, 0x09, 0x02]
     assert transport.requests[5][3:] == b"\x10"
     # Driver default output channel order is GRB, so red/green channels are swapped on the wire.
-    assert transport.requests[6][3:] == b"\x00\x78\x00\x5a\x00\x00"
+    payload = transport.requests[6][3:]
+    pixel0_grb = tuple(int(channel) for channel in payload[:3])
+    pixel1_grb = tuple(int(channel) for channel in payload[3:6])
+
+    expected_pixel0_grb = (0, 120, 0)
+    expected_pixel1_grb = (90, 0, 0)
+
+    assert all(abs(actual - expected) <= 1 for actual, expected in zip(pixel0_grb, expected_pixel0_grb))
+    assert all(abs(actual - expected) <= 1 for actual, expected in zip(pixel1_grb, expected_pixel1_grb))

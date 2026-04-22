@@ -40,6 +40,11 @@ def reset_cached_probe_winner() -> None:
         _cached_probe_winner = None
 
 
+def reset_capability_check_cache() -> None:
+    _has_drm_device.cache_clear()
+    _kmsgrab_bindings_available.cache_clear()
+
+
 @lru_cache(maxsize=1)
 def _has_drm_device() -> bool:
     card_path = os.environ.get("NANOLEAF_DRM_CARD", "/dev/dri/card0")
