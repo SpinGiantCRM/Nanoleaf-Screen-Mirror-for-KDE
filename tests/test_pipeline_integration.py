@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
+from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping_from_config
 from nanoleaf_sync.runtime.engine import run_loop
 from nanoleaf_sync.runtime.state import RuntimeState
 from nanoleaf_sync.ui.calibration_state import CalibrationState
@@ -109,6 +110,16 @@ def test_preview_and_runtime_share_identical_resolved_mapping_snapshot() -> None
     )
 
     preview_state = CalibrationState.from_config(cfg)
+    preview_snapshot = preview_state.resolved_mapping_snapshot()
+    runtime_snapshot = resolve_calibration_mapping_from_config(
+        config=cfg,
+        source_zone_count=len(cfg.zones),
+    )
+    assert preview_snapshot.device_to_source_indices == runtime_snapshot.device_to_source_indices
+    assert preview_snapshot.mode == runtime_snapshot.mode
+    assert preview_snapshot.direction == runtime_snapshot.direction
+    assert preview_snapshot.validation_warnings == runtime_snapshot.validation_warnings
+
     expected_mapping = [
         preview_state.step_for_mode("direction walk", step).source_zone_index
         for step in range(preview_state.effective_device_zone_count())
