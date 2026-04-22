@@ -10,6 +10,7 @@ from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
 from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE, calibration_sequence_text
 from nanoleaf_sync.ui.calibration_state import (
     MIN_CALIBRATION_VALIDATION_CONFIDENCE,
+    CalibrationPhaseValidation,
     CalibrationState,
     build_testing_panel_state,
 )
@@ -586,6 +587,7 @@ class DisplayConfiguratorDialog:
                 if not self._state.calibration_prerequisites_met(next_phase.step_id):
                     return
                 self._calibration_phase_index += 1
+                self._state.current_phase = CALIBRATION_SEQUENCE[self._calibration_phase_index].step_id
                 self._test_step = 0
                 self._refresh()
 
@@ -593,23 +595,28 @@ class DisplayConfiguratorDialog:
                 if self._calibration_phase_index <= 0:
                     return
                 self._calibration_phase_index -= 1
+                self._state.current_phase = CALIBRATION_SEQUENCE[self._calibration_phase_index].step_id
                 self._test_step = 0
                 self._refresh()
 
             def _mark_current_calibration_phase(self, passed: bool) -> None:
                 phase = self._current_calibration_phase()
+                self._state.current_phase = phase.step_id
                 self._state.mark_calibration_step(
                     phase.step_id,
                     passed=passed,
                     notes=phase.pass_criteria if passed else phase.fail_criteria,
                 )
-                if passed:
-                    self._state.save_checkpoint()
+                valid, details = self._state.evaluate_phase(phase.step_id)
+                if passed and valid:
+                    self._state.save_phase_checkpoint(phase.step_id)
+                self._state.phase_validation_state[phase.step_id] = CalibrationPhaseValidation(valid=bool(valid), details=str(details))
                 self._refresh()
 
             def _rerun_current_calibration_phase(self) -> None:
                 phase = self._current_calibration_phase()
                 self._state.mark_calibration_step(phase.step_id, passed=False, notes="Re-run requested by user.")
+                self._state.phase_completion_flags[phase.step_id] = False
                 self._test_step = 0
                 self._refresh()
                 self._send_test_pattern()
@@ -617,6 +624,7 @@ class DisplayConfiguratorDialog:
             def _reset_current_calibration_phase(self) -> None:
                 phase = self._current_calibration_phase()
                 self._state.mark_calibration_step(phase.step_id, passed=False, notes="Section reset requested by user.")
+                self._state.phase_completion_flags[phase.step_id] = False
                 if phase.step_id == "corner-assignment":
                     self._state.corner_anchor_top_left = -1
                     self._state.corner_anchor_top_right = -1
@@ -635,12 +643,12 @@ class DisplayConfiguratorDialog:
                 if phase.step_id != "direction-verification":
                     return
                 self._pull_state_from_controls()
-                self._state.save_checkpoint()
+                self._state.save_phase_checkpoint(phase.step_id)
                 self._state.mark_calibration_step(phase.step_id, passed=True, notes="Direction confirmed and checkpoint saved.")
                 self._refresh()
 
             def _rollback_direction_verification(self) -> None:
-                if not self._state.restore_checkpoint():
+                if not self._state.restore_phase_checkpoint("direction-verification"):
                     return
                 restored_offset = int(self._state.zone_offset)
                 restored_reverse = bool(self._state.reverse_zones)
@@ -655,12 +663,12 @@ class DisplayConfiguratorDialog:
                 if phase.step_id != "corner-assignment":
                     return
                 self._pull_state_from_controls()
-                self._state.save_checkpoint()
+                self._state.save_phase_checkpoint(phase.step_id)
                 self._state.mark_calibration_step(phase.step_id, passed=True, notes="Anchors confirmed and checkpoint saved.")
                 self._refresh()
 
             def _rollback_anchor_assignment(self) -> None:
-                if not self._state.restore_checkpoint():
+                if not self._state.restore_phase_checkpoint("corner-assignment"):
                     return
                 self._refresh()
 
@@ -716,12 +724,15 @@ class DisplayConfiguratorDialog:
                 )
 
                 current_phase = self._current_calibration_phase()
+                self._state.current_phase = current_phase.step_id
                 current_progress = self._state.calibration_step_state(current_phase.step_id)
                 prerequisites_met = self._state.calibration_prerequisites_met(current_phase.step_id)
                 verification = self._state.validation_report()
-                phase_passed = current_progress.passed
-                if current_phase.step_id == "corner-assignment" and corner_mode:
-                    phase_passed = phase_passed and anchor_validation.valid
+                phase_passed, validation_details = self._state.evaluate_phase(current_phase.step_id)
+                self._state.phase_validation_state[current_phase.step_id] = CalibrationPhaseValidation(
+                    valid=bool(phase_passed),
+                    details=str(validation_details),
+                )
                 self._flow.set_step_valid(0, self._device_zone_count_confirmed and self._state.can_complete_calibration_flow())
                 self._flow.set_step_valid(1, True)
                 self._flow.set_step_valid(2, True)
@@ -756,10 +767,15 @@ class DisplayConfiguratorDialog:
                 self.calibration_phase_label.setText(
                     f"Calibration phase {self._calibration_phase_index + 1}/{len(CALIBRATION_SEQUENCE)}: {current_phase.title}"
                 )
-                phase_state_label = "passed" if current_progress.passed else ("failed" if current_progress.complete else "pending")
+                phase_state_label = "passed" if phase_passed else ("failed" if current_progress.complete else "pending")
                 prereq_text = "ready" if prerequisites_met else f"blocked by prerequisites: {', '.join(current_phase.prerequisites)}"
                 self.calibration_phase_status_label.setText(
-                    f"Phase state: {phase_state_label} ({prereq_text})\nPass criteria: {current_phase.pass_criteria}\nFail criteria: {current_phase.fail_criteria}"
+                    f"Phase state: {phase_state_label} ({prereq_text})\n"
+                    f"Pass criteria: {current_phase.pass_criteria}\n"
+                    f"Fail criteria: {current_phase.fail_criteria}\n"
+                    f"Required actions: {'; '.join(current_phase.required_actions)}\n"
+                    f"Validation: {validation_details}\n"
+                    f"Remediation: {'; '.join(current_phase.remediation_hints)}"
                 )
 
                 finish_set_enabled = getattr(self.finish_button, "setEnabled", None)
@@ -935,6 +951,14 @@ class DisplayConfiguratorDialog:
                         step_id: {"complete": bool(progress.complete), "passed": bool(progress.passed), "notes": str(progress.notes)}
                         for step_id, progress in self._state.calibration_step_progress.items()
                     },
+                    "current_phase": str(self._state.current_phase),
+                    "phase_completion_flags": {
+                        step_id: bool(done) for step_id, done in self._state.phase_completion_flags.items()
+                    },
+                    "phase_validation_state": {
+                        step_id: {"valid": bool(state.valid), "details": str(state.details)}
+                        for step_id, state in self._state.phase_validation_state.items()
+                    },
                 }
                 return json.dumps(payload, sort_keys=True)
 
@@ -984,6 +1008,20 @@ class DisplayConfiguratorDialog:
                                 notes=str(item.get("notes", "")),
                             )
                             self._state.calibration_step_state(str(step_id)).complete = bool(item.get("complete", False))
+                self._state.current_phase = str(data.get("current_phase", self._state.current_phase))
+                completion = data.get("phase_completion_flags")
+                if isinstance(completion, dict):
+                    self._state.phase_completion_flags = {str(step_id): bool(done) for step_id, done in completion.items()}
+                validations = data.get("phase_validation_state")
+                if isinstance(validations, dict):
+                    self._state.phase_validation_state = {
+                        str(step_id): CalibrationPhaseValidation(
+                            valid=bool(item.get("valid", False)),
+                            details=str(item.get("details", "")),
+                        )
+                        for step_id, item in validations.items()
+                        if isinstance(item, dict)
+                    }
                 self._state.save_checkpoint()
                 self._refresh()
 

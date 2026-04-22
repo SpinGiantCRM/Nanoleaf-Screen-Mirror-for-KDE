@@ -1,87 +1,153 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Callable
 
+from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
 from nanoleaf_sync.ui.zone_calibration import mapping_indices
+
+if TYPE_CHECKING:
+    from nanoleaf_sync.ui.calibration_state import CalibrationState
+
+
+ValidationFn = Callable[["CalibrationState", "CalibrationPhaseDefinition"], tuple[bool, str]]
 
 
 @dataclass(frozen=True)
-class CalibrationSequenceStep:
+class CalibrationPhaseDefinition:
     step_id: str
     title: str
     mode: str
     prerequisites: tuple[str, ...]
+    required_actions: tuple[str, ...]
+    validation_fn: ValidationFn
+    remediation_hints: tuple[str, ...]
     pass_criteria: str
     fail_criteria: str
-    hints: tuple[str, ...]
-    remediation: str | None = None
 
 
-CALIBRATION_SEQUENCE: tuple[CalibrationSequenceStep, ...] = (
-    CalibrationSequenceStep(
+def _validate_step_marked_passed(state: "CalibrationState", phase: CalibrationPhaseDefinition) -> tuple[bool, str]:
+    progress = state.calibration_step_state(phase.step_id)
+    if progress.passed:
+        return True, "Phase has been marked as passed."
+    return False, "Phase is not marked as passed yet."
+
+
+def _validate_corner_assignment(state: "CalibrationState", phase: CalibrationPhaseDefinition) -> tuple[bool, str]:
+    progress = state.calibration_step_state(phase.step_id)
+    if state.calibration_model != "corner_anchored":
+        if progress.passed:
+            return True, "Corner assignment accepted for offset/direction model."
+        return False, "Phase is not marked as passed yet."
+    anchors = {
+        "top_left": state.corner_anchor_top_left if state.corner_anchor_top_left >= 0 else None,
+        "top_right": state.corner_anchor_top_right if state.corner_anchor_top_right >= 0 else None,
+        "bottom_right": state.corner_anchor_bottom_right if state.corner_anchor_bottom_right >= 0 else None,
+        "bottom_left": state.corner_anchor_bottom_left if state.corner_anchor_bottom_left >= 0 else None,
+    }
+    result = validate_corner_anchors(anchors=anchors, device_zone_count=state.effective_device_zone_count())
+    if not result.valid:
+        return False, "Corner anchors invalid: " + "; ".join(result.errors)
+    if not progress.passed:
+        return False, "Corner anchors are valid, but phase is not marked as passed."
+    return True, "Corner anchors validated and phase marked passed."
+
+
+def _validate_final_replay(state: "CalibrationState", phase: CalibrationPhaseDefinition) -> tuple[bool, str]:
+    progress = state.calibration_step_state(phase.step_id)
+    report = state.validation_report()
+    if not progress.passed:
+        return False, "Validation replay phase is not marked as passed."
+    if report.confidence_score < 1.0:
+        return False, f"Validation confidence too low ({report.confidence_score:.2f})."
+    return True, "Replay phase passed with full validation confidence."
+
+
+CALIBRATION_SEQUENCE: tuple[CalibrationPhaseDefinition, ...] = (
+    CalibrationPhaseDefinition(
         step_id="start-point-detection",
         title="1) Start-point detection",
         mode="start-point identification",
         prerequisites=(),
-        pass_criteria="Active test zone is confirmed at the physical top-left start position.",
-        fail_criteria="User cannot confidently identify the first zone near top-left.",
-        hints=(
+        required_actions=(
+            "Run zone stepping until the first physical strip zone is identified near top-left.",
+            "Mark phase passed only after visual confirmation.",
+        ),
+        validation_fn=_validate_step_marked_passed,
+        remediation_hints=(
             "Use Next/Previous test-zone walk to track LED order.",
             "Reduce room lighting to improve visibility of the active zone.",
         ),
-        remediation="Adjust physical strip placement or lower ambient brightness, then retry the walk.",
+        pass_criteria="Active test zone is confirmed at the physical top-left start position.",
+        fail_criteria="User cannot confidently identify the first zone near top-left.",
     ),
-    CalibrationSequenceStep(
+    CalibrationPhaseDefinition(
         step_id="direction-verification",
         title="2) Direction verification",
         mode="direction walk",
         prerequisites=("start-point-detection",),
-        pass_criteria="Zone walk moves around the display perimeter in the expected direction.",
-        fail_criteria="Zone walk appears mirrored/reversed around screen edges.",
-        hints=(
+        required_actions=(
+            "Walk one full cycle around the strip.",
+            "Confirm reverse orientation and offset align with physical direction.",
+        ),
+        validation_fn=_validate_step_marked_passed,
+        remediation_hints=(
             "Toggle reverse orientation when movement appears backwards.",
             "Confirm at least one full cycle around the strip.",
         ),
-        remediation="Toggle reverse strip orientation and repeat a full perimeter walk.",
+        pass_criteria="Zone walk moves around the display perimeter in the expected direction.",
+        fail_criteria="Zone walk appears mirrored/reversed around screen edges.",
     ),
-    CalibrationSequenceStep(
+    CalibrationPhaseDefinition(
         step_id="corner-assignment",
         title="3) Corner assignment",
         mode="corner+offset alignment",
         prerequisites=("direction-verification",),
-        pass_criteria="Top-left, top-right, bottom-right, and bottom-left corner anchors are coherent.",
-        fail_criteria="Corner anchors are missing, duplicated, or invalid for strip size.",
-        hints=(
+        required_actions=(
+            "Assign TL/TR/BR/BL corner anchors.",
+            "Verify all anchors are unique and within strip range.",
+        ),
+        validation_fn=_validate_corner_assignment,
+        remediation_hints=(
             "Assign corners while the intended zone is active.",
             "If anchor model is disabled, verify equivalent corner positions in the walk.",
         ),
-        remediation="Re-assign corners and re-run anchor validation until all corners pass.",
+        pass_criteria="Top-left, top-right, bottom-right, and bottom-left corner anchors are coherent.",
+        fail_criteria="Corner anchors are missing, duplicated, or invalid for strip size.",
     ),
-    CalibrationSequenceStep(
+    CalibrationPhaseDefinition(
         step_id="edge-refinement",
         title="4) Edge refinement / fine alignment",
         mode="fine offset",
         prerequisites=("corner-assignment",),
-        pass_criteria="Edge transitions look smooth without obvious zone drift or jump.",
-        fail_criteria="Edge colors appear shifted or transitions skip expected zones.",
-        hints=(
+        required_actions=(
+            "Tune offset until edge transitions are smooth.",
+            "Check both horizontal and vertical edges.",
+        ),
+        validation_fn=_validate_step_marked_passed,
+        remediation_hints=(
             "Use small offset adjustments and check multiple edges.",
             "Validate both horizontal and vertical spans before continuing.",
         ),
-        remediation="Apply fine offset adjustments and rerun edge checks until drift is eliminated.",
+        pass_criteria="Edge transitions look smooth without obvious zone drift or jump.",
+        fail_criteria="Edge colors appear shifted or transitions skip expected zones.",
     ),
-    CalibrationSequenceStep(
+    CalibrationPhaseDefinition(
         step_id="validation-replay",
         title="5) End-to-end validation replay",
         mode="coverage sanity",
         prerequisites=("edge-refinement",),
-        pass_criteria="Full replay covers all physical zones with expected source mapping.",
-        fail_criteria="Any zone appears unmapped, duplicated unexpectedly, or misplaced.",
-        hints=(
+        required_actions=(
+            "Run a complete cycle through all strip zones.",
+            "Confirm no dead spots, duplicates, or sentinel mismatch.",
+        ),
+        validation_fn=_validate_final_replay,
+        remediation_hints=(
             "Run at least one complete cycle through all strip zones.",
             "Watch for dead spots where no active zone appears.",
         ),
-        remediation="Return to the failing phase and correct mapping, then replay validation.",
+        pass_criteria="Full replay covers all physical zones with expected source mapping.",
+        fail_criteria="Any zone appears unmapped, duplicated unexpectedly, or misplaced.",
     ),
 )
 
@@ -90,13 +156,12 @@ def calibration_sequence_text() -> str:
     lines: list[str] = []
     for step in CALIBRATION_SEQUENCE:
         lines.append(f"{step.title}: {step.pass_criteria}")
-        lines.extend(f"  - Hint: {hint}" for hint in step.hints)
-        if step.remediation:
-            lines.append(f"  - Remediation: {step.remediation}")
+        lines.extend(f"  - Required action: {action}" for action in step.required_actions)
+        lines.extend(f"  - Hint: {hint}" for hint in step.remediation_hints)
     return "\n".join(lines)
 
 
-def calibration_step_by_id(step_id: str) -> CalibrationSequenceStep | None:
+def calibration_step_by_id(step_id: str) -> CalibrationPhaseDefinition | None:
     for step in CALIBRATION_SEQUENCE:
         if step.step_id == step_id:
             return step
