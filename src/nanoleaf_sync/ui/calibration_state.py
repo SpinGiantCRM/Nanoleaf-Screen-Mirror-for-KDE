@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE
 from nanoleaf_sync.ui.calibration_preview import CalibrationStep, calibration_test_frame, corner_anchor_steps, coverage_sanity_step, single_zone_step
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text, mapping_preview_visual
 
@@ -51,6 +52,14 @@ class LatencyProbeResult:
 
 
 @dataclass
+class CalibrationStepProgress:
+    step_id: str
+    complete: bool = False
+    passed: bool = False
+    notes: str = ""
+
+
+@dataclass
 class CalibrationState:
     zone_count: int
     zone_preset: str
@@ -67,6 +76,7 @@ class CalibrationState:
     corner_anchor_top_right: int = -1
     corner_anchor_bottom_right: int = -1
     corner_anchor_bottom_left: int = -1
+    calibration_step_progress: dict[str, CalibrationStepProgress] = field(default_factory=dict)
 
     @classmethod
     def from_config(cls, cfg: AppConfig, runtime_status: dict | None = None) -> "CalibrationState":
@@ -113,6 +123,32 @@ class CalibrationState:
         if not self.corner_offsets_enabled:
             return [0, 0, 0, 0]
         return offsets
+
+    def calibration_steps(self) -> tuple[str, ...]:
+        return tuple(step.step_id for step in CALIBRATION_SEQUENCE)
+
+    def calibration_prerequisites_met(self, step_id: str) -> bool:
+        step = next((item for item in CALIBRATION_SEQUENCE if item.step_id == step_id), None)
+        if step is None:
+            return False
+        return all(self.calibration_step_progress.get(dep, CalibrationStepProgress(step_id=dep)).passed for dep in step.prerequisites)
+
+    def calibration_step_state(self, step_id: str) -> CalibrationStepProgress:
+        existing = self.calibration_step_progress.get(step_id)
+        if existing is not None:
+            return existing
+        created = CalibrationStepProgress(step_id=step_id)
+        self.calibration_step_progress[step_id] = created
+        return created
+
+    def mark_calibration_step(self, step_id: str, *, passed: bool, notes: str = "") -> None:
+        progress = self.calibration_step_state(step_id)
+        progress.complete = True
+        progress.passed = bool(passed)
+        progress.notes = str(notes)
+
+    def can_complete_calibration_flow(self) -> bool:
+        return all(self.calibration_step_progress.get(step.step_id, CalibrationStepProgress(step_id=step.step_id)).passed for step in CALIBRATION_SEQUENCE)
 
     def auto_detection_status(self) -> str:
         return f"Using configured strip zone count {self.device_zone_count}."

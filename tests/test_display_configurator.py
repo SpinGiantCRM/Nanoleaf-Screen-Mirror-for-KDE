@@ -48,6 +48,7 @@ def _qt_stub() -> dict[str, object]:
     class _Slider:
         def __init__(self, _orientation):
             self._value = 0
+            self._enabled = True
             self.valueChanged = _DummySignal()
 
         def setRange(self, _min, _max):
@@ -64,7 +65,7 @@ def _qt_stub() -> dict[str, object]:
             return 10000
 
         def setEnabled(self, _enabled):
-            pass
+            self._enabled = bool(_enabled)
 
         def setVisible(self, _visible):
             pass
@@ -119,12 +120,19 @@ def _qt_stub() -> dict[str, object]:
         def setText(self, text):
             self._text = text
 
+        def setEnabled(self, _enabled):
+            pass
+
         def setVisible(self, _visible):
             pass
 
     class _Button:
         def __init__(self, _text):
             self.clicked = _DummySignal()
+            self._enabled = True
+
+        def setEnabled(self, enabled):
+            self._enabled = bool(enabled)
 
     class _Layout:
         def addWidget(self, *_args):
@@ -277,3 +285,27 @@ def test_display_configurator_offset_change_updates_current_physical_zone(monkey
     after = dialog._dialog.current_zone_label._text
 
     assert before != after
+
+
+def test_display_configurator_blocks_next_until_calibration_phases_pass(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[]))
+    assert dialog._dialog.next_button._enabled is False
+
+    dialog._dialog.device_zone_count_slider.setValue(8)
+    for step in dialog._dialog._state.calibration_steps():
+        dialog._dialog._state.mark_calibration_step(step, passed=True)
+    dialog._dialog._refresh()
+
+    assert dialog._dialog.next_button._enabled is True
+
+
+def test_display_configurator_preserves_passed_phase_when_navigating_back(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[]))
+    dialog._dialog.calibration_mark_pass_button.clicked.emit()
+    assert "passed" in dialog._dialog.calibration_phase_status_label._text
+
+    dialog._dialog.calibration_phase_next_button.clicked.emit()
+    dialog._dialog.calibration_phase_prev_button.clicked.emit()
+    assert "passed" in dialog._dialog.calibration_phase_status_label._text
