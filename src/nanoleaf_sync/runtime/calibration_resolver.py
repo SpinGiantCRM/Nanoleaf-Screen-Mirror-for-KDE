@@ -97,25 +97,26 @@ def resolve_calibration_mapping_from_config(
     source_zone_count: int,
     detected_device_zone_count: int | None = None,
 ) -> CalibrationMappingSnapshot:
-    configured_device_zone_count = int(getattr(config, "device_zone_count", 0))
+    calibration = config.effective_calibration()
+    configured_device_zone_count = int(getattr(calibration, "device_zone_count", 0))
     device_zone_count = configured_device_zone_count if configured_device_zone_count > 0 else max(1, int(source_zone_count))
     if detected_device_zone_count and configured_device_zone_count <= 0:
         device_zone_count = max(1, int(detected_device_zone_count))
     return resolve_calibration_mapping(
         zone_count=source_zone_count,
         device_zone_count=device_zone_count,
-        zone_offset=int(getattr(config, "zone_offset", 0)),
-        reverse_zones=bool(getattr(config, "reverse_zones", False)),
-        manual_mapping_enabled=bool(getattr(config, "manual_mapping_enabled", False)),
-        explicit_zone_map=getattr(config, "explicit_zone_map", None) or None,
+        zone_offset=int(getattr(calibration, "zone_offset", 0)),
+        reverse_zones=bool(getattr(calibration, "reverse_zones", False)),
+        manual_mapping_enabled=bool(getattr(calibration, "manual_mapping_enabled", False)),
+        explicit_zone_map=getattr(calibration, "explicit_zone_map", None) or None,
         corner_zone_offsets=(
-            getattr(config, "corner_zone_offsets", None)
-            if bool(getattr(config, "corner_offsets_enabled", False))
+            getattr(calibration, "corner_zone_offsets", None)
+            if bool(getattr(calibration, "corner_offsets_enabled", False))
             else None
         ),
-        corner_anchor_top_left=int(getattr(config, "corner_anchor_top_left", -1)),
-        corner_anchor_top_right=int(getattr(config, "corner_anchor_top_right", -1)),
-        corner_anchor_bottom_right=int(getattr(config, "corner_anchor_bottom_right", -1)),
-        corner_anchor_bottom_left=int(getattr(config, "corner_anchor_bottom_left", -1)),
-        calibration_model=str(getattr(config, "calibration_model", "offset_direction")),
+        corner_anchor_top_left=int(getattr(calibration, "corner_anchor_top_left", -1)),
+        corner_anchor_top_right=int(getattr(calibration, "corner_anchor_top_right", -1)),
+        corner_anchor_bottom_right=int(getattr(calibration, "corner_anchor_bottom_right", -1)),
+        corner_anchor_bottom_left=int(getattr(calibration, "corner_anchor_bottom_left", -1)),
+        calibration_model=str(getattr(calibration, "calibration_model", "offset_direction")),
     )

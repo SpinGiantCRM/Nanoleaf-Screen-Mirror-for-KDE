@@ -22,6 +22,21 @@ nanoleaf-kde-sync-rc-runner --mode full-real --env-id C1 --rc-version vX.Y.Z-rcN
 - Record the exact package/app version under test.
 - Capture outputs for `nanoleaf-kde-sync-doctor` and `nanoleaf-kde-sync-smoke-test`.
 - Note whether testing used real hardware or mock mode.
+- For calibration changes, include pass/fail evidence for `docs/CALIBRATION_PARITY_SPEC.md` items P-01..P-08.
+
+## Calibration release criteria (required when calibration code changes)
+
+1. Run focused checks for config migration + resolver consistency:
+   - `pytest -q tests/test_config.py tests/test_corner_anchor_calibration.py`
+2. Run focused checks for setup/settings/wizard surfaces:
+   - `pytest -q tests/test_calibration_state.py tests/test_zone_calibration.py tests/test_display_configurator.py`
+3. Confirm no static issues in modified calibration/config/ui modules:
+   - `ruff check src/nanoleaf_sync/config src/nanoleaf_sync/runtime src/nanoleaf_sync/ui`
+4. Manual recovery walkthrough (record one):
+   - Direction rollback (wrong direction -> rollback -> confirm restored state), or
+   - Corner assignment rollback (invalid anchors -> rollback -> confirm previous checkpoint).
+
+Attach command output snippets (or CI links) in the release PR for traceability.
 
 | Env ID | OS | Session | Mode | Doctor | Smoke | Tray lifecycle | Notes |
 |---|---|---|---|---|---|---|---|

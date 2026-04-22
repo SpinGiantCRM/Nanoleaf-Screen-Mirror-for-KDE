@@ -271,6 +271,8 @@ def test_display_configurator_uses_corner_anchor_model(monkeypatch) -> None:
     updated = dialog.updated_config()
     assert updated.corner_anchor_top_left >= 0
     assert updated.corner_anchor_top_right >= 0
+    assert updated.calibration.calibration_model == "corner_anchored"
+    assert updated.calibration.corner_anchor_top_left == updated.corner_anchor_top_left
 
 
 def test_display_configurator_offset_change_updates_current_physical_zone(monkeypatch) -> None:

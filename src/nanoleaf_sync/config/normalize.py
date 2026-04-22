@@ -19,6 +19,13 @@ SAMPLING_QUALITY_TO_ZONE_STRIDE: dict[str, int] = {
 CURRENT_CALIBRATION_SCHEMA_VERSION = 1
 
 
+def _coerce_int(value: Any, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return int(default)
+
+
 def sampling_quality_to_zone_stride(quality: str) -> int:
     return SAMPLING_QUALITY_TO_ZONE_STRIDE.get(str(quality).strip().lower(), 2)
 
@@ -50,12 +57,12 @@ def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     calibration_payload = migrated.get("calibration")
     calibration = dict(calibration_payload) if isinstance(calibration_payload, dict) else {}
 
-    calibration_schema_version = int(
+    calibration_schema_version = _coerce_int(
         migrated.get(
             "calibration_schema_version",
             calibration.get("schema_version", CURRENT_CALIBRATION_SCHEMA_VERSION),
-        )
-        or CURRENT_CALIBRATION_SCHEMA_VERSION
+        ),
+        CURRENT_CALIBRATION_SCHEMA_VERSION,
     )
     calibration_schema_version = max(1, calibration_schema_version)
 
@@ -130,8 +137,9 @@ def validate_config(cfg: AppConfig) -> AppConfig:
             return legacy_value
         return calibration_value
 
-    calibration_schema_version = int(
-        getattr(cfg, "calibration_schema_version", getattr(raw_calibration, "schema_version", 1)) or 1
+    calibration_schema_version = _coerce_int(
+        getattr(cfg, "calibration_schema_version", getattr(raw_calibration, "schema_version", 1)),
+        1,
     )
     calibration_schema_version = max(1, calibration_schema_version)
     raw_device_zone_count = int(calibration_or_legacy("device_zone_count", 0))
