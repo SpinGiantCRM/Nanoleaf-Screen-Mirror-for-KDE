@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+import logging
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.calibration_resolver import CalibrationMappingSnapshot, resolve_calibration_mapping
 from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
@@ -9,6 +10,7 @@ from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE, calibration_
 from nanoleaf_sync.ui.calibration_preview import CalibrationStep, calibration_test_frame, corner_anchor_steps, coverage_sanity_step, single_zone_step
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text, mapping_preview_visual
 
+logger = logging.getLogger(__name__)
 
 TEST_MODES: tuple[str, ...] = (
     "coverage sanity",
@@ -25,6 +27,30 @@ ZONE_COUNT_INVALIDATION_PHASES: tuple[str, ...] = (
     "edge-refinement",
     "validation-replay",
 )
+
+
+def _log_calibration_marker(event: str, **fields: str | int | float | bool) -> None:
+    payload = " ".join(f"{key}={value}" for key, value in fields.items())
+    logger.info("telemetry.calibration.%s %s", str(event), payload)
+
+
+def _phase_failure_cause(details: str) -> str:
+    text = str(details).strip().lower()
+    if not text:
+        return "unknown"
+    if "prerequisites not met" in text:
+        return "prerequisites"
+    if "phase is not marked as passed" in text:
+        return "not_marked_passed"
+    if "corner anchors invalid" in text:
+        return "anchor_validation"
+    if "confidence too low" in text:
+        return "confidence"
+    if "sentinel" in text:
+        return "sentinel_mismatch"
+    if "unknown calibration phase" in text:
+        return "unknown_phase"
+    return "validation_failed"
 
 
 @dataclass
@@ -219,6 +245,12 @@ class CalibrationState:
             details=str(notes),
         )
         self.current_phase = str(step_id)
+        _log_calibration_marker(
+            "phase_complete",
+            phase=str(step_id),
+            passed=bool(passed),
+            failure_cause=_phase_failure_cause(notes) if not passed else "none",
+        )
 
     def push_action_snapshot(self, *, history_limit: int = 64) -> None:
         self.action_history.append(self.snapshot_checkpoint())
@@ -243,13 +275,26 @@ class CalibrationState:
             valid, details = self.evaluate_phase(step.step_id)
             self.phase_validation_state[step.step_id] = CalibrationPhaseValidation(valid=bool(valid), details=str(details))
             if not valid:
+                _log_calibration_marker(
+                    "flow_blocked",
+                    phase=step.step_id,
+                    failure_cause=_phase_failure_cause(details),
+                )
                 return False
         report = self.validation_report()
-        return (
+        allowed = (
             report.confidence_score >= MIN_CALIBRATION_VALIDATION_CONFIDENCE
             and report.sentinel_consistency
             and report.outcome_status == "pass"
         )
+        _log_calibration_marker(
+            "flow_evaluated",
+            allowed=bool(allowed),
+            outcome=report.outcome_status,
+            confidence=f"{report.confidence_score:.2f}",
+            sentinel_consistency=bool(report.sentinel_consistency),
+        )
+        return allowed
 
     def invalidate_for_zone_count_change(
         self,
@@ -273,6 +318,12 @@ class CalibrationState:
             invalidated.append(phase_id)
         if invalidated:
             self.current_phase = invalidated[0]
+            _log_calibration_marker(
+                "phase_invalidation",
+                trigger="zone_count_change",
+                invalidated_count=len(invalidated),
+                next_phase=self.current_phase,
+            )
         return tuple(invalidated)
 
     def validation_report(self) -> CalibrationVerificationReport:
