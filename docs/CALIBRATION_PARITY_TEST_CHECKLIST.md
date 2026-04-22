@@ -2,6 +2,8 @@
 
 This artifact links each calibration parity requirement in `docs/CALIBRATION_PARITY_SPEC.md` to at least one automated test.
 
+For physical (non-simulated) release validation and defect capture fields (exact phase, zone count, calibration model), use `docs/PHYSICAL_CALIBRATION_VALIDATION_LOG.md`.
+
 ## Unit tests
 
 | Requirement | Coverage tests |
