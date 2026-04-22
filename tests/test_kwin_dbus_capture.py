@@ -350,3 +350,36 @@ def test_ensure_background_loop_waits_outside_lock(monkeypatch) -> None:
 
     assert loop is not None
     assert fake_ready.called_while_held is False
+
+
+def test_read_fd_exact_uses_read_all_when_expected_size_is_none(monkeypatch) -> None:
+    backend = KWinDBusScreenshotCapture(width=2, height=1)
+    monkeypatch.setattr(backend, "_read_all_bytes_from_fd", lambda _fd: b"fallback-bytes")
+
+    result = backend._read_fd_exact(123, None)
+
+    assert result == b"fallback-bytes"
+
+
+def test_read_fd_exact_rejects_zero_expected_size_with_context() -> None:
+    backend = KWinDBusScreenshotCapture(width=2, height=1)
+
+    with pytest.raises(KWinDBusCaptureError, match="zero expected bytes") as exc_info:
+        backend._read_fd_exact(123, 0, stride=16, height=9)
+
+    message = str(exc_info.value)
+    assert "stride=16" in message
+    assert "height=9" in message
+    assert "expected_bytes=0" in message
+
+
+def test_read_fd_exact_rejects_negative_expected_size_with_context() -> None:
+    backend = KWinDBusScreenshotCapture(width=2, height=1)
+
+    with pytest.raises(KWinDBusCaptureError, match="negative expected byte count") as exc_info:
+        backend._read_fd_exact(123, -4, stride=8, height=-1)
+
+    message = str(exc_info.value)
+    assert "stride=8" in message
+    assert "height=-1" in message
+    assert "expected_bytes=-4" in message
