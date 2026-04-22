@@ -288,8 +288,7 @@ class DisplayConfiguratorDialog:
 
                 # Summary
                 self.summary_label = QLabel("")
-                self.finish_override_checkbox = qt["QCheckBox"]("Override disabled by strict calibration policy")
-                self.finish_override_note = QLabel("")
+                self.finish_policy_note = QLabel("")
 
                 self.cancel_button = QPushButton("Cancel")
                 self.back_button = QPushButton("Back")
@@ -312,7 +311,6 @@ class DisplayConfiguratorDialog:
                     self.zone_offset_slider.valueChanged,
                     self.zone_preset_combo.currentIndexChanged,
                     self.reverse_checkbox.stateChanged,
-                    self.finish_override_checkbox.stateChanged,
                 ):
                     signal.connect(self._refresh)
                 self.preset_sdr_button.clicked.connect(lambda: self._apply_display_preset("sdr"))
@@ -502,8 +500,7 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.device_zone_summary, 6, 1, 1, 2)
                 layout.addWidget(self.zone_count_explanation, 7, 0, 1, 3)
                 layout.addWidget(self.summary_label, 8, 0, 1, 3)
-                layout.addWidget(self.finish_override_checkbox, 9, 0, 1, 3)
-                layout.addWidget(self.finish_override_note, 10, 0, 1, 3)
+                layout.addWidget(self.finish_policy_note, 9, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -941,30 +938,17 @@ class DisplayConfiguratorDialog:
                 )
 
                 finish_set_enabled = getattr(self.finish_button, "setEnabled", None)
-                can_finish_without_override = (
+                strict_calibration_complete = self._state.can_complete_calibration_flow()
+                can_finish = (
                     not self._flow.can_go_next()
                     and self._device_zone_count_confirmed
-                    and (not corner_mode or anchor_validation.valid)
+                    and strict_calibration_complete
                     and not verification.hard_fail
                 )
                 if callable(finish_set_enabled):
-                    finish_set_enabled(can_finish_without_override)
-                override_set_enabled = getattr(self.finish_override_checkbox, "setEnabled", None)
-                if callable(override_set_enabled):
-                    override_set_enabled(False)
-                override_set_visible = getattr(self.finish_override_checkbox, "setVisible", None)
-                if callable(override_set_visible):
-                    override_set_visible(False)
-                if bool(self.finish_override_checkbox.isChecked()):
-                    self.finish_override_checkbox.setChecked(False)
-                self.finish_override_note.setText(
-                    "Finish blocked. Reason: strict calibration policy requires confidence=1.00 and sentinel consistency. Next action: complete calibration remediation hints."
-                    if verification.hard_fail
-                    else (
-                        "Verification pass: calibration meets strict completion policy."
-                        if verification.outcome_status == "pass"
-                        else "Finish blocked. Reason: strict calibration policy requires full validation pass. Next action: complete remaining calibration phases."
-                    )
+                    finish_set_enabled(can_finish)
+                self.finish_policy_note.setText(
+                    "Strict calibration policy: Finish remains blocked unless every phase passes with confidence=1.00 and sentinel consistency; warning overrides are not allowed."
                 )
 
                 hdr_mode = str(self.display_mode_combo.currentText()) == "hdr"
