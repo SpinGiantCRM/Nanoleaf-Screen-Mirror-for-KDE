@@ -21,11 +21,9 @@ TEST_MODES: tuple[str, ...] = (
 )
 CORNER_OFFSET_LIMIT = 24
 MIN_CALIBRATION_VALIDATION_CONFIDENCE = 1.0
-ZONE_COUNT_INVALIDATION_PHASES: tuple[str, ...] = (
+ZONE_COUNT_DIRECTLY_AFFECTED_PHASES: tuple[str, ...] = (
     "direction-verification",
     "corner-assignment",
-    "edge-refinement",
-    "validation-replay",
 )
 
 
@@ -296,18 +294,44 @@ class CalibrationState:
         )
         return allowed
 
+    def _zone_count_invalidation_targets(
+        self,
+        *,
+        affected_phases: tuple[str, ...],
+    ) -> tuple[str, ...]:
+        sequence = tuple(CALIBRATION_SEQUENCE)
+        ordered_steps = [step.step_id for step in sequence]
+        known_steps = set(ordered_steps)
+        reverse_dependencies: dict[str, set[str]] = {step_id: set() for step_id in ordered_steps}
+        for step in sequence:
+            for prerequisite in step.prerequisites:
+                prerequisite_id = str(prerequisite)
+                if prerequisite_id in reverse_dependencies:
+                    reverse_dependencies[prerequisite_id].add(step.step_id)
+
+        pending = [str(step_id) for step_id in affected_phases if str(step_id) in known_steps]
+        impacted: set[str] = set()
+        while pending:
+            step_id = pending.pop(0)
+            if step_id in impacted:
+                continue
+            impacted.add(step_id)
+            pending.extend(sorted(reverse_dependencies.get(step_id, set())))
+
+        return tuple(step_id for step_id in ordered_steps if step_id in impacted)
+
     def invalidate_for_zone_count_change(
         self,
         *,
-        affected_phases: tuple[str, ...] = ZONE_COUNT_INVALIDATION_PHASES,
+        affected_phases: tuple[str, ...] = ZONE_COUNT_DIRECTLY_AFFECTED_PHASES,
     ) -> tuple[str, ...]:
-        ordered_steps = set(self.calibration_steps())
+        target_steps = self._zone_count_invalidation_targets(affected_phases=affected_phases)
         invalidated: list[str] = []
-        for step_id in affected_phases:
+        for step_id in target_steps:
             phase_id = str(step_id)
-            if phase_id not in ordered_steps:
-                continue
             progress = self.calibration_step_state(phase_id)
+            if not (progress.complete or progress.passed):
+                continue
             progress.complete = False
             progress.passed = False
             progress.notes = ""
