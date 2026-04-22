@@ -515,6 +515,8 @@ class NanoleafTrayApp:
         if callable(close_preview):
             close_preview(resume_service=False)
         if not accepted:
+            self.config = dlg.in_progress_config()
+            self.cfg_mgr.save(self.config)
             if was_running:
                 self.on_start()
             return

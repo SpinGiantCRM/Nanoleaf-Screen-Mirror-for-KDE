@@ -447,3 +447,12 @@ def test_settings_dialog_saves_corner_anchor_assignments(monkeypatch) -> None:
     updated = dialog.updated_config()
     assert updated.corner_anchor_top_left >= 0
     assert updated.corner_anchor_top_right >= 0
+
+
+def test_settings_dialog_preserves_wizard_resume_draft(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    cfg = AppConfig(zones=[], wizard_in_progress_state='{"flow_index": 1, "test_step": 3}')
+    dialog = SettingsDialog(parent=None, cfg=cfg)
+
+    updated = dialog.updated_config()
+    assert updated.wizard_in_progress_state == cfg.wizard_in_progress_state

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass, field, replace
 from typing import Callable
@@ -132,6 +133,7 @@ class DisplayConfiguratorDialog:
                 self._calibration_sender = calibration_sender
                 self._test_step = 0
                 self._state = CalibrationState.from_config(cfg)
+                self._state.save_checkpoint()
                 self._flow = WizardFlowState()
                 status = runtime_status or {}
                 detected_device_zone_count = int(status.get("device_zone_count") or 0)
@@ -237,6 +239,12 @@ class DisplayConfiguratorDialog:
                 self.calibration_phase_next_button = QPushButton("Next calibration phase")
                 self.calibration_mark_pass_button = QPushButton("Mark phase passed")
                 self.calibration_mark_fail_button = QPushButton("Mark phase failed")
+                self.calibration_phase_rerun_button = QPushButton("Re-run this step")
+                self.calibration_phase_reset_button = QPushButton("Reset this section")
+                self.confirm_direction_button = QPushButton("Confirm direction step")
+                self.rollback_direction_button = QPushButton("Rollback direction")
+                self.confirm_anchor_button = QPushButton("Confirm anchor assignment")
+                self.rollback_anchor_button = QPushButton("Rollback anchors")
                 self.assign_tl_button = QPushButton("Assign current zone → Top-left")
                 self.assign_tr_button = QPushButton("Assign current zone → Top-right")
                 self.assign_br_button = QPushButton("Assign current zone → Bottom-right")
@@ -294,6 +302,12 @@ class DisplayConfiguratorDialog:
                 self.calibration_phase_next_button.clicked.connect(self._next_calibration_phase)
                 self.calibration_mark_pass_button.clicked.connect(lambda: self._mark_current_calibration_phase(True))
                 self.calibration_mark_fail_button.clicked.connect(lambda: self._mark_current_calibration_phase(False))
+                self.calibration_phase_rerun_button.clicked.connect(self._rerun_current_calibration_phase)
+                self.calibration_phase_reset_button.clicked.connect(self._reset_current_calibration_phase)
+                self.confirm_direction_button.clicked.connect(self._confirm_direction_verification)
+                self.rollback_direction_button.clicked.connect(self._rollback_direction_verification)
+                self.confirm_anchor_button.clicked.connect(self._confirm_anchor_assignment)
+                self.rollback_anchor_button.clicked.connect(self._rollback_anchor_assignment)
                 self.assign_tl_button.clicked.connect(lambda: self._assign_anchor("top_left"))
                 self.assign_tr_button.clicked.connect(lambda: self._assign_anchor("top_right"))
                 self.assign_br_button.clicked.connect(lambda: self._assign_anchor("bottom_right"))
@@ -326,6 +340,7 @@ class DisplayConfiguratorDialog:
 
                 self._refresh()
                 self._configure_tooltips()
+                self._restore_wizard_draft()
 
             def _set_tooltip(self, widget, text: str) -> None:
                 setter = getattr(widget, "setToolTip", None)
@@ -342,6 +357,10 @@ class DisplayConfiguratorDialog:
                 self._set_tooltip(self.assign_tr_button, "Assign the currently lit strip zone as top-right screen corner.")
                 self._set_tooltip(self.assign_br_button, "Assign the currently lit strip zone as bottom-right screen corner.")
                 self._set_tooltip(self.assign_bl_button, "Assign the currently lit strip zone as bottom-left screen corner.")
+                self._set_tooltip(self.confirm_anchor_button, "Confirm corner assignments and snapshot a recovery checkpoint.")
+                self._set_tooltip(self.rollback_anchor_button, "Rollback corner assignments to the last confirmed checkpoint.")
+                self._set_tooltip(self.confirm_direction_button, "Confirm direction/offset orientation and store a checkpoint.")
+                self._set_tooltip(self.rollback_direction_button, "Restore reverse+offset from last confirmed checkpoint.")
                 self._set_tooltip(self.preset_sdr_button, "SDR-safe defaults: srgb + bt709.")
                 self._set_tooltip(self.preset_hdr_button, "HDR defaults: pq + bt2020.")
                 self._set_tooltip(self.sampling_low_button, "Fastest response, lowest CPU usage.")
@@ -369,16 +388,22 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.calibration_phase_next_button, 8, 1, 1, 2)
                 layout.addWidget(self.calibration_mark_pass_button, 9, 0, 1, 2)
                 layout.addWidget(self.calibration_mark_fail_button, 9, 2)
-                layout.addWidget(self.calibration_next_button, 10, 0, 1, 2)
-                layout.addWidget(self.calibration_prev_button, 10, 2)
-                layout.addWidget(self.calibration_send_button, 11, 0, 1, 3)
-                layout.addWidget(self.current_zone_label, 12, 0, 1, 3)
-                layout.addWidget(self.assign_tl_button, 13, 0, 1, 3)
-                layout.addWidget(self.assign_tr_button, 14, 0, 1, 3)
-                layout.addWidget(self.assign_br_button, 15, 0, 1, 3)
-                layout.addWidget(self.assign_bl_button, 16, 0, 1, 3)
-                layout.addWidget(self.anchor_validation_label, 17, 0, 1, 3)
-                layout.addWidget(self.calibration_test_label, 18, 0, 1, 3)
+                layout.addWidget(self.calibration_phase_rerun_button, 10, 0, 1, 2)
+                layout.addWidget(self.calibration_phase_reset_button, 10, 2)
+                layout.addWidget(self.confirm_direction_button, 11, 0, 1, 2)
+                layout.addWidget(self.rollback_direction_button, 11, 2)
+                layout.addWidget(self.calibration_next_button, 12, 0, 1, 2)
+                layout.addWidget(self.calibration_prev_button, 12, 2)
+                layout.addWidget(self.calibration_send_button, 13, 0, 1, 3)
+                layout.addWidget(self.current_zone_label, 14, 0, 1, 3)
+                layout.addWidget(self.assign_tl_button, 15, 0, 1, 3)
+                layout.addWidget(self.assign_tr_button, 16, 0, 1, 3)
+                layout.addWidget(self.assign_br_button, 17, 0, 1, 3)
+                layout.addWidget(self.assign_bl_button, 18, 0, 1, 3)
+                layout.addWidget(self.confirm_anchor_button, 19, 0, 1, 2)
+                layout.addWidget(self.rollback_anchor_button, 19, 2)
+                layout.addWidget(self.anchor_validation_label, 20, 0, 1, 3)
+                layout.addWidget(self.calibration_test_label, 21, 0, 1, 3)
 
                 advanced_layout = QGridLayout()
                 advanced_layout.addWidget(QLabel("Global mapping zone offset"), 0, 0)
@@ -388,7 +413,7 @@ class DisplayConfiguratorDialog:
                 advanced_layout.addWidget(QLabel("Test zone step index"), 2, 0)
                 advanced_layout.addWidget(self.test_step_index_value, 2, 1, 1, 2)
                 self.advanced_calibration_group.setLayout(advanced_layout)
-                layout.addWidget(self.advanced_calibration_group, 19, 0, 1, 3)
+                layout.addWidget(self.advanced_calibration_group, 22, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -573,6 +598,65 @@ class DisplayConfiguratorDialog:
                     passed=passed,
                     notes=phase.pass_criteria if passed else phase.fail_criteria,
                 )
+                if passed:
+                    self._state.save_checkpoint()
+                self._refresh()
+
+            def _rerun_current_calibration_phase(self) -> None:
+                phase = self._current_calibration_phase()
+                self._state.mark_calibration_step(phase.step_id, passed=False, notes="Re-run requested by user.")
+                self._test_step = 0
+                self._refresh()
+                self._send_test_pattern()
+
+            def _reset_current_calibration_phase(self) -> None:
+                phase = self._current_calibration_phase()
+                self._state.mark_calibration_step(phase.step_id, passed=False, notes="Section reset requested by user.")
+                if phase.step_id == "corner-assignment":
+                    self._state.corner_anchor_top_left = -1
+                    self._state.corner_anchor_top_right = -1
+                    self._state.corner_anchor_bottom_right = -1
+                    self._state.corner_anchor_bottom_left = -1
+                if phase.step_id == "direction-verification":
+                    self._state.zone_offset = 0
+                    self._state.reverse_zones = False
+                    self.zone_offset_slider.setValue(0)
+                    self.reverse_checkbox.setChecked(False)
+                self._test_step = 0
+                self._refresh()
+
+            def _confirm_direction_verification(self) -> None:
+                phase = self._current_calibration_phase()
+                if phase.step_id != "direction-verification":
+                    return
+                self._pull_state_from_controls()
+                self._state.save_checkpoint()
+                self._state.mark_calibration_step(phase.step_id, passed=True, notes="Direction confirmed and checkpoint saved.")
+                self._refresh()
+
+            def _rollback_direction_verification(self) -> None:
+                if not self._state.restore_checkpoint():
+                    return
+                restored_offset = int(self._state.zone_offset)
+                restored_reverse = bool(self._state.reverse_zones)
+                self.zone_offset_slider.setValue(restored_offset)
+                self.reverse_checkbox.setChecked(restored_reverse)
+                self._state.zone_offset = restored_offset
+                self._state.reverse_zones = restored_reverse
+                self._refresh()
+
+            def _confirm_anchor_assignment(self) -> None:
+                phase = self._current_calibration_phase()
+                if phase.step_id != "corner-assignment":
+                    return
+                self._pull_state_from_controls()
+                self._state.save_checkpoint()
+                self._state.mark_calibration_step(phase.step_id, passed=True, notes="Anchors confirmed and checkpoint saved.")
+                self._refresh()
+
+            def _rollback_anchor_assignment(self) -> None:
+                if not self._state.restore_checkpoint():
+                    return
                 self._refresh()
 
             def _on_device_zone_count_changed(self, *_args) -> None:
@@ -643,10 +727,26 @@ class DisplayConfiguratorDialog:
                     (self.calibration_phase_next_button, self._calibration_phase_index < len(CALIBRATION_SEQUENCE) - 1),
                     (self.calibration_mark_pass_button, prerequisites_met),
                     (self.calibration_mark_fail_button, prerequisites_met),
+                    (self.calibration_phase_rerun_button, True),
+                    (self.calibration_phase_reset_button, True),
                 ):
                     setter = getattr(button, "setEnabled", None)
                     if callable(setter):
                         setter(enabled)
+                direction_phase = current_phase.step_id == "direction-verification"
+                anchor_phase = current_phase.step_id == "corner-assignment"
+                for button, enabled in (
+                    (self.confirm_direction_button, direction_phase),
+                    (self.rollback_direction_button, direction_phase),
+                    (self.confirm_anchor_button, anchor_phase),
+                    (self.rollback_anchor_button, anchor_phase),
+                ):
+                    set_visible = getattr(button, "setVisible", None)
+                    if callable(set_visible):
+                        set_visible(enabled)
+                    set_enabled = getattr(button, "setEnabled", None)
+                    if callable(set_enabled):
+                        set_enabled(enabled)
                 self.calibration_phase_label.setText(
                     f"Calibration phase {self._calibration_phase_index + 1}/{len(CALIBRATION_SEQUENCE)}: {current_phase.title}"
                 )
@@ -763,8 +863,84 @@ class DisplayConfiguratorDialog:
                     corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
                     corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
                     calibration_model=str(self._state.calibration_model),
+                    wizard_in_progress_state="",
                     wizard_completed=True,
                 )
+
+            def _serialize_wizard_draft(self) -> str:
+                self._pull_state_from_controls()
+                payload = {
+                    "flow_index": int(self._flow.index),
+                    "test_step": int(self._test_step),
+                    "calibration_phase_index": int(self._calibration_phase_index),
+                    "zone_count": int(self._state.zone_count),
+                    "zone_preset": str(self._state.zone_preset),
+                    "zone_offset": int(self._state.zone_offset),
+                    "reverse_zones": bool(self._state.reverse_zones),
+                    "device_zone_count": int(self._state.device_zone_count),
+                    "display_mode": str(self.display_mode_combo.currentText()),
+                    "sampling_quality": str(self.sampling_quality_combo.currentText()).lower(),
+                    "color_mode": str(self.color_mode_combo.currentText()),
+                    "vibrancy": int(self.vibrancy_slider.value()),
+                    "corner_anchor_top_left": int(self._state.corner_anchor_top_left),
+                    "corner_anchor_top_right": int(self._state.corner_anchor_top_right),
+                    "corner_anchor_bottom_right": int(self._state.corner_anchor_bottom_right),
+                    "corner_anchor_bottom_left": int(self._state.corner_anchor_bottom_left),
+                    "calibration_progress": {
+                        step_id: {"complete": bool(progress.complete), "passed": bool(progress.passed), "notes": str(progress.notes)}
+                        for step_id, progress in self._state.calibration_step_progress.items()
+                    },
+                }
+                return json.dumps(payload, sort_keys=True)
+
+            def in_progress_config(self) -> AppConfig:
+                return replace(cfg, wizard_in_progress_state=self._serialize_wizard_draft())
+
+            def _restore_wizard_draft(self) -> None:
+                raw = str(getattr(cfg, "wizard_in_progress_state", "") or "").strip()
+                if not raw:
+                    return
+                try:
+                    data = json.loads(raw)
+                except Exception:
+                    return
+                if not isinstance(data, dict):
+                    return
+                self._flow.index = max(0, min(len(WIZARD_STEPS) - 1, int(data.get("flow_index", self._flow.index))))
+                self._test_step = int(data.get("test_step", self._test_step))
+                self._calibration_phase_index = max(0, min(len(CALIBRATION_SEQUENCE) - 1, int(data.get("calibration_phase_index", self._calibration_phase_index))))
+                self.zone_count_slider.setValue(int(data.get("zone_count", self.zone_count_slider.value())))
+                preset = str(data.get("zone_preset", self._state.zone_preset))
+                self.zone_preset_combo.setCurrentIndex(0 if preset == "edge-weighted" else 1)
+                self.zone_offset_slider.setValue(int(data.get("zone_offset", self.zone_offset_slider.value())))
+                self.reverse_checkbox.setChecked(bool(data.get("reverse_zones", self.reverse_checkbox.isChecked())))
+                self.device_zone_count_slider.setValue(int(data.get("device_zone_count", self.device_zone_count_slider.value())))
+                display_idx = self.display_mode_combo.findText(str(data.get("display_mode", self.display_mode_combo.currentText())))
+                if display_idx >= 0:
+                    self.display_mode_combo.setCurrentIndex(display_idx)
+                sampling_idx = self.sampling_quality_combo.findText(str(data.get("sampling_quality", self.sampling_quality_combo.currentText())).capitalize())
+                if sampling_idx >= 0:
+                    self.sampling_quality_combo.setCurrentIndex(sampling_idx)
+                color_idx = self.color_mode_combo.findText(str(data.get("color_mode", self.color_mode_combo.currentText())))
+                if color_idx >= 0:
+                    self.color_mode_combo.setCurrentIndex(color_idx)
+                self.vibrancy_slider.setValue(int(data.get("vibrancy", self.vibrancy_slider.value())))
+                self._state.corner_anchor_top_left = int(data.get("corner_anchor_top_left", self._state.corner_anchor_top_left))
+                self._state.corner_anchor_top_right = int(data.get("corner_anchor_top_right", self._state.corner_anchor_top_right))
+                self._state.corner_anchor_bottom_right = int(data.get("corner_anchor_bottom_right", self._state.corner_anchor_bottom_right))
+                self._state.corner_anchor_bottom_left = int(data.get("corner_anchor_bottom_left", self._state.corner_anchor_bottom_left))
+                progress = data.get("calibration_progress")
+                if isinstance(progress, dict):
+                    for step_id, item in progress.items():
+                        if isinstance(item, dict):
+                            self._state.mark_calibration_step(
+                                str(step_id),
+                                passed=bool(item.get("passed", False)),
+                                notes=str(item.get("notes", "")),
+                            )
+                            self._state.calibration_step_state(str(step_id)).complete = bool(item.get("complete", False))
+                self._state.save_checkpoint()
+                self._refresh()
 
             def _assign_anchor(self, corner: str) -> None:
                 if self._state.calibration_model != "corner_anchored":
@@ -859,3 +1035,6 @@ class DisplayConfiguratorDialog:
 
     def updated_config(self) -> AppConfig:
         return self._dialog.updated_config()
+
+    def in_progress_config(self) -> AppConfig:
+        return self._dialog.in_progress_config()

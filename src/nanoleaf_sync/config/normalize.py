@@ -225,6 +225,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         zone_preset=zone_preset,
         color_mode=color_mode,
         wizard_completed=coerce_bool(getattr(cfg, "wizard_completed", False), False),
+        wizard_in_progress_state=str(getattr(cfg, "wizard_in_progress_state", "") or "").strip(),
         hdr_enabled=coerce_bool(getattr(cfg, "hdr_enabled", False), False),
         start_on_launch=coerce_bool(getattr(cfg, "start_on_launch", False), False),
         device_vid=cfg.device_vid,

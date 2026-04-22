@@ -309,3 +309,35 @@ def test_display_configurator_preserves_passed_phase_when_navigating_back(monkey
     dialog._dialog.calibration_phase_next_button.clicked.emit()
     dialog._dialog.calibration_phase_prev_button.clicked.emit()
     assert "passed" in dialog._dialog.calibration_phase_status_label._text
+
+
+def test_display_configurator_persists_and_restores_in_progress_draft(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    cfg = AppConfig(zones=[])
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=cfg)
+    dialog._dialog._flow.index = 1
+    dialog._dialog._test_step = 5
+    dialog._dialog.zone_offset_slider.setValue(4)
+    draft_cfg = dialog.in_progress_config()
+    assert draft_cfg.wizard_in_progress_state
+
+    resumed = DisplayConfiguratorDialog(parent=None, cfg=draft_cfg)
+    assert resumed._dialog._flow.index == 1
+    assert resumed._dialog._test_step == 5
+    assert resumed._dialog.zone_offset_slider.value() == 4
+
+
+def test_display_configurator_recovery_controls_restore_checkpoint(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=8))
+    dialog._dialog._calibration_phase_index = 1  # direction-verification
+    dialog._dialog.zone_offset_slider.setValue(3)
+    dialog._dialog.reverse_checkbox.setChecked(True)
+    dialog._dialog.confirm_direction_button.clicked.emit()
+
+    dialog._dialog.zone_offset_slider.setValue(-2)
+    dialog._dialog.reverse_checkbox.setChecked(False)
+    dialog._dialog.rollback_direction_button.clicked.emit()
+
+    assert dialog._dialog.zone_offset_slider.value() == 3
+    assert dialog._dialog.reverse_checkbox.isChecked() is True

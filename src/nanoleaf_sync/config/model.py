@@ -51,6 +51,9 @@ class AppConfig:
     color_mode: str = "default"
     # Tracks whether the first-run display configurator has been completed.
     wizard_completed: bool = False
+    # Serialized in-progress setup wizard state for resume/recovery.
+    # Stored as JSON payload; empty string means no active draft.
+    wizard_in_progress_state: str = ""
     # Wizard choice: False=SDR path, True=HDR path.
     hdr_enabled: bool = False
     start_on_launch: bool = False

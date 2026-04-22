@@ -61,6 +61,19 @@ class CalibrationStepProgress:
 
 
 @dataclass
+class CalibrationCheckpoint:
+    zone_offset: int
+    reverse_zones: bool
+    corner_anchor_top_left: int
+    corner_anchor_top_right: int
+    corner_anchor_bottom_right: int
+    corner_anchor_bottom_left: int
+    corner_start_anchor: int
+    calibration_model: str
+    calibration_step_progress: dict[str, CalibrationStepProgress] = field(default_factory=dict)
+
+
+@dataclass
 class CalibrationState:
     zone_count: int
     zone_preset: str
@@ -78,6 +91,7 @@ class CalibrationState:
     corner_anchor_bottom_right: int = -1
     corner_anchor_bottom_left: int = -1
     calibration_step_progress: dict[str, CalibrationStepProgress] = field(default_factory=dict)
+    checkpoint: CalibrationCheckpoint | None = None
 
     @classmethod
     def from_config(cls, cfg: AppConfig, runtime_status: dict | None = None) -> "CalibrationState":
@@ -150,6 +164,54 @@ class CalibrationState:
 
     def can_complete_calibration_flow(self) -> bool:
         return all(self.calibration_step_progress.get(step.step_id, CalibrationStepProgress(step_id=step.step_id)).passed for step in CALIBRATION_SEQUENCE)
+
+    def snapshot_checkpoint(self) -> CalibrationCheckpoint:
+        return CalibrationCheckpoint(
+            zone_offset=int(self.zone_offset),
+            reverse_zones=bool(self.reverse_zones),
+            corner_anchor_top_left=int(self.corner_anchor_top_left),
+            corner_anchor_top_right=int(self.corner_anchor_top_right),
+            corner_anchor_bottom_right=int(self.corner_anchor_bottom_right),
+            corner_anchor_bottom_left=int(self.corner_anchor_bottom_left),
+            corner_start_anchor=int(self.corner_start_anchor),
+            calibration_model=str(self.calibration_model),
+            calibration_step_progress={
+                step_id: CalibrationStepProgress(
+                    step_id=progress.step_id,
+                    complete=bool(progress.complete),
+                    passed=bool(progress.passed),
+                    notes=str(progress.notes),
+                )
+                for step_id, progress in self.calibration_step_progress.items()
+            },
+        )
+
+    def save_checkpoint(self) -> CalibrationCheckpoint:
+        self.checkpoint = self.snapshot_checkpoint()
+        return self.checkpoint
+
+    def restore_checkpoint(self, checkpoint: CalibrationCheckpoint | None = None) -> bool:
+        target = checkpoint or self.checkpoint
+        if target is None:
+            return False
+        self.zone_offset = int(target.zone_offset)
+        self.reverse_zones = bool(target.reverse_zones)
+        self.corner_anchor_top_left = int(target.corner_anchor_top_left)
+        self.corner_anchor_top_right = int(target.corner_anchor_top_right)
+        self.corner_anchor_bottom_right = int(target.corner_anchor_bottom_right)
+        self.corner_anchor_bottom_left = int(target.corner_anchor_bottom_left)
+        self.corner_start_anchor = int(target.corner_start_anchor)
+        self.calibration_model = str(target.calibration_model)
+        self.calibration_step_progress = {
+            step_id: CalibrationStepProgress(
+                step_id=progress.step_id,
+                complete=bool(progress.complete),
+                passed=bool(progress.passed),
+                notes=str(progress.notes),
+            )
+            for step_id, progress in target.calibration_step_progress.items()
+        }
+        return True
 
     def auto_detection_status(self) -> str:
         return f"Using configured strip zone count {self.device_zone_count}."
