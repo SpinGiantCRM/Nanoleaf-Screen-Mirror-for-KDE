@@ -59,20 +59,25 @@ def single_zone_step(
     corner_anchor_top_right: int = -1,
     corner_anchor_bottom_right: int = -1,
     corner_anchor_bottom_left: int = -1,
+    resolved_mapping: Sequence[int] | None = None,
     label_prefix: str = "Single-zone test",
 ) -> CalibrationStep:
-    mapping = mapping_indices(
-        zone_count=zone_count,
-        device_zone_count=device_zone_count,
-        zone_offset=zone_offset,
-        reverse_zones=reverse_zones,
-        explicit_zone_map=explicit_zone_map,
-        corner_zone_offsets=corner_zone_offsets,
-        calibration_model=calibration_model,
-        corner_anchor_top_left=corner_anchor_top_left,
-        corner_anchor_top_right=corner_anchor_top_right,
-        corner_anchor_bottom_right=corner_anchor_bottom_right,
-        corner_anchor_bottom_left=corner_anchor_bottom_left,
+    mapping = (
+        [int(i) for i in resolved_mapping]
+        if resolved_mapping is not None
+        else mapping_indices(
+            zone_count=zone_count,
+            device_zone_count=device_zone_count,
+            zone_offset=zone_offset,
+            reverse_zones=reverse_zones,
+            explicit_zone_map=explicit_zone_map,
+            corner_zone_offsets=corner_zone_offsets,
+            calibration_model=calibration_model,
+            corner_anchor_top_left=corner_anchor_top_left,
+            corner_anchor_top_right=corner_anchor_top_right,
+            corner_anchor_bottom_right=corner_anchor_bottom_right,
+            corner_anchor_bottom_left=corner_anchor_bottom_left,
+        )
     )
     total = len(mapping)
     idx = int(step) % max(1, total)
@@ -101,6 +106,7 @@ def coverage_sanity_step(
     corner_anchor_top_right: int = -1,
     corner_anchor_bottom_right: int = -1,
     corner_anchor_bottom_left: int = -1,
+    resolved_mapping: Sequence[int] | None = None,
 ) -> CalibrationStep:
     single = single_zone_step(
         step=step,
@@ -115,6 +121,7 @@ def coverage_sanity_step(
         corner_anchor_top_right=corner_anchor_top_right,
         corner_anchor_bottom_right=corner_anchor_bottom_right,
         corner_anchor_bottom_left=corner_anchor_bottom_left,
+        resolved_mapping=resolved_mapping,
         label_prefix="Coverage sanity",
     )
     return CalibrationStep(
@@ -142,20 +149,25 @@ def corner_anchor_steps(
     corner_anchor_top_right: int = -1,
     corner_anchor_bottom_right: int = -1,
     corner_anchor_bottom_left: int = -1,
+    resolved_mapping: Sequence[int] | None = None,
 ) -> list[CalibrationStep]:
     total = max(1, int(device_zone_count))
-    mapping = mapping_indices(
-        zone_count=zone_count,
-        device_zone_count=device_zone_count,
-        zone_offset=zone_offset,
-        reverse_zones=reverse_zones,
-        explicit_zone_map=explicit_zone_map,
-        corner_zone_offsets=corner_zone_offsets,
-        calibration_model=calibration_model,
-        corner_anchor_top_left=corner_anchor_top_left,
-        corner_anchor_top_right=corner_anchor_top_right,
-        corner_anchor_bottom_right=corner_anchor_bottom_right,
-        corner_anchor_bottom_left=corner_anchor_bottom_left,
+    mapping = (
+        [int(i) for i in resolved_mapping]
+        if resolved_mapping is not None
+        else mapping_indices(
+            zone_count=zone_count,
+            device_zone_count=device_zone_count,
+            zone_offset=zone_offset,
+            reverse_zones=reverse_zones,
+            explicit_zone_map=explicit_zone_map,
+            corner_zone_offsets=corner_zone_offsets,
+            calibration_model=calibration_model,
+            corner_anchor_top_left=corner_anchor_top_left,
+            corner_anchor_top_right=corner_anchor_top_right,
+            corner_anchor_bottom_right=corner_anchor_bottom_right,
+            corner_anchor_bottom_left=corner_anchor_bottom_left,
+        )
     )
     if total == 1:
         return [CalibrationStep(0, 0, "Corner marker: single-zone strip")]

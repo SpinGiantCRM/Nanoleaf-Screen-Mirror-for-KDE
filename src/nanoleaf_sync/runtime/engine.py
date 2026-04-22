@@ -15,8 +15,8 @@ from typing import Sequence
 import numpy as np
 
 from nanoleaf_sync.runtime.zones import zone_colors_array
-from nanoleaf_sync.color.zone_mapper import resolve_device_zone_indices
 from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping_from_config
 from nanoleaf_sync.runtime.processing import zones_from_config
 from nanoleaf_sync.runtime.zone_derivation import derive_source_zones
 from nanoleaf_sync.runtime.compositor import (
@@ -131,6 +131,11 @@ def _mapping_signature(
         tuple(int(i) for i in (config.explicit_zone_map or [])),
         bool(getattr(config, "corner_offsets_enabled", False)),
         tuple(int(i) for i in (getattr(config, "corner_zone_offsets", []) or [])),
+        str(getattr(config, "calibration_model", "offset_direction")),
+        int(getattr(config, "corner_anchor_top_left", -1)),
+        int(getattr(config, "corner_anchor_top_right", -1)),
+        int(getattr(config, "corner_anchor_bottom_right", -1)),
+        int(getattr(config, "corner_anchor_bottom_left", -1)),
     )
 
 
@@ -174,21 +179,12 @@ def _ensure_runtime_artifacts(
         or state.cached_device_zone_indices is None
         or state.cached_device_zone_indices_np is None
     ):
-        configured_device_zone_count = int(config.device_zone_count)
-        device_zone_count = (
-            configured_device_zone_count
-            if configured_device_zone_count > 0
-            else source_zone_count
+        snapshot = resolve_calibration_mapping_from_config(
+            config=config,
+            source_zone_count=source_zone_count,
+            detected_device_zone_count=detected_device_zone_count,
         )
-        state.cached_device_zone_indices = resolve_device_zone_indices(
-            source_zone_count,
-            device_zone_count=device_zone_count,
-            zone_offset=config.zone_offset,
-            reverse=config.reverse_zones,
-            manual_mapping_enabled=bool(getattr(config, "manual_mapping_enabled", False)),
-            explicit_zone_map=config.explicit_zone_map or None,
-            corner_zone_offsets=(config.corner_zone_offsets if bool(getattr(config, "corner_offsets_enabled", False)) else None),
-        )
+        state.cached_device_zone_indices = snapshot.device_to_source_indices
         state.cached_device_zone_indices_np = np.asarray(
             state.cached_device_zone_indices, dtype=np.intp
         )

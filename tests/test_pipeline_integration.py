@@ -5,6 +5,7 @@ import numpy as np
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
 from nanoleaf_sync.runtime.engine import run_loop
 from nanoleaf_sync.runtime.state import RuntimeState
+from nanoleaf_sync.ui.calibration_state import CalibrationState
 
 
 class _SingleFrameCapture:
@@ -79,3 +80,54 @@ def test_full_pipeline_zone_map_brightness_smoothing_and_send() -> None:
     assert 50 <= r1 <= 80
     assert 20 <= g1 <= 35
     assert 20 <= b1 <= 35
+
+
+def test_preview_and_runtime_share_identical_resolved_mapping_snapshot() -> None:
+    frame = np.array(
+        [[[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0]]],
+        dtype=np.uint8,
+    )
+    cfg = AppConfig(
+        fps=30,
+        brightness=1.0,
+        smoothing=1.0,
+        zones=[
+            ZoneConfig(x=0.0, y=0.0, w=0.25, h=1.0),
+            ZoneConfig(x=0.25, y=0.0, w=0.25, h=1.0),
+            ZoneConfig(x=0.5, y=0.0, w=0.25, h=1.0),
+            ZoneConfig(x=0.75, y=0.0, w=0.25, h=1.0),
+        ],
+        device_zone_count=4,
+        zone_offset=1,
+        use_mock_capture=False,
+        verbose=False,
+        calibration_model="corner_anchored",
+        corner_anchor_top_left=1,
+        corner_anchor_top_right=2,
+        corner_anchor_bottom_right=3,
+        corner_anchor_bottom_left=0,
+    )
+
+    preview_state = CalibrationState.from_config(cfg)
+    expected_mapping = [
+        preview_state.step_for_mode("direction walk", step).source_zone_index
+        for step in range(preview_state.effective_device_zone_count())
+    ]
+
+    state = RuntimeState()
+    capture = _SingleFrameCapture(frame)
+    driver = _CollectingDriver(state.stop_event)
+
+    run_loop(
+        config=cfg,
+        state=state,
+        get_capture=lambda: capture,
+        get_driver=lambda: driver,
+        install_drivers=lambda: None,
+        close_backends=lambda: None,
+    )
+
+    assert len(driver.sent_frames) == 1
+    sent = driver.sent_frames[0]
+    source_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0)]
+    assert sent == [source_colors[idx] for idx in expected_mapping]

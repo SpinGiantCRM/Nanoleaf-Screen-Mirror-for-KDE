@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.runtime.calibration_resolver import CalibrationMappingSnapshot, resolve_calibration_mapping
 from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE
 from nanoleaf_sync.ui.calibration_preview import CalibrationStep, calibration_test_frame, corner_anchor_steps, coverage_sanity_step, single_zone_step
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text, mapping_preview_visual
@@ -156,17 +157,36 @@ class CalibrationState:
     def effective_device_zone_count(self) -> int:
         return max(1, int(self.device_zone_count))
 
+    def resolved_mapping_snapshot(self) -> CalibrationMappingSnapshot:
+        explicit = self.explicit_zone_map if self.manual_mapping_enabled and self.calibration_model != "corner_anchored" else []
+        return resolve_calibration_mapping(
+            zone_count=self.zone_count,
+            device_zone_count=self.effective_device_zone_count(),
+            zone_offset=self.zone_offset,
+            reverse_zones=self.reverse_zones,
+            manual_mapping_enabled=bool(explicit),
+            explicit_zone_map=explicit,
+            corner_zone_offsets=self.active_corner_zone_offsets(),
+            corner_anchor_top_left=self.corner_anchor_top_left,
+            corner_anchor_top_right=self.corner_anchor_top_right,
+            corner_anchor_bottom_right=self.corner_anchor_bottom_right,
+            corner_anchor_bottom_left=self.corner_anchor_bottom_left,
+            calibration_model=self.calibration_model,
+        )
+
     def mapping_preview_text(self) -> str:
+        snapshot = self.resolved_mapping_snapshot()
         explicit = self.explicit_zone_map if self.manual_mapping_enabled and self.calibration_model != "corner_anchored" else []
         return (
             f"{self.auto_detection_status()}\n"
             f"Anchors TL/TR/BR/BL: {self.corner_anchor_top_left}/{self.corner_anchor_top_right}/{self.corner_anchor_bottom_right}/{self.corner_anchor_bottom_left}\n"
             f"Local corner anchor nudges (TL/TR/BR/BL): {'/'.join(f'{value:+d}' for value in self.active_corner_zone_offsets())}\n"
             f"{'Corner-anchored mapping active' if self.calibration_model == 'corner_anchored' else ('Manual mapping enabled' if self.manual_mapping_enabled else 'Corner anchors inferred from current mapping')}\n"
-            f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), zone_offset=self.zone_offset, reverse_zones=self.reverse_zones, explicit_zone_map=explicit, corner_zone_offsets=self.active_corner_zone_offsets(), corner_anchor_top_left=self.corner_anchor_top_left, corner_anchor_top_right=self.corner_anchor_top_right, corner_anchor_bottom_right=self.corner_anchor_bottom_right, corner_anchor_bottom_left=self.corner_anchor_bottom_left, calibration_model=self.calibration_model)}"
+            f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), zone_offset=self.zone_offset, reverse_zones=self.reverse_zones, explicit_zone_map=explicit, corner_zone_offsets=self.active_corner_zone_offsets(), corner_anchor_top_left=self.corner_anchor_top_left, corner_anchor_top_right=self.corner_anchor_top_right, corner_anchor_bottom_right=self.corner_anchor_bottom_right, corner_anchor_bottom_left=self.corner_anchor_bottom_left, calibration_model=self.calibration_model, resolved_mapping=snapshot)}"
         )
 
     def mapping_preview_visual(self) -> str:
+        snapshot = self.resolved_mapping_snapshot()
         explicit = self.explicit_zone_map if self.manual_mapping_enabled and self.calibration_model != "corner_anchored" else []
         return mapping_preview_visual(
             zone_count=self.zone_count,
@@ -180,9 +200,11 @@ class CalibrationState:
             corner_anchor_bottom_right=self.corner_anchor_bottom_right,
             corner_anchor_bottom_left=self.corner_anchor_bottom_left,
             calibration_model=self.calibration_model,
+            resolved_mapping=snapshot,
         )
 
-    def _corner_steps(self) -> list[CalibrationStep]:
+    def _corner_steps(self, resolved_mapping: CalibrationMappingSnapshot | None = None) -> list[CalibrationStep]:
+        snapshot = resolved_mapping or self.resolved_mapping_snapshot()
         explicit = self.explicit_zone_map if self.manual_mapping_enabled and self.calibration_model != "corner_anchored" else []
         anchors = corner_anchor_steps(
             zone_count=self.zone_count,
@@ -197,13 +219,15 @@ class CalibrationState:
             corner_anchor_top_right=self.corner_anchor_top_right,
             corner_anchor_bottom_right=self.corner_anchor_bottom_right,
             corner_anchor_bottom_left=self.corner_anchor_bottom_left,
+            resolved_mapping=snapshot.device_to_source_indices,
         )
         return anchors
 
     def step_for_mode(self, mode: str, step: int) -> CalibrationStep:
+        snapshot = self.resolved_mapping_snapshot()
         explicit = self.explicit_zone_map if self.manual_mapping_enabled and self.calibration_model != "corner_anchored" else []
         if mode == "corner+offset alignment":
-            anchors = self._corner_steps()
+            anchors = self._corner_steps(snapshot)
             anchor = anchors[step % len(anchors)]
             return CalibrationStep(
                 device_zone_index=anchor.device_zone_index,
@@ -226,6 +250,7 @@ class CalibrationState:
                 corner_anchor_top_right=self.corner_anchor_top_right,
                 corner_anchor_bottom_right=self.corner_anchor_bottom_right,
                 corner_anchor_bottom_left=self.corner_anchor_bottom_left,
+                resolved_mapping=snapshot.device_to_source_indices,
             )
         prefix = "Direction walk"
         if mode == "start-point identification":
@@ -245,6 +270,7 @@ class CalibrationState:
             corner_anchor_top_right=self.corner_anchor_top_right,
             corner_anchor_bottom_right=self.corner_anchor_bottom_right,
             corner_anchor_bottom_left=self.corner_anchor_bottom_left,
+            resolved_mapping=snapshot.device_to_source_indices,
             label_prefix=prefix,
         )
 
