@@ -456,3 +456,17 @@ def test_settings_dialog_preserves_wizard_resume_draft(monkeypatch) -> None:
 
     updated = dialog.updated_config()
     assert updated.wizard_in_progress_state == cfg.wizard_in_progress_state
+
+
+def test_settings_dialog_preserves_interrupted_calibration_rollback_state(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    draft = (
+        '{"flow_index": 0, "test_step": 2, "current_phase": "direction-verification", '
+        '"phase_validation_state": {"direction-verification": {"valid": false, "details": "needs retry"}}, '
+        '"calibration_progress": {"direction-verification": {"complete": true, "passed": false, "notes": "rollback requested"}}}'
+    )
+    cfg = AppConfig(zones=[], wizard_in_progress_state=draft)
+    dialog = SettingsDialog(parent=None, cfg=cfg)
+
+    updated = dialog.updated_config()
+    assert updated.wizard_in_progress_state == draft

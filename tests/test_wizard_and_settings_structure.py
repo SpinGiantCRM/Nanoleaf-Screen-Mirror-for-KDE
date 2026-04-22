@@ -85,3 +85,19 @@ def test_qgroupbox_fallback_accepts_constructor_args() -> None:
     group = _FallbackGroupBox("Advanced calibration")
     group.setCheckable(True)
     group.setChecked(False)
+
+
+def test_calibration_state_supports_undo_and_phase_boundary_restore() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=12, zone_offset=1, reverse_zones=False), runtime_status={})
+    state.save_phase_boundary_checkpoint("direction-verification")
+    state.push_action_snapshot()
+    state.zone_offset = 5
+    state.reverse_zones = True
+
+    assert state.undo_last_action() is True
+    assert state.zone_offset == 1
+    assert state.reverse_zones is False
+
+    state.zone_offset = -3
+    assert state.restore_phase_boundary_checkpoint("direction-verification") is True
+    assert state.zone_offset == 1
