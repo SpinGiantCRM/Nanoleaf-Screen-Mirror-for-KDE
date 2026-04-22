@@ -57,6 +57,8 @@ def resolve_calibration_mapping(
     calibration_model: str = "offset_direction",
 ) -> CalibrationMappingSnapshot:
     normalized_model = str(calibration_model).strip().lower().replace("-", "_")
+    if normalized_model == "manual_map":
+        normalized_model = "manual_explicit_map"
     anchors = {
         "top_left": _normalize_anchor(corner_anchor_top_left),
         "top_right": _normalize_anchor(corner_anchor_top_right),
@@ -83,9 +85,10 @@ def resolve_calibration_mapping(
         else:
             validation_warnings = tuple(anchor_validation.errors)
 
-    if selected_explicit_map is None and manual_mapping_enabled and explicit_zone_map:
+    manual_explicit_mode = normalized_model == "manual_explicit_map"
+    if selected_explicit_map is None and (manual_mapping_enabled or manual_explicit_mode) and explicit_zone_map:
         selected_explicit_map = [int(i) for i in explicit_zone_map]
-        strategy = "explicit_manual_map"
+        strategy = "manual_explicit_map"
         direction = "manual"
 
     normalized_device_zone_count = int(device_zone_count)

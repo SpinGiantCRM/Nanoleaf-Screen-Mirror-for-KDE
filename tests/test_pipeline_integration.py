@@ -171,3 +171,28 @@ def test_migrated_legacy_calibration_config_keeps_preview_runtime_mapping_parity
     assert migrated["calibration"]["calibration_model"] == "corner_anchored"
     assert preview_snapshot.device_to_source_indices == runtime_snapshot.device_to_source_indices
     assert preview_snapshot.validation_warnings == runtime_snapshot.validation_warnings
+
+
+def test_manual_explicit_model_forces_explicit_mapping_without_manual_flag() -> None:
+    cfg = validate_config(
+        AppConfig(
+            zones=[
+                ZoneConfig(x=0.0, y=0.0, w=0.25, h=1.0),
+                ZoneConfig(x=0.25, y=0.0, w=0.25, h=1.0),
+                ZoneConfig(x=0.5, y=0.0, w=0.25, h=1.0),
+                ZoneConfig(x=0.75, y=0.0, w=0.25, h=1.0),
+            ],
+            device_zone_count=4,
+            calibration_model="manual_explicit_map",
+            manual_mapping_enabled=False,
+            explicit_zone_map=[3, 1, 0, 2],
+        )
+    )
+
+    preview_snapshot = CalibrationState.from_config(cfg).resolved_mapping_snapshot()
+    runtime_snapshot = resolve_calibration_mapping_from_config(config=cfg, source_zone_count=len(cfg.zones))
+
+    assert preview_snapshot.mode == "manual_explicit_map"
+    assert runtime_snapshot.mode == "manual_explicit_map"
+    assert preview_snapshot.device_to_source_indices == [3, 1, 0, 2]
+    assert runtime_snapshot.device_to_source_indices == [3, 1, 0, 2]
