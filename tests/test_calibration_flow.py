@@ -104,3 +104,19 @@ def test_calibration_step_fail_keeps_completion_gate_closed() -> None:
         state.mark_calibration_step(step.step_id, passed=True)
     state.mark_calibration_step(CALIBRATION_SEQUENCE[-1].step_id, passed=False, notes="missed zone")
     assert state.can_complete_calibration_flow() is False
+
+
+def test_calibration_completion_requires_validation_score_threshold() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=8), {})
+    for step in CALIBRATION_SEQUENCE:
+        state.mark_calibration_step(step.step_id, passed=True)
+    # Break deterministic replay by forcing explicit mismatched anchors.
+    state.corner_anchor_top_left = 0
+    state.corner_anchor_top_right = 0
+    state.corner_anchor_bottom_right = 0
+    state.corner_anchor_bottom_left = 0
+    report = state.validation_report()
+    assert report.sentinel_consistency is False
+    assert report.anchors_unique_valid is False
+    assert report.remediation_hints
+    assert state.can_complete_calibration_flow() is False

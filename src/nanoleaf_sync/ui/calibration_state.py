@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.calibration_resolver import CalibrationMappingSnapshot, resolve_calibration_mapping
-from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE
+from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
+from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE, derive_corner_anchor_device_indices
 from nanoleaf_sync.ui.calibration_preview import CalibrationStep, calibration_test_frame, corner_anchor_steps, coverage_sanity_step, single_zone_step
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text, mapping_preview_visual
 
@@ -17,6 +18,7 @@ TEST_MODES: tuple[str, ...] = (
     "fine offset",
 )
 CORNER_OFFSET_LIMIT = 24
+MIN_CALIBRATION_VALIDATION_CONFIDENCE = 1.0
 
 
 @dataclass
@@ -71,6 +73,27 @@ class CalibrationCheckpoint:
     corner_start_anchor: int
     calibration_model: str
     calibration_step_progress: dict[str, CalibrationStepProgress] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class CalibrationVerificationReport:
+    direction_confirmed: bool
+    anchors_unique_valid: bool
+    cycle_replay_confirmed: bool
+    sentinel_consistency: bool
+    expected_sentinels: tuple[int, ...]
+    assigned_sentinels: tuple[int, ...]
+    confidence_score: float
+    remediation_hints: tuple[str, ...]
+
+    def compact_summary(self) -> str:
+        return (
+            f"confidence={self.confidence_score:.2f} "
+            f"(direction={'ok' if self.direction_confirmed else 'fix'}, "
+            f"anchors={'ok' if self.anchors_unique_valid else 'fix'}, "
+            f"cycle={'ok' if self.cycle_replay_confirmed else 'fix'}, "
+            f"sentinel={'ok' if self.sentinel_consistency else 'fix'})"
+        )
 
 
 @dataclass
@@ -163,7 +186,73 @@ class CalibrationState:
         progress.notes = str(notes)
 
     def can_complete_calibration_flow(self) -> bool:
-        return all(self.calibration_step_progress.get(step.step_id, CalibrationStepProgress(step_id=step.step_id)).passed for step in CALIBRATION_SEQUENCE)
+        if not all(self.calibration_step_progress.get(step.step_id, CalibrationStepProgress(step_id=step.step_id)).passed for step in CALIBRATION_SEQUENCE):
+            return False
+        return self.validation_report().confidence_score >= MIN_CALIBRATION_VALIDATION_CONFIDENCE
+
+    def validation_report(self) -> CalibrationVerificationReport:
+        direction_confirmed = self.calibration_step_progress.get(
+            "direction-verification",
+            CalibrationStepProgress(step_id="direction-verification"),
+        ).passed
+        cycle_replay_confirmed = self.calibration_step_progress.get(
+            "validation-replay",
+            CalibrationStepProgress(step_id="validation-replay"),
+        ).passed
+        expected = derive_corner_anchor_device_indices(
+            zone_count=self.zone_count,
+            device_zone_count=self.effective_device_zone_count(),
+            zone_offset=self.zone_offset,
+            reverse_zones=self.reverse_zones,
+            explicit_zone_map=self.explicit_zone_map if self.manual_mapping_enabled else [],
+            corner_zone_offsets=self.active_corner_zone_offsets(),
+            start_anchor=self.corner_start_anchor if self.corner_start_anchor >= 0 else None,
+            calibration_model=self.calibration_model,
+        )
+        assigned = [
+            int(self.corner_anchor_top_left),
+            int(self.corner_anchor_top_right),
+            int(self.corner_anchor_bottom_right),
+            int(self.corner_anchor_bottom_left),
+        ]
+        has_explicit_assignments = all(value >= 0 for value in assigned)
+        if not has_explicit_assignments:
+            assigned = expected[:]
+
+        anchors = {
+            "top_left": assigned[0] if len(assigned) > 0 else None,
+            "top_right": assigned[1] if len(assigned) > 1 else None,
+            "bottom_right": assigned[2] if len(assigned) > 2 else None,
+            "bottom_left": assigned[3] if len(assigned) > 3 else None,
+        }
+        anchor_validation = validate_corner_anchors(
+            anchors=anchors,
+            device_zone_count=self.effective_device_zone_count(),
+        )
+        anchors_unique_valid = bool(anchor_validation.valid)
+        sentinel_consistency = tuple(expected[:4]) == tuple(assigned[:4])
+
+        confidence_checks = (direction_confirmed, anchors_unique_valid, cycle_replay_confirmed)
+        confidence_score = float(sum(1 for flag in confidence_checks if flag)) / float(len(confidence_checks))
+        hints: list[str] = []
+        if not direction_confirmed:
+            hints.append("Re-run direction verification and confirm reverse/offset orientation.")
+        if not anchors_unique_valid:
+            hints.append("Assign four unique in-range corner anchors (TL/TR/BR/BL).")
+        if not cycle_replay_confirmed:
+            hints.append("Complete end-to-end validation replay for one full cycle.")
+        if not sentinel_consistency:
+            hints.append("Replay sentinel corners and re-assign anchors until expected and assigned corners match.")
+        return CalibrationVerificationReport(
+            direction_confirmed=direction_confirmed,
+            anchors_unique_valid=anchors_unique_valid,
+            cycle_replay_confirmed=cycle_replay_confirmed,
+            sentinel_consistency=sentinel_consistency,
+            expected_sentinels=tuple(expected[:4]),
+            assigned_sentinels=tuple(assigned[:4]),
+            confidence_score=confidence_score,
+            remediation_hints=tuple(hints),
+        )
 
     def snapshot_checkpoint(self) -> CalibrationCheckpoint:
         return CalibrationCheckpoint(

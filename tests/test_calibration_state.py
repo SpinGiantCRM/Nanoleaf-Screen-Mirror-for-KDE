@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.calibration_state import (
+    MIN_CALIBRATION_VALIDATION_CONFIDENCE,
     CalibrationState,
     backend_selection_info,
     build_latency_result,
@@ -217,3 +218,29 @@ def test_backend_selection_marks_not_started_state_explicitly() -> None:
     assert info.effective_backend == "not-started"
     assert info.runtime_started is False
     assert "not started" in info.unresolved_reason
+
+
+def test_validation_report_tracks_confidence_and_sentinel_consistency() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=8), {})
+    report = state.validation_report()
+    assert report.confidence_score < MIN_CALIBRATION_VALIDATION_CONFIDENCE
+    assert report.direction_confirmed is False
+    assert report.cycle_replay_confirmed is False
+    assert "direction verification" in " ".join(report.remediation_hints).lower()
+
+    for step_id in (
+        "start-point-detection",
+        "direction-verification",
+        "corner-assignment",
+        "edge-refinement",
+        "validation-replay",
+    ):
+        state.mark_calibration_step(step_id, passed=True)
+    state.corner_anchor_top_left = report.expected_sentinels[0]
+    state.corner_anchor_top_right = report.expected_sentinels[1]
+    state.corner_anchor_bottom_right = report.expected_sentinels[2]
+    state.corner_anchor_bottom_left = report.expected_sentinels[3]
+    passed_report = state.validation_report()
+    assert passed_report.confidence_score == 1.0
+    assert passed_report.sentinel_consistency is True
+    assert state.can_complete_calibration_flow() is True

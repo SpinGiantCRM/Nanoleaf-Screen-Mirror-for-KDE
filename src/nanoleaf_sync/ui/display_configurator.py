@@ -8,7 +8,11 @@ from typing import Callable
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
 from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE, calibration_sequence_text
-from nanoleaf_sync.ui.calibration_state import CalibrationState, build_testing_panel_state
+from nanoleaf_sync.ui.calibration_state import (
+    MIN_CALIBRATION_VALIDATION_CONFIDENCE,
+    CalibrationState,
+    build_testing_panel_state,
+)
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
@@ -713,6 +717,7 @@ class DisplayConfiguratorDialog:
                 current_phase = self._current_calibration_phase()
                 current_progress = self._state.calibration_step_state(current_phase.step_id)
                 prerequisites_met = self._state.calibration_prerequisites_met(current_phase.step_id)
+                verification = self._state.validation_report()
                 phase_passed = current_progress.passed
                 if current_phase.step_id == "corner-assignment" and corner_mode:
                     phase_passed = phase_passed and anchor_validation.valid
@@ -762,6 +767,7 @@ class DisplayConfiguratorDialog:
                         not self._flow.can_go_next()
                         and self._device_zone_count_confirmed
                         and (not corner_mode or anchor_validation.valid)
+                        and verification.confidence_score >= MIN_CALIBRATION_VALIDATION_CONFIDENCE
                     )
 
                 hdr_mode = str(self.display_mode_combo.currentText()) == "hdr"
@@ -829,6 +835,15 @@ class DisplayConfiguratorDialog:
                             f"Screen sampling zones: {self._state.zone_count}",
                             f"Effective strip LED zones: {effective_zone_count}",
                             f"Calibration method: {current_phase.title} ({'passed' if phase_passed else 'in progress'})",
+                            (
+                                "Verification: "
+                                + verification.compact_summary()
+                                + (
+                                    ""
+                                    if not verification.remediation_hints
+                                    else f" | Remediation: {'; '.join(verification.remediation_hints)}"
+                                )
+                            ),
                             device_zone_status_text,
                         )
                     )
@@ -840,6 +855,7 @@ class DisplayConfiguratorDialog:
 
             def updated_config(self) -> AppConfig:
                 self._pull_state_from_controls()
+                verification = self._state.validation_report()
                 zone_count = self._state.zone_count
                 new_zones = make_edge_weighted_zones(zone_count) if self._state.zone_preset == "edge-weighted" else make_horizontal_zones(zone_count)
                 return replace(
@@ -863,6 +879,15 @@ class DisplayConfiguratorDialog:
                     corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
                     corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
                     calibration_model=str(self._state.calibration_model),
+                    calibration_validation_confidence=float(verification.confidence_score),
+                    calibration_validation_summary=(
+                        verification.compact_summary()
+                        + (
+                            ""
+                            if not verification.remediation_hints
+                            else f" | Remediation: {'; '.join(verification.remediation_hints)}"
+                        )
+                    ),
                     wizard_in_progress_state="",
                     wizard_completed=True,
                 )
