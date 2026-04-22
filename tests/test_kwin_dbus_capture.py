@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -383,3 +384,48 @@ def test_read_fd_exact_rejects_negative_expected_size_with_context() -> None:
     assert "stride=8" in message
     assert "height=-1" in message
     assert "expected_bytes=-4" in message
+
+
+def test_screenshot2_zero_stride_metadata_raises_zero_expected_bytes_diagnostic(
+    monkeypatch,
+) -> None:
+    backend = KWinDBusScreenshotCapture(width=2, height=1)
+
+    class _FakeMessage:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    fake_dbus_next = SimpleNamespace(
+        Message=_FakeMessage,
+        MessageType=SimpleNamespace(ERROR="error"),
+    )
+    monkeypatch.setitem(sys.modules, "dbus_next", fake_dbus_next)
+
+    class _FakeBus:
+        async def call(self, _msg):
+            return SimpleNamespace(
+                message_type="method_return",
+                body=[{"stride": 0, "height": 9}],
+            )
+
+    async def _fake_get_bus():
+        return _FakeBus()
+
+    async def _fake_get_introspection():
+        return object()
+
+    monkeypatch.setattr(backend, "_get_screenshot2_bus", _fake_get_bus)
+    monkeypatch.setattr(backend, "_get_screenshot2_introspection", _fake_get_introspection)
+    monkeypatch.setattr(
+        backend,
+        "_screenshot2_method_attempts",
+        lambda: [("CaptureArea", "a{sv}h", [0, 0, 2, 1, {}])],
+    )
+
+    with pytest.raises(KWinDBusCaptureError, match="zero expected bytes") as exc_info:
+        backend._run_async(backend._capture_reply_via_screenshot2())
+
+    message = str(exc_info.value)
+    assert "stride=0" in message
+    assert "height=9" in message
+    assert "expected_bytes=0" in message

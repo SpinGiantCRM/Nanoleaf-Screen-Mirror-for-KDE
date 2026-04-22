@@ -347,7 +347,7 @@ class KWinDBusScreenshotCapture:
                 result_map = self._normalize_variant_dict(results)
                 stride = int(result_map.get("stride", 0) or 0)
                 height = int(result_map.get("height", 0) or 0)
-                expected_bytes = stride * height if stride > 0 and height > 0 else None
+                expected_bytes = stride * height
                 frame_data = self._read_fd_exact(
                     read_fd,
                     expected_bytes,
