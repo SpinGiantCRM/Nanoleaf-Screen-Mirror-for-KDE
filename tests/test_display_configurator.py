@@ -5,6 +5,7 @@ import types
 import pytest
 
 from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.ui.calibration_flow import CalibrationPhaseDefinition
 from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog, WIZARD_SESSION_ENV
 
 
@@ -440,11 +441,90 @@ def test_display_configurator_zone_count_change_remaps_anchors_and_shows_notice(
     cfg = AppConfig(zones=[], device_zone_count=8, calibration_model="corner_anchored")
     dialog = DisplayConfiguratorDialog(parent=None, cfg=cfg)
     dialog._dialog._state.corner_anchor_top_left = 4
+    dialog._dialog._state.mark_calibration_step("direction-verification", passed=True, notes="ok")
     dialog._dialog.device_zone_count_slider.setValue(16)
 
     assert dialog._dialog._state.corner_anchor_top_left == 8
     assert "remapped offset/corner anchors" in dialog._dialog.zone_change_notice._text
     assert "invalidated direction-verification" in dialog._dialog.zone_change_notice._text
+
+
+def test_display_configurator_zone_count_change_invalidation_follows_updated_dependencies(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+
+    def _always_pass(_state, _phase):
+        return True, "ok"
+
+    patched_sequence = (
+        CalibrationPhaseDefinition(
+            step_id="start-point-detection",
+            title="start",
+            mode="start-point identification",
+            prerequisites=(),
+            required_actions=(),
+            validation_fn=_always_pass,
+            remediation_hints=(),
+            pass_criteria="",
+            fail_criteria="",
+        ),
+        CalibrationPhaseDefinition(
+            step_id="direction-verification",
+            title="direction",
+            mode="direction walk",
+            prerequisites=("start-point-detection",),
+            required_actions=(),
+            validation_fn=_always_pass,
+            remediation_hints=(),
+            pass_criteria="",
+            fail_criteria="",
+        ),
+        CalibrationPhaseDefinition(
+            step_id="corner-assignment",
+            title="corner",
+            mode="corner+offset alignment",
+            prerequisites=("direction-verification",),
+            required_actions=(),
+            validation_fn=_always_pass,
+            remediation_hints=(),
+            pass_criteria="",
+            fail_criteria="",
+        ),
+        CalibrationPhaseDefinition(
+            step_id="validation-replay",
+            title="replay",
+            mode="coverage sanity",
+            prerequisites=("corner-assignment",),
+            required_actions=(),
+            validation_fn=_always_pass,
+            remediation_hints=(),
+            pass_criteria="",
+            fail_criteria="",
+        ),
+        CalibrationPhaseDefinition(
+            step_id="edge-refinement",
+            title="edge",
+            mode="fine offset",
+            prerequisites=("validation-replay",),
+            required_actions=(),
+            validation_fn=_always_pass,
+            remediation_hints=(),
+            pass_criteria="",
+            fail_criteria="",
+        ),
+    )
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.CALIBRATION_SEQUENCE", patched_sequence)
+    monkeypatch.setattr("nanoleaf_sync.ui.calibration_state.CALIBRATION_SEQUENCE", patched_sequence)
+
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=8))
+    for step in patched_sequence:
+        dialog._dialog._state.mark_calibration_step(step.step_id, passed=True)
+    dialog._dialog._refresh()
+    assert dialog._dialog.next_button._enabled is True
+
+    dialog._dialog.device_zone_count_slider.setValue(16)
+
+    assert dialog._dialog.next_button._enabled is False
+    assert "invalidated direction-verification, corner-assignment, validation-replay, edge-refinement" in dialog._dialog.zone_change_notice._text
 
 
 def test_display_configurator_keeps_next_disabled_when_validation_fails(monkeypatch) -> None:

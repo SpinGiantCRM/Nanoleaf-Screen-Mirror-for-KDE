@@ -14,7 +14,7 @@ from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE, calibration_
 from nanoleaf_sync.ui.calibration_state import (
     CalibrationPhaseValidation,
     CalibrationState,
-    ZONE_COUNT_INVALIDATION_PHASES,
+    ZONE_COUNT_DIRECTLY_AFFECTED_PHASES,
     build_testing_panel_state,
 )
 from nanoleaf_sync.ui.qt_lazy import load_qt
@@ -804,7 +804,7 @@ class DisplayConfiguratorDialog:
                 self._state.corner_anchor_bottom_left = remapped["bottom_left"]
                 if previous_zone_count != new_zone_count:
                     invalidated = self._state.invalidate_for_zone_count_change(
-                        affected_phases=ZONE_COUNT_INVALIDATION_PHASES,
+                        affected_phases=ZONE_COUNT_DIRECTLY_AFFECTED_PHASES,
                     )
                     self.zone_change_notice.setText(
                         "Strip zone count changed: remapped offset/corner anchors and invalidated "

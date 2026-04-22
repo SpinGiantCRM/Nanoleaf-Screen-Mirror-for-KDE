@@ -3,10 +3,11 @@ from __future__ import annotations
 import logging
 
 from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.ui.calibration_flow import CalibrationPhaseDefinition
 from nanoleaf_sync.ui.calibration_state import (
     MIN_CALIBRATION_VALIDATION_CONFIDENCE,
     CalibrationState,
-    ZONE_COUNT_INVALIDATION_PHASES,
+    ZONE_COUNT_DIRECTLY_AFFECTED_PHASES,
     backend_selection_info,
     build_latency_result,
     latency_result_summary,
@@ -318,9 +319,14 @@ def test_zone_count_change_invalidates_dependent_phase_progress() -> None:
 
     invalidated = state.invalidate_for_zone_count_change()
 
-    assert invalidated == ZONE_COUNT_INVALIDATION_PHASES
+    assert invalidated == (
+        "direction-verification",
+        "corner-assignment",
+        "edge-refinement",
+        "validation-replay",
+    )
     assert state.calibration_step_state("start-point-detection").passed is True
-    for step_id in ZONE_COUNT_INVALIDATION_PHASES:
+    for step_id in invalidated:
         progress = state.calibration_step_state(step_id)
         assert progress.complete is False
         assert progress.passed is False
@@ -330,6 +336,96 @@ def test_zone_count_change_invalidates_dependent_phase_progress() -> None:
         assert validation.valid is False
         assert validation.details == ""
     assert state.can_complete_calibration_flow() is False
+
+
+def test_zone_count_change_only_invalidates_previously_completed_dependent_phases() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=8), {})
+    state.mark_calibration_step("start-point-detection", passed=True, notes="ok")
+    state.mark_calibration_step("direction-verification", passed=True, notes="ok")
+    state.mark_calibration_step("corner-assignment", passed=False, notes="not complete")
+
+    invalidated = state.invalidate_for_zone_count_change()
+
+    assert invalidated == ("direction-verification", "corner-assignment")
+    assert state.calibration_step_state("start-point-detection").passed is True
+    assert state.calibration_step_state("direction-verification").passed is False
+    assert state.calibration_step_state("corner-assignment").passed is False
+
+
+def test_zone_count_change_dependency_invalidation_tracks_sequence_prerequisite_updates(monkeypatch) -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=8), {})
+    for step_id in state.calibration_steps():
+        state.mark_calibration_step(step_id, passed=True, notes="ok")
+
+    def _always_pass(_state: CalibrationState, _phase: CalibrationPhaseDefinition) -> tuple[bool, str]:
+        return True, "ok"
+
+    patched_sequence = (
+        CalibrationPhaseDefinition(
+            step_id="start-point-detection",
+            title="start",
+            mode="start-point identification",
+            prerequisites=(),
+            required_actions=(),
+            validation_fn=_always_pass,
+            remediation_hints=(),
+            pass_criteria="",
+            fail_criteria="",
+        ),
+        CalibrationPhaseDefinition(
+            step_id="direction-verification",
+            title="direction",
+            mode="direction walk",
+            prerequisites=("start-point-detection",),
+            required_actions=(),
+            validation_fn=_always_pass,
+            remediation_hints=(),
+            pass_criteria="",
+            fail_criteria="",
+        ),
+        CalibrationPhaseDefinition(
+            step_id="corner-assignment",
+            title="corner",
+            mode="corner+offset alignment",
+            prerequisites=("direction-verification",),
+            required_actions=(),
+            validation_fn=_always_pass,
+            remediation_hints=(),
+            pass_criteria="",
+            fail_criteria="",
+        ),
+        CalibrationPhaseDefinition(
+            step_id="validation-replay",
+            title="replay",
+            mode="coverage sanity",
+            prerequisites=("corner-assignment",),
+            required_actions=(),
+            validation_fn=_always_pass,
+            remediation_hints=(),
+            pass_criteria="",
+            fail_criteria="",
+        ),
+        CalibrationPhaseDefinition(
+            step_id="edge-refinement",
+            title="edge",
+            mode="fine offset",
+            prerequisites=("validation-replay",),
+            required_actions=(),
+            validation_fn=_always_pass,
+            remediation_hints=(),
+            pass_criteria="",
+            fail_criteria="",
+        ),
+    )
+    monkeypatch.setattr("nanoleaf_sync.ui.calibration_state.CALIBRATION_SEQUENCE", patched_sequence)
+    invalidated = state.invalidate_for_zone_count_change(affected_phases=ZONE_COUNT_DIRECTLY_AFFECTED_PHASES)
+
+    assert invalidated == (
+        "direction-verification",
+        "corner-assignment",
+        "validation-replay",
+        "edge-refinement",
+    )
 
 
 def test_calibration_step_markers_emit_non_sensitive_phase_events(caplog) -> None:
