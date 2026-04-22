@@ -272,7 +272,7 @@ class SettingsDialog:
                 self.zone_offset_slider.setToolTip("Global mapping zone offset that rotates the strip mapping around strip LED zones.")
                 self.reverse_checkbox.setToolTip("Flip strip direction if the mapping appears mirrored.")
                 self.display_mode_combo.setToolTip("Select SDR or HDR processing mode.")
-                self.color_mode_combo.setToolTip("Colour behavior preset used by the analyzer.")
+                self.color_mode_combo.setToolTip("Dynamism preset used by the analyzer (balanced or more reactive).")
                 self.hdr_max_nits_slider.setToolTip("Reference display peak brightness for HDR tone mapping.")
                 self.capture_backend_combo.setToolTip("Select auto or force a specific capture backend.")
                 self.device_model_combo.setToolTip("Select your Nanoleaf USB hardware model.")
@@ -307,7 +307,7 @@ class SettingsDialog:
                 layout = QGridLayout()
                 layout.addWidget(QLabel("SDR/HDR mode"), 0, 0)
                 layout.addWidget(self.display_mode_combo, 0, 1, 1, 2)
-                layout.addWidget(QLabel("Colour behavior preset"), 1, 0)
+                layout.addWidget(QLabel("Dynamism preset"), 1, 0)
                 layout.addWidget(self.color_mode_combo, 1, 1, 1, 2)
                 layout.addWidget(self.compositor_hdr_mode_checkbox, 2, 0, 1, 3)
                 layout.addWidget(QLabel("SDR white reference"), 3, 0)
@@ -332,7 +332,7 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Smoothing speed"), 2, 0); layout.addWidget(self.smoothing_speed_slider, 2, 1); layout.addWidget(self.smoothing_speed_value, 2, 2)
                 layout.addWidget(QLabel("Capture FPS"), 3, 0); layout.addWidget(self.fps_slider, 3, 1); layout.addWidget(self.fps_value, 3, 2)
                 layout.addWidget(QLabel("Sampling quality"), 4, 0); layout.addWidget(self.sampling_quality_combo, 4, 1); layout.addWidget(self.sampling_quality_value, 4, 2)
-                layout.addWidget(QLabel("LED gamma"), 5, 0); layout.addWidget(self.led_gamma_slider, 5, 1); layout.addWidget(self.led_gamma_value, 5, 2)
+                layout.addWidget(QLabel("Vibrancy (LED gamma)"), 5, 0); layout.addWidget(self.led_gamma_slider, 5, 1); layout.addWidget(self.led_gamma_value, 5, 2)
                 group.setLayout(layout)
                 return group
 
