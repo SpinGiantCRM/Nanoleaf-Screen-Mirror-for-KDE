@@ -24,7 +24,12 @@ from nanoleaf_sync.runtime.compositor import (
     effective_sdr_boost,
 )
 from nanoleaf_sync.runtime.startup import reinitialize_backends, should_reinitialize
-from nanoleaf_sync.runtime.state import RGBTuple, RuntimeState, ZoneRect
+from nanoleaf_sync.runtime.state import (
+    DeviceZoneMappingSignature,
+    RGBTuple,
+    RuntimeState,
+    ZoneRect,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -115,7 +120,7 @@ def _mapping_signature(
     source_zone_count: int,
     config: AppConfig,
     detected_device_zone_count: int | None,
-) -> tuple[int, int, int, int, bool, bool, tuple[int, ...], bool, tuple[int, ...]]:
+) -> DeviceZoneMappingSignature:
     return (
         int(source_zone_count),
         int(config.device_zone_count),
