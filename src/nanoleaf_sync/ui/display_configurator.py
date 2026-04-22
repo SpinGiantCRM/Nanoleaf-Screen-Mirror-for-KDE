@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, replace
 from typing import Callable
 
@@ -16,6 +17,7 @@ WIZARD_STEPS: tuple[str, ...] = (
     "Display Preset",
     "Look & Feel",
 )
+_log = logging.getLogger(__name__)
 
 class _FallbackStackedWidget:
     def __init__(self) -> None:
@@ -595,7 +597,7 @@ class DisplayConfiguratorDialog:
                         )
                     )
                 )
-                if self._flow.index >= 1:
+                if self._flow.index >= 1 and self._calibration_sender is not None:
                     self._ensure_live_preview_running()
                 else:
                     self._stop_live_preview()
@@ -675,9 +677,16 @@ class DisplayConfiguratorDialog:
                     blue = int(min(255, 150 + (80 if mode == "dynamic" else 0)))
                     frame[i] = (red, green, blue)
                 self._preview_phase = (self._preview_phase + (3 if mode == "dynamic" else 1)) % max(1, zone_count)
-                self._calibration_sender(frame)
+                try:
+                    self._calibration_sender(frame)
+                except Exception:
+                    _log.exception("Live preview sender failed; disabling preview updates")
+                    self._calibration_sender = None
+                    self._stop_live_preview()
 
             def _ensure_live_preview_running(self) -> None:
+                if self._calibration_sender is None:
+                    return
                 if self._live_preview_timer is None:
                     return
                 is_active = getattr(self._live_preview_timer, "isActive", None)
