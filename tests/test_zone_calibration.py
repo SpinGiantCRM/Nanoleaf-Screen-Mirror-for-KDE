@@ -8,6 +8,7 @@ from nanoleaf_sync.ui.calibration_preview import (
     single_zone_step,
 )
 from nanoleaf_sync.ui.zone_calibration import (
+    corner_anchor_validation_summary,
     mapping_snapshot_from_config,
     mapping_preview_text,
     mapping_preview_visual,
@@ -58,6 +59,20 @@ def test_mapping_preview_text_waits_for_device_zone_count_in_auto_mode() -> None
     )
     assert "strip zones: 0" in text
     assert "Corner anchor validation:" in text
+    assert "Anchor validation summary:" in text
+
+
+def test_corner_anchor_validation_summary_reports_missing_duplicate_and_out_of_range() -> None:
+    summary = corner_anchor_validation_summary(
+        device_zone_count=8,
+        corner_anchor_top_left=-1,
+        corner_anchor_top_right=3,
+        corner_anchor_bottom_right=3,
+        corner_anchor_bottom_left=10,
+    )
+    assert "missing corners: TL" in summary
+    assert "duplicate zone assignments: 3 (TR/BR)" in summary
+    assert "out-of-range assignments: BL=10" in summary
 
 
 def test_zone_test_instruction_wraps_steps() -> None:

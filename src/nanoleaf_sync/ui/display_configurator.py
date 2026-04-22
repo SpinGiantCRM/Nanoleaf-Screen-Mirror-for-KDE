@@ -15,6 +15,7 @@ from nanoleaf_sync.ui.calibration_state import (
     build_testing_panel_state,
 )
 from nanoleaf_sync.ui.qt_lazy import load_qt
+from nanoleaf_sync.ui.zone_calibration import corner_anchor_validation_summary
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
 MAX_WIZARD_ZONE_COUNT = 128
@@ -663,6 +664,24 @@ class DisplayConfiguratorDialog:
                 if phase.step_id != "corner-assignment":
                     return
                 self._pull_state_from_controls()
+                anchors = {
+                    "top_left": self._state.corner_anchor_top_left if self._state.corner_anchor_top_left >= 0 else None,
+                    "top_right": self._state.corner_anchor_top_right if self._state.corner_anchor_top_right >= 0 else None,
+                    "bottom_right": self._state.corner_anchor_bottom_right if self._state.corner_anchor_bottom_right >= 0 else None,
+                    "bottom_left": self._state.corner_anchor_bottom_left if self._state.corner_anchor_bottom_left >= 0 else None,
+                }
+                validation = validate_corner_anchors(
+                    anchors=anchors,
+                    device_zone_count=self._state.effective_device_zone_count(),
+                )
+                if not validation.valid:
+                    self._state.mark_calibration_step(
+                        phase.step_id,
+                        passed=False,
+                        notes="Anchors are invalid; resolve validation errors before confirming.",
+                    )
+                    self._refresh()
+                    return
                 self._state.save_phase_checkpoint(phase.step_id)
                 self._state.mark_calibration_step(phase.step_id, passed=True, notes="Anchors confirmed and checkpoint saved.")
                 self._refresh()
@@ -720,7 +739,29 @@ class DisplayConfiguratorDialog:
                     if callable(set_enabled) and widget is not self.anchor_validation_label:
                         set_enabled(corner_mode)
                 self.anchor_validation_label.setText(
-                    "" if not corner_mode else ("Corner anchors complete." if anchor_validation.valid else "Anchor validation error: " + " ".join(anchor_validation.errors))
+                    ""
+                    if not corner_mode
+                    else (
+                        "Corner anchors complete.\n"
+                        + corner_anchor_validation_summary(
+                            device_zone_count=effective_zone_count,
+                            corner_anchor_top_left=self._state.corner_anchor_top_left,
+                            corner_anchor_top_right=self._state.corner_anchor_top_right,
+                            corner_anchor_bottom_right=self._state.corner_anchor_bottom_right,
+                            corner_anchor_bottom_left=self._state.corner_anchor_bottom_left,
+                        )
+                        if anchor_validation.valid
+                        else "Anchor validation error: "
+                        + " ".join(anchor_validation.errors)
+                        + "\n"
+                        + corner_anchor_validation_summary(
+                            device_zone_count=effective_zone_count,
+                            corner_anchor_top_left=self._state.corner_anchor_top_left,
+                            corner_anchor_top_right=self._state.corner_anchor_top_right,
+                            corner_anchor_bottom_right=self._state.corner_anchor_bottom_right,
+                            corner_anchor_bottom_left=self._state.corner_anchor_bottom_left,
+                        )
+                    )
                 )
 
                 current_phase = self._current_calibration_phase()
@@ -755,7 +796,7 @@ class DisplayConfiguratorDialog:
                 for button, enabled in (
                     (self.confirm_direction_button, direction_phase),
                     (self.rollback_direction_button, direction_phase),
-                    (self.confirm_anchor_button, anchor_phase),
+                    (self.confirm_anchor_button, anchor_phase and anchor_validation.valid),
                     (self.rollback_anchor_button, anchor_phase),
                 ):
                     set_visible = getattr(button, "setVisible", None)
@@ -873,6 +914,21 @@ class DisplayConfiguratorDialog:
             def updated_config(self) -> AppConfig:
                 self._pull_state_from_controls()
                 verification = self._state.validation_report()
+                anchors = {
+                    "top_left": self._state.corner_anchor_top_left if self._state.corner_anchor_top_left >= 0 else None,
+                    "top_right": self._state.corner_anchor_top_right if self._state.corner_anchor_top_right >= 0 else None,
+                    "bottom_right": self._state.corner_anchor_bottom_right if self._state.corner_anchor_bottom_right >= 0 else None,
+                    "bottom_left": self._state.corner_anchor_bottom_left if self._state.corner_anchor_bottom_left >= 0 else None,
+                }
+                anchor_validation = validate_corner_anchors(
+                    anchors=anchors,
+                    device_zone_count=self._state.effective_device_zone_count(),
+                )
+                should_store_anchors = self._state.calibration_model != "corner_anchored" or anchor_validation.valid
+                anchor_top_left = int(self._state.corner_anchor_top_left) if should_store_anchors else -1
+                anchor_top_right = int(self._state.corner_anchor_top_right) if should_store_anchors else -1
+                anchor_bottom_right = int(self._state.corner_anchor_bottom_right) if should_store_anchors else -1
+                anchor_bottom_left = int(self._state.corner_anchor_bottom_left) if should_store_anchors else -1
                 zone_count = self._state.zone_count
                 new_zones = make_edge_weighted_zones(zone_count) if self._state.zone_preset == "edge-weighted" else make_horizontal_zones(zone_count)
                 calibration_payload = CalibrationConfig(
@@ -884,10 +940,10 @@ class DisplayConfiguratorDialog:
                     reverse_zones=bool(self._state.reverse_zones),
                     manual_mapping_enabled=bool(self._state.manual_mapping_enabled),
                     explicit_zone_map=[int(i) for i in self._state.explicit_zone_map],
-                    corner_anchor_top_left=int(self._state.corner_anchor_top_left),
-                    corner_anchor_top_right=int(self._state.corner_anchor_top_right),
-                    corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
-                    corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
+                    corner_anchor_top_left=anchor_top_left,
+                    corner_anchor_top_right=anchor_top_right,
+                    corner_anchor_bottom_right=anchor_bottom_right,
+                    corner_anchor_bottom_left=anchor_bottom_left,
                     corner_start_anchor=int(self._state.corner_start_anchor),
                     corner_offsets_enabled=bool(self._state.corner_offsets_enabled),
                     corner_zone_offsets=self._state.active_corner_zone_offsets(),
@@ -908,10 +964,10 @@ class DisplayConfiguratorDialog:
                     zone_offset=self._state.zone_offset,
                     corner_offsets_enabled=bool(self._state.corner_offsets_enabled),
                     corner_zone_offsets=self._state.active_corner_zone_offsets(),
-                    corner_anchor_top_left=int(self._state.corner_anchor_top_left),
-                    corner_anchor_top_right=int(self._state.corner_anchor_top_right),
-                    corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
-                    corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
+                    corner_anchor_top_left=anchor_top_left,
+                    corner_anchor_top_right=anchor_top_right,
+                    corner_anchor_bottom_right=anchor_bottom_right,
+                    corner_anchor_bottom_left=anchor_bottom_left,
                     calibration_model=str(self._state.calibration_model),
                     calibration_schema_version=int(calibration_payload.schema_version),
                     calibration=calibration_payload,
@@ -1028,6 +1084,7 @@ class DisplayConfiguratorDialog:
             def _assign_anchor(self, corner: str) -> None:
                 if self._state.calibration_model != "corner_anchored":
                     return
+                self._pull_state_from_controls()
                 current_zone = self._active_calibration_step().device_zone_index
                 if corner == "top_left":
                     self._state.corner_anchor_top_left = current_zone
@@ -1037,7 +1094,10 @@ class DisplayConfiguratorDialog:
                     self._state.corner_anchor_bottom_right = current_zone
                 elif corner == "bottom_left":
                     self._state.corner_anchor_bottom_left = current_zone
+                # Re-resolve mapping immediately so preview and test frame use the latest anchors.
+                self._state.resolved_mapping_snapshot()
                 self._refresh()
+                self._send_test_pattern()
 
             def _send_test_pattern(self) -> None:
                 if self._calibration_sender is None:

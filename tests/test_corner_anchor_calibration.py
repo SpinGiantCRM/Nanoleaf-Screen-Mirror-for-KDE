@@ -96,3 +96,34 @@ def test_backward_compatibility_with_new_normalized_calibration_block(tmp_path: 
     assert cfg.calibration.normalized_corner_anchors == [0, 3, 6, 9]
     assert cfg.calibration.normalized_zone_offset == 1
     assert cfg.calibration.normalized_reverse_zones is True
+
+
+def test_corner_anchored_config_round_trip_preserves_validated_anchor_assignments(tmp_path: Path) -> None:
+    path = tmp_path / "config.toml"
+    mgr = ConfigManager(path=path)
+    cfg = AppConfig(
+        device_zone_count=12,
+        calibration_model="corner_anchored",
+        corner_anchor_top_left=1,
+        corner_anchor_top_right=4,
+        corner_anchor_bottom_right=7,
+        corner_anchor_bottom_left=10,
+    )
+    cfg.calibration.calibration_model = "corner_anchored"
+    cfg.calibration.device_zone_count = 12
+    cfg.calibration.corner_anchor_top_left = 1
+    cfg.calibration.corner_anchor_top_right = 4
+    cfg.calibration.corner_anchor_bottom_right = 7
+    cfg.calibration.corner_anchor_bottom_left = 10
+    mgr.save(cfg)
+
+    loaded = mgr.load()
+    assert loaded.calibration.calibration_model == "corner_anchored"
+    assert loaded.calibration.corner_anchor_top_left == 1
+    assert loaded.calibration.corner_anchor_top_right == 4
+    assert loaded.calibration.corner_anchor_bottom_right == 7
+    assert loaded.calibration.corner_anchor_bottom_left == 10
+    assert loaded.corner_anchor_top_left == 1
+    assert loaded.corner_anchor_top_right == 4
+    assert loaded.corner_anchor_bottom_right == 7
+    assert loaded.corner_anchor_bottom_left == 10
