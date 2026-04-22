@@ -58,6 +58,18 @@ def _qt_widget(qt: dict[str, object], name: str, fallback):
     return qt.get(name, fallback)
 
 
+def _set_checkable(widget, value: bool) -> None:
+    setter = getattr(widget, "setCheckable", None)
+    if callable(setter):
+        setter(value)
+
+
+def _set_checked(widget, value: bool) -> None:
+    setter = getattr(widget, "setChecked", None)
+    if callable(setter):
+        setter(value)
+
+
 @dataclass
 class WizardFlowState:
     total_steps: int = len(WIZARD_STEPS)
@@ -137,8 +149,8 @@ class DisplayConfiguratorDialog:
                 self.display_mode_combo.setCurrentIndex(self.display_mode_combo.findText("hdr" if cfg.hdr_enabled else "sdr"))
                 self.preset_sdr_button = QPushButton("SDR preset")
                 self.preset_hdr_button = QPushButton("HDR preset")
-                self.preset_sdr_button.setCheckable(True)
-                self.preset_hdr_button.setCheckable(True)
+                _set_checkable(self.preset_sdr_button, True)
+                _set_checkable(self.preset_hdr_button, True)
                 self.preset_sdr_help = QLabel("Low-maintenance SDR-safe path.")
                 self.preset_hdr_help = QLabel("HDR-first with wide-gamut defaults.")
 
@@ -179,7 +191,7 @@ class DisplayConfiguratorDialog:
                     self.dynamism_balanced_button,
                     self.dynamism_dynamic_button,
                 ):
-                    button.setCheckable(True)
+                    _set_checkable(button, True)
 
                 # Shared controls
                 self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
@@ -514,15 +526,15 @@ class DisplayConfiguratorDialog:
                 self._pull_state_from_controls()
                 self.pages.setCurrentIndex(self._flow.index)
                 self.step_label.setText(self._flow.step_label())
-                self.preset_sdr_button.setChecked(str(self.display_mode_combo.currentText()) == "sdr")
-                self.preset_hdr_button.setChecked(str(self.display_mode_combo.currentText()) == "hdr")
+                _set_checked(self.preset_sdr_button, str(self.display_mode_combo.currentText()) == "sdr")
+                _set_checked(self.preset_hdr_button, str(self.display_mode_combo.currentText()) == "hdr")
                 sampling_choice = str(self.sampling_quality_combo.currentText()).lower()
-                self.sampling_low_button.setChecked(sampling_choice == "low")
-                self.sampling_balanced_button.setChecked(sampling_choice == "balanced")
-                self.sampling_high_button.setChecked(sampling_choice == "high")
+                _set_checked(self.sampling_low_button, sampling_choice == "low")
+                _set_checked(self.sampling_balanced_button, sampling_choice == "balanced")
+                _set_checked(self.sampling_high_button, sampling_choice == "high")
                 mode_choice = str(self.color_mode_combo.currentText())
-                self.dynamism_balanced_button.setChecked(mode_choice == "balanced")
-                self.dynamism_dynamic_button.setChecked(mode_choice == "dynamic")
+                _set_checked(self.dynamism_balanced_button, mode_choice == "balanced")
+                _set_checked(self.dynamism_dynamic_button, mode_choice == "dynamic")
                 back_set_enabled = getattr(self.back_button, "setEnabled", None)
                 if callable(back_set_enabled):
                     back_set_enabled(self._flow.can_go_back())
