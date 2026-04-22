@@ -445,3 +445,32 @@ def test_display_configurator_keeps_next_disabled_when_validation_fails(monkeypa
     dialog._dialog._refresh()
 
     assert dialog._dialog.next_button._enabled is False
+
+
+def test_display_configurator_blocks_finish_on_hard_fail_with_strict_message(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=8))
+    dialog._dialog._flow.index = 2
+    dialog._dialog._refresh()
+
+    assert dialog._dialog.finish_button._enabled is False
+    assert "strict calibration policy requires confidence=1.00 and sentinel consistency" in dialog._dialog.finish_override_note._text
+
+
+def test_display_configurator_blocks_finish_on_warning_sentinel_mismatch(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=8))
+    for step_id in dialog._dialog._state.calibration_steps():
+        dialog._dialog._state.mark_calibration_step(step_id, passed=True)
+    expected = dialog._dialog._state.validation_report().expected_sentinels
+    shifted = tuple((value + 1) % dialog._dialog._state.effective_device_zone_count() for value in expected)
+    dialog._dialog._state.corner_anchor_top_left = shifted[0]
+    dialog._dialog._state.corner_anchor_top_right = shifted[1]
+    dialog._dialog._state.corner_anchor_bottom_right = shifted[2]
+    dialog._dialog._state.corner_anchor_bottom_left = shifted[3]
+    dialog._dialog._flow.index = 2
+    dialog._dialog._refresh()
+
+    assert dialog._dialog._state.validation_report().hard_fail is True
+    assert dialog._dialog.finish_button._enabled is False
+    assert "strict calibration policy requires confidence=1.00 and sentinel consistency" in dialog._dialog.finish_override_note._text

@@ -244,7 +244,12 @@ class CalibrationState:
             self.phase_validation_state[step.step_id] = CalibrationPhaseValidation(valid=bool(valid), details=str(details))
             if not valid:
                 return False
-        return self.validation_report().confidence_score >= MIN_CALIBRATION_VALIDATION_CONFIDENCE
+        report = self.validation_report()
+        return (
+            report.confidence_score >= MIN_CALIBRATION_VALIDATION_CONFIDENCE
+            and report.sentinel_consistency
+            and report.outcome_status == "pass"
+        )
 
     def invalidate_for_zone_count_change(
         self,
@@ -316,13 +321,11 @@ class CalibrationState:
         anchors_component = 1.0 if anchors_unique_valid else 0.0
         cycle_component = 1.0 if cycle_replay_confirmed else 0.0
         confidence_score = (direction_component + anchors_component + cycle_component) / 3.0
-        hard_fail = confidence_score < MIN_CALIBRATION_VALIDATION_CONFIDENCE
+        hard_fail = confidence_score < MIN_CALIBRATION_VALIDATION_CONFIDENCE or not sentinel_consistency
         if hard_fail:
             outcome_status = "fail"
-        elif sentinel_consistency:
-            outcome_status = "pass"
         else:
-            outcome_status = "pass_with_warning"
+            outcome_status = "pass"
         hints: list[str] = []
         if not direction_confirmed:
             hints.append("Re-run direction verification and confirm reverse/offset orientation.")
@@ -333,9 +336,9 @@ class CalibrationState:
         if not sentinel_consistency:
             hints.append("Replay sentinel corners and re-assign anchors until expected and assigned corners match.")
         remediation_action = (
-            "Use override only if you accept reduced reliability."
+            "Complete all failed checks before saving calibration."
             if hard_fail
-            else ("Review sentinel mismatch before saving." if not sentinel_consistency else "No action needed.")
+            else "No action needed."
         )
         return CalibrationVerificationReport(
             outcome_status=outcome_status,

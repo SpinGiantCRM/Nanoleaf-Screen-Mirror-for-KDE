@@ -144,11 +144,16 @@ Rules:
 
 **Pass condition**
 
-- Every prior phase passed, confidence threshold met, and consistency checks pass.
+- Every prior phase passed.
+- Validation confidence is exactly `1.00` (strict threshold).
+- Sentinel/anchor assignment consistency check passes.
+- Completion is blocked unless all strict checks pass (no warning-level completion path, no override path).
 
 **Fail condition**
 
-- Any failed prerequisite, confidence below threshold, or consistency mismatch.
+- Any failed prerequisite.
+- Confidence below strict threshold.
+- Any sentinel consistency mismatch (treated as hard fail).
 
 ---
 
@@ -218,7 +223,7 @@ Contract:
 | Direction toggle changes mapping deterministically and preserves stable wrap-around behavior. | `tests/test_zone_calibration.py`, `tests/test_calibration_flow.py`, `tests/test_zone_mapper.py` | `src/nanoleaf_sync/color/zone_mapper.py`, `src/nanoleaf_sync/ui/zone_calibration.py` |
 | Corner assignment enforces TL/TR/BR/BL canonical order and uniqueness/in-range validation. | `tests/test_corner_anchor_calibration.py`, `tests/test_calibration_flow.py`, `tests/test_zone_calibration.py` | `src/nanoleaf_sync/runtime/anchor_calibration.py`, `src/nanoleaf_sync/ui/calibration_flow.py` |
 | Fine adjustment uses exactly 4 slots and clamps values to supported limits. | `tests/test_calibration_state.py`, `tests/test_zone_mapper.py` | `src/nanoleaf_sync/ui/calibration_state.py`, `src/nanoleaf_sync/color/zone_mapper.py` |
-| Final validation gate blocks completion on confidence/sentinel/anchor failures. | `tests/test_calibration_state.py`, `tests/test_calibration_flow.py` | `src/nanoleaf_sync/ui/calibration_state.py`, `src/nanoleaf_sync/ui/calibration_flow.py` |
+| Final validation gate blocks completion on confidence/sentinel/anchor failures with no warning override path. | `tests/test_calibration_state.py`, `tests/test_calibration_flow.py`, `tests/test_display_configurator.py` | `src/nanoleaf_sync/ui/calibration_state.py`, `src/nanoleaf_sync/ui/calibration_flow.py`, `src/nanoleaf_sync/ui/display_configurator.py` |
 | Offset+direction model obeys modulo normalization and deterministic inversion semantics. | `tests/test_zone_mapper.py`, `tests/test_calibration_flow.py` | `src/nanoleaf_sync/color/zone_mapper.py`, `src/nanoleaf_sync/runtime/calibration_resolver.py` |
 | Corner-anchored model remains deterministic and fails safely on invalid anchors. | `tests/test_corner_anchor_calibration.py`, `tests/test_zone_calibration.py` | `src/nanoleaf_sync/runtime/anchor_calibration.py`, `src/nanoleaf_sync/runtime/calibration_resolver.py` |
 | Manual explicit map model handles short maps with deterministic fallback and no crash. | `tests/test_zone_mapper.py`, `tests/test_calibration_surface_consistency.py` | `src/nanoleaf_sync/color/zone_mapper.py`, `src/nanoleaf_sync/runtime/calibration_resolver.py` |
