@@ -137,7 +137,7 @@ def test_calibration_completion_requires_validation_score_threshold() -> None:
     assert report.anchors_unique_valid is False
     assert report.outcome_status == "fail"
     assert report.hard_fail is True
-    assert "override" in report.remediation_action.lower()
+    assert "failed checks" in report.remediation_action.lower()
     assert report.remediation_hints
     assert state.can_complete_calibration_flow() is False
 
@@ -158,7 +158,7 @@ def test_calibration_completion_blocks_out_of_range_corner_anchor_assignments() 
     assert state.can_complete_calibration_flow() is False
 
 
-def test_calibration_completion_allows_warning_status_when_core_checks_pass() -> None:
+def test_calibration_completion_fails_when_sentinel_consistency_is_broken() -> None:
     state = CalibrationState.from_config(AppConfig(device_zone_count=8), {})
     for step in CALIBRATION_SEQUENCE:
         state.mark_calibration_step(step.step_id, passed=True)
@@ -173,9 +173,9 @@ def test_calibration_completion_allows_warning_status_when_core_checks_pass() ->
     assert report.anchors_unique_valid is True
     assert report.cycle_replay_confirmed is True
     assert report.sentinel_consistency is False
-    assert report.outcome_status == "pass_with_warning"
-    assert report.hard_fail is False
-    assert state.can_complete_calibration_flow() is True
+    assert report.outcome_status == "fail"
+    assert report.hard_fail is True
+    assert state.can_complete_calibration_flow() is False
 
 
 def test_phase_validation_tracks_failures_until_actions_pass() -> None:
