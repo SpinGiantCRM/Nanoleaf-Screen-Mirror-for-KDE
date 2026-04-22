@@ -11,7 +11,7 @@ from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
 MAX_WIZARD_ZONE_COUNT = 128
-CALIBRATION_MODE_CORNER = "corner+offset alignment"
+CALIBRATION_MODE_WIZARD = "start-point identification"
 WIZARD_STEPS: tuple[str, ...] = (
     "Calibration",
     "Display Preset",
@@ -515,9 +515,9 @@ class DisplayConfiguratorDialog:
                 self._set_slider_value_safely(self.zone_offset_slider, remapped_offset)
 
             def _active_calibration_step(self):
-                step_total = self._state.cycle_length(CALIBRATION_MODE_CORNER)
+                step_total = self._state.cycle_length(CALIBRATION_MODE_WIZARD)
                 self._test_step %= step_total
-                return self._state.step_for_mode(CALIBRATION_MODE_CORNER, self._test_step)
+                return self._state.step_for_mode(CALIBRATION_MODE_WIZARD, self._test_step)
 
             def _on_device_zone_count_changed(self, *_args) -> None:
                 previous_zone_count = self._state.effective_device_zone_count()
@@ -590,7 +590,7 @@ class DisplayConfiguratorDialog:
                     state=self._state,
                     runtime_status={},
                     cfg=cfg,
-                    mode=CALIBRATION_MODE_CORNER,
+                    mode=CALIBRATION_MODE_WIZARD,
                     step=self._test_step,
                 )
                 self.preview_text.setText(self._state.mapping_preview_text())
@@ -598,7 +598,7 @@ class DisplayConfiguratorDialog:
                 self.calibration_test_label.setText(preview.active_test_description)
                 active_step = self._active_calibration_step()
                 current_zone = active_step.device_zone_index
-                step_total = self._state.cycle_length(CALIBRATION_MODE_CORNER)
+                step_total = self._state.cycle_length(CALIBRATION_MODE_WIZARD)
                 self.test_step_index_value.setText(f"{self._test_step + 1}/{step_total}")
                 self.current_zone_label.setText(
                     f"Test zone step: {self._test_step + 1}/{step_total} | Active physical strip zone: {current_zone} | Normalized offset: {normalized_offset:+d}"
@@ -613,7 +613,7 @@ class DisplayConfiguratorDialog:
                             f"Vibrancy: {self.vibrancy_slider.value()}%",
                             f"Screen sampling zones: {self._state.zone_count}",
                             f"Effective strip LED zones: {effective_zone_count}",
-                            "Calibration method: corner anchors + offset",
+                            "Calibration method: zone walk + offset",
                             device_zone_status_text,
                         )
                     )
@@ -668,7 +668,7 @@ class DisplayConfiguratorDialog:
                 self._pull_state_from_controls()
                 # Normalize self._test_step before generating the frame.
                 self._active_calibration_step()
-                mode = CALIBRATION_MODE_CORNER
+                mode = CALIBRATION_MODE_WIZARD
                 off_frame = [(0, 0, 0)] * self._state.effective_device_zone_count()
                 self._calibration_sender(off_frame)
                 self._calibration_sender(
@@ -724,13 +724,13 @@ class DisplayConfiguratorDialog:
 
             def _next_test_zone(self) -> None:
                 self._pull_state_from_controls()
-                self._test_step = (self._test_step + 1) % self._state.cycle_length(CALIBRATION_MODE_CORNER)
+                self._test_step = (self._test_step + 1) % self._state.cycle_length(CALIBRATION_MODE_WIZARD)
                 self._refresh()
                 self._send_test_pattern()
 
             def _prev_test_zone(self) -> None:
                 self._pull_state_from_controls()
-                self._test_step = (self._test_step - 1) % self._state.cycle_length(CALIBRATION_MODE_CORNER)
+                self._test_step = (self._test_step - 1) % self._state.cycle_length(CALIBRATION_MODE_WIZARD)
                 self._refresh()
                 self._send_test_pattern()
 
