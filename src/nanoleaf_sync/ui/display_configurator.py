@@ -220,10 +220,10 @@ class DisplayConfiguratorDialog:
                 self.back_button = QPushButton("Back")
                 self.next_button = QPushButton("Next")
                 self.finish_button = QPushButton("Finish")
-                self.cancel_button.clicked.connect(self.reject)
+                self.cancel_button.clicked.connect(self._cancel)
                 self.back_button.clicked.connect(self._go_back)
                 self.next_button.clicked.connect(self._go_next)
-                self.finish_button.clicked.connect(self.accept)
+                self.finish_button.clicked.connect(self._finish)
                 if self._live_preview_timer is not None:
                     self._live_preview_timer.setInterval(350)
                     self._live_preview_timer.timeout.connect(self._send_live_preview)
@@ -391,14 +391,21 @@ class DisplayConfiguratorDialog:
                 index = self.display_mode_combo.findText(str(preset))
                 if index >= 0:
                     self.display_mode_combo.setCurrentIndex(index)
-                if self._first_run_defaults:
-                    if str(preset) == "hdr":
-                        self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText("pq")))
-                        self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText("bt2020")))
-                    else:
-                        self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText("srgb")))
-                        self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText("bt709")))
+                if str(preset) == "hdr":
+                    self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText("pq")))
+                    self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText("bt2020")))
+                else:
+                    self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText("srgb")))
+                    self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText("bt709")))
                 self._refresh()
+
+            def _cancel(self) -> None:
+                self._stop_live_preview()
+                self.reject()
+
+            def _finish(self) -> None:
+                self._stop_live_preview()
+                self.accept()
 
             def _set_sampling_preset(self, preset: str) -> None:
                 self.sampling_quality_combo.setCurrentIndex(max(0, self.sampling_quality_combo.findText(str(preset).capitalize())))
