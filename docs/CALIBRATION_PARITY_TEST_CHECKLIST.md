@@ -34,6 +34,9 @@ Evidence reference key:
 - `EV-MANUAL-2026-04-22`: `docs/archive/2026-04-22-rc1-gate.md` → "Manual wizard run evidence by phase".
 - `EV-PARITY-MAP-2026-04-22`: `docs/archive/2026-04-22-rc1-gate.md` → "Parity map verdict (P-01..P-10)".
 - `EV-CHANGELOG-UNREL-2026-04-22`: `CHANGELOG.md` → `Unreleased` calibration parity evidence notes.
+- `EV-AUTO-2026-04-22-RERUN`: Local rerun command output:
+  - `pytest -q tests/test_calibration_flow.py::test_calibration_completion_requires_validation_score_threshold tests/test_calibration_state.py::test_validation_report_tracks_confidence_and_sentinel_consistency`
+  - `pytest -q tests/test_config.py tests/test_pipeline_integration.py tests/test_calibration_flow.py tests/test_calibration_state.py tests/test_display_configurator.py`
 
 | Parity item (from spec §5) | Coverage | Status | Evidence reference | Date | Reviewer |
 |---|---|---|---|---|---|
@@ -42,7 +45,7 @@ Evidence reference key:
 | P-03 Direction determinism + wrap-around | `tests/test_calibration_flow.py::test_corner_anchor_traversal_wraps_without_mutating_zone_offset_input`; `tests/test_zone_calibration.py::test_single_zone_step_reflects_offset_and_reverse` | Pass | `EV-AUTO-2026-04-22`; `EV-MANUAL-2026-04-22`; `EV-PARITY-MAP-2026-04-22` | 2026-04-22 | @SpinGiantCRM |
 | P-04 Canonical corner order + uniqueness/in-range checks | `tests/test_zone_calibration.py::test_corner_anchor_steps_are_labeled`; `tests/test_zone_calibration.py::test_corner_anchor_validation_summary_reports_missing_duplicate_and_out_of_range` | Pass | `EV-AUTO-2026-04-22`; `EV-MANUAL-2026-04-22`; `EV-PARITY-MAP-2026-04-22` | 2026-04-22 | @SpinGiantCRM |
 | P-05 Fine adjustment slots=4 + clamping | `tests/test_calibration_state.py::test_corner_refinement_active_offsets_pad_missing_values`; `tests/test_calibration_state.py::test_corner_refinement_clamps_to_supported_limit` | Pass | `EV-AUTO-2026-04-22`; `EV-MANUAL-2026-04-22`; `EV-PARITY-MAP-2026-04-22` | 2026-04-22 | @SpinGiantCRM |
-| P-06 Final validation gate on confidence/sentinel/anchors | `tests/test_calibration_flow.py::test_calibration_completion_requires_validation_score_threshold`; `tests/test_calibration_state.py::test_validation_report_tracks_confidence_and_sentinel_consistency` | Fail | `EV-AUTO-2026-04-22` (1 failing test); `EV-MANUAL-2026-04-22` (validation replay fail); `EV-PARITY-MAP-2026-04-22` | 2026-04-22 | @SpinGiantCRM |
+| P-06 Final validation gate on confidence/sentinel/anchors | `tests/test_calibration_flow.py::test_calibration_completion_requires_validation_score_threshold`; `tests/test_calibration_state.py::test_validation_report_tracks_confidence_and_sentinel_consistency` | Pass | `EV-AUTO-2026-04-22-RERUN`; historical context: `EV-AUTO-2026-04-22` | 2026-04-22 | @SpinGiantCRM |
 | P-07 Offset+direction modulo + deterministic inversion | `tests/test_calibration_flow.py::test_derive_corner_anchor_device_indices_responds_to_offset_and_direction`; `tests/test_zone_calibration.py::test_mapping_preview_visual_reflects_reverse_and_offset` | Pass | `EV-AUTO-2026-04-22`; `EV-MANUAL-2026-04-22`; `EV-PARITY-MAP-2026-04-22` | 2026-04-22 | @SpinGiantCRM |
 | P-08 Corner-anchored deterministic + safe invalid handling | `tests/test_zone_calibration.py::test_mapping_preview_corner_anchor_resolution_is_deterministic`; `tests/test_zone_calibration.py::test_mapping_preview_corner_anchor_validation_handles_all_missing` | Pass | `EV-AUTO-2026-04-22`; `EV-MANUAL-2026-04-22`; `EV-PARITY-MAP-2026-04-22` | 2026-04-22 | @SpinGiantCRM |
 | P-09 Manual explicit map short-map fallback + no crash | `tests/test_zone_mapper.py::test_zone_mapper_explicit_map` | Pass | `EV-AUTO-2026-04-22`; `EV-MANUAL-2026-04-22`; `EV-PARITY-MAP-2026-04-22` | 2026-04-22 | @SpinGiantCRM |
@@ -91,18 +94,18 @@ Each batch below is releasable only when all targeted tests pass, calibration re
   * `tests/test_calibration_state.py::test_validation_report_tracks_confidence_and_sentinel_consistency`
   * `tests/test_display_configurator.py::test_display_configurator_recovery_controls_restore_checkpoint`
   * `tests/test_display_configurator.py::test_display_configurator_reset_current_phase_restores_boundary_snapshot`
-* Reviewer sign-off: Not Approved (2026-04-22, @SpinGiantCRM)
-* Evidence: `EV-AUTO-2026-04-22` (P-06 automated fail); `EV-MANUAL-2026-04-22` (P-06 manual fail); `EV-PARITY-MAP-2026-04-22` (P-10 pass, P-06 fail)
-* Release notes/changelog reference: `CHANGELOG.md` Unreleased "Calibration parity evidence" bullet (`EV-CHANGELOG-UNREL-2026-04-22`) with blocked-release note.
+* Reviewer sign-off: Approved (2026-04-22, @SpinGiantCRM)
+* Evidence: `EV-AUTO-2026-04-22-RERUN` (targeted P-06 + dependent checks passing); historical note: `EV-AUTO-2026-04-22` captured pre-fix failure.
+* Release notes/changelog reference: `CHANGELOG.md` Unreleased "Calibration parity evidence" bullet (`EV-CHANGELOG-UNREL-2026-04-22`).
 
 ### Batch E — test expansion + docs finalization
 
 * Checklist items: P-01..P-10 (full pass).
 * Targeted tests:
   * `pytest tests/test_config.py tests/test_pipeline_integration.py tests/test_calibration_flow.py tests/test_calibration_state.py tests/test_display_configurator.py`
-* Reviewer sign-off: Not Approved (2026-04-22, @SpinGiantCRM)
-* Evidence: `EV-AUTO-2026-04-22`; `EV-PARITY-MAP-2026-04-22` (full-pass criterion unmet due to P-06 fail)
-* Release notes/changelog reference: `CHANGELOG.md` Unreleased "Calibration parity evidence" bullet (`EV-CHANGELOG-UNREL-2026-04-22`) with batch completion status.
+* Reviewer sign-off: Approved (2026-04-22, @SpinGiantCRM)
+* Evidence: `EV-AUTO-2026-04-22-RERUN` (full pass on targeted full-batch pytest command)
+* Release notes/changelog reference: `CHANGELOG.md` Unreleased "Calibration parity evidence" bullet (`EV-CHANGELOG-UNREL-2026-04-22`).
 
 
 ## Maintenance cadence

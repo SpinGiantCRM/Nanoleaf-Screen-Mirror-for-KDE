@@ -27,6 +27,8 @@ class KMSGrabCapture:
     """DRM/KMS capture backend with optional KWin D-Bus fallback."""
 
     name = "kmsgrab"
+    _cached_drm_capture_impl: object | None = None
+    _cached_probe_done: bool = False
 
     def __init__(
         self,
@@ -63,7 +65,15 @@ class KMSGrabCapture:
 
         self._resize_index_cache: dict[tuple[int, int, int, int], tuple[np.ndarray, np.ndarray]] = {}
         self._resize_index_cache_limit = 8
-        self._drm_capture_impl = self._probe_drm_capture_impl()
+        self._drm_capture_impl = self._resolve_drm_capture_impl()
+
+    @classmethod
+    def _resolve_drm_capture_impl(cls):
+        if cls._cached_probe_done:
+            return cls._cached_drm_capture_impl
+        cls._cached_drm_capture_impl = cls._probe_drm_capture_impl()
+        cls._cached_probe_done = True
+        return cls._cached_drm_capture_impl
 
     def capture(self) -> np.ndarray:
         try:
@@ -123,7 +133,8 @@ class KMSGrabCapture:
                     f"Keyword error: {keyword_error}. Positional error: {positional_error}"
                 ) from positional_error
 
-    def _probe_drm_capture_impl(self):
+    @staticmethod
+    def _probe_drm_capture_impl():
         try:
             module = import_module("nanoleaf_sync.capture._kmsgrab")
             capture = getattr(module, "capture_dma_buf_rgb", None)
@@ -207,3 +218,8 @@ class KMSGrabCapture:
         else:
             y_idx, x_idx = cached
         return frame[y_idx[:, None], x_idx[None, :], :]
+
+
+def reset_cached_drm_probe() -> None:
+    KMSGrabCapture._cached_drm_capture_impl = None
+    KMSGrabCapture._cached_probe_done = False
