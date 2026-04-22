@@ -5,18 +5,16 @@ from typing import Callable
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.calibration_flow import calibration_sequence_text
-from nanoleaf_sync.ui.calibration_state import CalibrationState, TEST_MODES, build_testing_panel_state
+from nanoleaf_sync.ui.calibration_state import CalibrationState, build_testing_panel_state
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
 MAX_WIZARD_ZONE_COUNT = 128
 CALIBRATION_MODE_CORNER = "corner+offset alignment"
 WIZARD_STEPS: tuple[str, ...] = (
-    "Welcome & Display",
-    "Color & HDR",
-    "Zone Basics",
-    "Calibration Check",
-    "Review & Finish",
+    "Calibration",
+    "Display Preset",
+    "Look & Feel",
 )
 
 class _FallbackStackedWidget:
@@ -89,6 +87,8 @@ class DisplayConfiguratorDialog:
         QComboBox = qt["QComboBox"]
         QSlider = qt["QSlider"]
         QPushButton = qt["QPushButton"]
+        QTimer = _qt_widget(qt, "QTimer", None)
+        QGroupBox = _qt_widget(qt, "QGroupBox", _FallbackWidget)
         QStackedWidget = _qt_widget(qt, "QStackedWidget", _FallbackStackedWidget)
         QWidget = _qt_widget(qt, "QWidget", _FallbackWidget)
         QHBoxLayout = _qt_widget(qt, "QHBoxLayout", _FallbackLayout)
@@ -114,16 +114,25 @@ class DisplayConfiguratorDialog:
                     self._state.device_zone_count = detected_device_zone_count
 
                 self.step_label = QLabel("")
+                self._preview_phase = 0
+                self._first_run_defaults = not bool(getattr(cfg, "wizard_completed", False))
+                self._live_preview_timer = QTimer(self) if callable(QTimer) else None
 
-                # Step 1
+                # Step 2
                 self.display_mode_combo = QComboBox()
                 self.display_mode_combo.addItems(["sdr", "hdr"])
                 self.display_mode_combo.setCurrentIndex(self.display_mode_combo.findText("hdr" if cfg.hdr_enabled else "sdr"))
+                self.preset_sdr_button = QPushButton("SDR preset")
+                self.preset_hdr_button = QPushButton("HDR preset")
+                self.preset_sdr_button.setCheckable(True)
+                self.preset_hdr_button.setCheckable(True)
+                self.preset_sdr_help = QLabel("Low-maintenance SDR-safe path.")
+                self.preset_hdr_help = QLabel("HDR-first with wide-gamut defaults.")
 
-                # Step 2
+                # Step 3
                 self.color_mode_combo = QComboBox()
-                self.color_mode_combo.addItems(["default", "balanced", "dynamic", "hyper"])
-                self.color_mode_combo.setCurrentIndex(max(0, self.color_mode_combo.findText(str(getattr(cfg, "color_mode", "default")))))
+                self.color_mode_combo.addItems(["balanced", "dynamic"])
+                self.color_mode_combo.setCurrentIndex(max(0, self.color_mode_combo.findText(str(getattr(cfg, "color_mode", "balanced")))))
                 self.hdr_transfer_combo = QComboBox()
                 self.hdr_transfer_combo.addItems(["srgb", "pq"])
                 self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))))
@@ -137,8 +146,25 @@ class DisplayConfiguratorDialog:
                 self.hdr_max_nits_slider.setValue(min(int(getattr(cfg, "hdr_max_nits", 1000.0)), self.hdr_max_nits_slider.maximum()))
                 self.hdr_max_nits_label = QLabel("HDR max brightness")
                 self.hdr_max_nits_value = QLabel("")
+                self.vibrancy_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.vibrancy_slider.setRange(80, 140)
+                self.vibrancy_slider.setValue(int(round(float(getattr(cfg, "led_gamma", 1.0)) * 100)))
+                self.vibrancy_value = QLabel("")
+                self.sampling_low_button = QPushButton("Low quality")
+                self.sampling_balanced_button = QPushButton("Balanced quality")
+                self.sampling_high_button = QPushButton("High quality")
+                self.dynamism_balanced_button = QPushButton("Calm")
+                self.dynamism_dynamic_button = QPushButton("Dynamic")
+                for button in (
+                    self.sampling_low_button,
+                    self.sampling_balanced_button,
+                    self.sampling_high_button,
+                    self.dynamism_balanced_button,
+                    self.dynamism_dynamic_button,
+                ):
+                    button.setCheckable(True)
 
-                # Step 3
+                # Shared controls
                 self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.zone_count_slider.setRange(1, MAX_WIZARD_ZONE_COUNT)
                 self.zone_count_slider.setValue(self._state.zone_count)
@@ -156,7 +182,7 @@ class DisplayConfiguratorDialog:
                 self.device_zone_status = QLabel("")
                 self.zone_count_explanation = QLabel("")
 
-                # Step 4
+                # Step 1
                 self.reverse_checkbox = qt["QCheckBox"]("Reverse strip orientation")
                 self.reverse_checkbox.setChecked(self._state.reverse_zones)
                 self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal)
@@ -176,8 +202,14 @@ class DisplayConfiguratorDialog:
                 self.assign_br_button = QPushButton("Assign current zone → Bottom-right")
                 self.assign_bl_button = QPushButton("Assign current zone → Bottom-left")
                 self.current_zone_label = QLabel("")
+                self.advanced_calibration_group = QGroupBox("Advanced calibration")
+                set_checkable = getattr(self.advanced_calibration_group, "setCheckable", None)
+                if callable(set_checkable):
+                    set_checkable(True)
+                    self.advanced_calibration_group.setChecked(False)
+                self.calibration_hint = QLabel("Align strip start and orientation, then continue.")
 
-                # Step 5
+                # Summary
                 self.summary_label = QLabel("")
 
                 self.cancel_button = QPushButton("Cancel")
@@ -188,16 +220,28 @@ class DisplayConfiguratorDialog:
                 self.back_button.clicked.connect(self._go_back)
                 self.next_button.clicked.connect(self._go_next)
                 self.finish_button.clicked.connect(self.accept)
+                if self._live_preview_timer is not None:
+                    self._live_preview_timer.setInterval(350)
+                    self._live_preview_timer.timeout.connect(self._send_live_preview)
 
                 for signal in (
                     self.display_mode_combo.currentIndexChanged,
                     self.zone_count_slider.valueChanged,
                     self.sampling_quality_combo.currentIndexChanged,
+                    self.color_mode_combo.currentIndexChanged,
+                    self.vibrancy_slider.valueChanged,
                     self.zone_offset_slider.valueChanged,
                     self.zone_preset_combo.currentIndexChanged,
                     self.reverse_checkbox.stateChanged,
                 ):
                     signal.connect(self._refresh)
+                self.preset_sdr_button.clicked.connect(lambda: self._apply_display_preset("sdr"))
+                self.preset_hdr_button.clicked.connect(lambda: self._apply_display_preset("hdr"))
+                self.sampling_low_button.clicked.connect(lambda: self._set_sampling_preset("low"))
+                self.sampling_balanced_button.clicked.connect(lambda: self._set_sampling_preset("balanced"))
+                self.sampling_high_button.clicked.connect(lambda: self._set_sampling_preset("high"))
+                self.dynamism_balanced_button.clicked.connect(lambda: self._set_dynamism_preset("balanced"))
+                self.dynamism_dynamic_button.clicked.connect(lambda: self._set_dynamism_preset("dynamic"))
                 self.device_zone_count_slider.valueChanged.connect(self._on_device_zone_count_changed)
 
                 self.hdr_max_nits_slider.valueChanged.connect(self._refresh)
@@ -213,8 +257,6 @@ class DisplayConfiguratorDialog:
                 self.pages.addWidget(self._build_step_1(QWidget, QGridLayout, QLabel))
                 self.pages.addWidget(self._build_step_2(QWidget, QGridLayout, QLabel))
                 self.pages.addWidget(self._build_step_3(QWidget, QGridLayout, QLabel))
-                self.pages.addWidget(self._build_step_4(QWidget, QGridLayout, QLabel))
-                self.pages.addWidget(self._build_step_5(QWidget, QVBoxLayout, QLabel))
 
                 layout = QVBoxLayout()
                 set_margins = getattr(layout, "setContentsMargins", None)
@@ -254,20 +296,42 @@ class DisplayConfiguratorDialog:
                 self._set_tooltip(self.assign_tr_button, "Assign the currently lit strip zone as top-right screen corner.")
                 self._set_tooltip(self.assign_br_button, "Assign the currently lit strip zone as bottom-right screen corner.")
                 self._set_tooltip(self.assign_bl_button, "Assign the currently lit strip zone as bottom-left screen corner.")
+                self._set_tooltip(self.preset_sdr_button, "SDR-safe defaults: srgb + bt709.")
+                self._set_tooltip(self.preset_hdr_button, "HDR defaults: pq + bt2020.")
+                self._set_tooltip(self.sampling_low_button, "Fastest response, lowest CPU usage.")
+                self._set_tooltip(self.sampling_balanced_button, "Recommended default quality.")
+                self._set_tooltip(self.sampling_high_button, "Highest fidelity at higher CPU cost.")
+                self._set_tooltip(self.dynamism_balanced_button, "Stable color behavior with less motion punch.")
+                self._set_tooltip(self.dynamism_dynamic_button, "Stronger motion-reactive color changes.")
 
             def _build_step_1(self, QWidget, QGridLayout, QLabel):
                 page = QWidget()
                 layout = QGridLayout()
                 if hasattr(layout, "setVerticalSpacing"):
-                    layout.setVerticalSpacing(6)
-                layout.addWidget(QLabel("Welcome. Choose your display mode first."), 0, 0, 1, 2)
-                layout.addWidget(QLabel("HDR mode unlocks HDR transfer/primaries/brightness controls in the next step."), 1, 0, 1, 2)
-                layout.addWidget(QLabel("SDR mode keeps a simpler color path for lower-latency setups."), 2, 0, 1, 2)
-                layout.addWidget(QLabel("SDR / HDR mode"), 3, 0)
-                layout.addWidget(self.display_mode_combo, 3, 1)
-                row_stretch = getattr(layout, "setRowStretch", None)
-                if callable(row_stretch):
-                    row_stretch(4, 1)
+                    layout.setVerticalSpacing(4)
+                layout.addWidget(QLabel(f"Calibration and testing\n{calibration_sequence_text()}"), 0, 0, 1, 3)
+                layout.addWidget(self.calibration_hint, 1, 0, 1, 3)
+                layout.addWidget(self.preview_text, 2, 0, 1, 3)
+                layout.addWidget(self.preview_visual, 3, 0, 1, 3)
+                layout.addWidget(self.calibration_next_button, 4, 0, 1, 2)
+                layout.addWidget(self.calibration_prev_button, 4, 2)
+                layout.addWidget(self.calibration_send_button, 5, 0, 1, 3)
+                layout.addWidget(self.current_zone_label, 6, 0, 1, 3)
+                layout.addWidget(self.assign_tl_button, 7, 0, 1, 3)
+                layout.addWidget(self.assign_tr_button, 8, 0, 1, 3)
+                layout.addWidget(self.assign_br_button, 9, 0, 1, 3)
+                layout.addWidget(self.assign_bl_button, 10, 0, 1, 3)
+                layout.addWidget(self.calibration_test_label, 11, 0, 1, 3)
+
+                advanced_layout = QGridLayout()
+                advanced_layout.addWidget(QLabel("Global mapping zone offset"), 0, 0)
+                advanced_layout.addWidget(self.zone_offset_slider, 0, 1)
+                advanced_layout.addWidget(self.zone_offset_value, 0, 2)
+                advanced_layout.addWidget(self.reverse_checkbox, 1, 0, 1, 2)
+                advanced_layout.addWidget(QLabel("Test zone step index"), 2, 0)
+                advanced_layout.addWidget(self.test_step_index_value, 2, 1, 1, 2)
+                self.advanced_calibration_group.setLayout(advanced_layout)
+                layout.addWidget(self.advanced_calibration_group, 12, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -275,20 +339,19 @@ class DisplayConfiguratorDialog:
                 page = QWidget()
                 layout = QGridLayout()
                 if hasattr(layout, "setVerticalSpacing"):
-                    layout.setVerticalSpacing(6)
-                layout.addWidget(QLabel("Configure color behavior for the chosen mode."), 0, 0, 1, 3)
-                layout.addWidget(QLabel("Colour behavior"), 1, 0)
-                layout.addWidget(self.color_mode_combo, 1, 1, 1, 2)
-                layout.addWidget(self.hdr_transfer_label, 2, 0)
-                layout.addWidget(self.hdr_transfer_combo, 2, 1, 1, 2)
-                layout.addWidget(self.hdr_primaries_label, 3, 0)
-                layout.addWidget(self.hdr_primaries_combo, 3, 1, 1, 2)
-                layout.addWidget(self.hdr_max_nits_label, 4, 0)
-                layout.addWidget(self.hdr_max_nits_slider, 4, 1)
-                layout.addWidget(self.hdr_max_nits_value, 4, 2)
-                row_stretch = getattr(layout, "setRowStretch", None)
-                if callable(row_stretch):
-                    row_stretch(5, 1)
+                    layout.setVerticalSpacing(4)
+                layout.addWidget(QLabel("Pick a display preset"), 0, 0, 1, 3)
+                layout.addWidget(self.preset_sdr_button, 1, 0, 1, 3)
+                layout.addWidget(self.preset_sdr_help, 2, 0, 1, 3)
+                layout.addWidget(self.preset_hdr_button, 3, 0, 1, 3)
+                layout.addWidget(self.preset_hdr_help, 4, 0, 1, 3)
+                layout.addWidget(self.hdr_transfer_label, 5, 0)
+                layout.addWidget(self.hdr_transfer_combo, 5, 1, 1, 2)
+                layout.addWidget(self.hdr_primaries_label, 6, 0)
+                layout.addWidget(self.hdr_primaries_combo, 6, 1, 1, 2)
+                layout.addWidget(self.hdr_max_nits_label, 7, 0)
+                layout.addWidget(self.hdr_max_nits_slider, 7, 1)
+                layout.addWidget(self.hdr_max_nits_value, 7, 2)
                 page.setLayout(layout)
                 return page
 
@@ -296,77 +359,63 @@ class DisplayConfiguratorDialog:
                 page = QWidget()
                 layout = QGridLayout()
                 if hasattr(layout, "setVerticalSpacing"):
-                    layout.setVerticalSpacing(6)
-                layout.addWidget(QLabel("Set strip and zone basics."), 0, 0, 1, 3)
-                layout.addWidget(QLabel("Screen sampling zone count"), 1, 0)
-                layout.addWidget(self.zone_count_slider, 1, 1)
-                layout.addWidget(self.zone_count_value, 1, 2)
-                layout.addWidget(QLabel("Sampling quality"), 2, 0)
-                layout.addWidget(self.sampling_quality_combo, 2, 1, 1, 2)
-                layout.addWidget(QLabel("Low = better performance | Balanced = default | High = best visual fidelity"), 3, 0, 1, 3)
-                layout.addWidget(QLabel("Zone layout preset"), 4, 0)
-                layout.addWidget(self.zone_preset_combo, 4, 1, 1, 2)
-                layout.addWidget(QLabel("Strip LED zone count"), 5, 0)
-                layout.addWidget(self.device_zone_count_slider, 5, 1)
-                layout.addWidget(self.device_zone_count_value, 5, 2)
-                layout.addWidget(self.zone_count_explanation, 6, 0, 1, 3)
-                layout.addWidget(self.device_zone_status, 7, 0, 1, 3)
-                row_stretch = getattr(layout, "setRowStretch", None)
-                if callable(row_stretch):
-                    row_stretch(8, 1)
+                    layout.setVerticalSpacing(4)
+                layout.addWidget(QLabel("Tune visual style with live preview"), 0, 0, 1, 3)
+                layout.addWidget(self.sampling_low_button, 1, 0)
+                layout.addWidget(self.sampling_balanced_button, 1, 1)
+                layout.addWidget(self.sampling_high_button, 1, 2)
+                layout.addWidget(self.dynamism_balanced_button, 2, 0, 1, 2)
+                layout.addWidget(self.dynamism_dynamic_button, 2, 2)
+                layout.addWidget(QLabel("Optional vibrancy"), 3, 0)
+                layout.addWidget(self.vibrancy_slider, 3, 1)
+                layout.addWidget(self.vibrancy_value, 3, 2)
+                layout.addWidget(QLabel("Screen sampling zone count"), 4, 0)
+                layout.addWidget(self.zone_count_slider, 4, 1)
+                layout.addWidget(self.zone_count_value, 4, 2)
+                layout.addWidget(QLabel("Zone layout preset"), 5, 0)
+                layout.addWidget(self.zone_preset_combo, 5, 1, 1, 2)
+                layout.addWidget(QLabel("Strip LED zone count"), 6, 0)
+                layout.addWidget(self.device_zone_count_slider, 6, 1)
+                layout.addWidget(self.device_zone_count_value, 6, 2)
+                layout.addWidget(self.zone_count_explanation, 7, 0, 1, 3)
+                layout.addWidget(self.device_zone_status, 8, 0, 1, 3)
+                layout.addWidget(self.summary_label, 9, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
-            def _build_step_4(self, QWidget, QGridLayout, QLabel):
-                page = QWidget()
-                layout = QGridLayout()
-                if hasattr(layout, "setVerticalSpacing"):
-                    layout.setVerticalSpacing(6)
-                layout.addWidget(QLabel(f"Calibration and testing\n{calibration_sequence_text()}"), 0, 0, 1, 3)
-                layout.addWidget(QLabel("Global mapping zone offset"), 1, 0)
-                layout.addWidget(self.zone_offset_slider, 1, 1)
-                layout.addWidget(self.zone_offset_value, 1, 2)
-                layout.addWidget(self.reverse_checkbox, 2, 0, 1, 2)
-                layout.addWidget(QLabel("Calibration method: corner anchors + offset"), 3, 0, 1, 3)
-                layout.addWidget(self.preview_text, 4, 0, 1, 3)
-                layout.addWidget(self.preview_visual, 5, 0, 1, 3)
-                layout.addWidget(self.calibration_next_button, 6, 0, 1, 2)
-                layout.addWidget(self.calibration_prev_button, 6, 2)
-                layout.addWidget(QLabel("Test zone step index"), 7, 0)
-                layout.addWidget(self.test_step_index_value, 7, 1, 1, 2)
-                layout.addWidget(self.calibration_send_button, 8, 0, 1, 3)
-                layout.addWidget(self.current_zone_label, 9, 0, 1, 3)
-                layout.addWidget(self.assign_tl_button, 10, 0, 1, 3)
-                layout.addWidget(self.assign_tr_button, 11, 0, 1, 3)
-                layout.addWidget(self.assign_br_button, 12, 0, 1, 3)
-                layout.addWidget(self.assign_bl_button, 13, 0, 1, 3)
-                layout.addWidget(self.calibration_test_label, 14, 0, 1, 3)
-                row_stretch = getattr(layout, "setRowStretch", None)
-                if callable(row_stretch):
-                    row_stretch(15, 1)
-                page.setLayout(layout)
-                return page
+            def _apply_display_preset(self, preset: str) -> None:
+                index = self.display_mode_combo.findText(str(preset))
+                if index >= 0:
+                    self.display_mode_combo.setCurrentIndex(index)
+                if self._first_run_defaults:
+                    if str(preset) == "hdr":
+                        self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText("pq")))
+                        self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText("bt2020")))
+                    else:
+                        self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText("srgb")))
+                        self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText("bt709")))
+                self._refresh()
 
-            def _build_step_5(self, QWidget, QVBoxLayout, QLabel):
-                page = QWidget()
-                layout = QVBoxLayout()
-                set_spacing = getattr(layout, "setSpacing", None)
-                if callable(set_spacing):
-                    set_spacing(6)
-                layout.addWidget(QLabel("Summary"))
-                layout.addWidget(self.summary_label)
-                add_stretch = getattr(layout, "addStretch", None)
-                if callable(add_stretch):
-                    add_stretch(1)
-                page.setLayout(layout)
-                return page
+            def _set_sampling_preset(self, preset: str) -> None:
+                self.sampling_quality_combo.setCurrentIndex(max(0, self.sampling_quality_combo.findText(str(preset).capitalize())))
+                self._refresh()
+
+            def _set_dynamism_preset(self, preset: str) -> None:
+                self.color_mode_combo.setCurrentIndex(max(0, self.color_mode_combo.findText(str(preset))))
+                self._refresh()
 
             def _go_next(self) -> None:
+                previous_step = self._flow.index
                 self._flow.next()
+                if previous_step == 0 and self._flow.index == 1:
+                    self._send_live_preview()
+                    self._ensure_live_preview_running()
                 self._refresh()
 
             def _go_back(self) -> None:
                 self._flow.back()
+                if self._flow.index == 0:
+                    self._stop_live_preview()
                 self._refresh()
 
             def _pull_state_from_controls(self) -> None:
@@ -435,6 +484,15 @@ class DisplayConfiguratorDialog:
                 self._pull_state_from_controls()
                 self.pages.setCurrentIndex(self._flow.index)
                 self.step_label.setText(self._flow.step_label())
+                self.preset_sdr_button.setChecked(str(self.display_mode_combo.currentText()) == "sdr")
+                self.preset_hdr_button.setChecked(str(self.display_mode_combo.currentText()) == "hdr")
+                sampling_choice = str(self.sampling_quality_combo.currentText()).lower()
+                self.sampling_low_button.setChecked(sampling_choice == "low")
+                self.sampling_balanced_button.setChecked(sampling_choice == "balanced")
+                self.sampling_high_button.setChecked(sampling_choice == "high")
+                mode_choice = str(self.color_mode_combo.currentText())
+                self.dynamism_balanced_button.setChecked(mode_choice == "balanced")
+                self.dynamism_dynamic_button.setChecked(mode_choice == "dynamic")
                 back_set_enabled = getattr(self.back_button, "setEnabled", None)
                 if callable(back_set_enabled):
                     back_set_enabled(self._flow.can_go_back())
@@ -459,6 +517,7 @@ class DisplayConfiguratorDialog:
 
                 self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
                 self.zone_count_value.setText(str(self.zone_count_slider.value()))
+                self.vibrancy_value.setText(f"{self.vibrancy_slider.value()}%")
                 normalized_offset = self._normalize_offset_for_count(
                     int(self.zone_offset_slider.value()),
                     self._state.effective_device_zone_count(),
@@ -496,10 +555,11 @@ class DisplayConfiguratorDialog:
                 self.summary_label.setText(
                     "\n".join(
                         (
-                            f"Display mode: {self.display_mode_combo.currentText()}",
-                            f"Color mode: {self.color_mode_combo.currentText()}",
+                            f"Display preset: {self.display_mode_combo.currentText().upper()}",
+                            f"Dynamism: {self.color_mode_combo.currentText()}",
                             f"Zone preset: {self._state.zone_preset}",
                             f"Sampling quality: {self.sampling_quality_combo.currentText()}",
+                            f"Vibrancy: {self.vibrancy_slider.value()}%",
                             f"Screen sampling zones: {self._state.zone_count}",
                             f"Effective strip LED zones: {self._state.effective_device_zone_count()}",
                             "Calibration method: corner anchors + offset",
@@ -507,6 +567,11 @@ class DisplayConfiguratorDialog:
                         )
                     )
                 )
+                if self._flow.index >= 1:
+                    self._ensure_live_preview_running()
+                    self._send_live_preview()
+                else:
+                    self._stop_live_preview()
 
             def updated_config(self) -> AppConfig:
                 self._pull_state_from_controls()
@@ -519,6 +584,7 @@ class DisplayConfiguratorDialog:
                     hdr_transfer=str(self.hdr_transfer_combo.currentText()),
                     hdr_primaries=str(self.hdr_primaries_combo.currentText()),
                     hdr_max_nits=float(self.hdr_max_nits_slider.value()),
+                    led_gamma=float(self.vibrancy_slider.value()) / 100.0,
                     zones=new_zones,
                     zone_preset=self._state.zone_preset,
                     sampling_quality=str(self.sampling_quality_combo.currentText()).lower(),
@@ -563,6 +629,41 @@ class DisplayConfiguratorDialog:
                         all_off_except_active=True,
                     )
                 )
+
+            def _send_live_preview(self) -> None:
+                if self._calibration_sender is None:
+                    return
+                if self._flow.index < 1:
+                    return
+                zone_count = self._state.effective_device_zone_count()
+                frame = [(0, 0, 0)] * zone_count
+                mode = str(self.color_mode_combo.currentText())
+                gain = 1.0 if mode == "dynamic" else 0.7
+                vibrancy = float(self.vibrancy_slider.value()) / 100.0
+                for i in range(zone_count):
+                    phase = (i + self._preview_phase) % max(1, zone_count)
+                    ramp = phase / max(1, zone_count - 1)
+                    red = int(min(255, 255 * ramp * gain * vibrancy))
+                    green = int(min(255, 255 * (1.0 - ramp) * 0.8 * vibrancy))
+                    blue = int(min(255, 150 + (80 if mode == "dynamic" else 0)))
+                    frame[i] = (red, green, blue)
+                self._preview_phase = (self._preview_phase + (3 if mode == "dynamic" else 1)) % max(1, zone_count)
+                self._calibration_sender(frame)
+
+            def _ensure_live_preview_running(self) -> None:
+                if self._live_preview_timer is None:
+                    return
+                is_active = getattr(self._live_preview_timer, "isActive", None)
+                start = getattr(self._live_preview_timer, "start", None)
+                if callable(is_active) and callable(start) and not is_active():
+                    start()
+
+            def _stop_live_preview(self) -> None:
+                if self._live_preview_timer is None:
+                    return
+                stop = getattr(self._live_preview_timer, "stop", None)
+                if callable(stop):
+                    stop()
 
             def _next_test_zone(self) -> None:
                 self._pull_state_from_controls()
