@@ -78,20 +78,20 @@ If the preview shows a corner anchor validation warning:
 
 Expected behavior: invalid anchors block final completion and emit remediation hints; mapping should fall back safely instead of crashing.
 
-### Calibration migrated from older config but looks stale
+### Calibration config looks stale
 
-The app now stores canonical calibration values in a nested `[calibration]` payload while retaining top-level compatibility fields. If values appear inconsistent after manual edits:
+If calibration values appear inconsistent after manual edits:
 
 1. Close tray/service.
 2. Open `~/.config/nanoleaf-kde-sync/config.toml`.
-3. Keep `[calibration]` as source-of-truth and remove conflicting legacy top-level calibration keys.
+3. Verify the values under `[calibration]` match your actual strip setup.
 4. Start app and verify with:
 
 ```bash
 nanoleaf-kde-sync-smoke-test
 ```
 
-Then rerun setup wizard once to re-save a clean, normalized payload.
+Then rerun setup wizard once to re-save a clean calibration payload.
 
 ## Auto-backend probe failures
 
