@@ -580,3 +580,43 @@ def test_display_configurator_summary_shows_model_and_phase_distinctly(monkeypat
     summary = dialog._dialog.summary_label._text
     assert "Calibration model: corner_anchored" in summary
     assert "Calibration phase:" in summary
+
+
+def test_display_configurator_surfaces_corner_anchor_fallback_indicator(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    cfg = AppConfig(zones=[], device_zone_count=8, calibration_model="corner_anchored")
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=cfg)
+    dialog._dialog._state.corner_anchor_top_left = 1
+    dialog._dialog._state.corner_anchor_top_right = 1
+    dialog._dialog._state.corner_anchor_bottom_right = -1
+    dialog._dialog._state.corner_anchor_bottom_left = 3
+    dialog._dialog._refresh()
+
+    assert "Fallback indicator: strategy=offset_direction" in dialog._dialog.anchor_validation_label._text
+    assert "warning_codes=[CORNER_ANCHOR_MISSING, CORNER_ANCHOR_DUPLICATE]" in dialog._dialog.anchor_validation_label._text
+    assert "Invalid corner anchors triggered fallback" in dialog._dialog.calibration_phase_status_label._text
+    assert dialog._dialog.finish_button._enabled is False
+
+
+def test_display_configurator_preserves_invalid_anchor_metadata_in_draft_and_saved_config(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    cfg = AppConfig(zones=[], device_zone_count=8, calibration_model="corner_anchored")
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=cfg)
+    dialog._dialog._state.corner_anchor_top_left = 1
+    dialog._dialog._state.corner_anchor_top_right = 1
+    dialog._dialog._state.corner_anchor_bottom_right = -1
+    dialog._dialog._state.corner_anchor_bottom_left = 3
+
+    draft_payload = dialog._dialog._serialize_wizard_draft()
+    assert '"corner_anchor_fallback_active": true' in draft_payload
+    assert '"corner_anchor_fallback_strategy": "offset_direction"' in draft_payload
+    assert '"corner_anchor_warning_codes": ["CORNER_ANCHOR_MISSING", "CORNER_ANCHOR_DUPLICATE"]' in draft_payload
+
+    updated = dialog.updated_config()
+    assert updated.corner_anchor_top_left == 1
+    assert updated.corner_anchor_top_right == 1
+    assert updated.corner_anchor_bottom_right == -1
+    assert updated.corner_anchor_fallback_active is True
+    assert updated.corner_anchor_fallback_strategy == "offset_direction"
+    assert updated.corner_anchor_warning_codes == ["CORNER_ANCHOR_MISSING", "CORNER_ANCHOR_DUPLICATE"]
+    assert updated.calibration.corner_anchor_fallback_active is True

@@ -137,8 +137,11 @@ def mapping_preview_text(
         )
         notes = ""
         if snapshot.anchor_validation_errors:
+            fallback_strategy = snapshot.fallback_strategy or "offset_direction"
+            warning_codes = ", ".join(snapshot.warning_codes) if snapshot.warning_codes else "none"
             notes = (
                 "\nCorner anchors drive mapping after validation; using offset/direction fallback until then."
+                f"\nFallback indicator: strategy={fallback_strategy} warning_codes=[{warning_codes}]"
                 f"\n{summary}"
                 f"\nCorner anchor validation: {'; '.join(snapshot.anchor_validation_errors)}"
             )

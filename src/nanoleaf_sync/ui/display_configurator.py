@@ -10,6 +10,7 @@ from typing import Callable
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
+from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping
 from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE, calibration_sequence_text
 from nanoleaf_sync.ui.calibration_state import (
     CalibrationPhaseValidation,
@@ -834,6 +835,7 @@ class DisplayConfiguratorDialog:
                     next_set_enabled(self._flow.can_go_next())
                 effective_zone_count = self._state.effective_device_zone_count()
                 corner_mode = self._state.calibration_model == "corner_anchored"
+                mapping_snapshot = self._state.resolved_mapping_snapshot()
                 anchors = {
                     "top_left": self._state.corner_anchor_top_left if self._state.corner_anchor_top_left >= 0 else None,
                     "top_right": self._state.corner_anchor_top_right if self._state.corner_anchor_top_right >= 0 else None,
@@ -841,6 +843,7 @@ class DisplayConfiguratorDialog:
                     "bottom_left": self._state.corner_anchor_bottom_left if self._state.corner_anchor_bottom_left >= 0 else None,
                 }
                 anchor_validation = validate_corner_anchors(anchors=anchors, device_zone_count=effective_zone_count)
+                invalid_anchor_fallback = corner_mode and mapping_snapshot.invalid_corner_anchor_fallback_active
                 for widget in (
                     self.assign_tl_button,
                     self.assign_tr_button,
@@ -869,6 +872,14 @@ class DisplayConfiguratorDialog:
                         if anchor_validation.valid
                         else "Anchor validation error: "
                         + " ".join(anchor_validation.errors)
+                        + (
+                            ""
+                            if not invalid_anchor_fallback
+                            else (
+                                f"\nFallback indicator: strategy={mapping_snapshot.fallback_strategy or 'offset_direction'} "
+                                f"warning_codes=[{', '.join(mapping_snapshot.warning_codes) if mapping_snapshot.warning_codes else 'none'}]"
+                            )
+                        )
                         + "\n"
                         + corner_anchor_validation_summary(
                             device_zone_count=effective_zone_count,
@@ -890,7 +901,9 @@ class DisplayConfiguratorDialog:
                     valid=bool(phase_passed),
                     details=str(validation_details),
                 )
-                self._flow.set_step_valid(0, self._device_zone_count_confirmed and self._state.can_complete_calibration_flow())
+                strict_calibration_complete = self._state.can_complete_calibration_flow()
+                calibration_step_valid = self._device_zone_count_confirmed and strict_calibration_complete and not invalid_anchor_fallback
+                self._flow.set_step_valid(0, calibration_step_valid)
                 self._flow.set_step_valid(1, True)
                 self._flow.set_step_valid(2, True)
                 if callable(next_set_enabled):
@@ -931,6 +944,13 @@ class DisplayConfiguratorDialog:
                 else:
                     blocking_reason = f"Waiting for: {', '.join(current_phase.prerequisites)}"
                     next_action = "Complete the blocked prerequisite phase(s)."
+                if invalid_anchor_fallback:
+                    blocking_reason = (
+                        "Invalid corner anchors triggered fallback: "
+                        f"strategy={mapping_snapshot.fallback_strategy or 'offset_direction'} "
+                        f"warning_codes=[{', '.join(mapping_snapshot.warning_codes) if mapping_snapshot.warning_codes else 'none'}]"
+                    )
+                    next_action = "Fix corner anchor assignments so fallback no longer applies."
                 self.calibration_phase_status_label.setText(
                     f"State: {phase_state_label} | Validation: {validation_details}\n"
                     f"Blocking reason: {blocking_reason}\n"
@@ -938,11 +958,11 @@ class DisplayConfiguratorDialog:
                 )
 
                 finish_set_enabled = getattr(self.finish_button, "setEnabled", None)
-                strict_calibration_complete = self._state.can_complete_calibration_flow()
                 can_finish = (
                     not self._flow.can_go_next()
                     and self._device_zone_count_confirmed
                     and strict_calibration_complete
+                    and not invalid_anchor_fallback
                     and not verification.hard_fail
                 )
                 if callable(finish_set_enabled):
@@ -1044,6 +1064,20 @@ class DisplayConfiguratorDialog:
             def updated_config(self) -> AppConfig:
                 self._pull_state_from_controls()
                 verification = self._state.validation_report()
+                mapping_snapshot = resolve_calibration_mapping(
+                    zone_count=max(1, int(self._state.zone_count)),
+                    device_zone_count=max(1, int(self._state.effective_device_zone_count())),
+                    zone_offset=int(self._state.zone_offset),
+                    reverse_zones=bool(self._state.reverse_zones),
+                    manual_mapping_enabled=bool(self._state.manual_mapping_enabled),
+                    explicit_zone_map=[int(i) for i in self._state.explicit_zone_map],
+                    corner_zone_offsets=self._state.active_corner_zone_offsets(),
+                    corner_anchor_top_left=int(self._state.corner_anchor_top_left),
+                    corner_anchor_top_right=int(self._state.corner_anchor_top_right),
+                    corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
+                    corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
+                    calibration_model=str(self._state.calibration_model),
+                )
                 anchors = {
                     "top_left": self._state.corner_anchor_top_left if self._state.corner_anchor_top_left >= 0 else None,
                     "top_right": self._state.corner_anchor_top_right if self._state.corner_anchor_top_right >= 0 else None,
@@ -1054,13 +1088,14 @@ class DisplayConfiguratorDialog:
                     anchors=anchors,
                     device_zone_count=self._state.effective_device_zone_count(),
                 )
-                should_store_anchors = self._state.calibration_model != "corner_anchored" or anchor_validation.valid
-                anchor_top_left = int(self._state.corner_anchor_top_left) if should_store_anchors else -1
-                anchor_top_right = int(self._state.corner_anchor_top_right) if should_store_anchors else -1
-                anchor_bottom_right = int(self._state.corner_anchor_bottom_right) if should_store_anchors else -1
-                anchor_bottom_left = int(self._state.corner_anchor_bottom_left) if should_store_anchors else -1
+                anchor_top_left = int(self._state.corner_anchor_top_left)
+                anchor_top_right = int(self._state.corner_anchor_top_right)
+                anchor_bottom_right = int(self._state.corner_anchor_bottom_right)
+                anchor_bottom_left = int(self._state.corner_anchor_bottom_left)
                 zone_count = self._state.zone_count
                 new_zones = make_edge_weighted_zones(zone_count) if self._state.zone_preset == "edge-weighted" else make_horizontal_zones(zone_count)
+                fallback_warning_codes = list(mapping_snapshot.warning_codes)
+                fallback_strategy = str(mapping_snapshot.fallback_strategy or "")
                 calibration_payload = CalibrationConfig(
                     schema_version=int(getattr(cfg, "calibration_schema_version", 1) or 1),
                     calibration_model=str(self._state.calibration_model),
@@ -1074,6 +1109,9 @@ class DisplayConfiguratorDialog:
                     corner_anchor_top_right=anchor_top_right,
                     corner_anchor_bottom_right=anchor_bottom_right,
                     corner_anchor_bottom_left=anchor_bottom_left,
+                    corner_anchor_fallback_active=bool(mapping_snapshot.invalid_corner_anchor_fallback_active),
+                    corner_anchor_fallback_strategy=fallback_strategy,
+                    corner_anchor_warning_codes=fallback_warning_codes,
                     corner_start_anchor=int(self._state.corner_start_anchor),
                     corner_offsets_enabled=bool(self._state.corner_offsets_enabled),
                     corner_zone_offsets=self._state.active_corner_zone_offsets(),
@@ -1098,6 +1136,9 @@ class DisplayConfiguratorDialog:
                     corner_anchor_top_right=anchor_top_right,
                     corner_anchor_bottom_right=anchor_bottom_right,
                     corner_anchor_bottom_left=anchor_bottom_left,
+                    corner_anchor_fallback_active=bool(mapping_snapshot.invalid_corner_anchor_fallback_active),
+                    corner_anchor_fallback_strategy=fallback_strategy,
+                    corner_anchor_warning_codes=fallback_warning_codes,
                     calibration_model=str(self._state.calibration_model),
                     calibration_schema_version=int(calibration_payload.schema_version),
                     calibration=calibration_payload,
@@ -1111,6 +1152,14 @@ class DisplayConfiguratorDialog:
                             else f" | Remediation: {'; '.join(verification.remediation_hints)}"
                         )
                         + f" | Action: {verification.remediation_action}"
+                        + (
+                            ""
+                            if not mapping_snapshot.invalid_corner_anchor_fallback_active
+                            else (
+                                f" | fallback_strategy={fallback_strategy} "
+                                f"fallback_warning_codes={tuple(fallback_warning_codes)}"
+                            )
+                        )
                     ),
                     wizard_in_progress_state="",
                     wizard_completed=True,
@@ -1118,6 +1167,20 @@ class DisplayConfiguratorDialog:
 
             def _serialize_wizard_draft(self) -> str:
                 self._pull_state_from_controls()
+                mapping_snapshot = resolve_calibration_mapping(
+                    zone_count=max(1, int(self._state.zone_count)),
+                    device_zone_count=max(1, int(self._state.effective_device_zone_count())),
+                    zone_offset=int(self._state.zone_offset),
+                    reverse_zones=bool(self._state.reverse_zones),
+                    manual_mapping_enabled=bool(self._state.manual_mapping_enabled),
+                    explicit_zone_map=[int(i) for i in self._state.explicit_zone_map],
+                    corner_zone_offsets=self._state.active_corner_zone_offsets(),
+                    corner_anchor_top_left=int(self._state.corner_anchor_top_left),
+                    corner_anchor_top_right=int(self._state.corner_anchor_top_right),
+                    corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
+                    corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
+                    calibration_model=str(self._state.calibration_model),
+                )
                 payload = {
                     "flow_index": int(self._flow.index),
                     "test_step": int(self._test_step),
@@ -1135,6 +1198,9 @@ class DisplayConfiguratorDialog:
                     "corner_anchor_top_right": int(self._state.corner_anchor_top_right),
                     "corner_anchor_bottom_right": int(self._state.corner_anchor_bottom_right),
                     "corner_anchor_bottom_left": int(self._state.corner_anchor_bottom_left),
+                    "corner_anchor_fallback_active": bool(mapping_snapshot.invalid_corner_anchor_fallback_active),
+                    "corner_anchor_fallback_strategy": str(mapping_snapshot.fallback_strategy or ""),
+                    "corner_anchor_warning_codes": [str(code) for code in mapping_snapshot.warning_codes],
                     "calibration_progress": {
                         step_id: {"complete": bool(progress.complete), "passed": bool(progress.passed), "notes": str(progress.notes)}
                         for step_id, progress in self._state.calibration_step_progress.items()
