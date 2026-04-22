@@ -131,8 +131,12 @@ class DisplayConfiguratorDialog:
 
                 # Step 3
                 self.color_mode_combo = QComboBox()
-                self.color_mode_combo.addItems(["balanced", "dynamic"])
-                self.color_mode_combo.setCurrentIndex(max(0, self.color_mode_combo.findText(str(getattr(cfg, "color_mode", "balanced")))))
+                allowed_color_modes = ["balanced", "dynamic"]
+                current_color_mode = str(getattr(cfg, "color_mode", "balanced"))
+                if current_color_mode not in allowed_color_modes:
+                    allowed_color_modes.append(current_color_mode)
+                self.color_mode_combo.addItems(allowed_color_modes)
+                self.color_mode_combo.setCurrentIndex(max(0, self.color_mode_combo.findText(current_color_mode)))
                 self.hdr_transfer_combo = QComboBox()
                 self.hdr_transfer_combo.addItems(["srgb", "pq"])
                 self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))))
@@ -147,7 +151,7 @@ class DisplayConfiguratorDialog:
                 self.hdr_max_nits_label = QLabel("HDR max brightness")
                 self.hdr_max_nits_value = QLabel("")
                 self.vibrancy_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.vibrancy_slider.setRange(80, 140)
+                self.vibrancy_slider.setRange(100, 400)
                 self.vibrancy_slider.setValue(int(round(float(getattr(cfg, "led_gamma", 1.0)) * 100)))
                 self.vibrancy_value = QLabel("")
                 self.sampling_low_button = QPushButton("Low quality")
@@ -569,7 +573,6 @@ class DisplayConfiguratorDialog:
                 )
                 if self._flow.index >= 1:
                     self._ensure_live_preview_running()
-                    self._send_live_preview()
                 else:
                     self._stop_live_preview()
 
