@@ -424,3 +424,18 @@ def test_display_configurator_zone_count_change_remaps_anchors_and_shows_notice(
 
     assert dialog._dialog._state.corner_anchor_top_left == 8
     assert "remapped offset and corner anchors" in dialog._dialog.zone_change_notice._text
+
+
+def test_display_configurator_keeps_next_disabled_when_validation_fails(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=8))
+    for step in dialog._dialog._state.calibration_steps():
+        dialog._dialog._state.mark_calibration_step(step, passed=True)
+
+    dialog._dialog._state.corner_anchor_top_left = 1
+    dialog._dialog._state.corner_anchor_top_right = 1
+    dialog._dialog._state.corner_anchor_bottom_right = 1
+    dialog._dialog._state.corner_anchor_bottom_left = 1
+    dialog._dialog._refresh()
+
+    assert dialog._dialog.next_button._enabled is False

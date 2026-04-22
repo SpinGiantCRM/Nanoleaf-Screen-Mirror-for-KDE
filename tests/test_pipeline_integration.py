@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
+from nanoleaf_sync.config.normalize import migrate_config_dict, validate_config
 from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping_from_config
 from nanoleaf_sync.runtime.engine import run_loop
 from nanoleaf_sync.runtime.state import RuntimeState
@@ -142,3 +143,31 @@ def test_preview_and_runtime_share_identical_resolved_mapping_snapshot() -> None
     sent = driver.sent_frames[0]
     source_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0)]
     assert sent == [source_colors[idx] for idx in expected_mapping]
+
+
+def test_migrated_legacy_calibration_config_keeps_preview_runtime_mapping_parity() -> None:
+    legacy = {
+        "device_zone_count": 8,
+        "zones": [
+            ZoneConfig(x=0.0, y=0.0, w=0.25, h=1.0),
+            ZoneConfig(x=0.25, y=0.0, w=0.25, h=1.0),
+            ZoneConfig(x=0.5, y=0.0, w=0.25, h=1.0),
+            ZoneConfig(x=0.75, y=0.0, w=0.25, h=1.0),
+        ],
+        "calibration_model": "corner_anchored",
+        "corner_anchor_top_left": 0,
+        "corner_anchor_top_right": 2,
+        "corner_anchor_bottom_right": 4,
+        "corner_anchor_bottom_left": 6,
+        "zone_offset": -3,
+        "reverse_zones": True,
+    }
+    migrated = migrate_config_dict(legacy)
+    cfg = validate_config(AppConfig(**migrated))
+
+    preview_snapshot = CalibrationState.from_config(cfg).resolved_mapping_snapshot()
+    runtime_snapshot = resolve_calibration_mapping_from_config(config=cfg, source_zone_count=len(cfg.zones))
+
+    assert migrated["calibration"]["calibration_model"] == "corner_anchored"
+    assert preview_snapshot.device_to_source_indices == runtime_snapshot.device_to_source_indices
+    assert preview_snapshot.validation_warnings == runtime_snapshot.validation_warnings

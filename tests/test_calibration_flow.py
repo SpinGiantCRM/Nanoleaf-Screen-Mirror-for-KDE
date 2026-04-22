@@ -72,6 +72,20 @@ def test_derive_corner_anchor_device_indices_responds_to_offset_and_direction() 
     assert reversed_shifted != shifted
 
 
+def test_corner_anchor_derivation_is_deterministic_for_same_inputs() -> None:
+    params = {
+        "zone_count": 20,
+        "device_zone_count": 24,
+        "zone_offset": -7,
+        "reverse_zones": True,
+    }
+    first = derive_corner_anchor_device_indices(**params)
+    second = derive_corner_anchor_device_indices(**params)
+    third = derive_corner_anchor_device_indices(**params)
+
+    assert first == second == third
+
+
 def test_corner_anchor_traversal_wraps_without_mutating_zone_offset_input() -> None:
     zone_offset = 4
     anchors = derive_corner_anchor_device_indices(
@@ -125,6 +139,22 @@ def test_calibration_completion_requires_validation_score_threshold() -> None:
     assert report.hard_fail is True
     assert "override" in report.remediation_action.lower()
     assert report.remediation_hints
+    assert state.can_complete_calibration_flow() is False
+
+
+def test_calibration_completion_blocks_out_of_range_corner_anchor_assignments() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=8), {})
+    for step in CALIBRATION_SEQUENCE:
+        state.mark_calibration_step(step.step_id, passed=True)
+
+    state.corner_anchor_top_left = 0
+    state.corner_anchor_top_right = 2
+    state.corner_anchor_bottom_right = 4
+    state.corner_anchor_bottom_left = 999
+
+    report = state.validation_report()
+    assert report.anchors_unique_valid is False
+    assert report.outcome_status == "fail"
     assert state.can_complete_calibration_flow() is False
 
 

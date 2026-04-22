@@ -150,3 +150,36 @@ def test_mapping_snapshot_from_config_uses_nested_calibration_payload() -> None:
 
     snapshot = mapping_snapshot_from_config(config=cfg, source_zone_count=8)
     assert snapshot.strategy == "corner_anchored"
+
+
+def test_mapping_preview_corner_anchor_validation_handles_all_missing() -> None:
+    text = mapping_preview_text(
+        zone_count=8,
+        device_zone_count=8,
+        zone_offset=0,
+        reverse_zones=False,
+        calibration_model="corner_anchored",
+        corner_anchor_top_left=-1,
+        corner_anchor_top_right=-1,
+        corner_anchor_bottom_right=-1,
+        corner_anchor_bottom_left=-1,
+    )
+    assert "Corner anchor validation:" in text
+    assert "missing" in text.lower()
+
+
+def test_mapping_preview_corner_anchor_resolution_is_deterministic() -> None:
+    kwargs = {
+        "zone_count": 12,
+        "device_zone_count": 12,
+        "calibration_model": "corner_anchored",
+        "corner_anchor_top_left": 0,
+        "corner_anchor_top_right": 3,
+        "corner_anchor_bottom_right": 6,
+        "corner_anchor_bottom_left": 9,
+        "zone_offset": 2,
+        "reverse_zones": True,
+    }
+    first = mapping_preview_visual(**kwargs)
+    second = mapping_preview_visual(**kwargs)
+    assert first == second
