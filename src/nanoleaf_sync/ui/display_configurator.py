@@ -5,6 +5,7 @@ from dataclasses import dataclass, replace
 from typing import Callable
 
 from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
 from nanoleaf_sync.ui.calibration_flow import calibration_sequence_text
 from nanoleaf_sync.ui.calibration_state import CalibrationState, build_testing_panel_state
 from nanoleaf_sync.ui.qt_lazy import load_qt
@@ -224,6 +225,7 @@ class DisplayConfiguratorDialog:
                 self.preview_text = QLabel("")
                 self.preview_visual = QLabel("")
                 self.calibration_test_label = QLabel("")
+                self.anchor_validation_label = QLabel("")
                 self.calibration_next_button = QPushButton("Next test zone step")
                 self.calibration_prev_button = QPushButton("Previous test zone step")
                 self.calibration_send_button = QPushButton("Send test pattern")
@@ -355,7 +357,8 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.assign_tr_button, 10, 0, 1, 3)
                 layout.addWidget(self.assign_br_button, 11, 0, 1, 3)
                 layout.addWidget(self.assign_bl_button, 12, 0, 1, 3)
-                layout.addWidget(self.calibration_test_label, 13, 0, 1, 3)
+                layout.addWidget(self.anchor_validation_label, 13, 0, 1, 3)
+                layout.addWidget(self.calibration_test_label, 14, 0, 1, 3)
 
                 advanced_layout = QGridLayout()
                 advanced_layout.addWidget(QLabel("Global mapping zone offset"), 0, 0)
@@ -365,7 +368,7 @@ class DisplayConfiguratorDialog:
                 advanced_layout.addWidget(QLabel("Test zone step index"), 2, 0)
                 advanced_layout.addWidget(self.test_step_index_value, 2, 1, 1, 2)
                 self.advanced_calibration_group.setLayout(advanced_layout)
-                layout.addWidget(self.advanced_calibration_group, 14, 0, 1, 3)
+                layout.addWidget(self.advanced_calibration_group, 15, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -471,6 +474,7 @@ class DisplayConfiguratorDialog:
                 self._state.device_zone_count = int(self.device_zone_count_slider.value())
                 self._state.corner_offsets_enabled = False
                 self._state.corner_zone_offsets = [0, 0, 0, 0]
+                self._state.calibration_model = str(getattr(cfg, "calibration_model", "offset_direction"))
 
             def _normalize_offset_for_count(self, offset: int, zone_count: int) -> int:
                 total = max(1, int(zone_count))
@@ -544,9 +548,39 @@ class DisplayConfiguratorDialog:
                 next_set_enabled = getattr(self.next_button, "setEnabled", None)
                 if callable(next_set_enabled):
                     next_set_enabled(self._flow.can_go_next())
+                effective_zone_count = self._state.effective_device_zone_count()
+                corner_mode = self._state.calibration_model == "corner_anchored"
+                anchors = {
+                    "top_left": self._state.corner_anchor_top_left if self._state.corner_anchor_top_left >= 0 else None,
+                    "top_right": self._state.corner_anchor_top_right if self._state.corner_anchor_top_right >= 0 else None,
+                    "bottom_right": self._state.corner_anchor_bottom_right if self._state.corner_anchor_bottom_right >= 0 else None,
+                    "bottom_left": self._state.corner_anchor_bottom_left if self._state.corner_anchor_bottom_left >= 0 else None,
+                }
+                anchor_validation = validate_corner_anchors(anchors=anchors, device_zone_count=effective_zone_count)
+                for widget in (
+                    self.assign_tl_button,
+                    self.assign_tr_button,
+                    self.assign_br_button,
+                    self.assign_bl_button,
+                    self.anchor_validation_label,
+                ):
+                    set_visible = getattr(widget, "setVisible", None)
+                    if callable(set_visible):
+                        set_visible(corner_mode)
+                    set_enabled = getattr(widget, "setEnabled", None)
+                    if callable(set_enabled) and widget is not self.anchor_validation_label:
+                        set_enabled(corner_mode)
+                self.anchor_validation_label.setText(
+                    "" if not corner_mode else ("Corner anchors complete." if anchor_validation.valid else "Anchor validation error: " + " ".join(anchor_validation.errors))
+                )
+
                 finish_set_enabled = getattr(self.finish_button, "setEnabled", None)
                 if callable(finish_set_enabled):
-                    finish_set_enabled(not self._flow.can_go_next() and self._device_zone_count_confirmed)
+                    finish_set_enabled(
+                        not self._flow.can_go_next()
+                        and self._device_zone_count_confirmed
+                        and (not corner_mode or anchor_validation.valid)
+                    )
 
                 hdr_mode = str(self.display_mode_combo.currentText()) == "hdr"
                 for widget in (
@@ -563,7 +597,6 @@ class DisplayConfiguratorDialog:
                 self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
                 self.zone_count_value.setText(str(self.zone_count_slider.value()))
                 self.vibrancy_value.setText(f"{self.vibrancy_slider.value()}%")
-                effective_zone_count = self._state.effective_device_zone_count()
                 normalized_offset = self._normalize_offset_for_count(
                     int(self.zone_offset_slider.value()),
                     effective_zone_count,
@@ -647,10 +680,13 @@ class DisplayConfiguratorDialog:
                     corner_anchor_top_right=int(self._state.corner_anchor_top_right),
                     corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
                     corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
+                    calibration_model=str(self._state.calibration_model),
                     wizard_completed=True,
                 )
 
             def _assign_anchor(self, corner: str) -> None:
+                if self._state.calibration_model != "corner_anchored":
+                    return
                 current_zone = self._active_calibration_step().device_zone_index
                 if corner == "top_left":
                     self._state.corner_anchor_top_left = current_zone

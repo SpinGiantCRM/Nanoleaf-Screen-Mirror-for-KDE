@@ -96,6 +96,16 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         getattr(cfg, "manual_mapping_enabled", AppConfig.manual_mapping_enabled),
         AppConfig.manual_mapping_enabled,
     )
+    calibration_model = normalize_enum(
+        getattr(cfg, "calibration_model", AppConfig.calibration_model),
+        allowed={
+            "offset_direction": "offset_direction",
+            "offset-direction": "offset_direction",
+            "corner_anchored": "corner_anchored",
+            "corner-anchored": "corner_anchored",
+        },
+        default=AppConfig.calibration_model,
+    )
     explicit_zone_map = [int(i) for i in cfg.explicit_zone_map] if cfg.explicit_zone_map else []
     corner_anchor_top_left = int(getattr(cfg, "corner_anchor_top_left", -1))
     corner_anchor_top_right = int(getattr(cfg, "corner_anchor_top_right", -1))
@@ -240,6 +250,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         zone_offset=zone_offset,
         reverse_zones=coerce_bool(getattr(cfg, "reverse_zones", False), False),
         manual_mapping_enabled=manual_mapping_enabled,
+        calibration_model=calibration_model,
         explicit_zone_map=explicit_zone_map,
         corner_anchor_top_left=corner_anchor_top_left,
         corner_anchor_top_right=corner_anchor_top_right,
