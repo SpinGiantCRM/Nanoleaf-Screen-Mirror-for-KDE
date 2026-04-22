@@ -215,7 +215,7 @@ def test_display_configurator_updates_live_numeric_labels(monkeypatch) -> None:
     dialog._dialog.zone_offset_slider.setValue(-3)
 
     assert dialog._dialog.zone_count_value._text == "14"
-    assert dialog._dialog.zone_offset_value._text == "-3"
+    assert dialog._dialog.zone_offset_value._text == "-3 (raw -3)"
     assert "Screen sampling zones" in dialog._dialog.zone_count_explanation._text
 
 

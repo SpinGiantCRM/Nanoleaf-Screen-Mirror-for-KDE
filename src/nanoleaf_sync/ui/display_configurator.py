@@ -10,9 +10,7 @@ from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
 MAX_WIZARD_ZONE_COUNT = 128
-CORNER_OFFSET_LIMIT = 24
 CALIBRATION_MODE_CORNER = "corner+offset alignment"
-CALIBRATION_MODE_WALK = "fine offset"
 WIZARD_STEPS: tuple[str, ...] = (
     "Welcome & Display",
     "Color & HDR",
@@ -162,7 +160,8 @@ class DisplayConfiguratorDialog:
                 self.reverse_checkbox = qt["QCheckBox"]("Reverse strip orientation")
                 self.reverse_checkbox.setChecked(self._state.reverse_zones)
                 self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.zone_offset_slider.setRange(-64, 64)
+                initial_offset_limit = max(1, self._state.effective_device_zone_count() - 1)
+                self.zone_offset_slider.setRange(-initial_offset_limit, initial_offset_limit)
                 self.zone_offset_slider.setValue(self._state.zone_offset)
                 self.zone_offset_value = QLabel("")
                 self.test_step_index_value = QLabel("")
@@ -379,8 +378,57 @@ class DisplayConfiguratorDialog:
                 self._state.corner_offsets_enabled = False
                 self._state.corner_zone_offsets = [0, 0, 0, 0]
 
+            def _normalize_offset_for_count(self, offset: int, zone_count: int) -> int:
+                total = max(1, int(zone_count))
+                normalized = int(offset) % total
+                half_turn = total // 2
+                if normalized > half_turn:
+                    normalized -= total
+                return normalized
+
+            def _remap_offset_between_counts(self, offset: int, previous_count: int, new_count: int) -> int:
+                previous_total = max(1, int(previous_count))
+                new_total = max(1, int(new_count))
+                # Preserve rotational position on the ring; signed offset may change after
+                # normalization when the strip LED zone count changes.
+                preserved_position = int(offset) % previous_total
+                return self._normalize_offset_for_count(preserved_position, new_total)
+
+            def _calibration_offset_limit(self, zone_count: int) -> int:
+                return max(1, int(zone_count) - 1)
+
+            def _set_slider_value_safely(self, slider, value: int) -> None:
+                if int(slider.value()) == int(value):
+                    return
+                block_signals = getattr(slider, "blockSignals", None)
+                previous = False
+                if callable(block_signals):
+                    previous = bool(block_signals(True))
+                slider.setValue(int(value))
+                if callable(block_signals):
+                    block_signals(previous)
+
+            def _sync_zone_offset_slider(self, *, previous_zone_count: int | None = None) -> None:
+                current_device_zone_count = max(1, int(self.device_zone_count_slider.value()))
+                old_count = max(1, int(previous_zone_count or current_device_zone_count))
+                remapped_offset = self._remap_offset_between_counts(
+                    int(self.zone_offset_slider.value()),
+                    old_count,
+                    current_device_zone_count,
+                )
+                offset_limit = self._calibration_offset_limit(current_device_zone_count)
+                self.zone_offset_slider.setRange(-offset_limit, offset_limit)
+                self._set_slider_value_safely(self.zone_offset_slider, remapped_offset)
+
+            def _active_calibration_step(self):
+                step_total = self._state.cycle_length(CALIBRATION_MODE_CORNER)
+                self._test_step %= step_total
+                return self._state.step_for_mode(CALIBRATION_MODE_CORNER, self._test_step)
+
             def _on_device_zone_count_changed(self, *_args) -> None:
+                previous_zone_count = self._state.effective_device_zone_count()
                 self._device_zone_count_confirmed = True
+                self._sync_zone_offset_slider(previous_zone_count=previous_zone_count)
                 self._refresh()
 
             def _refresh(self) -> None:
@@ -411,7 +459,13 @@ class DisplayConfiguratorDialog:
 
                 self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
                 self.zone_count_value.setText(str(self.zone_count_slider.value()))
-                self.zone_offset_value.setText(str(self.zone_offset_slider.value()))
+                normalized_offset = self._normalize_offset_for_count(
+                    int(self.zone_offset_slider.value()),
+                    self._state.effective_device_zone_count(),
+                )
+                self.zone_offset_value.setText(
+                    f"{normalized_offset:+d} (raw {int(self.zone_offset_slider.value()):+d})"
+                )
                 self.device_zone_count_value.setText(str(self.device_zone_count_slider.value()))
                 self.zone_count_explanation.setText(
                     "Screen sampling zones = sampled regions on your display. Strip LED zones = physical LEDs on the Nanoleaf strip."
@@ -432,14 +486,12 @@ class DisplayConfiguratorDialog:
                 self.preview_text.setText(self._state.mapping_preview_text())
                 self.preview_visual.setText(self._state.mapping_preview_visual())
                 self.calibration_test_label.setText(preview.active_test_description)
-                current_zone = self._state.step_for_mode(
-                    CALIBRATION_MODE_CORNER,
-                    self._test_step,
-                ).device_zone_index
+                active_step = self._active_calibration_step()
+                current_zone = active_step.device_zone_index
                 step_total = self._state.cycle_length(CALIBRATION_MODE_CORNER)
                 self.test_step_index_value.setText(f"{self._test_step + 1}/{step_total}")
                 self.current_zone_label.setText(
-                    f"Test zone step: {self._test_step + 1}/{step_total} | Current physical strip zone: {current_zone}"
+                    f"Test zone step: {self._test_step + 1}/{step_total} | Active physical strip zone: {current_zone} | Normalized offset: {normalized_offset:+d}"
                 )
                 self.summary_label.setText(
                     "\n".join(
@@ -483,10 +535,7 @@ class DisplayConfiguratorDialog:
                 )
 
             def _assign_anchor(self, corner: str) -> None:
-                current_zone = self._state.step_for_mode(
-                    CALIBRATION_MODE_WALK,
-                    self._test_step,
-                ).device_zone_index
+                current_zone = self._active_calibration_step().device_zone_index
                 if corner == "top_left":
                     self._state.corner_anchor_top_left = current_zone
                 elif corner == "top_right":
@@ -501,10 +550,19 @@ class DisplayConfiguratorDialog:
                 if self._calibration_sender is None:
                     return
                 self._pull_state_from_controls()
+                # Normalize self._test_step before generating the frame.
+                self._active_calibration_step()
                 mode = CALIBRATION_MODE_CORNER
                 off_frame = [(0, 0, 0)] * self._state.effective_device_zone_count()
                 self._calibration_sender(off_frame)
-                self._calibration_sender(self._state.frame_for_step(mode=mode, step=self._test_step, brightness=1.0, all_off_except_active=True))
+                self._calibration_sender(
+                    self._state.frame_for_step(
+                        mode=mode,
+                        step=self._test_step,
+                        brightness=1.0,
+                        all_off_except_active=True,
+                    )
+                )
 
             def _next_test_zone(self) -> None:
                 self._pull_state_from_controls()

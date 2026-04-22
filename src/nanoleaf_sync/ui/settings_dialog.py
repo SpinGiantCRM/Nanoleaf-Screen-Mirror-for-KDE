@@ -123,7 +123,7 @@ class SettingsDialog:
 
                 self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_count_slider.setRange(1, MAX_ZONE_COUNT); self.zone_count_slider.setValue(self._state.zone_count)
                 self.zone_preset_combo = QComboBox(); self.zone_preset_combo.addItems(["Edge strip (recommended)", "Full-screen horizontal"]); self.zone_preset_combo.setCurrentIndex(0 if self._state.zone_preset == "edge-weighted" else 1)
-                self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_offset_slider.setRange(-64, 64); self.zone_offset_slider.setValue(self._state.zone_offset)
+                self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal); initial_offset_limit = max(1, self._state.effective_device_zone_count() - 1); self.zone_offset_slider.setRange(-initial_offset_limit, initial_offset_limit); self.zone_offset_slider.setValue(self._state.zone_offset)
                 self.reverse_checkbox = QCheckBox("Reverse strip orientation"); self.reverse_checkbox.setChecked(self._state.reverse_zones)
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.device_zone_count_slider.setRange(1, MAX_ZONE_COUNT); self.device_zone_count_slider.setValue(self._state.device_zone_count)
                 self.corner_anchor_button = QPushButton("Set next top-left anchor")
@@ -393,10 +393,54 @@ class SettingsDialog:
                 zone_preset_label = str(self.zone_preset_combo.currentText())
                 self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = "edge-weighted" if zone_preset_label.startswith("Edge strip") else "horizontal"; self._state.zone_offset = int(self.zone_offset_slider.value()); self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value())
 
+            def _normalize_offset_for_count(self, offset: int, zone_count: int) -> int:
+                total = max(1, int(zone_count))
+                normalized = int(offset) % total
+                half_turn = total // 2
+                if normalized > half_turn:
+                    normalized -= total
+                return normalized
+
+            def _remap_offset_between_counts(self, offset: int, previous_count: int, new_count: int) -> int:
+                previous_total = max(1, int(previous_count))
+                new_total = max(1, int(new_count))
+                # Preserve rotational position on the ring; signed offset may change after
+                # normalization when the strip LED zone count changes.
+                preserved_position = int(offset) % previous_total
+                return self._normalize_offset_for_count(preserved_position, new_total)
+
+            def _set_slider_value_safely(self, slider, value: int) -> None:
+                if int(slider.value()) == int(value):
+                    return
+                block_signals = getattr(slider, "blockSignals", None)
+                previous = False
+                if callable(block_signals):
+                    previous = bool(block_signals(True))
+                slider.setValue(int(value))
+                if callable(block_signals):
+                    block_signals(previous)
+
+            def _sync_zone_offset_slider(self, *, previous_zone_count: int | None = None) -> None:
+                current_zone_count = max(1, int(self.device_zone_count_slider.value()))
+                old_zone_count = max(1, int(previous_zone_count or current_zone_count))
+                remapped_offset = self._remap_offset_between_counts(
+                    int(self.zone_offset_slider.value()),
+                    old_zone_count,
+                    current_zone_count,
+                )
+                offset_limit = max(1, current_zone_count - 1)
+                self.zone_offset_slider.setRange(-offset_limit, offset_limit)
+                self._set_slider_value_safely(self.zone_offset_slider, remapped_offset)
+
             def _refresh_numeric_labels(self):
-                self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.sampling_quality_value.setText({"Low": "Better performance", "Balanced": "Default", "High": "Best visual fidelity"}.get(str(self.sampling_quality_combo.currentText()), "Default")); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.zone_offset_value.setText(str(self.zone_offset_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}"); self.test_duration_value.setText(str(self.test_duration_slider.value())); self.test_step_interval_value.setText(str(self.test_step_interval_slider.value())); self.test_brightness_value.setText(f"{self.test_brightness_slider.value()}%")
+                normalized_offset = self._normalize_offset_for_count(
+                    int(self.zone_offset_slider.value()),
+                    max(1, int(self.device_zone_count_slider.value())),
+                )
+                self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.sampling_quality_value.setText({"Low": "Better performance", "Balanced": "Default", "High": "Best visual fidelity"}.get(str(self.sampling_quality_combo.currentText()), "Default")); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.zone_offset_value.setText(f"{normalized_offset:+d} (raw {int(self.zone_offset_slider.value()):+d})"); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}"); self.test_duration_value.setText(str(self.test_duration_slider.value())); self.test_step_interval_value.setText(str(self.test_step_interval_slider.value())); self.test_brightness_value.setText(f"{self.test_brightness_slider.value()}%")
 
             def _refresh_preview_label(self):
+                self._sync_zone_offset_slider(previous_zone_count=self._state.effective_device_zone_count())
                 self._refresh_numeric_labels(); self._pull_state()
                 pending_cfg = replace(
                     cfg,
@@ -416,13 +460,11 @@ class SettingsDialog:
 
                 self.device_zone_count_value.setText(str(self.device_zone_count_slider.value()))
 
-                current_zone = self._state.step_for_mode(
-                    str(self.test_mode_combo.currentText()),
-                    self._test_step,
-                ).device_zone_index
+                active_step = self._current_calibration_step()
+                current_zone = active_step.device_zone_index
                 step_total = self._test_cycle_length()
                 self.current_zone_label.setText(
-                    f"Test zone step: {self._test_step + 1}/{step_total} | Current physical strip zone: {current_zone}"
+                    f"Test zone step: {self._test_step + 1}/{step_total} | Active physical strip zone: {current_zone} | Normalized offset: {self._normalize_offset_for_count(self._state.zone_offset, self._state.effective_device_zone_count()):+d}"
                 )
                 self.test_step_index_label.setText(f"{self._test_step + 1}/{step_total}")
 
@@ -430,7 +472,7 @@ class SettingsDialog:
                     state=self._state,
                     runtime_status=preview_status,
                     cfg=pending_cfg,
-                    mode=str(self.test_mode_combo.currentText()),
+                    mode=CALIBRATION_MODE_CORNER,
                     step=self._test_step,
                 )
                 self.preview_label.setText(
@@ -457,10 +499,7 @@ class SettingsDialog:
 
 
             def _assign_anchor(self, corner: str):
-                current_zone = self._state.step_for_mode(
-                    str(self.test_mode_combo.currentText()),
-                    self._test_step,
-                ).device_zone_index
+                current_zone = self._current_calibration_step().device_zone_index
                 if corner == "top_left":
                     self._state.corner_anchor_top_left = current_zone
                 elif corner == "top_right":
@@ -478,8 +517,11 @@ class SettingsDialog:
                 self._state.corner_anchor_bottom_left = -1
                 self._refresh_preview_label(); self._schedule_live_preview()
 
-            def _current_calibration_step(self): return self._state.step_for_mode(str(self.test_mode_combo.currentText()), self._test_step)
-            def _test_cycle_length(self): return self._state.cycle_length(str(self.test_mode_combo.currentText()))
+            def _current_calibration_step(self):
+                self._test_step %= self._test_cycle_length()
+                return self._state.step_for_mode(CALIBRATION_MODE_CORNER, self._test_step)
+
+            def _test_cycle_length(self): return self._state.cycle_length(CALIBRATION_MODE_CORNER)
             def _step_test_zone(self): self._test_step = (self._test_step + 1) % self._test_cycle_length(); self._refresh_preview_label(); self._send_test_pattern()
             def _prev_test_zone(self): self._test_step = (self._test_step - 1) % self._test_cycle_length(); self._refresh_preview_label(); self._send_test_pattern()
             def _on_calibration_controls_changed(self): self._refresh_preview_label(); self._schedule_live_preview()
@@ -496,7 +538,9 @@ class SettingsDialog:
             def _send_test_pattern(self):
                 if self._calibration_sender is None: return
                 self._pull_state()
-                colors = self._state.frame_for_step(mode=str(self.test_mode_combo.currentText()), step=self._test_step, brightness=self.test_brightness_slider.value()/100.0, all_off_except_active=bool(self.test_background_checkbox.isChecked()))
+                # Normalize self._test_step before generating the frame.
+                self._current_calibration_step()
+                colors = self._state.frame_for_step(mode=CALIBRATION_MODE_CORNER, step=self._test_step, brightness=self.test_brightness_slider.value()/100.0, all_off_except_active=bool(self.test_background_checkbox.isChecked()))
                 self._calibration_sender(colors)
 
             def _on_test_auto_toggled(self):
