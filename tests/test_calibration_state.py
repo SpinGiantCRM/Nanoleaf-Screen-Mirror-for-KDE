@@ -4,6 +4,7 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.calibration_state import (
     MIN_CALIBRATION_VALIDATION_CONFIDENCE,
     CalibrationState,
+    ZONE_COUNT_INVALIDATION_PHASES,
     backend_selection_info,
     build_latency_result,
     latency_result_summary,
@@ -300,3 +301,30 @@ def test_state_phase_boundary_restore_rewinds_only_from_saved_boundary() -> None
     assert state.restore_phase_boundary_checkpoint("direction-verification") is True
     assert state.zone_offset == 2
     assert state.restore_phase_boundary_checkpoint("corner-assignment") is False
+
+
+def test_zone_count_change_invalidates_dependent_phase_progress() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=8), {})
+    for step_id in state.calibration_steps():
+        state.mark_calibration_step(step_id, passed=True, notes=f"{step_id} passed")
+    expected = state.validation_report().expected_sentinels
+    state.corner_anchor_top_left = expected[0]
+    state.corner_anchor_top_right = expected[1]
+    state.corner_anchor_bottom_right = expected[2]
+    state.corner_anchor_bottom_left = expected[3]
+    assert state.can_complete_calibration_flow() is True
+
+    invalidated = state.invalidate_for_zone_count_change()
+
+    assert invalidated == ZONE_COUNT_INVALIDATION_PHASES
+    assert state.calibration_step_state("start-point-detection").passed is True
+    for step_id in ZONE_COUNT_INVALIDATION_PHASES:
+        progress = state.calibration_step_state(step_id)
+        assert progress.complete is False
+        assert progress.passed is False
+        assert progress.notes == ""
+        assert state.phase_completion_flags[step_id] is False
+        validation = state.phase_validation_state[step_id]
+        assert validation.valid is False
+        assert validation.details == ""
+    assert state.can_complete_calibration_flow() is False

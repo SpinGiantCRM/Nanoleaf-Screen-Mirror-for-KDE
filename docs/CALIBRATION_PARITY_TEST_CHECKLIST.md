@@ -38,7 +38,7 @@ This artifact links each calibration parity requirement in `docs/CALIBRATION_PAR
 | P-07 Offset+direction modulo + deterministic inversion | `tests/test_calibration_flow.py::test_derive_corner_anchor_device_indices_responds_to_offset_and_direction`; `tests/test_zone_calibration.py::test_mapping_preview_visual_reflects_reverse_and_offset` |
 | P-08 Corner-anchored deterministic + safe invalid handling | `tests/test_zone_calibration.py::test_mapping_preview_corner_anchor_resolution_is_deterministic`; `tests/test_zone_calibration.py::test_mapping_preview_corner_anchor_validation_handles_all_missing` |
 | P-09 Manual explicit map short-map fallback + no crash | `tests/test_zone_mapper.py::test_zone_mapper_explicit_map` |
-| P-10 Changed zone count/canceled wizard cannot preserve invalid completion | `tests/test_display_configurator.py::test_display_configurator_zone_count_change_remaps_anchors_and_shows_notice`; `tests/test_display_configurator.py::test_display_configurator_persists_and_restores_in_progress_draft` |
+| P-10 Changed zone count/canceled wizard cannot preserve invalid completion | `tests/test_display_configurator.py::test_display_configurator_zone_count_change_remaps_anchors_and_shows_notice`; `tests/test_display_configurator.py::test_display_configurator_blocks_next_until_calibration_phases_pass`; `tests/test_calibration_state.py::test_zone_count_change_invalidates_dependent_phase_progress`; `tests/test_display_configurator.py::test_display_configurator_persists_and_restores_in_progress_draft` |
 
 ## Batch delivery ledger (A-E)
 
