@@ -1,230 +1,239 @@
-# Calibration Parity Specification
+# CALIBRATION_PARITY_SPEC
 
 ## Purpose
 
-This document is the parity contract for calibration behavior across setup/onboarding, settings, and runtime validation surfaces. A change to calibration UX is **not releasable** unless it preserves (or intentionally updates) this contract and updates traceability links in the checklist.
+This document is the strict calibration behavior contract shared by Engineering and QA. Calibration changes are not releasable unless behavior remains compliant with this contract or the contract is updated in the same pull request.
 
-## Scope
+## Contract scope
 
-This contract applies to:
+This contract governs calibration behavior in:
 
-- `offset_direction` calibration mode (offset + reverse direction).
-- `corner_anchored` calibration mode (explicit TL/TR/BR/BL anchors).
-- Fine-tuning through per-corner local offsets.
-- Step-gated completion in the calibration flow.
+- Setup/onboarding calibration wizard.
+- Settings calibration workflow.
+- Runtime calibration mapping resolution and validation.
 
-Primary implementation surfaces:
+Primary owner modules:
 
 - `src/nanoleaf_sync/ui/calibration_flow.py`
 - `src/nanoleaf_sync/ui/calibration_state.py`
-- `src/nanoleaf_sync/runtime/calibration_resolver.py`
-- `src/nanoleaf_sync/color/zone_mapper.py`
 - `src/nanoleaf_sync/ui/zone_calibration.py`
-- `src/nanoleaf_sync/config/model.py`
-- `src/nanoleaf_sync/config/normalize.py`
+- `src/nanoleaf_sync/runtime/calibration_resolver.py`
+- `src/nanoleaf_sync/runtime/anchor_calibration.py`
+- `src/nanoleaf_sync/color/zone_mapper.py`
 
 ---
 
-## Contract: expected behavior (normative)
+## 1) Calibration phases (strict order)
 
-> Terms:
->
-> - **source zone** = sampled screen zone index.
-> - **device zone** = physical strip segment index.
-> - **mapping** = `device_zone_index -> source_zone_index`.
+Calibration MUST execute in this exact order:
 
-### 1) Start zone detection
+1. **Start-zone identification**
+2. **Direction verification**
+3. **Corner assignment**
+4. **Fine adjustment**
+5. **Final validation**
 
-1. Calibration flow must begin with `start-point-detection` and no prerequisites.
-2. User must be able to run a single active-zone walk that highlights exactly one physical zone at a time.
-3. Start-point detection is considered passable only when user confirms the active zone corresponds to physical top-left start position.
-4. If strip zone count is unknown/non-positive, effective count must normalize to at least 1 for deterministic preview/testing.
+Rules:
 
-**Observable evidence**
-
-- Sequence includes `start-point-detection` at position 1.
-- Active frame contains exactly one non-black zone for single-zone step in walk mode.
-- Progress gating keeps step 2 blocked until step 1 is marked passed.
-
-### 2) Direction handling
-
-1. Direction verification must be gated on successful start-point detection.
-2. Direction semantics:
-   - `reverse_zones = False` => clockwise progression semantics.
-   - `reverse_zones = True` => mirrored/counter-clockwise semantics.
-3. Toggling `reverse_zones` must change mapping output deterministically for same zone count + offset.
-4. A full cycle wraps modulo strip length with no index overflow or mutation of user-entered offset.
-
-**Observable evidence**
-
-- Mapping visual/text changes after reverse toggle.
-- Corner-anchor derivation changes when direction flips.
-- Walk cycle wraps to same device index after `N` steps.
-
-### 3) Corner assignment semantics
-
-1. Corner assignment step must follow direction verification.
-2. Corner order is canonical and immutable: **TL, TR, BR, BL**.
-3. In `corner_anchored` model:
-   - Four anchors must be unique and in-range to be valid.
-   - Invalid anchors must yield validation errors and fallback behavior (no crash).
-4. Derived sentinel corners from current mapping must be deterministic and unique up to available strip zones (`min(4, device_zone_count)`).
-5. If explicit assignments are missing, validation compares against derived sentinels by using expected defaults.
-
-**Observable evidence**
-
-- Preview text prints anchors in TL/TR/BR/BL order.
-- Validation report marks `anchors_unique_valid` false for duplicates/out-of-range.
-- Sentinel mismatch blocks completion even if steps were marked passed.
-
-### 4) Offset normalization
-
-1. `zone_offset` must be treated as integer rotational offset and normalized modulo source zone count in mapping output.
-2. Large positive and negative offsets must be equivalent to modulo-normalized values.
-3. `device_zone_count <= 0` must normalize to 1 in resolver/state where needed for deterministic behavior.
-4. Mapping with explicit manual map uses modulo-normalized explicit indices and falls back to source zone `0` if explicit map is shorter than device zone count.
-
-**Observable evidence**
-
-- Offset `10` on 3 zones behaves like `+1`.
-- Mapping output never contains out-of-range source indices.
-- Calibration previews and cycle helpers remain stable for non-positive configured counts.
-
-### 5) Fine tuning limits
-
-1. Per-corner fine-tune offsets are exactly 4 values `[TL, TR, BR, BL]`; missing values are padded with `0`.
-2. Fine-tune values are clamped to `[-24, +24]`.
-3. If corner offsets are disabled, effective offsets are `[0, 0, 0, 0]`.
-4. Local-corner refinement must keep influence mostly local; tuning one corner must not significantly drag opposite corner mapping.
-
-**Observable evidence**
-
-- Inputs like `[99, -99, 30, -30]` resolve to `[24, -24, 24, -24]`.
-- Single-corner tuning changes near-corner mapping while opposite corner remains stable.
-
-### 5b) Canonical calibration payload + migration
-
-1. Persisted config must include `calibration_schema_version` and `[calibration]`.
-2. Runtime and wizard surfaces must resolve mapping from canonical nested calibration payload.
-3. Top-level legacy calibration keys remain compatibility aliases only; normalization must mirror canonical values back to top-level fields.
-4. Invalid or missing schema/version values must coerce safely to a supported version (currently `1`).
-
-**Observable evidence**
-
-- Loading legacy top-level-only config produces populated `[calibration]` on save.
-- Resolver chooses nested `calibration_model`/anchors when present.
-- Setup wizard save writes consistent top-level + nested calibration fields.
-
-### 6) Final validation flow
-
-1. Calibration sequence order is fixed:
-   1. `start-point-detection`
-   2. `direction-verification`
-   3. `corner-assignment`
-   4. `edge-refinement`
-   5. `validation-replay`
-2. Completion gate requires:
-   - every step marked `passed = True`, and
-   - validation confidence score `>= 1.0`, and
-   - sentinel consistency true, and
-   - corner validation true.
-3. Failed validation replay or any failed prerequisite keeps completion gate closed.
-4. Remediation hints must be present when confidence < 1.0 or sentinel/anchor checks fail.
-
-**Observable evidence**
-
-- `can_complete_calibration_flow()` returns `False` when any step fails.
-- Forced sentinel mismatch keeps completion blocked even with all steps marked passed.
+- A phase is not passable until all prior phases are passed.
+- Final completion MUST remain blocked unless all phases pass.
+- Regressing any previously passed phase MUST invalidate completion status.
 
 ---
 
-## Canonical user journeys
+## 2) Expected user interactions per phase
 
-### Journey A: Happy path (offset + direction model)
+### Phase 1: Start-zone identification
 
-1. User starts calibration; step 1 highlights one zone and confirms top-left start point.
-2. User runs direction walk; motion is backwards, toggles reverse, reruns full cycle.
-3. User checks corner assignment equivalence in walk and verifies corners.
-4. User applies small offset tweaks until edge drift disappears.
-5. User runs validation replay across full cycle; all checks pass; completion enabled.
+**User does**
 
-**Pass condition:** completion gate opens and preview/mapping remains consistent after save/reopen.
+- Starts the calibration walk.
+- Confirms whether highlighted active zone matches expected physical start (top-left logical origin).
 
-### Journey B: Happy path (corner-anchored model)
+**App must show**
 
-1. User enables corner-anchored mode and assigns TL/TR/BR/BL while active zones are visible.
-2. System validates uniqueness/range of all anchors.
-3. User runs edge refinement with optional corner offsets.
-4. Validation replay passes with sentinel consistency and confidence 1.0.
+- Exactly one active/highlighted zone at a time.
+- Controls to confirm correct start or retry walk.
+- Gated progression (Phase 2 disabled until pass).
 
-**Pass condition:** mapping preview shows `Calibration model: corner anchored` and lists anchors in TL/TR/BR/BL order.
+**Pass condition**
 
-### Journey C: Recovery from wrong direction
+- User confirms correct start-zone and state records phase as passed.
 
-1. Start-point detection passed.
-2. Direction walk appears mirrored.
-3. User toggles reverse and repeats direction walk.
-4. Direction verification passes; downstream steps become available.
+**Fail condition**
 
-**Recovery rule:** direction failure never crashes flow; it blocks progression until corrected.
+- User rejects start-zone or exits phase without confirmation.
 
-### Journey D: Recovery from invalid corner anchors
+### Phase 2: Direction verification
 
-1. User enters duplicate or out-of-range anchors.
-2. Validation shows anchor errors; confidence remains below threshold.
-3. User reassigns unique in-range TL/TR/BR/BL anchors.
-4. Sentinel replay and final validation pass.
+**User does**
 
-**Recovery rule:** invalid anchors must degrade to actionable errors/hints, not undefined mapping behavior.
+- Runs forward/reverse zone traversal preview.
+- Toggles direction when traversal appears mirrored.
+- Confirms direction after a full cycle check.
 
-### Journey E: Recovery from over-tuned corner offsets
+**App must show**
 
-1. User inputs extreme corner offsets.
-2. System clamps to supported range automatically.
-3. User iterates with smaller values to eliminate drift.
+- Current direction setting and live mapping preview changes.
+- Stable wrap-around cycle behavior for full zone count.
+- Phase 3 remains blocked until pass.
 
-**Recovery rule:** no overflow/no out-of-range indexing; tuning remains deterministic.
+**Pass condition**
+
+- User-confirmed traversal direction matches physical progression and full cycle wraps deterministically.
+
+**Fail condition**
+
+- Traversal is mirrored/incorrect or user does not confirm direction.
+
+### Phase 3: Corner assignment
+
+**User does**
+
+- Assigns anchors for corners in canonical order: TL, TR, BR, BL.
+- Corrects duplicates/out-of-range selections when prompted.
+
+**App must show**
+
+- Corner labels in immutable TL/TR/BR/BL order.
+- Immediate validity feedback for duplicate and out-of-range anchors.
+- Recovery guidance when anchors are invalid.
+
+**Pass condition**
+
+- All required anchors are unique, in-range, and accepted by validation.
+
+**Fail condition**
+
+- Any duplicate, missing, or out-of-range anchor.
+
+### Phase 4: Fine adjustment
+
+**User does**
+
+- Applies per-corner micro-adjustments to alignment.
+- Iterates until local edge drift is corrected.
+
+**App must show**
+
+- Four-slot adjustment model `[TL, TR, BR, BL]`.
+- Clamped values and updated preview behavior after each adjustment.
+- Deterministic mapping updates.
+
+**Pass condition**
+
+- Adjustment values validate and preview alignment is acceptable for user confirmation.
+
+**Fail condition**
+
+- Invalid adjustment data model (wrong shape/type) or unresolved severe drift.
+
+### Phase 5: Final validation
+
+**User does**
+
+- Runs replay/validation over full mapping.
+- Reviews confidence and mismatch diagnostics.
+- Confirms completion only if all checks pass.
+
+**App must show**
+
+- Validation confidence and per-check status.
+- Sentinel/anchor consistency diagnostics.
+- Clear remediation hints when failed.
+
+**Pass condition**
+
+- Every prior phase passed, confidence threshold met, and consistency checks pass.
+
+**Fail condition**
+
+- Any failed prerequisite, confidence below threshold, or consistency mismatch.
 
 ---
 
-## Failure and recovery scenarios (release-significant)
+## 3) Mapping semantics by calibration model
 
-- **Unknown strip size (`device_zone_count <= 0`)**
-  - Expected: normalized deterministic behavior with effective count >= 1.
-  - Recovery: detect real zone count or keep configured fallback; no crash.
-- **Step prerequisite violation**
-  - Expected: blocked progression for dependent steps.
-  - Recovery: pass prerequisite step first.
-- **Validation replay fails after prior passes**
-  - Expected: completion disabled until replay passes.
-  - Recovery: rerun failing phase + replay.
-- **Sentinel mismatch with otherwise passed steps**
-  - Expected: completion disabled; remediation hints emitted.
-  - Recovery: reassign anchors and rerun replay.
-- **Manual mapping shorter than strip zone count**
-  - Expected: unmapped tail defaults to source zone 0.
-  - Recovery: provide full explicit map if desired.
+### A) Offset + direction model (`offset_direction`)
+
+Contract:
+
+- Mapping is rotational with modulo normalization.
+- `zone_offset` MAY be positive or negative; resolved mapping MUST be modulo-normalized.
+- Direction flag MUST deterministically invert traversal semantics without mutating stored offset.
+- Full-cycle traversal MUST return to origin after exactly `N` steps for `N` zones.
+
+### B) Corner-anchored model (`corner_anchored`)
+
+Contract:
+
+- Mapping is anchored by explicit TL/TR/BR/BL corner assignments.
+- Anchor set MUST be unique and in-range.
+- Invalid anchors MUST NOT crash mapping; system MUST report invalid state and block completion.
+- Derived transitions between anchors MUST remain deterministic for a fixed zone count and direction.
+
+### C) Manual explicit map model (`manual_explicit_map`)
+
+Contract:
+
+- Mapping uses user-provided explicit zone list as authoritative source.
+- Explicit indices MUST be normalized/clamped to legal source range before runtime use.
+- If explicit list is shorter than device zone count, unmapped tail MUST fall back deterministically (default source index `0` unless explicitly changed in future contract revision).
+- Duplicate explicit indices are allowed unless additional product rules forbid them.
 
 ---
 
-## Parity checklist (QA + release gate)
+## 4) Error and recovery behavior
 
-Use this checklist for every UX/calibration change PR. A release candidate must have all required checks passing or an explicit signed waiver.
+### Invalid anchors
 
-| ID | Checklist item (must hold) | Verification type | Owning tests (automated) | Owning files (implementation) |
-|---|---|---|---|---|
-| P-01 | Sequence order is fixed and includes 5 required steps with prerequisite gating. | Automated + manual sanity | `tests/test_calibration_flow.py::test_calibration_sequence_contains_required_order`; `tests/test_calibration_flow.py::test_calibration_step_prerequisites_gate_completion` | `src/nanoleaf_sync/ui/calibration_flow.py`; `src/nanoleaf_sync/ui/calibration_state.py` |
-| P-02 | Start-point detection uses single active zone semantics and blocks step 2 until passed. | Automated + manual visual | `tests/test_calibration_flow.py::test_calibration_step_prerequisites_gate_completion`; `tests/test_zone_calibration.py::test_calibration_test_frame_only_lights_active_zone` | `src/nanoleaf_sync/ui/calibration_flow.py`; `src/nanoleaf_sync/ui/calibration_preview.py`; `src/nanoleaf_sync/ui/calibration_state.py` |
-| P-03 | Direction toggle changes mapping deterministically and wrap-around remains stable. | Automated | `tests/test_zone_calibration.py::test_mapping_preview_visual_reflects_reverse_and_offset`; `tests/test_calibration_flow.py::test_derive_corner_anchor_device_indices_responds_to_offset_and_direction`; `tests/test_calibration_flow.py::test_corner_anchor_traversal_wraps_without_mutating_zone_offset_input` | `src/nanoleaf_sync/color/zone_mapper.py`; `src/nanoleaf_sync/ui/zone_calibration.py`; `src/nanoleaf_sync/ui/calibration_flow.py` |
-| P-04 | Corner assignment is TL/TR/BR/BL canonical and corner-anchored mode is deterministic. | Automated | `tests/test_corner_anchor_calibration.py::test_corner_anchored_model_uses_assigned_anchors_deterministically`; `tests/test_zone_calibration.py::test_corner_anchor_steps_are_labeled`; `tests/test_calibration_flow.py::test_derive_corner_anchor_device_indices_stays_unique_with_more_device_zones` | `src/nanoleaf_sync/runtime/anchor_calibration.py`; `src/nanoleaf_sync/ui/calibration_flow.py`; `src/nanoleaf_sync/ui/zone_calibration.py` |
-| P-05 | Offset normalization is modulo-safe for large values and keeps indices in range. | Automated | `tests/test_zone_mapper.py::test_zone_mapper_wraps_large_positive_offset`; `tests/test_zone_mapper.py::test_zone_mapper_offset_rotation` | `src/nanoleaf_sync/color/zone_mapper.py`; `src/nanoleaf_sync/runtime/calibration_resolver.py` |
-| P-06 | Fine-tuning enforces 4-slot shape, pads missing values, and clamps to ±24. | Automated | `tests/test_calibration_state.py::test_corner_refinement_clamps_to_supported_limit`; `tests/test_calibration_state.py::test_corner_refinement_active_offsets_pad_missing_values`; `tests/test_zone_mapper.py::test_zone_mapper_corner_adjustments_stay_local_to_each_corner` | `src/nanoleaf_sync/ui/calibration_state.py`; `src/nanoleaf_sync/color/zone_mapper.py` |
-| P-07 | Final completion gate requires all steps passed and confidence >= 1.0 with sentinel consistency. | Automated | `tests/test_calibration_flow.py::test_calibration_step_fail_keeps_completion_gate_closed`; `tests/test_calibration_flow.py::test_calibration_completion_requires_validation_score_threshold`; `tests/test_calibration_state.py::test_validation_report_tracks_confidence_and_sentinel_consistency` | `src/nanoleaf_sync/ui/calibration_state.py`; `src/nanoleaf_sync/ui/calibration_flow.py` |
-| P-08 | Failure paths provide remediation hints (direction, anchors, replay, sentinel mismatch). | Automated + manual review | `tests/test_calibration_flow.py::test_calibration_completion_requires_validation_score_threshold`; `tests/test_calibration_state.py::test_validation_report_tracks_confidence_and_sentinel_consistency` | `src/nanoleaf_sync/ui/calibration_state.py`; `src/nanoleaf_sync/ui/calibration_flow.py` |
-| P-09 | Canonical nested calibration payload is migration-safe and used as mapping source across runtime/UI. | Automated | `tests/test_config.py::test_resolver_reads_nested_calibration_model_and_anchors`; `tests/test_zone_calibration.py::test_mapping_snapshot_from_config_uses_nested_calibration_payload`; `tests/test_display_configurator.py::test_display_configurator_uses_corner_anchor_model` | `src/nanoleaf_sync/config/model.py`; `src/nanoleaf_sync/config/normalize.py`; `src/nanoleaf_sync/runtime/calibration_resolver.py`; `src/nanoleaf_sync/ui/display_configurator.py` |
+- Behavior: Flag validation error with specific corner(s), block phase pass and final completion.
+- Recovery: User reassigns invalid anchors; validation reruns immediately.
 
-### Release gate usage
+### Duplicate anchors
 
-- **Required:** P-01 through P-08 green in CI (or documented waiver).
-- **Required:** at least one manual walkthrough for Journey A or B and one recovery journey (C/D/E).
-- **Required:** if any checklist item’s owning tests/files change, update this spec in the same PR.
+- Behavior: Duplicate detection MUST be explicit and treated as invalid configuration.
+- Recovery: User must select unique anchors for all required corners.
+
+### Changed zone count (device/source)
+
+- Behavior: Any zone count change after calibration MUST invalidate prior pass state and force re-validation from impacted phase(s).
+- Behavior: Non-positive zone count inputs MUST normalize to a deterministic minimum for preview/runtime safety.
+- Recovery: App prompts user to rerun affected phases, then final validation.
+
+### Canceled wizard
+
+- Behavior: Cancel MUST NOT commit partial calibration as completed.
+- Behavior: If draft state persistence exists, it MUST be clearly marked non-final and MUST NOT bypass validation gates.
+- Recovery: Re-enter wizard at first incomplete/invalid phase; complete full validation before commit.
+
+---
+
+## 5) Acceptance checklist (Engineering + QA)
+
+| Spec item | Test file(s) | Owner module |
+|---|---|---|
+| Phase order is fixed: start-zone → direction → corner assignment → fine adjustment → final validation, with prerequisite gating. | `tests/test_calibration_flow.py` | `src/nanoleaf_sync/ui/calibration_flow.py` |
+| Start-zone phase shows one active zone and blocks progression until confirmation. | `tests/test_zone_calibration.py`, `tests/test_calibration_flow.py` | `src/nanoleaf_sync/ui/zone_calibration.py`, `src/nanoleaf_sync/ui/calibration_state.py` |
+| Direction toggle changes mapping deterministically and preserves stable wrap-around behavior. | `tests/test_zone_calibration.py`, `tests/test_calibration_flow.py`, `tests/test_zone_mapper.py` | `src/nanoleaf_sync/color/zone_mapper.py`, `src/nanoleaf_sync/ui/zone_calibration.py` |
+| Corner assignment enforces TL/TR/BR/BL canonical order and uniqueness/in-range validation. | `tests/test_corner_anchor_calibration.py`, `tests/test_calibration_flow.py`, `tests/test_zone_calibration.py` | `src/nanoleaf_sync/runtime/anchor_calibration.py`, `src/nanoleaf_sync/ui/calibration_flow.py` |
+| Fine adjustment uses exactly 4 slots and clamps values to supported limits. | `tests/test_calibration_state.py`, `tests/test_zone_mapper.py` | `src/nanoleaf_sync/ui/calibration_state.py`, `src/nanoleaf_sync/color/zone_mapper.py` |
+| Final validation gate blocks completion on confidence/sentinel/anchor failures. | `tests/test_calibration_state.py`, `tests/test_calibration_flow.py` | `src/nanoleaf_sync/ui/calibration_state.py`, `src/nanoleaf_sync/ui/calibration_flow.py` |
+| Offset+direction model obeys modulo normalization and deterministic inversion semantics. | `tests/test_zone_mapper.py`, `tests/test_calibration_flow.py` | `src/nanoleaf_sync/color/zone_mapper.py`, `src/nanoleaf_sync/runtime/calibration_resolver.py` |
+| Corner-anchored model remains deterministic and fails safely on invalid anchors. | `tests/test_corner_anchor_calibration.py`, `tests/test_zone_calibration.py` | `src/nanoleaf_sync/runtime/anchor_calibration.py`, `src/nanoleaf_sync/runtime/calibration_resolver.py` |
+| Manual explicit map model handles short maps with deterministic fallback and no crash. | `tests/test_zone_mapper.py`, `tests/test_calibration_surface_consistency.py` | `src/nanoleaf_sync/color/zone_mapper.py`, `src/nanoleaf_sync/runtime/calibration_resolver.py` |
+| Changed zone count and canceled wizard cannot silently preserve invalid “completed” state. | `tests/test_calibration_state.py`, `tests/test_calibration_flow.py`, `tests/test_wizard_and_settings_structure.py` | `src/nanoleaf_sync/ui/calibration_state.py`, `src/nanoleaf_sync/ui/calibration_flow.py`, `src/nanoleaf_sync/ui/settings_dialog.py` |
+
+---
+
+## Out of scope
+
+The following are explicitly out of scope for this contract revision:
+
+- Redesign of calibration UX visuals/theme/layout.
+- New calibration models beyond the three listed above.
+- Device-specific heuristics for non-standard strip geometries.
+- Auto-calibration powered by external sensors/cameras.
+- Performance benchmarking and latency target policy.
+
+Any future change to out-of-scope items requires a separate spec update before release.
