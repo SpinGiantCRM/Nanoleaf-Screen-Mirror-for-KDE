@@ -282,7 +282,7 @@ class DisplayConfiguratorDialog:
 
                 # Summary
                 self.summary_label = QLabel("")
-                self.finish_override_checkbox = qt["QCheckBox"]("Allow Finish despite verification fail")
+                self.finish_override_checkbox = qt["QCheckBox"]("Override disabled by strict calibration policy")
                 self.finish_override_note = QLabel("")
 
                 self.cancel_button = QPushButton("Cancel")
@@ -927,7 +927,6 @@ class DisplayConfiguratorDialog:
                 )
 
                 finish_set_enabled = getattr(self.finish_button, "setEnabled", None)
-                allow_finish_override = bool(self.finish_override_checkbox.isChecked())
                 can_finish_without_override = (
                     not self._flow.can_go_next()
                     and self._device_zone_count_confirmed
@@ -935,20 +934,22 @@ class DisplayConfiguratorDialog:
                     and not verification.hard_fail
                 )
                 if callable(finish_set_enabled):
-                    finish_set_enabled(can_finish_without_override or allow_finish_override)
+                    finish_set_enabled(can_finish_without_override)
                 override_set_enabled = getattr(self.finish_override_checkbox, "setEnabled", None)
                 if callable(override_set_enabled):
-                    override_set_enabled(bool(verification.hard_fail))
-                if not verification.hard_fail:
-                    if bool(self.finish_override_checkbox.isChecked()):
-                        self.finish_override_checkbox.setChecked(False)
+                    override_set_enabled(False)
+                override_set_visible = getattr(self.finish_override_checkbox, "setVisible", None)
+                if callable(override_set_visible):
+                    override_set_visible(False)
+                if bool(self.finish_override_checkbox.isChecked()):
+                    self.finish_override_checkbox.setChecked(False)
                 self.finish_override_note.setText(
-                    "Finish blocked: verification hard-fail. Re-run failed phases or explicitly override."
+                    "Finish blocked: strict calibration policy requires confidence=1.00 and sentinel consistency."
                     if verification.hard_fail
                     else (
-                        "Verification warning: sentinel replay differs from expected mapping; finishing is allowed."
-                        if verification.outcome_status == "pass_with_warning"
-                        else "Verification pass: calibration is reliable."
+                        "Verification pass: calibration meets strict completion policy."
+                        if verification.outcome_status == "pass"
+                        else "Finish blocked: strict calibration policy requires full validation pass."
                     )
                 )
 

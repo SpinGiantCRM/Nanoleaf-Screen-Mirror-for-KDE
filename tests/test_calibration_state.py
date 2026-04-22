@@ -252,7 +252,7 @@ def test_validation_report_tracks_confidence_and_sentinel_consistency() -> None:
     assert state.can_complete_calibration_flow() is True
 
 
-def test_validation_report_can_pass_with_warning_when_sentinels_mismatch() -> None:
+def test_validation_report_fails_when_sentinels_mismatch_under_strict_policy() -> None:
     state = CalibrationState.from_config(AppConfig(device_zone_count=8), {})
     for step_id in state.calibration_steps():
         state.mark_calibration_step(step_id, passed=True)
@@ -266,10 +266,10 @@ def test_validation_report_can_pass_with_warning_when_sentinels_mismatch() -> No
     report = state.validation_report()
     assert report.confidence_score == 1.0
     assert report.sentinel_consistency is False
-    assert report.outcome_status == "pass_with_warning"
-    assert report.hard_fail is False
+    assert report.outcome_status == "fail"
+    assert report.hard_fail is True
     assert "sentinel mismatch" not in report.compact_summary().lower()
-    assert state.can_complete_calibration_flow() is True
+    assert state.can_complete_calibration_flow() is False
 
 
 def test_state_checkpoint_restore_round_trips_phase_progress() -> None:
