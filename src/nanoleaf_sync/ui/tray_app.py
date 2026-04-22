@@ -498,14 +498,18 @@ class NanoleafTrayApp:
             7000,
         )
 
-    def on_display_configurator(self) -> None:
+    def on_display_configurator(self, *, was_running_intent: bool | None = None) -> None:
         dlg = DisplayConfiguratorDialog(
             parent=None,
             cfg=self.config,
             calibration_sender=self._send_calibration_preview,
             runtime_status=self.service.get_status(),
         )
-        was_running = self.service.is_running() or bool(getattr(self, "_preview_paused_service", False))
+        was_running = (
+            was_running_intent
+            if was_running_intent is not None
+            else self.service.is_running() or bool(getattr(self, "_preview_paused_service", False))
+        )
         accepted = dlg.exec() == self.QDialog.DialogCode.Accepted
         close_preview = getattr(self, "_close_preview_driver", None)
         if callable(close_preview):
@@ -551,7 +555,7 @@ class NanoleafTrayApp:
         if dlg.wants_display_configurator():
             self.config = dlg.updated_config()
             self.cfg_mgr.save(self.config)
-            self.on_display_configurator()
+            self.on_display_configurator(was_running_intent=was_running)
             return
         new_cfg = dlg.updated_config()
         self.cfg_mgr.save(new_cfg)
@@ -786,7 +790,7 @@ class NanoleafTrayApp:
         return self.app.exec()
 
 
-def main(argv: list[str] | None = None) -> int:  # pragma: no cover
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="nanoleaf-kde-sync tray entry point")
     parser.add_argument("--self-check", action="store_true", help="run non-interactive startup/import checks and exit")
     parser.add_argument(
