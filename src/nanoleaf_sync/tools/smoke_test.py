@@ -64,11 +64,15 @@ def main(argv: list[str] | None = None) -> int:
         hdr_max_nits=cfg.hdr_max_nits,
         hdr_transfer=cfg.hdr_transfer,
         hdr_primaries=cfg.hdr_primaries,
+        auto_probe_enabled=cfg.auto_probe_enabled,
+        cached_probe_winner=cfg.auto_selected_backend or None,
     )
     effective_backend = getattr(capture, "name", "unknown")
-    if normalize_backend_preference(cfg.prefer_backend) != AUTO_BACKEND:
+    requested_backend = normalize_backend_preference(cfg.prefer_backend)
+    cached_probe_winner = cfg.auto_selected_backend or None
+    if requested_backend != AUTO_BACKEND:
         selection_reason = "explicit"
-    elif cfg.auto_selected_backend and cfg.auto_selected_backend == effective_backend:
+    elif cached_probe_winner and cached_probe_winner == effective_backend:
         selection_reason = "cached-probe"
     elif effective_backend in AUTO_PROBE_CANDIDATES:
         selection_reason = "fresh-probe"
