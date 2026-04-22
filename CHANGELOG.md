@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.7.5] - 2026-04-22
+
+## What's Changed
+* Fix step-1 strip LED count flow and add regression coverage by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/184
+* Normalize and persist edge_sampling_thickness (0.01–0.5) by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/185
+* Unify runtime device-zone mapping signature typing by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/186
+* Forward auto-probe kwargs from smoke tool to capture factory and add wiring test by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/187
+* Fix probe timeout shutdown and validate KWin ScreenShot2 expected byte counts by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/188
+* Preserve running intent when rerunning display wizard by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/189
+* Stabilize capture factory caches and relax runtime frame payload assertions by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/190
+* Fix ScreenShot2 expected-byte derivation for zero/negative sizes by @SpinGiantCRM in https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/pull/191
+
+
+**Full Changelog**: https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/compare/v0.7.4...v0.7.5
+
 ## [0.7.4] - 2026-04-22
 
 ## What's Changed
