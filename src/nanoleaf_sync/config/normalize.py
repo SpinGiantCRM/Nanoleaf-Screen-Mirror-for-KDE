@@ -156,6 +156,13 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         },
         default=AppConfig.zone_preset,
     )
+    edge_sampling_thickness = max(
+        0.01,
+        min(
+            0.5,
+            float(getattr(cfg, "edge_sampling_thickness", AppConfig.edge_sampling_thickness)),
+        ),
+    )
     raw_color_mode = getattr(cfg, "color_mode", AppConfig.color_mode)
     normalized_color_mode = str(raw_color_mode).strip().lower()
     color_mode_allowed = {
@@ -204,6 +211,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         zones=zones,
         zone_sampling_stride=zone_sampling_stride,
         sampling_quality=sampling_quality,
+        edge_sampling_thickness=edge_sampling_thickness,
         zone_preset=zone_preset,
         color_mode=color_mode,
         wizard_completed=coerce_bool(getattr(cfg, "wizard_completed", False), False),
