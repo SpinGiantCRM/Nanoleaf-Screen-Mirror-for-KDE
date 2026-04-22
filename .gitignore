@@ -11,3 +11,11 @@ __pycache__/
 # Virtual environments
 .venv/
 venv/
+
+# Local env / logs / build artifacts
+.env
+*.log
+*.toml.tmp.*
+dist/
+build/
+*.egg-info/

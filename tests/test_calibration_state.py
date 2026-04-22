@@ -170,6 +170,11 @@ def test_configured_device_zone_mode_no_longer_reports_auto_detection() -> None:
     assert "Using configured strip zone count" in state.auto_detection_status()
 
 
+def test_detected_device_zone_mode_reports_auto_detection() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=0), {"device_zone_count": 12})
+    assert "Using auto-detected strip zone count 12" in state.auto_detection_status()
+
+
 def test_backend_and_testing_state_are_exposed_for_ui_surfaces() -> None:
     cfg = AppConfig(prefer_backend="auto")
     runtime_status = {
