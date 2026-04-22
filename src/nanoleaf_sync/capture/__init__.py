@@ -5,6 +5,7 @@ from nanoleaf_sync.capture.kwin_dbus import KWinDBusScreenshotCapture
 from nanoleaf_sync.capture.mock_capture import MockScreenCapture
 from nanoleaf_sync.capture.replay_capture import ReplayScreenCapture
 from nanoleaf_sync.capture.auto_probe import ProbeConfig, ProbeResult, CandidateProbeResult, probe_backends
+from nanoleaf_sync.capture.probe_models import ProbeError, ProbeErrorKind, ProbeStage
 
 __all__ = [
     "KMSGrabCapture",
@@ -16,5 +17,8 @@ __all__ = [
     "ProbeConfig",
     "ProbeResult",
     "CandidateProbeResult",
+    "ProbeError",
+    "ProbeErrorKind",
+    "ProbeStage",
     "probe_backends",
 ]

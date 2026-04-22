@@ -337,9 +337,7 @@ class NanoleafSyncService:
                                     "Failed to persist auto-probe cache metadata: %s",
                                     exc,
                                 )
-                    self.config.auto_selected_backend = updated_config.auto_selected_backend
-                    self.config.auto_probe_signature = updated_config.auto_probe_signature
-                    self.config.auto_probe_timestamp = updated_config.auto_probe_timestamp
+                    self.config = updated_config
                 else:
                     self._selection_reason = "fallback"
         self._effective_capture_backend = getattr(self._capture, "name", None)

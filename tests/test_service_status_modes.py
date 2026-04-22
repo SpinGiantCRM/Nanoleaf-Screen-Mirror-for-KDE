@@ -283,7 +283,9 @@ def test_service_each_boot_policy_probes_once_per_process_under_concurrent_start
 
     assert not first.is_alive()
     assert not second.is_alive()
-    assert sorted(seen_cached_values, key=lambda value: value is not None) == [None, "kwin-dbus"]
+    assert sorted(seen_cached_values, key=lambda value: value is not None) == [None, ""]
+    assert service_one.config.auto_selected_backend == "kwin-dbus"
+    assert service_two.config.auto_selected_backend == "kwin-dbus"
 
 
 def test_service_first_run_policy_creates_cache_and_persists_metadata(monkeypatch) -> None:
@@ -315,9 +317,10 @@ def test_service_first_run_policy_creates_cache_and_persists_metadata(monkeypatc
     service._install_drivers()
 
     assert seen_cached_values == [None]
-    assert cfg.auto_selected_backend == "kwin-dbus"
-    assert cfg.auto_probe_signature == "sig-a"
-    assert cfg.auto_probe_timestamp
+    assert service.config.auto_selected_backend == "kwin-dbus"
+    assert service.config.auto_probe_signature == "sig-a"
+    assert service.config.auto_probe_timestamp
+    assert cfg.auto_selected_backend == ""
     assert len(saved_configs) == 1
 
 

@@ -30,9 +30,9 @@ For physical (non-simulated) release validation and defect capture fields (exact
 ## Spec acceptance parity map (P-01..P-10)
 
 Evidence reference key:
-- `EV-AUTO-2026-04-22`: `docs/CALIBRATION_PARITY_RELEASE_GATE.md` → "Automated evidence run" (pytest command output summary).
-- `EV-MANUAL-2026-04-22`: `docs/CALIBRATION_PARITY_RELEASE_GATE.md` → "Manual wizard run evidence by phase".
-- `EV-PARITY-MAP-2026-04-22`: `docs/CALIBRATION_PARITY_RELEASE_GATE.md` → "Parity map verdict (P-01..P-10)".
+- `EV-AUTO-2026-04-22`: `docs/archive/2026-04-22-rc1-gate.md` → "Automated evidence run" (pytest command output summary).
+- `EV-MANUAL-2026-04-22`: `docs/archive/2026-04-22-rc1-gate.md` → "Manual wizard run evidence by phase".
+- `EV-PARITY-MAP-2026-04-22`: `docs/archive/2026-04-22-rc1-gate.md` → "Parity map verdict (P-01..P-10)".
 - `EV-CHANGELOG-UNREL-2026-04-22`: `CHANGELOG.md` → `Unreleased` calibration parity evidence notes.
 
 | Parity item (from spec §5) | Coverage | Status | Evidence reference | Date | Reviewer |

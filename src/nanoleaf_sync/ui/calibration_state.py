@@ -167,6 +167,7 @@ class CalibrationState:
     phase_rollback_checkpoints: dict[str, CalibrationCheckpoint] = field(default_factory=dict)
     phase_boundary_checkpoints: dict[str, CalibrationCheckpoint] = field(default_factory=dict)
     action_history: list[CalibrationCheckpoint] = field(default_factory=list)
+    detected_device_zone_count: int = 0
 
     @classmethod
     def from_config(cls, cfg: AppConfig, runtime_status: dict | None = None) -> "CalibrationState":
@@ -204,6 +205,7 @@ class CalibrationState:
             corner_anchor_top_right=anchor_values[1],
             corner_anchor_bottom_right=anchor_values[2],
             corner_anchor_bottom_left=anchor_values[3],
+            detected_device_zone_count=detected if detected > 0 else 0,
         )
 
     def active_corner_zone_offsets(self) -> list[int]:
@@ -518,6 +520,8 @@ class CalibrationState:
         return self.restore_checkpoint(checkpoint)
 
     def auto_detection_status(self) -> str:
+        if int(self.detected_device_zone_count) > 0 and int(self.device_zone_count) == int(self.detected_device_zone_count):
+            return f"Using auto-detected strip zone count {self.device_zone_count}."
         return f"Using configured strip zone count {self.device_zone_count}."
 
     def effective_device_zone_count(self) -> int:
