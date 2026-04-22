@@ -231,7 +231,7 @@ def _check_hid_enumeration(config: AppConfig) -> DoctorCheck:
         if isinstance(path, bytes):
             path = path.decode("utf-8", errors="replace")
         details.append(
-            f"#{idx} path={path or '<unknown>'} interface={dev.get('interface_number')!r} "
+            f"#{idx} path={path or '<unknown>'} interface_number={dev.get('interface_number')!r} "
             f"usage_page={dev.get('usage_page')!r} usage={dev.get('usage')!r}"
         )
 
@@ -263,11 +263,17 @@ def _check_real_device_probe(config: AppConfig) -> DoctorCheck:
         )
     except Exception as exc:
         lowered = str(exc).lower()
-        if "failed to open nanoleaf hid device after enumeration" in lowered:
+        open_failure_markers = (
+            "failed to open nanoleaf hid device after enumeration",
+            "attempt results:",
+            "open_path(",
+            "open(",
+        )
+        if any(marker in lowered for marker in open_failure_markers):
             action = (
-                "Run `nanoleaf-kde-sync-doctor` and review hid-device interface/path details, "
-                "then retry with `--device`. If open_path/open failures persist, capture the full "
-                "attempt results to distinguish busy-handle vs backend mismatch vs permission issues."
+                "Run `nanoleaf-kde-sync-doctor` and inspect hid-device per-path details, then retry "
+                "with `--device`. Inspect the per-path open attempt results (`open_path(...)` / `open(...)`) "
+                "to distinguish busy-handle vs backend mismatch vs permission issues."
             )
         else:
             action = (
