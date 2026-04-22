@@ -338,6 +338,61 @@ def test_config_prefers_canonical_calibration_block_over_legacy_aliases(tmp_path
     assert cfg.calibration.calibration_model == "corner_anchored"
 
 
+def test_config_migrates_legacy_calibration_fields_into_normalized_structure(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text(
+        "\n".join(
+            [
+                "calibration_model = \"corner_anchored\"",
+                "zone_offset = 4",
+                "reverse_zones = true",
+                "manual_mapping_enabled = true",
+                "explicit_zone_map = [3, 2, 1, 0]",
+                "corner_anchor_top_left = 11",
+                "corner_anchor_top_right = 2",
+                "corner_anchor_bottom_right = 5",
+                "corner_anchor_bottom_left = 8",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    cfg = ConfigManager(path=cfg_path).load()
+    assert cfg.calibration.normalized_zone_offset == 4
+    assert cfg.calibration.normalized_reverse_zones is True
+    assert cfg.calibration.normalized_manual_zone_map == [3, 2, 1, 0]
+    assert cfg.calibration.normalized_corner_anchors == [11, 2, 5, 8]
+
+
+def test_config_manual_map_model_sets_manual_mapping_enabled(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text(
+        "\n".join(
+            [
+                "calibration_model = \"manual_map\"",
+                "manual_mapping_enabled = false",
+                "explicit_zone_map = [6, 7, 0, 1]",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    cfg = ConfigManager(path=cfg_path).load()
+    assert cfg.calibration_model == "manual_map"
+    assert cfg.manual_mapping_enabled is True
+    assert cfg.calibration.manual_mapping_enabled is True
+    assert cfg.calibration.normalized_manual_zone_map == [6, 7, 0, 1]
+
+
+def test_dump_toml_stabilizes_calibration_schema_aliases() -> None:
+    encoded = _dump_toml({"calibration": {"schema_version": 3}})
+    assert "calibration_schema_version = 3" in encoded
+    assert "[calibration]" in encoded
+    assert "schema_version = 3" in encoded
+
+
 def test_dump_toml_handles_mixed_list_types() -> None:
     encoded = _dump_toml({"mixed": [1, "two", True, 3.5], "zones": []})
     assert "mixed" in encoded
