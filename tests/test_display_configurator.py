@@ -327,6 +327,7 @@ def test_display_configurator_persists_and_restores_in_progress_draft(monkeypatc
     assert resumed._dialog._flow.index == 1
     assert resumed._dialog._test_step == 5
     assert resumed._dialog.zone_offset_slider.value() == 4
+    assert resumed._dialog._state.current_phase
 
 
 def test_display_configurator_recovery_controls_restore_checkpoint(monkeypatch) -> None:
@@ -343,3 +344,19 @@ def test_display_configurator_recovery_controls_restore_checkpoint(monkeypatch) 
 
     assert dialog._dialog.zone_offset_slider.value() == 3
     assert dialog._dialog.reverse_checkbox.isChecked() is True
+
+
+def test_display_configurator_retry_and_reset_do_not_clear_other_completed_phases(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=8))
+    dialog._dialog._state.mark_calibration_step("start-point-detection", passed=True, notes="ok")
+    dialog._dialog._state.mark_calibration_step("direction-verification", passed=True, notes="ok")
+    dialog._dialog._calibration_phase_index = 2  # corner-assignment
+
+    dialog._dialog.calibration_phase_rerun_button.clicked.emit()
+    assert dialog._dialog._state.calibration_step_state("start-point-detection").passed is True
+    assert dialog._dialog._state.calibration_step_state("direction-verification").passed is True
+
+    dialog._dialog.calibration_phase_reset_button.clicked.emit()
+    assert dialog._dialog._state.calibration_step_state("start-point-detection").passed is True
+    assert dialog._dialog._state.calibration_step_state("direction-verification").passed is True

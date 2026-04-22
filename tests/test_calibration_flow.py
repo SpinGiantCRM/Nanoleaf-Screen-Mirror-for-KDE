@@ -17,6 +17,9 @@ def test_calibration_sequence_contains_required_order() -> None:
     ]
     assert "Start-point detection" in calibration_sequence_text()
     assert CALIBRATION_SEQUENCE[2].prerequisites == ("direction-verification",)
+    assert CALIBRATION_SEQUENCE[0].required_actions
+    assert callable(CALIBRATION_SEQUENCE[0].validation_fn)
+    assert CALIBRATION_SEQUENCE[0].remediation_hints
 
 
 def test_derive_corner_anchor_device_indices_stays_unique_with_more_device_zones() -> None:
@@ -120,3 +123,15 @@ def test_calibration_completion_requires_validation_score_threshold() -> None:
     assert report.anchors_unique_valid is False
     assert report.remediation_hints
     assert state.can_complete_calibration_flow() is False
+
+
+def test_phase_validation_tracks_failures_until_actions_pass() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=8), {})
+    ok, details = state.evaluate_phase("start-point-detection")
+    assert ok is False
+    assert "not marked as passed" in details.lower()
+
+    state.mark_calibration_step("start-point-detection", passed=True)
+    ok, details = state.evaluate_phase("start-point-detection")
+    assert ok is True
+    assert "passed" in details.lower()

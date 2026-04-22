@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.calibration_resolver import CalibrationMappingSnapshot, resolve_calibration_mapping
 from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
-from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE, derive_corner_anchor_device_indices
+from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE, calibration_step_by_id, derive_corner_anchor_device_indices
 from nanoleaf_sync.ui.calibration_preview import CalibrationStep, calibration_test_frame, corner_anchor_steps, coverage_sanity_step, single_zone_step
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text, mapping_preview_visual
 
@@ -63,6 +63,12 @@ class CalibrationStepProgress:
 
 
 @dataclass
+class CalibrationPhaseValidation:
+    valid: bool = False
+    details: str = ""
+
+
+@dataclass
 class CalibrationCheckpoint:
     zone_offset: int
     reverse_zones: bool
@@ -73,6 +79,9 @@ class CalibrationCheckpoint:
     corner_start_anchor: int
     calibration_model: str
     calibration_step_progress: dict[str, CalibrationStepProgress] = field(default_factory=dict)
+    current_phase: str = ""
+    phase_completion_flags: dict[str, bool] = field(default_factory=dict)
+    phase_validation_state: dict[str, CalibrationPhaseValidation] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -114,7 +123,12 @@ class CalibrationState:
     corner_anchor_bottom_right: int = -1
     corner_anchor_bottom_left: int = -1
     calibration_step_progress: dict[str, CalibrationStepProgress] = field(default_factory=dict)
+    current_phase: str = "start-point-detection"
+    phase_completion_flags: dict[str, bool] = field(default_factory=dict)
+    phase_validation_state: dict[str, CalibrationPhaseValidation] = field(default_factory=dict)
     checkpoint: CalibrationCheckpoint | None = None
+    rollback_checkpoint: CalibrationCheckpoint | None = None
+    phase_rollback_checkpoints: dict[str, CalibrationCheckpoint] = field(default_factory=dict)
 
     @classmethod
     def from_config(cls, cfg: AppConfig, runtime_status: dict | None = None) -> "CalibrationState":
@@ -185,10 +199,27 @@ class CalibrationState:
         progress.complete = True
         progress.passed = bool(passed)
         progress.notes = str(notes)
+        self.phase_completion_flags[step_id] = bool(progress.complete)
+        self.phase_validation_state[step_id] = CalibrationPhaseValidation(
+            valid=bool(passed),
+            details=str(notes),
+        )
+        self.current_phase = str(step_id)
+
+    def evaluate_phase(self, step_id: str) -> tuple[bool, str]:
+        phase = calibration_step_by_id(step_id)
+        if phase is None:
+            return False, "Unknown calibration phase."
+        if not self.calibration_prerequisites_met(step_id):
+            return False, f"Prerequisites not met for {step_id}."
+        return phase.validation_fn(self, phase)
 
     def can_complete_calibration_flow(self) -> bool:
-        if not all(self.calibration_step_progress.get(step.step_id, CalibrationStepProgress(step_id=step.step_id)).passed for step in CALIBRATION_SEQUENCE):
-            return False
+        for step in CALIBRATION_SEQUENCE:
+            valid, details = self.evaluate_phase(step.step_id)
+            self.phase_validation_state[step.step_id] = CalibrationPhaseValidation(valid=bool(valid), details=str(details))
+            if not valid:
+                return False
         return self.validation_report().confidence_score >= MIN_CALIBRATION_VALIDATION_CONFIDENCE
 
     def validation_report(self) -> CalibrationVerificationReport:
@@ -274,10 +305,18 @@ class CalibrationState:
                 )
                 for step_id, progress in self.calibration_step_progress.items()
             },
+            current_phase=str(self.current_phase),
+            phase_completion_flags={step_id: bool(done) for step_id, done in self.phase_completion_flags.items()},
+            phase_validation_state={
+                step_id: CalibrationPhaseValidation(valid=bool(state.valid), details=str(state.details))
+                for step_id, state in self.phase_validation_state.items()
+            },
         )
 
     def save_checkpoint(self) -> CalibrationCheckpoint:
         self.checkpoint = self.snapshot_checkpoint()
+        self.rollback_checkpoint = self.checkpoint
+        self.phase_rollback_checkpoints[self.current_phase] = self.checkpoint
         return self.checkpoint
 
     def restore_checkpoint(self, checkpoint: CalibrationCheckpoint | None = None) -> bool:
@@ -301,7 +340,25 @@ class CalibrationState:
             )
             for step_id, progress in target.calibration_step_progress.items()
         }
+        self.current_phase = str(target.current_phase or self.current_phase)
+        self.phase_completion_flags = {step_id: bool(done) for step_id, done in target.phase_completion_flags.items()}
+        self.phase_validation_state = {
+            step_id: CalibrationPhaseValidation(valid=bool(state.valid), details=str(state.details))
+            for step_id, state in target.phase_validation_state.items()
+        }
         return True
+
+    def save_phase_checkpoint(self, step_id: str) -> CalibrationCheckpoint:
+        checkpoint = self.snapshot_checkpoint()
+        self.phase_rollback_checkpoints[str(step_id)] = checkpoint
+        self.rollback_checkpoint = checkpoint
+        return checkpoint
+
+    def restore_phase_checkpoint(self, step_id: str) -> bool:
+        checkpoint = self.phase_rollback_checkpoints.get(str(step_id))
+        if checkpoint is None:
+            return False
+        return self.restore_checkpoint(checkpoint)
 
     def auto_detection_status(self) -> str:
         return f"Using configured strip zone count {self.device_zone_count}."
