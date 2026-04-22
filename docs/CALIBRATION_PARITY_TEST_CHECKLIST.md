@@ -92,3 +92,9 @@ Each batch below is releasable only when all targeted tests pass, calibration re
   * `pytest tests/test_config.py tests/test_pipeline_integration.py tests/test_calibration_flow.py tests/test_calibration_state.py tests/test_display_configurator.py`
 * Reviewer sign-off: ☐ Pending / ☐ Approved
 * Release notes: `CHANGELOG.md` Unreleased summarizes completed parity batches and behavior changes.
+
+
+## Maintenance cadence
+
+- Quarterly calibration QA sweep issues are auto-created by `.github/workflows/quarterly-calibration-qa-sweep.yml`.
+- Each sweep should execute this checklist, refresh `docs/PHYSICAL_CALIBRATION_VALIDATION_LOG.md`, and open follow-up defects for any UX drift.
