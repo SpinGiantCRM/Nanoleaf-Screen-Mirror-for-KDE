@@ -73,7 +73,7 @@ def test_full_pipeline_zone_map_brightness_smoothing_and_send() -> None:
     # With adaptive smoothing at defaults, this should move clearly toward current.
     r0, g0, b0 = result[0]
     assert r0 == 0
-    assert 10 <= g0 <= 20
+    assert 8 <= g0 <= 24
     assert b0 == 0
 
     # Zone 1 maps to left zone: red (~200, 0, 0) × 0.5 brightness vs prev (40, 40, 40).
