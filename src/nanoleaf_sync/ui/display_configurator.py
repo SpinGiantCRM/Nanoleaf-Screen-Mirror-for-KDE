@@ -11,7 +11,7 @@ from typing import Callable
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
 from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping
-from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE, calibration_sequence_text
+from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE
 from nanoleaf_sync.ui.calibration_state import (
     CalibrationPhaseValidation,
     CalibrationState,
@@ -258,9 +258,9 @@ class DisplayConfiguratorDialog:
                 self.calibration_next_button = QPushButton("Next test zone step")
                 self.calibration_prev_button = QPushButton("Previous test zone step")
                 self.calibration_send_button = QPushButton("Send test pattern")
-                self.calibration_phase_prev_button = QPushButton("Previous calibration phase")
-                self.calibration_phase_next_button = QPushButton("Next calibration phase")
-                self.calibration_mark_pass_button = QPushButton("Mark phase passed")
+                self.calibration_phase_prev_button = QPushButton("Previous phase")
+                self.calibration_phase_next_button = QPushButton("Next phase")
+                self.calibration_mark_pass_button = QPushButton("Looks good, continue")
                 self.calibration_mark_fail_button = QPushButton("Mark phase failed")
                 self.calibration_phase_rerun_button = QPushButton("Re-run this step")
                 self.calibration_phase_reset_button = QPushButton("Reset this section")
@@ -284,7 +284,7 @@ class DisplayConfiguratorDialog:
                     set_checkable(True)
                     self.advanced_calibration_group.setChecked(False)
                 self.calibration_hint = QLabel(
-                    "Align strip start and orientation, then continue. If calibration looks wrong: reset this phase, send a test pattern, then confirm again."
+                    "Use Next/Previous test zone to find the right physical LED, then continue. If calibration looks wrong, open Advanced calibration and reset this phase."
                 )
 
                 # Summary
@@ -327,6 +327,8 @@ class DisplayConfiguratorDialog:
                 self.calibration_next_button.clicked.connect(self._next_test_zone)
                 self.calibration_prev_button.clicked.connect(self._prev_test_zone)
                 self.calibration_send_button.clicked.connect(self._send_test_pattern)
+                self.zone_offset_slider.valueChanged.connect(self._on_advanced_alignment_changed)
+                self.reverse_checkbox.stateChanged.connect(self._on_advanced_alignment_changed)
                 self.calibration_phase_prev_button.clicked.connect(self._previous_calibration_phase)
                 self.calibration_phase_next_button.clicked.connect(self._next_calibration_phase)
                 self.calibration_mark_pass_button.clicked.connect(lambda: self._mark_current_calibration_phase(True))
@@ -411,7 +413,7 @@ class DisplayConfiguratorDialog:
                 layout = QGridLayout()
                 if hasattr(layout, "setVerticalSpacing"):
                     layout.setVerticalSpacing(4)
-                layout.addWidget(QLabel(f"Calibration and testing\n{calibration_sequence_text()}"), 0, 0, 1, 3)
+                layout.addWidget(QLabel("Calibration and testing"), 0, 0, 1, 3)
                 layout.addWidget(self.calibration_hint, 1, 0, 1, 3)
                 layout.addWidget(QLabel("Strip LED zone count"), 2, 0)
                 layout.addWidget(self.device_zone_count_slider, 2, 1)
@@ -419,32 +421,20 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.device_zone_status, 3, 0, 1, 3)
                 layout.addWidget(self.zone_change_notice, 4, 0, 1, 3)
                 layout.addWidget(self.preview_text, 5, 0, 1, 3)
-                layout.addWidget(self.preview_visual, 6, 0, 1, 3)
-                layout.addWidget(self.calibration_phase_label, 7, 0, 1, 3)
-                layout.addWidget(self.calibration_phase_status_label, 8, 0, 1, 3)
-                layout.addWidget(self.responsiveness_label, 9, 0, 1, 3)
-                layout.addWidget(self.calibration_phase_prev_button, 10, 0)
-                layout.addWidget(self.calibration_phase_next_button, 10, 1, 1, 2)
-                layout.addWidget(self.calibration_mark_pass_button, 11, 0, 1, 2)
-                layout.addWidget(self.calibration_mark_fail_button, 11, 2)
-                layout.addWidget(self.calibration_phase_rerun_button, 12, 0, 1, 2)
-                layout.addWidget(self.calibration_phase_reset_button, 12, 2)
-                layout.addWidget(self.calibration_undo_button, 13, 0, 1, 2)
-                layout.addWidget(self.calibration_phase_boundary_reset_button, 13, 2)
-                layout.addWidget(self.confirm_direction_button, 14, 0, 1, 2)
-                layout.addWidget(self.rollback_direction_button, 14, 2)
-                layout.addWidget(self.calibration_next_button, 15, 0, 1, 2)
-                layout.addWidget(self.calibration_prev_button, 15, 2)
-                layout.addWidget(self.calibration_send_button, 16, 0, 1, 3)
-                layout.addWidget(self.current_zone_label, 17, 0, 1, 3)
-                layout.addWidget(self.assign_tl_button, 18, 0, 1, 3)
-                layout.addWidget(self.assign_tr_button, 19, 0, 1, 3)
-                layout.addWidget(self.assign_br_button, 20, 0, 1, 3)
-                layout.addWidget(self.assign_bl_button, 21, 0, 1, 3)
-                layout.addWidget(self.confirm_anchor_button, 22, 0, 1, 2)
-                layout.addWidget(self.rollback_anchor_button, 22, 2)
-                layout.addWidget(self.anchor_validation_label, 23, 0, 1, 3)
-                layout.addWidget(self.calibration_test_label, 24, 0, 1, 3)
+                layout.addWidget(self.calibration_phase_label, 6, 0, 1, 3)
+                layout.addWidget(self.calibration_phase_prev_button, 7, 0)
+                layout.addWidget(self.calibration_phase_next_button, 7, 1, 1, 2)
+                layout.addWidget(self.calibration_next_button, 8, 0, 1, 2)
+                layout.addWidget(self.calibration_prev_button, 8, 2)
+                layout.addWidget(self.calibration_send_button, 9, 0, 1, 3)
+                layout.addWidget(self.current_zone_label, 10, 0, 1, 3)
+                layout.addWidget(self.calibration_mark_pass_button, 11, 0, 1, 3)
+                layout.addWidget(self.assign_tl_button, 12, 0, 1, 3)
+                layout.addWidget(self.assign_tr_button, 13, 0, 1, 3)
+                layout.addWidget(self.assign_br_button, 14, 0, 1, 3)
+                layout.addWidget(self.assign_bl_button, 15, 0, 1, 3)
+                layout.addWidget(self.confirm_anchor_button, 16, 0, 1, 2)
+                layout.addWidget(self.anchor_validation_label, 17, 0, 1, 3)
 
                 advanced_layout = QGridLayout()
                 advanced_layout.addWidget(QLabel("Global mapping zone offset"), 0, 0)
@@ -453,8 +443,20 @@ class DisplayConfiguratorDialog:
                 advanced_layout.addWidget(self.reverse_checkbox, 1, 0, 1, 2)
                 advanced_layout.addWidget(QLabel("Test zone step index"), 2, 0)
                 advanced_layout.addWidget(self.test_step_index_value, 2, 1, 1, 2)
+                advanced_layout.addWidget(self.preview_visual, 3, 0, 1, 3)
+                advanced_layout.addWidget(self.calibration_phase_status_label, 4, 0, 1, 3)
+                advanced_layout.addWidget(self.responsiveness_label, 5, 0, 1, 3)
+                advanced_layout.addWidget(self.calibration_test_label, 6, 0, 1, 3)
+                advanced_layout.addWidget(self.calibration_mark_fail_button, 7, 0, 1, 3)
+                advanced_layout.addWidget(self.calibration_phase_rerun_button, 8, 0, 1, 2)
+                advanced_layout.addWidget(self.calibration_phase_reset_button, 8, 2)
+                advanced_layout.addWidget(self.calibration_undo_button, 9, 0, 1, 2)
+                advanced_layout.addWidget(self.calibration_phase_boundary_reset_button, 9, 2)
+                advanced_layout.addWidget(self.confirm_direction_button, 10, 0, 1, 2)
+                advanced_layout.addWidget(self.rollback_direction_button, 10, 2)
+                advanced_layout.addWidget(self.rollback_anchor_button, 11, 0, 1, 3)
                 self.advanced_calibration_group.setLayout(advanced_layout)
-                layout.addWidget(self.advanced_calibration_group, 25, 0, 1, 3)
+                layout.addWidget(self.advanced_calibration_group, 18, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -921,6 +923,22 @@ class DisplayConfiguratorDialog:
                         setter(enabled)
                 direction_phase = current_phase.step_id == "direction-verification"
                 anchor_phase = current_phase.step_id == "corner-assignment"
+                advanced_enabled = bool(getattr(self.advanced_calibration_group, "isChecked", lambda: False)())
+                for widget in (
+                    self.preview_visual,
+                    self.calibration_phase_status_label,
+                    self.responsiveness_label,
+                    self.calibration_test_label,
+                    self.calibration_mark_fail_button,
+                    self.calibration_phase_rerun_button,
+                    self.calibration_phase_reset_button,
+                    self.calibration_undo_button,
+                    self.calibration_phase_boundary_reset_button,
+                    self.rollback_anchor_button,
+                ):
+                    set_visible = getattr(widget, "setVisible", None)
+                    if callable(set_visible):
+                        set_visible(advanced_enabled)
                 for button, enabled in (
                     (self.confirm_direction_button, direction_phase),
                     (self.rollback_direction_button, direction_phase),
@@ -932,7 +950,7 @@ class DisplayConfiguratorDialog:
                         set_visible(enabled)
                     set_enabled = getattr(button, "setEnabled", None)
                     if callable(set_enabled):
-                        set_enabled(enabled)
+                        set_enabled(enabled and advanced_enabled)
                 self.calibration_phase_label.setText(
                     f"Calibration phase {self._calibration_phase_index + 1}/{len(CALIBRATION_SEQUENCE)}: {current_phase.title}"
                 )
@@ -1058,6 +1076,16 @@ class DisplayConfiguratorDialog:
                     self._ensure_live_preview_running()
                 else:
                     self._stop_live_preview()
+
+            def _on_advanced_alignment_changed(self, *_args) -> None:
+                if self._flow.index != 0:
+                    return
+                if self._calibration_sender is None:
+                    return
+                advanced_enabled = bool(getattr(self.advanced_calibration_group, "isChecked", lambda: False)())
+                if not advanced_enabled:
+                    return
+                self._send_test_pattern()
 
             def updated_config(self) -> AppConfig:
                 self._pull_state_from_controls()
