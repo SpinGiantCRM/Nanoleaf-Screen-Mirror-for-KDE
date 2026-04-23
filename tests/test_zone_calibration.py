@@ -103,8 +103,8 @@ def test_single_zone_step_reflects_offset_and_reverse() -> None:
         zone_offset=1,
         reverse_zones=True,
     )
-    assert step.device_zone_index == 0
-    assert step.source_zone_index != 0
+    assert step.source_zone_index == 0
+    assert step.device_zone_index == 2
 
 
 def test_coverage_sanity_label_includes_progress() -> None:
