@@ -124,3 +124,20 @@ def test_probe_backends_records_instantiate_failures() -> None:
     broken = next(item for item in result.candidates if item.candidate == "broken")
     assert any(error.kind == "backend-init" for error in broken.errors)
     assert broken.qualified is False
+
+
+def test_probe_backends_records_warmup_failures_with_warmup_stage() -> None:
+    def _factory(_candidate: str, _width: int, _height: int):
+        return _FakeBackend([0.001], failures={0})
+
+    result = probe_backends(
+        32,
+        18,
+        ["warmup-fail"],
+        ProbeConfig(backend_factory=_factory, measure_iterations=3),
+    )
+
+    candidate = result.candidates[0]
+    warmup_errors = [error for error in candidate.errors if error.stage == "warmup"]
+    assert warmup_errors
+    assert all(error.kind == "capture-failed" for error in warmup_errors)

@@ -147,6 +147,9 @@ Look at:
 - `selection_reason=fallback` with `effective=kwin-dbus`:
   - likely no valid cached winner + probe disabled/failed + no kmsgrab capability.
   - run with `nanoleaf-kde-sync-doctor --capture` and resolve the reported root cause.
+- probe error includes `stage=warmup` / timeout:
+  - warmup is reported separately from backend instantiation so startup/permission issues can be distinguished from capture timing.
+  - probe timeout cannot forcibly interrupt non-interruptible backend reads (for example HID/driver calls); timeout returns quickly to the probe, while the blocked worker thread exits only when the underlying call returns.
 - cached winner is empty (`cached_winner=none`) repeatedly:
   - reset cache and restart service (workflow below).
 - probe disabled unexpectedly:
