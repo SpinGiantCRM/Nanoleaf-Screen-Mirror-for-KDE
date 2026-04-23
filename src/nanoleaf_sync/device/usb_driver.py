@@ -151,6 +151,18 @@ class NanoleafUSBDriver(DeviceDriver):
             for rgb in normalized
             for ch in self._output_channel_order
         )
+
+        max_request_bytes = int(getattr(self._transport, "report_size", self.report_size))
+        tlv_request_len = 3 + len(payload)
+        if tlv_request_len > max_request_bytes:
+            max_zones = max(0, (max_request_bytes - 3) // 3)
+            raise RuntimeError(
+                "Zone color request exceeds single-report TLV capacity: "
+                f"requested={tlv_request_len} bytes ({len(normalized)} zones), "
+                f"max_supported={max_request_bytes} bytes (up to {max_zones} zones). "
+                "Lower configured_zone_count / active zone count, or use firmware that supports "
+                "multi-report zone updates."
+            )
         self._request(CMD_SET_ZONE_COLORS, payload)
 
     def send_frame(self, colors: Sequence[RGBTuple]) -> None:

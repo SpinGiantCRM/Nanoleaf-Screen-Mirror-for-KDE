@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pytest
 
+from nanoleaf_sync.device.hid_transport import HIDTransport
+from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 from nanoleaf_sync.device.protocol import (
     CMD_GET_BRIGHTNESS,
     CMD_GET_LENGTH,
@@ -14,6 +16,15 @@ from nanoleaf_sync.device.protocol import (
     ProtocolResponseTypeError,
     ProtocolShortReadError,
 )
+
+
+class _FakeHIDHandle:
+    def __init__(self) -> None:
+        self.writes: list[bytes] = []
+
+    def write(self, data: bytes) -> int:
+        self.writes.append(bytes(data))
+        return len(data)
 
 
 def _response(req_type: int, payload: bytes) -> bytes:
@@ -82,3 +93,29 @@ def test_get_length_payload_must_be_single_byte_after_status() -> None:
     )
     with pytest.raises(ProtocolMalformedResponseError, match="Expected 1-byte length"):
         NanoleafTLVProtocol.parse_u8(length_payload, field_name="length")
+
+
+def test_hid_write_single_report_boundary_success() -> None:
+    transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
+    fake = _FakeHIDHandle()
+    transport._handle = fake
+    request = bytes([CMD_SET_ZONE_COLORS]) + b"\x00\x3d" + (b"\x01" * 61)
+
+    transport.write(request)
+
+    assert len(fake.writes) == 1
+    assert len(fake.writes[0]) == 65
+    assert fake.writes[0][1 : 1 + len(request)] == request
+
+
+def test_hid_write_raises_when_request_exceeds_single_report_capacity() -> None:
+    transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
+    fake = _FakeHIDHandle()
+    transport._handle = fake
+    too_large_request = bytes([CMD_SET_ZONE_COLORS]) + b"\x00\x3e" + (b"\x01" * 62)
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"requested=65 bytes, max_supported=64 bytes",
+    ):
+        transport.write(too_large_request)
