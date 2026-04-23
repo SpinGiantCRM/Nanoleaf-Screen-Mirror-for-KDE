@@ -592,9 +592,8 @@ def test_display_configurator_surfaces_corner_anchor_fallback_indicator(monkeypa
     dialog._dialog._state.corner_anchor_bottom_left = 3
     dialog._dialog._refresh()
 
-    assert "Fallback indicator: strategy=offset_direction" in dialog._dialog.anchor_validation_label._text
-    assert "warning_codes=[CORNER_ANCHOR_MISSING, CORNER_ANCHOR_DUPLICATE]" in dialog._dialog.anchor_validation_label._text
-    assert "Invalid corner anchors triggered fallback" in dialog._dialog.calibration_phase_status_label._text
+    assert "Alignment warnings: [CORNER_ANCHOR_MISSING, CORNER_ANCHOR_DUPLICATE]" in dialog._dialog.anchor_validation_label._text
+    assert "Invalid corner anchors require correction" in dialog._dialog.calibration_phase_status_label._text
     assert dialog._dialog.finish_button._enabled is False
 
 

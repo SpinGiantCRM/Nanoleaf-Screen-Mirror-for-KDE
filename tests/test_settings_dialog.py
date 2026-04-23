@@ -332,7 +332,7 @@ def test_mapping_preview_uses_explicit_auto_flag() -> None:
         explicit_zone_map=[0, 1, 2],
     )
 
-    assert "Calibration model: offset + direction" in auto_text
+    assert "Calibration model: guided alignment" in auto_text
     assert "Device zone order" in manual_text
 
 

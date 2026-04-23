@@ -60,9 +60,35 @@ def test_corner_anchored_model_uses_assigned_anchors_deterministically() -> None
         corner_anchor_bottom_left=11,
         calibration_model="corner_anchored",
     )
-    assert "Calibration model: corner anchored" in preview
+    assert "Calibration model: guided corner anchors" in preview
     assert "Offset:" not in preview
     assert "Anchors (TL/TR/BR/BL): 2, 5, 8, 11" in preview
+
+
+def test_corner_anchored_model_applies_global_zone_offset() -> None:
+    baseline = mapping_indices(
+        zone_count=12,
+        device_zone_count=12,
+        zone_offset=0,
+        reverse_zones=False,
+        corner_anchor_top_left=2,
+        corner_anchor_top_right=5,
+        corner_anchor_bottom_right=8,
+        corner_anchor_bottom_left=11,
+        calibration_model="corner_anchored",
+    )
+    shifted = mapping_indices(
+        zone_count=12,
+        device_zone_count=12,
+        zone_offset=3,
+        reverse_zones=False,
+        corner_anchor_top_left=2,
+        corner_anchor_top_right=5,
+        corner_anchor_bottom_right=8,
+        corner_anchor_bottom_left=11,
+        calibration_model="corner_anchored",
+    )
+    assert shifted == [baseline[(idx + 3) % len(baseline)] for idx in range(len(baseline))]
 
 
 def test_backward_compatibility_old_configs_do_not_crash(tmp_path: Path) -> None:
