@@ -398,6 +398,7 @@ class SettingsDialog:
             def _pull_state(self):
                 zone_preset_label = str(self.zone_preset_combo.currentText())
                 self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = "edge-weighted" if zone_preset_label.startswith("Edge strip") else "horizontal"; self._state.zone_offset = int(self.zone_offset_slider.value()); self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value())
+                self._state.calibration_model = "corner_anchored"
 
             def _normalize_offset_for_count(self, offset: int, zone_count: int) -> int:
                 total = max(1, int(zone_count))
@@ -673,7 +674,7 @@ class SettingsDialog:
                 calibration_payload = CalibrationConfig(
                     schema_version=calibration_schema_version,
                     calibration_schema_version=calibration_schema_version,
-                    calibration_model=str(self._state.calibration_model),
+                    calibration_model="corner_anchored",
                     device_zone_count=int(self._state.device_zone_count),
                     output_channel_order=str(self.output_channel_order_combo.currentText()),
                     zone_offset=int(self._state.zone_offset),
@@ -712,6 +713,7 @@ class SettingsDialog:
                     compositor_hdr_mode=bool(self.compositor_hdr_mode_checkbox.isChecked()), sdr_boost_nits=float(self.sdr_boost_nits_slider.value()),
                     device_vid=int(vid_value), device_pid=int(pid_value),
                     calibration_schema_version=calibration_schema_version,
+                    calibration_model="corner_anchored",
                     calibration=calibration_payload,
                 )
 

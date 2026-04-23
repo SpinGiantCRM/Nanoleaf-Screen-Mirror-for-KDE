@@ -608,7 +608,7 @@ def test_display_configurator_preserves_invalid_anchor_metadata_in_draft_and_sav
 
     draft_payload = dialog._dialog._serialize_wizard_draft()
     assert '"corner_anchor_fallback_active": true' in draft_payload
-    assert '"corner_anchor_fallback_strategy": "offset_direction"' in draft_payload
+    assert '"corner_anchor_fallback_strategy": "deterministic_anchor_inference"' in draft_payload
     assert '"corner_anchor_warning_codes": ["CORNER_ANCHOR_MISSING", "CORNER_ANCHOR_DUPLICATE"]' in draft_payload
 
     updated = dialog.updated_config()
@@ -616,6 +616,6 @@ def test_display_configurator_preserves_invalid_anchor_metadata_in_draft_and_sav
     assert updated.corner_anchor_top_right == 1
     assert updated.corner_anchor_bottom_right == -1
     assert updated.corner_anchor_fallback_active is True
-    assert updated.corner_anchor_fallback_strategy == "offset_direction"
+    assert updated.corner_anchor_fallback_strategy == "deterministic_anchor_inference"
     assert updated.corner_anchor_warning_codes == ["CORNER_ANCHOR_MISSING", "CORNER_ANCHOR_DUPLICATE"]
     assert updated.calibration.corner_anchor_fallback_active is True
