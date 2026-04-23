@@ -226,13 +226,21 @@ def _check_hid_enumeration(config: AppConfig) -> DoctorCheck:
         )
 
     details: list[str] = []
+    module_file = str(getattr(hid, "__file__", "<unknown>") or "<unknown>")
+    module_version = str(getattr(hid, "__version__", "<unknown>") or "<unknown>")
+    backend_info = (
+        f"backend_module={module_file} backend_version={module_version}"
+    )
     for idx, dev in enumerate(devices):
         path = dev.get("path")
         if isinstance(path, bytes):
             path = path.decode("utf-8", errors="replace")
         details.append(
             f"#{idx} path={path or '<unknown>'} interface_number={dev.get('interface_number')!r} "
-            f"usage_page={dev.get('usage_page')!r} usage={dev.get('usage')!r}"
+            f"usage_page={dev.get('usage_page')!r} usage={dev.get('usage')!r} "
+            f"release_number={dev.get('release_number')!r} bus_type={dev.get('bus_type')!r} "
+            f"manufacturer={dev.get('manufacturer_string')!r} product={dev.get('product_string')!r} "
+            f"serial={dev.get('serial_number')!r}"
         )
 
     return DoctorCheck(
@@ -240,6 +248,7 @@ def _check_hid_enumeration(config: AppConfig) -> DoctorCheck:
         "pass",
         (
             f"Found {len(devices)} matching HID device(s) for VID={vid:#06x} PID={pid:#06x}. "
+            f"{backend_info}. "
             + " ".join(details)
         ),
     )

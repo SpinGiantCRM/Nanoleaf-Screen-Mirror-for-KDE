@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import re
 import time
+from pathlib import Path
 from typing import Any, Optional, Sequence
 
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
@@ -42,6 +44,51 @@ class HIDTransport:
         )
 
     @staticmethod
+    def _looks_like_usb_interface_path(path_text: str) -> bool:
+        return bool(re.fullmatch(r"\d+-[\d.]+:\d+\.\d+", path_text.strip()))
+
+    @staticmethod
+    def _candidate_open_paths(path_value: Any) -> list[bytes]:
+        if not path_value:
+            return []
+        raw: bytes
+        if isinstance(path_value, bytes):
+            raw = path_value
+        else:
+            raw = str(path_value).encode("utf-8", errors="replace")
+
+        path_text = raw.decode("utf-8", errors="replace").strip()
+        candidates: list[bytes] = [raw]
+
+        if HIDTransport._looks_like_usb_interface_path(path_text):
+            # Linux: some hid backends enumerate USB interface IDs (for example "3-1:1.0")
+            # while actual open requires a hidraw node path.
+            sys_hidraw_dir = Path("/sys/bus/usb/devices") / path_text / "hidraw"
+            try:
+                for child in sorted(sys_hidraw_dir.iterdir()):
+                    if child.name.startswith("hidraw"):
+                        candidates.append(f"/dev/{child.name}".encode("utf-8"))
+            except Exception:
+                pass
+
+        deduped: list[bytes] = []
+        seen: set[bytes] = set()
+        for candidate in candidates:
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            deduped.append(candidate)
+        return deduped
+
+    @staticmethod
+    def _hid_backend_metadata(hid_module: Any) -> str:
+        module_file = str(getattr(hid_module, "__file__", "<unknown>") or "<unknown>")
+        version = str(getattr(hid_module, "__version__", "<unknown>") or "<unknown>")
+        backend = str(getattr(hid_module, "__hidapi_version__", "") or "").strip()
+        extra = f", hidapi={backend}" if backend else ""
+        return f"module={module_file}, version={version}{extra}"
+
+    @staticmethod
     def _tlv_expected_len(buf: bytearray, expected_type: int) -> int | None:
         if len(buf) < 3:
             return None
@@ -68,13 +115,20 @@ class HIDTransport:
         seen_paths: set[str] = set()
         candidates = [dev for dev in devices if isinstance(dev, dict)]
 
-        def _candidate_sort_key(dev: dict[str, Any]) -> tuple[int, str]:
+        def _candidate_sort_key(dev: dict[str, Any]) -> tuple[int, int, str]:
             interface = dev.get("interface_number")
             try:
                 interface_key = 9999 if interface is None else int(interface)
             except Exception:
                 interface_key = 9999
-            return (interface_key, self._fmt_path(dev.get("path")))
+            path_text = self._fmt_path(dev.get("path"))
+            if path_text.startswith("/dev/hidraw"):
+                path_kind = 0
+            elif self._looks_like_usb_interface_path(path_text):
+                path_kind = 1
+            else:
+                path_kind = 2
+            return (path_kind, interface_key, path_text)
 
         sorted_devices = sorted(candidates, key=_candidate_sort_key)
         for dev in sorted_devices:
@@ -86,13 +140,19 @@ class HIDTransport:
             if not path:
                 attempt_results.append(f"open_path({path_text}) skipped: missing path")
                 continue
-            try:
-                self._handle.open_path(path)
-                return
-            except Exception as exc:
-                attempt_results.append(
-                    f"open_path({path_text}) failed: {type(exc).__name__}: {exc}"
-                )
+            open_paths = self._candidate_open_paths(path)
+            if not open_paths:
+                attempt_results.append(f"open_path({path_text}) skipped: no usable path")
+                continue
+            for open_path in open_paths:
+                open_path_text = self._fmt_path(open_path)
+                try:
+                    self._handle.open_path(open_path)
+                    return
+                except Exception as exc:
+                    attempt_results.append(
+                        f"open_path({open_path_text}) failed: {type(exc).__name__}: {exc}"
+                    )
 
         try:
             self._handle.open(self.ids.vid, self.ids.pid)
@@ -102,6 +162,7 @@ class HIDTransport:
                 f"open({self.ids.vid:#06x}, {self.ids.pid:#06x}) failed: {type(exc).__name__}: {exc}"
             )
             self._handle = None
+            backend = self._hid_backend_metadata(hid)
             candidate_text = "; ".join(self._describe_candidate(dev) for dev in sorted_devices)
             if not candidate_text:
                 candidate_text = "<none>"
@@ -112,6 +173,7 @@ class HIDTransport:
             )
             raise RuntimeError(
                 "Failed to open Nanoleaf HID device after enumeration. "
+                f"hid backend: {backend}. "
                 f"Enumerated candidates: {candidate_text}. Attempt results: {attempts}. "
                 "This usually indicates one of: wrong interface/path selected by backend, busy device handle, "
                 "hidapi backend mismatch, or insufficient permissions."

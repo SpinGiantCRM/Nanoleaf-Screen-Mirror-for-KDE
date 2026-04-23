@@ -80,6 +80,10 @@ Workflow:
    - busy text (`resource busy`, `device or resource busy`): handle held by another process
    - all path opens fail with non-permission errors while ACLs are correct: backend/interface mismatch for this session
 
+Linux backend note:
+- If enumeration shows a USB interface token path such as `3-1:1.0` (instead of `/dev/hidrawN`), recent builds now also resolve and attempt the corresponding `/dev/hidrawN` path deterministically before VID/PID fallback.
+- Doctor output now includes hid backend module/version and richer per-candidate fields (`bus_type`, `release_number`, strings) to make backend mismatch diagnosis reproducible.
+
 ### Colors look wrong on an HDR display
 
 Open tray **Settings** and adjust:

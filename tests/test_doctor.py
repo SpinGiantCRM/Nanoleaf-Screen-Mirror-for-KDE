@@ -168,17 +168,33 @@ def test_probe_status_reports_effective_env_override(monkeypatch) -> None:
 
 def test_hid_enumeration_reports_interface_details(monkeypatch) -> None:
     fake_hid = SimpleNamespace(
+        __file__="/tmp/hidmodule.so",
+        __version__="0.15.0",
         enumerate=lambda _vid, _pid: [
-            {"path": b"/dev/hidraw3", "interface_number": 2, "usage_page": 65280, "usage": 1}
+            {
+                "path": b"/dev/hidraw3",
+                "interface_number": 2,
+                "usage_page": 65280,
+                "usage": 1,
+                "release_number": 261,
+                "bus_type": 1,
+                "manufacturer_string": "",
+                "product_string": "",
+                "serial_number": "",
+            }
         ]
     )
     monkeypatch.setitem(doctor.sys.modules, "hid", fake_hid)
     check = doctor._check_hid_enumeration(AppConfig(device_vid=0x37FA, device_pid=0x8202))
     assert check.status == "pass"
+    assert "backend_module=/tmp/hidmodule.so" in check.message
+    assert "backend_version=0.15.0" in check.message
     assert "path=/dev/hidraw3" in check.message
     assert "interface_number=2" in check.message
     assert "usage_page=65280" in check.message
     assert "usage=1" in check.message
+    assert "release_number=261" in check.message
+    assert "bus_type=1" in check.message
 
 
 def test_device_probe_open_failure_returns_targeted_action(monkeypatch) -> None:
