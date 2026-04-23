@@ -31,6 +31,7 @@ class NanoleafUSBDriver(DeviceDriver):
         protocol: NanoleafTLVProtocol | None = None,
         min_nonzero_brightness: int = 10,
         output_channel_order: str = "grb",
+        configured_zone_count: int = 0,
     ) -> None:
         self.ids = ids
         self.report_size = int(report_size)
@@ -39,6 +40,7 @@ class NanoleafUSBDriver(DeviceDriver):
         )
         self._protocol = protocol or NanoleafTLVProtocol()
         self._min_nonzero_brightness = max(1, min(255, int(min_nonzero_brightness)))
+        self._configured_zone_count = max(0, int(configured_zone_count))
         order = str(output_channel_order or "grb").strip().lower()
         if sorted(order) != ["b", "g", "r"]:
             raise ValueError(
@@ -48,6 +50,7 @@ class NanoleafUSBDriver(DeviceDriver):
 
         self.model_number: str | None = None
         self.zone_count: int | None = None
+        self.reported_zone_count: int | None = None
         self._initialized = False
         self._cached_on_state: bool | None = None
         self._cached_brightness: int | None = None
@@ -68,7 +71,13 @@ class NanoleafUSBDriver(DeviceDriver):
                     f"Unsupported Nanoleaf model '{self.model_number}'. "
                     f"Expected one of: {', '.join(sorted(SUPPORTED_MODEL_NUMBERS))}"
                 )
-            self.zone_count = self.get_length()
+            detected_zone_count = self.get_length()
+            self.reported_zone_count = detected_zone_count
+            self.zone_count = (
+                self._configured_zone_count
+                if self._configured_zone_count > 0
+                else detected_zone_count
+            )
             self._initialized = True
         except Exception:
             self.close()
@@ -154,5 +163,6 @@ class NanoleafUSBDriver(DeviceDriver):
             self._initialized = False
             self.model_number = None
             self.zone_count = None
+            self.reported_zone_count = None
             self._cached_on_state = None
             self._cached_brightness = None
