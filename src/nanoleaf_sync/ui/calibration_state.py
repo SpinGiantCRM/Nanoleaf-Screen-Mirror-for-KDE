@@ -173,14 +173,20 @@ class CalibrationState:
     def from_config(cls, cfg: AppConfig, runtime_status: dict | None = None) -> "CalibrationState":
         runtime_status = runtime_status or {}
         calibration = cfg.effective_calibration()
-        configured_zone_count = len(cfg.zones) if cfg.zones else 0
-        if configured_zone_count <= 0:
-            configured_zone_count = int(getattr(calibration, "device_zone_count", 0))
+        source_zone_count = len(cfg.zones) if cfg.zones else 0
+        configured_device_zone_count = int(getattr(calibration, "device_zone_count", 0))
+        if configured_device_zone_count <= 0:
+            configured_device_zone_count = int(getattr(cfg, "device_zone_count", 0))
         detected = int(runtime_status.get("device_zone_count") or 0)
-        if configured_zone_count <= 0 and detected > 0:
-            configured_zone_count = detected
-        if configured_zone_count <= 0:
-            configured_zone_count = 8
+        if configured_device_zone_count <= 0 and detected > 0:
+            configured_device_zone_count = detected
+
+        if source_zone_count <= 0:
+            source_zone_count = configured_device_zone_count
+        if source_zone_count <= 0:
+            source_zone_count = 8
+        if configured_device_zone_count <= 0:
+            configured_device_zone_count = max(1, int(source_zone_count))
 
         explicit_zone_map = [int(i) for i in (getattr(calibration, "explicit_zone_map", []) or [])]
         anchor_values = (
@@ -190,11 +196,11 @@ class CalibrationState:
             int(getattr(calibration, "corner_anchor_bottom_left", -1)),
         )
         return cls(
-            zone_count=max(1, int(configured_zone_count)),
+            zone_count=max(1, int(source_zone_count)),
             zone_preset=str(getattr(cfg, "zone_preset", "edge-weighted")),
             reverse_zones=bool(getattr(calibration, "reverse_zones", False)),
             zone_offset=int(getattr(calibration, "zone_offset", 0)),
-            device_zone_count=max(1, int(getattr(calibration, "device_zone_count", 0)) or max(1, int(configured_zone_count))),
+            device_zone_count=max(1, int(configured_device_zone_count)),
             explicit_zone_map=explicit_zone_map,
             manual_mapping_enabled=bool(getattr(calibration, "manual_mapping_enabled", False)),
             calibration_model="corner_anchored",

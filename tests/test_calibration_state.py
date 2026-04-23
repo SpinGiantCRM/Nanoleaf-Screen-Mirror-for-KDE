@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.config.model import AppConfig, ZoneConfig
 from nanoleaf_sync.ui.calibration_flow import CalibrationPhaseDefinition
 from nanoleaf_sync.ui.calibration_state import (
     MIN_CALIBRATION_VALIDATION_CONFIDENCE,
@@ -25,6 +25,17 @@ def test_shared_calibration_state_round_trips_core_fields() -> None:
     assert state.zone_offset == 3
     assert state.reverse_zones is True
     assert state.effective_device_zone_count() == 18
+
+
+def test_calibration_state_does_not_derive_device_zone_count_from_zone_rect_count() -> None:
+    cfg = AppConfig(
+        zones=[ZoneConfig(x=0.0, y=0.0, w=1.0, h=1.0)],
+        device_zone_count=12,
+    )
+    state = CalibrationState.from_config(cfg, runtime_status={})
+    assert state.zone_count == 1
+    assert state.effective_device_zone_count() == 12
+    assert state.cycle_length("corner+offset alignment") == 4
 
 
 def test_combined_corner_offset_mode_reflects_live_offset_reverse() -> None:
