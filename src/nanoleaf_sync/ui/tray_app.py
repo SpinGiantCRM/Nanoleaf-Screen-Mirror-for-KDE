@@ -240,18 +240,29 @@ class NanoleafTrayApp:
         return driver
 
     def _send_calibration_preview(self, colors: list[tuple[int, int, int]]) -> None:
-        try:
-            driver = self._acquire_preview_driver()
-            driver.send_frame(colors)
-        except Exception as exc:
-            _log.warning("Calibration preview send failed: %s", exc, exc_info=True)
-            self._close_preview_driver(resume_service=True)
-            self.tray_icon.showMessage(
-                "nanoleaf-kde-sync",
-                f"Calibration test pattern failed: {exc}",
-                self.QSystemTrayIcon.MessageIcon.Warning,
-                5000,
-            )
+        max_attempts = 2
+        for attempt in range(1, max_attempts + 1):
+            try:
+                driver = self._acquire_preview_driver()
+                driver.send_frame(colors)
+                return
+            except Exception as exc:
+                _log.warning(
+                    "Calibration preview send failed on attempt %d/%d: %s",
+                    attempt,
+                    max_attempts,
+                    exc,
+                    exc_info=True,
+                )
+                self._close_preview_driver(resume_service=True)
+                if attempt < max_attempts:
+                    continue
+                self.tray_icon.showMessage(
+                    "nanoleaf-kde-sync",
+                    f"Calibration test pattern failed: {exc}",
+                    self.QSystemTrayIcon.MessageIcon.Warning,
+                    5000,
+                )
 
     def _make_preview_driver(self):
         return self.service._make_device_driver()
