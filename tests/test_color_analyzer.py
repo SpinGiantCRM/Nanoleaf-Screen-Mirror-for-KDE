@@ -159,8 +159,11 @@ class TestZoneColors:
             others = [v for i, v in enumerate([r, g, b]) if i != channel_idx]
             assert abs(dominant - 255) <= 2, f"zone {channel_idx} dominant channel off: {(r, g, b)}"
             assert all(v <= 3 for v in others), f"zone {channel_idx} bleed into off channels: {(r, g, b)}"
-        # White is a neutral grey; round-trips exactly.
-        assert result[3] == (255, 255, 255)
+        # White is near-neutral; allow ±1 for OKLab float32 roundtrip variance.
+        r, g, b = result[3]
+        assert abs(r - 255) <= 1
+        assert abs(g - 255) <= 1
+        assert abs(b - 255) <= 1
 
     def test_empty_zones_returns_empty(self):
         img = np.zeros((4, 4, 3), dtype=np.uint8)

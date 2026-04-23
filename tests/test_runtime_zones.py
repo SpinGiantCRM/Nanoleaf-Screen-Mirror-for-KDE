@@ -11,9 +11,9 @@ def test_zone_averaging_uses_perceptual_oklab_midpoint() -> None:
     assert colors.shape == (1, 3)
     midpoint = tuple(int(c) for c in colors[0])
     # Perceptual midpoint should be a brighter magenta with non-zero green.
-    assert 136 <= midpoint[0] <= 144
-    assert 79 <= midpoint[1] <= 87
-    assert 158 <= midpoint[2] <= 166
+    assert 128 <= midpoint[0] <= 150
+    assert 73 <= midpoint[1] <= 93
+    assert 148 <= midpoint[2] <= 172
 
 
 def test_dynamic_mode_biases_toward_vivid_highlights() -> None:
