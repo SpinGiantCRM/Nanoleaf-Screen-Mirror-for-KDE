@@ -104,6 +104,8 @@ def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:
         ]
     if "normalized_manual_zone_map" not in calibration:
         calibration["normalized_manual_zone_map"] = calibration.get("explicit_zone_map", migrated.get("explicit_zone_map", []))
+    calibration["calibration_model"] = "corner_anchored"
+    migrated["calibration_model"] = "corner_anchored"
 
     calibration["schema_version"] = calibration_schema_version
     calibration["calibration_schema_version"] = calibration_schema_version
@@ -187,16 +189,16 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     calibration_model = normalize_enum(
         calibration_or_legacy("calibration_model", AppConfig.calibration_model),
         allowed={
-            "offset_direction": "offset_direction",
-            "offset-direction": "offset_direction",
             "corner_anchored": "corner_anchored",
             "corner-anchored": "corner_anchored",
-            "manual_explicit_map": "manual_explicit_map",
-            "manual-explicit-map": "manual_explicit_map",
-            "manual_map": "manual_explicit_map",
-            "manual-map": "manual_explicit_map",
+            "offset_direction": "corner_anchored",
+            "offset-direction": "corner_anchored",
+            "manual_explicit_map": "corner_anchored",
+            "manual-explicit-map": "corner_anchored",
+            "manual_map": "corner_anchored",
+            "manual-map": "corner_anchored",
         },
-        default=AppConfig.calibration_model,
+        default="corner_anchored",
     )
     raw_explicit_zone_map = calibration_or_legacy("explicit_zone_map", [])
     explicit_zone_map = [int(i) for i in raw_explicit_zone_map] if raw_explicit_zone_map else []
@@ -240,7 +242,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     )
     raw_normalized_manual_zone_map = calibration_or_legacy("normalized_manual_zone_map", explicit_zone_map) or []
     normalized_manual_zone_map = [int(i) for i in raw_normalized_manual_zone_map]
-    effective_manual_mapping_enabled = manual_mapping_enabled or calibration_model == "manual_explicit_map"
+    effective_manual_mapping_enabled = manual_mapping_enabled
     normalized_calibration = CalibrationConfig(
         schema_version=calibration_schema_version,
         calibration_schema_version=calibration_schema_version,

@@ -87,11 +87,9 @@ def resolve_calibration_mapping(
     corner_anchor_top_right: int = -1,
     corner_anchor_bottom_right: int = -1,
     corner_anchor_bottom_left: int = -1,
-    calibration_model: str = "offset_direction",
+    calibration_model: str = "corner_anchored",
 ) -> CalibrationMappingSnapshot:
-    normalized_model = str(calibration_model).strip().lower().replace("-", "_")
-    if normalized_model == "manual_map":
-        normalized_model = "manual_explicit_map"
+    normalized_model = "corner_anchored"
     anchors = {
         "top_left": _normalize_anchor(corner_anchor_top_left),
         "top_right": _normalize_anchor(corner_anchor_top_right),
@@ -101,38 +99,46 @@ def resolve_calibration_mapping(
 
     validation_warnings: tuple[str, ...] = ()
     warning_codes: tuple[str, ...] = ()
-    selected_explicit_map: list[int] | None = None
-    strategy = "offset_direction"
+    strategy = "corner_anchored"
     fallback_strategy: str | None = None
-    direction = "counter-clockwise" if bool(reverse_zones) else "clockwise"
+    direction = "clockwise"
 
-    if normalized_model == "corner_anchored":
-        anchor_validation = validate_corner_anchors(anchors=anchors, device_zone_count=device_zone_count)
-        if anchor_validation.valid:
-            anchor_map = derive_anchor_zone_map(
-                zone_count=zone_count,
-                device_zone_count=device_zone_count,
-                anchors=anchors,
-            )
-            selected_explicit_map = _rotate_explicit_zone_map(
-                anchor_map.explicit_zone_map,
-                zone_offset=zone_offset,
-            )
-            strategy = "corner_anchored"
-            direction = anchor_map.direction
-        else:
-            validation_warnings = tuple(anchor_validation.errors)
-            warning_codes = _corner_anchor_warning_codes(
-                anchors=anchors,
-                device_zone_count=device_zone_count,
-            )
-            fallback_strategy = "offset_direction"
+    anchor_validation = validate_corner_anchors(anchors=anchors, device_zone_count=device_zone_count)
+    if anchor_validation.valid:
+        effective_anchors = anchors
+    else:
+        validation_warnings = tuple(anchor_validation.errors)
+        warning_codes = _corner_anchor_warning_codes(
+            anchors=anchors,
+            device_zone_count=device_zone_count,
+        )
+        total = max(4, int(device_zone_count))
+        inferred_anchor = int(zone_offset) % total
+        effective_anchors = {
+            "top_left": inferred_anchor,
+            "top_right": (inferred_anchor + (total // 4)) % total,
+            "bottom_right": (inferred_anchor + (total // 2)) % total,
+            "bottom_left": (inferred_anchor + ((3 * total) // 4)) % total,
+        }
+        fallback_strategy = "deterministic_anchor_inference"
 
-    manual_explicit_mode = normalized_model == "manual_explicit_map"
-    if selected_explicit_map is None and (manual_mapping_enabled or manual_explicit_mode) and explicit_zone_map:
-        selected_explicit_map = [int(i) for i in explicit_zone_map]
-        strategy = "manual_explicit_map"
-        direction = "manual"
+    derive_device_zone_count = max(4, int(device_zone_count))
+    anchor_map = derive_anchor_zone_map(
+        zone_count=zone_count,
+        device_zone_count=derive_device_zone_count,
+        anchors=effective_anchors,
+    )
+    selected_explicit_map = _rotate_explicit_zone_map(
+        anchor_map.explicit_zone_map,
+        zone_offset=zone_offset,
+    )
+    target_count = max(1, int(device_zone_count))
+    if len(selected_explicit_map) != target_count:
+        source_count = len(selected_explicit_map)
+        selected_explicit_map = [
+            int(selected_explicit_map[(idx * source_count) // target_count]) for idx in range(target_count)
+        ]
+    direction = anchor_map.direction
 
     normalized_device_zone_count = int(device_zone_count)
     if normalized_device_zone_count <= 0:
@@ -143,7 +149,7 @@ def resolve_calibration_mapping(
         device_zone_count=normalized_device_zone_count,
         zone_offset=int(zone_offset),
         reverse=bool(reverse_zones),
-        manual_mapping_enabled=bool(selected_explicit_map),
+        manual_mapping_enabled=True,
         explicit_zone_map=selected_explicit_map,
         corner_zone_offsets=list(corner_zone_offsets) if corner_zone_offsets else None,
     )
@@ -206,5 +212,5 @@ def resolve_calibration_mapping_with_context(
         corner_anchor_top_right=int(getattr(calibration, "corner_anchor_top_right", -1)),
         corner_anchor_bottom_right=int(getattr(calibration, "corner_anchor_bottom_right", -1)),
         corner_anchor_bottom_left=int(getattr(calibration, "corner_anchor_bottom_left", -1)),
-        calibration_model=str(getattr(calibration, "calibration_model", "offset_direction")),
+        calibration_model="corner_anchored",
     )

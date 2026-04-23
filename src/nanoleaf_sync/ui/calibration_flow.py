@@ -35,10 +35,6 @@ def _validate_step_marked_passed(state: "CalibrationState", phase: CalibrationPh
 
 def _validate_corner_assignment(state: "CalibrationState", phase: CalibrationPhaseDefinition) -> tuple[bool, str]:
     progress = state.calibration_step_state(phase.step_id)
-    if state.calibration_model != "corner_anchored":
-        if progress.passed:
-            return True, "Corner assignment accepted for offset/direction model."
-        return False, "Phase is not marked as passed yet."
     anchors = {
         "top_left": state.corner_anchor_top_left if state.corner_anchor_top_left >= 0 else None,
         "top_right": state.corner_anchor_top_right if state.corner_anchor_top_right >= 0 else None,
@@ -110,7 +106,7 @@ CALIBRATION_SEQUENCE: tuple[CalibrationPhaseDefinition, ...] = (
         validation_fn=_validate_corner_assignment,
         remediation_hints=(
             "Assign corners while the intended zone is active.",
-            "If anchor model is disabled, verify equivalent corner positions in the walk.",
+            "Verify equivalent corner positions in the walk.",
         ),
         pass_criteria="Top-left, top-right, bottom-right, and bottom-left corner anchors are coherent.",
         fail_criteria="Corner anchors are missing, duplicated, or invalid for strip size.",
@@ -184,7 +180,7 @@ def derive_corner_anchor_device_indices(
     explicit_zone_map=None,
     corner_zone_offsets=None,
     start_anchor: int | None = None,
-    calibration_model: str = "offset_direction",
+    calibration_model: str = "corner_anchored",
 ) -> list[int]:
     total = max(1, int(device_zone_count))
     if total == 1:

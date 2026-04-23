@@ -150,7 +150,7 @@ class CalibrationState:
     device_zone_count: int
     explicit_zone_map: list[int] = field(default_factory=list)
     manual_mapping_enabled: bool = False
-    calibration_model: str = "offset_direction"
+    calibration_model: str = "corner_anchored"
     corner_start_anchor: int = -1
     corner_offsets_enabled: bool = False
     corner_zone_offsets: list[int] = field(default_factory=list)
@@ -197,7 +197,7 @@ class CalibrationState:
             device_zone_count=max(1, int(getattr(calibration, "device_zone_count", 0)) or max(1, int(configured_zone_count))),
             explicit_zone_map=explicit_zone_map,
             manual_mapping_enabled=bool(getattr(calibration, "manual_mapping_enabled", False)),
-            calibration_model=str(getattr(calibration, "calibration_model", "offset_direction")),
+            calibration_model="corner_anchored",
             corner_start_anchor=int(getattr(calibration, "corner_start_anchor", -1)),
             corner_offsets_enabled=bool(getattr(calibration, "corner_offsets_enabled", False)),
             corner_zone_offsets=[int(i) for i in (getattr(calibration, "corner_zone_offsets", []) or [])][:4],
@@ -528,7 +528,7 @@ class CalibrationState:
         return max(1, int(self.device_zone_count))
 
     def resolved_mapping_snapshot(self) -> CalibrationMappingSnapshot:
-        explicit = self.explicit_zone_map if self.manual_mapping_enabled and self.calibration_model != "corner_anchored" else []
+        explicit = self.explicit_zone_map if self.manual_mapping_enabled else []
         return resolve_calibration_mapping(
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
@@ -546,7 +546,7 @@ class CalibrationState:
 
     def mapping_preview_text(self) -> str:
         snapshot = self.resolved_mapping_snapshot()
-        explicit = self.explicit_zone_map if self.manual_mapping_enabled and self.calibration_model != "corner_anchored" else []
+        explicit = self.explicit_zone_map if self.manual_mapping_enabled else []
         return (
             f"{self.auto_detection_status()}\n"
             f"Anchors TL/TR/BR/BL: {self.corner_anchor_top_left}/{self.corner_anchor_top_right}/{self.corner_anchor_bottom_right}/{self.corner_anchor_bottom_left}\n"
@@ -557,7 +557,7 @@ class CalibrationState:
 
     def mapping_preview_visual(self) -> str:
         snapshot = self.resolved_mapping_snapshot()
-        explicit = self.explicit_zone_map if self.manual_mapping_enabled and self.calibration_model != "corner_anchored" else []
+        explicit = self.explicit_zone_map if self.manual_mapping_enabled else []
         return mapping_preview_visual(
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
@@ -575,7 +575,7 @@ class CalibrationState:
 
     def _corner_steps(self, resolved_mapping: CalibrationMappingSnapshot | None = None) -> list[CalibrationStep]:
         snapshot = resolved_mapping or self.resolved_mapping_snapshot()
-        explicit = self.explicit_zone_map if self.manual_mapping_enabled and self.calibration_model != "corner_anchored" else []
+        explicit = self.explicit_zone_map if self.manual_mapping_enabled else []
         anchors = corner_anchor_steps(
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
@@ -595,7 +595,7 @@ class CalibrationState:
 
     def step_for_mode(self, mode: str, step: int) -> CalibrationStep:
         snapshot = self.resolved_mapping_snapshot()
-        explicit = self.explicit_zone_map if self.manual_mapping_enabled and self.calibration_model != "corner_anchored" else []
+        explicit = self.explicit_zone_map if self.manual_mapping_enabled else []
         if mode == "corner+offset alignment":
             anchors = self._corner_steps(snapshot)
             anchor = anchors[step % len(anchors)]

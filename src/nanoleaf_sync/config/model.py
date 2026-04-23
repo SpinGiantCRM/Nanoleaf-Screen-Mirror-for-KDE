@@ -26,11 +26,7 @@ class CalibrationConfig:
     # Canonical version marker used by schema migrations.
     calibration_schema_version: int = 1
     # Authoritative calibration model for resolving mapping.
-    calibration_model: str = "offset_direction"
-    # Canonical normalization of calibration modes:
-    # - offset_direction: use `normalized_zone_offset` + `normalized_reverse_zones`
-    # - corner_anchored: use `normalized_corner_anchors`
-    # - manual_explicit_map: use `normalized_manual_zone_map`
+    calibration_model: str = "corner_anchored"
     device_zone_count: int = 0
     output_channel_order: str = "grb"
     normalized_zone_offset: int = 0
@@ -138,10 +134,7 @@ class AppConfig:
     # Explicitly controls whether `explicit_zone_map` is active.
     manual_mapping_enabled: bool = False
     # Authoritative calibration model for resolving mapping.
-    # - offset_direction: legacy global offset + reverse toggle.
-    # - corner_anchored: derive explicit map from four corner anchors.
-    # - manual_explicit_map: force explicit map semantics.
-    calibration_model: str = "offset_direction"
+    calibration_model: str = "corner_anchored"
     # Optional explicit mapping: list of screen-zone indices for each device zone.
     # Applied only when `manual_mapping_enabled` is True.
     explicit_zone_map: list[int] = field(default_factory=list)

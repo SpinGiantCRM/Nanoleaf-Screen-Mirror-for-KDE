@@ -131,7 +131,7 @@ def _mapping_signature(
         tuple(int(i) for i in (config.explicit_zone_map or [])),
         bool(getattr(config, "corner_offsets_enabled", False)),
         tuple(int(i) for i in (getattr(config, "corner_zone_offsets", []) or [])),
-        str(getattr(config, "calibration_model", "offset_direction")),
+        str(getattr(config, "calibration_model", "corner_anchored")),
         int(getattr(config, "corner_anchor_top_left", -1)),
         int(getattr(config, "corner_anchor_top_right", -1)),
         int(getattr(config, "corner_anchor_bottom_right", -1)),

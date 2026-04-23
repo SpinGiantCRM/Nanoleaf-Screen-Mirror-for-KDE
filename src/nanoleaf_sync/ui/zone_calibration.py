@@ -67,7 +67,7 @@ def mapping_indices(
     corner_anchor_top_right: int = -1,
     corner_anchor_bottom_right: int = -1,
     corner_anchor_bottom_left: int = -1,
-    calibration_model: str = "offset_direction",
+    calibration_model: str = "corner_anchored",
 ) -> list[int]:
     snapshot = resolve_calibration_mapping(
         zone_count=zone_count,
@@ -98,7 +98,7 @@ def mapping_preview_text(
     corner_anchor_top_right: int = -1,
     corner_anchor_bottom_right: int = -1,
     corner_anchor_bottom_left: int = -1,
-    calibration_model: str = "offset_direction",
+    calibration_model: str = "corner_anchored",
     resolved_mapping: CalibrationMappingSnapshot | None = None,
     show_limit: int = 16,
 ) -> str:
@@ -120,42 +120,34 @@ def mapping_preview_text(
     limit = max(1, int(show_limit))
     preview = ", ".join(str(i) for i in indices[:limit])
     suffix = "…" if len(indices) > limit else ""
-    if snapshot.calibration_model == "corner_anchored":
-        model = "guided corner anchors"
-        detail_line = (
-            f"Anchors (TL/TR/BR/BL): {corner_anchor_top_left}, "
-            f"{corner_anchor_top_right}, "
-            f"{corner_anchor_bottom_right}, "
-            f"{corner_anchor_bottom_left}"
+    model = "guided corner anchors"
+    detail_line = (
+        f"Anchors (TL/TR/BR/BL): {corner_anchor_top_left}, "
+        f"{corner_anchor_top_right}, "
+        f"{corner_anchor_bottom_right}, "
+        f"{corner_anchor_bottom_left}"
+    )
+    summary = corner_anchor_validation_summary(
+        device_zone_count=device_zone_count,
+        corner_anchor_top_left=corner_anchor_top_left,
+        corner_anchor_top_right=corner_anchor_top_right,
+        corner_anchor_bottom_right=corner_anchor_bottom_right,
+        corner_anchor_bottom_left=corner_anchor_bottom_left,
+    )
+    notes = ""
+    if snapshot.anchor_validation_errors:
+        warning_codes = ", ".join(snapshot.warning_codes) if snapshot.warning_codes else "none"
+        notes = (
+            "\nCorner anchors are incomplete; using temporary alignment until they validate."
+            f"\nAlignment warnings: [{warning_codes}]"
+            f"\n{summary}"
+            f"\nCorner anchor validation: {'; '.join(snapshot.anchor_validation_errors)}"
         )
-        summary = corner_anchor_validation_summary(
-            device_zone_count=device_zone_count,
-            corner_anchor_top_left=corner_anchor_top_left,
-            corner_anchor_top_right=corner_anchor_top_right,
-            corner_anchor_bottom_right=corner_anchor_bottom_right,
-            corner_anchor_bottom_left=corner_anchor_bottom_left,
-        )
-        notes = ""
-        if snapshot.anchor_validation_errors:
-            warning_codes = ", ".join(snapshot.warning_codes) if snapshot.warning_codes else "none"
-            notes = (
-                "\nCorner anchors are incomplete; using temporary alignment until they validate."
-                f"\nAlignment warnings: [{warning_codes}]"
-                f"\n{summary}"
-                f"\nCorner anchor validation: {'; '.join(snapshot.anchor_validation_errors)}"
-            )
-        else:
-            notes = (
-                "\nCorner anchors drive mapping for this calibration mode."
-                f"\n{summary}"
-            )
     else:
-        model = "guided alignment"
-        detail_line = (
-            f"Offset: {int(zone_offset):+d} | "
-            f"Direction: {'counter-clockwise' if reverse_zones else 'clockwise'}"
+        notes = (
+            "\nCorner anchors drive mapping for this calibration mode."
+            f"\n{summary}"
         )
-        notes = ""
     return (
         f"Calibration model: {model} | source zones: {zone_count} | strip zones: {device_zone_count}\n"
         f"{detail_line}{notes}\n"

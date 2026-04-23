@@ -568,7 +568,7 @@ class DisplayConfiguratorDialog:
                 self._state.device_zone_count = int(self.device_zone_count_slider.value())
                 self._state.corner_offsets_enabled = False
                 self._state.corner_zone_offsets = [0, 0, 0, 0]
-                self._state.calibration_model = str(self._initial_calibration.calibration_model)
+                self._state.calibration_model = "corner_anchored"
 
             def _normalize_offset_for_count(self, offset: int, zone_count: int) -> int:
                 total = max(1, int(zone_count))
@@ -836,7 +836,7 @@ class DisplayConfiguratorDialog:
                 if callable(next_set_enabled):
                     next_set_enabled(self._flow.can_go_next())
                 effective_zone_count = self._state.effective_device_zone_count()
-                corner_mode = self._state.calibration_model == "corner_anchored"
+                corner_mode = True
                 mapping_snapshot = self._state.resolved_mapping_snapshot()
                 anchors = {
                     "top_left": self._state.corner_anchor_top_left if self._state.corner_anchor_top_left >= 0 else None,
@@ -1102,7 +1102,7 @@ class DisplayConfiguratorDialog:
                     corner_anchor_top_right=int(self._state.corner_anchor_top_right),
                     corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
                     corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
-                    calibration_model=str(self._state.calibration_model),
+                    calibration_model="corner_anchored",
                 )
                 anchors = {
                     "top_left": self._state.corner_anchor_top_left if self._state.corner_anchor_top_left >= 0 else None,
@@ -1124,7 +1124,7 @@ class DisplayConfiguratorDialog:
                 fallback_strategy = str(mapping_snapshot.fallback_strategy or "")
                 calibration_payload = CalibrationConfig(
                     schema_version=int(getattr(cfg, "calibration_schema_version", 1) or 1),
-                    calibration_model=str(self._state.calibration_model),
+                    calibration_model="corner_anchored",
                     device_zone_count=int(self._state.device_zone_count),
                     output_channel_order=str(self._initial_calibration.output_channel_order),
                     zone_offset=int(self._state.zone_offset),
@@ -1165,7 +1165,7 @@ class DisplayConfiguratorDialog:
                     corner_anchor_fallback_active=bool(mapping_snapshot.invalid_corner_anchor_fallback_active),
                     corner_anchor_fallback_strategy=fallback_strategy,
                     corner_anchor_warning_codes=fallback_warning_codes,
-                    calibration_model=str(self._state.calibration_model),
+                    calibration_model="corner_anchored",
                     calibration_schema_version=int(calibration_payload.schema_version),
                     calibration=calibration_payload,
                     calibration_validation_confidence=float(verification.confidence_score),
@@ -1205,7 +1205,7 @@ class DisplayConfiguratorDialog:
                     corner_anchor_top_right=int(self._state.corner_anchor_top_right),
                     corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
                     corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
-                    calibration_model=str(self._state.calibration_model),
+                    calibration_model="corner_anchored",
                 )
                 payload = {
                     "flow_index": int(self._flow.index),
@@ -1346,8 +1346,6 @@ class DisplayConfiguratorDialog:
                 return True
 
             def _assign_anchor(self, corner: str) -> None:
-                if self._state.calibration_model != "corner_anchored":
-                    return
                 self._state.push_action_snapshot()
                 self._pull_state_from_controls()
                 current_zone = self._active_calibration_step().device_zone_index

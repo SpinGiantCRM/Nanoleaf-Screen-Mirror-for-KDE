@@ -173,7 +173,7 @@ def test_migrated_legacy_calibration_config_keeps_preview_runtime_mapping_parity
     assert preview_snapshot.validation_warnings == runtime_snapshot.validation_warnings
 
 
-def test_manual_explicit_model_forces_explicit_mapping_without_manual_flag() -> None:
+def test_manual_explicit_model_is_coerced_to_corner_anchored() -> None:
     cfg = validate_config(
         AppConfig(
             zones=[
@@ -192,10 +192,10 @@ def test_manual_explicit_model_forces_explicit_mapping_without_manual_flag() -> 
     preview_snapshot = CalibrationState.from_config(cfg).resolved_mapping_snapshot()
     runtime_snapshot = resolve_calibration_mapping_from_config(config=cfg, source_zone_count=len(cfg.zones))
 
-    assert preview_snapshot.mode == "manual_explicit_map"
-    assert runtime_snapshot.mode == "manual_explicit_map"
-    assert preview_snapshot.device_to_source_indices == [3, 1, 0, 2]
-    assert runtime_snapshot.device_to_source_indices == [3, 1, 0, 2]
+    assert cfg.calibration_model == "corner_anchored"
+    assert cfg.calibration.calibration_model == "corner_anchored"
+    assert preview_snapshot.mode == "corner_anchored"
+    assert runtime_snapshot.mode == "corner_anchored"
 
 
 def test_corner_anchored_invalid_anchors_emit_fallback_indicator_and_warning_codes() -> None:
@@ -220,8 +220,8 @@ def test_corner_anchored_invalid_anchors_emit_fallback_indicator_and_warning_cod
     snapshot = resolve_calibration_mapping_from_config(config=cfg, source_zone_count=len(cfg.zones))
 
     assert snapshot.calibration_model == "corner_anchored"
-    assert snapshot.strategy == "offset_direction"
-    assert snapshot.fallback_strategy == "offset_direction"
+    assert snapshot.strategy == "corner_anchored"
+    assert snapshot.fallback_strategy == "deterministic_anchor_inference"
     assert snapshot.invalid_corner_anchor_fallback_active is True
     assert "CORNER_ANCHOR_MISSING" in snapshot.warning_codes
     assert "CORNER_ANCHOR_DUPLICATE" in snapshot.warning_codes
