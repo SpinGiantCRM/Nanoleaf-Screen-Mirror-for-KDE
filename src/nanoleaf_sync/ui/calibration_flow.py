@@ -42,10 +42,10 @@ def _validate_corner_assignment(state: "CalibrationState", phase: CalibrationPha
         "bottom_left": state.corner_anchor_bottom_left if state.corner_anchor_bottom_left >= 0 else None,
     }
     result = validate_corner_anchors(anchors=anchors, device_zone_count=state.effective_device_zone_count())
-    if not result.valid:
-        return False, "Corner anchors invalid: " + "; ".join(result.errors)
     if not progress.passed:
-        return False, "Corner anchors are valid, but phase is not marked as passed."
+        return False, "Phase is not marked as passed yet."
+    if not result.valid:
+        return True, "Phase passed with provisional anchors: " + "; ".join(result.errors)
     return True, "Corner anchors validated and phase marked passed."
 
 

@@ -903,7 +903,7 @@ class DisplayConfiguratorDialog:
                     details=str(validation_details),
                 )
                 strict_calibration_complete = self._state.can_complete_calibration_flow()
-                calibration_step_valid = self._device_zone_count_confirmed and strict_calibration_complete and not invalid_anchor_fallback
+                calibration_step_valid = self._device_zone_count_confirmed and strict_calibration_complete
                 self._flow.set_step_valid(0, calibration_step_valid)
                 self._flow.set_step_valid(1, True)
                 self._flow.set_step_valid(2, True)
