@@ -12,6 +12,10 @@ def test_effective_zone_count_uses_device_count_then_default() -> None:
     assert effective_zone_count(config=AppConfig(zones=[], device_zone_count=9), detected_device_zone_count=None) == 9
     assert (
         effective_zone_count(config=AppConfig(zones=[], device_zone_count=0), detected_device_zone_count=7)
+        == 7
+    )
+    assert (
+        effective_zone_count(config=AppConfig(zones=[], device_zone_count=0), detected_device_zone_count=None)
         == DEFAULT_DERIVED_ZONE_COUNT
     )
 

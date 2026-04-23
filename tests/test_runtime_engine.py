@@ -81,7 +81,7 @@ def test_process_frame_uses_precomputed_artifacts() -> None:
     assert colors == [(0, 255, 0), (255, 0, 0)]
 
 
-def test_runtime_artifacts_no_longer_use_detected_device_zone_count_when_config_is_legacy_auto() -> None:
+def test_runtime_artifacts_use_detected_device_zone_count_when_config_is_legacy_auto() -> None:
     state = RuntimeState()
     cfg = AppConfig(
         zones=[ZoneConfig(x=0.0, y=0.0, w=0.5, h=1.0), ZoneConfig(x=0.5, y=0.0, w=0.5, h=1.0)],
@@ -96,7 +96,7 @@ def test_runtime_artifacts_no_longer_use_detected_device_zone_count_when_config_
         detected_device_zone_count=5,
     )
 
-    assert mapping.tolist() == [0, 1]
+    assert mapping.tolist() == [0, 1, 0, 1, 0]
 
 
 def test_runtime_artifacts_manual_device_zone_count_overrides_detected_length() -> None:
@@ -133,7 +133,7 @@ def test_runtime_derives_source_zones_from_device_zone_count_when_config_zones_e
     assert mapping.tolist() == [0, 1, 2, 3, 4, 5]
 
 
-def test_runtime_derives_source_zones_from_default_count_when_legacy_auto() -> None:
+def test_runtime_derives_source_zones_from_detected_count_when_legacy_auto() -> None:
     state = RuntimeState()
     cfg = AppConfig(zones=[], zone_preset="edge-weighted", device_zone_count=0)
 
@@ -145,8 +145,8 @@ def test_runtime_derives_source_zones_from_default_count_when_legacy_auto() -> N
         detected_device_zone_count=5,
     )
 
-    assert len(zones_px) == 8
-    assert mapping.tolist() == [0, 1, 2, 3, 4, 5, 6, 7]
+    assert len(zones_px) == 5
+    assert mapping.tolist() == [0, 1, 2, 3, 4]
 
 
 def test_runtime_edge_weighted_does_not_activate_explicit_map_without_manual_toggle() -> None:
@@ -167,7 +167,7 @@ def test_runtime_edge_weighted_does_not_activate_explicit_map_without_manual_tog
         detected_device_zone_count=5,
     )
 
-    assert mapping.tolist() == [0, 1, 2, 3, 4, 5, 6, 7]
+    assert mapping.tolist() == [0, 1, 2, 3, 4]
 
 
 def test_runtime_edge_weighted_honors_explicit_map_when_manual_toggle_enabled() -> None:
@@ -188,7 +188,7 @@ def test_runtime_edge_weighted_honors_explicit_map_when_manual_toggle_enabled() 
         detected_device_zone_count=5,
     )
 
-    assert mapping.tolist() == [0, 0, 0, 0, 0, 0, 0, 0]
+    assert mapping.tolist() == [0, 0, 0, 0, 0]
 
 
 def test_runtime_uses_explicit_saved_zones_when_present() -> None:

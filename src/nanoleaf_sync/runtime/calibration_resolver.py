@@ -167,9 +167,14 @@ def resolve_calibration_mapping_from_config(
 ) -> CalibrationMappingSnapshot:
     calibration = config.effective_calibration()
     configured_device_zone_count = int(getattr(calibration, "device_zone_count", 0))
+    detected_count = int(detected_device_zone_count or 0)
     context = CalibrationResolverContext(
         source_zone_count=int(source_zone_count),
-        effective_device_zone_count=(configured_device_zone_count if configured_device_zone_count > 0 else max(1, int(source_zone_count))),
+        effective_device_zone_count=(
+            configured_device_zone_count
+            if configured_device_zone_count > 0
+            else (detected_count if detected_count > 0 else max(1, int(source_zone_count)))
+        ),
         detected_device_zone_count=detected_device_zone_count,
     )
     return resolve_calibration_mapping_with_context(config=config, context=context)
