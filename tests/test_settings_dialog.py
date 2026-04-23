@@ -3,7 +3,7 @@ from __future__ import annotations
 import types
 from pathlib import Path
 
-from nanoleaf_sync.config.model import AppConfig, ZoneConfig
+from nanoleaf_sync.config.model import AppConfig, CalibrationConfig, ZoneConfig
 from nanoleaf_sync.ui.settings_dialog import SettingsDialog
 
 
@@ -470,3 +470,19 @@ def test_settings_dialog_preserves_interrupted_calibration_rollback_state(monkey
 
     updated = dialog.updated_config()
     assert updated.wizard_in_progress_state == draft
+
+
+def test_settings_dialog_syncs_nested_calibration_device_zone_count(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    cfg = AppConfig(
+        zones=[ZoneConfig(x=0.0, y=0.0, w=0.125, h=1.0) for _ in range(8)],
+        device_zone_count=8,
+        calibration=CalibrationConfig(calibration_model="corner_anchored"),
+    )
+    dialog = SettingsDialog(parent=None, cfg=cfg)
+
+    dialog._dialog.device_zone_count_slider.setValue(48)
+    updated = dialog.updated_config()
+
+    assert updated.device_zone_count == 48
+    assert updated.calibration.device_zone_count == 48

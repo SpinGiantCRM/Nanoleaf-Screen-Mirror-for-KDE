@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Callable
 
-from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.ui.calibration_flow import calibration_sequence_text
 from nanoleaf_sync.ui.calibration_state import (
     CalibrationState,
@@ -669,6 +669,25 @@ class SettingsDialog:
                     vid_value = int(str(self.device_vid_combo.currentText()), 0)
                     pid_value = int(str(self.device_pid_combo.currentText()), 0)
                 new_zones = make_edge_weighted_zones(self._state.zone_count) if self._state.zone_preset == "edge-weighted" else make_horizontal_zones(self._state.zone_count)
+                calibration_schema_version = int(getattr(cfg, "calibration_schema_version", 1) or 1)
+                calibration_payload = CalibrationConfig(
+                    schema_version=calibration_schema_version,
+                    calibration_schema_version=calibration_schema_version,
+                    calibration_model=str(self._state.calibration_model),
+                    device_zone_count=int(self._state.device_zone_count),
+                    output_channel_order=str(self.output_channel_order_combo.currentText()),
+                    zone_offset=int(self._state.zone_offset),
+                    reverse_zones=bool(self._state.reverse_zones),
+                    manual_mapping_enabled=bool(self._state.manual_mapping_enabled),
+                    explicit_zone_map=[int(i) for i in self._state.explicit_zone_map],
+                    corner_anchor_top_left=int(self._state.corner_anchor_top_left),
+                    corner_anchor_top_right=int(self._state.corner_anchor_top_right),
+                    corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
+                    corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
+                    corner_start_anchor=int(self._state.corner_start_anchor),
+                    corner_offsets_enabled=bool(self._state.corner_offsets_enabled),
+                    corner_zone_offsets=self._state.active_corner_zone_offsets(),
+                )
                 return replace(
                     cfg,
                     fps=int(self.fps_slider.value()), sampling_quality=str(self.sampling_quality_combo.currentText()).lower(), brightness=self.brightness_slider.value() / 100.0,
@@ -692,6 +711,8 @@ class SettingsDialog:
                     hdr_transfer=str(self.hdr_transfer_combo.currentText()), hdr_primaries=str(self.hdr_primaries_combo.currentText()), hdr_max_nits=float(self.hdr_max_nits_slider.value()),
                     compositor_hdr_mode=bool(self.compositor_hdr_mode_checkbox.isChecked()), sdr_boost_nits=float(self.sdr_boost_nits_slider.value()),
                     device_vid=int(vid_value), device_pid=int(pid_value),
+                    calibration_schema_version=calibration_schema_version,
+                    calibration=calibration_payload,
                 )
 
         self._dialog = _Dialog()
