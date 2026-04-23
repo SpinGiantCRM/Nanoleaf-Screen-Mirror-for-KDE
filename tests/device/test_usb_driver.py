@@ -194,6 +194,7 @@ def test_send_frame_uses_configured_zone_count_override() -> None:
     driver = NanoleafUSBDriver(
         ids=NanoleafUSBIds(0x37FA, 0x8202),
         transport=transport,
+        report_size=256,
         configured_zone_count=48,
     )
     driver.initialize()
@@ -205,6 +206,48 @@ def test_send_frame_uses_configured_zone_count_override() -> None:
     req = transport.requests[-1]
     assert req[0] == 0x02
     assert int.from_bytes(req[1:3], "big") == 48 * 3
+
+
+def test_send_frame_rejects_zone_payload_larger_than_single_report() -> None:
+    transport = FakeTransport([
+        _rsp(0x0C, b"\x00NL82K2"),
+        _rsp(0x03, b"\x00\x08"),
+        _rsp(0x06, b"\x00\x01"),
+        _rsp(0x08, b"\x00\x64"),
+    ])
+    driver = NanoleafUSBDriver(
+        ids=NanoleafUSBIds(0x37FA, 0x8202),
+        transport=transport,
+        configured_zone_count=48,
+    )
+    driver.initialize()
+
+    with pytest.raises(RuntimeError, match="Zone color request exceeds single-report TLV capacity"):
+        driver.send_frame([(10, 20, 30)] * 48)
+
+
+def test_send_frame_more_than_8_zones_still_builds_one_valid_tlv_when_within_capacity() -> None:
+    transport = FakeTransport([
+        _rsp(0x0C, b"\x00NL82K2"),
+        _rsp(0x03, b"\x00\x08"),
+        _rsp(0x06, b"\x00\x01"),
+        _rsp(0x08, b"\x00\x64"),
+        _rsp(0x02, b"\x00"),
+    ])
+    driver = NanoleafUSBDriver(
+        ids=NanoleafUSBIds(0x37FA, 0x8202),
+        transport=transport,
+        report_size=64,
+        configured_zone_count=9,
+    )
+    driver.initialize()
+
+    driver.send_frame([(1, 2, 3)] * 9)
+
+    req = transport.requests[-1]
+    assert req[0] == 0x02
+    assert req[1:3] == b"\x00\x1b"
+    assert len(req) == 30
 
 
 def test_set_brightness_clamps_to_protocol_range() -> None:
