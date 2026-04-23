@@ -61,6 +61,7 @@ class KWinDBusScreenshotCapture:
         "captureScreen",
         "screenshotScreen",
     )
+    _RECONNECT_RETRY_DELAY_SECONDS = 0.05
 
     def __init__(
         self,
@@ -254,6 +255,7 @@ class KWinDBusScreenshotCapture:
             if not self._is_reconnectable_bus_error(exc):
                 raise
             await self._reset_bus_connections()
+            await asyncio.sleep(self._RECONNECT_RETRY_DELAY_SECONDS)
             return await func()
 
     def _is_reconnectable_bus_error(self, exc: Exception) -> bool:

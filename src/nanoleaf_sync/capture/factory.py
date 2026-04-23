@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from importlib import import_module
-from functools import lru_cache
 import logging
 import os
 from pathlib import Path
 import threading
+import time
+from typing import Callable
 
 from nanoleaf_sync.capture.backend_selection import (
     AUTO_BACKEND,
@@ -27,8 +28,11 @@ logger = logging.getLogger(__name__)
 
 _AUTO_PROBE_DISABLED_ENV = "NANOLEAF_DISABLE_CAPTURE_PROBE"
 _AUTO_PROBE_ENABLE_ENV = "NANOLEAF_ENABLE_CAPTURE_PROBE"
+_CAPABILITY_CACHE_TTL_SECONDS = 10.0
 _cached_probe_winner: str | None = None
 _cached_probe_winner_lock = threading.Lock()
+_capability_cache_lock = threading.Lock()
+_capability_cache: dict[str, tuple[float, bool]] = {}
 
 
 
@@ -41,30 +45,49 @@ def reset_cached_probe_winner() -> None:
 
 
 def reset_capability_check_cache() -> None:
-    _has_drm_device.cache_clear()
-    _kmsgrab_bindings_available.cache_clear()
+    with _capability_cache_lock:
+        _capability_cache.clear()
 
 
-@lru_cache(maxsize=1)
+def _capability_cache_get_or_refresh(
+    key: str,
+    resolver: Callable[[], bool],
+) -> bool:
+    now = time.monotonic()
+    with _capability_cache_lock:
+        cached = _capability_cache.get(key)
+        if cached is not None:
+            cached_at, value = cached
+            if (now - cached_at) < _CAPABILITY_CACHE_TTL_SECONDS:
+                return value
+
+    resolved = bool(resolver())
+    with _capability_cache_lock:
+        _capability_cache[key] = (time.monotonic(), resolved)
+    return resolved
+
+
 def _has_drm_device() -> bool:
     card_path = os.environ.get("NANOLEAF_DRM_CARD", "/dev/dri/card0")
-    return Path(card_path).exists()
+    return _capability_cache_get_or_refresh("has_drm_device", lambda: Path(card_path).exists())
 
 
-@lru_cache(maxsize=1)
 def _kmsgrab_bindings_available() -> bool:
-    try:
-        module = import_module("nanoleaf_sync.capture._kmsgrab")
-        if callable(getattr(module, "capture_dma_buf_rgb", None)):
-            return True
-    except ImportError:
-        pass
+    def _resolve() -> bool:
+        try:
+            module = import_module("nanoleaf_sync.capture._kmsgrab")
+            if callable(getattr(module, "capture_dma_buf_rgb", None)):
+                return True
+        except ImportError:
+            pass
 
-    try:
-        module = import_module("kmsgrab")  # type: ignore
-        return callable(getattr(module, "capture", None))
-    except ImportError:
-        return False
+        try:
+            module = import_module("kmsgrab")  # type: ignore
+            return callable(getattr(module, "capture", None))
+        except ImportError:
+            return False
+
+    return _capability_cache_get_or_refresh("kmsgrab_bindings_available", _resolve)
 
 
 def _resolve_auto_backend() -> str:
@@ -126,37 +149,42 @@ def _resolve_auto_backend_with_probe(
 
     with _cached_probe_winner_lock:
         cached = cached_probe_winner or _cached_probe_winner
-        if is_valid_probe_candidate(cached):
-            logger.info("capture auto-probe using cached winner=%s", cached)
-            return str(cached)
+    if is_valid_probe_candidate(cached):
+        logger.info("capture auto-probe using cached winner=%s", cached)
+        return str(cached)
 
-        candidates = list(AUTO_PROBE_CANDIDATES)
-        logger.info("capture auto-probe candidates=%s", ", ".join(candidates))
+    candidates = list(AUTO_PROBE_CANDIDATES)
+    logger.info("capture auto-probe candidates=%s", ", ".join(candidates))
 
-        try:
-            from nanoleaf_sync.capture.auto_probe import ProbeConfig, probe_backends
+    try:
+        from nanoleaf_sync.capture.auto_probe import ProbeConfig, probe_backends
 
-            result = probe_backends(width, height, candidates, ProbeConfig())
-            tested = ", ".join(item.candidate for item in result.candidates)
-            logger.info("capture auto-probe tested candidates=%s", tested)
+        result = probe_backends(width, height, candidates, ProbeConfig())
+        tested = ", ".join(item.candidate for item in result.candidates)
+        logger.info("capture auto-probe tested candidates=%s", tested)
 
-            if result.selected_backend is not None:
+        if result.selected_backend is not None:
+            with _cached_probe_winner_lock:
+                current_cached = _cached_probe_winner
+                if is_valid_probe_candidate(current_cached):
+                    logger.info("capture auto-probe cache updated by peer; winner=%s", current_cached)
+                    return str(current_cached)
                 _cached_probe_winner = result.selected_backend
-                logger.info("capture auto-probe selected winner=%s", result.selected_backend)
-                return result.selected_backend
+            logger.info("capture auto-probe selected winner=%s", result.selected_backend)
+            return result.selected_backend
 
-            logger.warning(
-                "capture auto-probe yielded no qualified backend; using capability fallback=%s",
-                fallback,
-            )
-        except Exception as exc:  # noqa: BLE001 - preserve startup reliability
-            logger.warning(
-                "capture auto-probe failed; using capability fallback=%s reason=%s",
-                fallback,
-                exc,
-            )
+        logger.warning(
+            "capture auto-probe yielded no qualified backend; using capability fallback=%s",
+            fallback,
+        )
+    except Exception as exc:  # noqa: BLE001 - preserve startup reliability
+        logger.warning(
+            "capture auto-probe failed; using capability fallback=%s reason=%s",
+            fallback,
+            exc,
+        )
 
-        return fallback
+    return fallback
 
 
 def _resolve_prefer_backend(
