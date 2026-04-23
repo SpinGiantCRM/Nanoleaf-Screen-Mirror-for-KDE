@@ -52,6 +52,14 @@ class _PathAwareHandle(FakeHIDHandle):
         self.opened_vidpid = (vid, pid)
 
 
+class _AlwaysFailOpenHandle(_PathAwareHandle):
+    def open_path(self, path: bytes) -> None:
+        raise OSError("open failed")
+
+    def open(self, vid: int, pid: int) -> None:
+        raise OSError("open failed")
+
+
 def test_transceive_round_trip_with_report_id_prefix() -> None:
     # response TLV: type=0x83, len=3, payload=00 00 0A
     fake = FakeHIDHandle([b"\x00\x83\x00\x03\x00\x00\x0A" + b"\x00" * 58])
@@ -202,3 +210,55 @@ def test_open_resolves_linux_usb_interface_path_to_hidraw(monkeypatch, tmp_path)
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
     transport.open()
     assert handle.opened_path == b"/dev/hidraw7"
+
+
+def test_open_uses_linux_sysfs_hidraw_mapping_when_enumeration_path_not_openable(
+    monkeypatch, tmp_path
+) -> None:
+    usb_interface = "3-1:1.0"
+    sys_class = tmp_path / "sys" / "class" / "hidraw" / "hidraw5" / "device"
+    iface_dir = tmp_path / "sys" / "devices" / "pci0000:00" / "0000:00:14.0" / usb_interface
+    iface_dir.mkdir(parents=True)
+    (iface_dir / "idVendor").write_text("37fa\n", encoding="utf-8")
+    (iface_dir / "idProduct").write_text("8202\n", encoding="utf-8")
+    (iface_dir / "bInterfaceNumber").write_text("00\n", encoding="utf-8")
+    sys_class.parent.mkdir(parents=True)
+    sys_class.symlink_to(iface_dir, target_is_directory=True)
+
+    handle = _PathAwareHandle(fail_paths={usb_interface.encode("utf-8")})
+    fake_hid = types.SimpleNamespace(
+        enumerate=lambda _vid, _pid: [{"path": usb_interface.encode("utf-8"), "interface_number": 0}],
+        device=lambda: handle,
+    )
+    monkeypatch.setitem(sys.modules, "hid", fake_hid)
+
+    from nanoleaf_sync.device import hid_transport as hid_transport_module
+
+    real_path_cls = hid_transport_module.Path
+
+    def _path_override(first: str, *rest: str):
+        if first == "/sys/bus/usb/devices":
+            return real_path_cls(tmp_path / "sys" / "bus" / "usb" / "devices", *rest)
+        if first == "/sys/class/hidraw":
+            return real_path_cls(tmp_path / "sys" / "class" / "hidraw", *rest)
+        return real_path_cls(first, *rest)
+
+    monkeypatch.setattr(hid_transport_module, "Path", _path_override)
+
+    transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
+    transport.open()
+    assert handle.opened_path == b"/dev/hidraw5"
+
+
+def test_open_error_reports_unusable_candidate_path_format(monkeypatch) -> None:
+    handle = _AlwaysFailOpenHandle()
+    fake_hid = types.SimpleNamespace(
+        __file__="/tmp/fake-hid.so",
+        __version__="0.15.0",
+        enumerate=lambda _vid, _pid: [{"path": b"3-1:1.0", "interface_number": 0}],
+        device=lambda: handle,
+    )
+    monkeypatch.setitem(sys.modules, "hid", fake_hid)
+    transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
+    with pytest.raises(RuntimeError, match="candidate path format is not directly openable"):
+        transport.open()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import sys
 import time
 from pathlib import Path
 from typing import Any, Optional, Sequence
@@ -63,10 +64,10 @@ class HIDTransport:
         if HIDTransport._looks_like_usb_interface_path(path_text):
             # Linux: some hid backends enumerate USB interface IDs (for example "3-1:1.0")
             # while actual open requires a hidraw node path.
-            sys_hidraw_dir = Path("/sys/bus/usb/devices") / path_text / "hidraw"
+            sys_interface_dir = Path("/sys/bus/usb/devices") / path_text
             try:
-                for child in sorted(sys_hidraw_dir.iterdir()):
-                    if child.name.startswith("hidraw"):
+                for child in sorted(sys_interface_dir.rglob("hidraw*")):
+                    if re.fullmatch(r"hidraw\d+", child.name):
                         candidates.append(f"/dev/{child.name}".encode("utf-8"))
             except Exception:
                 pass
@@ -87,6 +88,60 @@ class HIDTransport:
         backend = str(getattr(hid_module, "__hidapi_version__", "") or "").strip()
         extra = f", hidapi={backend}" if backend else ""
         return f"module={module_file}, version={version}{extra}"
+
+    @staticmethod
+    def _read_sysfs_text(path: Path) -> str | None:
+        try:
+            return path.read_text(encoding="utf-8").strip()
+        except Exception:
+            return None
+
+    @classmethod
+    def _linux_hidraw_candidates_for_ids(
+        cls, *, vid: int, pid: int, interface_numbers: set[int]
+    ) -> list[bytes]:
+        class_root = Path("/sys/class/hidraw")
+        if not class_root.exists():
+            return []
+        candidates: list[bytes] = []
+        for hidraw in sorted(class_root.glob("hidraw*")):
+            device_dir = hidraw / "device"
+            if not device_dir.exists():
+                continue
+            resolved = device_dir.resolve()
+            lineage = [resolved, *resolved.parents]
+
+            vid_value: int | None = None
+            pid_value: int | None = None
+            iface_value: int | None = None
+            for node in lineage:
+                if vid_value is None:
+                    raw_vid = cls._read_sysfs_text(node / "idVendor")
+                    if raw_vid:
+                        try:
+                            vid_value = int(raw_vid, 16)
+                        except ValueError:
+                            vid_value = None
+                if pid_value is None:
+                    raw_pid = cls._read_sysfs_text(node / "idProduct")
+                    if raw_pid:
+                        try:
+                            pid_value = int(raw_pid, 16)
+                        except ValueError:
+                            pid_value = None
+                if iface_value is None:
+                    raw_iface = cls._read_sysfs_text(node / "bInterfaceNumber")
+                    if raw_iface:
+                        try:
+                            iface_value = int(raw_iface, 16)
+                        except ValueError:
+                            iface_value = None
+            if vid_value != vid or pid_value != pid:
+                continue
+            if interface_numbers and iface_value is not None and iface_value not in interface_numbers:
+                continue
+            candidates.append(f"/dev/{hidraw.name}".encode("utf-8"))
+        return candidates
 
     @staticmethod
     def _tlv_expected_len(buf: bytearray, expected_type: int) -> int | None:
@@ -112,8 +167,17 @@ class HIDTransport:
 
         self._handle = hid.device()
         attempt_results: list[str] = []
+        path_diagnostics: list[str] = []
         seen_paths: set[str] = set()
         candidates = [dev for dev in devices if isinstance(dev, dict)]
+        interface_numbers: set[int] = set()
+        for dev in candidates:
+            interface = dev.get("interface_number")
+            try:
+                if interface is not None:
+                    interface_numbers.add(int(interface))
+            except Exception:
+                continue
 
         def _candidate_sort_key(dev: dict[str, Any]) -> tuple[int, int, str]:
             interface = dev.get("interface_number")
@@ -140,12 +204,33 @@ class HIDTransport:
             if not path:
                 attempt_results.append(f"open_path({path_text}) skipped: missing path")
                 continue
+            if self._looks_like_usb_interface_path(path_text):
+                path_diagnostics.append(
+                    f"path {path_text} is a USB interface token (not a hidraw node)"
+                )
             open_paths = self._candidate_open_paths(path)
             if not open_paths:
                 attempt_results.append(f"open_path({path_text}) skipped: no usable path")
                 continue
             for open_path in open_paths:
                 open_path_text = self._fmt_path(open_path)
+                try:
+                    self._handle.open_path(open_path)
+                    return
+                except Exception as exc:
+                    attempt_results.append(
+                        f"open_path({open_path_text}) failed: {type(exc).__name__}: {exc}"
+                    )
+
+        if sys.platform.startswith("linux"):
+            sysfs_candidates = self._linux_hidraw_candidates_for_ids(
+                vid=self.ids.vid, pid=self.ids.pid, interface_numbers=interface_numbers
+            )
+            for open_path in sysfs_candidates:
+                open_path_text = self._fmt_path(open_path)
+                if open_path_text in seen_paths:
+                    continue
+                seen_paths.add(open_path_text)
                 try:
                     self._handle.open_path(open_path)
                     return
@@ -171,12 +256,23 @@ class HIDTransport:
                 if attempt_results
                 else "no open attempts were made"
             )
+            lowered = attempts.lower()
+            diagnosis: list[str] = []
+            if path_diagnostics:
+                diagnosis.append("candidate path format is not directly openable")
+            if "busy" in lowered or "resource busy" in lowered:
+                diagnosis.append("another process may hold the device")
+            if "open failed" in lowered or "access denied" in lowered:
+                diagnosis.append("device enumerates but hid backend cannot open it")
+            if interface_numbers and "/dev/hidraw" not in lowered:
+                diagnosis.append("device interface layout unsupported by current backend path mapping")
+            if not diagnosis:
+                diagnosis.append("unable to classify open failure")
             raise RuntimeError(
                 "Failed to open Nanoleaf HID device after enumeration. "
                 f"hid backend: {backend}. "
                 f"Enumerated candidates: {candidate_text}. Attempt results: {attempts}. "
-                "This usually indicates one of: wrong interface/path selected by backend, busy device handle, "
-                "hidapi backend mismatch, or insufficient permissions."
+                f"Diagnostic classification: {', '.join(diagnosis)}."
             ) from exc
 
     def _build_report(self, payload: bytes) -> bytes:
