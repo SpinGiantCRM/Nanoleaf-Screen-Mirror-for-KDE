@@ -121,7 +121,7 @@ def mapping_preview_text(
     preview = ", ".join(str(i) for i in indices[:limit])
     suffix = "…" if len(indices) > limit else ""
     if snapshot.calibration_model == "corner_anchored":
-        model = "corner anchored"
+        model = "guided corner anchors"
         detail_line = (
             f"Anchors (TL/TR/BR/BL): {corner_anchor_top_left}, "
             f"{corner_anchor_top_right}, "
@@ -137,11 +137,10 @@ def mapping_preview_text(
         )
         notes = ""
         if snapshot.anchor_validation_errors:
-            fallback_strategy = snapshot.fallback_strategy or "offset_direction"
             warning_codes = ", ".join(snapshot.warning_codes) if snapshot.warning_codes else "none"
             notes = (
-                "\nCorner anchors drive mapping after validation; using offset/direction fallback until then."
-                f"\nFallback indicator: strategy={fallback_strategy} warning_codes=[{warning_codes}]"
+                "\nCorner anchors are incomplete; using temporary alignment until they validate."
+                f"\nAlignment warnings: [{warning_codes}]"
                 f"\n{summary}"
                 f"\nCorner anchor validation: {'; '.join(snapshot.anchor_validation_errors)}"
             )
@@ -151,7 +150,7 @@ def mapping_preview_text(
                 f"\n{summary}"
             )
     else:
-        model = "explicit map" if explicit_zone_map else "offset + direction"
+        model = "guided alignment"
         detail_line = (
             f"Offset: {int(zone_offset):+d} | "
             f"Direction: {'counter-clockwise' if reverse_zones else 'clockwise'}"

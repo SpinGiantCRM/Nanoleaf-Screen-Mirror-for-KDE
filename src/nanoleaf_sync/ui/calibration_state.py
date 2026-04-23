@@ -551,7 +551,7 @@ class CalibrationState:
             f"{self.auto_detection_status()}\n"
             f"Anchors TL/TR/BR/BL: {self.corner_anchor_top_left}/{self.corner_anchor_top_right}/{self.corner_anchor_bottom_right}/{self.corner_anchor_bottom_left}\n"
             f"Local corner anchor nudges (TL/TR/BR/BL): {'/'.join(f'{value:+d}' for value in self.active_corner_zone_offsets())}\n"
-            f"{'Corner-anchored mapping active' if self.calibration_model == 'corner_anchored' else ('Manual mapping enabled' if self.manual_mapping_enabled else 'Corner anchors inferred from current mapping')}\n"
+            "Guided calibration preview\n"
             f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), zone_offset=self.zone_offset, reverse_zones=self.reverse_zones, explicit_zone_map=explicit, corner_zone_offsets=self.active_corner_zone_offsets(), corner_anchor_top_left=self.corner_anchor_top_left, corner_anchor_top_right=self.corner_anchor_top_right, corner_anchor_bottom_right=self.corner_anchor_bottom_right, corner_anchor_bottom_left=self.corner_anchor_bottom_left, calibration_model=self.calibration_model, resolved_mapping=snapshot)}"
         )
 

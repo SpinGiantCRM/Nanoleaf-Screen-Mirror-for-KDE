@@ -876,8 +876,7 @@ class DisplayConfiguratorDialog:
                             ""
                             if not invalid_anchor_fallback
                             else (
-                                f"\nFallback indicator: strategy={mapping_snapshot.fallback_strategy or 'offset_direction'} "
-                                f"warning_codes=[{', '.join(mapping_snapshot.warning_codes) if mapping_snapshot.warning_codes else 'none'}]"
+                                f"\nAlignment warnings: [{', '.join(mapping_snapshot.warning_codes) if mapping_snapshot.warning_codes else 'none'}]"
                             )
                         )
                         + "\n"
@@ -946,11 +945,10 @@ class DisplayConfiguratorDialog:
                     next_action = "Complete the blocked prerequisite phase(s)."
                 if invalid_anchor_fallback:
                     blocking_reason = (
-                        "Invalid corner anchors triggered fallback: "
-                        f"strategy={mapping_snapshot.fallback_strategy or 'offset_direction'} "
-                        f"warning_codes=[{', '.join(mapping_snapshot.warning_codes) if mapping_snapshot.warning_codes else 'none'}]"
+                        "Invalid corner anchors require correction: "
+                        f"warnings=[{', '.join(mapping_snapshot.warning_codes) if mapping_snapshot.warning_codes else 'none'}]"
                     )
-                    next_action = "Fix corner anchor assignments so fallback no longer applies."
+                    next_action = "Fix corner anchor assignments so warnings clear."
                 self.calibration_phase_status_label.setText(
                     f"State: {phase_state_label} | Validation: {validation_details}\n"
                     f"Blocking reason: {blocking_reason}\n"

@@ -66,6 +66,14 @@ def _normalize_anchor(value: int | None) -> int | None:
     return parsed if parsed >= 0 else None
 
 
+def _rotate_explicit_zone_map(explicit_zone_map: Sequence[int], *, zone_offset: int) -> list[int]:
+    ordered = [int(i) for i in explicit_zone_map]
+    total = len(ordered)
+    if total <= 1:
+        return ordered
+    return [ordered[(device_idx + int(zone_offset)) % total] for device_idx in range(total)]
+
+
 def resolve_calibration_mapping(
     *,
     zone_count: int,
@@ -106,7 +114,10 @@ def resolve_calibration_mapping(
                 device_zone_count=device_zone_count,
                 anchors=anchors,
             )
-            selected_explicit_map = anchor_map.explicit_zone_map
+            selected_explicit_map = _rotate_explicit_zone_map(
+                anchor_map.explicit_zone_map,
+                zone_offset=zone_offset,
+            )
             strategy = "corner_anchored"
             direction = anchor_map.direction
         else:
