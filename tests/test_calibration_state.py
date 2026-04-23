@@ -86,7 +86,7 @@ def test_corner_anchored_model_changes_mapping_when_anchors_change() -> None:
     base = state.step_for_mode("direction walk", 0)
     state.corner_anchor_top_left = 1
     changed = state.step_for_mode("direction walk", 0)
-    assert changed.source_zone_index != base.source_zone_index
+    assert changed.device_zone_index != base.device_zone_index
 
 
 def test_latency_policy_is_predictable_and_manual_vs_auto_labeled() -> None:

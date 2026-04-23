@@ -80,8 +80,14 @@ def single_zone_step(
         )
     )
     total = len(mapping)
-    idx = int(step) % max(1, total)
-    source_idx = int(mapping[idx]) if mapping else 0
+    normalized_total = max(1, total)
+    source_total = max(1, int(zone_count))
+    target_source_idx = int(step) % source_total
+    idx = next(
+        (device_idx for device_idx, mapped_source_idx in enumerate(mapping) if int(mapped_source_idx) == target_source_idx),
+        int(step) % normalized_total,
+    )
+    source_idx = int(mapping[idx]) if mapping else target_source_idx
     return CalibrationStep(
         device_zone_index=idx,
         source_zone_index=source_idx,
