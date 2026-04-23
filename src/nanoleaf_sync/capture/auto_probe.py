@@ -96,16 +96,19 @@ def probe_backends(
                 op_name=f"{candidate} instantiate",
             )
 
-            remaining = max(0.0, deadline - monotonic_s())
-            stats.attempted_captures += 1
-            warmup_start = monotonic_s()
-            call_with_timeout(
-                lambda: backend.capture(),
-                min(probe_config.warmup_timeout_s, remaining),
-                op_name=f"{candidate} warmup capture",
-            )
-            stats.success_count += 1
-            stats.latencies_ms.append((monotonic_s() - warmup_start) * 1000.0)
+            try:
+                remaining = max(0.0, deadline - monotonic_s())
+                stats.attempted_captures += 1
+                warmup_start = monotonic_s()
+                call_with_timeout(
+                    lambda: backend.capture(),
+                    min(probe_config.warmup_timeout_s, remaining),
+                    op_name=f"{candidate} warmup capture",
+                )
+                stats.success_count += 1
+                stats.latencies_ms.append((monotonic_s() - warmup_start) * 1000.0)
+            except Exception as exc:  # noqa: BLE001 - diagnostics collection
+                _record_error(stats, _build_probe_error("warmup", exc))
 
             for _ in range(iterations):
                 if monotonic_s() >= deadline:
