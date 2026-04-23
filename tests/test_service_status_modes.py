@@ -10,6 +10,7 @@ from __future__ import annotations
 import threading
 import time
 from dataclasses import dataclass
+from dataclasses import replace
 from typing import Sequence, Tuple
 
 import numpy as np
@@ -272,6 +273,36 @@ def test_service_each_boot_policy_across_multiple_instances(monkeypatch) -> None
 
     assert seen_cached_values == [None, ""]
     assert service_one.config.auto_selected_backend == "kwin-dbus"
+    assert service_two.config.auto_selected_backend == "kwin-dbus"
+
+
+def test_service_each_boot_policy_second_instance_uses_in_memory_winner_cache(monkeypatch) -> None:
+    cfg = AppConfig(use_mock_capture=False, prefer_backend="auto", auto_probe_policy="each-boot")
+    service_one = NanoleafSyncService(config=cfg, driver_override=FakeDriver())
+    service_two = NanoleafSyncService(config=cfg, driver_override=FakeDriver())
+    seen_cached_values: list[str | None] = []
+
+    class _FakeCaptureBackend:
+        name = "kwin-dbus"
+        last_capture_path = None
+
+        def close(self) -> None:
+            pass
+
+    def _fake_create_capture_backend(**kwargs):
+        seen_cached_values.append(kwargs.get("cached_probe_winner"))
+        return _FakeCaptureBackend()
+
+    monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend)
+    NanoleafSyncService._reset_process_boot_probe_state()
+
+    service_one._install_drivers()
+    # Simulate a caller copying first-instance winner to the shared config object
+    # before bringing up a second service in the same process.
+    service_two.config = replace(service_two.config, auto_selected_backend=service_one.config.auto_selected_backend)
+    service_two._install_drivers()
+
+    assert seen_cached_values == [None, "kwin-dbus"]
     assert service_two.config.auto_selected_backend == "kwin-dbus"
 
 

@@ -49,6 +49,19 @@ nanoleaf-kde-sync-service
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Smoke test](docs/SMOKE_TEST.md)
 
+## Contributing / testing expectations
+
+- Run the test suite locally before opening a PR:
+
+  ```bash
+  pytest -q --cov=nanoleaf_sync --cov-report=term-missing
+  ```
+
+- CI enforces a staged coverage floor:
+  - **Current floor:** 70%
+  - **Next step:** raise to 75% after 1–2 consecutive green CI cycles at 70%
+- When a PR adds tests for previously weak contracts, call that out in the PR summary so reviewers can track readiness for the 75% floor follow-up.
+
 ## Supported environment
 
 - Linux

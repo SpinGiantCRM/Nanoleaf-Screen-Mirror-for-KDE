@@ -47,4 +47,4 @@ jobs:
         run: python scripts/check_calibration_guardrails.py --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.sha }}"
 
       - name: Run tests
-        run: pytest -q --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=60
+        run: pytest -q --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=70
