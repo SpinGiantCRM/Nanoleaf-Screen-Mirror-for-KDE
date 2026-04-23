@@ -105,7 +105,7 @@ def test_config_load_does_not_persist_legacy_auto_zone_count_when_no_zones_defin
 
     cfg = ConfigManager(path=cfg_path).load()
 
-    assert cfg.device_zone_count == 8
+    assert cfg.device_zone_count == 0
     assert cfg_path.read_text(encoding="utf-8") == original
 
 

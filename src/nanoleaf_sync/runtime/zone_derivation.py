@@ -17,6 +17,8 @@ def effective_zone_count(
         return len(config.zones)
     if int(getattr(config, "device_zone_count", 0)) > 0:
         return int(config.device_zone_count)
+    if int(detected_device_zone_count or 0) > 0:
+        return int(detected_device_zone_count)
     return DEFAULT_DERIVED_ZONE_COUNT
 
 

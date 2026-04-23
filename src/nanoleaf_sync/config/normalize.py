@@ -164,7 +164,9 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     if raw_device_zone_count > 0:
         device_zone_count = raw_device_zone_count
     else:
-        device_zone_count = len(zones) if zones else 8
+        # Keep 0 as the persisted "auto" sentinel when no explicit zones exist.
+        # This allows runtime/device detection to supply the physical strip length.
+        device_zone_count = len(zones) if zones else 0
     output_channel_order = normalize_enum(
         calibration_or_legacy("output_channel_order", "grb"),
         allowed={
