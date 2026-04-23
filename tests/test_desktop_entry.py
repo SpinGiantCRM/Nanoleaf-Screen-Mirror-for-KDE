@@ -104,10 +104,10 @@ def test_prepare_desktop_entry_sets_exec_and_marker() -> None:
     text = "[Desktop Entry]\nType=Application\nExec=old-command\n"
 
     prepared = desktop_entry._prepare_desktop_entry_text(
-        text, exec_command="/usr/bin/python3 -m nanoleaf_sync.ui.tray"
+        text, exec_command="/usr/bin/python3 -m nanoleaf_sync.ui.tray_app"
     )
 
-    assert "Exec=/usr/bin/python3 -m nanoleaf_sync.ui.tray" in prepared
+    assert "Exec=/usr/bin/python3 -m nanoleaf_sync.ui.tray_app" in prepared
     assert desktop_entry.RESTRICTED_IFACE_MARKER in prepared
 
 

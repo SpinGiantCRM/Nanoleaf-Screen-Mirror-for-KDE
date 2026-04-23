@@ -106,7 +106,7 @@ def runtime_exec_command() -> str:
     executable_token = shlex.quote(str(executable))
     if getattr(sys, "frozen", False):
         return executable_token
-    return f"{executable_token} -m nanoleaf_sync.ui.tray"
+    return f"{executable_token} -m nanoleaf_sync.ui.tray_app"
 
 
 def _upsert_desktop_key(text: str, key: str, value: str) -> str:
