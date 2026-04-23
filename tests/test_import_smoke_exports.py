@@ -45,3 +45,31 @@ def test_top_level_runtime_and_ui_packages_import() -> None:
 
     assert runtime_pkg is not None
     assert ui_pkg is not None
+
+
+def test_public_color_api_surface_supports_import_and_basic_calls() -> None:
+    from nanoleaf_sync.color import (
+        HDRMetadata,
+        convert_frame_to_srgb8,
+        dominant_colors_kmeans,
+        map_colors_to_device_zones,
+    )
+
+    image = np.array(
+        [
+            [[255, 0, 0], [0, 255, 0]],
+            [[255, 0, 0], [0, 255, 0]],
+        ],
+        dtype=np.uint8,
+    )
+
+    converted = convert_frame_to_srgb8(image, metadata=HDRMetadata())
+    assert converted.dtype == np.uint8
+    assert converted.shape == image.shape
+
+    dominant = dominant_colors_kmeans(converted, n_clusters=2, rng_seed=42)
+    assert len(dominant) == 2
+
+    mapped = map_colors_to_device_zones(dominant, device_zone_count=4)
+    assert len(mapped) == 4
+    assert all(len(rgb) == 3 for rgb in mapped)

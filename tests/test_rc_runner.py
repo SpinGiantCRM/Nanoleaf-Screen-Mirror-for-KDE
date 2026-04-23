@@ -80,3 +80,13 @@ def test_format_markdown_row_uses_unknown_status_fallback_icon() -> None:
     )
 
     assert "| ✅ | ❓ | N/A |" in row
+
+
+def test_status_icon_maps_unknown_values_to_question_mark() -> None:
+    assert rc_runner._status_icon("unexpected-status") == "❓"  # noqa: SLF001
+
+
+def test_status_icon_mapping_for_known_values_is_explicit() -> None:
+    assert rc_runner._status_icon("pass") == "✅"  # noqa: SLF001
+    assert rc_runner._status_icon("fail") == "❌"  # noqa: SLF001
+    assert rc_runner._status_icon("N/A") == "N/A"  # noqa: SLF001

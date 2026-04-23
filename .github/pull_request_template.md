@@ -6,6 +6,7 @@
 
 - [ ] Tests added/updated for changed behavior.
 - [ ] Relevant docs and changelog are updated.
+- [ ] Coverage floor policy respected (`>=70%` now; `>=75%` in follow-up after 1–2 green cycles).
 
 ## Calibration parity gate (required for calibration-touching changes)
 
