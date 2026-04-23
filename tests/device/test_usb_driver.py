@@ -183,6 +183,30 @@ def test_send_frame_turns_on_and_sets_min_brightness_once() -> None:
     assert transport.requests[5][3:] == b"\x0c"
 
 
+def test_send_frame_uses_configured_zone_count_override() -> None:
+    transport = FakeTransport([
+        _rsp(0x0C, b"\x00NL82K2"),
+        _rsp(0x03, b"\x00\x08"),
+        _rsp(0x06, b"\x00\x01"),
+        _rsp(0x08, b"\x00\x64"),
+        _rsp(0x02, b"\x00"),
+    ])
+    driver = NanoleafUSBDriver(
+        ids=NanoleafUSBIds(0x37FA, 0x8202),
+        transport=transport,
+        configured_zone_count=48,
+    )
+    driver.initialize()
+
+    driver.send_frame([(10, 20, 30)] * 48)
+
+    assert driver.reported_zone_count == 8
+    assert driver.zone_count == 48
+    req = transport.requests[-1]
+    assert req[0] == 0x02
+    assert int.from_bytes(req[1:3], "big") == 48 * 3
+
+
 def test_set_brightness_clamps_to_protocol_range() -> None:
     transport = FakeTransport([
         _rsp(0x09, b"\x00"),

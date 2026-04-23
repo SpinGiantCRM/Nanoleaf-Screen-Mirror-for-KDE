@@ -246,6 +246,7 @@ class NanoleafSyncService:
         return NanoleafUSBDriver(
             ids=ids,
             output_channel_order=self.config.output_channel_order,
+            configured_zone_count=int(getattr(self.config, "device_zone_count", 0) or 0),
         )
 
     def _clear_backends(self) -> None:
