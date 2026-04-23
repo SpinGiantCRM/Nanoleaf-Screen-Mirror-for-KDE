@@ -89,7 +89,9 @@ def resolve_calibration_mapping(
     corner_anchor_bottom_left: int = -1,
     calibration_model: str = "corner_anchored",
 ) -> CalibrationMappingSnapshot:
-    normalized_model = "corner_anchored"
+    normalized_model = str(calibration_model or "corner_anchored").strip().lower()
+    if normalized_model not in {"corner_anchored"}:
+        normalized_model = "corner_anchored"
     anchors = {
         "top_left": _normalize_anchor(corner_anchor_top_left),
         "top_right": _normalize_anchor(corner_anchor_top_right),
@@ -103,6 +105,21 @@ def resolve_calibration_mapping(
     fallback_strategy: str | None = None
     direction = "clockwise"
 
+    normalized_device_zone_count = int(device_zone_count)
+    if normalized_device_zone_count <= 0:
+        normalized_device_zone_count = 1
+
+    def _direct_mapping() -> list[int]:
+        return resolve_device_zone_indices(
+            max(1, int(zone_count)),
+            device_zone_count=normalized_device_zone_count,
+            zone_offset=int(zone_offset),
+            reverse=bool(reverse_zones),
+            manual_mapping_enabled=bool(manual_mapping_enabled),
+            explicit_zone_map=list(explicit_zone_map) if explicit_zone_map else None,
+            corner_zone_offsets=list(corner_zone_offsets) if corner_zone_offsets else None,
+        )
+
     anchor_validation = validate_corner_anchors(anchors=anchors, device_zone_count=device_zone_count)
     if anchor_validation.valid:
         effective_anchors = anchors
@@ -112,15 +129,17 @@ def resolve_calibration_mapping(
             anchors=anchors,
             device_zone_count=device_zone_count,
         )
-        total = max(4, int(device_zone_count))
-        inferred_anchor = int(zone_offset) % total
-        effective_anchors = {
-            "top_left": inferred_anchor,
-            "top_right": (inferred_anchor + (total // 4)) % total,
-            "bottom_right": (inferred_anchor + (total // 2)) % total,
-            "bottom_left": (inferred_anchor + ((3 * total) // 4)) % total,
-        }
-        fallback_strategy = "deterministic_anchor_inference"
+        mapping = _direct_mapping()
+        return CalibrationMappingSnapshot(
+            device_to_source_indices=mapping,
+            mode=strategy,
+            direction=direction,
+            validation_warnings=validation_warnings,
+            warning_codes=warning_codes,
+            strategy=strategy,
+            fallback_strategy="deterministic_anchor_inference",
+            calibration_model=normalized_model,
+        )
 
     derive_device_zone_count = max(4, int(device_zone_count))
     anchor_map = derive_anchor_zone_map(
@@ -139,10 +158,6 @@ def resolve_calibration_mapping(
             int(selected_explicit_map[(idx * source_count) // target_count]) for idx in range(target_count)
         ]
     direction = anchor_map.direction
-
-    normalized_device_zone_count = int(device_zone_count)
-    if normalized_device_zone_count <= 0:
-        normalized_device_zone_count = 1
 
     mapping = resolve_device_zone_indices(
         max(1, int(zone_count)),
