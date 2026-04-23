@@ -39,8 +39,6 @@ from nanoleaf_sync.runtime.state import RuntimeState
 
 logger = logging.getLogger(__name__)
 _AUTO_PROBE_WINNERS = {"kwin-dbus", "xdg-portal", "kmsgrab"}
-_PROCESS_BOOT_PROBE_DONE = False
-_PROCESS_BOOT_PROBE_LOCK = threading.Lock()
 _AUTO_PROBE_ENV_VARS = (
     "NANOLEAF_DISABLE_CAPTURE_PROBE",
     "NANOLEAF_ENABLE_CAPTURE_PROBE",
@@ -120,6 +118,27 @@ def _build_auto_probe_signature(capture_width: int, capture_height: int) -> str:
 
 class NanoleafSyncService:
     """Service orchestration around runtime startup/shutdown and per-frame engine loop."""
+
+    _PROCESS_BOOT_PROBE_LOCK = threading.Lock()
+    _PROCESS_BOOT_PROBE_STATE = "pending"
+
+    @classmethod
+    def _reset_process_boot_probe_state(cls) -> None:
+        with cls._PROCESS_BOOT_PROBE_LOCK:
+            cls._PROCESS_BOOT_PROBE_STATE = "pending"
+
+    @classmethod
+    def _begin_each_boot_probe(cls) -> bool:
+        with cls._PROCESS_BOOT_PROBE_LOCK:
+            if cls._PROCESS_BOOT_PROBE_STATE == "pending":
+                cls._PROCESS_BOOT_PROBE_STATE = "in-progress"
+                return True
+            return False
+
+    @classmethod
+    def _finish_each_boot_probe(cls, *, success: bool) -> None:
+        with cls._PROCESS_BOOT_PROBE_LOCK:
+            cls._PROCESS_BOOT_PROBE_STATE = "complete" if success else "pending"
 
     def __init__(
         self,
@@ -259,99 +278,104 @@ class NanoleafSyncService:
             self._driver = None
 
     def _install_drivers(self) -> None:
-        global _PROCESS_BOOT_PROBE_DONE
         width = self._capture_width
         height = self._capture_height
+        claimed_each_boot_probe = False
 
-        if self._capture_backend_override is not None:
-            self._capture = self._capture_backend_override
-            self._selection_reason = "explicit"
-        else:
-            normalized_preference = normalize_capture_backend(
-                self.config.prefer_backend, default="auto"
-            )
-            signature = _build_auto_probe_signature(width, height)
-            cached_winner = self._cached_probe_winner or self.config.auto_selected_backend
-            should_probe = False
-            policy = str(getattr(self.config, "auto_probe_policy", "on-change")).strip().lower()
-            if normalized_preference == "auto":
-                if policy == "first-run":
-                    should_probe = not _is_valid_auto_probe_winner(cached_winner)
-                elif policy == "each-boot":
-                    with _PROCESS_BOOT_PROBE_LOCK:
-                        should_probe = not _PROCESS_BOOT_PROBE_DONE
-                        if should_probe:
-                            _PROCESS_BOOT_PROBE_DONE = True
-                else:
-                    signature_changed = signature != str(
-                        getattr(self.config, "auto_probe_signature", "") or ""
-                    )
-                    should_probe = signature_changed or not _is_valid_auto_probe_winner(cached_winner)
-
-            selected_cache = None if should_probe else cached_winner
-            self._capture = create_capture_backend(
-                width=width,
-                height=height,
-                use_mock_capture=self.config.use_mock_capture,
-                prefer_backend=self.config.prefer_backend,
-                hdr_max_nits=self.config.hdr_max_nits,
-                hdr_transfer=self.config.hdr_transfer,
-                hdr_primaries=self.config.hdr_primaries,
-                auto_probe_enabled=self.config.auto_probe_enabled,
-                cached_probe_winner=selected_cache,
-            )
-            if normalized_preference != "auto":
+        try:
+            if self._capture_backend_override is not None:
+                self._capture = self._capture_backend_override
                 self._selection_reason = "explicit"
-            elif _is_valid_auto_probe_winner(selected_cache):
-                self._selection_reason = "cached-probe"
-            elif should_probe:
-                self._selection_reason = "fresh-probe"
             else:
-                self._selection_reason = "fallback"
-            if normalized_preference == "auto":
-                winner = getattr(self._capture, "name", None)
-                if _is_valid_auto_probe_winner(winner):
-                    self._cached_probe_winner = winner
-                    previous_winner = str(getattr(self.config, "auto_selected_backend", "") or "")
-                    previous_signature = str(getattr(self.config, "auto_probe_signature", "") or "")
-                    needs_write = (
-                        should_probe
-                        or previous_winner != winner
-                        or previous_signature != signature
-                    )
-                    updated_config = replace(
-                        self.config,
-                        auto_selected_backend=winner,
-                        auto_probe_signature=signature,
-                    )
-                    if needs_write:
-                        updated_config = replace(
-                            updated_config,
-                            auto_probe_timestamp=datetime.now(timezone.utc).isoformat(),
+                normalized_preference = normalize_capture_backend(
+                    self.config.prefer_backend, default="auto"
+                )
+                signature = _build_auto_probe_signature(width, height)
+                cached_winner = self._cached_probe_winner or self.config.auto_selected_backend
+                should_probe = False
+                policy = str(getattr(self.config, "auto_probe_policy", "on-change")).strip().lower()
+                if normalized_preference == "auto":
+                    if policy == "first-run":
+                        should_probe = not _is_valid_auto_probe_winner(cached_winner)
+                    elif policy == "each-boot":
+                        claimed_each_boot_probe = self._begin_each_boot_probe()
+                        should_probe = claimed_each_boot_probe
+                    else:
+                        signature_changed = signature != str(
+                            getattr(self.config, "auto_probe_signature", "") or ""
                         )
-                        if self._capture_backend_override is None and self._driver_override is None:
-                            try:
-                                ConfigManager().save(updated_config)
-                            except Exception as exc:
-                                logger.warning(
-                                    "Failed to persist auto-probe cache metadata: %s",
-                                    exc,
-                                )
-                    self.config = updated_config
+                        should_probe = signature_changed or not _is_valid_auto_probe_winner(cached_winner)
+
+                selected_cache = None if should_probe else cached_winner
+                self._capture = create_capture_backend(
+                    width=width,
+                    height=height,
+                    use_mock_capture=self.config.use_mock_capture,
+                    prefer_backend=self.config.prefer_backend,
+                    hdr_max_nits=self.config.hdr_max_nits,
+                    hdr_transfer=self.config.hdr_transfer,
+                    hdr_primaries=self.config.hdr_primaries,
+                    auto_probe_enabled=self.config.auto_probe_enabled,
+                    cached_probe_winner=selected_cache,
+                )
+                if normalized_preference != "auto":
+                    self._selection_reason = "explicit"
+                elif _is_valid_auto_probe_winner(selected_cache):
+                    self._selection_reason = "cached-probe"
+                elif should_probe:
+                    self._selection_reason = "fresh-probe"
                 else:
                     self._selection_reason = "fallback"
-        self._effective_capture_backend = getattr(self._capture, "name", None)
+                if normalized_preference == "auto":
+                    winner = getattr(self._capture, "name", None)
+                    if _is_valid_auto_probe_winner(winner):
+                        self._cached_probe_winner = winner
+                        previous_winner = str(getattr(self.config, "auto_selected_backend", "") or "")
+                        previous_signature = str(getattr(self.config, "auto_probe_signature", "") or "")
+                        needs_write = (
+                            should_probe
+                            or previous_winner != winner
+                            or previous_signature != signature
+                        )
+                        updated_config = replace(
+                            self.config,
+                            auto_selected_backend=winner,
+                            auto_probe_signature=signature,
+                        )
+                        if needs_write:
+                            updated_config = replace(
+                                updated_config,
+                                auto_probe_timestamp=datetime.now(timezone.utc).isoformat(),
+                            )
+                            if self._capture_backend_override is None and self._driver_override is None:
+                                try:
+                                    ConfigManager().save(updated_config)
+                                except Exception as exc:
+                                    logger.warning(
+                                        "Failed to persist auto-probe cache metadata: %s",
+                                        exc,
+                                    )
+                        self.config = updated_config
+                    else:
+                        self._selection_reason = "fallback"
+            self._effective_capture_backend = getattr(self._capture, "name", None)
 
-        if self._driver_override is not None:
-            self._driver = self._driver_override
-        else:
-            self._driver = self._make_device_driver()
+            if self._driver_override is not None:
+                self._driver = self._driver_override
+            else:
+                self._driver = self._make_device_driver()
 
-        self._driver.initialize()
-        with self._status_lock:
-            self._device_discovered = True
-            self._device_model = getattr(self._driver, "model_number", None)
-            self._device_zone_count = getattr(self._driver, "zone_count", None)
+            self._driver.initialize()
+            with self._status_lock:
+                self._device_discovered = True
+                self._device_model = getattr(self._driver, "model_number", None)
+                self._device_zone_count = getattr(self._driver, "zone_count", None)
+            if claimed_each_boot_probe:
+                self._finish_each_boot_probe(success=True)
+        except Exception:
+            if claimed_each_boot_probe:
+                self._finish_each_boot_probe(success=False)
+            raise
 
     def _run_runtime(self) -> None:
         run_runtime_engine(
