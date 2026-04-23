@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 import sys
-import time
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
@@ -330,17 +329,15 @@ class HIDTransport:
         ]
 
         guard_window_s = max(1.0, float(self.read_timeout_ms) / 1000.0 * 4.0)
-        deadline = time.monotonic() + guard_window_s
+        remaining_budget_s = guard_window_s
+        per_read_budget_s = max(float(self.read_timeout_ms) / 1000.0, 0.001)
         while True:
-            if time.monotonic() >= deadline:
-                received = max(len(c["buffer"]) for c in candidates)
-                raise RuntimeError(
-                    "Malformed HID response: failed to assemble expected TLV "
-                    f"within {guard_window_s:.2f}s after receiving {received} bytes"
-                )
             # Read up to report-size + report-id byte. hidapi may still return 64 bytes.
             raw_chunk = self._handle.read(self.report_size + 1, self.read_timeout_ms)
+            remaining_budget_s -= per_read_budget_s
             if not raw_chunk:
+                if remaining_budget_s > 0:
+                    continue
                 received = max(len(c["buffer"]) for c in candidates)
                 raise RuntimeError(
                     f"Timed out waiting for HID response after receiving {received} bytes"
@@ -358,6 +355,12 @@ class HIDTransport:
                 expected_len = candidate["expected_len"]
                 if expected_len is not None and len(candidate["buffer"]) >= expected_len:
                     return bytes(candidate["buffer"][:expected_len])
+            if remaining_budget_s <= 0:
+                received = max(len(c["buffer"]) for c in candidates)
+                raise RuntimeError(
+                    "Malformed HID response: failed to assemble expected TLV "
+                    f"within {guard_window_s:.2f}s after receiving {received} bytes"
+                )
 
     def close(self) -> None:
         if self._handle is None:
