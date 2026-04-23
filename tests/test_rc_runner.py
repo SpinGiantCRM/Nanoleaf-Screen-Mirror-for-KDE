@@ -64,3 +64,19 @@ def test_run_rc_matrix_emits_matrix_ready_row(monkeypatch) -> None:
     assert result.doctor_status == "pass"
     assert result.smoke_status == "fail"
     assert "| v1.2.3-rc1 | A1 | diagnostic | ✅ | ❌ | N/A | @qa |" in result.markdown_row
+
+
+def test_format_markdown_row_uses_unknown_status_fallback_icon() -> None:
+    row = rc_runner.format_markdown_row(
+        date_utc="2026-04-20",
+        rc_version="v1.2.3-rc1",
+        env_id="A1",
+        mode="diagnostic",
+        doctor_status="pass",
+        smoke_status="warn",
+        tray_status="N/A",
+        tester="@qa",
+        notes="notes",
+    )
+
+    assert "| ✅ | ❓ | N/A |" in row

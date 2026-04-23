@@ -64,6 +64,12 @@ class _FallbackScrollArea:
         return None
 
 
+
+
+def mapping_preview_text(**kwargs) -> str:
+    return _mapping_preview_text(**kwargs)
+
+
 def _qt_widget(qt: dict[str, object], name: str, fallback):
     return qt.get(name, fallback)
 

@@ -316,15 +316,15 @@ def test_settings_dialog_falls_back_to_estimate_when_no_runtime_samples(monkeypa
 
 
 def test_mapping_preview_uses_explicit_auto_flag() -> None:
-    from nanoleaf_sync.ui.settings_dialog import _mapping_preview_text
+    from nanoleaf_sync.ui.settings_dialog import mapping_preview_text
 
-    auto_text = _mapping_preview_text(
+    auto_text = mapping_preview_text(
         zone_count=8,
         device_zone_count=8,
         zone_offset=0,
         reverse_zones=False,
     )
-    manual_text = _mapping_preview_text(
+    manual_text = mapping_preview_text(
         zone_count=8,
         device_zone_count=8,
         zone_offset=0,

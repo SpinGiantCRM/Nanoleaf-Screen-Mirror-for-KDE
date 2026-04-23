@@ -771,6 +771,7 @@ class NanoleafTrayApp:
             return
         self._quit_finalized = True
         self._shutdown_in_progress = False
+        self.tray_icon.hide()
         self.app.quit()
 
     def on_quit(self):

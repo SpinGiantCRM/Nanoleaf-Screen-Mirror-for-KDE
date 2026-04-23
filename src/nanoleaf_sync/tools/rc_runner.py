@@ -144,7 +144,7 @@ def build_command_results(*, mode: str) -> list[CommandResult]:
 
 def _status_icon(status: Status) -> str:
     mapping = {"pass": "✅", "fail": "❌", "N/A": "N/A"}
-    return mapping[status]
+    return mapping.get(status, "❓")
 
 
 def format_markdown_row(
