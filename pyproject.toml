@@ -33,7 +33,6 @@ nanoleaf-kde-sync-service = "nanoleaf_sync.service:main"
 nanoleaf-kde-sync-doctor = "nanoleaf_sync.tools.doctor:main"
 nanoleaf-kde-sync-smoke-test = "nanoleaf_sync.tools.smoke_test:main"
 nanoleaf-kde-sync-init-config = "nanoleaf_sync.tools.config_init:main"
-nanoleaf-kde-sync-rc-runner = "nanoleaf_sync.tools.rc_runner:main"
 nanoleaf-kde-sync-autostart = "nanoleaf_sync.tools.autostart:main"
 
 
