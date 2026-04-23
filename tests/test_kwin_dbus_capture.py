@@ -247,6 +247,33 @@ def test_capture_reconnects_and_retries_after_disconnect_error(
     backend.close()
 
 
+def test_reconnect_retry_uses_short_pacing_delay(monkeypatch) -> None:
+    backend = KWinDBusScreenshotCapture(width=1, height=1)
+    calls = {"attempts": 0, "slept": []}
+
+    async def _flaky():
+        calls["attempts"] += 1
+        if calls["attempts"] == 1:
+            raise RuntimeError("org.freedesktop.DBus.Error.NoReply")
+        return "ok"
+
+    async def _fake_sleep(delay: float) -> None:
+        calls["slept"].append(delay)
+
+    async def _fake_reset() -> None:
+        return None
+
+    monkeypatch.setattr(backend, "_reset_bus_connections", _fake_reset)
+    monkeypatch.setattr("nanoleaf_sync.capture.kwin_dbus.asyncio.sleep", _fake_sleep)
+
+    result = backend._run_async(backend._call_with_reconnect(_flaky))
+
+    assert result == "ok"
+    assert calls["attempts"] == 2
+    assert calls["slept"] == [backend._RECONNECT_RETRY_DELAY_SECONDS]
+    backend.close()
+
+
 def test_kwin_backend_applies_hdr_conversion_when_configured(monkeypatch) -> None:
     backend = KWinDBusScreenshotCapture(
         width=2,
