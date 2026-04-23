@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Sequence, Tuple
 
 import numpy as np
+import pytest
 
 from nanoleaf_sync.capture.interfaces import CaptureBackend
 from nanoleaf_sync.config.model import AppConfig
@@ -239,11 +240,39 @@ def test_service_each_boot_policy_probes_once_per_process(monkeypatch) -> None:
         return _FakeCaptureBackend()
 
     monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend)
-    monkeypatch.setattr("nanoleaf_sync.service._PROCESS_BOOT_PROBE_DONE", False)
+    NanoleafSyncService._reset_process_boot_probe_state()
     service._install_drivers()
     service._close_backends()
     service._install_drivers()
     assert seen_cached_values == [None, "kwin-dbus"]
+
+
+def test_service_each_boot_policy_across_multiple_instances(monkeypatch) -> None:
+    cfg = AppConfig(use_mock_capture=False, prefer_backend="auto", auto_probe_policy="each-boot")
+    service_one = NanoleafSyncService(config=cfg, driver_override=FakeDriver())
+    service_two = NanoleafSyncService(config=cfg, driver_override=FakeDriver())
+    seen_cached_values: list[str | None] = []
+
+    class _FakeCaptureBackend:
+        name = "kwin-dbus"
+        last_capture_path = None
+
+        def close(self) -> None:
+            pass
+
+    def _fake_create_capture_backend(**kwargs):
+        seen_cached_values.append(kwargs.get("cached_probe_winner"))
+        return _FakeCaptureBackend()
+
+    monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend)
+    NanoleafSyncService._reset_process_boot_probe_state()
+
+    service_one._install_drivers()
+    service_two._install_drivers()
+
+    assert seen_cached_values == [None, ""]
+    assert service_one.config.auto_selected_backend == "kwin-dbus"
+    assert service_two.config.auto_selected_backend == "kwin-dbus"
 
 
 def test_service_each_boot_policy_probes_once_per_process_under_concurrent_starts(monkeypatch) -> None:
@@ -272,7 +301,7 @@ def test_service_each_boot_policy_probes_once_per_process_under_concurrent_start
 
     monkeypatch.setattr("nanoleaf_sync.service._build_auto_probe_signature", _fake_build_auto_probe_signature)
     monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend)
-    monkeypatch.setattr("nanoleaf_sync.service._PROCESS_BOOT_PROBE_DONE", False)
+    NanoleafSyncService._reset_process_boot_probe_state()
 
     first = threading.Thread(target=service_one._install_drivers)
     second = threading.Thread(target=service_two._install_drivers)
@@ -286,6 +315,38 @@ def test_service_each_boot_policy_probes_once_per_process_under_concurrent_start
     assert sorted(seen_cached_values, key=lambda value: value is not None) == [None, ""]
     assert service_one.config.auto_selected_backend == "kwin-dbus"
     assert service_two.config.auto_selected_backend == "kwin-dbus"
+
+
+def test_service_each_boot_policy_allows_retry_after_failed_install(monkeypatch) -> None:
+    cfg = AppConfig(use_mock_capture=False, prefer_backend="auto", auto_probe_policy="each-boot")
+    service = NanoleafSyncService(config=cfg, driver_override=FakeDriver())
+    seen_cached_values: list[str | None] = []
+    attempt = 0
+
+    class _FakeCaptureBackend:
+        name = "kwin-dbus"
+        last_capture_path = None
+
+        def close(self) -> None:
+            pass
+
+    def _fake_create_capture_backend(**kwargs):
+        nonlocal attempt
+        attempt += 1
+        seen_cached_values.append(kwargs.get("cached_probe_winner"))
+        if attempt == 1:
+            raise RuntimeError("probe failed")
+        return _FakeCaptureBackend()
+
+    monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend)
+    NanoleafSyncService._reset_process_boot_probe_state()
+
+    with pytest.raises(RuntimeError, match="probe failed"):
+        service._install_drivers()
+
+    service._install_drivers()
+
+    assert seen_cached_values == [None, None]
 
 
 def test_service_first_run_policy_creates_cache_and_persists_metadata(monkeypatch) -> None:
