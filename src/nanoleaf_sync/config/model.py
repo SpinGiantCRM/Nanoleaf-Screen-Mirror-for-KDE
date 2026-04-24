@@ -75,6 +75,7 @@ class AppConfig:
 
     # KDE compositor HDR controls for SDR content on HDR displays.
     compositor_hdr_mode: bool = False
+    sdr_white_reference_preset: str = "80"
     # Plasma SDR white reference in nits (80 = no compositor SDR boost).
     sdr_boost_nits: float = 80.0
 

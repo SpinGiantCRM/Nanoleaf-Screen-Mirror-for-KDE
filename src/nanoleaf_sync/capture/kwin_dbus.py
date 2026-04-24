@@ -10,7 +10,7 @@ from typing import Any, Optional
 
 import numpy as np
 
-from nanoleaf_sync.color.hdr import HDRMetadata, convert_frame_to_srgb8
+from nanoleaf_sync.color.hdr import HDRMetadata, analyze_hdr_path, convert_frame_to_srgb8
 from nanoleaf_sync.desktop_entry import (
     QT_DESKTOP_FILE_NAME,
     RESTRICTED_IFACE_MARKER,
@@ -74,6 +74,7 @@ class KWinDBusScreenshotCapture:
         hdr_primaries: str = "bt709",
     ) -> None:
         self.last_capture_path: str | None = None
+        self.last_hdr_diagnostics: dict[str, object] = {}
         self.params = KWinDBusCaptureParams(
             width=width, height=height, monitor_id=monitor_id
         )
@@ -123,6 +124,18 @@ class KWinDBusScreenshotCapture:
 
     def _convert_if_needed(self, frame: np.ndarray) -> np.ndarray:
         meta = self._hdr_defaults
+        self.last_hdr_diagnostics = {
+            **analyze_hdr_path(
+                frame,
+                metadata={
+                    "transfer": meta.transfer,
+                    "primaries": meta.primaries,
+                    "max_nits": meta.max_nits,
+                    "source": "user preset",
+                },
+            ),
+            "hdr_max_nits": float(meta.max_nits),
+        }
         if (
             frame.dtype == np.uint8
             and meta.transfer == "srgb"

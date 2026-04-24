@@ -223,6 +223,34 @@ def test_service_first_run_policy_skips_probe_when_cached_winner_exists(monkeypa
     assert seen_cached_values == ["kwin-dbus"]
 
 
+def test_status_includes_hdr_colour_path_diagnostics() -> None:
+    cfg = AppConfig(
+        fps=30,
+        display_preset="hdr",
+        compositor_hdr_mode=True,
+        sdr_boost_nits=203.0,
+        hdr_transfer="pq",
+        hdr_primaries="bt2020",
+        hdr_max_nits=1200.0,
+    )
+    capture = FakeCapture(name="kwin-dbus")
+    capture.last_hdr_diagnostics = {
+        "input_transfer": "pq",
+        "input_primaries": "bt2020",
+        "metadata_source": "unknown",
+        "tone_mapping_applied": False,
+        "assumption": "No backend metadata available; using user preset assumptions.",
+        "hdr_max_nits": 1200.0,
+    }
+    svc = NanoleafSyncService(config=cfg, capture_backend_override=capture, driver_override=FakeDriver())
+    status = svc.get_status()
+    hdr = status["hdr_colour_path"]
+    assert hdr["display_preset"] == "hdr"
+    assert hdr["effective_sdr_boost_scalar"] > 1.0
+    assert hdr["capture_metadata_source"] == "unknown"
+    assert hdr["warnings"]
+
+
 def test_service_each_boot_policy_probes_once_per_process(monkeypatch) -> None:
     cfg = AppConfig(use_mock_capture=False, prefer_backend="auto", auto_probe_policy="each-boot")
     driver = FakeDriver()

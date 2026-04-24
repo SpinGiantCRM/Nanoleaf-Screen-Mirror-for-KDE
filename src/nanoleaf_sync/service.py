@@ -35,6 +35,7 @@ from nanoleaf_sync.runtime.startup import (
     run_runtime_engine,
 )
 from nanoleaf_sync.runtime.state import RuntimeState
+from nanoleaf_sync.runtime.compositor import effective_sdr_boost
 
 
 logger = logging.getLogger(__name__)
@@ -244,6 +245,30 @@ class NanoleafSyncService:
         status["configured_device_zone_count"] = configured_device_zone_count
         status["effective_runtime_zone_count"] = effective_runtime_zone_count
         status["calibration_device_zone_count"] = calibration_device_zone_count
+        capture_hdr = getattr(self._capture, "last_hdr_diagnostics", {}) if self._capture is not None else {}
+        tone_mapping_applied = bool(capture_hdr.get("tone_mapping_applied", False))
+        metadata_source = str(capture_hdr.get("metadata_source", "unknown"))
+        status["hdr_colour_path"] = {
+            "display_preset": str(getattr(self.config, "display_preset", "hdr")),
+            "compositor_hdr_mode": bool(getattr(self.config, "compositor_hdr_mode", False)),
+            "sdr_boost_nits": float(getattr(self.config, "sdr_boost_nits", 80.0)),
+            "effective_sdr_boost_scalar": float(
+                effective_sdr_boost(sdr_boost_nits=float(getattr(self.config, "sdr_boost_nits", 80.0)))
+            ),
+            "hdr_max_nits": float(capture_hdr.get("hdr_max_nits", getattr(self.config, "hdr_max_nits", 1000.0))),
+            "hdr_transfer": str(capture_hdr.get("input_transfer", getattr(self.config, "hdr_transfer", "srgb"))),
+            "hdr_primaries": str(capture_hdr.get("input_primaries", getattr(self.config, "hdr_primaries", "bt709"))),
+            "capture_metadata_source": metadata_source,
+            "tone_mapping_applied": tone_mapping_applied,
+            "sdr_compensation_applied": bool(getattr(self.config, "compositor_hdr_mode", False))
+            and abs(effective_sdr_boost(sdr_boost_nits=float(getattr(self.config, "sdr_boost_nits", 80.0))) - 1.0) > 1e-6,
+            "assumption": str(capture_hdr.get("assumption", "unknown")),
+            "warnings": [
+                "HDR preset active but capture metadata unavailable; using user preset assumptions."
+            ]
+            if str(getattr(self.config, "display_preset", "hdr")).strip().lower() == "hdr" and metadata_source == "unknown"
+            else [],
+        }
         return status
 
     def _make_device_driver(self) -> DeviceDriver:

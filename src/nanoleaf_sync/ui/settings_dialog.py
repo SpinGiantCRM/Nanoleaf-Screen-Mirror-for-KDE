@@ -29,8 +29,9 @@ from nanoleaf_sync.ui.preset_ui import (
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.runtime.edge_locality_diagnostics import run_edge_locality_test
 from nanoleaf_sync.runtime.color_accuracy_diagnostics import run_color_accuracy_diagnostic
-from nanoleaf_sync.runtime.color_processing import apply_color_style_mapping
+from nanoleaf_sync.runtime.color_processing import apply_color_style_mapping, color_pipeline_diagnostics
 from nanoleaf_sync.runtime.readiness_check import run_readiness_check
+from nanoleaf_sync.runtime.compositor import effective_sdr_boost
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text as _mapping_preview_text
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
@@ -143,6 +144,9 @@ class SettingsDialog:
                 self.compositor_hdr_mode_checkbox.setChecked(bool(getattr(cfg, "compositor_hdr_mode", False)))
                 self.sdr_boost_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.sdr_boost_nits_slider.setRange(SDR_BOOST_NITS_MIN, SDR_BOOST_NITS_MAX); self.sdr_boost_nits_slider.setValue(int(getattr(cfg, "sdr_boost_nits", 80.0)))
                 self.sdr_boost_nits_value = QLabel("")
+                self.sdr_white_reference_preset_combo = QComboBox(); self.sdr_white_reference_preset_combo.addItems(["80 nits", "120 nits", "160 nits", "203 nits", "Custom"])
+                preset_value = str(getattr(cfg, "sdr_white_reference_preset", "80")).strip().lower()
+                self.sdr_white_reference_preset_combo.setCurrentIndex({"80": 0, "120": 1, "160": 2, "203": 3, "custom": 4}.get(preset_value, 4))
                 self.motion_preset_combo = QComboBox(); self.motion_preset_combo.addItems(labels(MOTION_PRESET_LABELS)); self.motion_preset_combo.setCurrentIndex(max(0, self.motion_preset_combo.findText(label_for_value(MOTION_PRESET_LABELS, str(getattr(cfg, "motion_preset", "responsive")), default="Responsive"))))
                 self.color_style_combo = QComboBox(); self.color_style_combo.addItems(labels(COLOR_STYLE_LABELS)); self.color_style_combo.setCurrentIndex(max(0, self.color_style_combo.findText(label_for_value(COLOR_STYLE_LABELS, str(getattr(cfg, "color_style", "ambient")), default="Ambient (recommended)"))))
                 self.edge_locality_combo = QComboBox(); self.edge_locality_combo.addItems(labels(EDGE_LOCALITY_LABELS)); self.edge_locality_combo.setCurrentIndex(max(0, self.edge_locality_combo.findText(label_for_value(EDGE_LOCALITY_LABELS, str(getattr(cfg, "edge_locality", "tight")), default="Tight"))))
@@ -210,6 +214,7 @@ class SettingsDialog:
 
                 self.backend_info_label = QLabel("")
                 self.diagnostics_mapping_label = QLabel("")
+                self.hdr_colour_path_label = QLabel("")
                 self.edge_locality_diagnostic_button = QPushButton("Run edge locality test")
                 self.edge_locality_diagnostic_label = QLabel("")
                 self.color_accuracy_diagnostic_button = QPushButton("Run colour accuracy diagnostic")
@@ -319,6 +324,7 @@ class SettingsDialog:
                 self.start_on_launch_checkbox.setToolTip("Start syncing automatically right after tray launch.")
                 self.compositor_hdr_mode_checkbox.setToolTip("Enable compensation when KDE Plasma is running SDR content on HDR.")
                 self.sdr_boost_nits_slider.setToolTip("Plasma SDR white reference in nits when compositor HDR mode is enabled.")
+                self.sdr_white_reference_preset_combo.setToolTip("Preset SDR white reference levels (80/120/160/203 nits or custom).")
 
             def _build_backend_section(self, QGroupBox, QGridLayout, QLabel):
                 group = QGroupBox("Diagnostics")
@@ -339,6 +345,7 @@ class SettingsDialog:
                 layout.addWidget(self.run_self_check_button, 10, 0, 1, 3)
                 layout.addWidget(self.self_check_label, 11, 0, 1, 3)
                 layout.addWidget(self.diagnostics_mapping_label, 12, 0, 1, 3)
+                layout.addWidget(self.hdr_colour_path_label, 13, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -358,16 +365,19 @@ class SettingsDialog:
                 hdr_advanced.setChecked(False)
                 advanced_layout = QGridLayout()
                 advanced_layout.addWidget(self.compositor_hdr_mode_checkbox, 0, 0, 1, 3)
-                advanced_layout.addWidget(QLabel("SDR white reference"), 1, 0)
-                advanced_layout.addWidget(self.sdr_boost_nits_slider, 1, 1)
-                advanced_layout.addWidget(self.sdr_boost_nits_value, 1, 2)
-                advanced_layout.addWidget(QLabel("HDR transfer"), 2, 0)
-                advanced_layout.addWidget(self.hdr_transfer_combo, 2, 1, 1, 2)
-                advanced_layout.addWidget(QLabel("HDR primaries"), 3, 0)
-                advanced_layout.addWidget(self.hdr_primaries_combo, 3, 1, 1, 2)
-                advanced_layout.addWidget(QLabel("HDR max brightness"), 4, 0)
-                advanced_layout.addWidget(self.hdr_max_nits_slider, 4, 1)
-                advanced_layout.addWidget(self.hdr_max_nits_value, 4, 2)
+                advanced_layout.addWidget(QLabel("SDR white reference preset"), 1, 0)
+                advanced_layout.addWidget(self.sdr_white_reference_preset_combo, 1, 1, 1, 2)
+                advanced_layout.addWidget(QLabel("SDR white reference"), 2, 0)
+                advanced_layout.addWidget(self.sdr_boost_nits_slider, 2, 1)
+                advanced_layout.addWidget(self.sdr_boost_nits_value, 2, 2)
+                advanced_layout.addWidget(QLabel("SDR white reference controls how bright SDR/desktop content appears when HDR is enabled."), 3, 0, 1, 3)
+                advanced_layout.addWidget(QLabel("HDR transfer"), 4, 0)
+                advanced_layout.addWidget(self.hdr_transfer_combo, 4, 1, 1, 2)
+                advanced_layout.addWidget(QLabel("HDR primaries"), 5, 0)
+                advanced_layout.addWidget(self.hdr_primaries_combo, 5, 1, 1, 2)
+                advanced_layout.addWidget(QLabel("HDR max brightness"), 6, 0)
+                advanced_layout.addWidget(self.hdr_max_nits_slider, 6, 1)
+                advanced_layout.addWidget(self.hdr_max_nits_value, 6, 2)
                 hdr_advanced.setLayout(advanced_layout)
                 layout.addWidget(hdr_advanced, 4, 0, 1, 3)
                 layout.addWidget(self.display_configurator_button, 5, 0, 1, 3)
@@ -440,6 +450,8 @@ class SettingsDialog:
                     block_signals(previous)
 
             def _refresh_numeric_labels(self):
+                if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower() != "custom":
+                    self._set_slider_value_safely(self.sdr_boost_nits_slider, int(str(self.sdr_white_reference_preset_combo.currentText()).split(" ", 1)[0]))
                 self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.sampling_quality_value.setText({"Low": "Better performance", "Balanced": "Default", "High": "Best visual fidelity"}.get(str(self.sampling_quality_combo.currentText()), "Default")); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}")
 
             def _refresh_preview_label(self):
@@ -522,6 +534,39 @@ class SettingsDialog:
                         (
                             f"Mapping preview: {self._state.mapping_preview_visual()}",
                             f"Raw device→source mapping: {self._state.mapping_preview_text()}",
+                        )
+                    )
+                )
+                hdr_path = dict((self._runtime_status or {}).get("hdr_colour_path") or {})
+                if not hdr_path:
+                    hdr_path = {
+                        "hdr_transfer": str(self.hdr_transfer_combo.currentText()),
+                        "hdr_primaries": str(self.hdr_primaries_combo.currentText()),
+                        "effective_sdr_boost_scalar": float(effective_sdr_boost(sdr_boost_nits=float(self.sdr_boost_nits_slider.value()))),
+                        "tone_mapping_applied": False,
+                        "capture_metadata_source": "unknown",
+                        "assumption": "No backend metadata available; using user preset.",
+                    }
+                samples = [(64, 64, 64), (128, 128, 128), (255, 255, 255), (128, 110, 110)]
+                style = value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient")
+                ratios = []
+                neutral_ok = True
+                for rgb in samples:
+                    out = apply_color_style_mapping(np.asarray([rgb], dtype=np.float32), color_style=style)[0]
+                    diag = color_pipeline_diagnostics(input_rgb=rgb, output_rgb=tuple(int(v) for v in out.tolist()))
+                    ratios.append(float(diag["chroma_ratio"]))
+                    neutral_ok = neutral_ok and bool(diag["neutral_grey_preserved"])
+                self.hdr_colour_path_label.setText(
+                    "\n".join(
+                        (
+                            "HDR colour path",
+                            f"active transfer/primaries: {hdr_path.get('hdr_transfer', 'unknown')} / {hdr_path.get('hdr_primaries', 'unknown')}",
+                            f"SDR white reference: {self.sdr_boost_nits_slider.value()} nits ({self.sdr_white_reference_preset_combo.currentText()})",
+                            f"effective SDR boost: {float(hdr_path.get('effective_sdr_boost_scalar', 1.0)):.3f}",
+                            f"tone mapper: {'yes' if bool(hdr_path.get('tone_mapping_applied', False)) else 'no'}",
+                            f"chroma ratio diagnostic: max={max(ratios):.3f}",
+                            f"neutral grey verdict: {'pass' if neutral_ok else 'warn'}",
+                            f"metadata source: {hdr_path.get('capture_metadata_source', 'unknown')} | assumption: {hdr_path.get('assumption', 'none')}",
                         )
                     )
                 )
@@ -789,6 +834,7 @@ class SettingsDialog:
                     latency_last_timestamp=(self._latest_latency.recorded_at_utc if self._latest_latency else getattr(cfg, "latency_last_timestamp", "")),
                     hdr_transfer=str(self.hdr_transfer_combo.currentText()), hdr_primaries=str(self.hdr_primaries_combo.currentText()), hdr_max_nits=float(self.hdr_max_nits_slider.value()),
                     compositor_hdr_mode=bool(self.compositor_hdr_mode_checkbox.isChecked()), sdr_boost_nits=float(self.sdr_boost_nits_slider.value()),
+                    sdr_white_reference_preset=("custom" if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower() == "custom" else str(self.sdr_boost_nits_slider.value())),
                     device_vid=int(vid_value), device_pid=int(pid_value),
                     calibration_schema_version=calibration_schema_version,
                     calibration_model="corner_anchored",

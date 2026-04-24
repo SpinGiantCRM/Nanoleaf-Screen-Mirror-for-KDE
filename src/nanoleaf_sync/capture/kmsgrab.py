@@ -9,7 +9,7 @@ from typing import Optional
 import numpy as np
 
 from nanoleaf_sync.capture.kwin_dbus import KWinDBusScreenshotCapture
-from nanoleaf_sync.color.hdr import HDRMetadata, convert_frame_to_srgb8
+from nanoleaf_sync.color.hdr import HDRMetadata, analyze_hdr_path, convert_frame_to_srgb8
 
 
 class KMSGrabError(RuntimeError):
@@ -56,6 +56,7 @@ class KMSGrabCapture:
         )
         self._allow_fallback = bool(allow_fallback)
         self.last_capture_path: str = "drm-kms"
+        self.last_hdr_diagnostics: dict[str, object] = {}
 
         self._hdr_defaults = HDRMetadata(
             transfer=str(hdr_transfer),
@@ -171,8 +172,10 @@ class KMSGrabCapture:
 
         if isinstance(result, tuple) and len(result) == 2:
             rgb, metadata = result
+            metadata_source = "backend metadata"
         else:
             rgb, metadata = result, self._hdr_defaults
+            metadata_source = "user preset"
 
         meta = HDRMetadata.from_any(metadata)
 
@@ -191,8 +194,24 @@ class KMSGrabCapture:
             and meta.transfer == "srgb"
             and meta.primaries == "bt709"
         ):
+            self.last_hdr_diagnostics = {
+                **analyze_hdr_path(rgb, metadata={"transfer": "srgb", "primaries": "bt709", "max_nits": meta.max_nits, "source": metadata_source}),
+                "hdr_max_nits": float(meta.max_nits),
+            }
             return rgb
 
+        self.last_hdr_diagnostics = {
+            **analyze_hdr_path(
+                rgb,
+                metadata={
+                    "transfer": meta.transfer,
+                    "primaries": meta.primaries,
+                    "max_nits": meta.max_nits,
+                    "source": metadata_source,
+                },
+            ),
+            "hdr_max_nits": float(meta.max_nits),
+        }
         return convert_frame_to_srgb8(rgb, metadata=meta)
 
     def _resize_to_target(

@@ -55,8 +55,8 @@ class StyleProfile:
 
 
 STYLE_PROFILES = {
-    "reference": StyleProfile(1.0, 1.03, 0.08, 0.06, 0.030),
-    "natural": StyleProfile(1.0, 1.03, 0.08, 0.06, 0.030),
+    "reference": StyleProfile(1.0, 1.05, 0.08, 0.06, 0.030),
+    "natural": StyleProfile(1.0, 1.05, 0.08, 0.06, 0.030),
     "ambient": StyleProfile(1.02, 1.10, 0.10, 0.15, 0.038),
     "vivid": StyleProfile(1.10, 1.28, 0.07, 0.12, 0.036),
     "punchy": StyleProfile(1.20, 1.42, 0.05, 0.14, 0.036),
@@ -104,6 +104,8 @@ def apply_color_style_mapping(colors: np.ndarray, *, color_style: str) -> np.nda
 
     neutral_weight = np.clip((style.neutral_threshold - c) / max(style.neutral_threshold, 1e-6), 0.0, 1.0)
     l_mapped = np.clip(l + (neutral_weight * style.neutral_lift * (1.0 - l)), 0.0, 1.0)
+    low_sat = c < 0.05
+    l_mapped = np.where(low_sat, np.maximum(l_mapped, l * 0.92), l_mapped)
     c_mapped = np.where(neutral_weight > 0.85, 0.0, c_mapped)
 
     return oklch_to_rgb_u8(l_mapped.astype(np.float32), c_mapped.astype(np.float32), h.astype(np.float32))

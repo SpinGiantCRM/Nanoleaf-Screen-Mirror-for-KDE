@@ -17,6 +17,8 @@ def test_settings_dialog_source_uses_preset_ui_labels() -> None:
     assert "color_style_combo" in text
     assert 'QGroupBox("Diagnostics")' in text
     assert "Raw device→source mapping" in text
+    assert "HDR colour path" in text
+    assert "SDR white reference controls how bright SDR/desktop content appears when HDR is enabled." in text
 
 
 def test_settings_primary_sections_do_not_expose_raw_mapping_text() -> None:

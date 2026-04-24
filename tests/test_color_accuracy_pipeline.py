@@ -52,3 +52,8 @@ def test_vivid_and_punchy_allow_more_chroma_than_reference() -> None:
     punchy = _map_single((45, 95, 225), "punchy")
     assert float(vivid["chroma_ratio"]) >= float(reference["chroma_ratio"])
     assert float(punchy["chroma_ratio"]) >= float(vivid["chroma_ratio"])
+
+
+def test_natural_style_chroma_ratio_caps_at_105() -> None:
+    saturated = _map_single((235, 80, 40), "natural")
+    assert float(saturated["chroma_ratio"]) <= 1.05
