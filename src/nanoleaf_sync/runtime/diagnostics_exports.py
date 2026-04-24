@@ -140,8 +140,22 @@ def _synthetic_frame(width: int = 3840, height: int = 2160) -> np.ndarray:
     return frame
 
 
-def export_sampling_overlay(*, frame: np.ndarray | None, zones: Sequence[ZoneRect], side_counts: tuple[int, int, int, int], status: dict, cfg: AppConfig) -> Path:
-    base = frame.copy() if isinstance(frame, np.ndarray) and frame.ndim == 3 else _synthetic_frame()
+def export_sampling_overlay(
+    *,
+    frame: np.ndarray | None,
+    zones: Sequence[ZoneRect],
+    side_counts: tuple[int, int, int, int],
+    status: dict,
+    cfg: AppConfig,
+    synthetic: bool = False,
+) -> Path:
+    if not synthetic and not (isinstance(frame, np.ndarray) and frame.ndim == 3):
+        raise ValueError("No live frame available. Start mirroring or capture one diagnostic frame.")
+    base = (
+        frame.copy()
+        if isinstance(frame, np.ndarray) and frame.ndim == 3
+        else _synthetic_frame()
+    )
     side_palette = {
         "top": (0, 255, 0),
         "right": (32, 128, 255),
@@ -156,13 +170,15 @@ def export_sampling_overlay(*, frame: np.ndarray | None, zones: Sequence[ZoneRec
     out_dir = Path(tempfile.gettempdir()) / "nanoleaf-kde-sync"
     out_dir.mkdir(parents=True, exist_ok=True)
     stamp = int(time.time())
-    mode = "synthetic" if frame is None else "captured"
+    mode = "synthetic-test" if synthetic else "live-captured"
     path = out_dir / f"sampling-overlay-{mode}-{stamp}.png"
     write_png(path, base)
     return path
 
 
 def export_zone_report(*, rows: Sequence[dict[str, object]]) -> Path:
+    if not rows:
+        raise ValueError("No per-zone diagnostics available. Start mirroring or capture one diagnostic frame.")
     out_dir = Path(tempfile.gettempdir()) / "nanoleaf-kde-sync"
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"zone-report-{int(time.time())}.csv"

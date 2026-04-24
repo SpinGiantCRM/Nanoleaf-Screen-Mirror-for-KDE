@@ -102,6 +102,7 @@ class SettingsDialog:
         cfg: AppConfig,
         *,
         calibration_sender: Callable[[list[tuple[int, int, int]]], None] | None = None,
+        diagnostic_capture: Callable[[], dict[str, object]] | None = None,
         runtime_status: dict | None = None,
         initial_section: str | None = None,
     ):
@@ -129,6 +130,7 @@ class SettingsDialog:
                     resize(860, 760)
                 self._open_display_configurator = False
                 self._calibration_sender = calibration_sender
+                self._diagnostic_capture = diagnostic_capture
                 self._runtime_status = runtime_status or {}
                 self._state = CalibrationState.from_config(cfg, runtime_status)
                 self._source_zones_locked_to_device_count = (
@@ -228,7 +230,9 @@ class SettingsDialog:
                 self.color_accuracy_diagnostic_button = QPushButton("Run colour accuracy diagnostic")
                 self.color_accuracy_diagnostic_label = QLabel("")
                 self.run_self_check_button = QPushButton("Run self-check")
-                self.export_sampling_overlay_button = QPushButton("Export sampling overlay")
+                self.capture_one_diagnostic_frame_button = QPushButton("Capture one diagnostic frame")
+                self.export_live_sampling_overlay_button = QPushButton("Export live sampling overlay")
+                self.export_synthetic_sampling_overlay_button = QPushButton("Export synthetic sampling test overlay")
                 self.export_zone_report_button = QPushButton("Export per-zone colour report")
                 self.self_check_label = QLabel("")
                 self.sampling_export_label = QLabel("")
@@ -263,7 +267,9 @@ class SettingsDialog:
                 self.edge_locality_diagnostic_button.clicked.connect(self._run_edge_locality_diagnostic)
                 self.color_accuracy_diagnostic_button.clicked.connect(self._run_color_accuracy_diagnostic)
                 self.run_self_check_button.clicked.connect(self._run_self_check)
-                self.export_sampling_overlay_button.clicked.connect(self._export_sampling_overlay)
+                self.capture_one_diagnostic_frame_button.clicked.connect(self._capture_one_diagnostic_frame)
+                self.export_live_sampling_overlay_button.clicked.connect(self._export_live_sampling_overlay)
+                self.export_synthetic_sampling_overlay_button.clicked.connect(self._export_synthetic_sampling_overlay)
                 self.export_zone_report_button.clicked.connect(self._export_zone_report)
                 self.use_detected_count_button.clicked.connect(self._use_detected_strip_count)
                 self.keep_configured_count_button.clicked.connect(self._keep_configured_strip_count)
@@ -362,12 +368,14 @@ class SettingsDialog:
                 layout.addWidget(self.color_accuracy_diagnostic_label, 9, 0, 1, 3)
                 layout.addWidget(self.run_self_check_button, 10, 0, 1, 3)
                 layout.addWidget(self.self_check_label, 11, 0, 1, 3)
-                layout.addWidget(self.export_sampling_overlay_button, 12, 0, 1, 3)
-                layout.addWidget(self.sampling_export_label, 13, 0, 1, 3)
-                layout.addWidget(self.export_zone_report_button, 14, 0, 1, 3)
-                layout.addWidget(self.zone_report_label, 15, 0, 1, 3)
-                layout.addWidget(self.diagnostics_mapping_label, 16, 0, 1, 3)
-                layout.addWidget(self.hdr_colour_path_label, 17, 0, 1, 3)
+                layout.addWidget(self.capture_one_diagnostic_frame_button, 12, 0, 1, 3)
+                layout.addWidget(self.export_live_sampling_overlay_button, 13, 0, 1, 3)
+                layout.addWidget(self.export_synthetic_sampling_overlay_button, 14, 0, 1, 3)
+                layout.addWidget(self.sampling_export_label, 15, 0, 1, 3)
+                layout.addWidget(self.export_zone_report_button, 16, 0, 1, 3)
+                layout.addWidget(self.zone_report_label, 17, 0, 1, 3)
+                layout.addWidget(self.diagnostics_mapping_label, 18, 0, 1, 3)
+                layout.addWidget(self.hdr_colour_path_label, 19, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -560,6 +568,11 @@ class SettingsDialog:
                         (
                             f"Mapping preview: {self._state.mapping_preview_visual()}",
                             f"Raw device→source mapping: {self._state.mapping_preview_text()}",
+                            (
+                                "Live diagnostics unavailable.\nStart mirroring or capture one diagnostic frame to collect live sampling data."
+                                if not isinstance(self._runtime_status.get("_latest_frame_rgb"), np.ndarray)
+                                else "Live diagnostics available from latest captured frame."
+                            ),
                             *diagnostics_text_lines(status=preview_status, cfg=pending_cfg),
                         )
                     )
@@ -601,27 +614,49 @@ class SettingsDialog:
                     )
                 )
 
-            def _export_sampling_overlay(self) -> None:
+            def _export_live_sampling_overlay(self) -> None:
                 pending_cfg = self.updated_config()
                 frame = self._runtime_status.get("_latest_frame_rgb")
                 zones = self._runtime_status.get("_latest_zones_px") or []
                 side_counts = tuple(int(i) for i in (self._runtime_status.get("_latest_zone_side_counts") or (0, 0, 0, 0)))
+                try:
+                    out = export_sampling_overlay(
+                        frame=frame if isinstance(frame, np.ndarray) else None,
+                        zones=zones,
+                        side_counts=side_counts,
+                        status=self._runtime_status,
+                        cfg=pending_cfg,
+                        synthetic=False,
+                    )
+                    self.sampling_export_label.setText(f"Live sampling overlay saved: {out}")
+                except ValueError as exc:
+                    self.sampling_export_label.setText(str(exc))
+
+            def _export_synthetic_sampling_overlay(self) -> None:
+                pending_cfg = self.updated_config()
+                zones = self._runtime_status.get("_latest_zones_px") or []
+                side_counts = tuple(int(i) for i in (self._runtime_status.get("_latest_zone_side_counts") or (0, 0, 0, 0)))
                 out = export_sampling_overlay(
-                    frame=frame if isinstance(frame, np.ndarray) else None,
+                    frame=None,
                     zones=zones,
                     side_counts=side_counts,
                     status=self._runtime_status,
                     cfg=pending_cfg,
+                    synthetic=True,
                 )
-                self.sampling_export_label.setText(f"Sampling overlay saved: {out}")
+                self.sampling_export_label.setText(f"Synthetic test overlay saved: {out}")
 
             def _export_zone_report(self) -> None:
                 rows = list(self._runtime_status.get("_latest_zone_diagnostics") or [])
-                out = export_zone_report(rows=rows)
+                try:
+                    out = export_zone_report(rows=rows)
+                except ValueError as exc:
+                    self.zone_report_label.setText(str(exc))
+                    return
                 preview = rows[:6]
                 self.zone_report_label.setText(
                     "\n".join(
-                        [f"Zone report saved: {out}"]
+                        [f"Exported {len(rows)} zone rows: {out}"]
                         + [
                             f"#{r.get('zone_index')} {r.get('side')} rect={r.get('pixel_rect')} sampled={r.get('sampled_rgb')} out={r.get('final_output_rgb')} led={r.get('mapped_physical_led_index')}"
                             for r in preview
@@ -784,6 +819,13 @@ class SettingsDialog:
                     lines.append(f"- {issue.fix}")
                 self.self_check_label.setText("\n".join(lines))
 
+            def _capture_one_diagnostic_frame(self) -> None:
+                if self._diagnostic_capture is None:
+                    self.sampling_export_label.setText("Diagnostic capture is unavailable in this context.")
+                    return
+                result = dict(self._diagnostic_capture() or {})
+                self.sampling_export_label.setText(str(result.get("message") or "Diagnostic capture completed."))
+
             def _on_zone_count_slider_changed(self, *_args) -> None:
                 self._source_zones_locked_to_device_count = False
                 self._state.source_zones_user_configured = True
@@ -819,10 +861,20 @@ class SettingsDialog:
                         triggered_by="manual",
                         details=measured["details"],
                     )
-                    self.run_latency_button.setText("Measure frame interval")
+                    self.run_latency_button.setText("Measure latency")
                 else:
-                    self._latest_latency = build_latency_result(requested_policy=info.requested_policy, selected_backend=self._active_backend(), selection_source=info.source, selection_reason=info.reason, measured_latency_ms=1000.0 / max(1, int(self.fps_slider.value())), measurement_kind="estimated", confidence_note="Frame-interval estimate from configured FPS; not a hardware timing sample", triggered_by="manual", details="Manual latency estimate")
-                    self.run_latency_button.setText("Estimate frame interval")
+                    self._latest_latency = build_latency_result(
+                        requested_policy=info.requested_policy,
+                        selected_backend=self._active_backend(),
+                        selection_source=info.source,
+                        selection_reason=info.reason,
+                        measured_latency_ms=0.0,
+                        measurement_kind="unavailable",
+                        confidence_note="Start mirroring before measuring latency.",
+                        triggered_by="manual",
+                        details=f"Configured frame interval: {1000.0 / max(1, int(self.fps_slider.value())):.1f} ms at {int(self.fps_slider.value())} FPS",
+                    )
+                    self.run_latency_button.setText("Measure latency")
                 self.latency_label.setText(latency_result_summary(self._latest_latency))
 
             def _maybe_auto_run_latency_check(self):
@@ -841,10 +893,20 @@ class SettingsDialog:
                             triggered_by="auto",
                             details=measured["details"],
                         )
-                        self.run_latency_button.setText("Measure frame interval")
+                        self.run_latency_button.setText("Measure latency")
                     else:
-                        self._latest_latency = build_latency_result(requested_policy=info.requested_policy, selected_backend=self._active_backend(), selection_source=info.source, selection_reason=info.reason, measured_latency_ms=1000.0 / max(1, int(self.fps_slider.value())), measurement_kind="estimated", confidence_note="Derived from configured FPS; auto-run estimate", triggered_by="auto", details="Auto-run on settings open")
-                        self.run_latency_button.setText("Estimate frame interval")
+                        self._latest_latency = build_latency_result(
+                            requested_policy=info.requested_policy,
+                            selected_backend=self._active_backend(),
+                            selection_source=info.source,
+                            selection_reason=info.reason,
+                            measured_latency_ms=0.0,
+                            measurement_kind="unavailable",
+                            confidence_note="Runtime has not processed frames yet.",
+                            triggered_by="auto",
+                            details=f"Configured frame interval: {1000.0 / max(1, int(self.fps_slider.value())):.1f} ms at {int(self.fps_slider.value())} FPS",
+                        )
+                        self.run_latency_button.setText("Measure latency")
                     self.latency_label.setText(latency_result_summary(self._latest_latency))
 
             def _measured_latency_from_runtime(self, *, triggered_by: str) -> dict[str, object] | None:

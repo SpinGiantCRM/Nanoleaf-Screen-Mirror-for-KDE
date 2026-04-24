@@ -288,6 +288,110 @@ class NanoleafSyncService:
         }
         return status
 
+    def capture_one_diagnostic_frame(self) -> dict[str, object]:
+        from nanoleaf_sync.runtime.engine import process_frame
+        from nanoleaf_sync.runtime.processing import zones_from_config
+        from nanoleaf_sync.runtime.zone_derivation import derive_source_zone_artifacts
+
+        if self.is_running():
+            return {"ok": False, "message": "Mirroring is already running; stop mirroring before one-shot diagnostic capture."}
+        capture = self._capture
+        created_capture = False
+        try:
+            if capture is None:
+                if self._capture_backend_override is not None:
+                    capture = self._capture_backend_override
+                else:
+                    capture = create_capture_backend(
+                        width=int(self._capture_width),
+                        height=int(self._capture_height),
+                        use_mock_capture=bool(getattr(self.config, "use_mock_capture", False)),
+                        prefer_backend=normalize_capture_backend(self.config.prefer_backend, default="auto"),
+                        hdr_transfer=self.config.hdr_transfer,
+                        hdr_primaries=self.config.hdr_primaries,
+                        hdr_max_nits=self.config.hdr_max_nits,
+                        auto_probe_enabled=getattr(self.config, "auto_probe_enabled", None),
+                        cached_probe_winner=self._cached_probe_winner or self.config.auto_selected_backend,
+                    )
+                    created_capture = True
+                init = getattr(capture, "initialize", None)
+                if callable(init) and not init():
+                    return {"ok": False, "message": "Capture backend failed to initialize for one-shot diagnostics."}
+            frame = capture.capture()
+            if frame is None:
+                return {"ok": False, "message": "Capture backend returned no frame for one-shot diagnostics."}
+            img_h, img_w, _ = frame.shape
+            artifacts = derive_source_zone_artifacts(
+                config=self.config,
+                detected_device_zone_count=self._device_zone_count,
+                frame_width=img_w,
+                frame_height=img_h,
+            )
+            zones_px = zones_from_config(artifacts.zones, img_w, img_h)
+            device_zone_indices = list(range(len(zones_px)))
+            processed = process_frame(
+                frame=frame,
+                prev_smoothed_colors=[],
+                zones_px=zones_px,
+                device_zone_indices=device_zone_indices,
+                brightness=self.config.brightness,
+                smoothing=self.config.smoothing,
+                smoothing_speed=self.config.smoothing_speed,
+                zone_sampling_stride=self.config.zone_sampling_stride,
+                led_gamma=self.config.led_gamma,
+                motion_preset=getattr(self.config, "motion_preset", "responsive"),
+                color_style=getattr(self.config, "color_style", "ambient"),
+                edge_locality=getattr(self.config, "edge_locality", "balanced"),
+                compositor_hdr_mode=getattr(self.config, "compositor_hdr_mode", False),
+                sdr_boost_nits=getattr(self.config, "sdr_boost_nits", 80.0),
+                hdr_max_nits=getattr(self.config, "hdr_max_nits", 1000.0),
+                return_diagnostics=True,
+            )
+            _, sampled_zone_colors, final_zone_colors = processed
+            self._runtime.latest_frame_rgb = frame
+            self._runtime.last_frame_width = int(img_w)
+            self._runtime.last_frame_height = int(img_h)
+            self._runtime.latest_zones_px = list(zones_px)
+            self._runtime.latest_zone_side_counts = tuple(int(i) for i in (artifacts.side_counts or (0, 0, 0, 0)))
+            self._runtime.latest_edge_sampling_thickness = artifacts.edge_sampling_thickness
+            rows: list[dict[str, object]] = []
+            for zone_index, rect in enumerate(zones_px):
+                sampled_rgb = tuple(int(c) for c in sampled_zone_colors[zone_index].tolist())
+                final_rgb = tuple(int(c) for c in final_zone_colors[zone_index].tolist())
+                top, right, bottom, left = self._runtime.latest_zone_side_counts
+                if zone_index < top:
+                    side = "top"
+                elif zone_index < top + right:
+                    side = "right"
+                elif zone_index < top + right + bottom:
+                    side = "bottom"
+                elif zone_index < top + right + bottom + left:
+                    side = "left"
+                else:
+                    side = "unknown"
+                rows.append(
+                    {
+                        "zone_index": zone_index,
+                        "side": side,
+                        "pixel_rect": rect,
+                        "sampled_rgb": sampled_rgb,
+                        "final_output_rgb": final_rgb,
+                        "mapped_physical_led_index": zone_index,
+                    }
+                )
+            self._runtime.latest_zone_diagnostics = rows
+            return {"ok": True, "message": f"Captured one diagnostic frame ({img_w}x{img_h}) with {len(rows)} zones."}
+        except Exception as exc:
+            return {"ok": False, "message": f"One-shot diagnostic capture failed: {exc}"}
+        finally:
+            if created_capture:
+                try:
+                    close_fn = getattr(capture, "close", None)
+                    if callable(close_fn):
+                        close_fn()
+                except Exception:
+                    pass
+
     def _make_device_driver(self) -> DeviceDriver:
         ids = NanoleafUSBIds(vid=self.config.device_vid, pid=self.config.device_pid)
         if int(ids.vid) == 0 or int(ids.pid) == 0:

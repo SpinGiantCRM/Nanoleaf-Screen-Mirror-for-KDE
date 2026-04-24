@@ -9,7 +9,9 @@ from nanoleaf_sync.runtime.diagnostics_exports import (
     diagnostics_text_lines,
     evaluate_geometry,
     export_sampling_overlay,
+    export_zone_report,
 )
+from nanoleaf_sync.ui.calibration_state import LatencyProbeResult, latency_result_summary
 from nanoleaf_sync.runtime.engine import process_frame
 from nanoleaf_sync.runtime.processing import zones_from_config
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones
@@ -100,6 +102,61 @@ def test_overlay_export_creates_png(tmp_path: Path) -> None:
     )
     assert out.exists()
     assert out.suffix == ".png"
+
+
+def test_live_overlay_export_requires_real_frame() -> None:
+    zones_px = zones_from_config(make_edge_weighted_zones(12, width=3840, height=2160), 3840, 2160)
+    try:
+        export_sampling_overlay(
+            frame=None,
+            zones=zones_px,
+            side_counts=(3, 3, 3, 3),
+            status={},
+            cfg=AppConfig(),
+        )
+        assert False, "expected ValueError for missing live frame"
+    except ValueError as exc:
+        assert "No live frame available" in str(exc)
+
+
+def test_synthetic_overlay_export_is_explicit() -> None:
+    zones_px = zones_from_config(make_edge_weighted_zones(12, width=3840, height=2160), 3840, 2160)
+    out = export_sampling_overlay(
+        frame=None,
+        zones=zones_px,
+        side_counts=(3, 3, 3, 3),
+        status={},
+        cfg=AppConfig(),
+        synthetic=True,
+    )
+    assert "synthetic-test" in out.name
+
+
+def test_empty_zone_report_is_rejected() -> None:
+    try:
+        export_zone_report(rows=[])
+        assert False, "expected ValueError for empty diagnostics"
+    except ValueError as exc:
+        assert "No per-zone diagnostics available" in str(exc)
+
+
+def test_latency_summary_does_not_fabricate_idle_value() -> None:
+    assert "Live latency: Not measured" in latency_result_summary(None)
+    result = LatencyProbeResult(
+        requested_policy="auto",
+        selected_backend="not-started",
+        selection_source="manual-policy",
+        selection_reason="Runtime not started",
+        measured_latency_ms=0.0,
+        measurement_kind="unavailable",
+        confidence_note="Runtime has not processed frames yet.",
+        triggered_by="manual",
+        recorded_at_utc="2026-04-24T00:00:00+00:00",
+        details="Configured frame interval: 8.3 ms at 120 FPS",
+    )
+    text = latency_result_summary(result)
+    assert "Live latency: Not measured" in text
+    assert "Configured frame interval: 8.3 ms at 120 FPS" in text
 
 
 def test_per_zone_differences_survive_processing() -> None:

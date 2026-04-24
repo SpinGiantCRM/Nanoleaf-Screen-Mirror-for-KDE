@@ -31,3 +31,5 @@ def test_step2_advanced_display_details_include_hdr_compositor_controls() -> Non
     text = open("src/nanoleaf_sync/ui/display_configurator.py", "r", encoding="utf-8").read()
     assert "KDE SDR-on-HDR compensation / compositor HDR mode" in text
     assert 'QLabel("SDR white reference")' in text
+    assert "SDR white reference preset" in text
+    assert "\"203 nits\"" in text

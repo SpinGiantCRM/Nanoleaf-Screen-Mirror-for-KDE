@@ -251,6 +251,19 @@ def test_status_includes_hdr_colour_path_diagnostics() -> None:
     assert hdr["warnings"]
 
 
+def test_one_shot_diagnostic_capture_populates_zone_rows_without_starting_runtime() -> None:
+    cfg = AppConfig(fps=30, use_mock_capture=False, device_zone_count=12, display_preset="hdr")
+    capture = FakeCapture(name="kwin-dbus", width=640, height=360)
+    svc = NanoleafSyncService(config=cfg, capture_backend_override=capture, driver_override=FakeDriver())
+    result = svc.capture_one_diagnostic_frame()
+    assert result["ok"] is True
+    status = svc.get_status()
+    assert status["running"] is False
+    assert len(status["_latest_zone_diagnostics"]) > 0
+    assert int(status["captured_frame_width"]) == 640
+    assert int(status["captured_frame_height"]) == 360
+
+
 def test_service_each_boot_policy_probes_once_per_process(monkeypatch) -> None:
     cfg = AppConfig(use_mock_capture=False, prefer_backend="auto", auto_probe_policy="each-boot")
     driver = FakeDriver()
