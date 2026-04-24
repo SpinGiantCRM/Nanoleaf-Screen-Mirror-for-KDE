@@ -4,13 +4,11 @@ from dataclasses import replace
 from typing import Callable
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
-from nanoleaf_sync.ui.calibration_flow import calibration_sequence_text
 from nanoleaf_sync.ui.calibration_state import (
     CalibrationState,
     backend_selection_info,
     build_latency_result,
     latency_result_summary,
-    next_corner_start_anchor,
     should_auto_run_latency_probe,
     build_testing_panel_state,
 )
@@ -134,7 +132,6 @@ class SettingsDialog:
                 self.simple_calibration_widget = SimpleCalibrationWidget(qt=qt, title="Corner calibration")
                 self.reverse_checkbox = self.simple_calibration_widget.reverse_orientation_checkbox; self.reverse_checkbox.setChecked(self._state.reverse_zones)
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.device_zone_count_slider.setRange(1, MAX_ZONE_COUNT); self.device_zone_count_slider.setValue(self._state.device_zone_count)
-                self.corner_anchor_button = QPushButton("Set next top-left anchor")
                 self.assign_top_left_button = self.simple_calibration_widget.assign_top_left_button
                 self.assign_top_right_button = self.simple_calibration_widget.assign_top_right_button
                 self.assign_bottom_right_button = self.simple_calibration_widget.assign_bottom_right_button
@@ -144,18 +141,6 @@ class SettingsDialog:
                 self.test_step_index_label = self.simple_calibration_widget.step_index_label
 
                 self.test_step_button = self.simple_calibration_widget.next_zone_button ; self.test_prev_button = self.simple_calibration_widget.prev_zone_button
-                self.test_mode_combo = QComboBox(); self.test_mode_combo.addItems([CALIBRATION_MODE_CORNER])
-                mode_set_enabled = getattr(self.test_mode_combo, "setEnabled", None)
-                if callable(mode_set_enabled):
-                    mode_set_enabled(False)
-                self.test_auto_checkbox = QCheckBox("Auto-step")
-                self.test_loop_checkbox = QCheckBox("Loop"); self.test_loop_checkbox.setChecked(True)
-                self.test_duration_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.test_duration_slider.setRange(1, 60); self.test_duration_slider.setValue(12)
-                self.test_step_interval_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.test_step_interval_slider.setRange(100, 2000); self.test_step_interval_slider.setValue(500)
-                self.test_brightness_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.test_brightness_slider.setRange(5, 100); self.test_brightness_slider.setValue(100)
-                self.test_background_checkbox = QCheckBox("All off except active zone"); self.test_background_checkbox.setChecked(True)
-                self._test_elapsed_ms = 0
-                self._test_timer = QTimer(self); self._test_timer.timeout.connect(self._on_test_timer_tick)
                 self._live_preview_timer = QTimer(self)
                 live_single_shot = getattr(self._live_preview_timer, "setSingleShot", None)
                 if callable(live_single_shot):
@@ -199,7 +184,7 @@ class SettingsDialog:
 
                 self.backend_info_label = QLabel("")
                 self.preview_label = self.simple_calibration_widget.preview_text_label; self.preview_visual_label = self.simple_calibration_widget.preview_visual_label; self.test_label = QLabel("")
-                self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.zone_offset_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.sampling_quality_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel(""); self.test_duration_value = QLabel(""); self.test_step_interval_value = QLabel(""); self.test_brightness_value = QLabel("")
+                self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.zone_offset_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.sampling_quality_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel("")
 
                 for signal in (
                     self.zone_count_slider.valueChanged,
@@ -212,7 +197,6 @@ class SettingsDialog:
                     self.auto_probe_policy_combo.currentIndexChanged,
                 ):
                     signal.connect(self._refresh_preview_label)
-                self.corner_anchor_button.clicked.connect(self._rotate_anchor)
                 self.simple_calibration_widget.bind_callbacks(
                     on_prev_zone=self._prev_test_zone,
                     on_next_zone=self._step_test_zone,
@@ -223,10 +207,6 @@ class SettingsDialog:
                     on_reset_anchors=self._reset_anchors,
                     on_reverse_orientation_changed=self._on_calibration_controls_changed,
                 )
-                self.test_auto_checkbox.stateChanged.connect(self._on_test_auto_toggled); self.test_mode_combo.currentIndexChanged.connect(self._on_calibration_controls_changed)
-                self.test_step_interval_slider.valueChanged.connect(self._on_interval_changed)
-                self.test_brightness_slider.valueChanged.connect(self._on_calibration_controls_changed)
-                self.test_background_checkbox.stateChanged.connect(self._on_calibration_controls_changed)
                 self.run_latency_button.clicked.connect(self._run_latency_probe_manual)
                 self.device_model_combo.currentIndexChanged.connect(self._sync_device_model_selection)
 
@@ -361,15 +341,7 @@ class SettingsDialog:
             def _build_calibration_testing_section(self, QGroupBox, QGridLayout, QLabel):
                 group = QGroupBox("Calibration & Testing")
                 layout = QGridLayout()
-                layout.addWidget(QLabel(f"Calibration sequence:\n{calibration_sequence_text()}"), 0, 0, 1, 3)
-                layout.addWidget(QLabel("Test mode"), 1, 0); layout.addWidget(self.test_mode_combo, 1, 1, 1, 2)
-                row = self.simple_calibration_widget.add_to_layout(layout, row=2, include_header=False)
-                layout.addWidget(self.corner_anchor_button, row, 0, 1, 2); row += 1
-                layout.addWidget(self.test_auto_checkbox, row, 0); layout.addWidget(self.test_loop_checkbox, row, 1); row += 1
-                layout.addWidget(QLabel("Test duration (s)"), row, 0); layout.addWidget(self.test_duration_slider, row, 1); layout.addWidget(self.test_duration_value, row, 2); row += 1
-                layout.addWidget(QLabel("Test step interval (ms)"), row, 0); layout.addWidget(self.test_step_interval_slider, row, 1); layout.addWidget(self.test_step_interval_value, row, 2); row += 1
-                layout.addWidget(QLabel("Test brightness"), row, 0); layout.addWidget(self.test_brightness_slider, row, 1); layout.addWidget(self.test_brightness_value, row, 2); row += 1
-                layout.addWidget(self.test_background_checkbox, row, 0, 1, 2); row += 1
+                row = self.simple_calibration_widget.add_to_layout(layout, row=0, include_header=False)
                 layout.addWidget(QLabel("Live preview: mapping changes are sent automatically."), row, 0, 1, 3); row += 1
                 layout.addWidget(self.test_label, row, 0, 1, 3)
                 group.setLayout(layout)
@@ -439,7 +411,7 @@ class SettingsDialog:
                     int(self.zone_offset_slider.value()),
                     max(1, int(self.device_zone_count_slider.value())),
                 )
-                self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.sampling_quality_value.setText({"Low": "Better performance", "Balanced": "Default", "High": "Best visual fidelity"}.get(str(self.sampling_quality_combo.currentText()), "Default")); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.zone_offset_value.setText(f"{normalized_offset:+d} (raw {int(self.zone_offset_slider.value()):+d})"); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}"); self.test_duration_value.setText(str(self.test_duration_slider.value())); self.test_step_interval_value.setText(str(self.test_step_interval_slider.value())); self.test_brightness_value.setText(f"{self.test_brightness_slider.value()}%")
+                self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.sampling_quality_value.setText({"Low": "Better performance", "Balanced": "Default", "High": "Best visual fidelity"}.get(str(self.sampling_quality_combo.currentText()), "Default")); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.zone_offset_value.setText(f"{normalized_offset:+d} (raw {int(self.zone_offset_slider.value()):+d})"); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}")
 
             def _refresh_preview_label(self):
                 self._sync_zone_offset_slider(previous_zone_count=self._state.effective_device_zone_count())
@@ -496,10 +468,6 @@ class SettingsDialog:
                 self.device_vid_combo.setCurrentIndex(max(0, self.device_vid_combo.findText(vid_text)))
                 self.device_pid_combo.setCurrentIndex(max(0, self.device_pid_combo.findText(pid_text)))
 
-            def _rotate_anchor(self):
-                self._pull_state(); self._state.corner_start_anchor = next_corner_start_anchor(self._state.corner_start_anchor, device_zone_count=self._state.effective_device_zone_count()); self._refresh_preview_label(); self._schedule_live_preview()
-
-
             def _assign_anchor(self, corner: str):
                 current_zone = self._current_calibration_step().device_zone_index
                 if corner == "top_left":
@@ -542,24 +510,8 @@ class SettingsDialog:
                 self._pull_state()
                 # Normalize self._test_step before generating the frame.
                 self._current_calibration_step()
-                colors = self._state.frame_for_step(mode=CALIBRATION_MODE_CORNER, step=self._test_step, brightness=self.test_brightness_slider.value()/100.0, all_off_except_active=bool(self.test_background_checkbox.isChecked()))
+                colors = self._state.frame_for_step(mode=CALIBRATION_MODE_CORNER, step=self._test_step, brightness=1.0, all_off_except_active=True)
                 self._calibration_sender(colors)
-
-            def _on_test_auto_toggled(self):
-                self._test_elapsed_ms = 0
-                if self.test_auto_checkbox.isChecked(): self._test_timer.start(max(100, int(self.test_step_interval_slider.value())))
-                else: self._test_timer.stop()
-                self._schedule_live_preview()
-
-            def _on_test_timer_tick(self):
-                self._test_elapsed_ms += max(100, int(self.test_step_interval_slider.value()))
-                if self._test_elapsed_ms >= int(self.test_duration_slider.value()) * 1000:
-                    if self.test_loop_checkbox.isChecked(): self._test_elapsed_ms = 0; self._test_step = 0
-                    else: self.test_auto_checkbox.setChecked(False); self._test_timer.stop(); return
-                self._step_test_zone()
-
-            def _on_interval_changed(self):
-                if self._test_timer.isActive(): self._test_timer.setInterval(max(100, int(self.test_step_interval_slider.value())))
 
             def _active_backend(self) -> str:
                 preview_status = {

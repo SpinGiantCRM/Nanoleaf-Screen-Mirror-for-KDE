@@ -11,11 +11,8 @@ from typing import Callable
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
 from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping
-from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE
 from nanoleaf_sync.ui.calibration_state import (
-    CalibrationPhaseValidation,
     CalibrationState,
-    ZONE_COUNT_DIRECTLY_AFFECTED_PHASES,
     build_testing_panel_state,
 )
 from nanoleaf_sync.ui.calibration_widget import SimpleCalibrationWidget
@@ -29,6 +26,7 @@ WIZARD_STEPS: tuple[str, ...] = (
     "Display Preset",
     "Look & Feel",
 )
+CALIBRATION_MODE_CORNER = "corner+offset alignment"
 _log = logging.getLogger(__name__)
 WIZARD_SESSION_ENV = "NANOLEAF_WIZARD_SESSION_PATH"
 
@@ -169,9 +167,7 @@ class DisplayConfiguratorDialog:
                 self._suspend_session_persist = True
                 self._first_run_defaults = not bool(getattr(cfg, "wizard_completed", False))
                 self._live_preview_timer = QTimer(self) if callable(QTimer) else None
-                self._calibration_phase_index = 0
                 self._last_preview_refresh_ms = 0.0
-                self._last_phase_transition_ms = 0.0
 
                 # Step 2
                 self.display_mode_combo = QComboBox()
@@ -260,34 +256,14 @@ class DisplayConfiguratorDialog:
                 self.calibration_next_button = self.simple_calibration_widget.next_zone_button
                 self.calibration_prev_button = self.simple_calibration_widget.prev_zone_button
                 self.calibration_send_button = QPushButton("Send test pattern")
-                self.calibration_phase_prev_button = QPushButton("Previous phase")
-                self.calibration_phase_next_button = QPushButton("Next phase")
-                self.calibration_mark_pass_button = QPushButton("Looks good, continue")
-                self.calibration_mark_fail_button = QPushButton("Mark phase failed")
-                self.calibration_phase_rerun_button = QPushButton("Re-run this step")
-                self.calibration_phase_reset_button = QPushButton("Reset this section")
-                self.calibration_undo_button = QPushButton("Undo last calibration action")
-                self.calibration_phase_boundary_reset_button = QPushButton("Reset current phase")
-                self.confirm_direction_button = QPushButton("Confirm direction step")
-                self.rollback_direction_button = QPushButton("Rollback direction")
-                self.confirm_anchor_button = QPushButton("Confirm anchor assignment")
-                self.rollback_anchor_button = QPushButton("Rollback anchors")
                 self.assign_tl_button = self.simple_calibration_widget.assign_top_left_button
                 self.assign_tr_button = self.simple_calibration_widget.assign_top_right_button
                 self.assign_br_button = self.simple_calibration_widget.assign_bottom_right_button
                 self.assign_bl_button = self.simple_calibration_widget.assign_bottom_left_button
                 self.reset_anchors_button = self.simple_calibration_widget.reset_anchors_button
                 self.current_zone_label = self.simple_calibration_widget.current_zone_label
-                self.calibration_phase_label = QLabel("")
-                self.calibration_phase_status_label = QLabel("")
-                self.responsiveness_label = QLabel("")
-                self.advanced_calibration_group = QGroupBox("Advanced calibration")
-                set_checkable = getattr(self.advanced_calibration_group, "setCheckable", None)
-                if callable(set_checkable):
-                    set_checkable(True)
-                    self.advanced_calibration_group.setChecked(False)
                 self.calibration_hint = QLabel(
-                    "Use Next/Previous test zone to find the right physical LED, then continue. If calibration looks wrong, open Advanced calibration and reset this phase."
+                    "Use Previous/Next zone to find the right physical LED, assign corners, and adjust reverse orientation/offset if needed."
                 )
 
                 # Summary
@@ -335,22 +311,10 @@ class DisplayConfiguratorDialog:
                     on_assign_bottom_right=lambda: self._assign_anchor("bottom_right"),
                     on_assign_bottom_left=lambda: self._assign_anchor("bottom_left"),
                     on_reset_anchors=self._reset_anchors,
-                    on_reverse_orientation_changed=self._on_advanced_alignment_changed,
+                    on_reverse_orientation_changed=self._on_calibration_controls_changed,
                 )
                 self.calibration_send_button.clicked.connect(self._send_test_pattern)
-                self.zone_offset_slider.valueChanged.connect(self._on_advanced_alignment_changed)
-                self.calibration_phase_prev_button.clicked.connect(self._previous_calibration_phase)
-                self.calibration_phase_next_button.clicked.connect(self._next_calibration_phase)
-                self.calibration_mark_pass_button.clicked.connect(lambda: self._mark_current_calibration_phase(True))
-                self.calibration_mark_fail_button.clicked.connect(lambda: self._mark_current_calibration_phase(False))
-                self.calibration_phase_rerun_button.clicked.connect(self._rerun_current_calibration_phase)
-                self.calibration_phase_reset_button.clicked.connect(self._reset_current_calibration_phase)
-                self.calibration_undo_button.clicked.connect(self._undo_last_calibration_action)
-                self.calibration_phase_boundary_reset_button.clicked.connect(self._reset_to_phase_boundary)
-                self.confirm_direction_button.clicked.connect(self._confirm_direction_verification)
-                self.rollback_direction_button.clicked.connect(self._rollback_direction_verification)
-                self.confirm_anchor_button.clicked.connect(self._confirm_anchor_assignment)
-                self.rollback_anchor_button.clicked.connect(self._rollback_anchor_assignment)
+                self.zone_offset_slider.valueChanged.connect(self._on_calibration_controls_changed)
 
                 self.pages = QStackedWidget()
                 self.pages.addWidget(self._build_step_1(QWidget, QGridLayout, QLabel))
@@ -381,7 +345,6 @@ class DisplayConfiguratorDialog:
                 self._configure_tooltips()
                 self._restore_wizard_draft()
                 self._restore_wizard_session()
-                self._capture_phase_boundary_snapshot()
                 self._suspend_session_persist = False
                 self._save_wizard_session()
 
@@ -396,17 +359,11 @@ class DisplayConfiguratorDialog:
                 self._set_tooltip(self.calibration_send_button, "Send a fresh calibration frame to the strip right now.")
                 self._set_tooltip(self.calibration_next_button, "Move to the next test zone step and transmit it.")
                 self._set_tooltip(self.calibration_prev_button, "Move to the previous test zone step and transmit it.")
-                self._set_tooltip(self.calibration_undo_button, "Undo the most recent calibration action.")
-                self._set_tooltip(self.calibration_phase_boundary_reset_button, "Restore state captured when entering this phase.")
                 self._set_tooltip(self.assign_tl_button, "Assign the currently lit strip zone as top-left screen corner.")
                 self._set_tooltip(self.assign_tr_button, "Assign the currently lit strip zone as top-right screen corner.")
                 self._set_tooltip(self.assign_br_button, "Assign the currently lit strip zone as bottom-right screen corner.")
                 self._set_tooltip(self.assign_bl_button, "Assign the currently lit strip zone as bottom-left screen corner.")
                 self._set_tooltip(self.reset_anchors_button, "Clear all corner assignments and start anchor placement again.")
-                self._set_tooltip(self.confirm_anchor_button, "Confirm corner assignments and snapshot a recovery checkpoint.")
-                self._set_tooltip(self.rollback_anchor_button, "Rollback corner assignments to the last confirmed checkpoint.")
-                self._set_tooltip(self.confirm_direction_button, "Confirm direction/offset orientation and store a checkpoint.")
-                self._set_tooltip(self.rollback_direction_button, "Restore reverse+offset from last confirmed checkpoint.")
                 self._set_tooltip(self.preset_sdr_button, "SDR-safe defaults: srgb + bt709.")
                 self._set_tooltip(self.preset_hdr_button, "HDR defaults: pq + bt2020.")
                 self._set_tooltip(self.sampling_low_button, "Fastest response, lowest CPU usage.")
@@ -427,44 +384,12 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.device_zone_count_value, 2, 2)
                 layout.addWidget(self.device_zone_status, 3, 0, 1, 3)
                 layout.addWidget(self.zone_change_notice, 4, 0, 1, 3)
-                layout.addWidget(self.preview_text, 5, 0, 1, 3)
-                layout.addWidget(self.calibration_phase_label, 6, 0, 1, 3)
-                layout.addWidget(self.calibration_phase_prev_button, 7, 0)
-                layout.addWidget(self.calibration_phase_next_button, 7, 1, 1, 2)
-                layout.addWidget(self.calibration_next_button, 8, 0, 1, 2)
-                layout.addWidget(self.calibration_prev_button, 8, 2)
-                layout.addWidget(self.calibration_send_button, 9, 0, 1, 3)
-                layout.addWidget(self.current_zone_label, 10, 0, 1, 3)
-                layout.addWidget(self.calibration_mark_pass_button, 11, 0, 1, 3)
-                layout.addWidget(self.assign_tl_button, 12, 0, 1, 3)
-                layout.addWidget(self.assign_tr_button, 13, 0, 1, 3)
-                layout.addWidget(self.assign_br_button, 14, 0, 1, 3)
-                layout.addWidget(self.assign_bl_button, 15, 0, 1, 3)
-                layout.addWidget(self.reset_anchors_button, 16, 0, 1, 2)
-                layout.addWidget(self.confirm_anchor_button, 17, 0, 1, 2)
-                layout.addWidget(self.anchor_validation_label, 18, 0, 1, 3)
-
-                advanced_layout = QGridLayout()
-                advanced_layout.addWidget(QLabel("Global mapping zone offset"), 0, 0)
-                advanced_layout.addWidget(self.zone_offset_slider, 0, 1)
-                advanced_layout.addWidget(self.zone_offset_value, 0, 2)
-                advanced_layout.addWidget(self.reverse_checkbox, 1, 0, 1, 2)
-                advanced_layout.addWidget(QLabel("Test zone step index"), 2, 0)
-                advanced_layout.addWidget(self.test_step_index_value, 2, 1, 1, 2)
-                advanced_layout.addWidget(self.preview_visual, 3, 0, 1, 3)
-                advanced_layout.addWidget(self.calibration_phase_status_label, 4, 0, 1, 3)
-                advanced_layout.addWidget(self.responsiveness_label, 5, 0, 1, 3)
-                advanced_layout.addWidget(self.calibration_test_label, 6, 0, 1, 3)
-                advanced_layout.addWidget(self.calibration_mark_fail_button, 7, 0, 1, 3)
-                advanced_layout.addWidget(self.calibration_phase_rerun_button, 8, 0, 1, 2)
-                advanced_layout.addWidget(self.calibration_phase_reset_button, 8, 2)
-                advanced_layout.addWidget(self.calibration_undo_button, 9, 0, 1, 2)
-                advanced_layout.addWidget(self.calibration_phase_boundary_reset_button, 9, 2)
-                advanced_layout.addWidget(self.confirm_direction_button, 10, 0, 1, 2)
-                advanced_layout.addWidget(self.rollback_direction_button, 10, 2)
-                advanced_layout.addWidget(self.rollback_anchor_button, 11, 0, 1, 3)
-                self.advanced_calibration_group.setLayout(advanced_layout)
-                layout.addWidget(self.advanced_calibration_group, 19, 0, 1, 3)
+                row = self.simple_calibration_widget.add_to_layout(layout, row=5, include_header=False)
+                layout.addWidget(self.calibration_send_button, row, 0, 1, 3); row += 1
+                layout.addWidget(QLabel("Global mapping zone offset"), row, 0)
+                layout.addWidget(self.zone_offset_slider, row, 1)
+                layout.addWidget(self.zone_offset_value, row, 2); row += 1
+                layout.addWidget(self.anchor_validation_label, row, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -551,21 +476,17 @@ class DisplayConfiguratorDialog:
                 self._refresh()
 
             def _go_next(self) -> None:
-                start = perf_counter()
                 previous_step = self._flow.index
                 self._flow.next()
                 if previous_step == 0 and self._flow.index == 1:
                     self._send_live_preview()
                     self._ensure_live_preview_running()
-                self._last_phase_transition_ms = (perf_counter() - start) * 1000.0
                 self._refresh()
 
             def _go_back(self) -> None:
-                start = perf_counter()
                 self._flow.back()
                 if self._flow.index == 0:
                     self._stop_live_preview()
-                self._last_phase_transition_ms = (perf_counter() - start) * 1000.0
                 self._refresh()
 
             def _pull_state_from_controls(self) -> None:
@@ -601,11 +522,6 @@ class DisplayConfiguratorDialog:
                 new_total = max(1, int(new_count))
                 scaled = int(round((int(zone_index) / previous_total) * new_total)) % new_total
                 return scaled
-
-            def _capture_phase_boundary_snapshot(self) -> None:
-                phase = self._current_calibration_phase()
-                self._state.current_phase = phase.step_id
-                self._state.save_phase_boundary_checkpoint(phase.step_id)
 
             def _calibration_offset_limit(self, zone_count: int) -> int:
                 return max(1, int(zone_count) - 1)
@@ -645,155 +561,12 @@ class DisplayConfiguratorDialog:
                 self._set_slider_value_safely(self.zone_offset_slider, remapped_offset)
 
             def _active_calibration_step(self):
-                step_total = self._state.cycle_length(self._current_calibration_mode())
+                step_total = self._state.cycle_length(CALIBRATION_MODE_CORNER)
                 self._test_step %= step_total
-                return self._state.step_for_mode(self._current_calibration_mode(), self._test_step)
-
-            def _current_calibration_phase(self):
-                return CALIBRATION_SEQUENCE[self._calibration_phase_index]
+                return self._state.step_for_mode(CALIBRATION_MODE_CORNER, self._test_step)
 
             def _current_calibration_mode(self) -> str:
-                return self._current_calibration_phase().mode
-
-            def _next_calibration_phase(self) -> None:
-                if self._calibration_phase_index >= len(CALIBRATION_SEQUENCE) - 1:
-                    return
-                next_phase = CALIBRATION_SEQUENCE[self._calibration_phase_index + 1]
-                if not self._state.calibration_prerequisites_met(next_phase.step_id):
-                    return
-                self._calibration_phase_index += 1
-                self._state.current_phase = CALIBRATION_SEQUENCE[self._calibration_phase_index].step_id
-                self._test_step = 0
-                self._capture_phase_boundary_snapshot()
-                self._refresh()
-
-            def _previous_calibration_phase(self) -> None:
-                if self._calibration_phase_index <= 0:
-                    return
-                self._calibration_phase_index -= 1
-                self._state.current_phase = CALIBRATION_SEQUENCE[self._calibration_phase_index].step_id
-                self._test_step = 0
-                self._capture_phase_boundary_snapshot()
-                self._refresh()
-
-            def _mark_current_calibration_phase(self, passed: bool) -> None:
-                self._state.push_action_snapshot()
-                phase = self._current_calibration_phase()
-                self._state.current_phase = phase.step_id
-                self._state.mark_calibration_step(
-                    phase.step_id,
-                    passed=passed,
-                    notes=phase.pass_criteria if passed else phase.fail_criteria,
-                )
-                valid, details = self._state.evaluate_phase(phase.step_id)
-                if passed and valid:
-                    self._state.save_phase_checkpoint(phase.step_id)
-                self._state.phase_validation_state[phase.step_id] = CalibrationPhaseValidation(valid=bool(valid), details=str(details))
-                self._refresh()
-
-            def _rerun_current_calibration_phase(self) -> None:
-                self._state.push_action_snapshot()
-                phase = self._current_calibration_phase()
-                self._state.mark_calibration_step(phase.step_id, passed=False, notes="Re-run requested by user.")
-                self._state.phase_completion_flags[phase.step_id] = False
-                self._test_step = 0
-                self._refresh()
-                self._send_test_pattern()
-
-            def _reset_current_calibration_phase(self) -> None:
-                self._state.push_action_snapshot()
-                phase = self._current_calibration_phase()
-                self._state.mark_calibration_step(phase.step_id, passed=False, notes="Section reset requested by user.")
-                self._state.phase_completion_flags[phase.step_id] = False
-                if phase.step_id == "corner-assignment":
-                    self._state.corner_anchor_top_left = -1
-                    self._state.corner_anchor_top_right = -1
-                    self._state.corner_anchor_bottom_right = -1
-                    self._state.corner_anchor_bottom_left = -1
-                if phase.step_id == "direction-verification":
-                    self._state.zone_offset = 0
-                    self._state.reverse_zones = False
-                    self.zone_offset_slider.setValue(0)
-                    self.reverse_checkbox.setChecked(False)
-                self._test_step = 0
-                self._refresh()
-
-            def _undo_last_calibration_action(self) -> None:
-                if not self._state.undo_last_action():
-                    self.zone_change_notice.setText("Undo unavailable: no prior calibration action snapshot.")
-                    return
-                target_reverse = bool(self._state.reverse_zones)
-                target_offset = int(self._state.zone_offset)
-                self._set_checkbox_value_safely(self.reverse_checkbox, target_reverse)
-                self._set_slider_value_safely(self.zone_offset_slider, target_offset)
-                self._refresh()
-
-            def _reset_to_phase_boundary(self) -> None:
-                phase = self._current_calibration_phase()
-                if not self._state.restore_phase_boundary_checkpoint(phase.step_id):
-                    self.zone_change_notice.setText("No phase-boundary snapshot available for this phase yet.")
-                    return
-                target_reverse = bool(self._state.reverse_zones)
-                target_offset = int(self._state.zone_offset)
-                self._set_checkbox_value_safely(self.reverse_checkbox, target_reverse)
-                self._set_slider_value_safely(self.zone_offset_slider, target_offset)
-                self._refresh()
-
-            def _confirm_direction_verification(self) -> None:
-                phase = self._current_calibration_phase()
-                if phase.step_id != "direction-verification":
-                    return
-                self._state.push_action_snapshot()
-                self._pull_state_from_controls()
-                self._state.save_phase_checkpoint(phase.step_id)
-                self._state.mark_calibration_step(phase.step_id, passed=True, notes="Direction confirmed and checkpoint saved.")
-                self._refresh()
-
-            def _rollback_direction_verification(self) -> None:
-                self._state.push_action_snapshot()
-                if not self._state.restore_phase_checkpoint("direction-verification"):
-                    return
-                restored_offset = int(self._state.zone_offset)
-                restored_reverse = bool(self._state.reverse_zones)
-                self._set_checkbox_value_safely(self.reverse_checkbox, restored_reverse)
-                self._set_slider_value_safely(self.zone_offset_slider, restored_offset)
-                self._state.zone_offset = restored_offset
-                self._state.reverse_zones = restored_reverse
-                self._refresh()
-
-            def _confirm_anchor_assignment(self) -> None:
-                phase = self._current_calibration_phase()
-                if phase.step_id != "corner-assignment":
-                    return
-                self._state.push_action_snapshot()
-                self._pull_state_from_controls()
-                anchors = {
-                    "top_left": self._state.corner_anchor_top_left if self._state.corner_anchor_top_left >= 0 else None,
-                    "top_right": self._state.corner_anchor_top_right if self._state.corner_anchor_top_right >= 0 else None,
-                    "bottom_right": self._state.corner_anchor_bottom_right if self._state.corner_anchor_bottom_right >= 0 else None,
-                    "bottom_left": self._state.corner_anchor_bottom_left if self._state.corner_anchor_bottom_left >= 0 else None,
-                }
-                validation = validate_corner_anchors(
-                    anchors=anchors,
-                    device_zone_count=self._state.effective_device_zone_count(),
-                )
-                if not validation.valid:
-                    self._state.mark_calibration_step(
-                        phase.step_id,
-                        passed=False,
-                        notes="Anchors are invalid; resolve validation errors before confirming.",
-                    )
-                    self._refresh()
-                    return
-                self._state.save_phase_checkpoint(phase.step_id)
-                self._state.mark_calibration_step(phase.step_id, passed=True, notes="Anchors confirmed and checkpoint saved.")
-                self._refresh()
-
-            def _rollback_anchor_assignment(self) -> None:
-                self._state.push_action_snapshot()
-                if not self._state.restore_phase_checkpoint("corner-assignment"):
-                    return
-                self._refresh()
+                return CALIBRATION_MODE_CORNER
 
             def _on_device_zone_count_changed(self, *_args) -> None:
                 previous_zone_count = self._state.effective_device_zone_count()
@@ -811,9 +584,7 @@ class DisplayConfiguratorDialog:
                 self._state.corner_anchor_bottom_right = remapped["bottom_right"]
                 self._state.corner_anchor_bottom_left = remapped["bottom_left"]
                 if previous_zone_count != new_zone_count:
-                    invalidated = self._state.invalidate_for_zone_count_change(
-                        affected_phases=ZONE_COUNT_DIRECTLY_AFFECTED_PHASES,
-                    )
+                    invalidated = self._state.invalidate_for_zone_count_change()
                     self.zone_change_notice.setText(
                         "Strip zone count changed: remapped offset/corner anchors and invalidated "
                         + ", ".join(invalidated)
@@ -900,99 +671,26 @@ class DisplayConfiguratorDialog:
                     )
                 )
 
-                current_phase = self._current_calibration_phase()
-                self._state.current_phase = current_phase.step_id
-                current_progress = self._state.calibration_step_state(current_phase.step_id)
-                prerequisites_met = self._state.calibration_prerequisites_met(current_phase.step_id)
                 verification = self._state.validation_report()
-                phase_passed, validation_details = self._state.evaluate_phase(current_phase.step_id)
-                self._state.phase_validation_state[current_phase.step_id] = CalibrationPhaseValidation(
-                    valid=bool(phase_passed),
-                    details=str(validation_details),
-                )
-                strict_calibration_complete = self._state.can_complete_calibration_flow()
-                calibration_step_valid = self._device_zone_count_confirmed and strict_calibration_complete
+                calibration_step_valid = self._device_zone_count_confirmed and anchor_validation.valid and not invalid_anchor_fallback
                 self._flow.set_step_valid(0, calibration_step_valid)
                 self._flow.set_step_valid(1, True)
                 self._flow.set_step_valid(2, True)
                 if callable(next_set_enabled):
                     next_set_enabled(self._flow.can_go_next())
 
-                for button, enabled in (
-                    (self.calibration_phase_prev_button, self._calibration_phase_index > 0),
-                    (self.calibration_phase_next_button, self._calibration_phase_index < len(CALIBRATION_SEQUENCE) - 1),
-                    (self.calibration_mark_pass_button, prerequisites_met),
-                    (self.calibration_mark_fail_button, prerequisites_met),
-                    (self.calibration_phase_rerun_button, True),
-                    (self.calibration_phase_reset_button, True),
-                ):
-                    setter = getattr(button, "setEnabled", None)
-                    if callable(setter):
-                        setter(enabled)
-                direction_phase = current_phase.step_id == "direction-verification"
-                anchor_phase = current_phase.step_id == "corner-assignment"
-                advanced_enabled = bool(getattr(self.advanced_calibration_group, "isChecked", lambda: False)())
-                for widget in (
-                    self.preview_visual,
-                    self.calibration_phase_status_label,
-                    self.responsiveness_label,
-                    self.calibration_test_label,
-                    self.calibration_mark_fail_button,
-                    self.calibration_phase_rerun_button,
-                    self.calibration_phase_reset_button,
-                    self.calibration_undo_button,
-                    self.calibration_phase_boundary_reset_button,
-                    self.rollback_anchor_button,
-                ):
-                    set_visible = getattr(widget, "setVisible", None)
-                    if callable(set_visible):
-                        set_visible(advanced_enabled)
-                for button, enabled in (
-                    (self.confirm_direction_button, direction_phase),
-                    (self.rollback_direction_button, direction_phase),
-                    (self.confirm_anchor_button, anchor_phase and anchor_validation.valid),
-                    (self.rollback_anchor_button, anchor_phase),
-                ):
-                    set_visible = getattr(button, "setVisible", None)
-                    if callable(set_visible):
-                        set_visible(enabled)
-                    set_enabled = getattr(button, "setEnabled", None)
-                    if callable(set_enabled):
-                        set_enabled(enabled and advanced_enabled)
-                self.calibration_phase_label.setText(
-                    f"Calibration phase {self._calibration_phase_index + 1}/{len(CALIBRATION_SEQUENCE)}: {current_phase.title}"
-                )
-                phase_state_label = "passed" if phase_passed else ("failed" if current_progress.complete else "pending")
-                if prerequisites_met:
-                    blocking_reason = "None"
-                    next_action = current_phase.required_actions[0] if current_phase.required_actions else "Continue to the next phase."
-                else:
-                    blocking_reason = f"Waiting for: {', '.join(current_phase.prerequisites)}"
-                    next_action = "Complete the blocked prerequisite phase(s)."
-                if invalid_anchor_fallback:
-                    blocking_reason = (
-                        "Invalid corner anchors require correction: "
-                        f"warnings=[{', '.join(mapping_snapshot.warning_codes) if mapping_snapshot.warning_codes else 'none'}]"
-                    )
-                    next_action = "Fix corner anchor assignments so warnings clear."
-                self.calibration_phase_status_label.setText(
-                    f"State: {phase_state_label} | Validation: {validation_details}\n"
-                    f"Blocking reason: {blocking_reason}\n"
-                    f"Next action: {next_action}"
-                )
-
                 finish_set_enabled = getattr(self.finish_button, "setEnabled", None)
                 can_finish = (
                     not self._flow.can_go_next()
                     and self._device_zone_count_confirmed
-                    and strict_calibration_complete
+                    and anchor_validation.valid
                     and not invalid_anchor_fallback
                     and not verification.hard_fail
                 )
                 if callable(finish_set_enabled):
                     finish_set_enabled(can_finish)
                 self.finish_policy_note.setText(
-                    "Strict calibration policy: Finish remains blocked unless every phase passes with confidence=1.00 and sentinel consistency; warning overrides are not allowed."
+                    "Finish unlocks after valid corner anchors are assigned and strip zone count is confirmed."
                 )
 
                 hdr_mode = str(self.display_mode_combo.currentText()) == "hdr"
@@ -1045,9 +743,14 @@ class DisplayConfiguratorDialog:
                 active_step = self._active_calibration_step()
                 current_zone = active_step.device_zone_index
                 step_total = self._state.cycle_length(self._current_calibration_mode())
-                self.test_step_index_value.setText(f"{self._test_step + 1}/{step_total}")
+                self.simple_calibration_widget.set_step_status(
+                    step_index=self._test_step,
+                    step_total=step_total,
+                    active_zone=current_zone,
+                    normalized_offset=normalized_offset,
+                )
                 self.current_zone_label.setText(
-                    f"Phase: {current_phase.step_id} | Test zone step: {self._test_step + 1}/{step_total} | Active physical strip zone: {current_zone} | Normalized offset: {normalized_offset:+d}"
+                    f"Test zone step: {self._test_step + 1}/{step_total} | Active physical strip zone: {current_zone} | Normalized offset: {normalized_offset:+d}"
                 )
                 self.summary_label.setText(
                     "\n".join(
@@ -1060,7 +763,7 @@ class DisplayConfiguratorDialog:
                             f"Screen sampling zones: {self._state.zone_count}",
                             f"Effective strip LED zones: {effective_zone_count}",
                             f"Calibration model: {self._state.calibration_model}",
-                            f"Calibration phase: {current_phase.title} ({'passed' if phase_passed else 'in progress'})",
+                            "Calibration mode: corner anchors",
                             (
                                 "Verification: "
                                 + verification.compact_summary()
@@ -1077,21 +780,15 @@ class DisplayConfiguratorDialog:
                     )
                 )
                 self._last_preview_refresh_ms = (perf_counter() - refresh_started) * 1000.0
-                self.responsiveness_label.setText(
-                    f"Responsiveness: step transition {self._last_phase_transition_ms:.1f} ms | preview refresh {self._last_preview_refresh_ms:.1f} ms"
-                )
                 if self._flow.index >= 1 and self._calibration_sender is not None:
                     self._ensure_live_preview_running()
                 else:
                     self._stop_live_preview()
 
-            def _on_advanced_alignment_changed(self, *_args) -> None:
+            def _on_calibration_controls_changed(self, *_args) -> None:
                 if self._flow.index != 0:
                     return
                 if self._calibration_sender is None:
-                    return
-                advanced_enabled = bool(getattr(self.advanced_calibration_group, "isChecked", lambda: False)())
-                if not advanced_enabled:
                     return
                 self._send_test_pattern()
 
@@ -1218,7 +915,6 @@ class DisplayConfiguratorDialog:
                 payload = {
                     "flow_index": int(self._flow.index),
                     "test_step": int(self._test_step),
-                    "calibration_phase_index": int(self._calibration_phase_index),
                     "zone_count": int(self._state.zone_count),
                     "zone_preset": str(self._state.zone_preset),
                     "zone_offset": int(self._state.zone_offset),
@@ -1235,18 +931,6 @@ class DisplayConfiguratorDialog:
                     "corner_anchor_fallback_active": bool(mapping_snapshot.invalid_corner_anchor_fallback_active),
                     "corner_anchor_fallback_strategy": str(mapping_snapshot.fallback_strategy or ""),
                     "corner_anchor_warning_codes": [str(code) for code in mapping_snapshot.warning_codes],
-                    "calibration_progress": {
-                        step_id: {"complete": bool(progress.complete), "passed": bool(progress.passed), "notes": str(progress.notes)}
-                        for step_id, progress in self._state.calibration_step_progress.items()
-                    },
-                    "current_phase": str(self._state.current_phase),
-                    "phase_completion_flags": {
-                        step_id: bool(done) for step_id, done in self._state.phase_completion_flags.items()
-                    },
-                    "phase_validation_state": {
-                        step_id: {"valid": bool(state.valid), "details": str(state.details)}
-                        for step_id, state in self._state.phase_validation_state.items()
-                    },
                 }
                 return json.dumps(payload, sort_keys=True)
 
@@ -1304,7 +988,6 @@ class DisplayConfiguratorDialog:
                     return False
                 self._flow.index = max(0, min(len(WIZARD_STEPS) - 1, int(data.get("flow_index", self._flow.index))))
                 self._test_step = int(data.get("test_step", self._test_step))
-                self._calibration_phase_index = max(0, min(len(CALIBRATION_SEQUENCE) - 1, int(data.get("calibration_phase_index", self._calibration_phase_index))))
                 self.zone_count_slider.setValue(int(data.get("zone_count", self.zone_count_slider.value())))
                 preset = str(data.get("zone_preset", self._state.zone_preset))
                 self.zone_preset_combo.setCurrentIndex(0 if preset == "edge-weighted" else 1)
@@ -1325,30 +1008,6 @@ class DisplayConfiguratorDialog:
                 self._state.corner_anchor_top_right = int(data.get("corner_anchor_top_right", self._state.corner_anchor_top_right))
                 self._state.corner_anchor_bottom_right = int(data.get("corner_anchor_bottom_right", self._state.corner_anchor_bottom_right))
                 self._state.corner_anchor_bottom_left = int(data.get("corner_anchor_bottom_left", self._state.corner_anchor_bottom_left))
-                progress = data.get("calibration_progress")
-                if isinstance(progress, dict):
-                    for step_id, item in progress.items():
-                        if isinstance(item, dict):
-                            self._state.mark_calibration_step(
-                                str(step_id),
-                                passed=bool(item.get("passed", False)),
-                                notes=str(item.get("notes", "")),
-                            )
-                            self._state.calibration_step_state(str(step_id)).complete = bool(item.get("complete", False))
-                self._state.current_phase = str(data.get("current_phase", self._state.current_phase))
-                completion = data.get("phase_completion_flags")
-                if isinstance(completion, dict):
-                    self._state.phase_completion_flags = {str(step_id): bool(done) for step_id, done in completion.items()}
-                validations = data.get("phase_validation_state")
-                if isinstance(validations, dict):
-                    self._state.phase_validation_state = {
-                        str(step_id): CalibrationPhaseValidation(
-                            valid=bool(item.get("valid", False)),
-                            details=str(item.get("details", "")),
-                        )
-                        for step_id, item in validations.items()
-                        if isinstance(item, dict)
-                    }
                 self._state.save_checkpoint()
                 self._refresh()
                 return True
