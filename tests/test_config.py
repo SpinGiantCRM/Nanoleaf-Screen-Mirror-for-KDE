@@ -185,7 +185,22 @@ def test_config_persists_display_wizard_fields(tmp_path: Path) -> None:
     assert loaded.color_mode == "hyper"
 
 
-def test_config_persists_corner_refinement_settings(tmp_path: Path) -> None:
+def test_config_strips_legacy_multiphase_wizard_resume_payload(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.toml"
+    mgr = ConfigManager(path=cfg_path)
+
+    cfg = AppConfig(
+        wizard_in_progress_state='{"flow_index":1,"calibration_progress":{"direction-verification":{"passed":true}}}',
+    )
+    mgr.save(cfg)
+    loaded = mgr.load()
+
+    assert loaded.wizard_in_progress_state == "{\"flow_index\":1}"
+    persisted = cfg_path.read_text(encoding="utf-8")
+    assert "calibration_progress" not in persisted
+
+
+def test_config_drops_corner_refinement_settings_from_active_persistence(tmp_path: Path) -> None:
     cfg_path = tmp_path / "config.toml"
     mgr = ConfigManager(path=cfg_path)
 
@@ -196,9 +211,11 @@ def test_config_persists_corner_refinement_settings(tmp_path: Path) -> None:
     mgr.save(cfg)
     loaded = mgr.load()
 
-    assert loaded.corner_offsets_enabled is True
-    assert len(loaded.corner_zone_offsets) == 4
-    assert loaded.corner_zone_offsets == [2, -1, 3, 0]
+    assert loaded.corner_offsets_enabled is False
+    assert loaded.corner_zone_offsets == []
+    persisted = cfg_path.read_text(encoding="utf-8")
+    assert "corner_offsets_enabled" not in persisted
+    assert "corner_zone_offsets" not in persisted
 
 
 def test_config_persists_manual_mapping_enabled_flag(tmp_path: Path) -> None:
@@ -213,7 +230,7 @@ def test_config_persists_manual_mapping_enabled_flag(tmp_path: Path) -> None:
     assert loaded.explicit_zone_map == [2, 1, 0]
 
 
-def test_config_load_pads_corner_refinement_offsets_to_four_values(tmp_path: Path) -> None:
+def test_config_load_tolerates_legacy_corner_refinement_offsets_but_does_not_activate_them(tmp_path: Path) -> None:
     cfg_path = tmp_path / "config.toml"
     cfg_path.write_text(
         "\n".join(
@@ -228,9 +245,11 @@ def test_config_load_pads_corner_refinement_offsets_to_four_values(tmp_path: Pat
 
     loaded = ConfigManager(path=cfg_path).load()
 
-    assert loaded.corner_offsets_enabled is True
-    assert len(loaded.corner_zone_offsets) == 4
-    assert loaded.corner_zone_offsets == [5, -2, 0, 0]
+    assert loaded.corner_offsets_enabled is False
+    assert loaded.corner_zone_offsets == []
+    persisted = cfg_path.read_text(encoding="utf-8")
+    assert "corner_offsets_enabled" not in persisted
+    assert "corner_zone_offsets" not in persisted
 
 
 def test_config_normalizes_sdr_boost_fields(tmp_path: Path) -> None:
