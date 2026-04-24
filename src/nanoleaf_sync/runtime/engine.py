@@ -19,6 +19,7 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.presets import analyzer_mode_for_presets, motion_profile
 from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping_from_config
 from nanoleaf_sync.runtime.processing import zones_from_config
+from nanoleaf_sync.runtime.color_processing import apply_color_style_mapping
 from nanoleaf_sync.runtime.zone_derivation import derive_source_zone_artifacts
 from nanoleaf_sync.runtime.compositor import (
     apply_sdr_boost_compensation,
@@ -100,6 +101,24 @@ def _adaptive_one_euro_blend(
     alpha = min_alpha + (1.0 - min_alpha) * speed
     return alpha * current + (1.0 - alpha) * previous
 
+
+
+
+def _apply_temporal_deadband(*, current: np.ndarray, previous: np.ndarray, motion_preset: str) -> np.ndarray:
+    preset = str(motion_preset or "responsive").strip().lower()
+    if preset == "calm":
+        deadband, micro_blend = 3.0, 0.10
+    elif preset == "dynamic":
+        deadband, micro_blend = 1.2, 0.35
+    else:
+        deadband, micro_blend = 2.0, 0.20
+    delta = current - previous
+    abs_delta = np.abs(delta)
+    tiny = abs_delta < deadband
+    if tiny.any():
+        current = current.copy()
+        current[tiny] = previous[tiny] + (delta[tiny] * micro_blend)
+    return current
 
 def _zones_signature(
     *,
@@ -254,6 +273,7 @@ def process_frame(
         zone_indices = np.asarray(device_zone_indices, dtype=np.intp)
 
     mapped = raw_colors[zone_indices].astype(np.float32, copy=False)
+    mapped = apply_color_style_mapping(mapped, color_style=color_style).astype(np.float32, copy=False)
 
     b = max(0.0, min(1.0, float(brightness)))
     if b != 1.0:
@@ -267,6 +287,11 @@ def process_frame(
         n = min(len(prev_smoothed_colors), mapped.shape[0])
         if n:
             prev_arr = np.asarray(prev_smoothed_colors[:n], dtype=np.float32)
+            mapped[:n] = _apply_temporal_deadband(
+                current=mapped[:n],
+                previous=prev_arr,
+                motion_preset=motion_preset,
+            )
             mapped[:n] = _adaptive_one_euro_blend(
                 current=mapped[:n],
                 previous=prev_arr,

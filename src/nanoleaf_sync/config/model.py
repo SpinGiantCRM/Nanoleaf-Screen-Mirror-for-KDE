@@ -68,10 +68,10 @@ class AppConfig:
     zone_sampling_stride: int = 1
     # New preset architecture (canonical model).
     layout_preset: str = "edge_strip"
-    edge_locality: str = "tight"
+    edge_locality: str = "balanced"
     sampling_quality: str = "high"
     motion_preset: str = "responsive"
-    color_style: str = "natural"
+    color_style: str = "ambient"
     display_preset: str = "hdr"
     # Tracks whether the first-run display configurator has been completed.
     wizard_completed: bool = False

@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Callable
 
+import numpy as np
+
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.ui.calibration_state import (
     CalibrationState,
@@ -26,6 +28,8 @@ from nanoleaf_sync.ui.preset_ui import (
 )
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.runtime.edge_locality_diagnostics import run_edge_locality_test
+from nanoleaf_sync.runtime.color_accuracy_diagnostics import run_color_accuracy_diagnostic
+from nanoleaf_sync.runtime.color_processing import apply_color_style_mapping
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text as _mapping_preview_text
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
@@ -139,7 +143,7 @@ class SettingsDialog:
                 self.sdr_boost_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.sdr_boost_nits_slider.setRange(SDR_BOOST_NITS_MIN, SDR_BOOST_NITS_MAX); self.sdr_boost_nits_slider.setValue(int(getattr(cfg, "sdr_boost_nits", 80.0)))
                 self.sdr_boost_nits_value = QLabel("")
                 self.motion_preset_combo = QComboBox(); self.motion_preset_combo.addItems(labels(MOTION_PRESET_LABELS)); self.motion_preset_combo.setCurrentIndex(max(0, self.motion_preset_combo.findText(label_for_value(MOTION_PRESET_LABELS, str(getattr(cfg, "motion_preset", "responsive")), default="Responsive"))))
-                self.color_style_combo = QComboBox(); self.color_style_combo.addItems(labels(COLOR_STYLE_LABELS)); self.color_style_combo.setCurrentIndex(max(0, self.color_style_combo.findText(label_for_value(COLOR_STYLE_LABELS, str(getattr(cfg, "color_style", "natural")), default="Natural"))))
+                self.color_style_combo = QComboBox(); self.color_style_combo.addItems(labels(COLOR_STYLE_LABELS)); self.color_style_combo.setCurrentIndex(max(0, self.color_style_combo.findText(label_for_value(COLOR_STYLE_LABELS, str(getattr(cfg, "color_style", "ambient")), default="Ambient (recommended)"))))
                 self.edge_locality_combo = QComboBox(); self.edge_locality_combo.addItems(labels(EDGE_LOCALITY_LABELS)); self.edge_locality_combo.setCurrentIndex(max(0, self.edge_locality_combo.findText(label_for_value(EDGE_LOCALITY_LABELS, str(getattr(cfg, "edge_locality", "tight")), default="Tight"))))
                 self.start_on_launch_checkbox = QCheckBox("Start mirroring automatically when tray app opens"); self.start_on_launch_checkbox.setChecked(bool(getattr(cfg, "start_on_launch", False)))
 
@@ -208,6 +212,8 @@ class SettingsDialog:
                 self.diagnostics_mapping_label = QLabel("")
                 self.edge_locality_diagnostic_button = QPushButton("Run edge locality test")
                 self.edge_locality_diagnostic_label = QLabel("")
+                self.color_accuracy_diagnostic_button = QPushButton("Run colour accuracy diagnostic")
+                self.color_accuracy_diagnostic_label = QLabel("")
                 self.preview_label = self.simple_calibration_widget.preview_text_label; self.preview_visual_label = self.simple_calibration_widget.preview_visual_label; self.test_label = QLabel("")
                 self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.sampling_quality_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel("")
 
@@ -236,6 +242,7 @@ class SettingsDialog:
                 )
                 self.run_latency_button.clicked.connect(self._run_latency_probe_manual)
                 self.edge_locality_diagnostic_button.clicked.connect(self._run_edge_locality_diagnostic)
+                self.color_accuracy_diagnostic_button.clicked.connect(self._run_color_accuracy_diagnostic)
                 self.use_detected_count_button.clicked.connect(self._use_detected_strip_count)
                 self.keep_configured_count_button.clicked.connect(self._keep_configured_strip_count)
                 self.reset_recalibrate_button.clicked.connect(self._reset_anchors)
@@ -295,7 +302,7 @@ class SettingsDialog:
                 self.reverse_checkbox.setToolTip("Flip strip direction if the mapping appears mirrored.")
                 self.display_preset_combo.setToolTip("Select SDR, HDR, or Auto display behavior.")
                 self.motion_preset_combo.setToolTip("Calm: smoother/slower. Responsive: recommended. Dynamic: punchier and more reactive.")
-                self.color_style_combo.setToolTip("Natural: accurate colour. Vivid: richer colour. Punchy: strongest effect.")
+                self.color_style_combo.setToolTip("Reference/Natural: accurate colour, preserves greys. Ambient: recommended stable glow. Vivid: richer colour. Punchy: strongest effect.")
                 self.edge_locality_combo.setToolTip("Tight: most accurate/least bleed. Balanced: softer ambient look. Wide: cinematic blend.")
                 self.hdr_max_nits_slider.setToolTip("Reference display peak brightness for HDR tone mapping.")
                 self.capture_backend_combo.setToolTip("Select auto or force a specific capture backend.")
@@ -325,7 +332,9 @@ class SettingsDialog:
                 layout.addWidget(self.latency_label, 5, 0, 1, 3)
                 layout.addWidget(self.edge_locality_diagnostic_button, 6, 0, 1, 3)
                 layout.addWidget(self.edge_locality_diagnostic_label, 7, 0, 1, 3)
-                layout.addWidget(self.diagnostics_mapping_label, 8, 0, 1, 3)
+                layout.addWidget(self.color_accuracy_diagnostic_button, 8, 0, 1, 3)
+                layout.addWidget(self.color_accuracy_diagnostic_label, 9, 0, 1, 3)
+                layout.addWidget(self.diagnostics_mapping_label, 10, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -609,9 +618,16 @@ class SettingsDialog:
                     edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"),
                     sampling_quality=value_for_label(SAMPLING_QUALITY_LABELS, str(self.sampling_quality_combo.currentText()), default="high"),
                     motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"),
-                    color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="natural"),
+                    color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"),
                 )
                 self.edge_locality_diagnostic_label.setText(result.summary)
+
+            def _run_color_accuracy_diagnostic(self) -> None:
+                style = value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient")
+                result = run_color_accuracy_diagnostic(
+                    mapper=lambda rgb: apply_color_style_mapping(np.asarray([rgb], dtype=np.float32), color_style=style)[0],
+                )
+                self.color_accuracy_diagnostic_label.setText(result.summary)
 
             def _on_zone_count_slider_changed(self, *_args) -> None:
                 self._source_zones_locked_to_device_count = False
@@ -746,7 +762,7 @@ class SettingsDialog:
                     cfg,
                     fps=int(self.fps_slider.value()), sampling_quality=str(self.sampling_quality_combo.currentText()).lower(), brightness=self.brightness_slider.value() / 100.0,
                     smoothing=self.smoothing_slider.value() / 100.0, smoothing_speed=self.smoothing_speed_slider.value() / 100.0, led_gamma=self.led_gamma_slider.value() / 100.0,
-                    zones=new_zones, layout_preset=value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_preset_combo.currentText()), default="edge_strip"), edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"), motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"), color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="natural"), display_preset=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="hdr"),
+                    zones=new_zones, layout_preset=value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_preset_combo.currentText()), default="edge_strip"), edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"), motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"), color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"), display_preset=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="hdr"),
                     start_on_launch=bool(self.start_on_launch_checkbox.isChecked()), device_zone_count=self._state.device_zone_count,
                     output_channel_order=str(self.output_channel_order_combo.currentText()), reverse_zones=self._state.reverse_zones,
                     manual_mapping_enabled=bool(self._state.manual_mapping_enabled),

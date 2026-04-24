@@ -215,7 +215,7 @@ class DisplayConfiguratorDialog:
                 self.motion_preset_combo.setCurrentIndex(max(0, self.motion_preset_combo.findText(label_for_value(MOTION_PRESET_LABELS, initial_motion, default="Responsive"))))
                 self.color_style_combo = QComboBox()
                 self.color_style_combo.addItems(labels(COLOR_STYLE_LABELS))
-                self.color_style_combo.setCurrentIndex(max(0, self.color_style_combo.findText(label_for_value(COLOR_STYLE_LABELS, str(getattr(cfg, "color_style", "natural")), default="Natural"))))
+                self.color_style_combo.setCurrentIndex(max(0, self.color_style_combo.findText(label_for_value(COLOR_STYLE_LABELS, str(getattr(cfg, "color_style", "ambient")), default="Ambient (recommended)"))))
                 self.hdr_transfer_combo = QComboBox()
                 self.hdr_transfer_combo.addItems(["srgb", "pq"])
                 self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))))
@@ -393,7 +393,7 @@ class DisplayConfiguratorDialog:
                 self._set_tooltip(self.sdr_boost_nits_slider, "Plasma SDR white reference in nits when compositor HDR mode is enabled.")
                 self._set_tooltip(self.edge_locality_combo, "Tight: most accurate/least bleed. Balanced: softer ambient look. Wide: cinematic blend.")
                 self._set_tooltip(self.motion_preset_combo, "Calm: smoother/slower. Responsive: recommended. Dynamic: punchier and reactive.")
-                self._set_tooltip(self.color_style_combo, "Natural: accurate colour. Vivid: richer colour. Punchy: strongest effect.")
+                self._set_tooltip(self.color_style_combo, "Reference/Natural: accurate colour, preserves greys. Ambient: recommended stable glow. Vivid: richer colour. Punchy: strongest effect.")
 
             def _build_step_1(self, QWidget, QGridLayout, QLabel):
                 page = QWidget()
@@ -908,7 +908,7 @@ class DisplayConfiguratorDialog:
                     edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"),
                     sampling_quality=value_for_label(SAMPLING_QUALITY_LABELS, str(self.sampling_quality_combo.currentText()), default="high"),
                     motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"),
-                    color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="natural"),
+                    color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"),
                     display_preset=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="hdr"),
                     hdr_transfer=str(self.hdr_transfer_combo.currentText()),
                     hdr_primaries=str(self.hdr_primaries_combo.currentText()),
@@ -955,7 +955,7 @@ class DisplayConfiguratorDialog:
                     "display_preset": value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="hdr"),
                     "sampling_quality": value_for_label(SAMPLING_QUALITY_LABELS, str(self.sampling_quality_combo.currentText()), default="high"),
                     "motion_preset": value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"),
-                    "color_style": value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="natural"),
+                    "color_style": value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"),
                     "edge_locality": value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"),
                     "layout_preset": value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_debug_combo.currentText()), default="edge_strip"),
                     "corner_anchor_top_left": int(self._state.corner_anchor_top_left),
@@ -1036,7 +1036,7 @@ class DisplayConfiguratorDialog:
                 motion_idx = self.motion_preset_combo.findText(label_for_value(MOTION_PRESET_LABELS, str(data.get("motion_preset", value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"))), default="Responsive"))
                 if motion_idx >= 0:
                     self.motion_preset_combo.setCurrentIndex(motion_idx)
-                color_style_idx = self.color_style_combo.findText(label_for_value(COLOR_STYLE_LABELS, str(data.get("color_style", value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="natural"))), default="Natural"))
+                color_style_idx = self.color_style_combo.findText(label_for_value(COLOR_STYLE_LABELS, str(data.get("color_style", value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"))), default="Ambient (recommended)"))
                 if color_style_idx >= 0:
                     self.color_style_combo.setCurrentIndex(color_style_idx)
                 edge_locality_idx = self.edge_locality_combo.findText(label_for_value(EDGE_LOCALITY_LABELS, str(data.get("edge_locality", "tight")), default="Tight"))
@@ -1111,9 +1111,9 @@ class DisplayConfiguratorDialog:
                 zone_count = self._state.effective_device_zone_count()
                 frame = [(0, 0, 0)] * zone_count
                 mode = value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive")
-                style = value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="natural")
+                style = value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient")
                 gain = 1.0 if mode == "dynamic" else (0.85 if mode == "responsive" else 0.7)
-                style_gain = {"natural": 1.0, "vivid": 1.15, "punchy": 1.30}[style]
+                style_gain = {"reference": 1.0, "natural": 1.0, "ambient": 1.05, "vivid": 1.15, "punchy": 1.30}[style]
                 for i in range(zone_count):
                     phase = (i + self._preview_phase) % max(1, zone_count)
                     ramp = phase / max(1, zone_count - 1)

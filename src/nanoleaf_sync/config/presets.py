@@ -18,7 +18,9 @@ MOTION_PRESET_CALM = "calm"
 MOTION_PRESET_RESPONSIVE = "responsive"
 MOTION_PRESET_DYNAMIC = "dynamic"
 
+COLOR_STYLE_REFERENCE = "reference"
 COLOR_STYLE_NATURAL = "natural"
+COLOR_STYLE_AMBIENT = "ambient"
 COLOR_STYLE_VIVID = "vivid"
 COLOR_STYLE_PUNCHY = "punchy"
 
@@ -37,7 +39,7 @@ SAMPLING_QUALITY_PRESETS = (
     SAMPLING_QUALITY_HIGH,
 )
 MOTION_PRESETS = (MOTION_PRESET_CALM, MOTION_PRESET_RESPONSIVE, MOTION_PRESET_DYNAMIC)
-COLOR_STYLE_PRESETS = (COLOR_STYLE_NATURAL, COLOR_STYLE_VIVID, COLOR_STYLE_PUNCHY)
+COLOR_STYLE_PRESETS = (COLOR_STYLE_REFERENCE, COLOR_STYLE_NATURAL, COLOR_STYLE_AMBIENT, COLOR_STYLE_VIVID, COLOR_STYLE_PUNCHY)
 DISPLAY_PRESETS = (DISPLAY_PRESET_SDR, DISPLAY_PRESET_HDR, DISPLAY_PRESET_AUTO)
 
 
@@ -96,8 +98,7 @@ def motion_profile(motion_preset: str) -> MotionProfile:
 def analyzer_mode_for_presets(*, motion_preset: str, color_style: str) -> str:
     motion = normalize_preset(motion_preset, allowed=MOTION_PRESETS, default=MOTION_PRESET_RESPONSIVE)
     style = normalize_preset(color_style, allowed=COLOR_STYLE_PRESETS, default=COLOR_STYLE_NATURAL)
-    # Natural style is accuracy-first and should preserve localized edge sampling behavior.
-    if style == COLOR_STYLE_NATURAL:
+    if style in {COLOR_STYLE_REFERENCE, COLOR_STYLE_NATURAL, COLOR_STYLE_AMBIENT}:
         return "balanced"
     if motion == MOTION_PRESET_DYNAMIC and style == COLOR_STYLE_PUNCHY:
         return "hyper"
