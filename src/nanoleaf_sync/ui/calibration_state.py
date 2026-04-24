@@ -3,11 +3,17 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import logging
+
 from nanoleaf_sync.config.model import AppConfig
-from nanoleaf_sync.runtime.calibration_resolver import CalibrationMappingSnapshot, resolve_calibration_mapping
 from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
-from nanoleaf_sync.ui.calibration_flow import CALIBRATION_SEQUENCE, calibration_step_by_id, derive_corner_anchor_device_indices
-from nanoleaf_sync.ui.calibration_preview import CalibrationStep, calibration_test_frame, corner_anchor_steps, coverage_sanity_step, single_zone_step
+from nanoleaf_sync.runtime.calibration_resolver import CalibrationMappingSnapshot, resolve_calibration_mapping
+from nanoleaf_sync.ui.calibration_preview import (
+    CalibrationStep,
+    calibration_test_frame,
+    corner_anchor_steps,
+    coverage_sanity_step,
+    single_zone_step,
+)
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text, mapping_preview_visual
 
 logger = logging.getLogger(__name__)
@@ -25,30 +31,6 @@ ZONE_COUNT_DIRECTLY_AFFECTED_PHASES: tuple[str, ...] = (
     "direction-verification",
     "corner-assignment",
 )
-
-
-def _log_calibration_marker(event: str, **fields: str | int | float | bool) -> None:
-    payload = " ".join(f"{key}={value}" for key, value in fields.items())
-    logger.info("telemetry.calibration.%s %s", str(event), payload)
-
-
-def _phase_failure_cause(details: str) -> str:
-    text = str(details).strip().lower()
-    if not text:
-        return "unknown"
-    if "prerequisites not met" in text:
-        return "prerequisites"
-    if "phase is not marked as passed" in text:
-        return "not_marked_passed"
-    if "corner anchors invalid" in text:
-        return "anchor_validation"
-    if "confidence too low" in text:
-        return "confidence"
-    if "sentinel" in text:
-        return "sentinel_mismatch"
-    if "unknown calibration phase" in text:
-        return "unknown_phase"
-    return "validation_failed"
 
 
 @dataclass
@@ -86,6 +68,8 @@ class LatencyProbeResult:
 
 @dataclass
 class CalibrationStepProgress:
+    """Compatibility shim for legacy phase-oriented callers."""
+
     step_id: str
     complete: bool = False
     passed: bool = False
@@ -94,6 +78,8 @@ class CalibrationStepProgress:
 
 @dataclass
 class CalibrationPhaseValidation:
+    """Compatibility shim for legacy phase-oriented callers."""
+
     valid: bool = False
     details: str = ""
 
@@ -106,12 +92,7 @@ class CalibrationCheckpoint:
     corner_anchor_top_right: int
     corner_anchor_bottom_right: int
     corner_anchor_bottom_left: int
-    corner_start_anchor: int
-    calibration_model: str
-    calibration_step_progress: dict[str, CalibrationStepProgress] = field(default_factory=dict)
-    current_phase: str = ""
-    phase_completion_flags: dict[str, bool] = field(default_factory=dict)
-    phase_validation_state: dict[str, CalibrationPhaseValidation] = field(default_factory=dict)
+    current_test_step: int
 
 
 @dataclass(frozen=True)
@@ -143,23 +124,22 @@ class CalibrationVerificationReport:
 
 @dataclass
 class CalibrationState:
+    # Active/simple state
     zone_count: int
     zone_preset: str
     reverse_zones: bool
     zone_offset: int
     device_zone_count: int
-    explicit_zone_map: list[int] = field(default_factory=list)
-    manual_mapping_enabled: bool = False
-    calibration_model: str = "corner_anchored"
-    corner_start_anchor: int = -1
-    corner_offsets_enabled: bool = False
-    corner_zone_offsets: list[int] = field(default_factory=list)
+    current_test_step: int = 0
     corner_anchor_top_left: int = -1
     corner_anchor_top_right: int = -1
     corner_anchor_bottom_right: int = -1
     corner_anchor_bottom_left: int = -1
+    detected_device_zone_count: int = 0
+
+    # Thin compatibility shims (legacy multi-phase flow callers still reference these)
     calibration_step_progress: dict[str, CalibrationStepProgress] = field(default_factory=dict)
-    current_phase: str = "start-point-detection"
+    current_phase: str = "corner-assignment"
     phase_completion_flags: dict[str, bool] = field(default_factory=dict)
     phase_validation_state: dict[str, CalibrationPhaseValidation] = field(default_factory=dict)
     checkpoint: CalibrationCheckpoint | None = None
@@ -167,7 +147,14 @@ class CalibrationState:
     phase_rollback_checkpoints: dict[str, CalibrationCheckpoint] = field(default_factory=dict)
     phase_boundary_checkpoints: dict[str, CalibrationCheckpoint] = field(default_factory=dict)
     action_history: list[CalibrationCheckpoint] = field(default_factory=list)
-    detected_device_zone_count: int = 0
+
+    # Retained as inert/compatibility-only fields for old callers.
+    explicit_zone_map: list[int] = field(default_factory=list)
+    manual_mapping_enabled: bool = False
+    calibration_model: str = "corner_anchored"
+    corner_start_anchor: int = -1
+    corner_offsets_enabled: bool = False
+    corner_zone_offsets: list[int] = field(default_factory=list)
 
     @classmethod
     def from_config(cls, cfg: AppConfig, runtime_status: dict | None = None) -> "CalibrationState":
@@ -180,7 +167,6 @@ class CalibrationState:
         detected = int(runtime_status.get("device_zone_count") or 0)
         if configured_device_zone_count <= 0 and detected > 0:
             configured_device_zone_count = detected
-
         if source_zone_count <= 0:
             source_zone_count = configured_device_zone_count
         if source_zone_count <= 0:
@@ -188,49 +174,35 @@ class CalibrationState:
         if configured_device_zone_count <= 0:
             configured_device_zone_count = max(1, int(source_zone_count))
 
-        explicit_zone_map = [int(i) for i in (getattr(calibration, "explicit_zone_map", []) or [])]
-        anchor_values = (
-            int(getattr(calibration, "corner_anchor_top_left", -1)),
-            int(getattr(calibration, "corner_anchor_top_right", -1)),
-            int(getattr(calibration, "corner_anchor_bottom_right", -1)),
-            int(getattr(calibration, "corner_anchor_bottom_left", -1)),
-        )
         return cls(
             zone_count=max(1, int(source_zone_count)),
             zone_preset=str(getattr(cfg, "zone_preset", "edge-weighted")),
             reverse_zones=bool(getattr(calibration, "reverse_zones", False)),
             zone_offset=int(getattr(calibration, "zone_offset", 0)),
             device_zone_count=max(1, int(configured_device_zone_count)),
-            explicit_zone_map=explicit_zone_map,
+            corner_anchor_top_left=int(getattr(calibration, "corner_anchor_top_left", -1)),
+            corner_anchor_top_right=int(getattr(calibration, "corner_anchor_top_right", -1)),
+            corner_anchor_bottom_right=int(getattr(calibration, "corner_anchor_bottom_right", -1)),
+            corner_anchor_bottom_left=int(getattr(calibration, "corner_anchor_bottom_left", -1)),
+            detected_device_zone_count=detected if detected > 0 else 0,
+            explicit_zone_map=[int(i) for i in (getattr(calibration, "explicit_zone_map", []) or [])],
             manual_mapping_enabled=bool(getattr(calibration, "manual_mapping_enabled", False)),
             calibration_model="corner_anchored",
             corner_start_anchor=int(getattr(calibration, "corner_start_anchor", -1)),
             corner_offsets_enabled=bool(getattr(calibration, "corner_offsets_enabled", False)),
             corner_zone_offsets=[int(i) for i in (getattr(calibration, "corner_zone_offsets", []) or [])][:4],
-            corner_anchor_top_left=anchor_values[0],
-            corner_anchor_top_right=anchor_values[1],
-            corner_anchor_bottom_right=anchor_values[2],
-            corner_anchor_bottom_left=anchor_values[3],
-            detected_device_zone_count=detected if detected > 0 else 0,
         )
 
     def active_corner_zone_offsets(self) -> list[int]:
-        offsets = self.corner_zone_offsets[:4]
-        while len(offsets) < 4:
-            offsets.append(0)
-        offsets = [max(-CORNER_OFFSET_LIMIT, min(CORNER_OFFSET_LIMIT, int(value))) for value in offsets]
-        if not self.corner_offsets_enabled:
-            return [0, 0, 0, 0]
-        return offsets
+        # Minimal active model does not use per-corner nudges.
+        return [0, 0, 0, 0]
 
     def calibration_steps(self) -> tuple[str, ...]:
-        return tuple(step.step_id for step in CALIBRATION_SEQUENCE)
+        return ("direction-verification", "corner-assignment", "validation-replay")
 
     def calibration_prerequisites_met(self, step_id: str) -> bool:
-        step = next((item for item in CALIBRATION_SEQUENCE if item.step_id == step_id), None)
-        if step is None:
-            return False
-        return all(self.calibration_step_progress.get(dep, CalibrationStepProgress(step_id=dep)).passed for dep in step.prerequisites)
+        _ = step_id
+        return True
 
     def calibration_step_state(self, step_id: str) -> CalibrationStepProgress:
         existing = self.calibration_step_progress.get(step_id)
@@ -246,17 +218,8 @@ class CalibrationState:
         progress.passed = bool(passed)
         progress.notes = str(notes)
         self.phase_completion_flags[step_id] = bool(progress.complete)
-        self.phase_validation_state[step_id] = CalibrationPhaseValidation(
-            valid=bool(passed),
-            details=str(notes),
-        )
+        self.phase_validation_state[step_id] = CalibrationPhaseValidation(valid=bool(passed), details=str(notes))
         self.current_phase = str(step_id)
-        _log_calibration_marker(
-            "phase_complete",
-            phase=str(step_id),
-            passed=bool(passed),
-            failure_cause=_phase_failure_cause(notes) if not passed else "none",
-        )
 
     def push_action_snapshot(self, *, history_limit: int = 64) -> None:
         self.action_history.append(self.snapshot_checkpoint())
@@ -269,175 +232,49 @@ class CalibrationState:
         return self.restore_checkpoint(self.action_history.pop())
 
     def evaluate_phase(self, step_id: str) -> tuple[bool, str]:
-        phase = calibration_step_by_id(step_id)
-        if phase is None:
-            return False, "Unknown calibration phase."
-        if not self.calibration_prerequisites_met(step_id):
-            return False, f"Prerequisites not met for {step_id}."
-        return phase.validation_fn(self, phase)
+        report = self.validation_report()
+        return (not report.hard_fail, f"compatibility shim: {step_id}")
 
     def can_complete_calibration_flow(self) -> bool:
-        for step in CALIBRATION_SEQUENCE:
-            valid, details = self.evaluate_phase(step.step_id)
-            self.phase_validation_state[step.step_id] = CalibrationPhaseValidation(valid=bool(valid), details=str(details))
-            if not valid:
-                _log_calibration_marker(
-                    "flow_blocked",
-                    phase=step.step_id,
-                    failure_cause=_phase_failure_cause(details),
-                )
-                return False
-        report = self.validation_report()
-        allowed = (
-            report.confidence_score >= MIN_CALIBRATION_VALIDATION_CONFIDENCE
-            and report.sentinel_consistency
-            and report.outcome_status == "pass"
-        )
-        _log_calibration_marker(
-            "flow_evaluated",
-            allowed=bool(allowed),
-            outcome=report.outcome_status,
-            confidence=f"{report.confidence_score:.2f}",
-            sentinel_consistency=bool(report.sentinel_consistency),
-        )
-        return allowed
+        return not self.validation_report().hard_fail
 
-    def _zone_count_invalidation_targets(
-        self,
-        *,
-        affected_phases: tuple[str, ...],
-    ) -> tuple[str, ...]:
-        sequence = tuple(CALIBRATION_SEQUENCE)
-        ordered_steps = [step.step_id for step in sequence]
-        known_steps = set(ordered_steps)
-        reverse_dependencies: dict[str, set[str]] = {step_id: set() for step_id in ordered_steps}
-        for step in sequence:
-            for prerequisite in step.prerequisites:
-                prerequisite_id = str(prerequisite)
-                if prerequisite_id in reverse_dependencies:
-                    reverse_dependencies[prerequisite_id].add(step.step_id)
-
-        pending = [str(step_id) for step_id in affected_phases if str(step_id) in known_steps]
-        impacted: set[str] = set()
-        while pending:
-            step_id = pending.pop(0)
-            if step_id in impacted:
-                continue
-            impacted.add(step_id)
-            pending.extend(sorted(reverse_dependencies.get(step_id, set())))
-
-        return tuple(step_id for step_id in ordered_steps if step_id in impacted)
-
-    def invalidate_for_zone_count_change(
-        self,
-        *,
-        affected_phases: tuple[str, ...] = ZONE_COUNT_DIRECTLY_AFFECTED_PHASES,
-    ) -> tuple[str, ...]:
-        target_steps = self._zone_count_invalidation_targets(affected_phases=affected_phases)
-        invalidated: list[str] = []
-        for step_id in target_steps:
-            phase_id = str(step_id)
-            progress = self.calibration_step_state(phase_id)
-            if not (progress.complete or progress.passed):
-                continue
+    def invalidate_for_zone_count_change(self, *, affected_phases: tuple[str, ...] = ()) -> tuple[str, ...]:
+        _ = affected_phases
+        for step_id, progress in self.calibration_step_progress.items():
             progress.complete = False
             progress.passed = False
             progress.notes = ""
-            self.phase_completion_flags[phase_id] = False
-            self.phase_validation_state[phase_id] = CalibrationPhaseValidation(valid=False, details="")
-            self.phase_rollback_checkpoints.pop(phase_id, None)
-            self.phase_boundary_checkpoints.pop(phase_id, None)
-            invalidated.append(phase_id)
-        if invalidated:
-            self.current_phase = invalidated[0]
-            _log_calibration_marker(
-                "phase_invalidation",
-                trigger="zone_count_change",
-                invalidated_count=len(invalidated),
-                next_phase=self.current_phase,
-            )
-        return tuple(invalidated)
+            self.phase_completion_flags[step_id] = False
+            self.phase_validation_state[step_id] = CalibrationPhaseValidation(valid=False, details="")
+        self.current_test_step = 0
+        return tuple(self.calibration_step_progress.keys())
 
     def validation_report(self) -> CalibrationVerificationReport:
-        direction_confirmed = self.calibration_step_progress.get(
-            "direction-verification",
-            CalibrationStepProgress(step_id="direction-verification"),
-        ).passed
-        cycle_replay_confirmed = self.calibration_step_progress.get(
-            "validation-replay",
-            CalibrationStepProgress(step_id="validation-replay"),
-        ).passed
-        expected = derive_corner_anchor_device_indices(
-            zone_count=self.zone_count,
-            device_zone_count=self.effective_device_zone_count(),
-            zone_offset=self.zone_offset,
-            reverse_zones=self.reverse_zones,
-            explicit_zone_map=self.explicit_zone_map if self.manual_mapping_enabled else [],
-            corner_zone_offsets=self.active_corner_zone_offsets(),
-            start_anchor=self.corner_start_anchor if self.corner_start_anchor >= 0 else None,
-            calibration_model=self.calibration_model,
-        )
-        assigned = [
-            int(self.corner_anchor_top_left),
-            int(self.corner_anchor_top_right),
-            int(self.corner_anchor_bottom_right),
-            int(self.corner_anchor_bottom_left),
-        ]
-        has_explicit_assignments = all(value >= 0 for value in assigned)
-        if not has_explicit_assignments:
-            assigned = expected[:]
-
         anchors = {
-            "top_left": assigned[0] if len(assigned) > 0 else None,
-            "top_right": assigned[1] if len(assigned) > 1 else None,
-            "bottom_right": assigned[2] if len(assigned) > 2 else None,
-            "bottom_left": assigned[3] if len(assigned) > 3 else None,
+            "top_left": self.corner_anchor_top_left if self.corner_anchor_top_left >= 0 else None,
+            "top_right": self.corner_anchor_top_right if self.corner_anchor_top_right >= 0 else None,
+            "bottom_right": self.corner_anchor_bottom_right if self.corner_anchor_bottom_right >= 0 else None,
+            "bottom_left": self.corner_anchor_bottom_left if self.corner_anchor_bottom_left >= 0 else None,
         }
-        anchor_validation = validate_corner_anchors(
-            anchors=anchors,
-            device_zone_count=self.effective_device_zone_count(),
-        )
+        anchor_validation = validate_corner_anchors(anchors=anchors, device_zone_count=self.effective_device_zone_count())
         anchors_unique_valid = bool(anchor_validation.valid)
-        sentinel_consistency = tuple(expected[:4]) == tuple(assigned[:4])
-
-        direction_component = 1.0 if direction_confirmed else 0.0
-        anchors_component = 1.0 if anchors_unique_valid else 0.0
-        cycle_component = 1.0 if cycle_replay_confirmed else 0.0
-        confidence_score = (direction_component + anchors_component + cycle_component) / 3.0
-        hard_fail = confidence_score < MIN_CALIBRATION_VALIDATION_CONFIDENCE or not sentinel_consistency
-        if hard_fail:
-            outcome_status = "fail"
-        else:
-            outcome_status = "pass"
-        hints: list[str] = []
-        if not direction_confirmed:
-            hints.append("Re-run direction verification and confirm reverse/offset orientation.")
-        if not anchors_unique_valid:
-            hints.append("Assign four unique in-range corner anchors (TL/TR/BR/BL).")
-        if not cycle_replay_confirmed:
-            hints.append("Complete end-to-end validation replay for one full cycle.")
-        if not sentinel_consistency:
-            hints.append("Replay sentinel corners and re-assign anchors until expected and assigned corners match.")
-        remediation_action = (
-            "Complete all failed checks before saving calibration."
-            if hard_fail
-            else "No action needed."
-        )
+        score = 1.0 if anchors_unique_valid else 0.0
+        hints = () if anchors_unique_valid else ("Assign four unique in-range corner anchors (TL/TR/BR/BL).",)
         return CalibrationVerificationReport(
-            outcome_status=outcome_status,
-            direction_confirmed=direction_confirmed,
+            outcome_status="pass" if anchors_unique_valid else "fail",
+            direction_confirmed=True,
             anchors_unique_valid=anchors_unique_valid,
-            cycle_replay_confirmed=cycle_replay_confirmed,
-            sentinel_consistency=sentinel_consistency,
-            expected_sentinels=tuple(expected[:4]),
-            assigned_sentinels=tuple(assigned[:4]),
-            direction_confidence_component=direction_component,
-            anchors_confidence_component=anchors_component,
-            cycle_confidence_component=cycle_component,
-            confidence_score=confidence_score,
-            hard_fail=hard_fail,
-            remediation_action=remediation_action,
-            remediation_hints=tuple(hints),
+            cycle_replay_confirmed=True,
+            sentinel_consistency=True,
+            expected_sentinels=(),
+            assigned_sentinels=(),
+            direction_confidence_component=1.0,
+            anchors_confidence_component=score,
+            cycle_confidence_component=1.0,
+            confidence_score=score,
+            hard_fail=not anchors_unique_valid,
+            remediation_action="No action needed." if anchors_unique_valid else "Assign valid corner anchors before saving calibration.",
+            remediation_hints=hints,
         )
 
     def snapshot_checkpoint(self) -> CalibrationCheckpoint:
@@ -448,29 +285,12 @@ class CalibrationState:
             corner_anchor_top_right=int(self.corner_anchor_top_right),
             corner_anchor_bottom_right=int(self.corner_anchor_bottom_right),
             corner_anchor_bottom_left=int(self.corner_anchor_bottom_left),
-            corner_start_anchor=int(self.corner_start_anchor),
-            calibration_model=str(self.calibration_model),
-            calibration_step_progress={
-                step_id: CalibrationStepProgress(
-                    step_id=progress.step_id,
-                    complete=bool(progress.complete),
-                    passed=bool(progress.passed),
-                    notes=str(progress.notes),
-                )
-                for step_id, progress in self.calibration_step_progress.items()
-            },
-            current_phase=str(self.current_phase),
-            phase_completion_flags={step_id: bool(done) for step_id, done in self.phase_completion_flags.items()},
-            phase_validation_state={
-                step_id: CalibrationPhaseValidation(valid=bool(state.valid), details=str(state.details))
-                for step_id, state in self.phase_validation_state.items()
-            },
+            current_test_step=int(self.current_test_step),
         )
 
     def save_checkpoint(self) -> CalibrationCheckpoint:
         self.checkpoint = self.snapshot_checkpoint()
         self.rollback_checkpoint = self.checkpoint
-        self.phase_rollback_checkpoints[self.current_phase] = self.checkpoint
         return self.checkpoint
 
     def restore_checkpoint(self, checkpoint: CalibrationCheckpoint | None = None) -> bool:
@@ -483,23 +303,7 @@ class CalibrationState:
         self.corner_anchor_top_right = int(target.corner_anchor_top_right)
         self.corner_anchor_bottom_right = int(target.corner_anchor_bottom_right)
         self.corner_anchor_bottom_left = int(target.corner_anchor_bottom_left)
-        self.corner_start_anchor = int(target.corner_start_anchor)
-        self.calibration_model = str(target.calibration_model)
-        self.calibration_step_progress = {
-            step_id: CalibrationStepProgress(
-                step_id=progress.step_id,
-                complete=bool(progress.complete),
-                passed=bool(progress.passed),
-                notes=str(progress.notes),
-            )
-            for step_id, progress in target.calibration_step_progress.items()
-        }
-        self.current_phase = str(target.current_phase or self.current_phase)
-        self.phase_completion_flags = {step_id: bool(done) for step_id, done in target.phase_completion_flags.items()}
-        self.phase_validation_state = {
-            step_id: CalibrationPhaseValidation(valid=bool(state.valid), details=str(state.details))
-            for step_id, state in target.phase_validation_state.items()
-        }
+        self.current_test_step = int(target.current_test_step)
         return True
 
     def save_phase_checkpoint(self, step_id: str) -> CalibrationCheckpoint:
@@ -534,74 +338,67 @@ class CalibrationState:
         return max(1, int(self.device_zone_count))
 
     def resolved_mapping_snapshot(self) -> CalibrationMappingSnapshot:
-        explicit = self.explicit_zone_map if self.manual_mapping_enabled else []
         return resolve_calibration_mapping(
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
             zone_offset=self.zone_offset,
             reverse_zones=self.reverse_zones,
-            manual_mapping_enabled=bool(explicit),
-            explicit_zone_map=explicit,
-            corner_zone_offsets=self.active_corner_zone_offsets(),
+            manual_mapping_enabled=False,
+            explicit_zone_map=None,
+            corner_zone_offsets=None,
             corner_anchor_top_left=self.corner_anchor_top_left,
             corner_anchor_top_right=self.corner_anchor_top_right,
             corner_anchor_bottom_right=self.corner_anchor_bottom_right,
             corner_anchor_bottom_left=self.corner_anchor_bottom_left,
-            calibration_model=self.calibration_model,
+            calibration_model="corner_anchored",
         )
 
     def mapping_preview_text(self) -> str:
         snapshot = self.resolved_mapping_snapshot()
-        explicit = self.explicit_zone_map if self.manual_mapping_enabled else []
         return (
             f"{self.auto_detection_status()}\n"
             f"Anchors TL/TR/BR/BL: {self.corner_anchor_top_left}/{self.corner_anchor_top_right}/{self.corner_anchor_bottom_right}/{self.corner_anchor_bottom_left}\n"
-            f"Local corner anchor nudges (TL/TR/BR/BL): {'/'.join(f'{value:+d}' for value in self.active_corner_zone_offsets())}\n"
-            "Guided calibration preview\n"
-            f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), zone_offset=self.zone_offset, reverse_zones=self.reverse_zones, explicit_zone_map=explicit, corner_zone_offsets=self.active_corner_zone_offsets(), corner_anchor_top_left=self.corner_anchor_top_left, corner_anchor_top_right=self.corner_anchor_top_right, corner_anchor_bottom_right=self.corner_anchor_bottom_right, corner_anchor_bottom_left=self.corner_anchor_bottom_left, calibration_model=self.calibration_model, resolved_mapping=snapshot)}"
+            "Simple corner calibration preview\n"
+            f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), zone_offset=self.zone_offset, reverse_zones=self.reverse_zones, explicit_zone_map=None, corner_zone_offsets=None, corner_anchor_top_left=self.corner_anchor_top_left, corner_anchor_top_right=self.corner_anchor_top_right, corner_anchor_bottom_right=self.corner_anchor_bottom_right, corner_anchor_bottom_left=self.corner_anchor_bottom_left, calibration_model='corner_anchored', resolved_mapping=snapshot)}"
         )
 
     def mapping_preview_visual(self) -> str:
         snapshot = self.resolved_mapping_snapshot()
-        explicit = self.explicit_zone_map if self.manual_mapping_enabled else []
         return mapping_preview_visual(
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
             zone_offset=self.zone_offset,
             reverse_zones=self.reverse_zones,
-            explicit_zone_map=explicit,
-            corner_zone_offsets=self.active_corner_zone_offsets(),
+            explicit_zone_map=None,
+            corner_zone_offsets=None,
             corner_anchor_top_left=self.corner_anchor_top_left,
             corner_anchor_top_right=self.corner_anchor_top_right,
             corner_anchor_bottom_right=self.corner_anchor_bottom_right,
             corner_anchor_bottom_left=self.corner_anchor_bottom_left,
-            calibration_model=self.calibration_model,
+            calibration_model="corner_anchored",
             resolved_mapping=snapshot,
         )
 
     def _corner_steps(self, resolved_mapping: CalibrationMappingSnapshot | None = None) -> list[CalibrationStep]:
         snapshot = resolved_mapping or self.resolved_mapping_snapshot()
-        explicit = self.explicit_zone_map if self.manual_mapping_enabled else []
-        anchors = corner_anchor_steps(
+        return corner_anchor_steps(
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
             zone_offset=self.zone_offset,
             reverse_zones=self.reverse_zones,
-            explicit_zone_map=explicit,
-            corner_zone_offsets=self.active_corner_zone_offsets(),
-            start_anchor=self.corner_start_anchor if self.corner_start_anchor >= 0 else None,
-            calibration_model=self.calibration_model,
+            explicit_zone_map=None,
+            corner_zone_offsets=None,
+            start_anchor=None,
+            calibration_model="corner_anchored",
             corner_anchor_top_left=self.corner_anchor_top_left,
             corner_anchor_top_right=self.corner_anchor_top_right,
             corner_anchor_bottom_right=self.corner_anchor_bottom_right,
             corner_anchor_bottom_left=self.corner_anchor_bottom_left,
             resolved_mapping=snapshot.device_to_source_indices,
         )
-        return anchors
 
     def step_for_mode(self, mode: str, step: int) -> CalibrationStep:
         snapshot = self.resolved_mapping_snapshot()
-        explicit = self.explicit_zone_map if self.manual_mapping_enabled else []
         if mode == "corner+offset alignment":
             anchors = self._corner_steps(snapshot)
             anchor = anchors[step % len(anchors)]
@@ -609,7 +406,8 @@ class CalibrationState:
                 device_zone_index=anchor.device_zone_index,
                 source_zone_index=anchor.source_zone_index,
                 label=(
-                    f"Corner+offset alignment | mapping zone offset={self.zone_offset:+d} | test zone step {step % len(anchors) + 1}/{len(anchors)} | reverse={'on' if self.reverse_zones else 'off'} | {anchor.label}"
+                    f"Corner assignment | zone offset={self.zone_offset:+d} | test zone step {step % len(anchors) + 1}/{len(anchors)} "
+                    f"| reverse={'on' if self.reverse_zones else 'off'} | {anchor.label}"
                 ),
             )
         if mode == "coverage sanity":
@@ -619,9 +417,9 @@ class CalibrationState:
                 device_zone_count=self.effective_device_zone_count(),
                 zone_offset=self.zone_offset,
                 reverse_zones=self.reverse_zones,
-                explicit_zone_map=explicit,
-                corner_zone_offsets=self.active_corner_zone_offsets(),
-                calibration_model=self.calibration_model,
+                explicit_zone_map=None,
+                corner_zone_offsets=None,
+                calibration_model="corner_anchored",
                 corner_anchor_top_left=self.corner_anchor_top_left,
                 corner_anchor_top_right=self.corner_anchor_top_right,
                 corner_anchor_bottom_right=self.corner_anchor_bottom_right,
@@ -639,9 +437,9 @@ class CalibrationState:
             device_zone_count=self.effective_device_zone_count(),
             zone_offset=self.zone_offset,
             reverse_zones=self.reverse_zones,
-            explicit_zone_map=explicit,
-            corner_zone_offsets=self.active_corner_zone_offsets(),
-            calibration_model=self.calibration_model,
+            explicit_zone_map=None,
+            corner_zone_offsets=None,
+            calibration_model="corner_anchored",
             corner_anchor_top_left=self.corner_anchor_top_left,
             corner_anchor_top_right=self.corner_anchor_top_right,
             corner_anchor_bottom_right=self.corner_anchor_bottom_right,
@@ -657,6 +455,7 @@ class CalibrationState:
 
     def frame_for_step(self, *, mode: str, step: int, brightness: float, all_off_except_active: bool) -> list[tuple[int, int, int]]:
         active_step = self.step_for_mode(mode, step)
+        self.current_test_step = int(step)
         inactive = (0, 0, 0) if all_off_except_active else (8, 8, 8)
         return calibration_test_frame(
             device_zone_count=self.effective_device_zone_count(),
