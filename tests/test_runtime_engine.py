@@ -133,6 +133,23 @@ def test_runtime_derives_source_zones_from_device_zone_count_when_config_zones_e
     assert mapping.tolist() == [0, 1, 2, 3, 4, 5]
 
 
+def test_runtime_default_edge_weighted_48_does_not_repeat_8_source_chunks() -> None:
+    state = RuntimeState()
+    cfg = AppConfig(zones=[], zone_preset="edge-weighted", device_zone_count=48)
+
+    zones_px, mapping = _ensure_runtime_artifacts(
+        state=state,
+        config=cfg,
+        img_w=1920,
+        img_h=1080,
+        detected_device_zone_count=None,
+    )
+
+    assert len(zones_px) == 48
+    assert len(mapping.tolist()) == 48
+    assert mapping.tolist() == list(range(48))
+
+
 def test_runtime_derives_source_zones_from_detected_count_when_legacy_auto() -> None:
     state = RuntimeState()
     cfg = AppConfig(zones=[], zone_preset="edge-weighted", device_zone_count=0)

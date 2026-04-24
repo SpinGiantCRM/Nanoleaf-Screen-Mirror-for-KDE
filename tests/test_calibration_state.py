@@ -117,6 +117,12 @@ def test_backend_and_testing_state_are_exposed_for_ui_surfaces() -> None:
     assert panel.effective_zone_count == 48
 
 
+def test_mapping_preview_reports_zone_preset_counts_and_derivation_mode() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=48, zone_preset="edge-weighted"), {})
+    text = state.mapping_preview_text()
+    assert "Zone preset: edge-weighted | source zones: 48 | strip zones: 48 | source mode: auto-derived" in text
+
+
 def test_latency_policy_is_predictable_and_manual_vs_auto_labeled() -> None:
     assert should_auto_run_latency_probe(policy="manual", last_result=None, active_backend="kwin-dbus") is False
     assert should_auto_run_latency_probe(policy="on-open", last_result=None, active_backend="kwin-dbus") is True

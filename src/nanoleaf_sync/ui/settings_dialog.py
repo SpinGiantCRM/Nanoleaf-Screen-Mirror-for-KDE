@@ -109,6 +109,10 @@ class SettingsDialog:
                 self._calibration_sender = calibration_sender
                 self._runtime_status = runtime_status or {}
                 self._state = CalibrationState.from_config(cfg, runtime_status)
+                self._source_zones_locked_to_device_count = (
+                    not bool(self._state.source_zones_user_configured)
+                    and str(self._state.zone_preset) == "edge-weighted"
+                )
                 self._test_step = 0
                 self._latest_latency = None
                 self._section_widgets: dict[str, object] = {}
@@ -187,14 +191,14 @@ class SettingsDialog:
                 self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.sampling_quality_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel("")
 
                 for signal in (
-                    self.zone_count_slider.valueChanged,
                     self.sampling_quality_combo.currentIndexChanged,
-                    self.zone_preset_combo.currentIndexChanged,
                     self.reverse_checkbox.stateChanged,
                     self.capture_backend_combo.currentIndexChanged,
                     self.auto_probe_policy_combo.currentIndexChanged,
                 ):
                     signal.connect(self._refresh_preview_label)
+                self.zone_count_slider.valueChanged.connect(self._on_zone_count_slider_changed)
+                self.zone_preset_combo.currentIndexChanged.connect(self._on_zone_preset_changed)
                 self.device_zone_count_slider.valueChanged.connect(self._on_device_zone_count_slider_changed)
                 self._on_device_zone_count_slider_changed()
                 self.simple_calibration_widget.bind_callbacks(
@@ -497,7 +501,19 @@ class SettingsDialog:
                     )
                 else:
                     self.device_zone_count_status_label.setText("")
+                if self._source_zones_locked_to_device_count:
+                    self._set_slider_value_safely(self.zone_count_slider, clamped)
                 self._test_step %= max(1, clamped)
+                self._refresh_preview_label()
+
+            def _on_zone_count_slider_changed(self, *_args) -> None:
+                self._source_zones_locked_to_device_count = False
+                self._state.source_zones_user_configured = True
+                self._refresh_preview_label()
+
+            def _on_zone_preset_changed(self, *_args) -> None:
+                if not str(self.zone_preset_combo.currentText()).startswith("Edge strip"):
+                    self._source_zones_locked_to_device_count = False
                 self._refresh_preview_label()
 
             def _active_backend(self) -> str:

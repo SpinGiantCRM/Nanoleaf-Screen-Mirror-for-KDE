@@ -370,6 +370,12 @@ def test_settings_dialog_zone_count_change_clamps_test_step_safely(monkeypatch) 
     assert dialog._dialog._test_step == (77 % 12)
 
 
+def test_settings_preview_reports_48_source_zones_for_48_zone_strip(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    dialog = SettingsDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=48))
+    assert "source zones: 48 | strip zones: 48" in dialog._dialog.preview_label._text
+
+
 def test_mapping_preview_uses_explicit_auto_flag() -> None:
     from nanoleaf_sync.ui.settings_dialog import mapping_preview_text
 

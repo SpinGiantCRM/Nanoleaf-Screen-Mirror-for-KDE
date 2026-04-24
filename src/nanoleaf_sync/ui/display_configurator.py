@@ -185,6 +185,12 @@ class DisplayConfiguratorDialog:
                 self._device_zone_count_confirmed = not self._requires_manual_device_zone_count
                 if should_prefer_detected:
                     self._state.device_zone_count = detected_device_zone_count
+                self._source_zones_locked_to_device_count = (
+                    not bool(self._state.source_zones_user_configured)
+                    and str(self._state.zone_preset) == "edge-weighted"
+                )
+                if should_prefer_detected and self._source_zones_locked_to_device_count:
+                    self._state.zone_count = max(1, int(detected_device_zone_count))
 
                 self.step_label = QLabel("")
                 self._preview_phase = 0
@@ -303,14 +309,14 @@ class DisplayConfiguratorDialog:
 
                 for signal in (
                     self.display_mode_combo.currentIndexChanged,
-                    self.zone_count_slider.valueChanged,
                     self.sampling_quality_combo.currentIndexChanged,
                     self.color_mode_combo.currentIndexChanged,
                     self.vibrancy_slider.valueChanged,
-                    self.zone_preset_combo.currentIndexChanged,
                     self.reverse_checkbox.stateChanged,
                 ):
                     signal.connect(self._refresh)
+                self.zone_count_slider.valueChanged.connect(self._on_zone_count_changed)
+                self.zone_preset_combo.currentIndexChanged.connect(self._on_zone_preset_changed)
                 self.preset_sdr_button.clicked.connect(lambda: self._apply_display_preset("sdr"))
                 self.preset_hdr_button.clicked.connect(lambda: self._apply_display_preset("hdr"))
                 self.sampling_low_button.clicked.connect(lambda: self._set_sampling_preset("low"))
@@ -568,6 +574,8 @@ class DisplayConfiguratorDialog:
                         f"Strip LED zone count capped at detected hardware count ({max_zone_count})."
                     )
                 new_zone_count = max(1, int(self.device_zone_count_slider.value()))
+                if self._source_zones_locked_to_device_count:
+                    self._set_slider_value_safely(self.zone_count_slider, new_zone_count)
                 remapped = {
                     "top_left": self._remap_zone_index_between_counts(self._state.corner_anchor_top_left, previous_zone_count, new_zone_count),
                     "top_right": self._remap_zone_index_between_counts(self._state.corner_anchor_top_right, previous_zone_count, new_zone_count),
@@ -586,6 +594,16 @@ class DisplayConfiguratorDialog:
                         )
                 if refresh:
                     self._refresh()
+
+            def _on_zone_count_changed(self, *_args) -> None:
+                self._source_zones_locked_to_device_count = False
+                self._state.source_zones_user_configured = True
+                self._refresh()
+
+            def _on_zone_preset_changed(self, *_args) -> None:
+                if not str(self.zone_preset_combo.currentText()).startswith("Edge strip"):
+                    self._source_zones_locked_to_device_count = False
+                self._refresh()
 
             def _refresh(self) -> None:
                 refresh_started = perf_counter()
