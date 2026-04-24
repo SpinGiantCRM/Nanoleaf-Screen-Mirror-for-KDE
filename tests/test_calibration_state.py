@@ -16,7 +16,6 @@ def test_shared_calibration_state_round_trips_core_fields() -> None:
     state = CalibrationState.from_config(cfg, {"device_zone_count": 18})
 
     assert state.zone_preset == "horizontal"
-    assert state.zone_offset == 3
     assert state.reverse_zones is True
     assert state.effective_device_zone_count() == 18
 
@@ -31,16 +30,13 @@ def test_calibration_state_uses_configured_device_zone_count_over_zone_rect_coun
     assert state.effective_device_zone_count() == 12
 
 
-def test_corner_alignment_mode_reflects_live_offset_reverse() -> None:
+def test_corner_alignment_mode_reflects_live_reverse_orientation() -> None:
     state = CalibrationState.from_config(AppConfig(device_zone_count=12, zone_offset=0, reverse_zones=False), {})
     base = state.step_for_mode("corner+offset alignment", 0)
-    state.zone_offset = 2
     state.reverse_zones = True
     changed = state.step_for_mode("corner+offset alignment", 0)
 
-    assert "offset=+0" in base.label
     assert "reverse=off" in base.label
-    assert "offset=+2" in changed.label
     assert "reverse=on" in changed.label
 
 
@@ -99,7 +95,6 @@ def test_physical_walk_mode_steps_through_all_device_zones_in_order() -> None:
 def test_physical_walk_mode_ignores_offset_and_reverse_for_active_zone() -> None:
     state = CalibrationState.from_config(AppConfig(device_zone_count=48), {})
     base = [state.step_for_mode("physical zone walk", step).device_zone_index for step in (0, 1, 31, 47)]
-    state.zone_offset = 17
     state.reverse_zones = True
     changed = [state.step_for_mode("physical zone walk", step).device_zone_index for step in (0, 1, 31, 47)]
     assert changed == base

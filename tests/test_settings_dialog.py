@@ -244,7 +244,7 @@ def test_settings_dialog_zone_count_updates_zones_without_changing_configured_de
     assert updated.device_zone_count == 8
 
 
-def test_settings_dialog_saves_zone_preset_reverse_and_offset(monkeypatch) -> None:
+def test_settings_dialog_saves_zone_preset_and_reverse_without_offset(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
     cfg = AppConfig(zones=[], device_zone_count=0, zone_preset="edge-weighted")
     dialog = SettingsDialog(parent=None, cfg=cfg)
@@ -252,13 +252,12 @@ def test_settings_dialog_saves_zone_preset_reverse_and_offset(monkeypatch) -> No
     horizontal_idx = dialog._dialog.zone_preset_combo.findText("horizontal")
     dialog._dialog.zone_preset_combo.setCurrentIndex(horizontal_idx)
     dialog._dialog.reverse_checkbox.setChecked(True)
-    dialog._dialog.zone_offset_slider.setValue(3)
     dialog._dialog.zone_count_slider.setValue(5)
 
     updated = dialog.updated_config()
     assert updated.zone_preset == "horizontal"
     assert updated.reverse_zones is True
-    assert updated.zone_offset == 3
+    assert updated.zone_offset == 0
     assert len(updated.zones) == 5
 
 
@@ -483,7 +482,6 @@ def test_settings_dialog_applies_tooltips_to_key_controls(monkeypatch) -> None:
     assert dialog._dialog.sampling_quality_combo._tooltip
     assert dialog._dialog.led_gamma_slider._tooltip
     assert dialog._dialog.zone_count_slider._tooltip
-    assert dialog._dialog.zone_offset_slider._tooltip
     assert dialog._dialog.reverse_checkbox._tooltip
     assert dialog._dialog.display_mode_combo._tooltip
     assert dialog._dialog.color_mode_combo._tooltip

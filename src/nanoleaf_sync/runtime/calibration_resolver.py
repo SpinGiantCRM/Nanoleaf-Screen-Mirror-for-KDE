@@ -214,7 +214,7 @@ def resolve_calibration_mapping_with_context(
     return resolve_calibration_mapping(
         zone_count=int(context.source_zone_count),
         device_zone_count=device_zone_count,
-        zone_offset=int(getattr(calibration, "zone_offset", 0)),
+        zone_offset=0,
         reverse_zones=bool(getattr(calibration, "reverse_zones", False)),
         manual_mapping_enabled=bool(getattr(calibration, "manual_mapping_enabled", False)),
         explicit_zone_map=getattr(calibration, "explicit_zone_map", None) or None,

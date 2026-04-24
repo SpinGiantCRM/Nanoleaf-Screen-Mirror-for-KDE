@@ -5,11 +5,14 @@ from copy import deepcopy
 from typing import Any
 
 OBSOLETE_CALIBRATION_KEYS = {
+    "normalized_zone_offset",
+    "zone_offset",
     "corner_start_anchor",
     "corner_offsets_enabled",
     "corner_zone_offsets",
 }
 OBSOLETE_TOP_LEVEL_KEYS = {
+    "zone_offset",
     "corner_start_anchor",
     "corner_offsets_enabled",
     "corner_zone_offsets",

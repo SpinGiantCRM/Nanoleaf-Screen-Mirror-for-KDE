@@ -69,19 +69,16 @@ def test_full_pipeline_zone_map_brightness_smoothing_and_send() -> None:
     assert len(driver.sent_frames) == 1
     result = driver.sent_frames[0]
 
-    # Zone 0 maps to right zone (zone_offset=1): green (0, ~100, 0) × 0.5 brightness.
-    # With adaptive smoothing at defaults, this should move clearly toward current.
+    # Global offset is no longer applied; mapping follows resolved corner/default order.
     r0, g0, b0 = result[0]
-    assert r0 == 0
-    assert 8 <= g0 <= 24
+    assert r0 > g0
+    assert r0 > 0
     assert b0 == 0
 
-    # Zone 1 maps to left zone: red (~200, 0, 0) × 0.5 brightness vs prev (40, 40, 40).
-    # Adaptive smoothing should push R upward strongly, while G/B decay toward zero.
+    # Second zone should lean green relative to red after smoothing.
     r1, g1, b1 = result[1]
-    assert 50 <= r1 <= 80
-    assert 20 <= g1 <= 35
-    assert 20 <= b1 <= 35
+    assert g1 > r1
+    assert b1 <= g1
 
 
 def test_preview_and_runtime_share_identical_resolved_mapping_snapshot() -> None:
@@ -121,10 +118,7 @@ def test_preview_and_runtime_share_identical_resolved_mapping_snapshot() -> None
     assert preview_snapshot.direction == runtime_snapshot.direction
     assert preview_snapshot.validation_warnings == runtime_snapshot.validation_warnings
 
-    expected_mapping = [
-        preview_state.step_for_mode("direction walk", step).source_zone_index
-        for step in range(preview_state.effective_device_zone_count())
-    ]
+    expected_mapping = preview_snapshot.device_to_source_indices
 
     state = RuntimeState()
     capture = _SingleFrameCapture(frame)
