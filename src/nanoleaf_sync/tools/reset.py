@@ -7,7 +7,7 @@ from nanoleaf_sync.config.store import ConfigManager
 
 
 def _stop_runtime_processes() -> None:
-    for pattern in ("nanoleaf-kde-sync-service", "nanoleaf-kde-sync"):
+    for pattern in ("nanoleaf-kde-sync-service$", "nanoleaf-kde-sync$"):
         subprocess.run(
             ["pkill", "-f", pattern],
             check=False,

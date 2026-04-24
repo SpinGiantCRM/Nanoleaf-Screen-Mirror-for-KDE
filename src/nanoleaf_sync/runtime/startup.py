@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
-import threading
 import time
+from threading import Thread
 from typing import Callable, Optional
 
 from nanoleaf_sync.config.model import AppConfig
@@ -125,20 +125,19 @@ class RuntimeLifecycle:
     def __init__(self, *, state: RuntimeState, runner: Callable[[], None]) -> None:
         self._state = state
         self._runner = runner
-        self._thread: Optional[threading.Thread] = None
-        self._lock = threading.Lock()
+        self._thread: Optional[Thread] = None
 
     def start(self, *, startup_timeout_s: float = 1.0) -> bool:
-        with self._lock:
-            if self._thread is not None and self._thread.is_alive():
-                return True
-            reset_startup(self._state)
-            self._thread = threading.Thread(
-                target=self._runner,
-                name="nanoleaf-sync",
-                daemon=True,
-            )
-            self._thread.start()
+        if self.is_running():
+            return True
+
+        reset_startup(self._state)
+        self._thread = Thread(
+            target=self._runner,
+            name="nanoleaf-sync",
+            daemon=True,
+        )
+        self._thread.start()
         if not wait_for_startup(self._state, timeout_s=startup_timeout_s):
             self.join(timeout=0.2)
             return False
@@ -148,16 +147,9 @@ class RuntimeLifecycle:
         self._state.stop_event.set()
 
     def join(self, timeout: Optional[float] = None) -> None:
-        with self._lock:
-            thread = self._thread
-        if thread is None:
+        if self._thread is None:
             return
-        thread.join(timeout=timeout)
-        with self._lock:
-            if self._thread is thread and not thread.is_alive():
-                self._thread = None
+        self._thread.join(timeout=timeout)
 
     def is_running(self) -> bool:
-        with self._lock:
-            thread = self._thread
-        return thread is not None and thread.is_alive()
+        return self._thread is not None and self._thread.is_alive()
