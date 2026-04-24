@@ -25,7 +25,7 @@ SAMPLING_QUALITY_OPTIONS: tuple[str, ...] = ("Low", "Balanced", "High")
 MAX_ZONE_COUNT = 128
 SDR_BOOST_NITS_MIN = 80
 SDR_BOOST_NITS_MAX = 400
-CALIBRATION_MODE_CORNER = "corner+offset alignment"
+CALIBRATION_MODE_PHYSICAL = "physical zone walk"
 
 SETTINGS_SECTIONS: tuple[str, ...] = (
     "Backend & Diagnostics",
@@ -131,7 +131,8 @@ class SettingsDialog:
                 self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal); initial_offset_limit = max(1, self._state.effective_device_zone_count() - 1); self.zone_offset_slider.setRange(-initial_offset_limit, initial_offset_limit); self.zone_offset_slider.setValue(self._state.zone_offset)
                 self.simple_calibration_widget = SimpleCalibrationWidget(qt=qt, title="Corner calibration")
                 self.reverse_checkbox = self.simple_calibration_widget.reverse_orientation_checkbox; self.reverse_checkbox.setChecked(self._state.reverse_zones)
-                self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.device_zone_count_slider.setRange(1, MAX_ZONE_COUNT); self.device_zone_count_slider.setValue(self._state.device_zone_count)
+                self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.device_zone_count_slider.setRange(1, self._device_zone_count_max()); self.device_zone_count_slider.setValue(self._state.device_zone_count)
+                self.device_zone_count_status_label = QLabel("")
                 self.assign_top_left_button = self.simple_calibration_widget.assign_top_left_button
                 self.assign_top_right_button = self.simple_calibration_widget.assign_top_right_button
                 self.assign_bottom_right_button = self.simple_calibration_widget.assign_bottom_right_button
@@ -191,12 +192,13 @@ class SettingsDialog:
                     self.sampling_quality_combo.currentIndexChanged,
                     self.zone_preset_combo.currentIndexChanged,
                     self.zone_offset_slider.valueChanged,
-                    self.device_zone_count_slider.valueChanged,
                     self.reverse_checkbox.stateChanged,
                     self.capture_backend_combo.currentIndexChanged,
                     self.auto_probe_policy_combo.currentIndexChanged,
                 ):
                     signal.connect(self._refresh_preview_label)
+                self.device_zone_count_slider.valueChanged.connect(self._on_device_zone_count_slider_changed)
+                self._on_device_zone_count_slider_changed()
                 self.simple_calibration_widget.bind_callbacks(
                     on_prev_zone=self._prev_test_zone,
                     on_next_zone=self._step_test_zone,
@@ -335,6 +337,7 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Zone layout preset"), 1, 0); layout.addWidget(self.zone_preset_combo, 1, 1, 1, 2)
                 layout.addWidget(QLabel("Global mapping zone offset (rotation)"), 2, 0); layout.addWidget(self.zone_offset_slider, 2, 1); layout.addWidget(self.zone_offset_value, 2, 2)
                 layout.addWidget(QLabel("Strip LED zone count"), 4, 0); layout.addWidget(self.device_zone_count_slider, 4, 1); layout.addWidget(self.device_zone_count_value, 4, 2)
+                layout.addWidget(self.device_zone_count_status_label, 5, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -446,7 +449,7 @@ class SettingsDialog:
                     state=self._state,
                     runtime_status=preview_status,
                     cfg=pending_cfg,
-                    mode=CALIBRATION_MODE_CORNER,
+                    mode=CALIBRATION_MODE_PHYSICAL,
                     step=self._test_step,
                 )
                 self.preview_label.setText(
@@ -489,9 +492,9 @@ class SettingsDialog:
 
             def _current_calibration_step(self):
                 self._test_step %= self._test_cycle_length()
-                return self._state.step_for_mode(CALIBRATION_MODE_CORNER, self._test_step)
+                return self._state.step_for_mode(CALIBRATION_MODE_PHYSICAL, self._test_step)
 
-            def _test_cycle_length(self): return self._state.cycle_length(CALIBRATION_MODE_CORNER)
+            def _test_cycle_length(self): return self._state.cycle_length(CALIBRATION_MODE_PHYSICAL)
             def _step_test_zone(self): self._test_step = (self._test_step + 1) % self._test_cycle_length(); self._refresh_preview_label(); self._send_test_pattern()
             def _prev_test_zone(self): self._test_step = (self._test_step - 1) % self._test_cycle_length(); self._refresh_preview_label(); self._send_test_pattern()
             def _on_calibration_controls_changed(self): self._refresh_preview_label(); self._schedule_live_preview()
@@ -510,8 +513,30 @@ class SettingsDialog:
                 self._pull_state()
                 # Normalize self._test_step before generating the frame.
                 self._current_calibration_step()
-                colors = self._state.frame_for_step(mode=CALIBRATION_MODE_CORNER, step=self._test_step, brightness=1.0, all_off_except_active=True)
+                colors = self._state.frame_for_step(mode=CALIBRATION_MODE_PHYSICAL, step=self._test_step, brightness=1.0, all_off_except_active=True)
                 self._calibration_sender(colors)
+
+            def _device_zone_count_max(self) -> int:
+                detected = int(self._state.detected_device_zone_count)
+                if detected > 0:
+                    return max(1, detected)
+                return MAX_ZONE_COUNT
+
+            def _on_device_zone_count_slider_changed(self, *_args) -> None:
+                previous_zone_count = self._state.effective_device_zone_count()
+                max_count = self._device_zone_count_max()
+                requested = int(self.device_zone_count_slider.value())
+                clamped = max(1, min(requested, max_count))
+                if requested != clamped:
+                    self._set_slider_value_safely(self.device_zone_count_slider, clamped)
+                    self.device_zone_count_status_label.setText(
+                        f"Strip LED zone count capped at detected hardware count ({max_count})."
+                    )
+                else:
+                    self.device_zone_count_status_label.setText("")
+                self._test_step %= max(1, clamped)
+                self._sync_zone_offset_slider(previous_zone_count=previous_zone_count)
+                self._refresh_preview_label()
 
             def _active_backend(self) -> str:
                 preview_status = {

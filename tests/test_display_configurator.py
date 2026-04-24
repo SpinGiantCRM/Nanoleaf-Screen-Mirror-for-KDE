@@ -209,6 +209,33 @@ def test_display_configurator_send_pattern_uses_configured_device_zone_count(mon
     assert len(sent[-1]) == 48
 
 
+def test_display_configurator_calibration_walk_uses_raw_physical_zone_indices(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=48))
+
+    walked = []
+    for step in range(48):
+        dialog._dialog._test_step = step
+        walked.append(dialog._dialog._active_calibration_step().device_zone_index)
+    assert walked == list(range(48))
+
+    dialog._dialog._test_step = 31
+    dialog._dialog._assign_anchor("top_left")
+    assert dialog._dialog._state.corner_anchor_top_left == 31
+
+
+def test_display_configurator_physical_walk_ignores_offset_and_reverse(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=48))
+
+    dialog._dialog._test_step = 7
+    base_zone = dialog._dialog._active_calibration_step().device_zone_index
+    dialog._dialog.zone_offset_slider.setValue(19)
+    dialog._dialog.reverse_checkbox.setChecked(True)
+    dialog._dialog._test_step = 7
+    assert dialog._dialog._active_calibration_step().device_zone_index == base_zone
+
+
 def test_display_configurator_restores_in_progress_draft(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
     raw = json.dumps(
@@ -244,6 +271,28 @@ def test_display_configurator_prefers_detected_zone_count_over_legacy_default_on
         runtime_status={"device_zone_count": 48},
     )
 
+    updated = dialog.updated_config()
+    assert updated.device_zone_count == 48
+    assert updated.calibration.device_zone_count == 48
+
+
+def test_display_configurator_clamps_zone_count_to_detected_and_preview_frame_length(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    sent: list[list[tuple[int, int, int]]] = []
+    dialog = DisplayConfiguratorDialog(
+        parent=None,
+        cfg=AppConfig(zones=[], device_zone_count=48),
+        runtime_status={"device_zone_count": 48},
+        calibration_sender=lambda colors: sent.append(colors),
+    )
+
+    dialog._dialog.device_zone_count_slider.setValue(49)
+    assert dialog._dialog.device_zone_count_slider.value() == 48
+    assert "capped at detected hardware count (48)" in dialog._dialog.zone_change_notice._text
+
+    dialog._dialog._send_test_pattern()
+    assert sent
+    assert len(sent[-1]) == 48
     updated = dialog.updated_config()
     assert updated.device_zone_count == 48
     assert updated.calibration.device_zone_count == 48
