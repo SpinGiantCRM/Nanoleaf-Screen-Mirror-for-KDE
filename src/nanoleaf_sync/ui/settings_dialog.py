@@ -13,6 +13,17 @@ from nanoleaf_sync.ui.calibration_state import (
     build_testing_panel_state,
 )
 from nanoleaf_sync.ui.calibration_widget import SimpleCalibrationWidget
+from nanoleaf_sync.ui.preset_ui import (
+    COLOR_STYLE_LABELS,
+    DISPLAY_PRESET_LABELS,
+    EDGE_LOCALITY_LABELS,
+    LAYOUT_PRESET_LABELS,
+    MOTION_PRESET_LABELS,
+    SAMPLING_QUALITY_LABELS,
+    label_for_value,
+    labels,
+    value_for_label,
+)
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text as _mapping_preview_text
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
@@ -21,7 +32,6 @@ FPS_MIN = 1
 FPS_MAX = 120
 HDR_MAX_NITS_MIN = 80
 HDR_MAX_NITS_MAX = 10000
-SAMPLING_QUALITY_OPTIONS: tuple[str, ...] = ("Low", "Balanced", "High")
 MAX_ZONE_COUNT = 128
 SDR_BOOST_NITS_MIN = 80
 SDR_BOOST_NITS_MAX = 400
@@ -122,16 +132,18 @@ class SettingsDialog:
                 self.smoothing_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.smoothing_slider.setRange(0, 100); self.smoothing_slider.setValue(int(round(cfg.smoothing * 100)))
                 self.smoothing_speed_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.smoothing_speed_slider.setRange(0, 400); self.smoothing_speed_slider.setValue(int(round(getattr(cfg, "smoothing_speed", 0.75) * 100)))
                 self.fps_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.fps_slider.setRange(FPS_MIN, FPS_MAX); self.fps_slider.setValue(int(cfg.fps))
-                self.display_mode_combo = QComboBox(); self.display_mode_combo.addItems(["sdr", "hdr"]); self.display_mode_combo.setCurrentIndex(1 if cfg.hdr_enabled else 0)
+                self.display_preset_combo = QComboBox(); self.display_preset_combo.addItems(labels(DISPLAY_PRESET_LABELS)); self.display_preset_combo.setCurrentIndex(max(0, self.display_preset_combo.findText(label_for_value(DISPLAY_PRESET_LABELS, str(getattr(cfg, "display_preset", "hdr" if cfg.hdr_enabled else "sdr")), default="SDR"))))
                 self.compositor_hdr_mode_checkbox = QCheckBox("Compositor HDR mode (KDE Plasma SDR-on-HDR)")
                 self.compositor_hdr_mode_checkbox.setChecked(bool(getattr(cfg, "compositor_hdr_mode", False)))
                 self.sdr_boost_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.sdr_boost_nits_slider.setRange(SDR_BOOST_NITS_MIN, SDR_BOOST_NITS_MAX); self.sdr_boost_nits_slider.setValue(int(getattr(cfg, "sdr_boost_nits", 80.0)))
                 self.sdr_boost_nits_value = QLabel("")
-                self.color_mode_combo = QComboBox(); self.color_mode_combo.addItems(["default", "balanced", "dynamic", "hyper"]); self.color_mode_combo.setCurrentIndex(max(0, self.color_mode_combo.findText(str(getattr(cfg, "color_mode", "default")))))
+                self.motion_preset_combo = QComboBox(); self.motion_preset_combo.addItems(labels(MOTION_PRESET_LABELS)); self.motion_preset_combo.setCurrentIndex(max(0, self.motion_preset_combo.findText(label_for_value(MOTION_PRESET_LABELS, str(getattr(cfg, "motion_preset", "responsive")), default="Responsive"))))
+                self.color_style_combo = QComboBox(); self.color_style_combo.addItems(labels(COLOR_STYLE_LABELS)); self.color_style_combo.setCurrentIndex(max(0, self.color_style_combo.findText(label_for_value(COLOR_STYLE_LABELS, str(getattr(cfg, "color_style", "natural")), default="Natural"))))
+                self.edge_locality_combo = QComboBox(); self.edge_locality_combo.addItems(labels(EDGE_LOCALITY_LABELS)); self.edge_locality_combo.setCurrentIndex(max(0, self.edge_locality_combo.findText(label_for_value(EDGE_LOCALITY_LABELS, str(getattr(cfg, "edge_locality", "balanced")), default="Balanced"))))
                 self.start_on_launch_checkbox = QCheckBox("Start mirroring automatically when tray app opens"); self.start_on_launch_checkbox.setChecked(bool(getattr(cfg, "start_on_launch", False)))
 
                 self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_count_slider.setRange(1, MAX_ZONE_COUNT); self.zone_count_slider.setValue(self._state.zone_count)
-                self.zone_preset_combo = QComboBox(); self.zone_preset_combo.addItems(["Edge strip (recommended)", "Full-screen horizontal"]); self.zone_preset_combo.setCurrentIndex(0 if self._state.zone_preset == "edge-weighted" else 1)
+                self.layout_preset_combo = QComboBox(); self.layout_preset_combo.addItems(labels(LAYOUT_PRESET_LABELS)); self.layout_preset_combo.setCurrentIndex(max(0, self.layout_preset_combo.findText(label_for_value(LAYOUT_PRESET_LABELS, str(getattr(cfg, "layout_preset", "horizontal_debug" if self._state.zone_preset == "horizontal" else "edge_strip")), default="Edge strip"))))
                 self.simple_calibration_widget = SimpleCalibrationWidget(qt=qt, title="Corner calibration")
                 self.reverse_checkbox = self.simple_calibration_widget.reverse_orientation_checkbox; self.reverse_checkbox.setChecked(self._state.reverse_zones)
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.device_zone_count_slider.setRange(1, self._device_zone_count_max()); self.device_zone_count_slider.setValue(self._state.device_zone_count)
@@ -181,7 +193,7 @@ class SettingsDialog:
                 self.hdr_transfer_combo = QComboBox(); self.hdr_transfer_combo.addItems(["srgb", "pq"]); self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))))
                 self.hdr_primaries_combo = QComboBox(); self.hdr_primaries_combo.addItems(["bt709", "bt2020"]); self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText(str(getattr(cfg, "hdr_primaries", "bt709")))))
                 self.hdr_max_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.hdr_max_nits_slider.setRange(HDR_MAX_NITS_MIN, HDR_MAX_NITS_MAX); self.hdr_max_nits_slider.setValue(int(getattr(cfg, "hdr_max_nits", 1000.0)))
-                self.sampling_quality_combo = QComboBox(); self.sampling_quality_combo.addItems(list(SAMPLING_QUALITY_OPTIONS)); self.sampling_quality_combo.setCurrentIndex(max(0, self.sampling_quality_combo.findText(str(getattr(cfg, "sampling_quality", "balanced")).capitalize())))
+                self.sampling_quality_combo = QComboBox(); self.sampling_quality_combo.addItems(labels(SAMPLING_QUALITY_LABELS)); self.sampling_quality_combo.setCurrentIndex(max(0, self.sampling_quality_combo.findText(label_for_value(SAMPLING_QUALITY_LABELS, str(getattr(cfg, "sampling_quality", "balanced")), default="Balanced"))))
                 self.led_gamma_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.led_gamma_slider.setRange(100, 400); self.led_gamma_slider.setValue(int(round(getattr(cfg, "led_gamma", 1.0) * 100)))
                 self.display_configurator_button = QPushButton("Re-run Display Setup"); self.display_configurator_button.clicked.connect(self._open_configurator)
                 self._apply_tooltips()
@@ -198,7 +210,7 @@ class SettingsDialog:
                 ):
                     signal.connect(self._refresh_preview_label)
                 self.zone_count_slider.valueChanged.connect(self._on_zone_count_slider_changed)
-                self.zone_preset_combo.currentIndexChanged.connect(self._on_zone_preset_changed)
+                self.layout_preset_combo.currentIndexChanged.connect(self._on_zone_preset_changed)
                 self.device_zone_count_slider.valueChanged.connect(self._on_device_zone_count_slider_changed)
                 self._on_device_zone_count_slider_changed()
                 self.simple_calibration_widget.bind_callbacks(
@@ -266,8 +278,10 @@ class SettingsDialog:
                 self.led_gamma_slider.setToolTip("Gamma correction for LED response. 1.00 keeps output linear.")
                 self.zone_count_slider.setToolTip("Number of screen sampling zones sampled from the display.")
                 self.reverse_checkbox.setToolTip("Flip strip direction if the mapping appears mirrored.")
-                self.display_mode_combo.setToolTip("Select SDR or HDR processing mode.")
-                self.color_mode_combo.setToolTip("Dynamism preset used by the analyzer (balanced or more reactive).")
+                self.display_preset_combo.setToolTip("Select SDR, HDR, or Auto display behavior.")
+                self.motion_preset_combo.setToolTip("Controls motion responsiveness.")
+                self.color_style_combo.setToolTip("Controls color intensity style.")
+                self.edge_locality_combo.setToolTip("Controls how close sampling stays to the edges.")
                 self.hdr_max_nits_slider.setToolTip("Reference display peak brightness for HDR tone mapping.")
                 self.capture_backend_combo.setToolTip("Select auto or force a specific capture backend.")
                 self.device_model_combo.setToolTip("Select your Nanoleaf USB hardware model.")
@@ -301,21 +315,25 @@ class SettingsDialog:
                 group = QGroupBox("Display & Color")
                 layout = QGridLayout()
                 layout.addWidget(QLabel("SDR/HDR mode"), 0, 0)
-                layout.addWidget(self.display_mode_combo, 0, 1, 1, 2)
-                layout.addWidget(QLabel("Dynamism preset"), 1, 0)
-                layout.addWidget(self.color_mode_combo, 1, 1, 1, 2)
-                layout.addWidget(self.compositor_hdr_mode_checkbox, 2, 0, 1, 3)
-                layout.addWidget(QLabel("SDR white reference"), 3, 0)
-                layout.addWidget(self.sdr_boost_nits_slider, 3, 1)
-                layout.addWidget(self.sdr_boost_nits_value, 3, 2)
-                layout.addWidget(QLabel("HDR transfer"), 4, 0)
-                layout.addWidget(self.hdr_transfer_combo, 4, 1, 1, 2)
-                layout.addWidget(QLabel("HDR primaries"), 5, 0)
-                layout.addWidget(self.hdr_primaries_combo, 5, 1, 1, 2)
-                layout.addWidget(QLabel("HDR max brightness"), 6, 0)
-                layout.addWidget(self.hdr_max_nits_slider, 6, 1)
-                layout.addWidget(self.hdr_max_nits_value, 6, 2)
-                layout.addWidget(self.display_configurator_button, 7, 0, 1, 3)
+                layout.addWidget(self.display_preset_combo, 0, 1, 1, 2)
+                layout.addWidget(QLabel("Motion"), 1, 0)
+                layout.addWidget(self.motion_preset_combo, 1, 1, 1, 2)
+                layout.addWidget(QLabel("Color style"), 2, 0)
+                layout.addWidget(self.color_style_combo, 2, 1, 1, 2)
+                layout.addWidget(QLabel("Edge locality"), 3, 0)
+                layout.addWidget(self.edge_locality_combo, 3, 1, 1, 2)
+                layout.addWidget(self.compositor_hdr_mode_checkbox, 4, 0, 1, 3)
+                layout.addWidget(QLabel("SDR white reference"), 5, 0)
+                layout.addWidget(self.sdr_boost_nits_slider, 5, 1)
+                layout.addWidget(self.sdr_boost_nits_value, 5, 2)
+                layout.addWidget(QLabel("HDR transfer"), 6, 0)
+                layout.addWidget(self.hdr_transfer_combo, 6, 1, 1, 2)
+                layout.addWidget(QLabel("HDR primaries"), 7, 0)
+                layout.addWidget(self.hdr_primaries_combo, 7, 1, 1, 2)
+                layout.addWidget(QLabel("HDR max brightness"), 8, 0)
+                layout.addWidget(self.hdr_max_nits_slider, 8, 1)
+                layout.addWidget(self.hdr_max_nits_value, 8, 2)
+                layout.addWidget(self.display_configurator_button, 9, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -335,7 +353,7 @@ class SettingsDialog:
                 group = QGroupBox("Zone Mapping")
                 layout = QGridLayout()
                 layout.addWidget(QLabel("Screen sampling zone count"), 0, 0); layout.addWidget(self.zone_count_slider, 0, 1); layout.addWidget(self.zone_count_value, 0, 2)
-                layout.addWidget(QLabel("Zone layout preset"), 1, 0); layout.addWidget(self.zone_preset_combo, 1, 1, 1, 2)
+                layout.addWidget(QLabel("Layout"), 1, 0); layout.addWidget(self.layout_preset_combo, 1, 1, 1, 2)
                 layout.addWidget(QLabel("Strip LED zone count"), 4, 0); layout.addWidget(self.device_zone_count_slider, 4, 1); layout.addWidget(self.device_zone_count_value, 4, 2)
                 layout.addWidget(self.device_zone_count_status_label, 5, 0, 1, 3)
                 group.setLayout(layout)
@@ -366,8 +384,8 @@ class SettingsDialog:
             def wants_display_configurator(self) -> bool: return bool(self._open_display_configurator)
 
             def _pull_state(self):
-                zone_preset_label = str(self.zone_preset_combo.currentText())
-                self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = "edge-weighted" if zone_preset_label.startswith("Edge strip") else "horizontal"; self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value())
+                layout_preset = value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_preset_combo.currentText()), default="edge_strip")
+                self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = "horizontal" if layout_preset == "horizontal_debug" else "edge-weighted"; self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value())
                 self._state.calibration_model = "corner_anchored"
 
             def _set_slider_value_safely(self, slider, value: int) -> None:
@@ -512,7 +530,7 @@ class SettingsDialog:
                 self._refresh_preview_label()
 
             def _on_zone_preset_changed(self, *_args) -> None:
-                if not str(self.zone_preset_combo.currentText()).startswith("Edge strip"):
+                if value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_preset_combo.currentText()), default="edge_strip") != "edge_strip":
                     self._source_zones_locked_to_device_count = False
                 self._refresh_preview_label()
 
@@ -639,7 +657,7 @@ class SettingsDialog:
                     cfg,
                     fps=int(self.fps_slider.value()), sampling_quality=str(self.sampling_quality_combo.currentText()).lower(), brightness=self.brightness_slider.value() / 100.0,
                     smoothing=self.smoothing_slider.value() / 100.0, smoothing_speed=self.smoothing_speed_slider.value() / 100.0, led_gamma=self.led_gamma_slider.value() / 100.0,
-                    zones=new_zones, zone_preset=self._state.zone_preset, color_mode=str(self.color_mode_combo.currentText()), hdr_enabled=str(self.display_mode_combo.currentText()) == "hdr",
+                    zones=new_zones, zone_preset=self._state.zone_preset, layout_preset=value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_preset_combo.currentText()), default="edge_strip"), edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="balanced"), motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"), color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="natural"), display_preset=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="sdr"), color_mode=("dynamic" if value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive") == "dynamic" else "balanced"), hdr_enabled=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="sdr") in {"hdr", "auto"},
                     start_on_launch=bool(self.start_on_launch_checkbox.isChecked()), device_zone_count=self._state.device_zone_count,
                     output_channel_order=str(self.output_channel_order_combo.currentText()), reverse_zones=self._state.reverse_zones,
                     manual_mapping_enabled=bool(self._state.manual_mapping_enabled),

@@ -29,3 +29,13 @@ def test_dump_toml_keeps_calibration_block() -> None:
     rendered = dump_toml(data)
     assert "[calibration]" in rendered
     assert "device_zone_count" in rendered
+
+
+def test_app_config_has_canonical_preset_fields() -> None:
+    cfg = AppConfig()
+    assert cfg.layout_preset in {"edge_strip", "horizontal_debug"}
+    assert cfg.edge_locality in {"tight", "balanced", "wide"}
+    assert cfg.sampling_quality in {"low", "balanced", "high"}
+    assert cfg.motion_preset in {"calm", "responsive", "dynamic"}
+    assert cfg.color_style in {"natural", "vivid", "punchy"}
+    assert cfg.display_preset in {"sdr", "hdr", "auto"}
