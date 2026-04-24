@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Sequence
 
 from nanoleaf_sync.device.hid_transport import HIDTransport
@@ -21,6 +22,7 @@ class NanoleafUSBDriver(DeviceDriver):
     """Nanoleaf USB HID driver using the official TLV request/response protocol."""
 
     capabilities = DriverCapabilities(name="nanoleaf-usb")
+    _logger = logging.getLogger(__name__)
 
     def __init__(
         self,
@@ -156,18 +158,26 @@ class NanoleafUSBDriver(DeviceDriver):
             for rgb in normalized
             for ch in self._output_channel_order
         )
-
-        max_request_bytes = int(getattr(self._transport, "report_size", self.report_size))
-        tlv_request_len = 3 + len(payload)
-        if tlv_request_len > max_request_bytes:
-            max_zones = max(0, (max_request_bytes - 3) // 3)
-            raise RuntimeError(
-                "Zone color request exceeds single-report TLV capacity: "
-                f"requested={tlv_request_len} bytes ({len(normalized)} zones), "
-                f"max_supported={max_request_bytes} bytes (up to {max_zones} zones). "
-                "Lower configured_zone_count / active zone count, or use firmware that supports "
-                "multi-report zone updates."
-            )
+        request_len = 3 + len(payload)
+        report_size = int(getattr(self._transport, "report_size", self.report_size))
+        report_count = max(1, (request_len + report_size - 1) // report_size) if report_size > 0 else 0
+        chunk_sizes = []
+        if report_size > 0:
+            chunk_sizes = [
+                min(report_size, request_len - idx)
+                for idx in range(0, request_len, report_size)
+            ]
+        self._logger.debug(
+            "USB zone frame diagnostics: command=0x%02x intended_zone_count=%d payload_bytes=%d "
+            "request_bytes=%d report_size=%d report_count=%d chunk_sizes=%s",
+            CMD_SET_ZONE_COLORS,
+            len(normalized),
+            len(payload),
+            request_len,
+            report_size,
+            report_count,
+            chunk_sizes,
+        )
         self._request(CMD_SET_ZONE_COLORS, payload)
 
     def send_frame(self, colors: Sequence[RGBTuple]) -> None:
