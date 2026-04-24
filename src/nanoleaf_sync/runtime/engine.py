@@ -16,6 +16,7 @@ import numpy as np
 
 from nanoleaf_sync.runtime.zones import zone_colors_array
 from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.config.presets import analyzer_mode_for_presets, motion_profile
 from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping_from_config
 from nanoleaf_sync.runtime.processing import zones_from_config
 from nanoleaf_sync.runtime.zone_derivation import derive_source_zone_artifacts
@@ -103,14 +104,14 @@ def _adaptive_one_euro_blend(
 def _zones_signature(
     *,
     zones,
-    zone_preset: str,
+    layout_preset: str,
     img_w: int,
     img_h: int,
 ) -> tuple[int, int, str, tuple[tuple[float, float, float, float], ...]]:
     return (
         int(img_w),
         int(img_h),
-        str(zone_preset),
+        str(layout_preset),
         tuple((float(z.x), float(z.y), float(z.w), float(z.h)) for z in zones),
     )
 
@@ -156,11 +157,7 @@ def _ensure_runtime_artifacts(
     uses_derived_zones = not bool(config.zones)
     zone_sig = _zones_signature(
         zones=effective_zones,
-        zone_preset=(
-            str(getattr(config, "zone_preset", "edge-weighted"))
-            if uses_derived_zones
-            else ""
-        ),
+        layout_preset=(str(getattr(config, "layout_preset", "edge_strip")) if uses_derived_zones else ""),
         img_w=img_w,
         img_h=img_h,
     )
@@ -215,7 +212,9 @@ def process_frame(
     smoothing_speed: float = 0.75,
     zone_sampling_stride: int = 1,
     led_gamma: float = 1.0,
-    color_mode: str = "balanced",
+    motion_preset: str = "responsive",
+    color_style: str = "natural",
+    edge_locality: str = "balanced",
     compositor_hdr_mode: bool = False,
     sdr_boost_nits: float = 80.0,
     hdr_max_nits: float = 1000.0,
@@ -237,12 +236,14 @@ def process_frame(
             hdr_max_nits=hdr_max_nits,
         )
 
+    analyzer_mode = analyzer_mode_for_presets(motion_preset=motion_preset, color_style=color_style)
     raw_colors = zone_colors_array(
         frame,
         zones_px,
         sample_step=zone_sampling_stride,
-        mode=color_mode,
+        mode=analyzer_mode,
         previous_zone_colors=prev_smoothed_colors,
+        edge_locality=edge_locality,
     )
     if raw_colors.size == 0:
         return []
@@ -257,6 +258,10 @@ def process_frame(
     b = max(0.0, min(1.0, float(brightness)))
     if b != 1.0:
         mapped *= b
+
+    motion = motion_profile(motion_preset)
+    smoothing = max(0.0, min(1.0, float(smoothing) * motion.smoothing_multiplier))
+    smoothing_speed = max(0.0, min(4.0, float(smoothing_speed) * motion.smoothing_speed_multiplier))
 
     if prev_smoothed_colors:
         n = min(len(prev_smoothed_colors), mapped.shape[0])
@@ -415,7 +420,9 @@ def run_loop(
                     smoothing_speed=config.smoothing_speed,
                     zone_sampling_stride=config.zone_sampling_stride,
                     led_gamma=config.led_gamma,
-                    color_mode=getattr(config, "color_mode", "balanced"),
+                    motion_preset=getattr(config, "motion_preset", "responsive"),
+                    color_style=getattr(config, "color_style", "natural"),
+                    edge_locality=getattr(config, "edge_locality", "balanced"),
                     compositor_hdr_mode=getattr(config, "compositor_hdr_mode", False),
                     sdr_boost_nits=getattr(config, "sdr_boost_nits", 80.0),
                     hdr_max_nits=getattr(config, "hdr_max_nits", 1000.0),

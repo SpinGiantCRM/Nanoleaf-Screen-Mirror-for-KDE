@@ -15,6 +15,7 @@ class SourceZoneArtifacts:
     side_counts: tuple[int, int, int, int] | None
     zone_order_mode: str | None
     edge_sampling_thickness: float | None
+    edge_locality: str | None
     localized_edge_sampling_active: bool
     frame_width: int | None
     frame_height: int | None
@@ -46,7 +47,7 @@ class SourceZoneArtifacts:
             f"zone order mode: {self.zone_order_mode or 'n/a'} | "
             f"edge sampling thickness: {thickness} | "
             f"localized edge sampling: {'on' if self.localized_edge_sampling_active else 'off'} | "
-            f"source mode: {source_mode}"
+            f"edge locality: {self.edge_locality or 'n/a'} | source mode: {source_mode}"
         )
 
 
@@ -93,19 +94,21 @@ def derive_source_zone_artifacts(
             zone_order_mode=None,
             edge_sampling_thickness=None,
             localized_edge_sampling_active=False,
+            edge_locality=None,
             frame_width=frame_width,
             frame_height=frame_height,
         )
 
     count = max(1, effective_zone_count(config=config, detected_device_zone_count=detected_device_zone_count))
-    preset = str(getattr(config, "zone_preset", "edge-weighted"))
-    if preset == "horizontal":
+    preset = str(getattr(config, "layout_preset", "edge_strip"))
+    if preset == "horizontal_debug":
         return SourceZoneArtifacts(
             zones=make_horizontal_zones(count),
             side_counts=None,
             zone_order_mode="horizontal",
             edge_sampling_thickness=None,
             localized_edge_sampling_active=False,
+            edge_locality=None,
             frame_width=frame_width,
             frame_height=frame_height,
         )
@@ -113,12 +116,12 @@ def derive_source_zone_artifacts(
         zone_count=count,
         width=frame_width,
         height=frame_height,
-        edge_sampling_thickness=float(config.edge_sampling_thickness),
+        edge_locality=str(getattr(config, "edge_locality", "balanced")),
     )
     return SourceZoneArtifacts(
         zones=make_edge_weighted_zones(
             count,
-            edge_sampling_thickness=float(config.edge_sampling_thickness),
+            edge_locality=str(getattr(config, "edge_locality", "balanced")),
             width=frame_width,
             height=frame_height,
         ),
@@ -126,6 +129,7 @@ def derive_source_zone_artifacts(
         zone_order_mode=layout.order_mode,
         edge_sampling_thickness=layout.edge_thickness,
         localized_edge_sampling_active=True,
+        edge_locality=str(getattr(config, "edge_locality", "balanced")),
         frame_width=frame_width,
         frame_height=frame_height,
     )

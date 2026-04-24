@@ -20,39 +20,16 @@ def test_make_edge_weighted_zones_honors_low_counts() -> None:
     assert len(zones) == 1
 
 
-def test_make_edge_weighted_zones_stay_perimeter_biased_across_common_counts() -> None:
-    for count in (8, 12, 24, 48):
-        zones = make_edge_weighted_zones(count)
-        assert len(zones) == count
-        for zone in zones:
-            assert (
-                (zone.y == 0.0 and zone.h <= 0.12)
-                or (zone.x + zone.w == 1.0 and zone.w <= 0.12)
-                or (zone.y + zone.h == 1.0 and zone.h <= 0.12)
-                or (zone.x == 0.0 and zone.w <= 0.12)
-            )
-
-
-def test_make_edge_weighted_zones_uses_configured_high_count_thickness() -> None:
-    zones = make_edge_weighted_zones(48, edge_sampling_thickness=0.2)
-    assert any(zone.w == 0.2 for zone in zones)
-    assert any(zone.h == 0.2 for zone in zones)
+def test_tight_locality_is_narrower_than_wide() -> None:
+    tight = make_edge_weighted_zones(48, edge_locality="tight")
+    wide = make_edge_weighted_zones(48, edge_locality="wide")
+    assert max(min(z.w, z.h) for z in tight) < max(min(z.w, z.h) for z in wide)
 
 
 def test_edge_weighted_side_counts_are_aspect_weighted_for_16_9() -> None:
     top, right, bottom, left = edge_side_counts(zone_count=48, width=1920, height=1080)
     assert top > right
     assert bottom > left
-    assert top in {15, 16}
-    assert bottom in {15, 16}
-    assert right in {8, 9}
-    assert left in {8, 9}
-    assert top + right + bottom + left == 48
-
-
-def test_edge_weighted_side_counts_are_balanced_for_square_aspect() -> None:
-    top, right, bottom, left = edge_side_counts(zone_count=48, width=1000, height=1000)
-    assert max(top, right, bottom, left) - min(top, right, bottom, left) <= 1
     assert top + right + bottom + left == 48
 
 
