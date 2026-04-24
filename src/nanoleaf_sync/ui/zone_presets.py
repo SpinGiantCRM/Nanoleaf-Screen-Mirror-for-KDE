@@ -37,9 +37,9 @@ def _adaptive_edge_thickness(zone_count: int, edge_sampling_thickness: float | N
     """
 
     count = max(1, int(zone_count))
-    low_count_thickness = 0.06
-    high_count_target = 0.08 if edge_sampling_thickness is None else float(edge_sampling_thickness)
-    high_count_target = min(0.25, max(0.05, high_count_target))
+    low_count_thickness = 0.05
+    high_count_target = 0.065 if edge_sampling_thickness is None else float(edge_sampling_thickness)
+    high_count_target = min(0.25, max(0.04, high_count_target))
 
     # Keep low counts thin; gradually increase towards configured target by 48 zones.
     normalized = min(1.0, max(0.0, (count - 8) / 40.0))

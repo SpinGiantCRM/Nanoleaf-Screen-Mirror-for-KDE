@@ -79,3 +79,104 @@ def test_edge_weighted_sampling_avoids_global_average_behavior() -> None:
     bottom = colors[top_n + right_n : top_n + right_n + bottom_n]
     assert all(c[0] > 150 for c in top)
     assert all(c[0] < 80 for c in bottom)
+
+
+def test_edge_weighted_corner_signal_stays_localized_bottom_left() -> None:
+    frame = np.zeros((90, 160, 3), dtype=np.uint8)
+    frame[-10:, :10, :] = np.array([0, 255, 0], dtype=np.uint8)
+
+    cfg = AppConfig(zones=[], zone_preset="edge-weighted", device_zone_count=48)
+    state = RuntimeState()
+    zones_px, device_zone_indices = _ensure_runtime_artifacts(
+        state=state,
+        config=cfg,
+        img_w=160,
+        img_h=90,
+        detected_device_zone_count=48,
+    )
+    colors = process_frame(
+        frame=frame,
+        prev_smoothed_colors=[],
+        zones_px=zones_px,
+        device_zone_indices=device_zone_indices,
+        brightness=1.0,
+        smoothing=1.0,
+    )
+    top_n, right_n, bottom_n, left_n = edge_side_counts(zone_count=48, width=160, height=90)
+    bottom = colors[top_n + right_n : top_n + right_n + bottom_n]
+    left = colors[top_n + right_n + bottom_n : top_n + right_n + bottom_n + left_n]
+
+    # Bottom side is ordered right -> left. Left side is ordered bottom -> top.
+    assert sum(1 for c in bottom[-4:] if c[1] > 85) >= 1
+    assert sum(1 for c in bottom[:4] if c[1] > 60) <= 1
+    assert sum(1 for c in left[:4] if c[1] > 85) >= 1
+    assert sum(1 for c in left[-4:] if c[1] > 60) <= 1
+
+
+def test_edge_weighted_corner_signal_stays_localized_top_right() -> None:
+    frame = np.zeros((90, 160, 3), dtype=np.uint8)
+    frame[:10, -10:, :] = np.array([255, 0, 0], dtype=np.uint8)
+
+    cfg = AppConfig(zones=[], zone_preset="edge-weighted", device_zone_count=48)
+    state = RuntimeState()
+    zones_px, device_zone_indices = _ensure_runtime_artifacts(
+        state=state,
+        config=cfg,
+        img_w=160,
+        img_h=90,
+        detected_device_zone_count=48,
+    )
+    colors = process_frame(
+        frame=frame,
+        prev_smoothed_colors=[],
+        zones_px=zones_px,
+        device_zone_indices=device_zone_indices,
+        brightness=1.0,
+        smoothing=1.0,
+    )
+    top_n, right_n, bottom_n, _left_n = edge_side_counts(zone_count=48, width=160, height=90)
+    top = colors[:top_n]
+    right = colors[top_n : top_n + right_n]
+    bottom = colors[top_n + right_n : top_n + right_n + bottom_n]
+
+    assert sum(1 for c in top[-4:] if c[0] > 85) >= 1
+    assert sum(1 for c in top[:4] if c[0] > 60) <= 1
+    assert sum(1 for c in right[:4] if c[0] > 85) >= 1
+    assert sum(1 for c in bottom if c[0] > 70) <= 1
+
+
+def test_edge_weighted_sampling_handles_different_edge_colors_without_full_side_smear() -> None:
+    frame = np.zeros((100, 180, 3), dtype=np.uint8)
+    frame[:8, 70:110, :] = np.array([255, 0, 0], dtype=np.uint8)      # top center red
+    frame[30:70, -8:, :] = np.array([0, 255, 0], dtype=np.uint8)      # right center green
+    frame[-8:, 70:110, :] = np.array([0, 0, 255], dtype=np.uint8)     # bottom center blue
+    frame[30:70, :8, :] = np.array([255, 255, 255], dtype=np.uint8)   # left center white
+
+    cfg = AppConfig(zones=[], zone_preset="edge-weighted", device_zone_count=48)
+    state = RuntimeState()
+    zones_px, device_zone_indices = _ensure_runtime_artifacts(
+        state=state,
+        config=cfg,
+        img_w=180,
+        img_h=100,
+        detected_device_zone_count=48,
+    )
+    colors = process_frame(
+        frame=frame,
+        prev_smoothed_colors=[],
+        zones_px=zones_px,
+        device_zone_indices=device_zone_indices,
+        brightness=1.0,
+        smoothing=1.0,
+    )
+    top_n, right_n, bottom_n, _left_n = edge_side_counts(zone_count=48, width=180, height=100)
+    top = colors[:top_n]
+    right = colors[top_n : top_n + right_n]
+    bottom = colors[top_n + right_n : top_n + right_n + bottom_n]
+
+    top_red = sum(1 for c in top if c[0] > c[1] and c[0] > c[2] and c[0] > 100)
+    bottom_blue = sum(1 for c in bottom if c[2] > c[0] and c[2] > c[1] and c[2] > 100)
+    right_green = sum(1 for c in right if c[1] > c[0] and c[1] > c[2] and c[1] > 70)
+    assert 1 <= top_red <= max(4, top_n // 2)
+    assert 1 <= bottom_blue <= max(4, bottom_n // 2)
+    assert 1 <= right_green <= max(4, right_n // 2)
