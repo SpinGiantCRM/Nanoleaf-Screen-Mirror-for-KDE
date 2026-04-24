@@ -17,7 +17,6 @@ from nanoleaf_sync.ui.calibration_state import (
 )
 from nanoleaf_sync.ui.calibration_widget import SimpleCalibrationWidget
 from nanoleaf_sync.ui.qt_lazy import load_qt
-from nanoleaf_sync.ui.zone_calibration import corner_anchor_validation_summary
 from nanoleaf_sync.ui.preset_ui import (
     COLOR_STYLE_LABELS,
     DISPLAY_PRESET_LABELS,
@@ -217,13 +216,13 @@ class DisplayConfiguratorDialog:
                 self.display_preset_combo.setCurrentIndex(
                     max(0, self.display_preset_combo.findText(label_for_value(DISPLAY_PRESET_LABELS, initial_display_preset, default="SDR")))
                 )
-                self.preset_sdr_button = QPushButton("SDR preset")
-                self.preset_hdr_button = QPushButton("HDR preset")
-                _set_checkable(self.preset_sdr_button, True)
-                _set_checkable(self.preset_hdr_button, True)
-                self.preset_sdr_help = QLabel("Low-maintenance SDR-safe path.")
-                self.preset_hdr_help = QLabel("HDR-first with wide-gamut defaults.")
-                self.display_preset_help = QLabel("Auto follows runtime HDR capability when available.")
+                self.display_mode_help = QLabel("")
+                self.compositor_hdr_mode_checkbox = QCheckBox("KDE SDR-on-HDR compensation / compositor HDR mode")
+                self.compositor_hdr_mode_checkbox.setChecked(bool(getattr(cfg, "compositor_hdr_mode", False)))
+                self.sdr_boost_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.sdr_boost_nits_slider.setRange(80, 400)
+                self.sdr_boost_nits_slider.setValue(int(getattr(cfg, "sdr_boost_nits", 80.0)))
+                self.sdr_boost_nits_value = QLabel("")
                 self.display_advanced_group = QGroupBox("Advanced display details")
                 _set_checkable(self.display_advanced_group, True)
                 _set_checked(self.display_advanced_group, False)
@@ -288,7 +287,11 @@ class DisplayConfiguratorDialog:
                 self.preview_text = self.simple_calibration_widget.preview_text_label
                 self.preview_visual = self.simple_calibration_widget.preview_visual_label
                 self.calibration_test_label = QLabel("")
-                self.anchor_validation_label = QLabel("")
+                self.anchor_validation_label = self.simple_calibration_widget.validation_label
+                self.calibration_diagnostics_group = QGroupBox("Diagnostics")
+                _set_checkable(self.calibration_diagnostics_group, True)
+                _set_checked(self.calibration_diagnostics_group, False)
+                self.calibration_diagnostics_label = QLabel("")
                 self.calibration_next_button = self.simple_calibration_widget.next_zone_button
                 self.calibration_prev_button = self.simple_calibration_widget.prev_zone_button
                 self.calibration_send_button = QPushButton("Send test pattern")
@@ -329,10 +332,17 @@ class DisplayConfiguratorDialog:
                 ):
                     signal.connect(self._refresh)
                 self.zone_count_slider.valueChanged.connect(self._on_zone_count_changed)
-                self.preset_sdr_button.clicked.connect(lambda: self._apply_display_preset("sdr"))
-                self.preset_hdr_button.clicked.connect(lambda: self._apply_display_preset("hdr"))
                 self.device_zone_count_slider.valueChanged.connect(self._on_device_zone_count_changed)
                 self._on_device_zone_count_changed(refresh=False)
+                self.display_advanced_group.toggled.connect(
+                    lambda checked: self._set_group_contents_visible(self.display_advanced_group, bool(checked))
+                )
+                self.advanced_details_group.toggled.connect(
+                    lambda checked: self._set_group_contents_visible(self.advanced_details_group, bool(checked))
+                )
+                self.calibration_diagnostics_group.toggled.connect(
+                    lambda checked: self._set_group_contents_visible(self.calibration_diagnostics_group, bool(checked))
+                )
 
                 self.hdr_max_nits_slider.valueChanged.connect(self._refresh)
                 self.simple_calibration_widget.bind_callbacks(
@@ -379,6 +389,18 @@ class DisplayConfiguratorDialog:
                 self._suspend_session_persist = False
                 self._save_wizard_session()
 
+            def _set_group_contents_visible(self, group, visible: bool) -> None:
+                layout = getattr(group, "layout", lambda: None)()
+                if layout is None:
+                    return
+                for idx in range(layout.count()):
+                    item = layout.itemAt(idx)
+                    widget = item.widget() if item is not None else None
+                    if widget is not None:
+                        set_visible = getattr(widget, "setVisible", None)
+                        if callable(set_visible):
+                            set_visible(bool(visible))
+
             def _set_tooltip(self, widget, text: str) -> None:
                 setter = getattr(widget, "setToolTip", None)
                 if callable(setter):
@@ -394,8 +416,8 @@ class DisplayConfiguratorDialog:
                 self._set_tooltip(self.assign_br_button, "Assign the currently lit strip zone as bottom-right screen corner.")
                 self._set_tooltip(self.assign_bl_button, "Assign the currently lit strip zone as bottom-left screen corner.")
                 self._set_tooltip(self.reset_anchors_button, "Clear all corner assignments and start anchor placement again.")
-                self._set_tooltip(self.preset_sdr_button, "SDR-safe defaults: srgb + bt709.")
-                self._set_tooltip(self.preset_hdr_button, "HDR defaults: pq + bt2020.")
+                self._set_tooltip(self.compositor_hdr_mode_checkbox, "Enable compensation when KDE Plasma maps SDR into HDR output.")
+                self._set_tooltip(self.sdr_boost_nits_slider, "Plasma SDR white reference in nits when compositor HDR mode is enabled.")
                 self._set_tooltip(self.edge_locality_combo, "Controls how tightly sampling stays near screen edges.")
                 self._set_tooltip(self.motion_preset_combo, "Controls response speed and smoothness.")
                 self._set_tooltip(self.color_style_combo, "Controls saturation/impact style.")
@@ -405,16 +427,19 @@ class DisplayConfiguratorDialog:
                 layout = QGridLayout()
                 if hasattr(layout, "setVerticalSpacing"):
                     layout.setVerticalSpacing(4)
-                layout.addWidget(QLabel("Calibration and testing"), 0, 0, 1, 3)
+                layout.addWidget(QLabel("Calibration"), 0, 0, 1, 3)
                 layout.addWidget(self.calibration_hint, 1, 0, 1, 3)
-                layout.addWidget(QLabel("Strip LED zone count"), 2, 0)
-                layout.addWidget(self.device_zone_count_slider, 2, 1)
-                layout.addWidget(self.device_zone_count_value, 2, 2)
-                layout.addWidget(self.device_zone_status, 3, 0, 1, 3)
-                layout.addWidget(self.zone_change_notice, 4, 0, 1, 3)
-                row = self.simple_calibration_widget.add_to_layout(layout, row=5, include_header=False)
+                row = self.simple_calibration_widget.add_to_layout(layout, row=2, include_header=False)
                 layout.addWidget(self.calibration_send_button, row, 0, 1, 3); row += 1
-                layout.addWidget(self.anchor_validation_label, row, 0, 1, 3)
+                layout.addWidget(self.zone_change_notice, row, 0, 1, 3); row += 1
+                diagnostics_layout = QGridLayout()
+                diagnostics_layout.addWidget(QLabel("Strip LED zone count"), 0, 0)
+                diagnostics_layout.addWidget(self.device_zone_count_slider, 0, 1)
+                diagnostics_layout.addWidget(self.device_zone_count_value, 0, 2)
+                diagnostics_layout.addWidget(self.device_zone_status, 1, 0, 1, 3)
+                diagnostics_layout.addWidget(self.calibration_diagnostics_label, 2, 0, 1, 3)
+                self.calibration_diagnostics_group.setLayout(diagnostics_layout)
+                layout.addWidget(self.calibration_diagnostics_group, row, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -423,14 +448,9 @@ class DisplayConfiguratorDialog:
                 layout = QGridLayout()
                 if hasattr(layout, "setVerticalSpacing"):
                     layout.setVerticalSpacing(4)
-                layout.addWidget(QLabel("Pick a display preset"), 0, 0, 1, 3)
-                layout.addWidget(QLabel("Display preset"), 1, 0)
-                layout.addWidget(self.display_preset_combo, 1, 1, 1, 2)
-                layout.addWidget(self.preset_sdr_button, 2, 0, 1, 3)
-                layout.addWidget(self.preset_sdr_help, 3, 0, 1, 3)
-                layout.addWidget(self.preset_hdr_button, 4, 0, 1, 3)
-                layout.addWidget(self.preset_hdr_help, 5, 0, 1, 3)
-                layout.addWidget(self.display_preset_help, 6, 0, 1, 3)
+                layout.addWidget(QLabel("Display mode"), 0, 0)
+                layout.addWidget(self.display_preset_combo, 0, 1, 1, 2)
+                layout.addWidget(self.display_mode_help, 1, 0, 1, 3)
                 advanced_layout = QGridLayout()
                 advanced_layout.addWidget(self.hdr_transfer_label, 0, 0)
                 advanced_layout.addWidget(self.hdr_transfer_combo, 0, 1, 1, 2)
@@ -439,8 +459,12 @@ class DisplayConfiguratorDialog:
                 advanced_layout.addWidget(self.hdr_max_nits_label, 2, 0)
                 advanced_layout.addWidget(self.hdr_max_nits_slider, 2, 1)
                 advanced_layout.addWidget(self.hdr_max_nits_value, 2, 2)
+                advanced_layout.addWidget(self.compositor_hdr_mode_checkbox, 3, 0, 1, 3)
+                advanced_layout.addWidget(QLabel("SDR white reference"), 4, 0)
+                advanced_layout.addWidget(self.sdr_boost_nits_slider, 4, 1)
+                advanced_layout.addWidget(self.sdr_boost_nits_value, 4, 2)
                 self.display_advanced_group.setLayout(advanced_layout)
-                layout.addWidget(self.display_advanced_group, 7, 0, 1, 3)
+                layout.addWidget(self.display_advanced_group, 2, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -488,18 +512,6 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.advanced_details_group, 3, 0, 1, 3)
                 page.setLayout(layout)
                 return page
-
-            def _apply_display_preset(self, preset: str) -> None:
-                index = self.display_preset_combo.findText(label_for_value(DISPLAY_PRESET_LABELS, str(preset), default="SDR"))
-                if index >= 0:
-                    self.display_preset_combo.setCurrentIndex(index)
-                if str(preset) == "hdr":
-                    self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText("pq")))
-                    self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText("bt2020")))
-                else:
-                    self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText("srgb")))
-                    self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText("bt709")))
-                self._refresh()
 
             def _cancel(self) -> None:
                 self.reject()
@@ -636,8 +648,6 @@ class DisplayConfiguratorDialog:
                     self._save_wizard_session()
                 self.pages.setCurrentIndex(self._flow.index)
                 self.step_label.setText(self._flow.step_label())
-                _set_checked(self.preset_sdr_button, value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="sdr") == "sdr")
-                _set_checked(self.preset_hdr_button, value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="sdr") == "hdr")
                 back_set_enabled = getattr(self.back_button, "setEnabled", None)
                 if callable(back_set_enabled):
                     back_set_enabled(self._flow.can_go_back())
@@ -668,38 +678,18 @@ class DisplayConfiguratorDialog:
                     set_enabled = getattr(widget, "setEnabled", None)
                     if callable(set_enabled) and widget is not self.anchor_validation_label:
                         set_enabled(corner_mode)
-                self.anchor_validation_label.setText(
-                    ""
-                    if not corner_mode
-                    else (
-                        "Corner anchors complete.\n"
-                        + corner_anchor_validation_summary(
-                            device_zone_count=effective_zone_count,
-                            corner_anchor_top_left=self._state.corner_anchor_top_left,
-                            corner_anchor_top_right=self._state.corner_anchor_top_right,
-                            corner_anchor_bottom_right=self._state.corner_anchor_bottom_right,
-                            corner_anchor_bottom_left=self._state.corner_anchor_bottom_left,
-                        )
-                        if anchor_validation.valid
-                        else "Anchor validation error: "
-                        + " ".join(anchor_validation.errors)
-                        + (
-                            ""
-                            if not invalid_anchor_fallback
-                            else (
-                                f"\nAlignment warnings: [{', '.join(mapping_snapshot.warning_codes) if mapping_snapshot.warning_codes else 'none'}]"
-                            )
-                        )
-                        + "\n"
-                        + corner_anchor_validation_summary(
-                            device_zone_count=effective_zone_count,
-                            corner_anchor_top_left=self._state.corner_anchor_top_left,
-                            corner_anchor_top_right=self._state.corner_anchor_top_right,
-                            corner_anchor_bottom_right=self._state.corner_anchor_bottom_right,
-                            corner_anchor_bottom_left=self._state.corner_anchor_bottom_left,
-                        )
-                    )
-                )
+                if not anchor_validation.valid:
+                    if any("duplicate" in str(error).lower() for error in anchor_validation.errors):
+                        validation_status = "Duplicate corners"
+                    elif any("range" in str(error).lower() for error in anchor_validation.errors):
+                        validation_status = "Out of range"
+                    else:
+                        validation_status = "Missing corners"
+                elif invalid_anchor_fallback:
+                    validation_status = "Out of range"
+                else:
+                    validation_status = "Ready"
+                self.anchor_validation_label.setText(f"Validation: {validation_status}")
 
                 verification = self._state.validation_report()
                 calibration_step_valid = self._device_zone_count_confirmed and anchor_validation.valid and not invalid_anchor_fallback
@@ -724,6 +714,27 @@ class DisplayConfiguratorDialog:
                 )
 
                 hdr_mode = value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="sdr") == "hdr"
+                selected_display_mode = value_for_label(
+                    DISPLAY_PRESET_LABELS,
+                    str(self.display_preset_combo.currentText()),
+                    default="sdr",
+                )
+                if selected_display_mode == "hdr":
+                    self.display_mode_help.setText(
+                        "HDR: Use HDR transfer defaults for the most vivid color on HDR desktops."
+                    )
+                    self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText("pq")))
+                    self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText("bt2020")))
+                elif selected_display_mode == "sdr":
+                    self.display_mode_help.setText(
+                        "SDR: Uses SDR-safe defaults for consistent color on standard desktop mode."
+                    )
+                    self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText("srgb")))
+                    self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText("bt709")))
+                else:
+                    self.display_mode_help.setText(
+                        "Auto: Switches between SDR and HDR behavior from runtime desktop capability."
+                    )
                 for widget in (
                     self.hdr_transfer_label,
                     self.hdr_transfer_combo,
@@ -736,11 +747,12 @@ class DisplayConfiguratorDialog:
                     widget.setVisible(hdr_mode)
 
                 self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
+                self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits")
                 self.zone_count_value.setText(str(self.zone_count_slider.value()))
                 normalized_offset = 0
                 self.device_zone_count_value.setText(str(effective_zone_count))
                 self.zone_count_explanation.setText(
-                    "Edge sampling zones are sampled perimeter regions on your display."
+                    "Screen sampling zones are sampled perimeter regions on your display."
                 )
                 if self._requires_manual_device_zone_count:
                     device_zone_status_text = (
@@ -760,8 +772,24 @@ class DisplayConfiguratorDialog:
                     mode=self._current_calibration_mode(),
                     step=self._test_step,
                 )
-                self.preview_text.setText(self._state.mapping_preview_text())
-                self.preview_visual.setText(self._state.mapping_preview_visual())
+                assigned = {
+                    "Top-left": self._state.corner_anchor_top_left >= 0,
+                    "Top-right": self._state.corner_anchor_top_right >= 0,
+                    "Bottom-right": self._state.corner_anchor_bottom_right >= 0,
+                    "Bottom-left": self._state.corner_anchor_bottom_left >= 0,
+                }
+                self.simple_calibration_widget.assigned_corners_label.setText(
+                    "Assigned corners: "
+                    + " | ".join(
+                        f"{corner}: {'assigned' if is_assigned else 'unassigned'}"
+                        for corner, is_assigned in assigned.items()
+                    )
+                )
+                self.simple_calibration_widget.direction_label.setText(
+                    f"Direction: {'Reversed' if self._state.reverse_zones else 'Normal'}"
+                )
+                self.preview_text.setText(preview.active_test_description)
+                self.preview_visual.setText("")
                 self.calibration_test_label.setText(preview.active_test_description)
                 active_step = self._active_calibration_step()
                 current_zone = active_step.device_zone_index
@@ -773,8 +801,25 @@ class DisplayConfiguratorDialog:
                     normalized_offset=normalized_offset,
                 )
                 self.current_zone_label.setText(
-                    f"Test zone step: {self._test_step + 1}/{step_total} | Active physical strip zone: {current_zone}"
+                    f"Current LED: {self._test_step + 1} of {step_total}"
                 )
+                calibration_warnings: list[str] = []
+                detected_count = int(self._state.detected_device_zone_count or 0)
+                configured_count = int(self._state.device_zone_count or 0)
+                source_count = int(self._state.zone_count or 0)
+                if detected_count > 0 and configured_count != detected_count:
+                    calibration_warnings.append("Configured strip count differs from detected device count.")
+                if source_count != configured_count:
+                    calibration_warnings.append("Changing strip count may require recalibration.")
+                highest_anchor = max(
+                    int(self._state.corner_anchor_top_left),
+                    int(self._state.corner_anchor_top_right),
+                    int(self._state.corner_anchor_bottom_right),
+                    int(self._state.corner_anchor_bottom_left),
+                )
+                if highest_anchor >= configured_count:
+                    calibration_warnings.append("Current anchors were assigned for a different strip length.")
+                self.zone_change_notice.setText("\n".join(calibration_warnings))
                 self.summary_label.setText(
                     "\n".join(
                         (
@@ -784,7 +829,7 @@ class DisplayConfiguratorDialog:
                             f"Color style: {self.color_style_combo.currentText()}",
                             f"Edge locality: {self.edge_locality_combo.currentText()}",
                             f"Layout preset: {self._state.zone_preset}",
-                            f"Edge sampling zones: {self._state.zone_count}",
+                            f"Screen sampling zones: {self._state.zone_count}",
                             f"Strip LED zones: {effective_zone_count}",
                         )
                     )
@@ -811,28 +856,32 @@ class DisplayConfiguratorDialog:
                 self.advanced_details.setText(
                     "\n".join(
                         (
-                            f"Calibration model: {self._state.calibration_model}",
+                            f"Calibration model/internal resolver mode: {self._state.calibration_model}",
                             f"Sampling quality: {self.sampling_quality_combo.currentText()}",
-                            "Calibration mode: corner anchors",
-                            f"Source zones: {self._state.zone_count}",
-                            f"Device zones: {effective_zone_count}",
+                            "Calibration mode: corner calibration",
+                            f"Screen sampling zones: {self._state.zone_count}",
+                            f"Strip LED zones: {effective_zone_count}",
                             f"Per-side zone counts (top/right/bottom/left): {side_counts_text}",
                             f"Edge sampling thickness: {thickness_text}",
                             f"Localized edge sampling: {localized_text}",
-                            (
-                                "Verification: "
-                                + verification.compact_summary()
-                                + (
-                                    ""
-                                    if not verification.remediation_hints
-                                    else f" | Remediation: {'; '.join(verification.remediation_hints)}"
-                                )
-                                + f" | Action: {verification.remediation_action}"
-                            ),
+                            ("Verification: Calibration complete" if not verification.hard_fail else "Verification: Needs corner assignments"),
                             device_zone_status_text,
                         )
                     )
                 )
+                self.calibration_diagnostics_label.setText(
+                    "\n".join(
+                        (
+                            f"Backend policy/effective backend: {self._state.auto_detection_status()}",
+                            f"Detected/configured strip count details: detected={self._state.detected_device_zone_count or 'n/a'}, configured={effective_zone_count}",
+                            f"Mapping preview: {self._state.mapping_preview_visual()}",
+                            f"Device→source mapping list: {self._state.mapping_preview_text()}",
+                        )
+                    )
+                )
+                self._set_group_contents_visible(self.display_advanced_group, bool(self.display_advanced_group.isChecked()))
+                self._set_group_contents_visible(self.advanced_details_group, bool(self.advanced_details_group.isChecked()))
+                self._set_group_contents_visible(self.calibration_diagnostics_group, bool(self.calibration_diagnostics_group.isChecked()))
                 self._last_preview_refresh_ms = (perf_counter() - refresh_started) * 1000.0
                 if self._flow.index >= 1 and self._calibration_sender is not None:
                     self._ensure_live_preview_running()

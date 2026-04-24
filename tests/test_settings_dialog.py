@@ -15,3 +15,18 @@ def test_settings_dialog_source_uses_preset_ui_labels() -> None:
     assert "layout_preset_combo" in text
     assert "motion_preset_combo" in text
     assert "color_style_combo" in text
+    assert 'QGroupBox("Diagnostics")' in text
+    assert "Raw device→source mapping" in text
+
+
+def test_settings_primary_sections_do_not_expose_raw_mapping_text() -> None:
+    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    assert "self.preview_label.setText(" in text
+    assert "self._state.mapping_preview_text()" not in text.split("self.preview_label.setText(", 1)[1].split(")", 1)[0]
+
+
+def test_strip_count_mismatch_warning_text_present() -> None:
+    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    assert "Configured strip count differs from detected device count." in text
+    assert "Changing strip count may require recalibration." in text
+    assert "Current anchors were assigned for a different strip length." in text

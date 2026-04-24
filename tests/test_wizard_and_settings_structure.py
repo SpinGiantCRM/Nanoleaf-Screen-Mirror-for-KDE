@@ -19,6 +19,7 @@ def test_step3_look_and_feel_uses_clean_sections_with_collapsed_advanced_details
     assert 'QLabel("Motion")' in text
     assert 'QLabel("Color style")' in text
     assert 'QLabel("Screen sampling zones")' in text
+    assert "_set_group_contents_visible(self.advanced_details_group" in text
 
 
 def test_wizard_and_settings_use_canonical_preset_vocabulary() -> None:
@@ -34,6 +35,9 @@ def test_wizard_and_settings_use_canonical_preset_vocabulary() -> None:
     ):
         assert token in wizard
         assert token in settings
+    for label in ("Layout", "Edge locality", "Quality", "Motion", "Color style"):
+        assert label in wizard
+        assert label in settings
 
 
 def test_horizontal_layout_is_not_primary_recommendation() -> None:

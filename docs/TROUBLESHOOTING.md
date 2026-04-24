@@ -90,14 +90,22 @@ Open tray **Settings** and adjust:
 - HDR transfer (`srgb` / `pq`)
 - HDR primaries (`bt709` / `bt2020`)
 - HDR max nits
+- KDE SDR-on-HDR compensation / compositor HDR mode
+- SDR white reference
 
 Start with `srgb + bt709` if your desktop is SDR, then tune brightness conservatively.
+
+Display mode quick guide:
+- **SDR**: SDR-safe defaults (`srgb + bt709`).
+- **HDR**: HDR-first defaults (`pq + bt2020`).
+- **Auto**: follows runtime desktop HDR capability.
 
 ### Zone order mismatch
 
 Use tray **Settings**:
-- Reverse strip orientation
-- Mapping preview line
+- Reverse strip direction
+- Strip LED zone count and screen sampling zone count
+- Diagnostics (for raw mapping preview when needed)
 
 If the strip is mounted upside-down, enable reverse orientation.
 
@@ -120,15 +128,36 @@ The Setup Wizard Step 3 (**Look & Feel**) and the Settings dialog now share the 
 
 Advanced/Diagnostics may also expose HDR transfer/primaries/nits and compositor HDR details. The main wizard flow intentionally keeps these collapsed for readability.
 
-### Corner-anchored calibration errors
+### Corner calibration errors
 
-If the preview shows a corner anchor validation warning:
+If calibration is not marked **Ready**:
 
 1. Ensure all four corners (TL/TR/BR/BL) are assigned.
 2. Ensure each anchor index is unique.
 3. Ensure each anchor index is in range `0..device_zone_count-1`.
 
 Expected behavior: invalid anchors block final completion and emit remediation hints; mapping should fall back safely instead of crashing.
+
+### Strip-count mismatch warnings
+
+The app now surfaces clear warnings when strip counts are inconsistent:
+- `Configured strip count differs from detected device count.`
+- `Changing strip count may require recalibration.`
+- `Current anchors were assigned for a different strip length.`
+
+These warnings are informational (not blocking), but you should recalibrate after major strip-count changes.
+
+### Edge locality
+
+**Edge locality** controls how tightly sampled colors stay near their screen position:
+- **Tight**: most accurate, least bleed.
+- **Balanced**: default trade-off.
+- **Wide**: softer, more blended look.
+
+### Diagnostics panel
+
+Diagnostics is intentionally collapsed by default in Wizard + Settings.  
+Open it only when troubleshooting backend policy, runtime status, or raw device→source mapping details.
 
 ### Calibration config looks stale
 
