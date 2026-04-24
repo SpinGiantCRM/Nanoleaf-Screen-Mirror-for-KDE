@@ -26,7 +26,7 @@ WIZARD_STEPS: tuple[str, ...] = (
     "Display Preset",
     "Look & Feel",
 )
-CALIBRATION_MODE_CORNER = "corner+offset alignment"
+CALIBRATION_MODE_PHYSICAL = "physical zone walk"
 _log = logging.getLogger(__name__)
 WIZARD_SESSION_ENV = "NANOLEAF_WIZARD_SESSION_PATH"
 
@@ -169,10 +169,10 @@ class DisplayConfiguratorDialog:
                     resize(700, 440)
                 self._calibration_sender = calibration_sender
                 self._test_step = 0
-                self._state = CalibrationState.from_config(cfg)
                 self._flow = WizardFlowState()
                 self._initial_calibration = cfg.effective_calibration()
                 status = runtime_status or {}
+                self._state = CalibrationState.from_config(cfg, status)
                 detected_device_zone_count = int(status.get("device_zone_count") or 0)
                 should_prefer_detected = _should_prefer_detected_zone_count(
                     cfg=cfg,
@@ -255,7 +255,7 @@ class DisplayConfiguratorDialog:
                 self.zone_preset_combo.addItems(["Edge strip (recommended)", "Full-screen horizontal"])
                 self.zone_preset_combo.setCurrentIndex(0 if self._state.zone_preset == "edge-weighted" else 1)
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.device_zone_count_slider.setRange(1, MAX_WIZARD_ZONE_COUNT)
+                self.device_zone_count_slider.setRange(1, self._device_zone_count_max())
                 self.device_zone_count_slider.setValue(self._state.device_zone_count)
                 self.device_zone_count_value = QLabel("")
                 self.device_zone_status = QLabel("")
@@ -325,6 +325,7 @@ class DisplayConfiguratorDialog:
                 self.dynamism_balanced_button.clicked.connect(lambda: self._set_dynamism_preset("balanced"))
                 self.dynamism_dynamic_button.clicked.connect(lambda: self._set_dynamism_preset("dynamic"))
                 self.device_zone_count_slider.valueChanged.connect(self._on_device_zone_count_changed)
+                self._on_device_zone_count_changed(refresh=False)
 
                 self.hdr_max_nits_slider.valueChanged.connect(self._refresh)
                 self.simple_calibration_widget.bind_callbacks(
@@ -585,16 +586,30 @@ class DisplayConfiguratorDialog:
                 self._set_slider_value_safely(self.zone_offset_slider, remapped_offset)
 
             def _active_calibration_step(self):
-                step_total = self._state.cycle_length(CALIBRATION_MODE_CORNER)
+                step_total = self._state.cycle_length(CALIBRATION_MODE_PHYSICAL)
                 self._test_step %= step_total
-                return self._state.step_for_mode(CALIBRATION_MODE_CORNER, self._test_step)
+                return self._state.step_for_mode(CALIBRATION_MODE_PHYSICAL, self._test_step)
 
             def _current_calibration_mode(self) -> str:
-                return CALIBRATION_MODE_CORNER
+                return CALIBRATION_MODE_PHYSICAL
 
-            def _on_device_zone_count_changed(self, *_args) -> None:
+            def _device_zone_count_max(self) -> int:
+                detected = int(self._state.detected_device_zone_count)
+                if detected > 0:
+                    return max(1, detected)
+                return MAX_WIZARD_ZONE_COUNT
+
+            def _on_device_zone_count_changed(self, *_args, refresh: bool = True) -> None:
                 previous_zone_count = self._state.effective_device_zone_count()
                 self._device_zone_count_confirmed = True
+                max_zone_count = self._device_zone_count_max()
+                requested_zone_count = int(self.device_zone_count_slider.value())
+                clamped_zone_count = max(1, min(requested_zone_count, max_zone_count))
+                if requested_zone_count != clamped_zone_count:
+                    self._set_slider_value_safely(self.device_zone_count_slider, clamped_zone_count)
+                    self.zone_change_notice.setText(
+                        f"Strip LED zone count capped at detected hardware count ({max_zone_count})."
+                    )
                 self._sync_zone_offset_slider(previous_zone_count=previous_zone_count)
                 new_zone_count = max(1, int(self.device_zone_count_slider.value()))
                 remapped = {
@@ -609,10 +624,12 @@ class DisplayConfiguratorDialog:
                 self._state.corner_anchor_bottom_left = remapped["bottom_left"]
                 if previous_zone_count != new_zone_count:
                     self._test_step = 0
-                    self.zone_change_notice.setText(
-                        "Strip zone count changed: remapped offset/corner anchors and reset calibration test step to 1."
-                    )
-                self._refresh()
+                    if requested_zone_count == clamped_zone_count:
+                        self.zone_change_notice.setText(
+                            "Strip zone count changed: remapped offset/corner anchors and reset calibration test step to 1."
+                        )
+                if refresh:
+                    self._refresh()
 
             def _refresh(self) -> None:
                 refresh_started = perf_counter()

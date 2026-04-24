@@ -242,6 +242,17 @@ class CalibrationState:
         )
 
     def step_for_mode(self, mode: str, step: int) -> CalibrationStep:
+        if mode == "physical zone walk":
+            total = self.effective_device_zone_count()
+            device_zone_index = int(step) % total
+            return CalibrationStep(
+                device_zone_index=device_zone_index,
+                source_zone_index=device_zone_index % max(1, int(self.zone_count)),
+                label=(
+                    f"Physical strip walk | test zone step {device_zone_index + 1}/{total} "
+                    f"| raw strip zone {device_zone_index}"
+                ),
+            )
         snapshot = self.resolved_mapping_snapshot()
         if mode == "corner+offset alignment":
             anchors = self._corner_steps(snapshot)
@@ -293,6 +304,8 @@ class CalibrationState:
         )
 
     def cycle_length(self, mode: str) -> int:
+        if mode == "physical zone walk":
+            return max(1, self.effective_device_zone_count())
         if mode == "corner+offset alignment":
             return max(1, len(self._corner_steps()))
         return max(1, self.effective_device_zone_count())

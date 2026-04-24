@@ -316,6 +316,61 @@ def test_settings_dialog_falls_back_to_estimate_when_no_runtime_samples(monkeypa
     assert dialog._dialog.run_latency_button.text() == "Estimate frame interval"
 
 
+def test_settings_dialog_physical_walk_assignment_uses_raw_device_zone_index(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    dialog = SettingsDialog(parent=None, cfg=AppConfig(device_zone_count=48))
+
+    dialog._dialog._test_step = 31
+    dialog._dialog._assign_anchor("top_left")
+
+    assert dialog._dialog._state.corner_anchor_top_left == 31
+
+
+def test_settings_dialog_clamps_strip_zone_count_to_detected_hardware(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    dialog = SettingsDialog(
+        parent=None,
+        cfg=AppConfig(device_zone_count=48),
+        runtime_status={"device_zone_count": 48},
+    )
+
+    dialog._dialog.device_zone_count_slider.setValue(49)
+
+    assert dialog._dialog.device_zone_count_slider.value() == 48
+    assert dialog._dialog._state.device_zone_count == 48
+    updated = dialog.updated_config()
+    assert updated.device_zone_count == 48
+    assert updated.calibration.device_zone_count == 48
+    assert "capped at detected hardware count (48)" in dialog._dialog.device_zone_count_status_label._text
+
+
+def test_settings_dialog_preview_frame_never_exceeds_detected_zone_count(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    sent_frames: list[list[tuple[int, int, int]]] = []
+    dialog = SettingsDialog(
+        parent=None,
+        cfg=AppConfig(device_zone_count=48),
+        calibration_sender=lambda colors: sent_frames.append(colors),
+        runtime_status={"device_zone_count": 48},
+    )
+
+    dialog._dialog.device_zone_count_slider.setValue(49)
+    dialog._dialog._send_test_pattern()
+
+    assert sent_frames
+    assert len(sent_frames[-1]) == 48
+
+
+def test_settings_dialog_zone_count_change_clamps_test_step_safely(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
+    dialog = SettingsDialog(parent=None, cfg=AppConfig(device_zone_count=48), runtime_status={"device_zone_count": 48})
+
+    dialog._dialog._test_step = 77
+    dialog._dialog.device_zone_count_slider.setValue(12)
+
+    assert dialog._dialog._test_step == (77 % 12)
+
+
 def test_mapping_preview_uses_explicit_auto_flag() -> None:
     from nanoleaf_sync.ui.settings_dialog import mapping_preview_text
 

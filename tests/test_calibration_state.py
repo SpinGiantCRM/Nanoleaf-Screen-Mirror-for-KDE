@@ -90,6 +90,21 @@ def test_testing_step_controls_and_frame_generation_stay_coherent() -> None:
     assert sum(1 for rgb in frame if rgb != (0, 0, 0)) == 1
 
 
+def test_physical_walk_mode_steps_through_all_device_zones_in_order() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=48), {})
+    walked = [state.step_for_mode("physical zone walk", step).device_zone_index for step in range(48)]
+    assert walked == list(range(48))
+
+
+def test_physical_walk_mode_ignores_offset_and_reverse_for_active_zone() -> None:
+    state = CalibrationState.from_config(AppConfig(device_zone_count=48), {})
+    base = [state.step_for_mode("physical zone walk", step).device_zone_index for step in (0, 1, 31, 47)]
+    state.zone_offset = 17
+    state.reverse_zones = True
+    changed = [state.step_for_mode("physical zone walk", step).device_zone_index for step in (0, 1, 31, 47)]
+    assert changed == base
+
+
 def test_backend_and_testing_state_are_exposed_for_ui_surfaces() -> None:
     cfg = AppConfig(prefer_backend="auto")
     runtime_status = {
