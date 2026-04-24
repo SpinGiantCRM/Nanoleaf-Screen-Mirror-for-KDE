@@ -259,6 +259,32 @@ python -c "from nanoleaf_sync.config.store import ConfigManager; ConfigManager()
 
 This clears:
 
+### Canonical reset tool (1.0.0)
+
+Prefer the dedicated reset command for clean, scoped resets:
+
+```bash
+nanoleaf-kde-sync-reset diagnostics --stop-runtime
+nanoleaf-kde-sync-reset calibration --stop-runtime
+nanoleaf-kde-sync-reset app-config --stop-runtime
+```
+
+- `diagnostics`: clears probe/latency/wizard draft caches only.
+- `calibration`: resets anchor + calibration payload only.
+- `app-config`: full config reset.
+
+### Local reinstall / uninstall hygiene
+
+For local editable/dev installs, use:
+
+```bash
+./scripts/reinstall_local.sh
+./scripts/uninstall_local.sh
+./scripts/uninstall_local.sh --purge-config
+```
+
+`reinstall_local.sh` stops stale tray/service processes before reinstall to avoid duplicate runtime loops and stale HID handles.
+
 - `auto_selected_backend`
 - `auto_probe_signature`
 - `auto_probe_timestamp`

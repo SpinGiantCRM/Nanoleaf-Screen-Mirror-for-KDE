@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 from dacite import Config as DaciteConfig
 from dacite import from_dict
 
-from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.config.normalize import migrate_config_dict, validate_config
 from nanoleaf_sync.config.serialization import dump_toml
 
@@ -138,6 +138,47 @@ class ConfigManager:
             auto_probe_signature="",
             auto_probe_timestamp="",
         )
+        self.save(updated_cfg)
+        return updated_cfg
+
+    def reset_calibration_only(self) -> AppConfig:
+        cfg = self.load()
+        updated_cfg = replace(
+            cfg,
+            calibration_schema_version=1,
+            calibration=CalibrationConfig(),
+            reverse_zones=False,
+            manual_mapping_enabled=False,
+            explicit_zone_map=[],
+            corner_anchor_top_left=-1,
+            corner_anchor_top_right=-1,
+            corner_anchor_bottom_right=-1,
+            corner_anchor_bottom_left=-1,
+            corner_anchor_fallback_active=False,
+            corner_anchor_fallback_strategy="",
+            corner_anchor_warning_codes=[],
+        )
+        self.save(updated_cfg)
+        return updated_cfg
+
+    def reset_diagnostics_cache_only(self) -> AppConfig:
+        cfg = self.load()
+        updated_cfg = replace(
+            cfg,
+            auto_selected_backend="",
+            auto_probe_signature="",
+            auto_probe_timestamp="",
+            latency_last_backend="",
+            latency_last_value_ms=0.0,
+            latency_last_trigger="",
+            latency_last_timestamp="",
+            wizard_in_progress_state="",
+        )
+        self.save(updated_cfg)
+        return updated_cfg
+
+    def reset_all_config(self) -> AppConfig:
+        updated_cfg = AppConfig()
         self.save(updated_cfg)
         return updated_cfg
 
