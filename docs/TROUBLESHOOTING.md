@@ -118,10 +118,10 @@ Quick recovery helper: **If calibration looks wrong, reset this section, send a 
 The Setup Wizard Step 3 (**Look & Feel**) and the Settings dialog now share the same user-facing preset model:
 
 - **Layout**: `Edge strip` (recommended)
-- **Edge locality**: `Tight`, `Balanced`, `Wide`
+- **Edge locality**: `Balanced` (recommended), `Tight` (precision/debug), `Wide` (softer)
 - **Quality**: `Low`, `Balanced`, `High`
 - **Motion**: `Calm`, `Responsive`, `Dynamic`
-- **Color style**: `Natural`, `Vivid`, `Punchy`
+- **Color style**: `Reference`/`Natural` (accurate), `Ambient` (recommended), `Vivid`, `Punchy`
 - **Display preset**: `SDR`, `HDR`, `Auto`
 
 `Horizontal` layout remains available only under **Advanced/Diagnostics** as a diagnostic mode and is not recommended for normal lightstrip use.
@@ -301,3 +301,12 @@ nanoleaf-kde-sync-doctor
 ```
 
 `cached_winner`, `signature`, and `timestamp` should be repopulated after a successful auto decision when `prefer_backend = "auto"`.
+
+
+### Colour accuracy diagnostic
+
+From **Settings → Diagnostics**, run both:
+- **Run edge locality test** (verifies local edge response and no global bleed).
+- **Run colour accuracy diagnostic** (reports input/output RGB, perceptual lightness/chroma, chroma ratio, hue delta, and neutral preservation).
+
+For HDR desktops, verify diagnostics include display preset, compositor HDR mode, effective SDR white reference, and HDR max nits. If grey/neutral edges look dim, first check compositor SDR white reference before increasing global brightness.

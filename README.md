@@ -113,3 +113,25 @@ Only CI needs to pass before release.
 - Single-monitor flow only (no multi-monitor support).
 - Device strip count auto-detection is diagnostics-only; not auto-applied.
 - Desktop-entry launch context is still preferred for reliable KWin authorization.
+
+
+## Ambient color model defaults
+
+The daily-use default is now tuned for stable ambient glow rather than precision-debug sampling:
+
+- Layout: `edge_strip`
+- Edge locality: `balanced` (default for stability; `tight` remains available for precision diagnostics)
+- Quality: `high`
+- Motion: `responsive`
+- Color style: `ambient` (recommended)
+- Display preset: `hdr`
+
+Color styles:
+- **Reference / Natural**: color-accurate, neutral-preserving, chroma-capped.
+- **Ambient**: recommended Nanoleaf-like stable glow with neutral luminance floor.
+- **Vivid**: richer color with controlled chroma boost.
+- **Punchy**: strongest stylized response.
+
+Grey/white edge content now drives neutral luminance directly, so medium greys produce visible neutral light instead of collapsing toward black.
+
+Diagnostics include edge-locality and colour-accuracy summaries (input/output RGB, perceptual lightness/chroma ratio, hue delta, neutral preservation), plus HDR/SDR compositor context.

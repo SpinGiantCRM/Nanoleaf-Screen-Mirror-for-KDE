@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from nanoleaf_sync.config.presets import (
+    COLOR_STYLE_AMBIENT,
     COLOR_STYLE_NATURAL,
     COLOR_STYLE_PUNCHY,
+    COLOR_STYLE_REFERENCE,
     COLOR_STYLE_VIVID,
     DISPLAY_PRESET_AUTO,
     DISPLAY_PRESET_HDR,
@@ -40,7 +42,9 @@ MOTION_PRESET_LABELS: tuple[tuple[str, str], ...] = (
     ("Dynamic", MOTION_PRESET_DYNAMIC),
 )
 COLOR_STYLE_LABELS: tuple[tuple[str, str], ...] = (
+    ("Reference", COLOR_STYLE_REFERENCE),
     ("Natural", COLOR_STYLE_NATURAL),
+    ("Ambient (recommended)", COLOR_STYLE_AMBIENT),
     ("Vivid", COLOR_STYLE_VIVID),
     ("Punchy", COLOR_STYLE_PUNCHY),
 )

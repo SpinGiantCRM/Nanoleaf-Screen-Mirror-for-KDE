@@ -37,5 +37,5 @@ def test_app_config_has_canonical_preset_fields() -> None:
     assert cfg.edge_locality in {"tight", "balanced", "wide"}
     assert cfg.sampling_quality in {"low", "balanced", "high"}
     assert cfg.motion_preset in {"calm", "responsive", "dynamic"}
-    assert cfg.color_style in {"natural", "vivid", "punchy"}
+    assert cfg.color_style in {"reference", "natural", "ambient", "vivid", "punchy"}
     assert cfg.display_preset in {"sdr", "hdr", "auto"}

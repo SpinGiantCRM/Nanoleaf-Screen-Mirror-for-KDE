@@ -18,17 +18,17 @@ def test_active_config_serialization_has_no_legacy_preset_fields() -> None:
         assert legacy not in payload
 
 
-def test_first_run_defaults_are_accuracy_first() -> None:
+def test_first_run_defaults_are_ambient_daily_use() -> None:
     cfg = validate_config(AppConfig())
     assert cfg.layout_preset == "edge_strip"
-    assert cfg.edge_locality == "tight"
+    assert cfg.edge_locality == "balanced"
     assert cfg.sampling_quality == "high"
     assert cfg.motion_preset == "responsive"
-    assert cfg.color_style == "natural"
+    assert cfg.color_style == "ambient"
     assert cfg.display_preset == "hdr"
 
 
-def test_natural_mode_preserves_locality_for_bottom_left_signal() -> None:
+def test_reference_mode_preserves_locality_for_bottom_left_signal() -> None:
     zone_count = 48
     width, height = 320, 180
     zones = make_edge_weighted_zones(zone_count, width=width, height=height, edge_locality="tight")
@@ -44,12 +44,12 @@ def test_natural_mode_preserves_locality_for_bottom_left_signal() -> None:
         device_zone_indices=list(range(zone_count)),
         brightness=1.0,
         smoothing=1.0,
-        edge_locality="tight",
+        edge_locality="balanced",
         motion_preset="responsive",
-        color_style="natural",
+        color_style="reference",
     )
     arr = np.asarray(colors, dtype=np.uint8)
-    layout = edge_weighted_layout(zone_count=zone_count, width=width, height=height, edge_locality="tight")
+    layout = edge_weighted_layout(zone_count=zone_count, width=width, height=height, edge_locality="balanced")
     top_n, right_n, bottom_n, _left_n = layout.side_counts
     bottom_start = top_n + right_n
     far_right_bottom = arr[bottom_start : bottom_start + max(1, bottom_n // 2), 1]
@@ -59,10 +59,10 @@ def test_natural_mode_preserves_locality_for_bottom_left_signal() -> None:
 def test_edge_locality_diagnostic_corner_test_passes() -> None:
     result = run_edge_locality_test(
         zone_count=48,
-        edge_locality="tight",
+        edge_locality="balanced",
         sampling_quality="high",
         motion_preset="responsive",
-        color_style="natural",
+        color_style="ambient",
     )
     assert result.far_edge_zones_stayed_dark is True
     assert "far_edge_dark=yes" in result.summary
