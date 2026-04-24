@@ -162,6 +162,7 @@ class DisplayConfiguratorDialog:
         QVBoxLayout = qt["QVBoxLayout"]
         QGridLayout = qt["QGridLayout"]
         QComboBox = qt["QComboBox"]
+        QCheckBox = qt["QCheckBox"]
         QSlider = qt["QSlider"]
         QPushButton = qt["QPushButton"]
         QTimer = _qt_widget(qt, "QTimer", None)
