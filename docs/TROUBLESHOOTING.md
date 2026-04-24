@@ -105,6 +105,21 @@ If setup was interrupted, reopen the setup wizard. In-progress calibration state
 
 Quick recovery helper: **If calibration looks wrong, reset this section, send a test pattern, and re-assign the corner anchors before moving on.**
 
+### Preset vocabulary (wizard + settings)
+
+The Setup Wizard Step 3 (**Look & Feel**) and the Settings dialog now share the same user-facing preset model:
+
+- **Layout**: `Edge strip` (recommended)
+- **Edge locality**: `Tight`, `Balanced`, `Wide`
+- **Quality**: `Low`, `Balanced`, `High`
+- **Motion**: `Calm`, `Responsive`, `Dynamic`
+- **Color style**: `Natural`, `Vivid`, `Punchy`
+- **Display preset**: `SDR`, `HDR`, `Auto`
+
+`Horizontal` layout remains available only under **Advanced/Diagnostics** as a diagnostic mode and is not recommended for normal lightstrip use.
+
+Advanced/Diagnostics may also expose HDR transfer/primaries/nits and compositor HDR details. The main wizard flow intentionally keeps these collapsed for readability.
+
 ### Corner-anchored calibration errors
 
 If the preview shows a corner anchor validation warning:

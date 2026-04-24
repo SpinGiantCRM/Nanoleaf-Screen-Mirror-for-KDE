@@ -18,6 +18,17 @@ from nanoleaf_sync.ui.calibration_state import (
 from nanoleaf_sync.ui.calibration_widget import SimpleCalibrationWidget
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.zone_calibration import corner_anchor_validation_summary
+from nanoleaf_sync.ui.preset_ui import (
+    COLOR_STYLE_LABELS,
+    DISPLAY_PRESET_LABELS,
+    EDGE_LOCALITY_LABELS,
+    LAYOUT_PRESET_LABELS,
+    MOTION_PRESET_LABELS,
+    SAMPLING_QUALITY_LABELS,
+    label_for_value,
+    labels,
+    value_for_label,
+)
 from nanoleaf_sync.ui.zone_presets import edge_weighted_layout, make_edge_weighted_zones, make_horizontal_zones
 
 MAX_WIZARD_ZONE_COUNT = 128
@@ -200,24 +211,41 @@ class DisplayConfiguratorDialog:
                 self._last_preview_refresh_ms = 0.0
 
                 # Step 2
-                self.display_mode_combo = QComboBox()
-                self.display_mode_combo.addItems(["sdr", "hdr"])
-                self.display_mode_combo.setCurrentIndex(self.display_mode_combo.findText("hdr" if cfg.hdr_enabled else "sdr"))
+                self.display_preset_combo = QComboBox()
+                self.display_preset_combo.addItems(labels(DISPLAY_PRESET_LABELS))
+                initial_display_preset = str(getattr(cfg, "display_preset", "hdr" if cfg.hdr_enabled else "sdr"))
+                self.display_preset_combo.setCurrentIndex(
+                    max(0, self.display_preset_combo.findText(label_for_value(DISPLAY_PRESET_LABELS, initial_display_preset, default="SDR")))
+                )
                 self.preset_sdr_button = QPushButton("SDR preset")
                 self.preset_hdr_button = QPushButton("HDR preset")
                 _set_checkable(self.preset_sdr_button, True)
                 _set_checkable(self.preset_hdr_button, True)
                 self.preset_sdr_help = QLabel("Low-maintenance SDR-safe path.")
                 self.preset_hdr_help = QLabel("HDR-first with wide-gamut defaults.")
+                self.display_preset_help = QLabel("Auto follows runtime HDR capability when available.")
+                self.display_advanced_group = QGroupBox("Advanced display details")
+                _set_checkable(self.display_advanced_group, True)
+                _set_checked(self.display_advanced_group, False)
 
                 # Step 3
-                self.color_mode_combo = QComboBox()
-                allowed_color_modes = ["balanced", "dynamic"]
-                current_color_mode = str(getattr(cfg, "color_mode", "balanced"))
-                if current_color_mode not in allowed_color_modes:
-                    allowed_color_modes.append(current_color_mode)
-                self.color_mode_combo.addItems(allowed_color_modes)
-                self.color_mode_combo.setCurrentIndex(max(0, self.color_mode_combo.findText(current_color_mode)))
+                self.layout_preset_combo = QComboBox()
+                self.layout_preset_combo.addItems([LAYOUT_PRESET_LABELS[0][0]])
+                self.layout_preset_combo.setCurrentIndex(0)
+                self.layout_debug_combo = QComboBox()
+                self.layout_debug_combo.addItems(labels(LAYOUT_PRESET_LABELS))
+                current_layout = "horizontal_debug" if self._state.zone_preset == "horizontal" else str(getattr(cfg, "layout_preset", "edge_strip"))
+                self.layout_debug_combo.setCurrentIndex(max(0, self.layout_debug_combo.findText(label_for_value(LAYOUT_PRESET_LABELS, current_layout, default="Edge strip"))))
+                self.edge_locality_combo = QComboBox()
+                self.edge_locality_combo.addItems(labels(EDGE_LOCALITY_LABELS))
+                self.edge_locality_combo.setCurrentIndex(max(0, self.edge_locality_combo.findText(label_for_value(EDGE_LOCALITY_LABELS, str(getattr(cfg, "edge_locality", "balanced")), default="Balanced"))))
+                self.motion_preset_combo = QComboBox()
+                self.motion_preset_combo.addItems(labels(MOTION_PRESET_LABELS))
+                initial_motion = str(getattr(cfg, "motion_preset", "responsive"))
+                self.motion_preset_combo.setCurrentIndex(max(0, self.motion_preset_combo.findText(label_for_value(MOTION_PRESET_LABELS, initial_motion, default="Responsive"))))
+                self.color_style_combo = QComboBox()
+                self.color_style_combo.addItems(labels(COLOR_STYLE_LABELS))
+                self.color_style_combo.setCurrentIndex(max(0, self.color_style_combo.findText(label_for_value(COLOR_STYLE_LABELS, str(getattr(cfg, "color_style", "natural")), default="Natural"))))
                 self.hdr_transfer_combo = QComboBox()
                 self.hdr_transfer_combo.addItems(["srgb", "pq"])
                 self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))))
@@ -231,35 +259,13 @@ class DisplayConfiguratorDialog:
                 self.hdr_max_nits_slider.setValue(min(int(getattr(cfg, "hdr_max_nits", 1000.0)), self.hdr_max_nits_slider.maximum()))
                 self.hdr_max_nits_label = QLabel("HDR max brightness")
                 self.hdr_max_nits_value = QLabel("")
-                self.vibrancy_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.vibrancy_slider.setRange(100, 400)
-                self.vibrancy_slider.setValue(int(round(float(getattr(cfg, "led_gamma", 1.0)) * 100)))
-                self.vibrancy_value = QLabel("")
-                self.sampling_low_button = QPushButton("Low quality")
-                self.sampling_balanced_button = QPushButton("Balanced quality")
-                self.sampling_high_button = QPushButton("High quality")
-                self.dynamism_balanced_button = QPushButton("Calm")
-                self.dynamism_dynamic_button = QPushButton("Dynamic")
-                for button in (
-                    self.sampling_low_button,
-                    self.sampling_balanced_button,
-                    self.sampling_high_button,
-                    self.dynamism_balanced_button,
-                    self.dynamism_dynamic_button,
-                ):
-                    _set_checkable(button, True)
-
-                # Shared controls
                 self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.zone_count_slider.setRange(1, MAX_WIZARD_ZONE_COUNT)
                 self.zone_count_slider.setValue(self._state.zone_count)
                 self.zone_count_value = QLabel("")
                 self.sampling_quality_combo = QComboBox()
-                self.sampling_quality_combo.addItems(["Low", "Balanced", "High"])
-                self.sampling_quality_combo.setCurrentIndex(max(0, self.sampling_quality_combo.findText(str(getattr(cfg, "sampling_quality", "balanced")).capitalize())))
-                self.zone_preset_combo = QComboBox()
-                self.zone_preset_combo.addItems(["Edge strip (recommended)", "Full-screen horizontal"])
-                self.zone_preset_combo.setCurrentIndex(0 if self._state.zone_preset == "edge-weighted" else 1)
+                self.sampling_quality_combo.addItems(labels(SAMPLING_QUALITY_LABELS))
+                self.sampling_quality_combo.setCurrentIndex(max(0, self.sampling_quality_combo.findText(label_for_value(SAMPLING_QUALITY_LABELS, str(getattr(cfg, "sampling_quality", "balanced")), default="Balanced"))))
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.device_zone_count_slider.setRange(1, self._device_zone_count_max())
                 self.device_zone_count_slider.setValue(self._state.device_zone_count)
@@ -270,6 +276,7 @@ class DisplayConfiguratorDialog:
                 self.zone_change_notice = QLabel("")
                 self.advanced_details_group = QGroupBox("Advanced details")
                 self.advanced_details = QLabel("")
+                self.diagnostics_layout_label = QLabel("")
                 _set_checkable(self.advanced_details_group, True)
                 _set_checked(self.advanced_details_group, False)
 
@@ -312,22 +319,18 @@ class DisplayConfiguratorDialog:
                     self._live_preview_timer.timeout.connect(self._send_live_preview)
 
                 for signal in (
-                    self.display_mode_combo.currentIndexChanged,
+                    self.display_preset_combo.currentIndexChanged,
                     self.sampling_quality_combo.currentIndexChanged,
-                    self.color_mode_combo.currentIndexChanged,
-                    self.vibrancy_slider.valueChanged,
+                    self.motion_preset_combo.currentIndexChanged,
+                    self.color_style_combo.currentIndexChanged,
+                    self.edge_locality_combo.currentIndexChanged,
+                    self.layout_debug_combo.currentIndexChanged,
                     self.reverse_checkbox.stateChanged,
                 ):
                     signal.connect(self._refresh)
                 self.zone_count_slider.valueChanged.connect(self._on_zone_count_changed)
-                self.zone_preset_combo.currentIndexChanged.connect(self._on_zone_preset_changed)
                 self.preset_sdr_button.clicked.connect(lambda: self._apply_display_preset("sdr"))
                 self.preset_hdr_button.clicked.connect(lambda: self._apply_display_preset("hdr"))
-                self.sampling_low_button.clicked.connect(lambda: self._set_sampling_preset("low"))
-                self.sampling_balanced_button.clicked.connect(lambda: self._set_sampling_preset("balanced"))
-                self.sampling_high_button.clicked.connect(lambda: self._set_sampling_preset("high"))
-                self.dynamism_balanced_button.clicked.connect(lambda: self._set_dynamism_preset("balanced"))
-                self.dynamism_dynamic_button.clicked.connect(lambda: self._set_dynamism_preset("dynamic"))
                 self.device_zone_count_slider.valueChanged.connect(self._on_device_zone_count_changed)
                 self._on_device_zone_count_changed(refresh=False)
 
@@ -393,11 +396,9 @@ class DisplayConfiguratorDialog:
                 self._set_tooltip(self.reset_anchors_button, "Clear all corner assignments and start anchor placement again.")
                 self._set_tooltip(self.preset_sdr_button, "SDR-safe defaults: srgb + bt709.")
                 self._set_tooltip(self.preset_hdr_button, "HDR defaults: pq + bt2020.")
-                self._set_tooltip(self.sampling_low_button, "Fastest response, lowest CPU usage.")
-                self._set_tooltip(self.sampling_balanced_button, "Recommended default quality.")
-                self._set_tooltip(self.sampling_high_button, "Highest fidelity at higher CPU cost.")
-                self._set_tooltip(self.dynamism_balanced_button, "Stable color behavior with less motion punch.")
-                self._set_tooltip(self.dynamism_dynamic_button, "Stronger motion-reactive color changes.")
+                self._set_tooltip(self.edge_locality_combo, "Controls how tightly sampling stays near screen edges.")
+                self._set_tooltip(self.motion_preset_combo, "Controls response speed and smoothness.")
+                self._set_tooltip(self.color_style_combo, "Controls saturation/impact style.")
 
             def _build_step_1(self, QWidget, QGridLayout, QLabel):
                 page = QWidget()
@@ -423,17 +424,23 @@ class DisplayConfiguratorDialog:
                 if hasattr(layout, "setVerticalSpacing"):
                     layout.setVerticalSpacing(4)
                 layout.addWidget(QLabel("Pick a display preset"), 0, 0, 1, 3)
-                layout.addWidget(self.preset_sdr_button, 1, 0, 1, 3)
-                layout.addWidget(self.preset_sdr_help, 2, 0, 1, 3)
-                layout.addWidget(self.preset_hdr_button, 3, 0, 1, 3)
-                layout.addWidget(self.preset_hdr_help, 4, 0, 1, 3)
-                layout.addWidget(self.hdr_transfer_label, 5, 0)
-                layout.addWidget(self.hdr_transfer_combo, 5, 1, 1, 2)
-                layout.addWidget(self.hdr_primaries_label, 6, 0)
-                layout.addWidget(self.hdr_primaries_combo, 6, 1, 1, 2)
-                layout.addWidget(self.hdr_max_nits_label, 7, 0)
-                layout.addWidget(self.hdr_max_nits_slider, 7, 1)
-                layout.addWidget(self.hdr_max_nits_value, 7, 2)
+                layout.addWidget(QLabel("Display preset"), 1, 0)
+                layout.addWidget(self.display_preset_combo, 1, 1, 1, 2)
+                layout.addWidget(self.preset_sdr_button, 2, 0, 1, 3)
+                layout.addWidget(self.preset_sdr_help, 3, 0, 1, 3)
+                layout.addWidget(self.preset_hdr_button, 4, 0, 1, 3)
+                layout.addWidget(self.preset_hdr_help, 5, 0, 1, 3)
+                layout.addWidget(self.display_preset_help, 6, 0, 1, 3)
+                advanced_layout = QGridLayout()
+                advanced_layout.addWidget(self.hdr_transfer_label, 0, 0)
+                advanced_layout.addWidget(self.hdr_transfer_combo, 0, 1, 1, 2)
+                advanced_layout.addWidget(self.hdr_primaries_label, 1, 0)
+                advanced_layout.addWidget(self.hdr_primaries_combo, 1, 1, 1, 2)
+                advanced_layout.addWidget(self.hdr_max_nits_label, 2, 0)
+                advanced_layout.addWidget(self.hdr_max_nits_slider, 2, 1)
+                advanced_layout.addWidget(self.hdr_max_nits_value, 2, 2)
+                self.display_advanced_group.setLayout(advanced_layout)
+                layout.addWidget(self.display_advanced_group, 7, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -442,32 +449,30 @@ class DisplayConfiguratorDialog:
                 layout = QGridLayout()
                 if hasattr(layout, "setVerticalSpacing"):
                     layout.setVerticalSpacing(4)
-                layout.addWidget(QLabel("Tune visual style with live preview"), 0, 0, 1, 3)
+                layout.addWidget(QLabel("Look & Feel"), 0, 0, 1, 3)
 
                 appearance = QGroupBox("Appearance")
                 appearance_layout = QGridLayout()
-                appearance_layout.addWidget(QLabel("Quality"), 0, 0)
-                appearance_layout.addWidget(self.sampling_low_button, 0, 1)
-                appearance_layout.addWidget(self.sampling_balanced_button, 0, 2)
-                appearance_layout.addWidget(self.sampling_high_button, 0, 3)
-                appearance_layout.addWidget(QLabel("Motion / Dynamism"), 1, 0)
-                appearance_layout.addWidget(self.dynamism_balanced_button, 1, 1, 1, 2)
-                appearance_layout.addWidget(self.dynamism_dynamic_button, 1, 3)
-                appearance_layout.addWidget(QLabel("Vibrancy"), 2, 0)
-                appearance_layout.addWidget(self.vibrancy_slider, 2, 1, 1, 2)
-                appearance_layout.addWidget(self.vibrancy_value, 2, 3)
+                appearance_layout.addWidget(QLabel("Layout"), 0, 0)
+                appearance_layout.addWidget(self.layout_preset_combo, 0, 1, 1, 2)
+                appearance_layout.addWidget(QLabel("Edge locality"), 1, 0)
+                appearance_layout.addWidget(self.edge_locality_combo, 1, 1, 1, 2)
+                appearance_layout.addWidget(QLabel("Quality"), 2, 0)
+                appearance_layout.addWidget(self.sampling_quality_combo, 2, 1, 1, 2)
+                appearance_layout.addWidget(QLabel("Motion"), 3, 0)
+                appearance_layout.addWidget(self.motion_preset_combo, 3, 1, 1, 2)
+                appearance_layout.addWidget(QLabel("Color style"), 4, 0)
+                appearance_layout.addWidget(self.color_style_combo, 4, 1, 1, 2)
                 appearance.setLayout(appearance_layout)
                 layout.addWidget(appearance, 1, 0, 1, 3)
 
                 layout_group = QGroupBox("Layout")
                 layout_group_layout = QGridLayout()
-                layout_group_layout.addWidget(QLabel("Edge sampling zone count"), 0, 0)
+                layout_group_layout.addWidget(QLabel("Screen sampling zones"), 0, 0)
                 layout_group_layout.addWidget(self.zone_count_slider, 0, 1)
                 layout_group_layout.addWidget(self.zone_count_value, 0, 2)
-                layout_group_layout.addWidget(QLabel("Layout preset"), 1, 0)
-                layout_group_layout.addWidget(self.zone_preset_combo, 1, 1, 1, 2)
-                layout_group_layout.addWidget(QLabel("Strip LED zone count"), 2, 0)
-                layout_group_layout.addWidget(self.device_zone_summary, 2, 1, 1, 2)
+                layout_group_layout.addWidget(QLabel("Strip LED zones"), 1, 0)
+                layout_group_layout.addWidget(self.device_zone_summary, 1, 1, 1, 2)
                 layout_group.setLayout(layout_group_layout)
                 layout.addWidget(layout_group, 2, 0, 1, 3)
 
@@ -475,16 +480,19 @@ class DisplayConfiguratorDialog:
                 advanced_layout.addWidget(self.zone_count_explanation, 0, 0, 1, 3)
                 advanced_layout.addWidget(self.summary_label, 1, 0, 1, 3)
                 advanced_layout.addWidget(self.advanced_details, 2, 0, 1, 3)
-                advanced_layout.addWidget(self.finish_policy_note, 3, 0, 1, 3)
+                advanced_layout.addWidget(QLabel("Layout (Advanced/Debug)"), 3, 0)
+                advanced_layout.addWidget(self.layout_debug_combo, 3, 1, 1, 2)
+                advanced_layout.addWidget(self.diagnostics_layout_label, 4, 0, 1, 3)
+                advanced_layout.addWidget(self.finish_policy_note, 5, 0, 1, 3)
                 self.advanced_details_group.setLayout(advanced_layout)
                 layout.addWidget(self.advanced_details_group, 3, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
             def _apply_display_preset(self, preset: str) -> None:
-                index = self.display_mode_combo.findText(str(preset))
+                index = self.display_preset_combo.findText(label_for_value(DISPLAY_PRESET_LABELS, str(preset), default="SDR"))
                 if index >= 0:
-                    self.display_mode_combo.setCurrentIndex(index)
+                    self.display_preset_combo.setCurrentIndex(index)
                 if str(preset) == "hdr":
                     self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText("pq")))
                     self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText("bt2020")))
@@ -508,14 +516,6 @@ class DisplayConfiguratorDialog:
                 self._stop_live_preview()
                 super().accept()
 
-            def _set_sampling_preset(self, preset: str) -> None:
-                self.sampling_quality_combo.setCurrentIndex(max(0, self.sampling_quality_combo.findText(str(preset).capitalize())))
-                self._refresh()
-
-            def _set_dynamism_preset(self, preset: str) -> None:
-                self.color_mode_combo.setCurrentIndex(max(0, self.color_mode_combo.findText(str(preset))))
-                self._refresh()
-
             def _go_next(self) -> None:
                 previous_step = self._flow.index
                 self._flow.next()
@@ -532,7 +532,12 @@ class DisplayConfiguratorDialog:
 
             def _pull_state_from_controls(self) -> None:
                 self._state.zone_count = int(self.zone_count_slider.value())
-                self._state.zone_preset = "edge-weighted" if str(self.zone_preset_combo.currentText()).startswith("Edge strip") else "horizontal"
+                selected_layout = value_for_label(
+                    LAYOUT_PRESET_LABELS,
+                    str(self.layout_debug_combo.currentText()),
+                    default="edge_strip",
+                )
+                self._state.zone_preset = "horizontal" if selected_layout == "horizontal_debug" else "edge-weighted"
                 self._state.reverse_zones = bool(self.reverse_checkbox.isChecked())
                 self._state.device_zone_count = int(self.device_zone_count_slider.value())
                 self._state.calibration_model = "corner_anchored"
@@ -620,7 +625,7 @@ class DisplayConfiguratorDialog:
                 self._refresh()
 
             def _on_zone_preset_changed(self, *_args) -> None:
-                if not str(self.zone_preset_combo.currentText()).startswith("Edge strip"):
+                if value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_debug_combo.currentText()), default="edge_strip") != "edge_strip":
                     self._source_zones_locked_to_device_count = False
                 self._refresh()
 
@@ -631,15 +636,8 @@ class DisplayConfiguratorDialog:
                     self._save_wizard_session()
                 self.pages.setCurrentIndex(self._flow.index)
                 self.step_label.setText(self._flow.step_label())
-                _set_checked(self.preset_sdr_button, str(self.display_mode_combo.currentText()) == "sdr")
-                _set_checked(self.preset_hdr_button, str(self.display_mode_combo.currentText()) == "hdr")
-                sampling_choice = str(self.sampling_quality_combo.currentText()).lower()
-                _set_checked(self.sampling_low_button, sampling_choice == "low")
-                _set_checked(self.sampling_balanced_button, sampling_choice == "balanced")
-                _set_checked(self.sampling_high_button, sampling_choice == "high")
-                mode_choice = str(self.color_mode_combo.currentText())
-                _set_checked(self.dynamism_balanced_button, mode_choice == "balanced")
-                _set_checked(self.dynamism_dynamic_button, mode_choice == "dynamic")
+                _set_checked(self.preset_sdr_button, value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="sdr") == "sdr")
+                _set_checked(self.preset_hdr_button, value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="sdr") == "hdr")
                 back_set_enabled = getattr(self.back_button, "setEnabled", None)
                 if callable(back_set_enabled):
                     back_set_enabled(self._flow.can_go_back())
@@ -725,7 +723,7 @@ class DisplayConfiguratorDialog:
                     "Finish unlocks after valid corner anchors are assigned and strip zone count is confirmed."
                 )
 
-                hdr_mode = str(self.display_mode_combo.currentText()) == "hdr"
+                hdr_mode = value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="sdr") == "hdr"
                 for widget in (
                     self.hdr_transfer_label,
                     self.hdr_transfer_combo,
@@ -739,7 +737,6 @@ class DisplayConfiguratorDialog:
 
                 self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
                 self.zone_count_value.setText(str(self.zone_count_slider.value()))
-                self.vibrancy_value.setText(f"{self.vibrancy_slider.value()}%")
                 normalized_offset = 0
                 self.device_zone_count_value.setText(str(effective_zone_count))
                 self.zone_count_explanation.setText(
@@ -781,10 +778,11 @@ class DisplayConfiguratorDialog:
                 self.summary_label.setText(
                     "\n".join(
                         (
-                            f"Display preset: {self.display_mode_combo.currentText().upper()}",
+                            f"Display preset: {self.display_preset_combo.currentText()}",
                             f"Quality: {self.sampling_quality_combo.currentText()}",
-                            f"Motion / Dynamism: {self.color_mode_combo.currentText()}",
-                            f"Vibrancy: {self.vibrancy_slider.value()}%",
+                            f"Motion: {self.motion_preset_combo.currentText()}",
+                            f"Color style: {self.color_style_combo.currentText()}",
+                            f"Edge locality: {self.edge_locality_combo.currentText()}",
                             f"Layout preset: {self._state.zone_preset}",
                             f"Edge sampling zones: {self._state.zone_count}",
                             f"Strip LED zones: {effective_zone_count}",
@@ -799,11 +797,7 @@ class DisplayConfiguratorDialog:
                         zone_count=self._state.zone_count,
                         width=frame_width,
                         height=frame_height,
-                        edge_sampling_thickness=(
-                            float(configured_thickness)
-                            if configured_thickness is not None
-                            else None
-                        ),
+                        edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="balanced"),
                     )
                     side_counts = layout_info.side_counts
                     side_counts_text = f"{side_counts[0]}/{side_counts[1]}/{side_counts[2]}/{side_counts[3]}"
@@ -903,15 +897,20 @@ class DisplayConfiguratorDialog:
                 )
                 return replace(
                     cfg,
-                    hdr_enabled=str(self.display_mode_combo.currentText()) == "hdr",
-                    color_mode=str(self.color_mode_combo.currentText()),
+                    layout_preset=value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_debug_combo.currentText()), default="edge_strip"),
+                    edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="balanced"),
+                    sampling_quality=value_for_label(SAMPLING_QUALITY_LABELS, str(self.sampling_quality_combo.currentText()), default="balanced"),
+                    motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"),
+                    color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="natural"),
+                    display_preset=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="sdr"),
+                    hdr_enabled=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="sdr") in {"hdr", "auto"},
+                    color_mode="dynamic" if value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive") == "dynamic" else "balanced",
                     hdr_transfer=str(self.hdr_transfer_combo.currentText()),
                     hdr_primaries=str(self.hdr_primaries_combo.currentText()),
                     hdr_max_nits=float(self.hdr_max_nits_slider.value()),
-                    led_gamma=float(self.vibrancy_slider.value()) / 100.0,
+                    led_gamma=cfg.led_gamma,
                     zones=new_zones,
                     zone_preset=self._state.zone_preset,
-                    sampling_quality=str(self.sampling_quality_combo.currentText()).lower(),
                     device_zone_count=self._state.device_zone_count,
                     reverse_zones=self._state.reverse_zones,
                     corner_anchor_top_left=anchor_top_left,
@@ -949,10 +948,12 @@ class DisplayConfiguratorDialog:
                     "zone_preset": str(self._state.zone_preset),
                     "reverse_zones": bool(self._state.reverse_zones),
                     "device_zone_count": int(self._state.device_zone_count),
-                    "display_mode": str(self.display_mode_combo.currentText()),
-                    "sampling_quality": str(self.sampling_quality_combo.currentText()).lower(),
-                    "color_mode": str(self.color_mode_combo.currentText()),
-                    "vibrancy": int(self.vibrancy_slider.value()),
+                    "display_preset": value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="sdr"),
+                    "sampling_quality": value_for_label(SAMPLING_QUALITY_LABELS, str(self.sampling_quality_combo.currentText()), default="balanced"),
+                    "motion_preset": value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"),
+                    "color_style": value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="natural"),
+                    "edge_locality": value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="balanced"),
+                    "layout_preset": value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_debug_combo.currentText()), default="edge_strip"),
                     "corner_anchor_top_left": int(self._state.corner_anchor_top_left),
                     "corner_anchor_top_right": int(self._state.corner_anchor_top_right),
                     "corner_anchor_bottom_right": int(self._state.corner_anchor_bottom_right),
@@ -1019,19 +1020,24 @@ class DisplayConfiguratorDialog:
                 self._test_step = int(data.get("test_step", self._test_step))
                 self.zone_count_slider.setValue(int(data.get("zone_count", self.zone_count_slider.value())))
                 preset = str(data.get("zone_preset", self._state.zone_preset))
-                self.zone_preset_combo.setCurrentIndex(0 if preset == "edge-weighted" else 1)
+                self.layout_debug_combo.setCurrentIndex(0 if preset == "edge-weighted" else 1)
                 self.reverse_checkbox.setChecked(bool(data.get("reverse_zones", self.reverse_checkbox.isChecked())))
                 self.device_zone_count_slider.setValue(int(data.get("device_zone_count", self.device_zone_count_slider.value())))
-                display_idx = self.display_mode_combo.findText(str(data.get("display_mode", self.display_mode_combo.currentText())))
+                display_idx = self.display_preset_combo.findText(label_for_value(DISPLAY_PRESET_LABELS, str(data.get("display_preset", "sdr")), default="SDR"))
                 if display_idx >= 0:
-                    self.display_mode_combo.setCurrentIndex(display_idx)
-                sampling_idx = self.sampling_quality_combo.findText(str(data.get("sampling_quality", self.sampling_quality_combo.currentText())).capitalize())
+                    self.display_preset_combo.setCurrentIndex(display_idx)
+                sampling_idx = self.sampling_quality_combo.findText(label_for_value(SAMPLING_QUALITY_LABELS, str(data.get("sampling_quality", "balanced")), default="Balanced"))
                 if sampling_idx >= 0:
                     self.sampling_quality_combo.setCurrentIndex(sampling_idx)
-                color_idx = self.color_mode_combo.findText(str(data.get("color_mode", self.color_mode_combo.currentText())))
-                if color_idx >= 0:
-                    self.color_mode_combo.setCurrentIndex(color_idx)
-                self.vibrancy_slider.setValue(int(data.get("vibrancy", self.vibrancy_slider.value())))
+                motion_idx = self.motion_preset_combo.findText(label_for_value(MOTION_PRESET_LABELS, str(data.get("motion_preset", value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"))), default="Responsive"))
+                if motion_idx >= 0:
+                    self.motion_preset_combo.setCurrentIndex(motion_idx)
+                color_style_idx = self.color_style_combo.findText(label_for_value(COLOR_STYLE_LABELS, str(data.get("color_style", value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="natural"))), default="Natural"))
+                if color_style_idx >= 0:
+                    self.color_style_combo.setCurrentIndex(color_style_idx)
+                edge_locality_idx = self.edge_locality_combo.findText(label_for_value(EDGE_LOCALITY_LABELS, str(data.get("edge_locality", "balanced")), default="Balanced"))
+                if edge_locality_idx >= 0:
+                    self.edge_locality_combo.setCurrentIndex(edge_locality_idx)
                 self._state.corner_anchor_top_left = int(data.get("corner_anchor_top_left", self._state.corner_anchor_top_left))
                 self._state.corner_anchor_top_right = int(data.get("corner_anchor_top_right", self._state.corner_anchor_top_right))
                 self._state.corner_anchor_bottom_right = int(data.get("corner_anchor_bottom_right", self._state.corner_anchor_bottom_right))
@@ -1090,17 +1096,18 @@ class DisplayConfiguratorDialog:
                     return
                 zone_count = self._state.effective_device_zone_count()
                 frame = [(0, 0, 0)] * zone_count
-                mode = str(self.color_mode_combo.currentText())
-                gain = 1.0 if mode == "dynamic" else 0.7
-                vibrancy = float(self.vibrancy_slider.value()) / 100.0
+                mode = value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive")
+                style = value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="natural")
+                gain = 1.0 if mode == "dynamic" else (0.85 if mode == "responsive" else 0.7)
+                style_gain = {"natural": 1.0, "vivid": 1.15, "punchy": 1.30}[style]
                 for i in range(zone_count):
                     phase = (i + self._preview_phase) % max(1, zone_count)
                     ramp = phase / max(1, zone_count - 1)
-                    red = int(min(255, 255 * ramp * gain * vibrancy))
-                    green = int(min(255, 255 * (1.0 - ramp) * 0.8 * vibrancy))
+                    red = int(min(255, 255 * ramp * gain * style_gain))
+                    green = int(min(255, 255 * (1.0 - ramp) * 0.8 * style_gain))
                     blue = int(min(255, 150 + (80 if mode == "dynamic" else 0)))
                     frame[i] = (red, green, blue)
-                self._preview_phase = (self._preview_phase + (3 if mode == "dynamic" else 1)) % max(1, zone_count)
+                self._preview_phase = (self._preview_phase + (3 if mode == "dynamic" else (2 if mode == "responsive" else 1))) % max(1, zone_count)
                 try:
                     self._calibration_sender(frame)
                 except Exception:

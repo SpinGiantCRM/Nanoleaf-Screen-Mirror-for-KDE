@@ -15,5 +15,37 @@ def test_step3_look_and_feel_uses_clean_sections_with_collapsed_advanced_details
     assert 'QGroupBox("Advanced details")' in text
     assert '_set_checkable(self.advanced_details_group, True)' in text
     assert '_set_checked(self.advanced_details_group, False)' in text
-    assert 'QLabel("Edge sampling zone count")' in text
-    assert 'QLabel("Layout preset")' in text
+    assert 'QLabel("Edge locality")' in text
+    assert 'QLabel("Motion")' in text
+    assert 'QLabel("Color style")' in text
+    assert 'QLabel("Screen sampling zones")' in text
+
+
+def test_wizard_and_settings_use_canonical_preset_vocabulary() -> None:
+    wizard = open("src/nanoleaf_sync/ui/display_configurator.py", "r", encoding="utf-8").read()
+    settings = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    for token in (
+        "layout_preset",
+        "edge_locality",
+        "sampling_quality",
+        "motion_preset",
+        "color_style",
+        "display_preset",
+    ):
+        assert token in wizard
+        assert token in settings
+
+
+def test_horizontal_layout_is_not_primary_recommendation() -> None:
+    wizard = open("src/nanoleaf_sync/ui/display_configurator.py", "r", encoding="utf-8").read()
+    helper = open("src/nanoleaf_sync/ui/preset_ui.py", "r", encoding="utf-8").read()
+    assert "Horizontal (diagnostic, not recommended)" in helper
+    assert "Full-screen horizontal" not in wizard
+
+
+def test_old_ui_labels_removed_from_primary_flow() -> None:
+    wizard = open("src/nanoleaf_sync/ui/display_configurator.py", "r", encoding="utf-8").read()
+    settings = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    assert "Dynamism" not in wizard
+    assert "Dynamism" not in settings
+    assert "Optional vibrancy 100%" not in wizard
