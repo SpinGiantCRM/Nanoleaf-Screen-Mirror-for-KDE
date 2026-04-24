@@ -37,6 +37,26 @@ def _wizard_session_storage_path() -> Path:
         return Path(configured).expanduser()
     return Path.home() / ".local" / "state" / "nanoleaf-sync" / "wizard-session.json"
 
+
+def _should_prefer_detected_zone_count(*, cfg: AppConfig, detected_device_zone_count: int) -> bool:
+    detected = int(detected_device_zone_count or 0)
+    if detected <= 0:
+        return False
+    configured = int(getattr(cfg, "device_zone_count", 0) or 0)
+    nested = int(getattr(getattr(cfg, "calibration", None), "device_zone_count", 0) or 0)
+    if configured <= 0:
+        return True
+    if configured == detected:
+        return False
+    # Legacy first-run defaults may persist a stale value of 8 while runtime/device
+    # discovery reports the actual strip length. Treat this as auto-detected unless
+    # setup has already been explicitly completed by the user.
+    return (
+        not bool(getattr(cfg, "wizard_completed", False))
+        and configured == 8
+        and nested in {0, 8}
+    )
+
 class _FallbackStackedWidget:
     def __init__(self) -> None:
         self._index = 0
@@ -154,11 +174,16 @@ class DisplayConfiguratorDialog:
                 self._initial_calibration = cfg.effective_calibration()
                 status = runtime_status or {}
                 detected_device_zone_count = int(status.get("device_zone_count") or 0)
+                should_prefer_detected = _should_prefer_detected_zone_count(
+                    cfg=cfg,
+                    detected_device_zone_count=detected_device_zone_count,
+                )
                 self._requires_manual_device_zone_count = (
-                    int(getattr(cfg, "device_zone_count", 0)) <= 0 and detected_device_zone_count <= 0
+                    int(getattr(cfg, "device_zone_count", 0)) <= 0
+                    and detected_device_zone_count <= 0
                 )
                 self._device_zone_count_confirmed = not self._requires_manual_device_zone_count
-                if int(getattr(cfg, "device_zone_count", 0)) <= 0 and detected_device_zone_count > 0:
+                if should_prefer_detected:
                     self._state.device_zone_count = detected_device_zone_count
 
                 self.step_label = QLabel("")

@@ -45,6 +45,16 @@ class DoctorCheck:
     action: str = ""
 
 
+def _effective_runtime_zone_count(*, configured: int, detected: int | None) -> int | None:
+    configured_count = int(configured or 0)
+    if configured_count > 0:
+        return configured_count
+    detected_count = int(detected or 0)
+    if detected_count > 0:
+        return detected_count
+    return None
+
+
 def _check_python_runtime() -> DoctorCheck:
     if sys.version_info < (3, 11):
         return DoctorCheck(
@@ -265,10 +275,22 @@ def _check_real_device_probe(config: AppConfig) -> DoctorCheck:
     )
     try:
         driver.initialize()
+        detected_zones = getattr(driver, "reported_zone_count", getattr(driver, "zone_count", None))
+        configured_zones = int(getattr(config, "device_zone_count", 0) or 0)
+        calibration_zones = int(getattr(getattr(config, "calibration", None), "device_zone_count", 0) or 0)
+        effective_zones = _effective_runtime_zone_count(configured=configured_zones, detected=detected_zones)
         return DoctorCheck(
             "device-probe",
             "pass",
-            f"Device initialized successfully (model={driver.model_number}, zones={driver.zone_count}).",
+            (
+                "Device initialized successfully "
+                f"(model={driver.model_number}, zones={driver.zone_count}). "
+                "Zone diagnostics: "
+                f"detected={int(detected_zones or 0) or 'unknown'}, "
+                f"configured={configured_zones or 'auto'}, "
+                f"effective_runtime={effective_zones or 'unknown'}, "
+                f"nested_calibration={calibration_zones or 'auto'}."
+            ),
         )
     except Exception as exc:
         lowered = str(exc).lower()

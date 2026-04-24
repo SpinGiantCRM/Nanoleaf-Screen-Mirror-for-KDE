@@ -387,7 +387,11 @@ def run_loop(
                     config=config,
                     img_w=img_w,
                     img_h=img_h,
-                    detected_device_zone_count=getattr(driver, "zone_count", None),
+                    detected_device_zone_count=getattr(
+                        driver,
+                        "reported_zone_count",
+                        getattr(driver, "zone_count", None),
+                    ),
                 )
 
                 smoothed_colors = process_frame(

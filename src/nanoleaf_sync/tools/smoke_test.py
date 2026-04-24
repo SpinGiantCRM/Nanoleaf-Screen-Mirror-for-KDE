@@ -20,6 +20,16 @@ DEFAULT_SMOKE_WIDTH = 320
 DEFAULT_SMOKE_HEIGHT = 180
 
 
+def _effective_runtime_zone_count(*, configured: int, detected: int | None) -> int | None:
+    configured_count = int(configured or 0)
+    if configured_count > 0:
+        return configured_count
+    detected_count = int(detected or 0)
+    if detected_count > 0:
+        return detected_count
+    return None
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Manual smoke test for nanoleaf-kde-sync")
     parser.add_argument(
@@ -110,11 +120,22 @@ def main(argv: list[str] | None = None) -> int:
     try:
         driver.initialize()
         zones = getattr(driver, "zone_count", None)
+        detected_zones = getattr(driver, "reported_zone_count", zones)
         model = getattr(driver, "model_number", None)
+        configured_zones = int(getattr(cfg, "device_zone_count", 0) or 0)
+        calibration_zones = int(getattr(getattr(cfg, "calibration", None), "device_zone_count", 0) or 0)
+        effective_zones = _effective_runtime_zone_count(configured=configured_zones, detected=detected_zones)
         print(f"device init ok: model={model} zones={zones}")
+        print(
+            "zone-count diagnostics: "
+            f"detected={int(detected_zones or 0) or 'unknown'} "
+            f"configured={configured_zones or 'auto'} "
+            f"effective_runtime={effective_zones or 'unknown'} "
+            f"nested_calibration={calibration_zones or 'auto'}"
+        )
 
         if args.send_test_frame:
-            zone_count = int(zones or 8)
+            zone_count = int(effective_zones or zones or 8)
             colors = [(8, 0, 0)] * zone_count
             colors[max(0, zone_count // 3 - 1) : max(1, zone_count // 3 + 1)] = [(0, 8, 0)] * 2
             colors[max(0, (2 * zone_count) // 3 - 1) : max(1, (2 * zone_count) // 3 + 1)] = [
