@@ -18,6 +18,7 @@ from nanoleaf_sync.ui.calibration_state import (
     ZONE_COUNT_DIRECTLY_AFFECTED_PHASES,
     build_testing_panel_state,
 )
+from nanoleaf_sync.ui.calibration_widget import SimpleCalibrationWidget
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.zone_calibration import corner_anchor_validation_summary
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
@@ -243,20 +244,21 @@ class DisplayConfiguratorDialog:
                 self.zone_change_notice = QLabel("")
 
                 # Step 1
-                self.reverse_checkbox = qt["QCheckBox"]("Reverse strip orientation")
+                self.simple_calibration_widget = SimpleCalibrationWidget(qt=qt, title="Corner calibration")
+                self.reverse_checkbox = self.simple_calibration_widget.reverse_orientation_checkbox
                 self.reverse_checkbox.setChecked(self._state.reverse_zones)
                 self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 initial_offset_limit = max(1, self._state.effective_device_zone_count() - 1)
                 self.zone_offset_slider.setRange(-initial_offset_limit, initial_offset_limit)
                 self.zone_offset_slider.setValue(self._state.zone_offset)
                 self.zone_offset_value = QLabel("")
-                self.test_step_index_value = QLabel("")
-                self.preview_text = QLabel("")
-                self.preview_visual = QLabel("")
+                self.test_step_index_value = self.simple_calibration_widget.step_index_label
+                self.preview_text = self.simple_calibration_widget.preview_text_label
+                self.preview_visual = self.simple_calibration_widget.preview_visual_label
                 self.calibration_test_label = QLabel("")
                 self.anchor_validation_label = QLabel("")
-                self.calibration_next_button = QPushButton("Next test zone step")
-                self.calibration_prev_button = QPushButton("Previous test zone step")
+                self.calibration_next_button = self.simple_calibration_widget.next_zone_button
+                self.calibration_prev_button = self.simple_calibration_widget.prev_zone_button
                 self.calibration_send_button = QPushButton("Send test pattern")
                 self.calibration_phase_prev_button = QPushButton("Previous phase")
                 self.calibration_phase_next_button = QPushButton("Next phase")
@@ -270,11 +272,12 @@ class DisplayConfiguratorDialog:
                 self.rollback_direction_button = QPushButton("Rollback direction")
                 self.confirm_anchor_button = QPushButton("Confirm anchor assignment")
                 self.rollback_anchor_button = QPushButton("Rollback anchors")
-                self.assign_tl_button = QPushButton("Assign current zone → Top-left")
-                self.assign_tr_button = QPushButton("Assign current zone → Top-right")
-                self.assign_br_button = QPushButton("Assign current zone → Bottom-right")
-                self.assign_bl_button = QPushButton("Assign current zone → Bottom-left")
-                self.current_zone_label = QLabel("")
+                self.assign_tl_button = self.simple_calibration_widget.assign_top_left_button
+                self.assign_tr_button = self.simple_calibration_widget.assign_top_right_button
+                self.assign_br_button = self.simple_calibration_widget.assign_bottom_right_button
+                self.assign_bl_button = self.simple_calibration_widget.assign_bottom_left_button
+                self.reset_anchors_button = self.simple_calibration_widget.reset_anchors_button
+                self.current_zone_label = self.simple_calibration_widget.current_zone_label
                 self.calibration_phase_label = QLabel("")
                 self.calibration_phase_status_label = QLabel("")
                 self.responsiveness_label = QLabel("")
@@ -324,11 +327,18 @@ class DisplayConfiguratorDialog:
                 self.device_zone_count_slider.valueChanged.connect(self._on_device_zone_count_changed)
 
                 self.hdr_max_nits_slider.valueChanged.connect(self._refresh)
-                self.calibration_next_button.clicked.connect(self._next_test_zone)
-                self.calibration_prev_button.clicked.connect(self._prev_test_zone)
+                self.simple_calibration_widget.bind_callbacks(
+                    on_prev_zone=self._prev_test_zone,
+                    on_next_zone=self._next_test_zone,
+                    on_assign_top_left=lambda: self._assign_anchor("top_left"),
+                    on_assign_top_right=lambda: self._assign_anchor("top_right"),
+                    on_assign_bottom_right=lambda: self._assign_anchor("bottom_right"),
+                    on_assign_bottom_left=lambda: self._assign_anchor("bottom_left"),
+                    on_reset_anchors=self._reset_anchors,
+                    on_reverse_orientation_changed=self._on_advanced_alignment_changed,
+                )
                 self.calibration_send_button.clicked.connect(self._send_test_pattern)
                 self.zone_offset_slider.valueChanged.connect(self._on_advanced_alignment_changed)
-                self.reverse_checkbox.stateChanged.connect(self._on_advanced_alignment_changed)
                 self.calibration_phase_prev_button.clicked.connect(self._previous_calibration_phase)
                 self.calibration_phase_next_button.clicked.connect(self._next_calibration_phase)
                 self.calibration_mark_pass_button.clicked.connect(lambda: self._mark_current_calibration_phase(True))
@@ -341,10 +351,6 @@ class DisplayConfiguratorDialog:
                 self.rollback_direction_button.clicked.connect(self._rollback_direction_verification)
                 self.confirm_anchor_button.clicked.connect(self._confirm_anchor_assignment)
                 self.rollback_anchor_button.clicked.connect(self._rollback_anchor_assignment)
-                self.assign_tl_button.clicked.connect(lambda: self._assign_anchor("top_left"))
-                self.assign_tr_button.clicked.connect(lambda: self._assign_anchor("top_right"))
-                self.assign_br_button.clicked.connect(lambda: self._assign_anchor("bottom_right"))
-                self.assign_bl_button.clicked.connect(lambda: self._assign_anchor("bottom_left"))
 
                 self.pages = QStackedWidget()
                 self.pages.addWidget(self._build_step_1(QWidget, QGridLayout, QLabel))
@@ -396,6 +402,7 @@ class DisplayConfiguratorDialog:
                 self._set_tooltip(self.assign_tr_button, "Assign the currently lit strip zone as top-right screen corner.")
                 self._set_tooltip(self.assign_br_button, "Assign the currently lit strip zone as bottom-right screen corner.")
                 self._set_tooltip(self.assign_bl_button, "Assign the currently lit strip zone as bottom-left screen corner.")
+                self._set_tooltip(self.reset_anchors_button, "Clear all corner assignments and start anchor placement again.")
                 self._set_tooltip(self.confirm_anchor_button, "Confirm corner assignments and snapshot a recovery checkpoint.")
                 self._set_tooltip(self.rollback_anchor_button, "Rollback corner assignments to the last confirmed checkpoint.")
                 self._set_tooltip(self.confirm_direction_button, "Confirm direction/offset orientation and store a checkpoint.")
@@ -433,8 +440,9 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.assign_tr_button, 13, 0, 1, 3)
                 layout.addWidget(self.assign_br_button, 14, 0, 1, 3)
                 layout.addWidget(self.assign_bl_button, 15, 0, 1, 3)
-                layout.addWidget(self.confirm_anchor_button, 16, 0, 1, 2)
-                layout.addWidget(self.anchor_validation_label, 17, 0, 1, 3)
+                layout.addWidget(self.reset_anchors_button, 16, 0, 1, 2)
+                layout.addWidget(self.confirm_anchor_button, 17, 0, 1, 2)
+                layout.addWidget(self.anchor_validation_label, 18, 0, 1, 3)
 
                 advanced_layout = QGridLayout()
                 advanced_layout.addWidget(QLabel("Global mapping zone offset"), 0, 0)
@@ -456,7 +464,7 @@ class DisplayConfiguratorDialog:
                 advanced_layout.addWidget(self.rollback_direction_button, 10, 2)
                 advanced_layout.addWidget(self.rollback_anchor_button, 11, 0, 1, 3)
                 self.advanced_calibration_group.setLayout(advanced_layout)
-                layout.addWidget(self.advanced_calibration_group, 18, 0, 1, 3)
+                layout.addWidget(self.advanced_calibration_group, 19, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -1358,6 +1366,17 @@ class DisplayConfiguratorDialog:
                 elif corner == "bottom_left":
                     self._state.corner_anchor_bottom_left = current_zone
                 # Re-resolve mapping immediately so preview and test frame use the latest anchors.
+                self._state.resolved_mapping_snapshot()
+                self._refresh()
+                self._send_test_pattern()
+
+            def _reset_anchors(self) -> None:
+                self._state.push_action_snapshot()
+                self._pull_state_from_controls()
+                self._state.corner_anchor_top_left = -1
+                self._state.corner_anchor_top_right = -1
+                self._state.corner_anchor_bottom_right = -1
+                self._state.corner_anchor_bottom_left = -1
                 self._state.resolved_mapping_snapshot()
                 self._refresh()
                 self._send_test_pattern()
