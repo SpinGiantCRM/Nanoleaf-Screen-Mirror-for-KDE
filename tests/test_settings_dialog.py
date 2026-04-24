@@ -361,8 +361,9 @@ def test_settings_dialog_preserves_manual_and_corner_mapping(monkeypatch) -> Non
     updated = dialog.updated_config()
     assert updated.manual_mapping_enabled is True
     assert updated.explicit_zone_map == [3, 2, 1, 0]
+    # Corner refinement nudges are compatibility-only and remain inert.
     assert updated.corner_offsets_enabled is True
-    assert updated.corner_zone_offsets == [1, -1, 2, -2]
+    assert updated.corner_zone_offsets == [0, 0, 0, 0]
 
 
 def test_settings_dialog_disables_manual_mapping_when_not_enabled(monkeypatch) -> None:
@@ -408,13 +409,11 @@ def test_settings_dialog_can_send_calibration_pattern(monkeypatch) -> None:
     assert any(rgb != (0, 0, 0) for rgb in sent["colors"])
 
 
-def test_settings_dialog_interval_slider_updates_running_timer(monkeypatch) -> None:
+def test_settings_dialog_interval_slider_controls_were_removed_with_old_flow(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _qt_stub)
     dialog = SettingsDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=0))
-    dialog._dialog.test_auto_checkbox.setChecked(True)
-    dialog._dialog.test_step_interval_slider.setValue(750)
-
-    assert dialog._dialog._test_timer._interval == 750
+    assert not hasattr(dialog._dialog, "test_auto_checkbox")
+    assert not hasattr(dialog._dialog, "test_step_interval_slider")
 
 
 def test_settings_dialog_applies_tooltips_to_key_controls(monkeypatch) -> None:

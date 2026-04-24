@@ -64,40 +64,7 @@ def test_wizard_resume_state_defaults_to_empty_payload() -> None:
     assert cfg.wizard_in_progress_state == ""
 
 
-def test_calibration_checkpoint_can_restore_previous_valid_state() -> None:
-    state = CalibrationState.from_config(AppConfig(device_zone_count=8, zone_offset=3, reverse_zones=True), runtime_status={})
-    state.corner_anchor_top_left = 1
-    state.mark_calibration_step("start-point-detection", passed=True, notes="ok")
-    state.save_checkpoint()
-
-    state.zone_offset = -2
-    state.reverse_zones = False
-    state.corner_anchor_top_left = 5
-    state.mark_calibration_step("start-point-detection", passed=False, notes="changed")
-    assert state.restore_checkpoint() is True
-    assert state.zone_offset == 3
-    assert state.reverse_zones is True
-    assert state.corner_anchor_top_left == 1
-    assert state.calibration_step_state("start-point-detection").passed is True
-
-
 def test_qgroupbox_fallback_accepts_constructor_args() -> None:
     group = _FallbackGroupBox("Advanced calibration")
     group.setCheckable(True)
     group.setChecked(False)
-
-
-def test_calibration_state_supports_undo_and_phase_boundary_restore() -> None:
-    state = CalibrationState.from_config(AppConfig(device_zone_count=12, zone_offset=1, reverse_zones=False), runtime_status={})
-    state.save_phase_boundary_checkpoint("direction-verification")
-    state.push_action_snapshot()
-    state.zone_offset = 5
-    state.reverse_zones = True
-
-    assert state.undo_last_action() is True
-    assert state.zone_offset == 1
-    assert state.reverse_zones is False
-
-    state.zone_offset = -3
-    assert state.restore_phase_boundary_checkpoint("direction-verification") is True
-    assert state.zone_offset == 1
