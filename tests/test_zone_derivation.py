@@ -3,6 +3,7 @@ from __future__ import annotations
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
 from nanoleaf_sync.runtime.zone_derivation import (
     DEFAULT_DERIVED_ZONE_COUNT,
+    derive_source_zone_artifacts,
     derive_source_zones,
     effective_zone_count,
 )
@@ -37,9 +38,38 @@ def test_derive_source_zones_threads_edge_sampling_thickness() -> None:
 
 def test_edge_weighted_48_zone_layout_covers_all_perimeter_sides() -> None:
     cfg = AppConfig(zones=[], zone_preset="edge-weighted", device_zone_count=48)
-    zones = derive_source_zones(config=cfg, detected_device_zone_count=None)
+    zones = derive_source_zones(config=cfg, detected_device_zone_count=None, frame_width=1920, frame_height=1080)
+    artifacts = derive_source_zone_artifacts(
+        config=cfg,
+        detected_device_zone_count=None,
+        frame_width=1920,
+        frame_height=1080,
+    )
+    top, right, bottom, _left = artifacts.side_counts or (0, 0, 0, 0)
     assert len(zones) == 48
-    assert all(zone.y == 0.0 for zone in zones[:12])
-    assert all(zone.x > 0.75 for zone in zones[12:24])
-    assert all(zone.y > 0.75 for zone in zones[24:36])
-    assert all(zone.x == 0.0 for zone in zones[36:])
+    assert all(zone.y == 0.0 for zone in zones[:top])
+    assert all(zone.x > 0.75 for zone in zones[top : top + right])
+    assert all(zone.y > 0.90 for zone in zones[top + right : top + right + bottom])
+    assert all(zone.x == 0.0 for zone in zones[top + right + bottom :])
+
+
+def test_edge_weighted_zones_remain_edge_focused() -> None:
+    cfg = AppConfig(zones=[], zone_preset="edge-weighted", device_zone_count=48)
+    zones = derive_source_zones(config=cfg, detected_device_zone_count=None, frame_width=1920, frame_height=1080)
+    assert zones
+    assert max(min(zone.w, zone.h) for zone in zones) <= 0.08
+
+
+def test_runtime_preview_reports_aspect_weighted_side_counts() -> None:
+    cfg = AppConfig(zones=[], zone_preset="edge-weighted", device_zone_count=48)
+    artifacts = derive_source_zone_artifacts(
+        config=cfg,
+        detected_device_zone_count=48,
+        frame_width=1920,
+        frame_height=1080,
+    )
+    preview = artifacts.diagnostics_text(source_mode="auto-derived", device_zone_count=48)
+    assert "source zones: 48 | strip zones: 48" in preview
+    assert "frame: 1920x1080" in preview
+    assert "side counts: top/right/bottom/left=15/9/15/9" in preview
+    assert "zone order mode: continuous_perimeter" in preview

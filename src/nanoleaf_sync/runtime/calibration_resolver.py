@@ -78,6 +78,7 @@ def resolve_calibration_mapping(
     corner_anchor_bottom_right: int = -1,
     corner_anchor_bottom_left: int = -1,
     calibration_model: str = "corner_anchored",
+    source_side_counts: tuple[int, int, int, int] | None = None,
 ) -> CalibrationMappingSnapshot:
     normalized_model = str(calibration_model or "corner_anchored").strip().lower()
     if normalized_model not in {"corner_anchored"}:
@@ -134,6 +135,7 @@ def resolve_calibration_mapping(
         zone_count=zone_count,
         device_zone_count=derive_device_zone_count,
         anchors=effective_anchors,
+        source_side_counts=source_side_counts,
     )
     selected_explicit_map = list(anchor_map.explicit_zone_map)
     target_count = max(1, int(device_zone_count))
@@ -168,6 +170,7 @@ def resolve_calibration_mapping_from_config(
     config: AppConfig,
     source_zone_count: int,
     detected_device_zone_count: int | None = None,
+    source_side_counts: tuple[int, int, int, int] | None = None,
 ) -> CalibrationMappingSnapshot:
     calibration = config.effective_calibration()
     configured_device_zone_count = int(getattr(calibration, "device_zone_count", 0))
@@ -181,13 +184,18 @@ def resolve_calibration_mapping_from_config(
         ),
         detected_device_zone_count=detected_device_zone_count,
     )
-    return resolve_calibration_mapping_with_context(config=config, context=context)
+    return resolve_calibration_mapping_with_context(
+        config=config,
+        context=context,
+        source_side_counts=source_side_counts,
+    )
 
 
 def resolve_calibration_mapping_with_context(
     *,
     config: AppConfig,
     context: CalibrationResolverContext,
+    source_side_counts: tuple[int, int, int, int] | None = None,
 ) -> CalibrationMappingSnapshot:
     calibration = config.effective_calibration()
     configured_device_zone_count = int(getattr(calibration, "device_zone_count", 0))
@@ -205,4 +213,5 @@ def resolve_calibration_mapping_with_context(
         corner_anchor_bottom_right=int(getattr(calibration, "corner_anchor_bottom_right", -1)),
         corner_anchor_bottom_left=int(getattr(calibration, "corner_anchor_bottom_left", -1)),
         calibration_model="corner_anchored",
+        source_side_counts=source_side_counts,
     )

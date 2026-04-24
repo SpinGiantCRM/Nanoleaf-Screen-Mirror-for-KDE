@@ -18,7 +18,7 @@ from nanoleaf_sync.runtime.zones import zone_colors_array
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping_from_config
 from nanoleaf_sync.runtime.processing import zones_from_config
-from nanoleaf_sync.runtime.zone_derivation import derive_source_zones
+from nanoleaf_sync.runtime.zone_derivation import derive_source_zone_artifacts
 from nanoleaf_sync.runtime.compositor import (
     apply_sdr_boost_compensation,
     effective_sdr_boost,
@@ -120,6 +120,7 @@ def _mapping_signature(
     source_zone_count: int,
     config: AppConfig,
     detected_device_zone_count: int | None,
+    source_side_counts: tuple[int, int, int, int] | None = None,
 ) -> DeviceZoneMappingSignature:
     return (
         int(source_zone_count),
@@ -133,6 +134,7 @@ def _mapping_signature(
         int(getattr(config, "corner_anchor_top_right", -1)),
         int(getattr(config, "corner_anchor_bottom_right", -1)),
         int(getattr(config, "corner_anchor_bottom_left", -1)),
+        tuple(int(i) for i in (source_side_counts or ())),
     )
 
 
@@ -144,10 +146,13 @@ def _ensure_runtime_artifacts(
     img_h: int,
     detected_device_zone_count: int | None = None,
 ) -> tuple[list[ZoneRect], np.ndarray]:
-    effective_zones = derive_source_zones(
+    zone_artifacts = derive_source_zone_artifacts(
         config=config,
         detected_device_zone_count=detected_device_zone_count,
+        frame_width=img_w,
+        frame_height=img_h,
     )
+    effective_zones = zone_artifacts.zones
     uses_derived_zones = not bool(config.zones)
     zone_sig = _zones_signature(
         zones=effective_zones,
@@ -163,12 +168,11 @@ def _ensure_runtime_artifacts(
         state.cached_zone_rects = zones_from_config(effective_zones, img_w, img_h)
         state.zone_rects_signature = zone_sig
         logger.info(
-            "zone-derivation: source_zone_count=%d device_zone_count=%d zone_preset=%s source_mode=%s detected_device_zone_count=%s",
-            len(effective_zones),
-            int(getattr(config, "device_zone_count", 0) or 0),
-            str(getattr(config, "zone_preset", "edge-weighted")),
-            "user-configured" if bool(getattr(config, "zones", [])) else "auto-derived",
-            int(detected_device_zone_count) if detected_device_zone_count is not None else "unknown",
+            "zone-derivation: %s",
+            zone_artifacts.diagnostics_text(
+                source_mode="user-configured" if bool(getattr(config, "zones", [])) else "auto-derived",
+                device_zone_count=int(getattr(config, "device_zone_count", 0) or 0),
+            ),
         )
 
     zones_px = state.cached_zone_rects
@@ -178,6 +182,7 @@ def _ensure_runtime_artifacts(
         source_zone_count=source_zone_count,
         config=config,
         detected_device_zone_count=detected_device_zone_count,
+        source_side_counts=zone_artifacts.side_counts,
     )
     if (
         state.device_zone_mapping_signature != mapping_sig
@@ -188,6 +193,7 @@ def _ensure_runtime_artifacts(
             config=config,
             source_zone_count=source_zone_count,
             detected_device_zone_count=detected_device_zone_count,
+            source_side_counts=zone_artifacts.side_counts,
         )
         state.cached_device_zone_indices = snapshot.device_to_source_indices
         state.cached_device_zone_indices_np = np.asarray(

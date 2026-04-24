@@ -17,6 +17,7 @@ def derive_corner_anchor_device_indices(
     reverse_zones: bool,
     explicit_zone_map=None,
     calibration_model: str = "corner_anchored",
+    source_side_counts: tuple[int, int, int, int] | None = None,
 ) -> list[int]:
     total = max(1, int(device_zone_count))
     if total == 1:
@@ -30,7 +31,11 @@ def derive_corner_anchor_device_indices(
         calibration_model=calibration_model,
     )
     source_total = max(1, int(zone_count))
-    corner_targets = [0, source_total // 4, source_total // 2, (3 * source_total) // 4]
+    if source_side_counts is not None and sum(source_side_counts) == source_total:
+        top, right, bottom, _left = source_side_counts
+        corner_targets = [0, top, top + right, top + right + bottom]
+    else:
+        corner_targets = [0, source_total // 4, source_total // 2, (3 * source_total) // 4]
 
     def _ring_distance(a: int, b: int, length: int) -> int:
         diff = abs(int(a) - int(b)) % length
