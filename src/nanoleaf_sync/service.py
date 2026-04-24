@@ -36,6 +36,7 @@ from nanoleaf_sync.runtime.startup import (
 )
 from nanoleaf_sync.runtime.state import RuntimeState
 from nanoleaf_sync.runtime.compositor import effective_sdr_boost
+from nanoleaf_sync.runtime.diagnostics_exports import default_kde_display_metadata
 
 
 logger = logging.getLogger(__name__)
@@ -245,6 +246,22 @@ class NanoleafSyncService:
         status["configured_device_zone_count"] = configured_device_zone_count
         status["effective_runtime_zone_count"] = effective_runtime_zone_count
         status["calibration_device_zone_count"] = calibration_device_zone_count
+        status["source_zone_count"] = len(self._runtime.latest_zones_px)
+        status["source_zone_side_counts"] = tuple(int(i) for i in self._runtime.latest_zone_side_counts)
+        status["zone_sampling_stride"] = int(getattr(self.config, "zone_sampling_stride", 1))
+        status["edge_locality"] = str(getattr(self.config, "edge_locality", "balanced"))
+        status["display_preset"] = str(getattr(self.config, "display_preset", "hdr"))
+        status["edge_sampling_thickness"] = self._runtime.latest_edge_sampling_thickness
+        status["zone_diagnostics_preview"] = self._runtime.latest_zone_diagnostics[:8]
+        status["_latest_zone_diagnostics"] = self._runtime.latest_zone_diagnostics
+        status["_latest_frame_rgb"] = self._runtime.latest_frame_rgb
+        status["_latest_zones_px"] = self._runtime.latest_zones_px
+        status["_latest_zone_side_counts"] = self._runtime.latest_zone_side_counts
+        status.update(default_kde_display_metadata())
+        detected_display = detect_primary_screen_dims()
+        if detected_display is not None:
+            status["kde_display_width"] = int(detected_display[0])
+            status["kde_display_height"] = int(detected_display[1])
         capture_hdr = getattr(self._capture, "last_hdr_diagnostics", {}) if self._capture is not None else {}
         tone_mapping_applied = bool(capture_hdr.get("tone_mapping_applied", False))
         metadata_source = str(capture_hdr.get("metadata_source", "unknown"))

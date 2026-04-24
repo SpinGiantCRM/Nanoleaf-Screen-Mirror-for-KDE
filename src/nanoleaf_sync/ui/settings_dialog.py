@@ -32,6 +32,11 @@ from nanoleaf_sync.runtime.color_accuracy_diagnostics import run_color_accuracy_
 from nanoleaf_sync.runtime.color_processing import apply_color_style_mapping, color_pipeline_diagnostics
 from nanoleaf_sync.runtime.readiness_check import run_readiness_check
 from nanoleaf_sync.runtime.compositor import effective_sdr_boost
+from nanoleaf_sync.runtime.diagnostics_exports import (
+    diagnostics_text_lines,
+    export_sampling_overlay,
+    export_zone_report,
+)
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text as _mapping_preview_text
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
@@ -145,6 +150,9 @@ class SettingsDialog:
                 self.sdr_boost_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.sdr_boost_nits_slider.setRange(SDR_BOOST_NITS_MIN, SDR_BOOST_NITS_MAX); self.sdr_boost_nits_slider.setValue(int(getattr(cfg, "sdr_boost_nits", 80.0)))
                 self.sdr_boost_nits_value = QLabel("")
                 self.sdr_white_reference_preset_combo = QComboBox(); self.sdr_white_reference_preset_combo.addItems(["80 nits", "120 nits", "160 nits", "203 nits", "Custom"])
+                self.detect_sdr_white_button = QPushButton("Detect KDE SDR white reference")
+                self.use_detected_sdr_white_button = QPushButton("Use detected value")
+                self.detected_sdr_white_label = QLabel("Detected value: unavailable")
                 preset_value = str(getattr(cfg, "sdr_white_reference_preset", "80")).strip().lower()
                 self.sdr_white_reference_preset_combo.setCurrentIndex({"80": 0, "120": 1, "160": 2, "203": 3, "custom": 4}.get(preset_value, 4))
                 self.motion_preset_combo = QComboBox(); self.motion_preset_combo.addItems(labels(MOTION_PRESET_LABELS)); self.motion_preset_combo.setCurrentIndex(max(0, self.motion_preset_combo.findText(label_for_value(MOTION_PRESET_LABELS, str(getattr(cfg, "motion_preset", "responsive")), default="Responsive"))))
@@ -220,7 +228,11 @@ class SettingsDialog:
                 self.color_accuracy_diagnostic_button = QPushButton("Run colour accuracy diagnostic")
                 self.color_accuracy_diagnostic_label = QLabel("")
                 self.run_self_check_button = QPushButton("Run self-check")
+                self.export_sampling_overlay_button = QPushButton("Export sampling overlay")
+                self.export_zone_report_button = QPushButton("Export per-zone colour report")
                 self.self_check_label = QLabel("")
+                self.sampling_export_label = QLabel("")
+                self.zone_report_label = QLabel("")
                 self.preview_label = self.simple_calibration_widget.preview_text_label; self.preview_visual_label = self.simple_calibration_widget.preview_visual_label; self.test_label = QLabel("")
                 self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.sampling_quality_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel("")
 
@@ -251,10 +263,16 @@ class SettingsDialog:
                 self.edge_locality_diagnostic_button.clicked.connect(self._run_edge_locality_diagnostic)
                 self.color_accuracy_diagnostic_button.clicked.connect(self._run_color_accuracy_diagnostic)
                 self.run_self_check_button.clicked.connect(self._run_self_check)
+                self.export_sampling_overlay_button.clicked.connect(self._export_sampling_overlay)
+                self.export_zone_report_button.clicked.connect(self._export_zone_report)
                 self.use_detected_count_button.clicked.connect(self._use_detected_strip_count)
                 self.keep_configured_count_button.clicked.connect(self._keep_configured_strip_count)
                 self.reset_recalibrate_button.clicked.connect(self._reset_anchors)
                 self.device_model_combo.currentIndexChanged.connect(self._sync_device_model_selection)
+                self.sdr_boost_nits_slider.valueChanged.connect(self._on_sdr_white_slider_changed)
+                self.sdr_white_reference_preset_combo.currentIndexChanged.connect(self._on_sdr_white_preset_changed)
+                self.detect_sdr_white_button.clicked.connect(self._detect_kde_sdr_white_reference)
+                self.use_detected_sdr_white_button.clicked.connect(self._use_detected_sdr_white_reference)
 
                 buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
                 buttons.accepted.connect(self.accept); buttons.rejected.connect(self.reject)
@@ -344,8 +362,12 @@ class SettingsDialog:
                 layout.addWidget(self.color_accuracy_diagnostic_label, 9, 0, 1, 3)
                 layout.addWidget(self.run_self_check_button, 10, 0, 1, 3)
                 layout.addWidget(self.self_check_label, 11, 0, 1, 3)
-                layout.addWidget(self.diagnostics_mapping_label, 12, 0, 1, 3)
-                layout.addWidget(self.hdr_colour_path_label, 13, 0, 1, 3)
+                layout.addWidget(self.export_sampling_overlay_button, 12, 0, 1, 3)
+                layout.addWidget(self.sampling_export_label, 13, 0, 1, 3)
+                layout.addWidget(self.export_zone_report_button, 14, 0, 1, 3)
+                layout.addWidget(self.zone_report_label, 15, 0, 1, 3)
+                layout.addWidget(self.diagnostics_mapping_label, 16, 0, 1, 3)
+                layout.addWidget(self.hdr_colour_path_label, 17, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -371,13 +393,17 @@ class SettingsDialog:
                 advanced_layout.addWidget(self.sdr_boost_nits_slider, 2, 1)
                 advanced_layout.addWidget(self.sdr_boost_nits_value, 2, 2)
                 advanced_layout.addWidget(QLabel("SDR white reference controls how bright SDR/desktop content appears when HDR is enabled."), 3, 0, 1, 3)
-                advanced_layout.addWidget(QLabel("HDR transfer"), 4, 0)
-                advanced_layout.addWidget(self.hdr_transfer_combo, 4, 1, 1, 2)
-                advanced_layout.addWidget(QLabel("HDR primaries"), 5, 0)
-                advanced_layout.addWidget(self.hdr_primaries_combo, 5, 1, 1, 2)
-                advanced_layout.addWidget(QLabel("HDR max brightness"), 6, 0)
-                advanced_layout.addWidget(self.hdr_max_nits_slider, 6, 1)
-                advanced_layout.addWidget(self.hdr_max_nits_value, 6, 2)
+                advanced_layout.addWidget(self.detect_sdr_white_button, 4, 0, 1, 2)
+                advanced_layout.addWidget(self.use_detected_sdr_white_button, 4, 2)
+                advanced_layout.addWidget(self.detected_sdr_white_label, 5, 0, 1, 3)
+                advanced_layout.addWidget(QLabel("KDE guidance: 203 nits is a useful PQ reference. 160/120 can be more comfortable. 80 nits is nominal SDR and may look dim."), 6, 0, 1, 3)
+                advanced_layout.addWidget(QLabel("HDR transfer"), 7, 0)
+                advanced_layout.addWidget(self.hdr_transfer_combo, 7, 1, 1, 2)
+                advanced_layout.addWidget(QLabel("HDR primaries"), 8, 0)
+                advanced_layout.addWidget(self.hdr_primaries_combo, 8, 1, 1, 2)
+                advanced_layout.addWidget(QLabel("HDR max brightness"), 9, 0)
+                advanced_layout.addWidget(self.hdr_max_nits_slider, 9, 1)
+                advanced_layout.addWidget(self.hdr_max_nits_value, 9, 2)
                 hdr_advanced.setLayout(advanced_layout)
                 layout.addWidget(hdr_advanced, 4, 0, 1, 3)
                 layout.addWidget(self.display_configurator_button, 5, 0, 1, 3)
@@ -534,6 +560,7 @@ class SettingsDialog:
                         (
                             f"Mapping preview: {self._state.mapping_preview_visual()}",
                             f"Raw device→source mapping: {self._state.mapping_preview_text()}",
+                            *diagnostics_text_lines(status=preview_status, cfg=pending_cfg),
                         )
                     )
                 )
@@ -561,13 +588,44 @@ class SettingsDialog:
                         (
                             "HDR colour path",
                             f"active transfer/primaries: {hdr_path.get('hdr_transfer', 'unknown')} / {hdr_path.get('hdr_primaries', 'unknown')}",
+                            f"compositor HDR mode: {'yes' if bool(hdr_path.get('compositor_hdr_mode', False)) else 'no'}",
                             f"SDR white reference: {self.sdr_boost_nits_slider.value()} nits ({self.sdr_white_reference_preset_combo.currentText()})",
                             f"effective SDR boost: {float(hdr_path.get('effective_sdr_boost_scalar', 1.0)):.3f}",
                             f"tone mapper: {'yes' if bool(hdr_path.get('tone_mapping_applied', False)) else 'no'}",
+                            f"SDR compensation: {'yes' if bool(hdr_path.get('sdr_compensation_applied', False)) else 'no'}",
                             f"chroma ratio diagnostic: max={max(ratios):.3f}",
                             f"neutral grey verdict: {'pass' if neutral_ok else 'warn'}",
                             f"metadata source: {hdr_path.get('capture_metadata_source', 'unknown')} | assumption: {hdr_path.get('assumption', 'none')}",
+                            f"warnings: {', '.join(hdr_path.get('warnings', [])) or 'none'}",
                         )
+                    )
+                )
+
+            def _export_sampling_overlay(self) -> None:
+                pending_cfg = self.updated_config()
+                frame = self._runtime_status.get("_latest_frame_rgb")
+                zones = self._runtime_status.get("_latest_zones_px") or []
+                side_counts = tuple(int(i) for i in (self._runtime_status.get("_latest_zone_side_counts") or (0, 0, 0, 0)))
+                out = export_sampling_overlay(
+                    frame=frame if isinstance(frame, np.ndarray) else None,
+                    zones=zones,
+                    side_counts=side_counts,
+                    status=self._runtime_status,
+                    cfg=pending_cfg,
+                )
+                self.sampling_export_label.setText(f"Sampling overlay saved: {out}")
+
+            def _export_zone_report(self) -> None:
+                rows = list(self._runtime_status.get("_latest_zone_diagnostics") or [])
+                out = export_zone_report(rows=rows)
+                preview = rows[:6]
+                self.zone_report_label.setText(
+                    "\n".join(
+                        [f"Zone report saved: {out}"]
+                        + [
+                            f"#{r.get('zone_index')} {r.get('side')} rect={r.get('pixel_rect')} sampled={r.get('sampled_rgb')} out={r.get('final_output_rgb')} led={r.get('mapped_physical_led_index')}"
+                            for r in preview
+                        ]
                     )
                 )
 
@@ -583,6 +641,43 @@ class SettingsDialog:
                     return
                 self.device_vid_combo.setCurrentIndex(max(0, self.device_vid_combo.findText(vid_text)))
                 self.device_pid_combo.setCurrentIndex(max(0, self.device_pid_combo.findText(pid_text)))
+
+            def _on_sdr_white_slider_changed(self, *_args) -> None:
+                if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower() != "custom":
+                    self.sdr_white_reference_preset_combo.setCurrentIndex(4)
+                self._refresh_preview_label()
+
+            def _on_sdr_white_preset_changed(self, *_args) -> None:
+                preset_text = str(self.sdr_white_reference_preset_combo.currentText()).strip().lower()
+                if preset_text != "custom":
+                    self._set_slider_value_safely(
+                        self.sdr_boost_nits_slider,
+                        int(preset_text.split(" ", 1)[0]),
+                    )
+                self._refresh_preview_label()
+
+            def _detect_kde_sdr_white_reference(self) -> None:
+                detected = self._runtime_status.get("detected_kde_sdr_white_nits")
+                if detected is None:
+                    detected = 203.0 if bool(self.compositor_hdr_mode_checkbox.isChecked()) else 80.0
+                self._runtime_status["detected_kde_sdr_white_nits"] = float(detected)
+                self.detected_sdr_white_label.setText(
+                    f"Detected value: {float(detected):.0f} nits (not applied)"
+                )
+
+            def _use_detected_sdr_white_reference(self) -> None:
+                detected = self._runtime_status.get("detected_kde_sdr_white_nits")
+                if detected is None:
+                    self.detected_sdr_white_label.setText("Detected value: unavailable")
+                    return
+                self._set_slider_value_safely(
+                    self.sdr_boost_nits_slider,
+                    int(round(float(detected))),
+                )
+                self.detected_sdr_white_label.setText(
+                    f"Detected value applied: {float(detected):.0f} nits"
+                )
+                self._refresh_preview_label()
 
             def _assign_anchor(self, corner: str):
                 current_zone = self._current_calibration_step().device_zone_index

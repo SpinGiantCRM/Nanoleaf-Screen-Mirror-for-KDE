@@ -34,3 +34,10 @@ def test_strip_count_mismatch_warning_text_present() -> None:
     assert "Current anchors were assigned for a different strip length." in text
     assert "Use reported count" in text
     assert "Keep manual count" in text
+
+
+def test_sdr_white_reference_controls_present() -> None:
+    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    assert "Detect KDE SDR white reference" in text
+    assert "Use detected value" in text
+    assert "sdr_boost_nits_slider.valueChanged.connect(self._on_sdr_white_slider_changed)" in text
