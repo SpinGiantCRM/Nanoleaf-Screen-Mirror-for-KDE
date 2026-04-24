@@ -33,3 +33,13 @@ def test_derive_source_zones_threads_edge_sampling_thickness() -> None:
     assert len(zones) == 48
     assert any(zone.w == 0.2 for zone in zones)
     assert any(zone.h == 0.2 for zone in zones)
+
+
+def test_edge_weighted_48_zone_layout_covers_all_perimeter_sides() -> None:
+    cfg = AppConfig(zones=[], zone_preset="edge-weighted", device_zone_count=48)
+    zones = derive_source_zones(config=cfg, detected_device_zone_count=None)
+    assert len(zones) == 48
+    assert all(zone.y == 0.0 for zone in zones[:12])
+    assert all(zone.x > 0.75 for zone in zones[12:24])
+    assert all(zone.y > 0.75 for zone in zones[24:36])
+    assert all(zone.x == 0.0 for zone in zones[36:])

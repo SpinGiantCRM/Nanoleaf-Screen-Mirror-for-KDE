@@ -234,6 +234,12 @@ def test_display_configurator_physical_walk_ignores_offset_and_reverse(monkeypat
     assert dialog._dialog._active_calibration_step().device_zone_index == base_zone
 
 
+def test_display_configurator_preview_uses_48_source_zones_for_48_zone_strip(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=48))
+    assert "source zones: 48 | strip zones: 48" in dialog._dialog.preview_text._text
+
+
 def test_display_configurator_restores_in_progress_draft(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
     raw = json.dumps(

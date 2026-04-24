@@ -165,6 +165,14 @@ def _ensure_runtime_artifacts(
     if state.zone_rects_signature != zone_sig or state.cached_zone_rects is None:
         state.cached_zone_rects = zones_from_config(effective_zones, img_w, img_h)
         state.zone_rects_signature = zone_sig
+        logger.info(
+            "zone-derivation: source_zone_count=%d device_zone_count=%d zone_preset=%s source_mode=%s detected_device_zone_count=%s",
+            len(effective_zones),
+            int(getattr(config, "device_zone_count", 0) or 0),
+            str(getattr(config, "zone_preset", "edge-weighted")),
+            "user-configured" if bool(getattr(config, "zones", [])) else "auto-derived",
+            int(detected_device_zone_count) if detected_device_zone_count is not None else "unknown",
+        )
 
     zones_px = state.cached_zone_rects
     source_zone_count = len(zones_px)

@@ -19,6 +19,7 @@ from nanoleaf_sync.ui.zone_calibration import mapping_preview_text, mapping_prev
 logger = logging.getLogger(__name__)
 
 CORNER_OFFSET_LIMIT = 24
+DEFAULT_DERIVED_ZONE_COUNT = 8
 
 
 @dataclass
@@ -94,6 +95,7 @@ class CalibrationState:
     corner_anchor_bottom_right: int = -1
     corner_anchor_bottom_left: int = -1
     detected_device_zone_count: int = 0
+    source_zones_user_configured: bool = False
 
     # Retained as inert/compatibility-only fields for old callers.
     explicit_zone_map: list[int] = field(default_factory=list)
@@ -108,6 +110,7 @@ class CalibrationState:
         runtime_status = runtime_status or {}
         calibration = cfg.effective_calibration()
         source_zone_count = len(cfg.zones) if cfg.zones else 0
+        source_zones_user_configured = bool(cfg.zones)
         configured_device_zone_count = int(getattr(calibration, "device_zone_count", 0))
         if configured_device_zone_count <= 0:
             configured_device_zone_count = int(getattr(cfg, "device_zone_count", 0))
@@ -115,9 +118,12 @@ class CalibrationState:
         if configured_device_zone_count <= 0 and detected > 0:
             configured_device_zone_count = detected
         if source_zone_count <= 0:
-            source_zone_count = configured_device_zone_count
-        if source_zone_count <= 0:
-            source_zone_count = 8
+            if configured_device_zone_count > 0:
+                source_zone_count = configured_device_zone_count
+            elif detected > 0:
+                source_zone_count = detected
+            else:
+                source_zone_count = DEFAULT_DERIVED_ZONE_COUNT
         if configured_device_zone_count <= 0:
             configured_device_zone_count = max(1, int(source_zone_count))
 
@@ -131,6 +137,7 @@ class CalibrationState:
             corner_anchor_bottom_right=int(getattr(calibration, "corner_anchor_bottom_right", -1)),
             corner_anchor_bottom_left=int(getattr(calibration, "corner_anchor_bottom_left", -1)),
             detected_device_zone_count=detected if detected > 0 else 0,
+            source_zones_user_configured=source_zones_user_configured,
             explicit_zone_map=[int(i) for i in (getattr(calibration, "explicit_zone_map", []) or [])],
             manual_mapping_enabled=bool(getattr(calibration, "manual_mapping_enabled", False)),
             calibration_model="corner_anchored",
@@ -197,8 +204,10 @@ class CalibrationState:
 
     def mapping_preview_text(self) -> str:
         snapshot = self.resolved_mapping_snapshot()
+        source_mode = "user-configured" if self.source_zones_user_configured else "auto-derived"
         return (
             f"{self.auto_detection_status()}\n"
+            f"Zone preset: {self.zone_preset} | source zones: {self.zone_count} | strip zones: {self.effective_device_zone_count()} | source mode: {source_mode}\n"
             f"Anchors TL/TR/BR/BL: {self.corner_anchor_top_left}/{self.corner_anchor_top_right}/{self.corner_anchor_bottom_right}/{self.corner_anchor_bottom_left}\n"
             "Simple corner calibration preview\n"
             f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), zone_offset=0, reverse_zones=self.reverse_zones, explicit_zone_map=None, corner_zone_offsets=None, corner_anchor_top_left=self.corner_anchor_top_left, corner_anchor_top_right=self.corner_anchor_top_right, corner_anchor_bottom_right=self.corner_anchor_bottom_right, corner_anchor_bottom_left=self.corner_anchor_bottom_left, calibration_model='corner_anchored', resolved_mapping=snapshot)}"
