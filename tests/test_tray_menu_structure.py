@@ -25,3 +25,8 @@ def test_tray_tooltip_includes_backend_resolution_and_state_label() -> None:
     assert "Selected backend:" in text
     assert "Effective backend:" in text
     assert "About / Status (" in text
+
+
+def test_tray_status_label_includes_app_version() -> None:
+    text = Path("src/nanoleaf_sync/ui/tray_app.py").read_text(encoding="utf-8")
+    assert "· v{self._app_version}" in text
