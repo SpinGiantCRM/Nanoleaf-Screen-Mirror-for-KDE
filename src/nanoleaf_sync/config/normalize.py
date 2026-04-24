@@ -174,6 +174,11 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         auto_probe_timestamp=str(getattr(cfg, "auto_probe_timestamp", "") or "").strip(),
         hdr_max_nits=max(80.0, min(10000.0, float(cfg.hdr_max_nits))),
         compositor_hdr_mode=coerce_bool(getattr(cfg, "compositor_hdr_mode", False), False),
+        sdr_white_reference_preset=normalize_enum(
+            getattr(cfg, "sdr_white_reference_preset", "80"),
+            allowed={"80": "80", "120": "120", "160": "160", "203": "203", "custom": "custom"},
+            default="80",
+        ),
         sdr_boost_nits=max(80.0, min(1000.0, float(getattr(cfg, "sdr_boost_nits", 80.0)))),
         hdr_transfer=normalize_enum(cfg.hdr_transfer, allowed={"srgb": "srgb", "pq": "pq", "st2084": "pq"}, default=AppConfig.hdr_transfer),
         hdr_primaries=normalize_enum(cfg.hdr_primaries, allowed={"bt709": "bt709", "srgb": "bt709", "bt2020": "bt2020"}, default=AppConfig.hdr_primaries),

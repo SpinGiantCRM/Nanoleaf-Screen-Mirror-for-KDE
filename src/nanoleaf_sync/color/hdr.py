@@ -80,6 +80,15 @@ class HDRMetadata:
         return HDRMetadata()
 
 
+def _normalize_metadata_source(value: Any) -> str:
+    normalized = str(value or "").strip().lower()
+    if normalized in {"backend", "backend metadata", "backend-metadata"}:
+        return "backend metadata"
+    if normalized in {"user", "user preset", "preset"}:
+        return "user preset"
+    return "unknown"
+
+
 def _to_float01(rgb: np.ndarray) -> np.ndarray:
     if rgb.dtype == np.uint8:
         return rgb.astype(np.float32, copy=False) / 255.0
@@ -160,6 +169,47 @@ def _apply_tonemap_hable(linear: np.ndarray, max_nits: float) -> np.ndarray:
     return np.clip(_hable_curve(x) * white_scale, 0.0, 1.0)
 
 
+def _looks_sdr_encoded(enc: np.ndarray, *, transfer: str) -> bool:
+    p99 = float(np.percentile(enc, 99.5))
+    if transfer == "pq":
+        return p99 < 0.58
+    if transfer == "hlg":
+        return p99 < 0.70
+    return True
+
+
+def analyze_hdr_path(rgb: np.ndarray, metadata: Optional[Any] = None) -> dict[str, object]:
+    meta = HDRMetadata.from_any(metadata)
+    source = "unknown"
+    if isinstance(metadata, dict):
+        source = _normalize_metadata_source(metadata.get("source", "unknown"))
+    assumed_transfer = meta.transfer
+    assumed_primaries = meta.primaries
+    assumption_note = ""
+    if meta.transfer not in {"srgb", "pq", "hlg", "linear"}:
+        assumed_transfer = "srgb"
+        assumption_note = "unknown transfer; assuming sRGB"
+    if meta.primaries not in {"bt709", "bt2020"}:
+        assumed_primaries = "bt709"
+        assumption_note = (assumption_note + "; " if assumption_note else "") + "unknown primaries; assuming BT.709"
+
+    enc = _to_float01(rgb)
+    tone_map_planned = assumed_transfer in {"pq", "hlg"}
+    if tone_map_planned and _looks_sdr_encoded(enc, transfer=assumed_transfer):
+        tone_map_planned = False
+        assumption_note = (assumption_note + "; " if assumption_note else "") + "input appears SDR-like; skipping extra HDR tone mapping"
+    if assumed_transfer in {"srgb", "linear"}:
+        tone_map_planned = False
+
+    return {
+        "input_transfer": assumed_transfer,
+        "input_primaries": assumed_primaries,
+        "metadata_source": source,
+        "tone_mapping_applied": bool(tone_map_planned),
+        "assumption": assumption_note or "none",
+    }
+
+
 def _linear_bt709_to_linear_srgb(linear_rgb: np.ndarray) -> np.ndarray:
     # BT.709 primaries -> linear sRGB (D65)
     return _LINEAR_BT709_TO_SRGB @ linear_rgb.reshape(-1, 3).T
@@ -208,24 +258,28 @@ def convert_frame_to_srgb8(
 
     enc = _to_float01(rgb)
 
+    path = analyze_hdr_path(rgb, metadata=metadata)
+
     # Step 1: EOTF (encoded -> linear light)
-    if meta.transfer == "srgb":
+    transfer = str(path["input_transfer"])
+    if transfer == "srgb":
         linear = _srgb_eotf_to_linear(enc)
-    elif meta.transfer == "pq":
+    elif transfer == "pq":
         linear = _pq_eotf_to_linear(enc)
-    elif meta.transfer == "hlg":
+    elif transfer == "hlg":
         linear = _hlg_eotf_to_linear(enc)
-    elif meta.transfer == "linear":
+    elif transfer == "linear":
         linear = enc
     else:
         # Unknown: assume sRGB to preserve decent behavior.
         linear = _srgb_eotf_to_linear(enc)
 
     # Step 2: Gamut / primaries conversion (linear primaries -> linear sRGB)
-    if meta.primaries == "bt709":
+    primaries = str(path["input_primaries"])
+    if primaries == "bt709":
         # returns a 3xN matrix; then reshape
         linear_srgb_T = _linear_bt709_to_linear_srgb(linear)
-    elif meta.primaries == "bt2020":
+    elif primaries == "bt2020":
         linear_srgb_T = _linear_bt2020_to_linear_srgb(linear)
     else:
         # Unknown primaries: assume already sRGB
@@ -236,7 +290,10 @@ def convert_frame_to_srgb8(
 
     # Step 3: Tone-map into SDR-ish range, then sRGB encode.
     # (Nanoleaf HID expects 8-bit sRGB-like payloads.)
-    ldr = _apply_tonemap_hable(linear_srgb, max_nits=meta.max_nits)
+    if bool(path["tone_mapping_applied"]):
+        ldr = _apply_tonemap_hable(linear_srgb, max_nits=meta.max_nits)
+    else:
+        ldr = np.clip(linear_srgb, 0.0, 1.0)
     srgb = _linear_to_srgb_encoded(ldr)
 
     srgb_u8 = np.clip(np.rint(srgb * 255.0), 0, 255).astype(np.uint8)
