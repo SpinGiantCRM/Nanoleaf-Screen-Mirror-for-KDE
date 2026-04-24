@@ -190,7 +190,17 @@ class NanoleafSyncService:
         with self._status_lock:
             device_discovered = self._device_discovered
             device_model = self._device_model
-            device_zone_count = self._device_zone_count
+            detected_device_zone_count = self._device_zone_count
+        configured_device_zone_count = int(getattr(self.config, "device_zone_count", 0) or 0)
+        calibration_device_zone_count = int(
+            getattr(getattr(self.config, "calibration", None), "device_zone_count", 0) or 0
+        )
+        if configured_device_zone_count > 0:
+            effective_runtime_zone_count = configured_device_zone_count
+        elif int(detected_device_zone_count or 0) > 0:
+            effective_runtime_zone_count = int(detected_device_zone_count)
+        else:
+            effective_runtime_zone_count = None
         capture_backend_name = (
             getattr(self._capture, "name", None) if self._capture is not None else None
         )
@@ -233,7 +243,12 @@ class NanoleafSyncService:
         status["device_mode"] = "real-usb"
         status["device_discovered"] = device_discovered
         status["device_model"] = device_model
-        status["device_zone_count"] = device_zone_count
+        # Backward-compatible alias retained for existing UI/tests.
+        status["device_zone_count"] = detected_device_zone_count
+        status["detected_device_zone_count"] = detected_device_zone_count
+        status["configured_device_zone_count"] = configured_device_zone_count
+        status["effective_runtime_zone_count"] = effective_runtime_zone_count
+        status["calibration_device_zone_count"] = calibration_device_zone_count
         return status
 
     def _make_device_driver(self) -> DeviceDriver:

@@ -78,6 +78,7 @@ def test_smoke_test_forwards_auto_probe_kwargs(monkeypatch, capsys) -> None:
     assert captured_kwargs["auto_probe_enabled"] is False
     assert captured_kwargs["cached_probe_winner"] == "xdg-portal"
     assert "selection_reason=fresh-probe" in out
+    assert "zone-count diagnostics:" in out
 
 
 def test_smoke_test_prints_kwin_auth_context_for_shell_launch(monkeypatch, capsys) -> None:

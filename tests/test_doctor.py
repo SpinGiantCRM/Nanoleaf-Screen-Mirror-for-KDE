@@ -213,3 +213,25 @@ def test_device_probe_open_failure_returns_targeted_action(monkeypatch) -> None:
     assert check.status == "fail"
     assert "inspect hid-device per-path details" in check.action
     assert "open_path(...)" in check.action
+
+
+def test_device_probe_reports_zone_count_diagnostics(monkeypatch) -> None:
+    class _Driver:
+        def __init__(self, **_kwargs) -> None:
+            self.model_number = "NL82K2"
+            self.zone_count = 48
+            self.reported_zone_count = 48
+
+        def initialize(self) -> None:
+            return None
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(doctor, "NanoleafUSBDriver", _Driver)
+    cfg = AppConfig(device_vid=0x37FA, device_pid=0x8202, device_zone_count=0)
+    cfg.calibration.device_zone_count = 0
+    check = doctor._check_real_device_probe(cfg)
+    assert check.status == "pass"
+    assert "detected=48" in check.message
+    assert "effective_runtime=48" in check.message

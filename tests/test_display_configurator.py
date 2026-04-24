@@ -230,6 +230,41 @@ def test_display_configurator_restores_in_progress_draft(monkeypatch) -> None:
     assert "phase_validation_state" not in stored
 
 
+def test_display_configurator_prefers_detected_zone_count_over_legacy_default_on_first_run(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    cfg = AppConfig(
+        zones=[],
+        wizard_completed=False,
+        device_zone_count=8,
+    )
+    cfg.calibration.device_zone_count = 8
+    dialog = DisplayConfiguratorDialog(
+        parent=None,
+        cfg=cfg,
+        runtime_status={"device_zone_count": 48},
+    )
+
+    updated = dialog.updated_config()
+    assert updated.device_zone_count == 48
+    assert updated.calibration.device_zone_count == 48
+
+
+def test_display_configurator_finishes_using_wizard_in_progress_zone_count(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
+    cfg = AppConfig(
+        zones=[],
+        wizard_completed=False,
+        device_zone_count=8,
+        wizard_in_progress_state=json.dumps({"flow_index": 2, "device_zone_count": 48}),
+    )
+    cfg.calibration.device_zone_count = 8
+    dialog = DisplayConfiguratorDialog(parent=None, cfg=cfg)
+
+    updated = dialog.updated_config()
+    assert updated.device_zone_count == 48
+    assert updated.calibration.device_zone_count == 48
+
+
 def test_display_configurator_finish_is_blocked_until_corner_anchors_are_valid(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
     dialog = DisplayConfiguratorDialog(parent=None, cfg=AppConfig(zones=[], device_zone_count=8))

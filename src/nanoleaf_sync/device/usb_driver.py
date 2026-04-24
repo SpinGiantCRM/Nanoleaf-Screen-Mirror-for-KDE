@@ -143,7 +143,12 @@ class NanoleafUSBDriver(DeviceDriver):
         if len(normalized) < self.zone_count:
             normalized.extend([(0, 0, 0)] * (self.zone_count - len(normalized)))
         elif len(normalized) > self.zone_count:
-            normalized = normalized[: self.zone_count]
+            raise RuntimeError(
+                "Refusing to silently truncate zone colors: "
+                f"frame_colors={len(normalized)} exceeds effective_zone_count={self.zone_count} "
+                f"(reported_zone_count={self.reported_zone_count}, configured_zone_count={self._configured_zone_count}). "
+                "Update device_zone_count calibration/config so runtime mapping matches the physical strip."
+            )
 
         index_by_channel = {"r": 0, "g": 1, "b": 2}
         payload = bytes(

@@ -65,6 +65,18 @@ def test_service_status_retains_configured_strip_zone_count_without_auto_mode() 
     assert svc.config.device_zone_count == 24
 
 
+def test_service_status_reports_detected_configured_and_effective_zone_counts() -> None:
+    cfg = AppConfig(device_zone_count=24)
+    cfg.calibration.device_zone_count = 24
+    svc = NanoleafSyncService(config=cfg)
+    svc._device_zone_count = 48
+    status = svc.get_status()
+    assert status["detected_device_zone_count"] == 48
+    assert status["configured_device_zone_count"] == 24
+    assert status["effective_runtime_zone_count"] == 24
+    assert status["calibration_device_zone_count"] == 24
+
+
 def test_service_startup_failure_sets_error_and_not_running() -> None:
     svc = NanoleafSyncService(
         config=_make_cfg(),
@@ -172,3 +184,5 @@ def test_clear_backends_resets_cached_device_metadata() -> None:
     assert status["device_discovered"] is False
     assert status["device_model"] is None
     assert status["device_zone_count"] is None
+    assert status["detected_device_zone_count"] is None
+    assert status["effective_runtime_zone_count"] is None
