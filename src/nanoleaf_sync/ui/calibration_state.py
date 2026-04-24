@@ -18,19 +18,7 @@ from nanoleaf_sync.ui.zone_calibration import mapping_preview_text, mapping_prev
 
 logger = logging.getLogger(__name__)
 
-TEST_MODES: tuple[str, ...] = (
-    "coverage sanity",
-    "start-point identification",
-    "direction walk",
-    "corner+offset alignment",
-    "fine offset",
-)
 CORNER_OFFSET_LIMIT = 24
-MIN_CALIBRATION_VALIDATION_CONFIDENCE = 1.0
-ZONE_COUNT_DIRECTLY_AFFECTED_PHASES: tuple[str, ...] = (
-    "direction-verification",
-    "corner-assignment",
-)
 
 
 @dataclass
@@ -68,7 +56,7 @@ class LatencyProbeResult:
 
 @dataclass
 class CalibrationStepProgress:
-    """Compatibility shim for legacy phase-oriented callers."""
+    """Compatibility shim for legacy step-state callers."""
 
     step_id: str
     complete: bool = False
@@ -78,7 +66,7 @@ class CalibrationStepProgress:
 
 @dataclass
 class CalibrationPhaseValidation:
-    """Compatibility shim for legacy phase-oriented callers."""
+    """Compatibility shim for legacy validation-state callers."""
 
     valid: bool = False
     details: str = ""
@@ -137,7 +125,7 @@ class CalibrationState:
     corner_anchor_bottom_left: int = -1
     detected_device_zone_count: int = 0
 
-    # Thin compatibility shims (legacy multi-phase flow callers still reference these)
+    # Thin compatibility shims kept for transitional resume/runtime compatibility.
     calibration_step_progress: dict[str, CalibrationStepProgress] = field(default_factory=dict)
     current_phase: str = "corner-assignment"
     phase_completion_flags: dict[str, bool] = field(default_factory=dict)
