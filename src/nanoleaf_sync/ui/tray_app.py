@@ -25,7 +25,9 @@ from nanoleaf_sync.desktop_entry import (
 )
 from nanoleaf_sync.service import NanoleafSyncService
 from nanoleaf_sync.tools.output_format import describe_mode, summarize_command_output
-from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog
+from dataclasses import replace
+
+from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog, _should_prefer_detected_zone_count
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.settings_dialog import SettingsDialog
 
@@ -240,10 +242,28 @@ class NanoleafTrayApp:
         return driver
 
     def _send_calibration_preview(self, colors: list[tuple[int, int, int]]) -> None:
+        diagnostics = self._build_calibration_preview_diagnostics(frame_color_count=len(colors))
+        try:
+            self._reconcile_calibration_preview_zone_config(diagnostics=diagnostics)
+        except RuntimeError as exc:
+            message = f"Calibration test pattern failed: {exc}"
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                message,
+                self.QSystemTrayIcon.MessageIcon.Warning,
+                5000,
+            )
+            _log.warning(message)
+            return
         max_attempts = 2
         for attempt in range(1, max_attempts + 1):
             try:
                 driver = self._acquire_preview_driver()
+                diagnostics = self._build_calibration_preview_diagnostics(
+                    frame_color_count=len(colors),
+                    driver=driver,
+                )
+                _log.info("Calibration preview diagnostics: %s", diagnostics)
                 driver.send_frame(colors)
                 return
             except Exception as exc:
@@ -259,10 +279,70 @@ class NanoleafTrayApp:
                     continue
                 self.tray_icon.showMessage(
                     "nanoleaf-kde-sync",
-                    f"Calibration test pattern failed: {exc}",
+                    f"Calibration test pattern failed: {exc} | diagnostics={diagnostics}",
                     self.QSystemTrayIcon.MessageIcon.Warning,
                     5000,
                 )
+
+    def _build_calibration_preview_diagnostics(self, *, frame_color_count: int, driver=None) -> dict[str, int]:
+        status = self.service.get_status()
+        detected_zone_count = int(
+            status.get("detected_device_zone_count")
+            or status.get("device_zone_count")
+            or 0
+        )
+        top_level_zone_count = int(getattr(self.config, "device_zone_count", 0) or 0)
+        nested_zone_count = int(getattr(getattr(self.config, "calibration", None), "device_zone_count", 0) or 0)
+        driver_instance = driver if driver is not None else getattr(self, "_preview_driver", None)
+        driver_configured = int(getattr(driver_instance, "_configured_zone_count", 0) or 0)
+        driver_effective = int(getattr(driver_instance, "zone_count", 0) or 0)
+        return {
+            "detected_device_zone_count": detected_zone_count,
+            "config_device_zone_count": top_level_zone_count,
+            "config_calibration_device_zone_count": nested_zone_count,
+            "ui_calibration_state_device_zone_count": int(frame_color_count or 0),
+            "driver_configured_zone_count": driver_configured,
+            "driver_effective_zone_count": driver_effective,
+            "frame_color_count": int(frame_color_count or 0),
+        }
+
+    def _reconcile_calibration_preview_zone_config(self, *, diagnostics: dict[str, int]) -> None:
+        detected = int(diagnostics.get("detected_device_zone_count", 0) or 0)
+        configured = int(diagnostics.get("config_device_zone_count", 0) or 0)
+        nested = int(diagnostics.get("config_calibration_device_zone_count", 0) or 0)
+        frame_count = int(diagnostics.get("frame_color_count", 0) or 0)
+        preferred_detected = _should_prefer_detected_zone_count(cfg=self.config, detected_device_zone_count=detected)
+        should_promote_to_frame = (
+            frame_count > 0
+            and frame_count != configured
+            and (
+                frame_count == detected
+                or configured <= 0
+                or (configured == 8 and nested in {0, 8} and frame_count > configured)
+            )
+        )
+        target = frame_count if should_promote_to_frame else (detected if preferred_detected else configured)
+        if target <= 0 and frame_count > 0:
+            target = frame_count
+
+        if target > 0 and (configured != target or nested != target):
+            calibration = replace(self.config.calibration, device_zone_count=target)
+            updated = replace(self.config, device_zone_count=target, calibration=calibration)
+            self.config = updated
+            self.service.config = updated
+            try:
+                self.cfg_mgr.save(updated)
+            except Exception as exc:
+                _log.warning("Failed to persist reconciled calibration zone counts: %s", exc, exc_info=True)
+            if getattr(self, "_preview_driver", None) is not None:
+                self._close_preview_driver(resume_service=False)
+
+        if frame_count > 0 and target > 0 and frame_count > target:
+            raise RuntimeError(
+                "Config sync error before driver send: "
+                f"frame_colors={frame_count} but synced_device_zone_count={target}. "
+                f"diagnostics={diagnostics}"
+            )
 
     def _make_preview_driver(self):
         return self.service._make_device_driver()

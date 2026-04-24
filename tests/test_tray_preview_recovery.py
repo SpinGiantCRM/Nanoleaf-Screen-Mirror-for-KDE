@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.tray_app import NanoleafTrayApp
 
 
@@ -14,10 +15,15 @@ class _FailingPreviewDriver:
 
 
 class _FakeService:
-    def __init__(self) -> None:
+    def __init__(self, config: AppConfig | None = None, *, detected_zone_count: int = 48) -> None:
         self._running = True
         self.start_calls = 0
         self.stop_calls = 0
+        self.config = config or AppConfig(device_zone_count=8)
+        self._status = {
+            "device_zone_count": detected_zone_count,
+            "detected_device_zone_count": detected_zone_count,
+        }
 
     def is_running(self) -> bool:
         return self._running
@@ -30,19 +36,53 @@ class _FakeService:
         self.stop_calls += 1
         self._running = False
 
+    def get_status(self) -> dict[str, int]:
+        return dict(self._status)
 
-def test_send_calibration_preview_recovers_service_when_preview_driver_acquire_fails() -> None:
-    service = _FakeService()
-    messages: list[str] = []
-    fake_tray = SimpleNamespace(
+
+class _FakeCfgMgr:
+    def __init__(self) -> None:
+        self.saved: AppConfig | None = None
+
+    def save(self, config: AppConfig) -> None:
+        self.saved = config
+
+
+def _fake_tray(service: _FakeService, *, messages: list[str], make_driver):
+    cfg_mgr = _FakeCfgMgr()
+    cfg = service.config
+    cfg.calibration.device_zone_count = int(getattr(cfg, "calibration", None).device_zone_count or cfg.device_zone_count)
+    tray = SimpleNamespace(
         service=service,
+        config=cfg,
+        cfg_mgr=cfg_mgr,
         _preview_driver=None,
         _preview_paused_service=False,
-        _make_preview_driver=lambda: _FailingPreviewDriver(),
+        _make_preview_driver=make_driver,
         on_stop=lambda: service.stop(),
         tray_icon=SimpleNamespace(showMessage=lambda _title, message, _icon, _ms: messages.append(message)),
         QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Warning=1)),
     )
+    tray._build_calibration_preview_diagnostics = lambda *, frame_color_count, driver=None: (
+        NanoleafTrayApp._build_calibration_preview_diagnostics(
+            tray,
+            frame_color_count=frame_color_count,
+            driver=driver,
+        )
+    )
+    tray._reconcile_calibration_preview_zone_config = lambda *, diagnostics: (
+        NanoleafTrayApp._reconcile_calibration_preview_zone_config(
+            tray,
+            diagnostics=diagnostics,
+        )
+    )
+    return tray
+
+
+def test_send_calibration_preview_recovers_service_when_preview_driver_acquire_fails() -> None:
+    service = _FakeService()
+    messages: list[str] = []
+    fake_tray = _fake_tray(service, messages=messages, make_driver=lambda: _FailingPreviewDriver())
     fake_tray._acquire_preview_driver = lambda: NanoleafTrayApp._acquire_preview_driver(fake_tray)
     fake_tray._close_preview_driver = lambda *, resume_service=True: NanoleafTrayApp._close_preview_driver(
         fake_tray,
@@ -81,15 +121,7 @@ def test_send_calibration_preview_retries_once_before_notifying_failure() -> Non
         attempts["count"] += 1
         return _FlakyPreviewDriver(should_fail=attempts["count"] == 1)
 
-    fake_tray = SimpleNamespace(
-        service=service,
-        _preview_driver=None,
-        _preview_paused_service=False,
-        _make_preview_driver=make_driver,
-        on_stop=lambda: service.stop(),
-        tray_icon=SimpleNamespace(showMessage=lambda _title, message, _icon, _ms: messages.append(message)),
-        QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Warning=1)),
-    )
+    fake_tray = _fake_tray(service, messages=messages, make_driver=make_driver)
     fake_tray._acquire_preview_driver = lambda: NanoleafTrayApp._acquire_preview_driver(fake_tray)
     fake_tray._close_preview_driver = lambda *, resume_service=True: NanoleafTrayApp._close_preview_driver(
         fake_tray,
@@ -106,15 +138,7 @@ def test_send_calibration_preview_notifies_after_retry_exhausted() -> None:
     service = _FakeService()
     messages: list[str] = []
 
-    fake_tray = SimpleNamespace(
-        service=service,
-        _preview_driver=None,
-        _preview_paused_service=False,
-        _make_preview_driver=lambda: _FlakyPreviewDriver(should_fail=True),
-        on_stop=lambda: service.stop(),
-        tray_icon=SimpleNamespace(showMessage=lambda _title, message, _icon, _ms: messages.append(message)),
-        QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Warning=1)),
-    )
+    fake_tray = _fake_tray(service, messages=messages, make_driver=lambda: _FlakyPreviewDriver(should_fail=True))
     fake_tray._acquire_preview_driver = lambda: NanoleafTrayApp._acquire_preview_driver(fake_tray)
     fake_tray._close_preview_driver = lambda *, resume_service=True: NanoleafTrayApp._close_preview_driver(
         fake_tray,
@@ -124,3 +148,27 @@ def test_send_calibration_preview_notifies_after_retry_exhausted() -> None:
     NanoleafTrayApp._send_calibration_preview(fake_tray, [(255, 0, 0)])
 
     assert any("Calibration test pattern failed: read error" in message for message in messages)
+
+
+def test_send_calibration_preview_reconciles_stale_zone_count_before_driver_send() -> None:
+    cfg = AppConfig(device_zone_count=8)
+    cfg.calibration.device_zone_count = 8
+    service = _FakeService(config=cfg, detected_zone_count=48)
+    messages: list[str] = []
+
+    fake_tray = _fake_tray(service, messages=messages, make_driver=lambda: _FlakyPreviewDriver(should_fail=False))
+    fake_tray._acquire_preview_driver = lambda: NanoleafTrayApp._acquire_preview_driver(fake_tray)
+    fake_tray._close_preview_driver = lambda *, resume_service=True: NanoleafTrayApp._close_preview_driver(
+        fake_tray,
+        resume_service=resume_service,
+    )
+
+    NanoleafTrayApp._send_calibration_preview(fake_tray, [(255, 0, 0)] * 48)
+
+    assert fake_tray.config.device_zone_count == 48
+    assert fake_tray.config.calibration.device_zone_count == 48
+    assert service.config.device_zone_count == 48
+    assert service.config.calibration.device_zone_count == 48
+    assert fake_tray.cfg_mgr.saved is not None
+    assert fake_tray.cfg_mgr.saved.device_zone_count == 48
+    assert messages == []
