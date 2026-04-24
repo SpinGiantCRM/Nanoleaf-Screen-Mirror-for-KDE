@@ -4,46 +4,20 @@ from dataclasses import dataclass
 from typing import List
 
 from nanoleaf_sync.config.model import ZoneConfig
+from nanoleaf_sync.config.presets import edge_locality_profile
 
 
 def make_horizontal_zones(zone_count: int) -> List[ZoneConfig]:
-    """
-    Build zone rectangles spanning the screen horizontally.
-
-    All zones cover full height and are equal-width segments.
-    """
-
     count = max(1, int(zone_count))
-    zones: List[ZoneConfig] = []
-    for i in range(count):
-        zones.append(
-            ZoneConfig(
-                x=i / count,
-                y=0.0,
-                w=1.0 / count,
-                h=1.0,
-            )
-        )
-    return zones
+    return [ZoneConfig(x=i / count, y=0.0, w=1.0 / count, h=1.0) for i in range(count)]
 
 
-def _adaptive_edge_thickness(zone_count: int, edge_sampling_thickness: float | None = None) -> float:
-    """
-    Compute inward edge-capture thickness for edge-weighted zones.
-
-    The thickness stays intentionally thin at low zone counts (to avoid center-heavy
-    sampling) and scales up for higher counts. `edge_sampling_thickness` controls the
-    high-count target thickness.
-    """
-
+def _adaptive_edge_thickness(zone_count: int, *, edge_locality: str = "balanced") -> float:
     count = max(1, int(zone_count))
     low_count_thickness = 0.05
-    high_count_target = 0.065 if edge_sampling_thickness is None else float(edge_sampling_thickness)
-    high_count_target = min(0.25, max(0.04, high_count_target))
-
-    # Keep low counts thin; gradually increase towards configured target by 48 zones.
+    target = edge_locality_profile(edge_locality).edge_thickness_target
     normalized = min(1.0, max(0.0, (count - 8) / 40.0))
-    return low_count_thickness + (high_count_target - low_count_thickness) * normalized
+    return low_count_thickness + (target - low_count_thickness) * normalized
 
 
 def edge_side_counts(*, zone_count: int, width: int | None = None, height: int | None = None) -> tuple[int, int, int, int]:
@@ -56,7 +30,7 @@ def edge_side_counts(*, zone_count: int, width: int | None = None, height: int |
 
     w = max(1.0, float(width or 16))
     h = max(1.0, float(height or 9))
-    side_lengths = [w, h, w, h]  # top, right, bottom, left
+    side_lengths = [w, h, w, h]
     perimeter = sum(side_lengths)
     raw = [count * (length / perimeter) for length in side_lengths]
     assigned = [max(1, int(value)) for value in raw]
@@ -84,55 +58,23 @@ class EdgeZoneLayout:
     edge_thickness: float
     order_mode: str
 
-    @property
-    def boundaries(self) -> tuple[int, int, int, int, int]:
-        top, right, bottom, left = self.side_counts
-        return (0, top, top + right, top + right + bottom, top + right + bottom + left)
 
 
-def edge_weighted_layout(
-    *,
-    zone_count: int,
-    width: int | None = None,
-    height: int | None = None,
-    edge_sampling_thickness: float | None = None,
-) -> EdgeZoneLayout:
+def edge_weighted_layout(*, zone_count: int, width: int | None = None, height: int | None = None, edge_locality: str = "balanced") -> EdgeZoneLayout:
     count = max(1, int(zone_count))
     return EdgeZoneLayout(
         side_counts=edge_side_counts(zone_count=count, width=width, height=height),
-        edge_thickness=_adaptive_edge_thickness(count, edge_sampling_thickness),
+        edge_thickness=_adaptive_edge_thickness(count, edge_locality=edge_locality),
         order_mode="continuous_perimeter",
     )
 
 
-def make_edge_weighted_zones(
-    zone_count: int,
-    edge_sampling_thickness: float | None = None,
-    *,
-    width: int | None = None,
-    height: int | None = None,
-) -> List[ZoneConfig]:
-    """
-    Build edge-biased zones prioritizing top/left/right/bottom edges.
-
-    Layout:
-    - top edge strip (first quarter)
-    - right edge strip (second quarter)
-    - bottom edge strip (third quarter)
-    - left edge strip (fourth quarter)
-    """
+def make_edge_weighted_zones(zone_count: int, *, width: int | None = None, height: int | None = None, edge_locality: str = "balanced") -> List[ZoneConfig]:
     count = max(1, int(zone_count))
-
-    layout = edge_weighted_layout(
-        zone_count=count,
-        width=width,
-        height=height,
-        edge_sampling_thickness=edge_sampling_thickness,
-    )
-    zones: List[ZoneConfig] = []
+    layout = edge_weighted_layout(zone_count=count, width=width, height=height, edge_locality=edge_locality)
     top_n, right_n, bottom_n, left_n = layout.side_counts
     edge_thickness = layout.edge_thickness
-
+    zones: List[ZoneConfig] = []
     for i in range(top_n):
         zones.append(ZoneConfig(x=i / top_n, y=0.0, w=1.0 / top_n, h=edge_thickness))
     for i in range(right_n):

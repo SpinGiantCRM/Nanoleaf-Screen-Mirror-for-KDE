@@ -5,6 +5,7 @@ from typing import List, Sequence, Tuple
 
 import numpy as np
 from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
+from nanoleaf_sync.config.presets import edge_locality_profile
 
 
 RGBTuple = Tuple[int, int, int]
@@ -140,6 +141,7 @@ def _edge_localized_weights(
     zone_y1: int,
     frame_w: int,
     frame_h: int,
+    edge_locality: str,
 ) -> np.ndarray | None:
     zone_w = max(0, int(zone_x1 - zone_x0))
     zone_h = max(0, int(zone_y1 - zone_y0))
@@ -159,23 +161,24 @@ def _edge_localized_weights(
     if not (touches_top or touches_bottom or touches_left or touches_right):
         return None
 
+    profile = edge_locality_profile(edge_locality)
     yy, xx = np.indices((zone_h, zone_w), dtype=np.float32)
     if touches_top or touches_bottom:
         u = (xx + 0.5) / max(1.0, float(zone_w))
-        segment_center = np.exp(-0.5 * ((u - 0.5) / 0.24) ** 2)
+        segment_center = np.exp(-0.5 * ((u - 0.5) / profile.center_sigma) ** 2)
         if touches_top:
             edge_distance = (yy + 0.5) / max(1.0, float(zone_h))
         else:
             edge_distance = (float(zone_h) - (yy + 0.5)) / max(1.0, float(zone_h))
-        edge_bias = np.exp(-5.5 * np.clip(edge_distance, 0.0, 1.0))
+        edge_bias = np.exp(-profile.edge_bias * np.clip(edge_distance, 0.0, 1.0))
     else:
         u = (yy + 0.5) / max(1.0, float(zone_h))
-        segment_center = np.exp(-0.5 * ((u - 0.5) / 0.24) ** 2)
+        segment_center = np.exp(-0.5 * ((u - 0.5) / profile.center_sigma) ** 2)
         if touches_left:
             edge_distance = (xx + 0.5) / max(1.0, float(zone_w))
         else:
             edge_distance = (float(zone_w) - (xx + 0.5)) / max(1.0, float(zone_w))
-        edge_bias = np.exp(-5.5 * np.clip(edge_distance, 0.0, 1.0))
+        edge_bias = np.exp(-profile.edge_bias * np.clip(edge_distance, 0.0, 1.0))
 
     weights = (segment_center * edge_bias).astype(np.float32, copy=False)
     weight_sum = float(weights.sum())
@@ -201,6 +204,7 @@ def zone_colors_array(
     sample_step: int = 1,
     mode: str = "balanced",
     previous_zone_colors: Sequence[RGBTuple] | None = None,
+    edge_locality: str = "balanced",
 ) -> np.ndarray:
     """
     Given a list of screen regions and an image, return average RGB per zone.
@@ -286,6 +290,7 @@ def zone_colors_array(
                 zone_y1=int(y1[idx]),
                 frame_w=w,
                 frame_h=h,
+                edge_locality=edge_locality,
             )
             if weights is None:
                 continue
