@@ -27,6 +27,8 @@ def test_settings_primary_sections_do_not_expose_raw_mapping_text() -> None:
 
 def test_strip_count_mismatch_warning_text_present() -> None:
     text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
-    assert "Configured strip count differs from detected device count." in text
-    assert "Changing strip count may require recalibration." in text
+    assert "Device-reported count differs from configured count. The configured manual value is used." in text
+    assert "Changing strip count invalidates calibration." in text
     assert "Current anchors were assigned for a different strip length." in text
+    assert "Use reported count" in text
+    assert "Keep manual count" in text

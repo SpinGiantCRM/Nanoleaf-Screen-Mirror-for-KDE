@@ -68,10 +68,10 @@ def test_edge_locality_diagnostic_corner_test_passes() -> None:
     assert "far_edge_dark=yes" in result.summary
 
 
-def test_strip_count_mismatch_warning_exposes_use_detected_action() -> None:
+def test_strip_count_mismatch_warning_exposes_manual_actions() -> None:
     text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
-    assert "Use detected count" in text
-    assert "Keep configured count" in text
+    assert "Use reported count" in text
+    assert "Keep manual count" in text
     assert "Reset anchors and recalibrate" in text
 
 

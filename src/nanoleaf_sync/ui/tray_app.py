@@ -25,9 +25,7 @@ from nanoleaf_sync.desktop_entry import (
 )
 from nanoleaf_sync.service import NanoleafSyncService
 from nanoleaf_sync.tools.output_format import describe_mode, summarize_command_output
-from dataclasses import replace
-
-from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog, _should_prefer_detected_zone_count
+from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.settings_dialog import SettingsDialog
 
@@ -307,36 +305,9 @@ class NanoleafTrayApp:
         }
 
     def _reconcile_calibration_preview_zone_config(self, *, diagnostics: dict[str, int]) -> None:
-        detected = int(diagnostics.get("detected_device_zone_count", 0) or 0)
         configured = int(diagnostics.get("config_device_zone_count", 0) or 0)
-        nested = int(diagnostics.get("config_calibration_device_zone_count", 0) or 0)
         frame_count = int(diagnostics.get("frame_color_count", 0) or 0)
-        preferred_detected = _should_prefer_detected_zone_count(cfg=self.config, detected_device_zone_count=detected)
-        should_promote_to_frame = (
-            frame_count > 0
-            and frame_count != configured
-            and (
-                frame_count == detected
-                or configured <= 0
-                or (configured == 8 and nested in {0, 8} and frame_count > configured)
-            )
-        )
-        target = frame_count if should_promote_to_frame else (detected if preferred_detected else configured)
-        if target <= 0 and frame_count > 0:
-            target = frame_count
-
-        if target > 0 and (configured != target or nested != target):
-            calibration = replace(self.config.calibration, device_zone_count=target)
-            updated = replace(self.config, device_zone_count=target, calibration=calibration)
-            self.config = updated
-            self.service.config = updated
-            try:
-                self.cfg_mgr.save(updated)
-            except Exception as exc:
-                _log.warning("Failed to persist reconciled calibration zone counts: %s", exc, exc_info=True)
-            if getattr(self, "_preview_driver", None) is not None:
-                self._close_preview_driver(resume_service=False)
-
+        target = configured
         if frame_count > 0 and target > 0 and frame_count > target:
             raise RuntimeError(
                 "Config sync error before driver send: "

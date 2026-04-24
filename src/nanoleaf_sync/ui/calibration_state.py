@@ -106,13 +106,9 @@ class CalibrationState:
         if configured_device_zone_count <= 0:
             configured_device_zone_count = int(getattr(cfg, "device_zone_count", 0))
         detected = int(runtime_status.get("device_zone_count") or 0)
-        if configured_device_zone_count <= 0 and detected > 0:
-            configured_device_zone_count = detected
         if source_zone_count <= 0:
             if configured_device_zone_count > 0:
                 source_zone_count = configured_device_zone_count
-            elif detected > 0:
-                source_zone_count = detected
             else:
                 source_zone_count = DEFAULT_DERIVED_ZONE_COUNT
         if configured_device_zone_count <= 0:
@@ -160,9 +156,11 @@ class CalibrationState:
         )
 
     def auto_detection_status(self) -> str:
-        if int(self.detected_device_zone_count) > 0 and int(self.device_zone_count) == int(self.detected_device_zone_count):
-            return f"Using auto-detected strip zone count {self.device_zone_count}."
-        return f"Using configured strip zone count {self.device_zone_count}."
+        return (
+            f"Using manual strip zone count {self.device_zone_count}."
+            if int(self.device_zone_count) > 0
+            else "Manual strip zone count is required."
+        )
 
     def effective_device_zone_count(self) -> int:
         return max(1, int(self.device_zone_count))
