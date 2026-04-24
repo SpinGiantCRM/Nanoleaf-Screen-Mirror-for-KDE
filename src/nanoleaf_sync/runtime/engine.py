@@ -216,6 +216,8 @@ def _ensure_runtime_artifacts(
         )
         state.device_zone_mapping_signature = mapping_sig
 
+    state.latest_zone_side_counts = tuple(int(i) for i in (zone_artifacts.side_counts or (0, 0, 0, 0)))
+    state.latest_edge_sampling_thickness = zone_artifacts.edge_sampling_thickness
     return zones_px, state.cached_device_zone_indices_np
 
 
@@ -236,7 +238,8 @@ def process_frame(
     compositor_hdr_mode: bool = False,
     sdr_boost_nits: float = 80.0,
     hdr_max_nits: float = 1000.0,
-) -> list[RGBTuple]:
+    return_diagnostics: bool = False,
+) -> list[RGBTuple] | tuple[list[RGBTuple], np.ndarray, np.ndarray]:
     """
     Hot-path frame processing pipeline:
     capture frame -> zone colors -> map -> brightness/smoothing -> send-ready colors.
@@ -308,7 +311,10 @@ def process_frame(
     np.clip(mapped, 0.0, 255.0, out=mapped)
     np.rint(mapped, out=mapped)
     out = mapped.astype(np.uint8, copy=False)
-    return [tuple(int(c) for c in row) for row in out.tolist()]
+    out_list = [tuple(int(c) for c in row) for row in out.tolist()]
+    if return_diagnostics:
+        return out_list, raw_colors.astype(np.uint8, copy=False), out
+    return out_list
 
 
 def run_loop(
@@ -434,7 +440,7 @@ def run_loop(
                     ),
                 )
 
-                smoothed_colors = process_frame(
+                processed = process_frame(
                     frame=frame,
                     prev_smoothed_colors=state.prev_smoothed_colors,
                     zones_px=zones_px,
@@ -450,9 +456,49 @@ def run_loop(
                     compositor_hdr_mode=getattr(config, "compositor_hdr_mode", False),
                     sdr_boost_nits=getattr(config, "sdr_boost_nits", 80.0),
                     hdr_max_nits=getattr(config, "hdr_max_nits", 1000.0),
+                    return_diagnostics=True,
                 )
+                smoothed_colors, sampled_zone_colors, final_zone_colors = processed
                 processing_end = time.perf_counter()
                 state.prev_smoothed_colors = smoothed_colors
+                state.last_frame_width = int(img_w)
+                state.last_frame_height = int(img_h)
+                state.latest_frame_rgb = frame
+                state.latest_zones_px = list(zones_px)
+                zone_diagnostics: list[dict[str, object]] = []
+                for zone_index, rect in enumerate(zones_px):
+                    sampled_rgb = tuple(int(c) for c in sampled_zone_colors[zone_index].tolist())
+                    mapped_led_index = None
+                    for led_idx, src_idx in enumerate(device_zone_indices.tolist()):
+                        if int(src_idx) == int(zone_index):
+                            mapped_led_index = led_idx
+                            break
+                    if mapped_led_index is None:
+                        final_rgb = sampled_rgb
+                    else:
+                        final_rgb = tuple(int(c) for c in final_zone_colors[mapped_led_index].tolist())
+                    top, right, bottom, left = state.latest_zone_side_counts
+                    if zone_index < top:
+                        side = "top"
+                    elif zone_index < top + right:
+                        side = "right"
+                    elif zone_index < top + right + bottom:
+                        side = "bottom"
+                    elif zone_index < top + right + bottom + left:
+                        side = "left"
+                    else:
+                        side = "unknown"
+                    zone_diagnostics.append(
+                        {
+                            "zone_index": zone_index,
+                            "side": side,
+                            "pixel_rect": rect,
+                            "sampled_rgb": sampled_rgb,
+                            "final_output_rgb": final_rgb,
+                            "mapped_physical_led_index": mapped_led_index,
+                        }
+                    )
+                state.latest_zone_diagnostics = zone_diagnostics
                 driver.send_frame(smoothed_colors)
                 send_done = time.perf_counter()
                 state.latency_probe.add_sample(

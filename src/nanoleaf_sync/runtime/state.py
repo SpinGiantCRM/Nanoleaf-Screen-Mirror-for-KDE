@@ -38,6 +38,13 @@ class RuntimeState:
     latency_probe: LatencyProbe = field(default_factory=LatencyProbe)
     last_reinit_ts: float = 0.0
     is_reinitializing: bool = False
+    last_frame_width: int = 0
+    last_frame_height: int = 0
+    latest_frame_rgb: Optional[np.ndarray] = None
+    latest_zones_px: List[ZoneRect] = field(default_factory=list)
+    latest_zone_side_counts: Tuple[int, int, int, int] = (0, 0, 0, 0)
+    latest_edge_sampling_thickness: float | None = None
+    latest_zone_diagnostics: List[dict[str, Any]] = field(default_factory=list)
 
     def reset_for_start(self) -> None:
         self.prev_smoothed_colors = []
@@ -54,6 +61,13 @@ class RuntimeState:
         self.last_frame_timestamp = None
         self.latency_probe = LatencyProbe()
         self.is_reinitializing = False
+        self.last_frame_width = 0
+        self.last_frame_height = 0
+        self.latest_frame_rgb = None
+        self.latest_zones_px = []
+        self.latest_zone_side_counts = (0, 0, 0, 0)
+        self.latest_edge_sampling_thickness = None
+        self.latest_zone_diagnostics = []
 
     def mark_startup(self, succeeded: bool) -> None:
         self.startup_succeeded = succeeded
@@ -102,6 +116,8 @@ class RuntimeState:
             ),
             "capture_width": capture_width,
             "capture_height": capture_height,
+            "captured_frame_width": int(self.last_frame_width or 0),
+            "captured_frame_height": int(self.last_frame_height or 0),
             "consecutive_errors": self.consecutive_errors,
             "frames_sent": self.frames_sent,
             "last_frame_timestamp": self.last_frame_timestamp,
