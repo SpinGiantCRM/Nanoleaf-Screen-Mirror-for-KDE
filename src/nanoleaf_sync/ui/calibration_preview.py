@@ -51,7 +51,6 @@ def single_zone_step(
     zone_count: int,
     device_zone_count: int,
     reverse_zones: bool,
-    explicit_zone_map: Sequence[int] | None = None,
     calibration_model: str = "corner_anchored",
     corner_anchor_top_left: int = -1,
     corner_anchor_top_right: int = -1,
@@ -64,10 +63,9 @@ def single_zone_step(
         [int(i) for i in resolved_mapping]
         if resolved_mapping is not None
         else mapping_indices(
-            zone_count=zone_count,
-            device_zone_count=device_zone_count,
+                zone_count=zone_count,
+                device_zone_count=device_zone_count,
                 reverse_zones=reverse_zones,
-            explicit_zone_map=explicit_zone_map,
                 calibration_model=calibration_model,
             corner_anchor_top_left=corner_anchor_top_left,
             corner_anchor_top_right=corner_anchor_top_right,
@@ -100,7 +98,6 @@ def coverage_sanity_step(
     zone_count: int,
     device_zone_count: int,
     reverse_zones: bool,
-    explicit_zone_map: Sequence[int] | None = None,
     calibration_model: str = "corner_anchored",
     corner_anchor_top_left: int = -1,
     corner_anchor_top_right: int = -1,
@@ -113,7 +110,6 @@ def coverage_sanity_step(
         zone_count=zone_count,
         device_zone_count=device_zone_count,
         reverse_zones=reverse_zones,
-        explicit_zone_map=explicit_zone_map,
         calibration_model=calibration_model,
         corner_anchor_top_left=corner_anchor_top_left,
         corner_anchor_top_right=corner_anchor_top_right,
@@ -138,7 +134,6 @@ def corner_anchor_steps(
     zone_count: int,
     device_zone_count: int,
     reverse_zones: bool,
-    explicit_zone_map: Sequence[int] | None = None,
     calibration_model: str = "corner_anchored",
     corner_anchor_top_left: int = -1,
     corner_anchor_top_right: int = -1,
@@ -151,10 +146,9 @@ def corner_anchor_steps(
         [int(i) for i in resolved_mapping]
         if resolved_mapping is not None
         else mapping_indices(
-            zone_count=zone_count,
-            device_zone_count=device_zone_count,
+                zone_count=zone_count,
+                device_zone_count=device_zone_count,
                 reverse_zones=reverse_zones,
-            explicit_zone_map=explicit_zone_map,
                 calibration_model=calibration_model,
             corner_anchor_top_left=corner_anchor_top_left,
             corner_anchor_top_right=corner_anchor_top_right,
@@ -169,7 +163,6 @@ def corner_anchor_steps(
         zone_count=zone_count,
         device_zone_count=device_zone_count,
         reverse_zones=reverse_zones,
-        explicit_zone_map=explicit_zone_map,
         calibration_model=calibration_model,
     )
     steps: list[CalibrationStep] = []

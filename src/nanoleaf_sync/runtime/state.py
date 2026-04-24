@@ -11,23 +11,7 @@ from nanoleaf_sync.capture.latency_probe import LatencyProbe
 
 RGBTuple = Tuple[int, int, int]
 ZoneRect = Tuple[int, int, int, int]
-DeviceZoneMappingSignature = Tuple[
-    int,
-    int,
-    int,
-    int,
-    bool,
-    bool,
-    Tuple[int, ...],
-    bool,
-    Tuple[int, ...],
-    str,
-    int,
-    int,
-    int,
-    int,
-    Tuple[int, ...],
-]
+DeviceZoneMappingSignature = Tuple[Any, ...]
 
 
 @dataclass

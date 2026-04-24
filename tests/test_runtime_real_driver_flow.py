@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from nanoleaf_sync.config.model import AppConfig, ZoneConfig
+from nanoleaf_sync.config.model import AppConfig, CalibrationConfig, ZoneConfig
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
 from nanoleaf_sync.runtime.startup import run_runtime_engine
@@ -57,10 +57,19 @@ def test_run_loop_with_usb_driver_initializes_then_sends_frame() -> None:
         brightness=1.0,
         smoothing=1.0,
         zones=[
-            ZoneConfig(x=0.0, y=0.0, w=0.5, h=1.0),
-            ZoneConfig(x=0.5, y=0.0, w=0.5, h=1.0),
+            ZoneConfig(x=0.0, y=0.0, w=0.25, h=1.0),
+            ZoneConfig(x=0.25, y=0.0, w=0.25, h=1.0),
+            ZoneConfig(x=0.5, y=0.0, w=0.25, h=1.0),
+            ZoneConfig(x=0.75, y=0.0, w=0.25, h=1.0),
         ],
-        device_zone_count=2,
+        device_zone_count=4,
+        calibration=CalibrationConfig(
+            device_zone_count=4,
+            corner_anchor_top_left=0,
+            corner_anchor_top_right=1,
+            corner_anchor_bottom_right=2,
+            corner_anchor_bottom_left=3,
+        ),
         use_mock_capture=False,
         verbose=False,
     )
@@ -68,7 +77,7 @@ def test_run_loop_with_usb_driver_initializes_then_sends_frame() -> None:
     # startup: model + length; first frame preconditions: on/off + brightness + rgb
     transport = _FakeTransport([
         _rsp(0x0C, b"\x00NL82K2"),
-        _rsp(0x03, b"\x00\x02"),
+        _rsp(0x03, b"\x00\x04"),
         _rsp(0x06, b"\x00\x00"),
         _rsp(0x07, b"\x00"),
         _rsp(0x08, b"\x00\x00"),
@@ -114,10 +123,10 @@ def test_run_loop_with_usb_driver_initializes_then_sends_frame() -> None:
     # Driver default output channel order is GRB, so red/green channels are swapped on the wire.
     payload = transport.requests[6][3:]
     pixel0_grb = tuple(int(channel) for channel in payload[:3])
-    pixel1_grb = tuple(int(channel) for channel in payload[3:6])
+    pixel3_grb = tuple(int(channel) for channel in payload[9:12])
 
     expected_pixel0_grb = (0, 120, 0)
-    expected_pixel1_grb = (90, 0, 0)
+    expected_pixel3_grb = (90, 0, 0)
 
     assert all(abs(actual - expected) <= 1 for actual, expected in zip(pixel0_grb, expected_pixel0_grb))
-    assert all(abs(actual - expected) <= 1 for actual, expected in zip(pixel1_grb, expected_pixel1_grb))
+    assert all(abs(actual - expected) <= 1 for actual, expected in zip(pixel3_grb, expected_pixel3_grb))

@@ -19,7 +19,7 @@ def translate_runtime_error(error: Exception) -> UserFacingError:
             kind="unsupported-model",
             summary=message,
             guidance=(
-                "This app currently supports NL82K1/NL82K2 USB models only. "
+                "This app supports NL82K1/NL82K2 USB models only. "
                 "Use a supported Nanoleaf USB device."
             ),
         )

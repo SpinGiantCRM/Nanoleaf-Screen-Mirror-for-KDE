@@ -31,17 +31,11 @@ class CalibrationConfig:
     output_channel_order: str = "grb"
     normalized_reverse_zones: bool = False
     normalized_corner_anchors: list[int] = field(default_factory=list)
-    normalized_manual_zone_map: list[int] = field(default_factory=list)
     reverse_zones: bool = False
-    manual_mapping_enabled: bool = False
-    explicit_zone_map: list[int] = field(default_factory=list)
     corner_anchor_top_left: int = -1
     corner_anchor_top_right: int = -1
     corner_anchor_bottom_right: int = -1
     corner_anchor_bottom_left: int = -1
-    corner_anchor_fallback_active: bool = False
-    corner_anchor_fallback_strategy: str = ""
-    corner_anchor_warning_codes: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -49,7 +43,7 @@ class AppConfig:
     # Capture
     fps: int = 30
     # Auto chooses backend based on platform capabilities.
-    # On CachyOS, auto currently prefers kmsgrab for lower latency.
+    # On CachyOS, auto prefers kmsgrab for lower latency.
     prefer_backend: str = "auto"
 
     # Color -> device mapping
@@ -75,8 +69,7 @@ class AppConfig:
     display_preset: str = "hdr"
     # Tracks whether the first-run display configurator has been completed.
     wizard_completed: bool = False
-    # Serialized in-progress setup wizard state for resume/recovery.
-    # Stored as JSON payload; empty string means no active draft.
+    # Serialized setup draft for crash-recovery only.
     wizard_in_progress_state: str = ""
     start_on_launch: bool = False
 
@@ -119,26 +112,14 @@ class AppConfig:
     # Legacy configs with 0 are migrated during normalization.
     device_zone_count: int = 0
     # Physical channel order expected by the LED strip controller.
-    # Defaults to GRB for currently supported Nanoleaf USB strip hardware.
+    # Defaults to GRB for supported Nanoleaf USB strip hardware.
     output_channel_order: str = "grb"
     reverse_zones: bool = False
-    # Explicitly controls whether `explicit_zone_map` is active.
-    manual_mapping_enabled: bool = False
-    # Authoritative calibration model for resolving mapping.
     calibration_model: str = "corner_anchored"
-    # Optional explicit mapping: list of screen-zone indices for each device zone.
-    # Applied only when `manual_mapping_enabled` is True.
-    explicit_zone_map: list[int] = field(default_factory=list)
-
-    # Canonical calibration anchors (physical strip zones at monitor corners).
-    # Negative value means unassigned.
     corner_anchor_top_left: int = -1
     corner_anchor_top_right: int = -1
     corner_anchor_bottom_right: int = -1
     corner_anchor_bottom_left: int = -1
-    corner_anchor_fallback_active: bool = False
-    corner_anchor_fallback_strategy: str = ""
-    corner_anchor_warning_codes: list[str] = field(default_factory=list)
 
     # Latency diagnostics/checker policy and latest visible result.
     auto_latency_policy: str = "manual"
@@ -171,18 +152,9 @@ class AppConfig:
             output_channel_order=str(getattr(calibration, "output_channel_order", "grb") or "grb"),
             normalized_reverse_zones=bool(getattr(calibration, "normalized_reverse_zones", False)),
             normalized_corner_anchors=[int(i) for i in (getattr(calibration, "normalized_corner_anchors", []) or [])],
-            normalized_manual_zone_map=[int(i) for i in (getattr(calibration, "normalized_manual_zone_map", []) or [])],
             reverse_zones=bool(getattr(calibration, "reverse_zones", False)),
-            manual_mapping_enabled=bool(getattr(calibration, "manual_mapping_enabled", False)),
-            explicit_zone_map=[
-                int(i)
-                for i in (getattr(calibration, "explicit_zone_map", []) or [])
-            ],
             corner_anchor_top_left=int(getattr(calibration, "corner_anchor_top_left", -1)),
             corner_anchor_top_right=int(getattr(calibration, "corner_anchor_top_right", -1)),
             corner_anchor_bottom_right=int(getattr(calibration, "corner_anchor_bottom_right", -1)),
             corner_anchor_bottom_left=int(getattr(calibration, "corner_anchor_bottom_left", -1)),
-            corner_anchor_fallback_active=bool(getattr(calibration, "corner_anchor_fallback_active", False)),
-            corner_anchor_fallback_strategy=str(getattr(calibration, "corner_anchor_fallback_strategy", "") or ""),
-            corner_anchor_warning_codes=[str(i) for i in (getattr(calibration, "corner_anchor_warning_codes", []) or [])],
         )

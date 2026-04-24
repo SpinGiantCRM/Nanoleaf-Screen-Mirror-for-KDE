@@ -14,7 +14,7 @@ CORNER_SEQUENCE_CLOCKWISE: tuple[CornerName, ...] = (
 
 @dataclass(frozen=True)
 class AnchorMappingResult:
-    explicit_zone_map: list[int]
+    mapping: list[int]
     direction: Literal["clockwise", "counter-clockwise"]
     ordered_corners: list[tuple[CornerName, int]]
     edge_lengths: list[int]
@@ -130,7 +130,7 @@ def derive_anchor_zone_map(
             mapping[device_idx] = src_idx
 
     return AnchorMappingResult(
-        explicit_zone_map=mapping,
+        mapping=mapping,
         direction=direction,
         ordered_corners=[(str(name), int(idx)) for name, idx in ordered_corners],
         edge_lengths=edge_lengths,
