@@ -195,12 +195,7 @@ class NanoleafSyncService:
         calibration_device_zone_count = int(
             getattr(getattr(self.config, "calibration", None), "device_zone_count", 0) or 0
         )
-        if configured_device_zone_count > 0:
-            effective_runtime_zone_count = configured_device_zone_count
-        elif int(detected_device_zone_count or 0) > 0:
-            effective_runtime_zone_count = int(detected_device_zone_count)
-        else:
-            effective_runtime_zone_count = None
+        effective_runtime_zone_count = configured_device_zone_count if configured_device_zone_count > 0 else None
         capture_backend_name = (
             getattr(self._capture, "name", None) if self._capture is not None else None
         )

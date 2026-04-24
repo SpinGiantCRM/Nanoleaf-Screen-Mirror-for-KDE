@@ -150,8 +150,8 @@ class SettingsDialog:
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.device_zone_count_slider.setRange(1, self._device_zone_count_max()); self.device_zone_count_slider.setValue(self._state.device_zone_count)
                 self.device_zone_count_status_label = QLabel("")
                 self.strip_count_warning_label = QLabel("")
-                self.use_detected_count_button = QPushButton("Use detected count")
-                self.keep_configured_count_button = QPushButton("Keep configured count")
+                self.use_detected_count_button = QPushButton("Use reported count")
+                self.keep_configured_count_button = QPushButton("Keep manual count")
                 self.reset_recalibrate_button = QPushButton("Reset anchors and recalibrate")
                 self.assign_top_left_button = self.simple_calibration_widget.assign_top_left_button
                 self.assign_top_right_button = self.simple_calibration_widget.assign_top_right_button
@@ -460,9 +460,9 @@ class SettingsDialog:
                     int(self._state.corner_anchor_bottom_left),
                 )
                 if detected > 0 and configured != detected:
-                    warnings.append("Configured strip count differs from detected device count.")
+                    warnings.append("Device-reported count differs from configured count. The configured manual value is used.")
                 if source != configured:
-                    warnings.append("Changing strip count may require recalibration.")
+                    warnings.append("Changing strip count invalidates calibration.")
                 if anchor_max >= configured:
                     warnings.append("Current anchors were assigned for a different strip length.")
                 self.strip_count_warning_label.setText("\n".join(warnings))
@@ -573,9 +573,6 @@ class SettingsDialog:
                 self._calibration_sender(colors)
 
             def _device_zone_count_max(self) -> int:
-                detected = int(self._state.detected_device_zone_count)
-                if detected > 0:
-                    return max(1, detected)
                 return MAX_ZONE_COUNT
 
             def _on_device_zone_count_slider_changed(self, *_args) -> None:
@@ -585,11 +582,9 @@ class SettingsDialog:
                 clamped = max(1, min(requested, max_count))
                 if requested != clamped:
                     self._set_slider_value_safely(self.device_zone_count_slider, clamped)
-                    self.device_zone_count_status_label.setText(
-                        f"Strip LED zone count capped at detected hardware count ({max_count})."
-                    )
-                else:
-                    self.device_zone_count_status_label.setText("")
+                self.device_zone_count_status_label.setText(
+                    "Set this to the number of physical lighting zones on your strip. This app will not auto-change this value."
+                )
                 if self._source_zones_locked_to_device_count:
                     self._set_slider_value_safely(self.zone_count_slider, clamped)
                 self._test_step %= max(1, clamped)
@@ -599,6 +594,9 @@ class SettingsDialog:
                 detected = int(self._state.detected_device_zone_count or 0)
                 if detected > 0:
                     self._set_slider_value_safely(self.device_zone_count_slider, detected)
+                    self.strip_count_warning_label.setText(
+                        "Applied reported count to manual strip count. Recalibration is required."
+                    )
                     self._refresh_preview_label()
 
             def _keep_configured_strip_count(self) -> None:

@@ -13,9 +13,9 @@ def test_default_layout_preset_is_edge_strip() -> None:
     assert AppConfig().layout_preset == "edge_strip"
 
 
-def test_effective_zone_count_uses_device_count_then_default() -> None:
+def test_effective_zone_count_uses_manual_device_count_then_default() -> None:
     assert effective_zone_count(config=AppConfig(zones=[], device_zone_count=9), detected_device_zone_count=None) == 9
-    assert effective_zone_count(config=AppConfig(zones=[], device_zone_count=0), detected_device_zone_count=7) == 7
+    assert effective_zone_count(config=AppConfig(zones=[], device_zone_count=0), detected_device_zone_count=7) == DEFAULT_DERIVED_ZONE_COUNT
     assert effective_zone_count(config=AppConfig(zones=[], device_zone_count=0), detected_device_zone_count=None) == DEFAULT_DERIVED_ZONE_COUNT
 
 

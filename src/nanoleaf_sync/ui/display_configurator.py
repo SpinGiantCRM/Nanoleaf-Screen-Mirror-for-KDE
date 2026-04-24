@@ -48,25 +48,6 @@ def _wizard_session_storage_path() -> Path:
     return Path.home() / ".local" / "state" / "nanoleaf-sync" / "wizard-session.json"
 
 
-def _should_prefer_detected_zone_count(*, cfg: AppConfig, detected_device_zone_count: int) -> bool:
-    detected = int(detected_device_zone_count or 0)
-    if detected <= 0:
-        return False
-    configured = int(getattr(cfg, "device_zone_count", 0) or 0)
-    nested = int(getattr(getattr(cfg, "calibration", None), "device_zone_count", 0) or 0)
-    if configured <= 0:
-        return True
-    if configured == detected:
-        return False
-    # Legacy first-run defaults may persist a stale value of 8 while runtime/device
-    # discovery reports the actual strip length. Treat this as auto-detected unless
-    # setup has already been explicitly completed by the user.
-    return (
-        not bool(getattr(cfg, "wizard_completed", False))
-        and configured == 8
-        and nested in {0, 8}
-    )
-
 class _FallbackStackedWidget:
     def __init__(self) -> None:
         self._index = 0
@@ -185,23 +166,12 @@ class DisplayConfiguratorDialog:
                 status = runtime_status or {}
                 self._state = CalibrationState.from_config(cfg, status)
                 detected_device_zone_count = int(status.get("device_zone_count") or 0)
-                should_prefer_detected = _should_prefer_detected_zone_count(
-                    cfg=cfg,
-                    detected_device_zone_count=detected_device_zone_count,
-                )
-                self._requires_manual_device_zone_count = (
-                    int(getattr(cfg, "device_zone_count", 0)) <= 0
-                    and detected_device_zone_count <= 0
-                )
+                self._requires_manual_device_zone_count = int(getattr(cfg, "device_zone_count", 0)) <= 0
                 self._device_zone_count_confirmed = not self._requires_manual_device_zone_count
-                if should_prefer_detected:
-                    self._state.device_zone_count = detected_device_zone_count
                 self._source_zones_locked_to_device_count = (
                     not bool(self._state.source_zones_user_configured)
                     and str(self._state.layout_preset) == "edge-weighted"
                 )
-                if should_prefer_detected and self._source_zones_locked_to_device_count:
-                    self._state.zone_count = max(1, int(detected_device_zone_count))
 
                 self.step_label = QLabel("")
                 self._preview_phase = 0
@@ -596,41 +566,25 @@ class DisplayConfiguratorDialog:
                 return CALIBRATION_MODE_PHYSICAL
 
             def _device_zone_count_max(self) -> int:
-                detected = int(self._state.detected_device_zone_count)
-                if detected > 0:
-                    return max(1, detected)
                 return MAX_WIZARD_ZONE_COUNT
 
             def _on_device_zone_count_changed(self, *_args, refresh: bool = True) -> None:
                 previous_zone_count = self._state.effective_device_zone_count()
                 self._device_zone_count_confirmed = True
-                max_zone_count = self._device_zone_count_max()
                 requested_zone_count = int(self.device_zone_count_slider.value())
-                clamped_zone_count = max(1, min(requested_zone_count, max_zone_count))
+                clamped_zone_count = max(1, min(requested_zone_count, self._device_zone_count_max()))
                 if requested_zone_count != clamped_zone_count:
                     self._set_slider_value_safely(self.device_zone_count_slider, clamped_zone_count)
-                    self.zone_change_notice.setText(
-                        f"Strip LED zone count capped at detected hardware count ({max_zone_count})."
-                    )
                 new_zone_count = max(1, int(self.device_zone_count_slider.value()))
                 if self._source_zones_locked_to_device_count:
                     self._set_slider_value_safely(self.zone_count_slider, new_zone_count)
-                remapped = {
-                    "top_left": self._remap_zone_index_between_counts(self._state.corner_anchor_top_left, previous_zone_count, new_zone_count),
-                    "top_right": self._remap_zone_index_between_counts(self._state.corner_anchor_top_right, previous_zone_count, new_zone_count),
-                    "bottom_right": self._remap_zone_index_between_counts(self._state.corner_anchor_bottom_right, previous_zone_count, new_zone_count),
-                    "bottom_left": self._remap_zone_index_between_counts(self._state.corner_anchor_bottom_left, previous_zone_count, new_zone_count),
-                }
-                self._state.corner_anchor_top_left = remapped["top_left"]
-                self._state.corner_anchor_top_right = remapped["top_right"]
-                self._state.corner_anchor_bottom_right = remapped["bottom_right"]
-                self._state.corner_anchor_bottom_left = remapped["bottom_left"]
                 if previous_zone_count != new_zone_count:
+                    self._state.corner_anchor_top_left = -1
+                    self._state.corner_anchor_top_right = -1
+                    self._state.corner_anchor_bottom_right = -1
+                    self._state.corner_anchor_bottom_left = -1
                     self._test_step = 0
-                    if requested_zone_count == clamped_zone_count:
-                        self.zone_change_notice.setText(
-                            "Strip zone count changed: remapped corner anchors and reset calibration test step to 1."
-                        )
+                    self.zone_change_notice.setText("Changing strip count invalidates calibration.")
                 if refresh:
                     self._refresh()
 
@@ -757,14 +711,10 @@ class DisplayConfiguratorDialog:
                 self.zone_count_explanation.setText(
                     "Screen sampling zones are sampled perimeter regions on your display."
                 )
-                if self._requires_manual_device_zone_count:
-                    device_zone_status_text = (
-                        f"Device metadata unavailable: manually set strip LED zone count (currently {effective_zone_count})."
-                    )
-                else:
-                    device_zone_status_text = (
-                        f"Strip LED zone count initialized from saved/device metadata (currently {effective_zone_count})."
-                    )
+                device_zone_status_text = (
+                    "Set this to the number of physical lighting zones on your strip. "
+                    "This app will not auto-change this value."
+                )
                 self.device_zone_status.setText(device_zone_status_text)
                 self.device_zone_summary.setText(f"{effective_zone_count} physical strip LED zones")
 
@@ -814,9 +764,11 @@ class DisplayConfiguratorDialog:
                 configured_count = int(self._state.device_zone_count or 0)
                 source_count = int(self._state.zone_count or 0)
                 if detected_count > 0 and configured_count != detected_count:
-                    calibration_warnings.append("Configured strip count differs from detected device count.")
+                    calibration_warnings.append(
+                        f"Device-reported count: {detected_count} (diagnostic only; may be inaccurate)"
+                    )
                 if source_count != configured_count:
-                    calibration_warnings.append("Changing strip count may require recalibration.")
+                    calibration_warnings.append("Changing strip count invalidates calibration.")
                 highest_anchor = max(
                     int(self._state.corner_anchor_top_left),
                     int(self._state.corner_anchor_top_right),
@@ -878,7 +830,8 @@ class DisplayConfiguratorDialog:
                     "\n".join(
                         (
                             f"Backend policy/effective backend: {self._state.auto_detection_status()}",
-                            f"Detected/configured strip count details: detected={self._state.detected_device_zone_count or 'n/a'}, configured={effective_zone_count}",
+                            f"Device-reported count: {self._state.detected_device_zone_count or 'n/a'} (diagnostic only; may be inaccurate)",
+                            f"Configured strip LED zones: {effective_zone_count}",
                             f"Mapping preview: {self._state.mapping_preview_visual()}",
                             f"Device→source mapping list: {self._state.mapping_preview_text()}",
                         )

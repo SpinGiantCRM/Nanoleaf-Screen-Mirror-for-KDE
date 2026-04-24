@@ -150,7 +150,7 @@ def test_send_calibration_preview_notifies_after_retry_exhausted() -> None:
     assert any("Calibration test pattern failed: read error" in message for message in messages)
 
 
-def test_send_calibration_preview_reconciles_stale_zone_count_before_driver_send() -> None:
+def test_send_calibration_preview_never_promotes_manual_zone_count_from_detected() -> None:
     cfg = AppConfig(device_zone_count=8)
     cfg.calibration.device_zone_count = 8
     service = _FakeService(config=cfg, detected_zone_count=48)
@@ -165,10 +165,9 @@ def test_send_calibration_preview_reconciles_stale_zone_count_before_driver_send
 
     NanoleafTrayApp._send_calibration_preview(fake_tray, [(255, 0, 0)] * 48)
 
-    assert fake_tray.config.device_zone_count == 48
-    assert fake_tray.config.calibration.device_zone_count == 48
-    assert service.config.device_zone_count == 48
-    assert service.config.calibration.device_zone_count == 48
-    assert fake_tray.cfg_mgr.saved is not None
-    assert fake_tray.cfg_mgr.saved.device_zone_count == 48
-    assert messages == []
+    assert fake_tray.config.device_zone_count == 8
+    assert fake_tray.config.calibration.device_zone_count == 8
+    assert service.config.device_zone_count == 8
+    assert service.config.calibration.device_zone_count == 8
+    assert fake_tray.cfg_mgr.saved is None
+    assert any("synced_device_zone_count=8" in message for message in messages)

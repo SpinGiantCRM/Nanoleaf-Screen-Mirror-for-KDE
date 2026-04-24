@@ -53,3 +53,5 @@ def test_old_ui_labels_removed_from_primary_flow() -> None:
     assert "Dynamism" not in wizard
     assert "Dynamism" not in settings
     assert "Optional vibrancy 100%" not in wizard
+    assert "initialized from saved/device metadata" not in wizard
+    assert "using reported device zone count" not in wizard.lower()
