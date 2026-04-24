@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import Sequence
-
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.calibration_resolver import (
     CalibrationMappingSnapshot,
@@ -60,7 +58,6 @@ def mapping_indices(
     zone_count: int,
     device_zone_count: int,
     reverse_zones: bool,
-    explicit_zone_map: Sequence[int] | None = None,
     corner_anchor_top_left: int = -1,
     corner_anchor_top_right: int = -1,
     corner_anchor_bottom_right: int = -1,
@@ -71,8 +68,6 @@ def mapping_indices(
         zone_count=zone_count,
         device_zone_count=device_zone_count,
         reverse_zones=reverse_zones,
-        manual_mapping_enabled=bool(explicit_zone_map),
-        explicit_zone_map=explicit_zone_map,
         corner_anchor_top_left=corner_anchor_top_left,
         corner_anchor_top_right=corner_anchor_top_right,
         corner_anchor_bottom_right=corner_anchor_bottom_right,
@@ -87,7 +82,6 @@ def mapping_preview_text(
     zone_count: int,
     device_zone_count: int,
     reverse_zones: bool,
-    explicit_zone_map: Sequence[int] | None = None,
     corner_anchor_top_left: int = -1,
     corner_anchor_top_right: int = -1,
     corner_anchor_bottom_right: int = -1,
@@ -100,8 +94,6 @@ def mapping_preview_text(
         zone_count=zone_count,
         device_zone_count=device_zone_count,
         reverse_zones=reverse_zones,
-        manual_mapping_enabled=bool(explicit_zone_map),
-        explicit_zone_map=explicit_zone_map,
         corner_anchor_top_left=corner_anchor_top_left,
         corner_anchor_top_right=corner_anchor_top_right,
         corner_anchor_bottom_right=corner_anchor_bottom_right,
@@ -112,7 +104,7 @@ def mapping_preview_text(
     limit = max(1, int(show_limit))
     preview = ", ".join(str(i) for i in indices[:limit])
     suffix = "…" if len(indices) > limit else ""
-    model = "guided corner anchors"
+    model = "corner calibration"
     detail_line = (
         f"Anchors (TL/TR/BR/BL): {corner_anchor_top_left}, "
         f"{corner_anchor_top_right}, "
@@ -128,10 +120,8 @@ def mapping_preview_text(
     )
     notes = ""
     if snapshot.anchor_validation_errors:
-        warning_codes = ", ".join(snapshot.warning_codes) if snapshot.warning_codes else "none"
         notes = (
-            "\nCorner anchors are incomplete; using temporary alignment until they validate."
-            f"\nAlignment warnings: [{warning_codes}]"
+            "\nCalibration invalid: assign four unique in-range corner anchors."
             f"\n{summary}"
             f"\nCorner anchor validation: {'; '.join(snapshot.anchor_validation_errors)}"
         )

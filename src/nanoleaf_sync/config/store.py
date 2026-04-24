@@ -148,15 +148,10 @@ class ConfigManager:
             calibration_schema_version=1,
             calibration=CalibrationConfig(),
             reverse_zones=False,
-            manual_mapping_enabled=False,
-            explicit_zone_map=[],
             corner_anchor_top_left=-1,
             corner_anchor_top_right=-1,
             corner_anchor_bottom_right=-1,
             corner_anchor_bottom_left=-1,
-            corner_anchor_fallback_active=False,
-            corner_anchor_fallback_strategy="",
-            corner_anchor_warning_codes=[],
         )
         self.save(updated_cfg)
         return updated_cfg

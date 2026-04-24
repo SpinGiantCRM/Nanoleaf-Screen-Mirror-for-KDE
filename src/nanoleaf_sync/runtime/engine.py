@@ -142,18 +142,17 @@ def _mapping_signature(
     detected_device_zone_count: int | None,
     source_side_counts: tuple[int, int, int, int] | None = None,
 ) -> DeviceZoneMappingSignature:
+    calibration = config.effective_calibration()
     return (
         int(source_zone_count),
-        int(config.device_zone_count),
+        int(getattr(calibration, "device_zone_count", 0) or getattr(config, "device_zone_count", 0) or 0),
         int(detected_device_zone_count or 0),
-        bool(config.reverse_zones),
-        bool(getattr(config, "manual_mapping_enabled", False)),
-        tuple(int(i) for i in (config.explicit_zone_map or [])),
+        bool(getattr(calibration, "reverse_zones", False)),
         str(getattr(config, "calibration_model", "corner_anchored")),
-        int(getattr(config, "corner_anchor_top_left", -1)),
-        int(getattr(config, "corner_anchor_top_right", -1)),
-        int(getattr(config, "corner_anchor_bottom_right", -1)),
-        int(getattr(config, "corner_anchor_bottom_left", -1)),
+        int(getattr(calibration, "corner_anchor_top_left", -1)),
+        int(getattr(calibration, "corner_anchor_top_right", -1)),
+        int(getattr(calibration, "corner_anchor_bottom_right", -1)),
+        int(getattr(calibration, "corner_anchor_bottom_left", -1)),
         tuple(int(i) for i in (source_side_counts or ())),
     )
 

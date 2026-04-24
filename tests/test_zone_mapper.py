@@ -10,8 +10,7 @@ def test_zone_mapper_respects_explicit_map_when_enabled() -> None:
     assert resolve_device_zone_indices(
         4,
         device_zone_count=4,
-        manual_mapping_enabled=True,
-        explicit_zone_map=[2, 1, 0, 3],
+        fixed_mapping=[2, 1, 0, 3],
     ) == [2, 1, 0, 3]
 
 

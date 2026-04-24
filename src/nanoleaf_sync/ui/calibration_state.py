@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import logging
 
@@ -92,8 +92,6 @@ class CalibrationState:
     detected_device_zone_count: int = 0
     source_zones_user_configured: bool = False
 
-    explicit_zone_map: list[int] = field(default_factory=list)
-    manual_mapping_enabled: bool = False
     calibration_model: str = "corner_anchored"
 
     @classmethod
@@ -125,8 +123,6 @@ class CalibrationState:
             corner_anchor_bottom_left=int(getattr(calibration, "corner_anchor_bottom_left", -1)),
             detected_device_zone_count=detected if detected > 0 else 0,
             source_zones_user_configured=source_zones_user_configured,
-            explicit_zone_map=[int(i) for i in (getattr(calibration, "explicit_zone_map", []) or [])],
-            manual_mapping_enabled=bool(getattr(calibration, "manual_mapping_enabled", False)),
             calibration_model="corner_anchored",
         )
 
@@ -170,8 +166,6 @@ class CalibrationState:
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
             reverse_zones=self.reverse_zones,
-            manual_mapping_enabled=False,
-            explicit_zone_map=None,
             corner_anchor_top_left=self.corner_anchor_top_left,
             corner_anchor_top_right=self.corner_anchor_top_right,
             corner_anchor_bottom_right=self.corner_anchor_bottom_right,
@@ -187,7 +181,7 @@ class CalibrationState:
             f"Layout preset: {self.layout_preset} | source zones: {self.zone_count} | strip zones: {self.effective_device_zone_count()} | source mode: {source_mode}\n"
             f"Anchors TL/TR/BR/BL: {self.corner_anchor_top_left}/{self.corner_anchor_top_right}/{self.corner_anchor_bottom_right}/{self.corner_anchor_bottom_left}\n"
             "Simple corner calibration preview\n"
-            f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), reverse_zones=self.reverse_zones, explicit_zone_map=None, corner_anchor_top_left=self.corner_anchor_top_left, corner_anchor_top_right=self.corner_anchor_top_right, corner_anchor_bottom_right=self.corner_anchor_bottom_right, corner_anchor_bottom_left=self.corner_anchor_bottom_left, calibration_model='corner_anchored', resolved_mapping=snapshot)}"
+            f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), reverse_zones=self.reverse_zones, corner_anchor_top_left=self.corner_anchor_top_left, corner_anchor_top_right=self.corner_anchor_top_right, corner_anchor_bottom_right=self.corner_anchor_bottom_right, corner_anchor_bottom_left=self.corner_anchor_bottom_left, calibration_model='corner_anchored', resolved_mapping=snapshot)}"
         )
 
     def mapping_preview_visual(self) -> str:
@@ -196,8 +190,7 @@ class CalibrationState:
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
             reverse_zones=self.reverse_zones,
-            explicit_zone_map=None,
-            corner_anchor_top_left=self.corner_anchor_top_left,
+                        corner_anchor_top_left=self.corner_anchor_top_left,
             corner_anchor_top_right=self.corner_anchor_top_right,
             corner_anchor_bottom_right=self.corner_anchor_bottom_right,
             corner_anchor_bottom_left=self.corner_anchor_bottom_left,
@@ -211,8 +204,7 @@ class CalibrationState:
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
             reverse_zones=self.reverse_zones,
-            explicit_zone_map=None,
-            start_anchor=None,
+                        start_anchor=None,
             calibration_model="corner_anchored",
             corner_anchor_top_left=self.corner_anchor_top_left,
             corner_anchor_top_right=self.corner_anchor_top_right,
@@ -251,8 +243,7 @@ class CalibrationState:
                 zone_count=self.zone_count,
                 device_zone_count=self.effective_device_zone_count(),
                     reverse_zones=self.reverse_zones,
-                explicit_zone_map=None,
-                    calibration_model="corner_anchored",
+                                    calibration_model="corner_anchored",
                 corner_anchor_top_left=self.corner_anchor_top_left,
                 corner_anchor_top_right=self.corner_anchor_top_right,
                 corner_anchor_bottom_right=self.corner_anchor_bottom_right,
@@ -269,8 +260,7 @@ class CalibrationState:
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
             reverse_zones=self.reverse_zones,
-            explicit_zone_map=None,
-            calibration_model="corner_anchored",
+                        calibration_model="corner_anchored",
             corner_anchor_top_left=self.corner_anchor_top_left,
             corner_anchor_top_right=self.corner_anchor_top_right,
             corner_anchor_bottom_right=self.corner_anchor_bottom_right,

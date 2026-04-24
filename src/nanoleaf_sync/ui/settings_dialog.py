@@ -191,12 +191,11 @@ class SettingsDialog:
                     self.device_model_combo.setCurrentIndex(0)
                 else:
                     self.device_model_combo.setCurrentIndex(2)
-                self.mock_capture_checkbox = QCheckBox("Mock capture (synthetic)"); self.mock_capture_checkbox.setChecked(bool(getattr(cfg, "use_mock_capture", False)))
                 self.capture_backend_combo = QComboBox(); self.capture_backend_combo.addItems(["auto", "kwin-dbus", "kmsgrab", "xdg-portal"]); self.capture_backend_combo.setCurrentIndex(max(0, self.capture_backend_combo.findText(str(getattr(cfg, "prefer_backend", "kwin-dbus")))))
                 self.auto_probe_policy_combo = QComboBox(); self.auto_probe_policy_combo.addItems(["on-change", "first-run", "each-boot"]); self.auto_probe_policy_combo.setCurrentIndex(max(0, self.auto_probe_policy_combo.findText(str(getattr(cfg, "auto_probe_policy", "on-change")))))
 
                 self.auto_latency_policy_combo = QComboBox(); self.auto_latency_policy_combo.addItems(["manual", "on-open", "on-open-once-per-backend"]); self.auto_latency_policy_combo.setCurrentIndex(max(0, self.auto_latency_policy_combo.findText(str(getattr(cfg, "auto_latency_policy", "manual")))))
-                self.run_latency_button = QPushButton("Estimate frame interval")
+                self.run_latency_button = QPushButton("Measure latency")
                 self.latency_label = QLabel(latency_result_summary(None))
 
                 self.hdr_transfer_combo = QComboBox(); self.hdr_transfer_combo.addItems(["srgb", "pq"]); self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))))
@@ -313,7 +312,6 @@ class SettingsDialog:
                 self.auto_latency_policy_combo.setToolTip("Automatically run latency checks on selected lifecycle events.")
                 self.device_zone_count_slider.setToolTip("Configured strip zone count used for device mapping.")
                 self.output_channel_order_combo.setToolTip("Set RGB byte order expected by your strip controller.")
-                self.mock_capture_checkbox.setToolTip("Use synthetic capture frames for diagnostics; USB output remains real hardware.")
                 self.start_on_launch_checkbox.setToolTip("Start syncing automatically right after tray launch.")
                 self.compositor_hdr_mode_checkbox.setToolTip("Enable compensation when KDE Plasma is running SDR content on HDR.")
                 self.sdr_boost_nits_slider.setToolTip("Plasma SDR white reference in nits when compositor HDR mode is enabled.")
@@ -413,7 +411,6 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Device VID"), 2, 0); layout.addWidget(self.device_vid_combo, 2, 1, 1, 2)
                 layout.addWidget(QLabel("Device PID"), 3, 0); layout.addWidget(self.device_pid_combo, 3, 1, 1, 2)
                 layout.addWidget(self.start_on_launch_checkbox, 4, 0, 1, 3)
-                layout.addWidget(self.mock_capture_checkbox, 5, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -751,8 +748,6 @@ class SettingsDialog:
                     device_zone_count=int(self._state.device_zone_count),
                     output_channel_order=str(self.output_channel_order_combo.currentText()),
                     reverse_zones=bool(self._state.reverse_zones),
-                    manual_mapping_enabled=bool(self._state.manual_mapping_enabled),
-                    explicit_zone_map=[int(i) for i in self._state.explicit_zone_map],
                     corner_anchor_top_left=int(self._state.corner_anchor_top_left),
                     corner_anchor_top_right=int(self._state.corner_anchor_top_right),
                     corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
@@ -765,13 +760,11 @@ class SettingsDialog:
                     zones=new_zones, layout_preset=value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_preset_combo.currentText()), default="edge_strip"), edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"), motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"), color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"), display_preset=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="hdr"),
                     start_on_launch=bool(self.start_on_launch_checkbox.isChecked()), device_zone_count=self._state.device_zone_count,
                     output_channel_order=str(self.output_channel_order_combo.currentText()), reverse_zones=self._state.reverse_zones,
-                    manual_mapping_enabled=bool(self._state.manual_mapping_enabled),
-                    explicit_zone_map=[int(i) for i in self._state.explicit_zone_map] if self._state.manual_mapping_enabled else [],
                     corner_anchor_top_left=int(self._state.corner_anchor_top_left),
                     corner_anchor_top_right=int(self._state.corner_anchor_top_right),
                     corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
                     corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
-                    use_mock_capture=bool(self.mock_capture_checkbox.isChecked()), prefer_backend=str(self.capture_backend_combo.currentText()), auto_probe_policy=str(self.auto_probe_policy_combo.currentText()), auto_latency_policy=str(self.auto_latency_policy_combo.currentText()),
+                    use_mock_capture=bool(getattr(cfg, "use_mock_capture", False)), prefer_backend=str(self.capture_backend_combo.currentText()), auto_probe_policy=str(self.auto_probe_policy_combo.currentText()), auto_latency_policy=str(self.auto_latency_policy_combo.currentText()),
                     latency_last_backend=(self._latest_latency.selected_backend if self._latest_latency else getattr(cfg, "latency_last_backend", "")),
                     latency_last_value_ms=(self._latest_latency.measured_latency_ms if self._latest_latency else float(getattr(cfg, "latency_last_value_ms", 0.0))),
                     latency_last_trigger=(self._latest_latency.triggered_by if self._latest_latency else getattr(cfg, "latency_last_trigger", "")),

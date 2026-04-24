@@ -15,7 +15,6 @@ def derive_corner_anchor_device_indices(
     zone_count: int,
     device_zone_count: int,
     reverse_zones: bool,
-    explicit_zone_map=None,
     calibration_model: str = "corner_anchored",
     source_side_counts: tuple[int, int, int, int] | None = None,
 ) -> list[int]:
@@ -27,9 +26,12 @@ def derive_corner_anchor_device_indices(
         zone_count=zone_count,
         device_zone_count=device_zone_count,
         reverse_zones=reverse_zones,
-        explicit_zone_map=explicit_zone_map,
         calibration_model=calibration_model,
     )
+    if len(mapping) != total:
+        mapping = list(range(total))
+        if reverse_zones:
+            mapping = list(reversed(mapping))
     source_total = max(1, int(zone_count))
     if source_side_counts is not None and sum(source_side_counts) == source_total:
         top, right, bottom, _left = source_side_counts

@@ -35,7 +35,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--send-test-frame",
         action="store_true",
-        help="Send a temporary low-brightness RGB test frame to the active device backend.",
+        help="Send a low-brightness RGB test frame to the active device backend.",
     )
     args = parser.parse_args(argv)
 

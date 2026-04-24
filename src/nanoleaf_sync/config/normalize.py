@@ -118,21 +118,15 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     device_zone_count = raw_device_zone_count if raw_device_zone_count > 0 else (len(zones) if zones else 0)
 
     output_channel_order = normalize_enum(getattr(raw_calibration, "output_channel_order", "grb"), allowed={"rgb": "rgb", "rbg": "rbg", "grb": "grb", "gbr": "gbr", "brg": "brg", "bgr": "bgr"}, default="grb")
-    manual_mapping_enabled = coerce_bool(getattr(raw_calibration, "manual_mapping_enabled", AppConfig.manual_mapping_enabled), AppConfig.manual_mapping_enabled)
     calibration_model = "corner_anchored"
-    explicit_zone_map = [int(i) for i in (getattr(raw_calibration, "explicit_zone_map", []) or [])]
     corner_anchor_top_left = int(getattr(raw_calibration, "corner_anchor_top_left", -1))
     corner_anchor_top_right = int(getattr(raw_calibration, "corner_anchor_top_right", -1))
     corner_anchor_bottom_right = int(getattr(raw_calibration, "corner_anchor_bottom_right", -1))
     corner_anchor_bottom_left = int(getattr(raw_calibration, "corner_anchor_bottom_left", -1))
-    corner_anchor_fallback_active = coerce_bool(getattr(raw_calibration, "corner_anchor_fallback_active", False), False)
-    corner_anchor_fallback_strategy = str(getattr(raw_calibration, "corner_anchor_fallback_strategy", "") or "").strip()
-    corner_anchor_warning_codes = [str(i).strip() for i in (getattr(raw_calibration, "corner_anchor_warning_codes", []) or []) if str(i).strip()]
     normalized_corner_anchors = [int(i) for i in list(getattr(raw_calibration, "normalized_corner_anchors", []) or [])[:4]]
     while len(normalized_corner_anchors) < 4:
         normalized_corner_anchors.append(-1)
     normalized_reverse_zones = coerce_bool(getattr(raw_calibration, "normalized_reverse_zones", coerce_bool(getattr(raw_calibration, "reverse_zones", False), False)), coerce_bool(getattr(raw_calibration, "reverse_zones", False), False))
-    normalized_manual_zone_map = [int(i) for i in (getattr(raw_calibration, "normalized_manual_zone_map", explicit_zone_map) or [])]
 
     normalized_calibration = CalibrationConfig(
         schema_version=calibration_schema_version,
@@ -142,17 +136,11 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         output_channel_order=output_channel_order,
         normalized_reverse_zones=normalized_reverse_zones,
         normalized_corner_anchors=normalized_corner_anchors,
-        normalized_manual_zone_map=normalized_manual_zone_map,
         reverse_zones=coerce_bool(getattr(raw_calibration, "reverse_zones", False), False),
-        manual_mapping_enabled=manual_mapping_enabled,
-        explicit_zone_map=explicit_zone_map,
         corner_anchor_top_left=corner_anchor_top_left,
         corner_anchor_top_right=corner_anchor_top_right,
         corner_anchor_bottom_right=corner_anchor_bottom_right,
         corner_anchor_bottom_left=corner_anchor_bottom_left,
-        corner_anchor_fallback_active=corner_anchor_fallback_active,
-        corner_anchor_fallback_strategy=corner_anchor_fallback_strategy,
-        corner_anchor_warning_codes=corner_anchor_warning_codes,
     )
 
     prefer_backend = normalize_backend_preference(cfg.prefer_backend)
@@ -194,16 +182,11 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         device_zone_count=device_zone_count,
         output_channel_order=output_channel_order,
         reverse_zones=normalized_calibration.reverse_zones,
-        manual_mapping_enabled=manual_mapping_enabled,
         calibration_model=calibration_model,
-        explicit_zone_map=explicit_zone_map,
         corner_anchor_top_left=corner_anchor_top_left,
         corner_anchor_top_right=corner_anchor_top_right,
         corner_anchor_bottom_right=corner_anchor_bottom_right,
         corner_anchor_bottom_left=corner_anchor_bottom_left,
-        corner_anchor_fallback_active=corner_anchor_fallback_active,
-        corner_anchor_fallback_strategy=corner_anchor_fallback_strategy,
-        corner_anchor_warning_codes=corner_anchor_warning_codes,
         auto_latency_policy=normalize_enum(getattr(cfg, "auto_latency_policy", "manual"), allowed={"manual": "manual", "on-open": "on-open", "on_open": "on-open", "on-open-once-per-backend": "on-open-once-per-backend", "on_open_once_per_backend": "on-open-once-per-backend"}, default="manual"),
         latency_last_backend=str(getattr(cfg, "latency_last_backend", "") or "").strip(),
         latency_last_value_ms=max(0.0, float(getattr(cfg, "latency_last_value_ms", 0.0) or 0.0)),
