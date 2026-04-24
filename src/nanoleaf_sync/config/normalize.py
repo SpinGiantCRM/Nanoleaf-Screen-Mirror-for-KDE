@@ -18,22 +18,6 @@ SAMPLING_QUALITY_TO_ZONE_STRIDE: dict[str, int] = {
     "high": 1,
 }
 CURRENT_CALIBRATION_SCHEMA_VERSION = 1
-LEGACY_WIZARD_FLOW_KEYS = {
-    "calibration_progress",
-    "current_phase",
-    "phase_completion_flags",
-    "phase_validation_state",
-    "checkpoint",
-    "rollback_checkpoint",
-    "phase_rollback_checkpoints",
-    "phase_boundary_checkpoints",
-    "action_history",
-    "calibration_validation_confidence",
-    "calibration_validation_summary",
-    "corner_start_anchor",
-    "corner_offsets_enabled",
-    "corner_zone_offsets",
-}
 
 
 def _coerce_int(value: Any, default: int) -> int:
@@ -79,10 +63,7 @@ def normalize_wizard_in_progress_state(raw_value: Any) -> str:
         return raw_text
     if not isinstance(payload, dict):
         return raw_text
-    sanitized_payload = {k: v for k, v in payload.items() if k not in LEGACY_WIZARD_FLOW_KEYS}
-    if not sanitized_payload:
-        return ""
-    return json.dumps(sanitized_payload, separators=(",", ":"), sort_keys=True)
+    return json.dumps(payload, separators=(",", ":"), sort_keys=True)
 
 
 def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:

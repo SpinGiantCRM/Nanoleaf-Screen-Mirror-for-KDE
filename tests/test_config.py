@@ -185,7 +185,7 @@ def test_config_persists_display_wizard_fields(tmp_path: Path) -> None:
     assert loaded.color_mode == "hyper"
 
 
-def test_config_strips_legacy_multiphase_wizard_resume_payload(tmp_path: Path) -> None:
+def test_config_preserves_wizard_resume_payload_fields(tmp_path: Path) -> None:
     cfg_path = tmp_path / "config.toml"
     mgr = ConfigManager(path=cfg_path)
 
@@ -195,9 +195,11 @@ def test_config_strips_legacy_multiphase_wizard_resume_payload(tmp_path: Path) -
     mgr.save(cfg)
     loaded = mgr.load()
 
-    assert loaded.wizard_in_progress_state == "{\"flow_index\":1}"
+    assert loaded.wizard_in_progress_state == (
+        '{"calibration_progress":{"direction-verification":{"passed":true}},"flow_index":1}'
+    )
     persisted = cfg_path.read_text(encoding="utf-8")
-    assert "calibration_progress" not in persisted
+    assert "calibration_progress" in persisted
 
 
 def test_config_drops_corner_refinement_settings_from_active_persistence(tmp_path: Path) -> None:

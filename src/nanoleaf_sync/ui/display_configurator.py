@@ -150,7 +150,6 @@ class DisplayConfiguratorDialog:
                 self._calibration_sender = calibration_sender
                 self._test_step = 0
                 self._state = CalibrationState.from_config(cfg)
-                self._state.save_checkpoint()
                 self._flow = WizardFlowState()
                 self._initial_calibration = cfg.effective_calibration()
                 status = runtime_status or {}
@@ -584,11 +583,9 @@ class DisplayConfiguratorDialog:
                 self._state.corner_anchor_bottom_right = remapped["bottom_right"]
                 self._state.corner_anchor_bottom_left = remapped["bottom_left"]
                 if previous_zone_count != new_zone_count:
-                    invalidated = self._state.invalidate_for_zone_count_change()
+                    self._test_step = 0
                     self.zone_change_notice.setText(
-                        "Strip zone count changed: remapped offset/corner anchors and invalidated "
-                        + ", ".join(invalidated)
-                        + " until re-validated."
+                        "Strip zone count changed: remapped offset/corner anchors and reset calibration test step to 1."
                     )
                 self._refresh()
 
@@ -1008,12 +1005,10 @@ class DisplayConfiguratorDialog:
                 self._state.corner_anchor_top_right = int(data.get("corner_anchor_top_right", self._state.corner_anchor_top_right))
                 self._state.corner_anchor_bottom_right = int(data.get("corner_anchor_bottom_right", self._state.corner_anchor_bottom_right))
                 self._state.corner_anchor_bottom_left = int(data.get("corner_anchor_bottom_left", self._state.corner_anchor_bottom_left))
-                self._state.save_checkpoint()
                 self._refresh()
                 return True
 
             def _assign_anchor(self, corner: str) -> None:
-                self._state.push_action_snapshot()
                 self._pull_state_from_controls()
                 current_zone = self._active_calibration_step().device_zone_index
                 if corner == "top_left":
@@ -1030,7 +1025,6 @@ class DisplayConfiguratorDialog:
                 self._send_test_pattern()
 
             def _reset_anchors(self) -> None:
-                self._state.push_action_snapshot()
                 self._pull_state_from_controls()
                 self._state.corner_anchor_top_left = -1
                 self._state.corner_anchor_top_right = -1
@@ -1101,14 +1095,12 @@ class DisplayConfiguratorDialog:
                     stop()
 
             def _next_test_zone(self) -> None:
-                self._state.push_action_snapshot()
                 self._pull_state_from_controls()
                 self._test_step = (self._test_step + 1) % self._state.cycle_length(self._current_calibration_mode())
                 self._refresh()
                 self._send_test_pattern()
 
             def _prev_test_zone(self) -> None:
-                self._state.push_action_snapshot()
                 self._pull_state_from_controls()
                 self._test_step = (self._test_step - 1) % self._state.cycle_length(self._current_calibration_mode())
                 self._refresh()
