@@ -209,7 +209,7 @@ def test_display_configurator_send_pattern_uses_configured_device_zone_count(mon
     assert len(sent[-1]) == 48
 
 
-def test_display_configurator_restores_and_sanitizes_in_progress_draft(monkeypatch) -> None:
+def test_display_configurator_restores_in_progress_draft(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _qt_stub)
     raw = json.dumps(
         {

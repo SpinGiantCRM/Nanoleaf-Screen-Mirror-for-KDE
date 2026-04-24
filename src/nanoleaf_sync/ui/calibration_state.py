@@ -54,35 +54,6 @@ class LatencyProbeResult:
     details: str = ""
 
 
-@dataclass
-class CalibrationStepProgress:
-    """Compatibility shim for legacy step-state callers."""
-
-    step_id: str
-    complete: bool = False
-    passed: bool = False
-    notes: str = ""
-
-
-@dataclass
-class CalibrationPhaseValidation:
-    """Compatibility shim for legacy validation-state callers."""
-
-    valid: bool = False
-    details: str = ""
-
-
-@dataclass
-class CalibrationCheckpoint:
-    zone_offset: int
-    reverse_zones: bool
-    corner_anchor_top_left: int
-    corner_anchor_top_right: int
-    corner_anchor_bottom_right: int
-    corner_anchor_bottom_left: int
-    current_test_step: int
-
-
 @dataclass(frozen=True)
 class CalibrationVerificationReport:
     outcome_status: str
@@ -124,17 +95,6 @@ class CalibrationState:
     corner_anchor_bottom_right: int = -1
     corner_anchor_bottom_left: int = -1
     detected_device_zone_count: int = 0
-
-    # Thin compatibility shims kept for transitional resume/runtime compatibility.
-    calibration_step_progress: dict[str, CalibrationStepProgress] = field(default_factory=dict)
-    current_phase: str = "corner-assignment"
-    phase_completion_flags: dict[str, bool] = field(default_factory=dict)
-    phase_validation_state: dict[str, CalibrationPhaseValidation] = field(default_factory=dict)
-    checkpoint: CalibrationCheckpoint | None = None
-    rollback_checkpoint: CalibrationCheckpoint | None = None
-    phase_rollback_checkpoints: dict[str, CalibrationCheckpoint] = field(default_factory=dict)
-    phase_boundary_checkpoints: dict[str, CalibrationCheckpoint] = field(default_factory=dict)
-    action_history: list[CalibrationCheckpoint] = field(default_factory=list)
 
     # Retained as inert/compatibility-only fields for old callers.
     explicit_zone_map: list[int] = field(default_factory=list)
@@ -185,58 +145,6 @@ class CalibrationState:
         # Minimal active model does not use per-corner nudges.
         return [0, 0, 0, 0]
 
-    def calibration_steps(self) -> tuple[str, ...]:
-        return ("direction-verification", "corner-assignment", "validation-replay")
-
-    def calibration_prerequisites_met(self, step_id: str) -> bool:
-        _ = step_id
-        return True
-
-    def calibration_step_state(self, step_id: str) -> CalibrationStepProgress:
-        existing = self.calibration_step_progress.get(step_id)
-        if existing is not None:
-            return existing
-        created = CalibrationStepProgress(step_id=step_id)
-        self.calibration_step_progress[step_id] = created
-        return created
-
-    def mark_calibration_step(self, step_id: str, *, passed: bool, notes: str = "") -> None:
-        progress = self.calibration_step_state(step_id)
-        progress.complete = True
-        progress.passed = bool(passed)
-        progress.notes = str(notes)
-        self.phase_completion_flags[step_id] = bool(progress.complete)
-        self.phase_validation_state[step_id] = CalibrationPhaseValidation(valid=bool(passed), details=str(notes))
-        self.current_phase = str(step_id)
-
-    def push_action_snapshot(self, *, history_limit: int = 64) -> None:
-        self.action_history.append(self.snapshot_checkpoint())
-        if len(self.action_history) > int(history_limit):
-            self.action_history = self.action_history[-int(history_limit) :]
-
-    def undo_last_action(self) -> bool:
-        if not self.action_history:
-            return False
-        return self.restore_checkpoint(self.action_history.pop())
-
-    def evaluate_phase(self, step_id: str) -> tuple[bool, str]:
-        report = self.validation_report()
-        return (not report.hard_fail, f"compatibility shim: {step_id}")
-
-    def can_complete_calibration_flow(self) -> bool:
-        return not self.validation_report().hard_fail
-
-    def invalidate_for_zone_count_change(self, *, affected_phases: tuple[str, ...] = ()) -> tuple[str, ...]:
-        _ = affected_phases
-        for step_id, progress in self.calibration_step_progress.items():
-            progress.complete = False
-            progress.passed = False
-            progress.notes = ""
-            self.phase_completion_flags[step_id] = False
-            self.phase_validation_state[step_id] = CalibrationPhaseValidation(valid=False, details="")
-        self.current_test_step = 0
-        return tuple(self.calibration_step_progress.keys())
-
     def validation_report(self) -> CalibrationVerificationReport:
         anchors = {
             "top_left": self.corner_anchor_top_left if self.corner_anchor_top_left >= 0 else None,
@@ -264,58 +172,6 @@ class CalibrationState:
             remediation_action="No action needed." if anchors_unique_valid else "Assign valid corner anchors before saving calibration.",
             remediation_hints=hints,
         )
-
-    def snapshot_checkpoint(self) -> CalibrationCheckpoint:
-        return CalibrationCheckpoint(
-            zone_offset=int(self.zone_offset),
-            reverse_zones=bool(self.reverse_zones),
-            corner_anchor_top_left=int(self.corner_anchor_top_left),
-            corner_anchor_top_right=int(self.corner_anchor_top_right),
-            corner_anchor_bottom_right=int(self.corner_anchor_bottom_right),
-            corner_anchor_bottom_left=int(self.corner_anchor_bottom_left),
-            current_test_step=int(self.current_test_step),
-        )
-
-    def save_checkpoint(self) -> CalibrationCheckpoint:
-        self.checkpoint = self.snapshot_checkpoint()
-        self.rollback_checkpoint = self.checkpoint
-        return self.checkpoint
-
-    def restore_checkpoint(self, checkpoint: CalibrationCheckpoint | None = None) -> bool:
-        target = checkpoint or self.checkpoint
-        if target is None:
-            return False
-        self.zone_offset = int(target.zone_offset)
-        self.reverse_zones = bool(target.reverse_zones)
-        self.corner_anchor_top_left = int(target.corner_anchor_top_left)
-        self.corner_anchor_top_right = int(target.corner_anchor_top_right)
-        self.corner_anchor_bottom_right = int(target.corner_anchor_bottom_right)
-        self.corner_anchor_bottom_left = int(target.corner_anchor_bottom_left)
-        self.current_test_step = int(target.current_test_step)
-        return True
-
-    def save_phase_checkpoint(self, step_id: str) -> CalibrationCheckpoint:
-        checkpoint = self.snapshot_checkpoint()
-        self.phase_rollback_checkpoints[str(step_id)] = checkpoint
-        self.rollback_checkpoint = checkpoint
-        return checkpoint
-
-    def save_phase_boundary_checkpoint(self, step_id: str) -> CalibrationCheckpoint:
-        checkpoint = self.snapshot_checkpoint()
-        self.phase_boundary_checkpoints[str(step_id)] = checkpoint
-        return checkpoint
-
-    def restore_phase_checkpoint(self, step_id: str) -> bool:
-        checkpoint = self.phase_rollback_checkpoints.get(str(step_id))
-        if checkpoint is None:
-            return False
-        return self.restore_checkpoint(checkpoint)
-
-    def restore_phase_boundary_checkpoint(self, step_id: str) -> bool:
-        checkpoint = self.phase_boundary_checkpoints.get(str(step_id))
-        if checkpoint is None:
-            return False
-        return self.restore_checkpoint(checkpoint)
 
     def auto_detection_status(self) -> str:
         if int(self.detected_device_zone_count) > 0 and int(self.device_zone_count) == int(self.detected_device_zone_count):

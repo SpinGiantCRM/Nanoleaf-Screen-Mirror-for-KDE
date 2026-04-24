@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import types
 from pathlib import Path
 
@@ -468,7 +469,10 @@ def test_settings_dialog_preserves_interrupted_calibration_rollback_state(monkey
     dialog = SettingsDialog(parent=None, cfg=cfg)
 
     updated = dialog.updated_config()
-    assert updated.wizard_in_progress_state == draft
+    restored = json.loads(updated.wizard_in_progress_state)
+    assert restored["current_phase"] == "direction-verification"
+    assert restored["phase_validation_state"]["direction-verification"]["valid"] is False
+    assert restored["calibration_progress"]["direction-verification"]["notes"] == "rollback requested"
 
 
 def test_settings_dialog_syncs_nested_calibration_device_zone_count(monkeypatch) -> None:
