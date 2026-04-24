@@ -49,6 +49,11 @@ include = ["nanoleaf_sync*"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 
+[tool.coverage.run]
+omit = [
+  "src/nanoleaf_sync/ui/*",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

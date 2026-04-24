@@ -156,7 +156,7 @@ def probe_backends(
         results,
         key=lambda item: (
             not item.qualified,
-            float("inf") if item.median_ms is None else round(item.median_ms * 2.0) / 2.0,
+            float("inf") if item.median_ms is None else round(item.median_ms),
             item.candidate,
         ),
     )
