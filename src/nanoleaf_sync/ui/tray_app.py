@@ -502,7 +502,9 @@ class NanoleafTrayApp:
             f"Effective backend: {effective_backend}"
             + (f"\nBackend note: {unresolved_reason}" if unresolved_reason else "")
         )
-        self.action_status.setText(f"About / Status ({'Running' if running else 'Idle'})")
+        self.action_status.setText(
+            f"About / Status ({'Running' if running else 'Idle'} · v{self._app_version})"
+        )
 
     def on_start(self):
         close_preview = getattr(self, "_close_preview_driver", None)
