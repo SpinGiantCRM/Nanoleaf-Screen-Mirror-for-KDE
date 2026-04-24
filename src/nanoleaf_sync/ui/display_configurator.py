@@ -267,11 +267,6 @@ class DisplayConfiguratorDialog:
                 self.simple_calibration_widget = SimpleCalibrationWidget(qt=qt, title="Corner calibration")
                 self.reverse_checkbox = self.simple_calibration_widget.reverse_orientation_checkbox
                 self.reverse_checkbox.setChecked(self._state.reverse_zones)
-                self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                initial_offset_limit = max(1, self._state.effective_device_zone_count() - 1)
-                self.zone_offset_slider.setRange(-initial_offset_limit, initial_offset_limit)
-                self.zone_offset_slider.setValue(self._state.zone_offset)
-                self.zone_offset_value = QLabel("")
                 self.test_step_index_value = self.simple_calibration_widget.step_index_label
                 self.preview_text = self.simple_calibration_widget.preview_text_label
                 self.preview_visual = self.simple_calibration_widget.preview_visual_label
@@ -287,7 +282,7 @@ class DisplayConfiguratorDialog:
                 self.reset_anchors_button = self.simple_calibration_widget.reset_anchors_button
                 self.current_zone_label = self.simple_calibration_widget.current_zone_label
                 self.calibration_hint = QLabel(
-                    "Use Previous/Next zone to find the right physical LED, assign corners, and adjust reverse orientation/offset if needed."
+                    "Use Previous/Next zone to find the right physical LED, assign corners, and adjust reverse orientation if needed."
                 )
 
                 # Summary
@@ -312,7 +307,6 @@ class DisplayConfiguratorDialog:
                     self.sampling_quality_combo.currentIndexChanged,
                     self.color_mode_combo.currentIndexChanged,
                     self.vibrancy_slider.valueChanged,
-                    self.zone_offset_slider.valueChanged,
                     self.zone_preset_combo.currentIndexChanged,
                     self.reverse_checkbox.stateChanged,
                 ):
@@ -339,7 +333,6 @@ class DisplayConfiguratorDialog:
                     on_reverse_orientation_changed=self._on_calibration_controls_changed,
                 )
                 self.calibration_send_button.clicked.connect(self._send_test_pattern)
-                self.zone_offset_slider.valueChanged.connect(self._on_calibration_controls_changed)
 
                 self.pages = QStackedWidget()
                 self.pages.addWidget(self._build_step_1(QWidget, QGridLayout, QLabel))
@@ -379,7 +372,6 @@ class DisplayConfiguratorDialog:
                     setter(text)
 
             def _configure_tooltips(self) -> None:
-                self._set_tooltip(self.zone_offset_slider, "Global mapping zone offset that shifts the strip mapping ring by whole zones.")
                 self._set_tooltip(self.reverse_checkbox, "Flip mapping direction if strip order is reversed.")
                 self._set_tooltip(self.calibration_send_button, "Send a fresh calibration frame to the strip right now.")
                 self._set_tooltip(self.calibration_next_button, "Move to the next test zone step and transmit it.")
@@ -411,9 +403,6 @@ class DisplayConfiguratorDialog:
                 layout.addWidget(self.zone_change_notice, 4, 0, 1, 3)
                 row = self.simple_calibration_widget.add_to_layout(layout, row=5, include_header=False)
                 layout.addWidget(self.calibration_send_button, row, 0, 1, 3); row += 1
-                layout.addWidget(QLabel("Global mapping zone offset"), row, 0)
-                layout.addWidget(self.zone_offset_slider, row, 1)
-                layout.addWidget(self.zone_offset_value, row, 2); row += 1
                 layout.addWidget(self.anchor_validation_label, row, 0, 1, 3)
                 page.setLayout(layout)
                 return page
@@ -517,28 +506,11 @@ class DisplayConfiguratorDialog:
             def _pull_state_from_controls(self) -> None:
                 self._state.zone_count = int(self.zone_count_slider.value())
                 self._state.zone_preset = "edge-weighted" if str(self.zone_preset_combo.currentText()).startswith("Edge strip") else "horizontal"
-                self._state.zone_offset = int(self.zone_offset_slider.value())
                 self._state.reverse_zones = bool(self.reverse_checkbox.isChecked())
                 self._state.device_zone_count = int(self.device_zone_count_slider.value())
                 self._state.corner_offsets_enabled = False
                 self._state.corner_zone_offsets = [0, 0, 0, 0]
                 self._state.calibration_model = "corner_anchored"
-
-            def _normalize_offset_for_count(self, offset: int, zone_count: int) -> int:
-                total = max(1, int(zone_count))
-                normalized = int(offset) % total
-                half_turn = total // 2
-                if normalized > half_turn:
-                    normalized -= total
-                return normalized
-
-            def _remap_offset_between_counts(self, offset: int, previous_count: int, new_count: int) -> int:
-                previous_total = max(1, int(previous_count))
-                new_total = max(1, int(new_count))
-                # Preserve rotational position on the ring; signed offset may change after
-                # normalization when the strip LED zone count changes.
-                preserved_position = int(offset) % previous_total
-                return self._normalize_offset_for_count(preserved_position, new_total)
 
             def _remap_zone_index_between_counts(self, zone_index: int, previous_count: int, new_count: int) -> int:
                 if int(zone_index) < 0:
@@ -547,9 +519,6 @@ class DisplayConfiguratorDialog:
                 new_total = max(1, int(new_count))
                 scaled = int(round((int(zone_index) / previous_total) * new_total)) % new_total
                 return scaled
-
-            def _calibration_offset_limit(self, zone_count: int) -> int:
-                return max(1, int(zone_count) - 1)
 
             def _set_slider_value_safely(self, slider, value: int) -> None:
                 if int(slider.value()) == int(value):
@@ -572,18 +541,6 @@ class DisplayConfiguratorDialog:
                 checkbox.setChecked(bool(value))
                 if callable(block_signals):
                     block_signals(previous)
-
-            def _sync_zone_offset_slider(self, *, previous_zone_count: int | None = None) -> None:
-                current_device_zone_count = max(1, int(self.device_zone_count_slider.value()))
-                old_count = max(1, int(previous_zone_count or current_device_zone_count))
-                remapped_offset = self._remap_offset_between_counts(
-                    int(self.zone_offset_slider.value()),
-                    old_count,
-                    current_device_zone_count,
-                )
-                offset_limit = self._calibration_offset_limit(current_device_zone_count)
-                self.zone_offset_slider.setRange(-offset_limit, offset_limit)
-                self._set_slider_value_safely(self.zone_offset_slider, remapped_offset)
 
             def _active_calibration_step(self):
                 step_total = self._state.cycle_length(CALIBRATION_MODE_PHYSICAL)
@@ -610,7 +567,6 @@ class DisplayConfiguratorDialog:
                     self.zone_change_notice.setText(
                         f"Strip LED zone count capped at detected hardware count ({max_zone_count})."
                     )
-                self._sync_zone_offset_slider(previous_zone_count=previous_zone_count)
                 new_zone_count = max(1, int(self.device_zone_count_slider.value()))
                 remapped = {
                     "top_left": self._remap_zone_index_between_counts(self._state.corner_anchor_top_left, previous_zone_count, new_zone_count),
@@ -626,7 +582,7 @@ class DisplayConfiguratorDialog:
                     self._test_step = 0
                     if requested_zone_count == clamped_zone_count:
                         self.zone_change_notice.setText(
-                            "Strip zone count changed: remapped offset/corner anchors and reset calibration test step to 1."
+                            "Strip zone count changed: remapped corner anchors and reset calibration test step to 1."
                         )
                 if refresh:
                     self._refresh()
@@ -747,13 +703,7 @@ class DisplayConfiguratorDialog:
                 self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
                 self.zone_count_value.setText(str(self.zone_count_slider.value()))
                 self.vibrancy_value.setText(f"{self.vibrancy_slider.value()}%")
-                normalized_offset = self._normalize_offset_for_count(
-                    int(self.zone_offset_slider.value()),
-                    effective_zone_count,
-                )
-                self.zone_offset_value.setText(
-                    f"{normalized_offset:+d} (raw {int(self.zone_offset_slider.value()):+d})"
-                )
+                normalized_offset = 0
                 self.device_zone_count_value.setText(str(effective_zone_count))
                 self.zone_count_explanation.setText(
                     "Screen sampling zones = sampled regions on your display. Strip LED zones = physical LEDs on the Nanoleaf strip."
@@ -789,7 +739,7 @@ class DisplayConfiguratorDialog:
                     normalized_offset=normalized_offset,
                 )
                 self.current_zone_label.setText(
-                    f"Test zone step: {self._test_step + 1}/{step_total} | Active physical strip zone: {current_zone} | Normalized offset: {normalized_offset:+d}"
+                    f"Test zone step: {self._test_step + 1}/{step_total} | Active physical strip zone: {current_zone}"
                 )
                 self.summary_label.setText(
                     "\n".join(
@@ -837,7 +787,7 @@ class DisplayConfiguratorDialog:
                 mapping_snapshot = resolve_calibration_mapping(
                     zone_count=max(1, int(self._state.zone_count)),
                     device_zone_count=max(1, int(self._state.effective_device_zone_count())),
-                    zone_offset=int(self._state.zone_offset),
+                    zone_offset=0,
                     reverse_zones=bool(self._state.reverse_zones),
                     manual_mapping_enabled=bool(self._state.manual_mapping_enabled),
                     explicit_zone_map=[int(i) for i in self._state.explicit_zone_map],
@@ -871,7 +821,7 @@ class DisplayConfiguratorDialog:
                     calibration_model="corner_anchored",
                     device_zone_count=int(self._state.device_zone_count),
                     output_channel_order=str(self._initial_calibration.output_channel_order),
-                    zone_offset=int(self._state.zone_offset),
+                    zone_offset=0,
                     reverse_zones=bool(self._state.reverse_zones),
                     manual_mapping_enabled=bool(self._state.manual_mapping_enabled),
                     explicit_zone_map=[int(i) for i in self._state.explicit_zone_map],
@@ -899,7 +849,7 @@ class DisplayConfiguratorDialog:
                     sampling_quality=str(self.sampling_quality_combo.currentText()).lower(),
                     device_zone_count=self._state.device_zone_count,
                     reverse_zones=self._state.reverse_zones,
-                    zone_offset=self._state.zone_offset,
+                    zone_offset=0,
                     corner_offsets_enabled=bool(self._state.corner_offsets_enabled),
                     corner_zone_offsets=self._state.active_corner_zone_offsets(),
                     corner_anchor_top_left=anchor_top_left,
@@ -940,7 +890,7 @@ class DisplayConfiguratorDialog:
                 mapping_snapshot = resolve_calibration_mapping(
                     zone_count=max(1, int(self._state.zone_count)),
                     device_zone_count=max(1, int(self._state.effective_device_zone_count())),
-                    zone_offset=int(self._state.zone_offset),
+                    zone_offset=0,
                     reverse_zones=bool(self._state.reverse_zones),
                     manual_mapping_enabled=bool(self._state.manual_mapping_enabled),
                     explicit_zone_map=[int(i) for i in self._state.explicit_zone_map],
@@ -956,7 +906,6 @@ class DisplayConfiguratorDialog:
                     "test_step": int(self._test_step),
                     "zone_count": int(self._state.zone_count),
                     "zone_preset": str(self._state.zone_preset),
-                    "zone_offset": int(self._state.zone_offset),
                     "reverse_zones": bool(self._state.reverse_zones),
                     "device_zone_count": int(self._state.device_zone_count),
                     "display_mode": str(self.display_mode_combo.currentText()),
@@ -1030,7 +979,6 @@ class DisplayConfiguratorDialog:
                 self.zone_count_slider.setValue(int(data.get("zone_count", self.zone_count_slider.value())))
                 preset = str(data.get("zone_preset", self._state.zone_preset))
                 self.zone_preset_combo.setCurrentIndex(0 if preset == "edge-weighted" else 1)
-                self.zone_offset_slider.setValue(int(data.get("zone_offset", self.zone_offset_slider.value())))
                 self.reverse_checkbox.setChecked(bool(data.get("reverse_zones", self.reverse_checkbox.isChecked())))
                 self.device_zone_count_slider.setValue(int(data.get("device_zone_count", self.device_zone_count_slider.value())))
                 display_idx = self.display_mode_combo.findText(str(data.get("display_mode", self.display_mode_combo.currentText())))

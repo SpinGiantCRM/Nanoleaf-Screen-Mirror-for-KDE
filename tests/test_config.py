@@ -378,7 +378,7 @@ def test_config_prefers_canonical_calibration_block_over_legacy_aliases(tmp_path
     )
 
     cfg = ConfigManager(path=cfg_path).load()
-    assert cfg.zone_offset == -3
+    assert cfg.zone_offset == 0
     assert cfg.reverse_zones is False
     assert cfg.device_zone_count == 12
     assert cfg.calibration.calibration_model == "corner_anchored"
@@ -405,7 +405,7 @@ def test_config_migrates_legacy_calibration_fields_into_normalized_structure(tmp
     )
 
     cfg = ConfigManager(path=cfg_path).load()
-    assert cfg.calibration.normalized_zone_offset == 4
+    assert cfg.calibration.normalized_zone_offset == 0
     assert cfg.calibration.normalized_reverse_zones is True
     assert cfg.calibration.normalized_manual_zone_map == [3, 2, 1, 0]
     assert cfg.calibration.normalized_corner_anchors == [11, 2, 5, 8]
@@ -477,7 +477,7 @@ def test_dump_toml_renders_nested_calibration_table() -> None:
     )
     assert "calibration_schema_version = 1" in encoded
     assert "[calibration]" in encoded
-    assert "zone_offset = 3" in encoded
+    assert "zone_offset" not in encoded
 
 
 def test_config_load_normalizes_auto_probe_fields(tmp_path: Path) -> None:

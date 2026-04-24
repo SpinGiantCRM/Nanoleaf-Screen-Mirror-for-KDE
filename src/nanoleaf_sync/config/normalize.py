@@ -86,7 +86,6 @@ def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:
         "calibration_model",
         "device_zone_count",
         "output_channel_order",
-        "zone_offset",
         "reverse_zones",
         "manual_mapping_enabled",
         "explicit_zone_map",
@@ -103,7 +102,7 @@ def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:
             calibration[key] = migrated[key]
 
     if "normalized_zone_offset" not in calibration:
-        calibration["normalized_zone_offset"] = calibration.get("zone_offset", migrated.get("zone_offset", 0))
+        calibration["normalized_zone_offset"] = 0
     if "normalized_reverse_zones" not in calibration:
         calibration["normalized_reverse_zones"] = calibration.get("reverse_zones", migrated.get("reverse_zones", False))
     if "normalized_corner_anchors" not in calibration:
@@ -192,7 +191,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         },
         default="grb",
     )
-    zone_offset = int(calibration_or_legacy("zone_offset", 0))
+    zone_offset = 0
     manual_mapping_enabled = coerce_bool(
         calibration_or_legacy("manual_mapping_enabled", AppConfig.manual_mapping_enabled),
         AppConfig.manual_mapping_enabled,

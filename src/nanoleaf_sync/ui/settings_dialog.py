@@ -128,7 +128,6 @@ class SettingsDialog:
 
                 self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_count_slider.setRange(1, MAX_ZONE_COUNT); self.zone_count_slider.setValue(self._state.zone_count)
                 self.zone_preset_combo = QComboBox(); self.zone_preset_combo.addItems(["Edge strip (recommended)", "Full-screen horizontal"]); self.zone_preset_combo.setCurrentIndex(0 if self._state.zone_preset == "edge-weighted" else 1)
-                self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal); initial_offset_limit = max(1, self._state.effective_device_zone_count() - 1); self.zone_offset_slider.setRange(-initial_offset_limit, initial_offset_limit); self.zone_offset_slider.setValue(self._state.zone_offset)
                 self.simple_calibration_widget = SimpleCalibrationWidget(qt=qt, title="Corner calibration")
                 self.reverse_checkbox = self.simple_calibration_widget.reverse_orientation_checkbox; self.reverse_checkbox.setChecked(self._state.reverse_zones)
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.device_zone_count_slider.setRange(1, self._device_zone_count_max()); self.device_zone_count_slider.setValue(self._state.device_zone_count)
@@ -185,13 +184,12 @@ class SettingsDialog:
 
                 self.backend_info_label = QLabel("")
                 self.preview_label = self.simple_calibration_widget.preview_text_label; self.preview_visual_label = self.simple_calibration_widget.preview_visual_label; self.test_label = QLabel("")
-                self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.zone_offset_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.sampling_quality_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel("")
+                self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.sampling_quality_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel("")
 
                 for signal in (
                     self.zone_count_slider.valueChanged,
                     self.sampling_quality_combo.currentIndexChanged,
                     self.zone_preset_combo.currentIndexChanged,
-                    self.zone_offset_slider.valueChanged,
                     self.reverse_checkbox.stateChanged,
                     self.capture_backend_combo.currentIndexChanged,
                     self.auto_probe_policy_combo.currentIndexChanged,
@@ -263,7 +261,6 @@ class SettingsDialog:
                 self.sampling_quality_combo.setToolTip("Low = better performance, Balanced = default, High = best visual fidelity.")
                 self.led_gamma_slider.setToolTip("Gamma correction for LED response. 1.00 keeps output linear.")
                 self.zone_count_slider.setToolTip("Number of screen sampling zones sampled from the display.")
-                self.zone_offset_slider.setToolTip("Global mapping zone offset that rotates the strip mapping around strip LED zones.")
                 self.reverse_checkbox.setToolTip("Flip strip direction if the mapping appears mirrored.")
                 self.display_mode_combo.setToolTip("Select SDR or HDR processing mode.")
                 self.color_mode_combo.setToolTip("Dynamism preset used by the analyzer (balanced or more reactive).")
@@ -335,7 +332,6 @@ class SettingsDialog:
                 layout = QGridLayout()
                 layout.addWidget(QLabel("Screen sampling zone count"), 0, 0); layout.addWidget(self.zone_count_slider, 0, 1); layout.addWidget(self.zone_count_value, 0, 2)
                 layout.addWidget(QLabel("Zone layout preset"), 1, 0); layout.addWidget(self.zone_preset_combo, 1, 1, 1, 2)
-                layout.addWidget(QLabel("Global mapping zone offset (rotation)"), 2, 0); layout.addWidget(self.zone_offset_slider, 2, 1); layout.addWidget(self.zone_offset_value, 2, 2)
                 layout.addWidget(QLabel("Strip LED zone count"), 4, 0); layout.addWidget(self.device_zone_count_slider, 4, 1); layout.addWidget(self.device_zone_count_value, 4, 2)
                 layout.addWidget(self.device_zone_count_status_label, 5, 0, 1, 3)
                 group.setLayout(layout)
@@ -367,24 +363,8 @@ class SettingsDialog:
 
             def _pull_state(self):
                 zone_preset_label = str(self.zone_preset_combo.currentText())
-                self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = "edge-weighted" if zone_preset_label.startswith("Edge strip") else "horizontal"; self._state.zone_offset = int(self.zone_offset_slider.value()); self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value())
+                self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = "edge-weighted" if zone_preset_label.startswith("Edge strip") else "horizontal"; self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value())
                 self._state.calibration_model = "corner_anchored"
-
-            def _normalize_offset_for_count(self, offset: int, zone_count: int) -> int:
-                total = max(1, int(zone_count))
-                normalized = int(offset) % total
-                half_turn = total // 2
-                if normalized > half_turn:
-                    normalized -= total
-                return normalized
-
-            def _remap_offset_between_counts(self, offset: int, previous_count: int, new_count: int) -> int:
-                previous_total = max(1, int(previous_count))
-                new_total = max(1, int(new_count))
-                # Preserve rotational position on the ring; signed offset may change after
-                # normalization when the strip LED zone count changes.
-                preserved_position = int(offset) % previous_total
-                return self._normalize_offset_for_count(preserved_position, new_total)
 
             def _set_slider_value_safely(self, slider, value: int) -> None:
                 if int(slider.value()) == int(value):
@@ -397,27 +377,10 @@ class SettingsDialog:
                 if callable(block_signals):
                     block_signals(previous)
 
-            def _sync_zone_offset_slider(self, *, previous_zone_count: int | None = None) -> None:
-                current_zone_count = max(1, int(self.device_zone_count_slider.value()))
-                old_zone_count = max(1, int(previous_zone_count or current_zone_count))
-                remapped_offset = self._remap_offset_between_counts(
-                    int(self.zone_offset_slider.value()),
-                    old_zone_count,
-                    current_zone_count,
-                )
-                offset_limit = max(1, current_zone_count - 1)
-                self.zone_offset_slider.setRange(-offset_limit, offset_limit)
-                self._set_slider_value_safely(self.zone_offset_slider, remapped_offset)
-
             def _refresh_numeric_labels(self):
-                normalized_offset = self._normalize_offset_for_count(
-                    int(self.zone_offset_slider.value()),
-                    max(1, int(self.device_zone_count_slider.value())),
-                )
-                self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.sampling_quality_value.setText({"Low": "Better performance", "Balanced": "Default", "High": "Best visual fidelity"}.get(str(self.sampling_quality_combo.currentText()), "Default")); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.zone_offset_value.setText(f"{normalized_offset:+d} (raw {int(self.zone_offset_slider.value()):+d})"); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}")
+                self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.sampling_quality_value.setText({"Low": "Better performance", "Balanced": "Default", "High": "Best visual fidelity"}.get(str(self.sampling_quality_combo.currentText()), "Default")); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}")
 
             def _refresh_preview_label(self):
-                self._sync_zone_offset_slider(previous_zone_count=self._state.effective_device_zone_count())
                 self._refresh_numeric_labels(); self._pull_state()
                 pending_cfg = replace(
                     cfg,
@@ -441,7 +404,7 @@ class SettingsDialog:
                 current_zone = active_step.device_zone_index
                 step_total = self._test_cycle_length()
                 self.current_zone_label.setText(
-                    f"Test zone step: {self._test_step + 1}/{step_total} | Active physical strip zone: {current_zone} | Normalized offset: {self._normalize_offset_for_count(self._state.zone_offset, self._state.effective_device_zone_count()):+d}"
+                    f"Test zone step: {self._test_step + 1}/{step_total} | Active physical strip zone: {current_zone}"
                 )
                 self.test_step_index_label.setText(f"{self._test_step + 1}/{step_total}")
 
@@ -535,7 +498,6 @@ class SettingsDialog:
                 else:
                     self.device_zone_count_status_label.setText("")
                 self._test_step %= max(1, clamped)
-                self._sync_zone_offset_slider(previous_zone_count=previous_zone_count)
                 self._refresh_preview_label()
 
             def _active_backend(self) -> str:
@@ -649,7 +611,7 @@ class SettingsDialog:
                     calibration_model="corner_anchored",
                     device_zone_count=int(self._state.device_zone_count),
                     output_channel_order=str(self.output_channel_order_combo.currentText()),
-                    zone_offset=int(self._state.zone_offset),
+                    zone_offset=0,
                     reverse_zones=bool(self._state.reverse_zones),
                     manual_mapping_enabled=bool(self._state.manual_mapping_enabled),
                     explicit_zone_map=[int(i) for i in self._state.explicit_zone_map],
@@ -667,7 +629,7 @@ class SettingsDialog:
                     smoothing=self.smoothing_slider.value() / 100.0, smoothing_speed=self.smoothing_speed_slider.value() / 100.0, led_gamma=self.led_gamma_slider.value() / 100.0,
                     zones=new_zones, zone_preset=self._state.zone_preset, color_mode=str(self.color_mode_combo.currentText()), hdr_enabled=str(self.display_mode_combo.currentText()) == "hdr",
                     start_on_launch=bool(self.start_on_launch_checkbox.isChecked()), device_zone_count=self._state.device_zone_count,
-                    output_channel_order=str(self.output_channel_order_combo.currentText()), zone_offset=self._state.zone_offset, reverse_zones=self._state.reverse_zones,
+                    output_channel_order=str(self.output_channel_order_combo.currentText()), zone_offset=0, reverse_zones=self._state.reverse_zones,
                     manual_mapping_enabled=bool(self._state.manual_mapping_enabled),
                     explicit_zone_map=[int(i) for i in self._state.explicit_zone_map] if self._state.manual_mapping_enabled else [],
                     corner_anchor_top_left=int(self._state.corner_anchor_top_left),

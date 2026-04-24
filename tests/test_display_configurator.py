@@ -183,13 +183,12 @@ def test_display_configurator_marks_wizard_complete_and_persists_corner_calibrat
     cfg = AppConfig(wizard_completed=False, zones=[])
     dialog = DisplayConfiguratorDialog(parent=None, cfg=cfg)
     dialog._dialog.zone_count_slider.setValue(6)
-    dialog._dialog.zone_offset_slider.setValue(2)
     dialog._dialog.reverse_checkbox.setChecked(True)
 
     updated = dialog.updated_config()
     assert updated.wizard_completed is True
     assert updated.calibration.calibration_model == "corner_anchored"
-    assert updated.zone_offset == 2
+    assert updated.zone_offset == 0
     assert updated.reverse_zones is True
 
 
@@ -230,7 +229,6 @@ def test_display_configurator_physical_walk_ignores_offset_and_reverse(monkeypat
 
     dialog._dialog._test_step = 7
     base_zone = dialog._dialog._active_calibration_step().device_zone_index
-    dialog._dialog.zone_offset_slider.setValue(19)
     dialog._dialog.reverse_checkbox.setChecked(True)
     dialog._dialog._test_step = 7
     assert dialog._dialog._active_calibration_step().device_zone_index == base_zone
@@ -242,7 +240,6 @@ def test_display_configurator_restores_in_progress_draft(monkeypatch) -> None:
         {
             "flow_index": 1,
             "test_step": 3,
-            "zone_offset": 4,
             "current_phase": "direction-verification",
             "phase_validation_state": {"direction-verification": {"valid": False}},
         }
@@ -251,7 +248,6 @@ def test_display_configurator_restores_in_progress_draft(monkeypatch) -> None:
     dialog = DisplayConfiguratorDialog(parent=None, cfg=cfg)
 
     assert dialog._dialog._flow.index == 1
-    assert dialog._dialog.zone_offset_slider.value() == 4
     stored = json.loads(dialog.in_progress_config().wizard_in_progress_state)
     assert "current_phase" not in stored
     assert "phase_validation_state" not in stored
