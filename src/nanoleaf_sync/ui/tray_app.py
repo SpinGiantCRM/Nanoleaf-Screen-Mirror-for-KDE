@@ -605,6 +605,7 @@ class NanoleafTrayApp:
             parent=None,
             cfg=self.config,
             calibration_sender=self._send_calibration_preview,
+            diagnostic_capture=getattr(self.service, "capture_one_diagnostic_frame", None),
             runtime_status=self.service.get_status(),
             initial_section=initial_section,
         )

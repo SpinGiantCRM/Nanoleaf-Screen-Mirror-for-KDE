@@ -394,16 +394,19 @@ def should_auto_run_latency_probe(*, policy: str, last_result: LatencyProbeResul
 
 def latency_result_summary(result: LatencyProbeResult | None) -> str:
     if result is None:
-        return "Latency checker has not been run yet."
+        return "Live latency: Not measured | Start mirroring to collect live latency samples."
     if result.measurement_kind == "measured":
-        summary_kind = "measured pipeline latency"
-    elif result.measurement_kind == "policy":
-        summary_kind = "policy recommendation"
-    else:
-        summary_kind = "heuristic frame-interval estimate"
+        return (
+            f"Live latency: {result.measured_latency_ms:.1f} ms | "
+            f"backend={result.selected_backend} | source={result.selection_source} | "
+            f"trigger={result.triggered_by} | confidence={result.confidence_note}"
+            + (f" | {result.details}" if result.details else "")
+        )
+    if result.measurement_kind == "unavailable":
+        return (
+            f"Live latency: Not measured | {result.confidence_note}"
+            + (f" | {result.details}" if result.details else "")
+        )
     return (
-        f"Latest latency check: {result.measured_latency_ms:.1f} ms [{summary_kind}] | "
-        f"requested_policy={result.requested_policy} | backend={result.selected_backend} | source={result.selection_source} | "
-        f"trigger={result.triggered_by} | confidence={result.confidence_note} | at={result.recorded_at_utc}"
-        + (f" | {result.details}" if result.details else "")
+        f"Live latency: Not measured | Unsupported latency result kind '{result.measurement_kind}'."
     )

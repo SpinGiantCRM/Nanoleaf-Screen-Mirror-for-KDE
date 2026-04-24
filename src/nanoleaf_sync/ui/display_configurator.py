@@ -194,6 +194,10 @@ class DisplayConfiguratorDialog:
                 self.sdr_boost_nits_slider.setRange(80, 400)
                 self.sdr_boost_nits_slider.setValue(int(getattr(cfg, "sdr_boost_nits", 80.0)))
                 self.sdr_boost_nits_value = QLabel("")
+                self.sdr_white_reference_preset_combo = QComboBox()
+                self.sdr_white_reference_preset_combo.addItems(["80 nits", "120 nits", "160 nits", "203 nits", "Custom"])
+                preset_value = str(getattr(cfg, "sdr_white_reference_preset", "80")).strip().lower()
+                self.sdr_white_reference_preset_combo.setCurrentIndex({"80": 0, "120": 1, "160": 2, "203": 3, "custom": 4}.get(preset_value, 4))
                 self.display_advanced_group = QGroupBox("Advanced display details")
                 _set_checkable(self.display_advanced_group, True)
                 _set_checked(self.display_advanced_group, False)
@@ -316,6 +320,8 @@ class DisplayConfiguratorDialog:
                 )
 
                 self.hdr_max_nits_slider.valueChanged.connect(self._refresh)
+                self.sdr_boost_nits_slider.valueChanged.connect(self._on_sdr_white_slider_changed)
+                self.sdr_white_reference_preset_combo.currentIndexChanged.connect(self._on_sdr_white_preset_changed)
                 self.simple_calibration_widget.bind_callbacks(
                     on_prev_zone=self._prev_test_zone,
                     on_next_zone=self._next_test_zone,
@@ -433,9 +439,11 @@ class DisplayConfiguratorDialog:
                 advanced_layout.addWidget(self.hdr_max_nits_slider, 2, 1)
                 advanced_layout.addWidget(self.hdr_max_nits_value, 2, 2)
                 advanced_layout.addWidget(self.compositor_hdr_mode_checkbox, 3, 0, 1, 3)
-                advanced_layout.addWidget(QLabel("SDR white reference"), 4, 0)
-                advanced_layout.addWidget(self.sdr_boost_nits_slider, 4, 1)
-                advanced_layout.addWidget(self.sdr_boost_nits_value, 4, 2)
+                advanced_layout.addWidget(QLabel("SDR white reference preset"), 4, 0)
+                advanced_layout.addWidget(self.sdr_white_reference_preset_combo, 4, 1, 1, 2)
+                advanced_layout.addWidget(QLabel("SDR white reference"), 5, 0)
+                advanced_layout.addWidget(self.sdr_boost_nits_slider, 5, 1)
+                advanced_layout.addWidget(self.sdr_boost_nits_value, 5, 2)
                 self.display_advanced_group.setLayout(advanced_layout)
                 layout.addWidget(self.display_advanced_group, 2, 0, 1, 3)
                 page.setLayout(layout)
@@ -678,6 +686,8 @@ class DisplayConfiguratorDialog:
                     )
                     self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText("pq")))
                     self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText("bt2020")))
+                    if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower() != "custom":
+                        self.sdr_white_reference_preset_combo.setCurrentIndex(3)
                 elif selected_display_mode == "sdr":
                     self.display_mode_help.setText(
                         "SDR: Uses SDR-safe defaults for consistent color on standard desktop mode."
@@ -900,6 +910,12 @@ class DisplayConfiguratorDialog:
                     hdr_transfer=str(self.hdr_transfer_combo.currentText()),
                     hdr_primaries=str(self.hdr_primaries_combo.currentText()),
                     hdr_max_nits=float(self.hdr_max_nits_slider.value()),
+                    sdr_boost_nits=float(self.sdr_boost_nits_slider.value()),
+                    sdr_white_reference_preset=(
+                        "custom"
+                        if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower() == "custom"
+                        else str(self.sdr_boost_nits_slider.value())
+                    ),
                     led_gamma=cfg.led_gamma,
                     zones=new_zones,
                     device_zone_count=self._state.device_zone_count,
@@ -1026,6 +1042,20 @@ class DisplayConfiguratorDialog:
                 self._state.corner_anchor_top_right = int(data.get("corner_anchor_top_right", self._state.corner_anchor_top_right))
                 self._state.corner_anchor_bottom_right = int(data.get("corner_anchor_bottom_right", self._state.corner_anchor_bottom_right))
                 self._state.corner_anchor_bottom_left = int(data.get("corner_anchor_bottom_left", self._state.corner_anchor_bottom_left))
+                self._refresh()
+
+            def _on_sdr_white_slider_changed(self, *_args) -> None:
+                if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower() != "custom":
+                    self.sdr_white_reference_preset_combo.setCurrentIndex(4)
+                self._refresh()
+
+            def _on_sdr_white_preset_changed(self, *_args) -> None:
+                preset_text = str(self.sdr_white_reference_preset_combo.currentText()).strip().lower()
+                if preset_text != "custom":
+                    self._set_slider_value_safely(
+                        self.sdr_boost_nits_slider,
+                        int(preset_text.split(" ", 1)[0]),
+                    )
                 self._refresh()
                 return True
 

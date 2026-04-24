@@ -41,3 +41,6 @@ def test_sdr_white_reference_controls_present() -> None:
     assert "Detect KDE SDR white reference" in text
     assert "Use detected value" in text
     assert "sdr_boost_nits_slider.valueChanged.connect(self._on_sdr_white_slider_changed)" in text
+    assert "Capture one diagnostic frame" in text
+    assert "Export live sampling overlay" in text
+    assert "Export synthetic sampling test overlay" in text
