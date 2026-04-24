@@ -289,13 +289,15 @@ class HIDTransport:
         if self._handle is None:
             raise RuntimeError("HID transport not opened.")
         payload = bytes(report)
-        max_request_bytes = self.report_size
-        if len(payload) > max_request_bytes:
+        payload_capacity = self.report_size
+        if payload_capacity <= 0:
             raise RuntimeError(
-                "TLV request does not fit in a single HID report: "
-                f"requested={len(payload)} bytes, max_supported={max_request_bytes} bytes"
+                f"Invalid HID report size {payload_capacity}; expected a positive report size"
             )
-        self._handle.write(self._build_report(payload))
+
+        for offset in range(0, len(payload), payload_capacity):
+            chunk = payload[offset : offset + payload_capacity]
+            self._handle.write(self._build_report(chunk))
 
     def read(self) -> bytes:
         if self._handle is None:

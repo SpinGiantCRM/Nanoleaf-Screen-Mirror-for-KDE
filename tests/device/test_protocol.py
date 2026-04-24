@@ -108,14 +108,18 @@ def test_hid_write_single_report_boundary_success() -> None:
     assert fake.writes[0][1 : 1 + len(request)] == request
 
 
-def test_hid_write_raises_when_request_exceeds_single_report_capacity() -> None:
+def test_hid_write_splits_request_across_multiple_reports_when_oversized() -> None:
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
     fake = _FakeHIDHandle()
     transport._handle = fake
     too_large_request = bytes([CMD_SET_ZONE_COLORS]) + b"\x00\x3e" + (b"\x01" * 62)
 
-    with pytest.raises(
-        RuntimeError,
-        match=r"requested=65 bytes, max_supported=64 bytes",
-    ):
-        transport.write(too_large_request)
+    transport.write(too_large_request)
+
+    assert len(fake.writes) == 2
+    first = fake.writes[0]
+    second = fake.writes[1]
+    assert len(first) == 65
+    assert len(second) == 65
+    assert first[1:] == too_large_request[:64]
+    assert second[1] == too_large_request[64]

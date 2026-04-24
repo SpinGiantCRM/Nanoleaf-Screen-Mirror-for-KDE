@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 import pytest
 
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
@@ -206,12 +208,13 @@ def test_send_frame_uses_configured_zone_count_override() -> None:
     assert int.from_bytes(req[1:3], "big") == 48 * 3
 
 
-def test_send_frame_rejects_zone_payload_larger_than_single_report() -> None:
+def test_send_frame_allows_48_zone_payload_when_transport_supports_multi_report() -> None:
     transport = FakeTransport([
         _rsp(0x0C, b"\x00NL82K2"),
         _rsp(0x03, b"\x00\x08"),
         _rsp(0x06, b"\x00\x01"),
         _rsp(0x08, b"\x00\x64"),
+        _rsp(0x02, b"\x00"),
     ])
     driver = NanoleafUSBDriver(
         ids=NanoleafUSBIds(0x37FA, 0x8202),
@@ -220,8 +223,12 @@ def test_send_frame_rejects_zone_payload_larger_than_single_report() -> None:
     )
     driver.initialize()
 
-    with pytest.raises(RuntimeError, match="Zone color request exceeds single-report TLV capacity"):
-        driver.send_frame([(10, 20, 30)] * 48)
+    driver.send_frame([(10, 20, 30)] * 48)
+
+    req = transport.requests[-1]
+    assert req[0] == 0x02
+    assert int.from_bytes(req[1:3], "big") == 48 * 3
+    assert len(req[3:]) == 48 * 3
 
 
 def test_send_frame_more_than_8_zones_still_builds_one_valid_tlv_when_within_capacity() -> None:
@@ -246,6 +253,31 @@ def test_send_frame_more_than_8_zones_still_builds_one_valid_tlv_when_within_cap
     assert req[0] == 0x02
     assert req[1:3] == b"\x00\x1b"
     assert len(req) == 30
+
+
+def test_send_frame_logs_multi_report_diagnostics_for_48_zones(caplog: pytest.LogCaptureFixture) -> None:
+    transport = FakeTransport([
+        _rsp(0x0C, b"\x00NL82K2"),
+        _rsp(0x03, b"\x00\x08"),
+        _rsp(0x06, b"\x00\x01"),
+        _rsp(0x08, b"\x00\x64"),
+        _rsp(0x02, b"\x00"),
+    ])
+    driver = NanoleafUSBDriver(
+        ids=NanoleafUSBIds(0x37FA, 0x8202),
+        transport=transport,
+        configured_zone_count=48,
+    )
+    driver.initialize()
+
+    with caplog.at_level(logging.DEBUG, logger="nanoleaf_sync.device.usb_driver"):
+        driver.send_frame([(10, 20, 30)] * 48)
+
+    assert "intended_zone_count=48" in caplog.text
+    assert "payload_bytes=144" in caplog.text
+    assert "report_count=3" in caplog.text
+    assert "chunk_sizes=[64, 64, 19]" in caplog.text
+    assert "command=0x02" in caplog.text
 
 
 def test_set_brightness_clamps_to_protocol_range() -> None:
