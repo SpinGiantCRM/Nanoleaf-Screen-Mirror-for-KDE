@@ -83,7 +83,13 @@ def _choose_direction(values: dict[CornerName, int], total: int) -> tuple[str, l
     return "clockwise", cw_order, cw_lengths
 
 
-def derive_anchor_zone_map(*, zone_count: int, device_zone_count: int, anchors: dict[CornerName, int | None]) -> AnchorMappingResult:
+def derive_anchor_zone_map(
+    *,
+    zone_count: int,
+    device_zone_count: int,
+    anchors: dict[CornerName, int | None],
+    source_side_counts: tuple[int, int, int, int] | None = None,
+) -> AnchorMappingResult:
     validation = validate_corner_anchors(anchors=anchors, device_zone_count=device_zone_count)
     if not validation.valid:
         raise ValueError("; ".join(validation.errors))
@@ -94,10 +100,20 @@ def derive_anchor_zone_map(*, zone_count: int, device_zone_count: int, anchors: 
 
     direction, ordered_corners, edge_lengths = _choose_direction(values, dst_total)
 
-    if direction == "clockwise":
-        source_corners = [0, src_total // 4, src_total // 2, (3 * src_total) // 4, src_total]
+    if source_side_counts is not None and sum(source_side_counts) == src_total:
+        top, right, bottom, left = [max(0, int(v)) for v in source_side_counts]
+        boundary_tr = top
+        boundary_br = top + right
+        boundary_bl = top + right + bottom
+        if direction == "clockwise":
+            source_corners = [0, boundary_tr, boundary_br, boundary_bl, src_total]
+        else:
+            source_corners = [0, boundary_bl, boundary_br, boundary_tr, src_total]
     else:
-        source_corners = [0, (3 * src_total) // 4, src_total // 2, src_total // 4, src_total]
+        if direction == "clockwise":
+            source_corners = [0, src_total // 4, src_total // 2, (3 * src_total) // 4, src_total]
+        else:
+            source_corners = [0, (3 * src_total) // 4, src_total // 2, src_total // 4, src_total]
 
     mapping = [0] * dst_total
     for edge_idx in range(4):

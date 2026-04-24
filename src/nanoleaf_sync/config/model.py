@@ -71,7 +71,7 @@ class AppConfig:
     sampling_quality: str = "balanced"
     # High-count target for edge preset capture thickness in normalized units.
     # Lower zone counts are automatically thinner to avoid center-heavy sampling.
-    edge_sampling_thickness: float = 0.12
+    edge_sampling_thickness: float = 0.08
     zone_preset: str = "edge-weighted"
     color_mode: str = "default"
     # Tracks whether the first-run display configurator has been completed.

@@ -26,6 +26,7 @@ DeviceZoneMappingSignature = Tuple[
     int,
     int,
     int,
+    Tuple[int, ...],
 ]
 
 
