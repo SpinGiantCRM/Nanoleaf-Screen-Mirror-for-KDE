@@ -97,10 +97,9 @@ Start with `srgb + bt709` if your desktop is SDR, then tune brightness conservat
 
 Use tray **Settings**:
 - Reverse strip orientation
-- Zone offset
 - Mapping preview line
 
-If the strip is mounted upside-down, enable reverse first, then fine-tune the offset.
+If the strip is mounted upside-down, enable reverse orientation.
 
 If setup was interrupted, reopen the setup wizard. In-progress calibration state is persisted and should resume from the last saved calibration step.
 

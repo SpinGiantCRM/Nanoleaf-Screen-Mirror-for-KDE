@@ -29,11 +29,9 @@ class CalibrationConfig:
     calibration_model: str = "corner_anchored"
     device_zone_count: int = 0
     output_channel_order: str = "grb"
-    normalized_zone_offset: int = 0
     normalized_reverse_zones: bool = False
     normalized_corner_anchors: list[int] = field(default_factory=list)
     normalized_manual_zone_map: list[int] = field(default_factory=list)
-    zone_offset: int = 0
     reverse_zones: bool = False
     manual_mapping_enabled: bool = False
     explicit_zone_map: list[int] = field(default_factory=list)
@@ -44,9 +42,6 @@ class CalibrationConfig:
     corner_anchor_fallback_active: bool = False
     corner_anchor_fallback_strategy: str = ""
     corner_anchor_warning_codes: list[str] = field(default_factory=list)
-    corner_start_anchor: int = -1
-    corner_offsets_enabled: bool = False
-    corner_zone_offsets: list[int] = field(default_factory=list)
 
 
 @dataclass
@@ -129,7 +124,6 @@ class AppConfig:
     # Physical channel order expected by the LED strip controller.
     # Defaults to GRB for currently supported Nanoleaf USB strip hardware.
     output_channel_order: str = "grb"
-    zone_offset: int = 0
     reverse_zones: bool = False
     # Explicitly controls whether `explicit_zone_map` is active.
     manual_mapping_enabled: bool = False
@@ -149,23 +143,12 @@ class AppConfig:
     corner_anchor_fallback_strategy: str = ""
     corner_anchor_warning_codes: list[str] = field(default_factory=list)
 
-    # Guided corner calibration: optional explicit top-left device anchor index.
-    # Negative means inferred from current mapping.
-    corner_start_anchor: int = -1
-    # Optional advanced per-corner correction over the base mapping.
-    # Order: [top-left, top-right, bottom-right, bottom-left].
-    # Values are source-zone index offsets blended across each edge.
-    corner_offsets_enabled: bool = False
-    corner_zone_offsets: list[int] = field(default_factory=list)
-
     # Latency diagnostics/checker policy and latest visible result.
     auto_latency_policy: str = "manual"
     latency_last_backend: str = ""
     latency_last_value_ms: float = 0.0
     latency_last_trigger: str = ""
     latency_last_timestamp: str = ""
-    calibration_validation_confidence: float = 0.0
-    calibration_validation_summary: str = ""
 
     # Recovery policy
     max_consecutive_errors: int = 5
@@ -176,25 +159,8 @@ class AppConfig:
     verbose: bool = False
 
     def effective_calibration(self) -> CalibrationConfig:
-        """
-        Return a canonical calibration snapshot for runtime/UI consumers.
-
-        The nested ``calibration`` payload is authoritative. Top-level fields are
-        retained for backward compatibility and mirrored by normalization.
-        """
+        """Return the canonical calibration snapshot for runtime/UI consumers."""
         calibration = self.calibration or CalibrationConfig()
-        defaults = CalibrationConfig()
-        has_explicit_block = calibration != CalibrationConfig()
-
-        def calibration_or_legacy(field: str, default):
-            calibration_value = getattr(calibration, field, default)
-            legacy_value = getattr(self, field, default)
-            if has_explicit_block:
-                return calibration_value
-            if calibration_value == default and legacy_value != default:
-                return legacy_value
-            return calibration_value
-
         return CalibrationConfig(
             schema_version=int(
                 getattr(self, "calibration_schema_version", getattr(calibration, "schema_version", 1)) or 1
@@ -203,70 +169,23 @@ class AppConfig:
                 getattr(self, "calibration_schema_version", getattr(calibration, "calibration_schema_version", 1))
                 or 1
             ),
-            calibration_model=str(calibration_or_legacy("calibration_model", defaults.calibration_model)),
-            device_zone_count=int(calibration_or_legacy("device_zone_count", defaults.device_zone_count)),
-            output_channel_order=str(calibration_or_legacy("output_channel_order", defaults.output_channel_order)),
-            normalized_zone_offset=int(
-                calibration_or_legacy("normalized_zone_offset", defaults.normalized_zone_offset)
-            ),
-            normalized_reverse_zones=bool(
-                calibration_or_legacy("normalized_reverse_zones", defaults.normalized_reverse_zones)
-            ),
-            normalized_corner_anchors=[
-                int(i)
-                for i in (
-                    calibration_or_legacy("normalized_corner_anchors", defaults.normalized_corner_anchors) or []
-                )
-            ],
-            normalized_manual_zone_map=[
-                int(i)
-                for i in (
-                    calibration_or_legacy("normalized_manual_zone_map", defaults.normalized_manual_zone_map) or []
-                )
-            ],
-            zone_offset=int(calibration_or_legacy("zone_offset", defaults.zone_offset)),
-            reverse_zones=bool(calibration_or_legacy("reverse_zones", defaults.reverse_zones)),
-            manual_mapping_enabled=bool(
-                calibration_or_legacy("manual_mapping_enabled", defaults.manual_mapping_enabled)
-            ),
+            calibration_model=str(getattr(calibration, "calibration_model", "corner_anchored") or "corner_anchored"),
+            device_zone_count=int(getattr(calibration, "device_zone_count", 0)),
+            output_channel_order=str(getattr(calibration, "output_channel_order", "grb") or "grb"),
+            normalized_reverse_zones=bool(getattr(calibration, "normalized_reverse_zones", False)),
+            normalized_corner_anchors=[int(i) for i in (getattr(calibration, "normalized_corner_anchors", []) or [])],
+            normalized_manual_zone_map=[int(i) for i in (getattr(calibration, "normalized_manual_zone_map", []) or [])],
+            reverse_zones=bool(getattr(calibration, "reverse_zones", False)),
+            manual_mapping_enabled=bool(getattr(calibration, "manual_mapping_enabled", False)),
             explicit_zone_map=[
                 int(i)
-                for i in (
-                    calibration_or_legacy("explicit_zone_map", defaults.explicit_zone_map) or []
-                )
+                for i in (getattr(calibration, "explicit_zone_map", []) or [])
             ],
-            corner_anchor_top_left=int(
-                calibration_or_legacy("corner_anchor_top_left", defaults.corner_anchor_top_left)
-            ),
-            corner_anchor_top_right=int(
-                calibration_or_legacy("corner_anchor_top_right", defaults.corner_anchor_top_right)
-            ),
-            corner_anchor_bottom_right=int(
-                calibration_or_legacy("corner_anchor_bottom_right", defaults.corner_anchor_bottom_right)
-            ),
-            corner_anchor_bottom_left=int(
-                calibration_or_legacy("corner_anchor_bottom_left", defaults.corner_anchor_bottom_left)
-            ),
-            corner_anchor_fallback_active=bool(
-                calibration_or_legacy("corner_anchor_fallback_active", defaults.corner_anchor_fallback_active)
-            ),
-            corner_anchor_fallback_strategy=str(
-                calibration_or_legacy("corner_anchor_fallback_strategy", defaults.corner_anchor_fallback_strategy)
-            ),
-            corner_anchor_warning_codes=[
-                str(i)
-                for i in (
-                    calibration_or_legacy("corner_anchor_warning_codes", defaults.corner_anchor_warning_codes) or []
-                )
-            ],
-            corner_start_anchor=int(calibration_or_legacy("corner_start_anchor", defaults.corner_start_anchor)),
-            corner_offsets_enabled=bool(
-                calibration_or_legacy("corner_offsets_enabled", defaults.corner_offsets_enabled)
-            ),
-            corner_zone_offsets=[
-                int(i)
-                for i in (
-                    calibration_or_legacy("corner_zone_offsets", defaults.corner_zone_offsets) or []
-                )
-            ],
+            corner_anchor_top_left=int(getattr(calibration, "corner_anchor_top_left", -1)),
+            corner_anchor_top_right=int(getattr(calibration, "corner_anchor_top_right", -1)),
+            corner_anchor_bottom_right=int(getattr(calibration, "corner_anchor_bottom_right", -1)),
+            corner_anchor_bottom_left=int(getattr(calibration, "corner_anchor_bottom_left", -1)),
+            corner_anchor_fallback_active=bool(getattr(calibration, "corner_anchor_fallback_active", False)),
+            corner_anchor_fallback_strategy=str(getattr(calibration, "corner_anchor_fallback_strategy", "") or ""),
+            corner_anchor_warning_codes=[str(i) for i in (getattr(calibration, "corner_anchor_warning_codes", []) or [])],
         )

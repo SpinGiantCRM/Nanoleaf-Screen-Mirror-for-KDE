@@ -66,23 +66,13 @@ def _normalize_anchor(value: int | None) -> int | None:
     return parsed if parsed >= 0 else None
 
 
-def _rotate_explicit_zone_map(explicit_zone_map: Sequence[int], *, zone_offset: int) -> list[int]:
-    ordered = [int(i) for i in explicit_zone_map]
-    total = len(ordered)
-    if total <= 1:
-        return ordered
-    return [ordered[(device_idx + int(zone_offset)) % total] for device_idx in range(total)]
-
-
 def resolve_calibration_mapping(
     *,
     zone_count: int,
     device_zone_count: int,
-    zone_offset: int,
     reverse_zones: bool,
     manual_mapping_enabled: bool,
     explicit_zone_map: Sequence[int] | None = None,
-    corner_zone_offsets: Sequence[int] | None = None,
     corner_anchor_top_left: int = -1,
     corner_anchor_top_right: int = -1,
     corner_anchor_bottom_right: int = -1,
@@ -113,11 +103,9 @@ def resolve_calibration_mapping(
         return resolve_device_zone_indices(
             max(1, int(zone_count)),
             device_zone_count=normalized_device_zone_count,
-            zone_offset=int(zone_offset),
             reverse=bool(reverse_zones),
             manual_mapping_enabled=bool(manual_mapping_enabled),
             explicit_zone_map=list(explicit_zone_map) if explicit_zone_map else None,
-            corner_zone_offsets=list(corner_zone_offsets) if corner_zone_offsets else None,
         )
 
     anchor_validation = validate_corner_anchors(anchors=anchors, device_zone_count=device_zone_count)
@@ -147,10 +135,7 @@ def resolve_calibration_mapping(
         device_zone_count=derive_device_zone_count,
         anchors=effective_anchors,
     )
-    selected_explicit_map = _rotate_explicit_zone_map(
-        anchor_map.explicit_zone_map,
-        zone_offset=zone_offset,
-    )
+    selected_explicit_map = list(anchor_map.explicit_zone_map)
     target_count = max(1, int(device_zone_count))
     if len(selected_explicit_map) != target_count:
         source_count = len(selected_explicit_map)
@@ -162,11 +147,9 @@ def resolve_calibration_mapping(
     mapping = resolve_device_zone_indices(
         max(1, int(zone_count)),
         device_zone_count=normalized_device_zone_count,
-        zone_offset=int(zone_offset),
         reverse=bool(reverse_zones),
         manual_mapping_enabled=True,
         explicit_zone_map=selected_explicit_map,
-        corner_zone_offsets=list(corner_zone_offsets) if corner_zone_offsets else None,
     )
     return CalibrationMappingSnapshot(
         device_to_source_indices=mapping,
@@ -214,15 +197,9 @@ def resolve_calibration_mapping_with_context(
     return resolve_calibration_mapping(
         zone_count=int(context.source_zone_count),
         device_zone_count=device_zone_count,
-        zone_offset=0,
         reverse_zones=bool(getattr(calibration, "reverse_zones", False)),
         manual_mapping_enabled=bool(getattr(calibration, "manual_mapping_enabled", False)),
         explicit_zone_map=getattr(calibration, "explicit_zone_map", None) or None,
-        corner_zone_offsets=(
-            getattr(calibration, "corner_zone_offsets", None)
-            if bool(getattr(calibration, "corner_offsets_enabled", False))
-            else None
-        ),
         corner_anchor_top_left=int(getattr(calibration, "corner_anchor_top_left", -1)),
         corner_anchor_top_right=int(getattr(calibration, "corner_anchor_top_right", -1)),
         corner_anchor_bottom_right=int(getattr(calibration, "corner_anchor_bottom_right", -1)),

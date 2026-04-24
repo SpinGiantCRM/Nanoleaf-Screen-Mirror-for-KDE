@@ -14,11 +14,8 @@ def derive_corner_anchor_device_indices(
     *,
     zone_count: int,
     device_zone_count: int,
-    zone_offset: int,
     reverse_zones: bool,
     explicit_zone_map=None,
-    corner_zone_offsets=None,
-    start_anchor: int | None = None,
     calibration_model: str = "corner_anchored",
 ) -> list[int]:
     total = max(1, int(device_zone_count))
@@ -28,10 +25,8 @@ def derive_corner_anchor_device_indices(
     mapping = mapping_indices(
         zone_count=zone_count,
         device_zone_count=device_zone_count,
-        zone_offset=zone_offset,
         reverse_zones=reverse_zones,
         explicit_zone_map=explicit_zone_map,
-        corner_zone_offsets=corner_zone_offsets,
         calibration_model=calibration_model,
     )
     source_total = max(1, int(zone_count))
@@ -41,14 +36,9 @@ def derive_corner_anchor_device_indices(
         diff = abs(int(a) - int(b)) % length
         return min(diff, length - diff)
 
-    anchored_device_idx = (int(start_anchor) % total) if start_anchor is not None else None
     used: set[int] = set()
     ordered: list[int] = []
     for corner_idx in range(4):
-        if corner_idx == 0 and anchored_device_idx is not None:
-            ordered.append(anchored_device_idx)
-            used.add(anchored_device_idx)
-            continue
         target = corner_targets[corner_idx % len(corner_targets)]
         candidates = [idx for idx in range(total) if idx not in used]
         if not candidates:
