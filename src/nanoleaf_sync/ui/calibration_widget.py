@@ -23,6 +23,7 @@ class SimpleCalibrationWidget:
         self.current_zone_label = QLabel("Current LED: 1 of 1")
         self.step_index_label = QLabel("")
         self.assigned_corners_label = QLabel("")
+        self.corner_checklist_label = QLabel("")
         self.direction_label = QLabel("")
         self.validation_label = QLabel("")
 
@@ -34,6 +35,8 @@ class SimpleCalibrationWidget:
         self.assign_bottom_right_button = QPushButton("Assign bottom-right")
         self.assign_bottom_left_button = QPushButton("Assign bottom-left")
         self.reset_anchors_button = QPushButton("Reset anchors")
+        self.flash_assigned_corners_button = QPushButton("Flash assigned corners")
+        self.walk_strip_once_button = QPushButton("Walk strip once")
 
         self.reverse_orientation_checkbox = QCheckBox("Reverse direction")
 
@@ -53,6 +56,8 @@ class SimpleCalibrationWidget:
         on_assign_bottom_left: Callable[[], None],
         on_reset_anchors: Callable[[], None],
         on_reverse_orientation_changed: Callable[[], None],
+        on_flash_assigned_corners: Callable[[], None] | None = None,
+        on_walk_strip_once: Callable[[], None] | None = None,
         on_apply: Callable[[], None] | None = None,
         on_save: Callable[[], None] | None = None,
     ) -> None:
@@ -64,6 +69,10 @@ class SimpleCalibrationWidget:
         self.assign_bottom_left_button.clicked.connect(on_assign_bottom_left)
         self.reset_anchors_button.clicked.connect(on_reset_anchors)
         self.reverse_orientation_checkbox.stateChanged.connect(on_reverse_orientation_changed)
+        if on_flash_assigned_corners is not None:
+            self.flash_assigned_corners_button.clicked.connect(on_flash_assigned_corners)
+        if on_walk_strip_once is not None:
+            self.walk_strip_once_button.clicked.connect(on_walk_strip_once)
         if on_apply is not None:
             self.apply_button.clicked.connect(on_apply)
             self._set_visible(self.apply_button, True)
@@ -81,6 +90,8 @@ class SimpleCalibrationWidget:
         layout.addWidget(self.current_zone_label, current_row, 0, 1, 3)
         current_row += 1
         layout.addWidget(self.assigned_corners_label, current_row, 0, 1, 3)
+        current_row += 1
+        layout.addWidget(self.corner_checklist_label, current_row, 0, 1, 3)
         current_row += 1
         layout.addWidget(self.direction_label, current_row, 0, 1, 3)
         current_row += 1
@@ -101,6 +112,10 @@ class SimpleCalibrationWidget:
         current_row += 1
         layout.addWidget(self.reset_anchors_button, current_row, 0, 1, 2)
         layout.addWidget(self.reverse_orientation_checkbox, current_row, 2)
+        current_row += 1
+        layout.addWidget(self.flash_assigned_corners_button, current_row, 0, 1, 3)
+        current_row += 1
+        layout.addWidget(self.walk_strip_once_button, current_row, 0, 1, 3)
         current_row += 1
         layout.addWidget(self.preview_visual_label, current_row, 0, 1, 3)
         current_row += 1

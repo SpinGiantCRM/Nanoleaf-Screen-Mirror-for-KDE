@@ -101,8 +101,6 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     motion_preset = normalize_preset(getattr(cfg, "motion_preset", AppConfig.motion_preset), allowed=MOTION_PRESETS, default=AppConfig.motion_preset)
     color_style = normalize_preset(getattr(cfg, "color_style", AppConfig.color_style), allowed=COLOR_STYLE_PRESETS, default=AppConfig.color_style)
     display_preset = normalize_preset(getattr(cfg, "display_preset", AppConfig.display_preset), allowed=DISPLAY_PRESETS, default=AppConfig.display_preset)
-    legacy_zone_preset = "horizontal" if layout_preset == "horizontal_debug" else "edge-weighted"
-    legacy_color_mode = "balanced" if motion_preset == "calm" else ("hyper" if motion_preset == "dynamic" and color_style == "punchy" else ("dynamic" if (motion_preset == "dynamic" or color_style in {"vivid", "punchy"}) else "default"))
 
     zones: List[ZoneConfig] = []
     for z in cfg.zones:
@@ -175,12 +173,8 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         motion_preset=motion_preset,
         color_style=color_style,
         display_preset=display_preset,
-        zone_preset=legacy_zone_preset,
-        edge_sampling_thickness=float(getattr(cfg, "edge_sampling_thickness", AppConfig.edge_sampling_thickness)),
-        color_mode=legacy_color_mode,
         wizard_completed=coerce_bool(getattr(cfg, "wizard_completed", False), False),
         wizard_in_progress_state=normalize_wizard_in_progress_state(getattr(cfg, "wizard_in_progress_state", "")),
-        hdr_enabled=coerce_bool(getattr(cfg, "hdr_enabled", False), False),
         start_on_launch=coerce_bool(getattr(cfg, "start_on_launch", False), False),
         device_vid=cfg.device_vid,
         device_pid=cfg.device_pid,

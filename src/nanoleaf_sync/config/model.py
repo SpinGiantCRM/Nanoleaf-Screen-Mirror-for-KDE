@@ -72,18 +72,12 @@ class AppConfig:
     sampling_quality: str = "high"
     motion_preset: str = "responsive"
     color_style: str = "natural"
-    display_preset: str = "sdr"
-    # Deprecated legacy fields (kept only as non-canonical compatibility shims).
-    zone_preset: str = "edge-weighted"
-    edge_sampling_thickness: float = 0.08
-    color_mode: str = "default"
+    display_preset: str = "hdr"
     # Tracks whether the first-run display configurator has been completed.
     wizard_completed: bool = False
     # Serialized in-progress setup wizard state for resume/recovery.
     # Stored as JSON payload; empty string means no active draft.
     wizard_in_progress_state: str = ""
-    # Wizard choice retained as runtime toggle; display_preset is user-facing.
-    hdr_enabled: bool = False
     start_on_launch: bool = False
 
     # KDE compositor HDR controls for SDR content on HDR displays.
