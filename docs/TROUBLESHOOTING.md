@@ -102,9 +102,9 @@ Use tray **Settings**:
 
 If the strip is mounted upside-down, enable reverse first, then fine-tune the offset.
 
-If setup was interrupted, reopen the setup wizard. In-progress calibration state is persisted and should resume from the previous phase/step. If the current phase is now inconsistent, use **Reset this section** or the phase-specific **Rollback** controls before continuing.
+If setup was interrupted, reopen the setup wizard. In-progress calibration state is persisted and should resume from the last saved calibration step.
 
-Quick recovery helper: **If calibration looks wrong, reset the current phase, send a test pattern, then confirm the phase again before moving on.**
+Quick recovery helper: **If calibration looks wrong, reset this section, send a test pattern, and re-assign the corner anchors before moving on.**
 
 ### Corner-anchored calibration errors
 
