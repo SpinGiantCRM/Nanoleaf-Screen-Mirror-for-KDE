@@ -25,6 +25,7 @@ from nanoleaf_sync.ui.preset_ui import (
     value_for_label,
 )
 from nanoleaf_sync.ui.qt_lazy import load_qt
+from nanoleaf_sync.runtime.edge_locality_diagnostics import run_edge_locality_test
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text as _mapping_preview_text
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
@@ -121,7 +122,7 @@ class SettingsDialog:
                 self._state = CalibrationState.from_config(cfg, runtime_status)
                 self._source_zones_locked_to_device_count = (
                     not bool(self._state.source_zones_user_configured)
-                    and str(self._state.zone_preset) == "edge-weighted"
+                    and str(self._state.layout_preset) == "edge-weighted"
                 )
                 self._test_step = 0
                 self._latest_latency = None
@@ -132,23 +133,26 @@ class SettingsDialog:
                 self.smoothing_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.smoothing_slider.setRange(0, 100); self.smoothing_slider.setValue(int(round(cfg.smoothing * 100)))
                 self.smoothing_speed_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.smoothing_speed_slider.setRange(0, 400); self.smoothing_speed_slider.setValue(int(round(getattr(cfg, "smoothing_speed", 0.75) * 100)))
                 self.fps_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.fps_slider.setRange(FPS_MIN, FPS_MAX); self.fps_slider.setValue(int(cfg.fps))
-                self.display_preset_combo = QComboBox(); self.display_preset_combo.addItems(labels(DISPLAY_PRESET_LABELS)); self.display_preset_combo.setCurrentIndex(max(0, self.display_preset_combo.findText(label_for_value(DISPLAY_PRESET_LABELS, str(getattr(cfg, "display_preset", "hdr" if cfg.hdr_enabled else "sdr")), default="SDR"))))
+                self.display_preset_combo = QComboBox(); self.display_preset_combo.addItems(labels(DISPLAY_PRESET_LABELS)); self.display_preset_combo.setCurrentIndex(max(0, self.display_preset_combo.findText(label_for_value(DISPLAY_PRESET_LABELS, str(getattr(cfg, "display_preset", "hdr")), default="HDR"))))
                 self.compositor_hdr_mode_checkbox = QCheckBox("Compositor HDR mode (KDE Plasma SDR-on-HDR)")
                 self.compositor_hdr_mode_checkbox.setChecked(bool(getattr(cfg, "compositor_hdr_mode", False)))
                 self.sdr_boost_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.sdr_boost_nits_slider.setRange(SDR_BOOST_NITS_MIN, SDR_BOOST_NITS_MAX); self.sdr_boost_nits_slider.setValue(int(getattr(cfg, "sdr_boost_nits", 80.0)))
                 self.sdr_boost_nits_value = QLabel("")
                 self.motion_preset_combo = QComboBox(); self.motion_preset_combo.addItems(labels(MOTION_PRESET_LABELS)); self.motion_preset_combo.setCurrentIndex(max(0, self.motion_preset_combo.findText(label_for_value(MOTION_PRESET_LABELS, str(getattr(cfg, "motion_preset", "responsive")), default="Responsive"))))
                 self.color_style_combo = QComboBox(); self.color_style_combo.addItems(labels(COLOR_STYLE_LABELS)); self.color_style_combo.setCurrentIndex(max(0, self.color_style_combo.findText(label_for_value(COLOR_STYLE_LABELS, str(getattr(cfg, "color_style", "natural")), default="Natural"))))
-                self.edge_locality_combo = QComboBox(); self.edge_locality_combo.addItems(labels(EDGE_LOCALITY_LABELS)); self.edge_locality_combo.setCurrentIndex(max(0, self.edge_locality_combo.findText(label_for_value(EDGE_LOCALITY_LABELS, str(getattr(cfg, "edge_locality", "balanced")), default="Balanced"))))
+                self.edge_locality_combo = QComboBox(); self.edge_locality_combo.addItems(labels(EDGE_LOCALITY_LABELS)); self.edge_locality_combo.setCurrentIndex(max(0, self.edge_locality_combo.findText(label_for_value(EDGE_LOCALITY_LABELS, str(getattr(cfg, "edge_locality", "tight")), default="Tight"))))
                 self.start_on_launch_checkbox = QCheckBox("Start mirroring automatically when tray app opens"); self.start_on_launch_checkbox.setChecked(bool(getattr(cfg, "start_on_launch", False)))
 
                 self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_count_slider.setRange(1, MAX_ZONE_COUNT); self.zone_count_slider.setValue(self._state.zone_count)
-                self.layout_preset_combo = QComboBox(); self.layout_preset_combo.addItems(labels(LAYOUT_PRESET_LABELS)); self.layout_preset_combo.setCurrentIndex(max(0, self.layout_preset_combo.findText(label_for_value(LAYOUT_PRESET_LABELS, str(getattr(cfg, "layout_preset", "horizontal_debug" if self._state.zone_preset == "horizontal" else "edge_strip")), default="Edge strip"))))
+                self.layout_preset_combo = QComboBox(); self.layout_preset_combo.addItems(labels(LAYOUT_PRESET_LABELS)); self.layout_preset_combo.setCurrentIndex(max(0, self.layout_preset_combo.findText(label_for_value(LAYOUT_PRESET_LABELS, str(getattr(cfg, "layout_preset", "horizontal_debug" if self._state.layout_preset == "horizontal" else "edge_strip")), default="Edge strip"))))
                 self.simple_calibration_widget = SimpleCalibrationWidget(qt=qt, title="Corner calibration")
                 self.reverse_checkbox = self.simple_calibration_widget.reverse_orientation_checkbox; self.reverse_checkbox.setChecked(self._state.reverse_zones)
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.device_zone_count_slider.setRange(1, self._device_zone_count_max()); self.device_zone_count_slider.setValue(self._state.device_zone_count)
                 self.device_zone_count_status_label = QLabel("")
                 self.strip_count_warning_label = QLabel("")
+                self.use_detected_count_button = QPushButton("Use detected count")
+                self.keep_configured_count_button = QPushButton("Keep configured count")
+                self.reset_recalibrate_button = QPushButton("Reset anchors and recalibrate")
                 self.assign_top_left_button = self.simple_calibration_widget.assign_top_left_button
                 self.assign_top_right_button = self.simple_calibration_widget.assign_top_right_button
                 self.assign_bottom_right_button = self.simple_calibration_widget.assign_bottom_right_button
@@ -194,7 +198,7 @@ class SettingsDialog:
                 self.hdr_transfer_combo = QComboBox(); self.hdr_transfer_combo.addItems(["srgb", "pq"]); self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))))
                 self.hdr_primaries_combo = QComboBox(); self.hdr_primaries_combo.addItems(["bt709", "bt2020"]); self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText(str(getattr(cfg, "hdr_primaries", "bt709")))))
                 self.hdr_max_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.hdr_max_nits_slider.setRange(HDR_MAX_NITS_MIN, HDR_MAX_NITS_MAX); self.hdr_max_nits_slider.setValue(int(getattr(cfg, "hdr_max_nits", 1000.0)))
-                self.sampling_quality_combo = QComboBox(); self.sampling_quality_combo.addItems(labels(SAMPLING_QUALITY_LABELS)); self.sampling_quality_combo.setCurrentIndex(max(0, self.sampling_quality_combo.findText(label_for_value(SAMPLING_QUALITY_LABELS, str(getattr(cfg, "sampling_quality", "balanced")), default="Balanced"))))
+                self.sampling_quality_combo = QComboBox(); self.sampling_quality_combo.addItems(labels(SAMPLING_QUALITY_LABELS)); self.sampling_quality_combo.setCurrentIndex(max(0, self.sampling_quality_combo.findText(label_for_value(SAMPLING_QUALITY_LABELS, str(getattr(cfg, "sampling_quality", "high")), default="High"))))
                 self.led_gamma_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.led_gamma_slider.setRange(100, 400); self.led_gamma_slider.setValue(int(round(getattr(cfg, "led_gamma", 1.0) * 100)))
                 self.display_configurator_button = QPushButton("Re-run Display Setup"); self.display_configurator_button.clicked.connect(self._open_configurator)
                 self.open_calibration_tool_button = QPushButton("Open calibration tool"); self.open_calibration_tool_button.clicked.connect(self._open_configurator)
@@ -202,6 +206,8 @@ class SettingsDialog:
 
                 self.backend_info_label = QLabel("")
                 self.diagnostics_mapping_label = QLabel("")
+                self.edge_locality_diagnostic_button = QPushButton("Run edge locality test")
+                self.edge_locality_diagnostic_label = QLabel("")
                 self.preview_label = self.simple_calibration_widget.preview_text_label; self.preview_visual_label = self.simple_calibration_widget.preview_visual_label; self.test_label = QLabel("")
                 self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.sampling_quality_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel("")
 
@@ -225,8 +231,14 @@ class SettingsDialog:
                     on_assign_bottom_left=lambda: self._assign_anchor("bottom_left"),
                     on_reset_anchors=self._reset_anchors,
                     on_reverse_orientation_changed=self._on_calibration_controls_changed,
+                    on_flash_assigned_corners=self._send_test_pattern,
+                    on_walk_strip_once=self._step_test_zone,
                 )
                 self.run_latency_button.clicked.connect(self._run_latency_probe_manual)
+                self.edge_locality_diagnostic_button.clicked.connect(self._run_edge_locality_diagnostic)
+                self.use_detected_count_button.clicked.connect(self._use_detected_strip_count)
+                self.keep_configured_count_button.clicked.connect(self._keep_configured_strip_count)
+                self.reset_recalibrate_button.clicked.connect(self._reset_anchors)
                 self.device_model_combo.currentIndexChanged.connect(self._sync_device_model_selection)
 
                 buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
@@ -282,9 +294,9 @@ class SettingsDialog:
                 self.zone_count_slider.setToolTip("Number of screen sampling zones sampled from the display.")
                 self.reverse_checkbox.setToolTip("Flip strip direction if the mapping appears mirrored.")
                 self.display_preset_combo.setToolTip("Select SDR, HDR, or Auto display behavior.")
-                self.motion_preset_combo.setToolTip("Controls motion responsiveness.")
-                self.color_style_combo.setToolTip("Controls color intensity style.")
-                self.edge_locality_combo.setToolTip("Controls how close sampling stays to the edges.")
+                self.motion_preset_combo.setToolTip("Calm: smoother/slower. Responsive: recommended. Dynamic: punchier and more reactive.")
+                self.color_style_combo.setToolTip("Natural: accurate colour. Vivid: richer colour. Punchy: strongest effect.")
+                self.edge_locality_combo.setToolTip("Tight: most accurate/least bleed. Balanced: softer ambient look. Wide: cinematic blend.")
                 self.hdr_max_nits_slider.setToolTip("Reference display peak brightness for HDR tone mapping.")
                 self.capture_backend_combo.setToolTip("Select auto or force a specific capture backend.")
                 self.device_model_combo.setToolTip("Select your Nanoleaf USB hardware model.")
@@ -311,7 +323,9 @@ class SettingsDialog:
                 layout.addWidget(self.auto_latency_policy_combo, 3, 1, 1, 2)
                 layout.addWidget(self.run_latency_button, 4, 0, 1, 2)
                 layout.addWidget(self.latency_label, 5, 0, 1, 3)
-                layout.addWidget(self.diagnostics_mapping_label, 6, 0, 1, 3)
+                layout.addWidget(self.edge_locality_diagnostic_button, 6, 0, 1, 3)
+                layout.addWidget(self.edge_locality_diagnostic_label, 7, 0, 1, 3)
+                layout.addWidget(self.diagnostics_mapping_label, 8, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -367,6 +381,9 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Strip LED zone count"), 4, 0); layout.addWidget(self.device_zone_count_slider, 4, 1); layout.addWidget(self.device_zone_count_value, 4, 2)
                 layout.addWidget(self.device_zone_count_status_label, 5, 0, 1, 3)
                 layout.addWidget(self.strip_count_warning_label, 6, 0, 1, 3)
+                layout.addWidget(self.use_detected_count_button, 7, 0)
+                layout.addWidget(self.keep_configured_count_button, 7, 1, 1, 2)
+                layout.addWidget(self.reset_recalibrate_button, 8, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -396,7 +413,7 @@ class SettingsDialog:
 
             def _pull_state(self):
                 layout_preset = value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_preset_combo.currentText()), default="edge_strip")
-                self._state.zone_count = int(self.zone_count_slider.value()); self._state.zone_preset = "horizontal" if layout_preset == "horizontal_debug" else "edge-weighted"; self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value())
+                self._state.zone_count = int(self.zone_count_slider.value()); self._state.layout_preset = layout_preset; self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value())
                 self._state.calibration_model = "corner_anchored"
 
             def _set_slider_value_safely(self, slider, value: int) -> None:
@@ -457,6 +474,24 @@ class SettingsDialog:
                     f"Test zone step: {self._test_step + 1}/{step_total} | Active physical strip zone: {current_zone}"
                 )
                 self.test_step_index_label.setText(f"{self._test_step + 1}/{step_total}")
+                self.simple_calibration_widget.corner_checklist_label.setText(
+                    "Corner checklist: Top-left | Top-right | Bottom-right | Bottom-left"
+                )
+                assigned_count = sum(
+                    1
+                    for value in (
+                        self._state.corner_anchor_top_left,
+                        self._state.corner_anchor_top_right,
+                        self._state.corner_anchor_bottom_right,
+                        self._state.corner_anchor_bottom_left,
+                    )
+                    if int(value) >= 0
+                )
+                validation_status = "Complete" if assigned_count == 4 and not warnings else ("Missing corners" if assigned_count < 4 else "Out of range")
+                self.simple_calibration_widget.validation_label.setText(f"Calibration: {validation_status}")
+                self.simple_calibration_widget.direction_label.setText(
+                    f"Direction: {'Reversed' if self._state.reverse_zones else 'Normal'}"
+                )
 
                 panel = build_testing_panel_state(
                     state=self._state,
@@ -559,6 +594,26 @@ class SettingsDialog:
                     self._set_slider_value_safely(self.zone_count_slider, clamped)
                 self._test_step %= max(1, clamped)
                 self._refresh_preview_label()
+
+            def _use_detected_strip_count(self) -> None:
+                detected = int(self._state.detected_device_zone_count or 0)
+                if detected > 0:
+                    self._set_slider_value_safely(self.device_zone_count_slider, detected)
+                    self._refresh_preview_label()
+
+            def _keep_configured_strip_count(self) -> None:
+                self.strip_count_warning_label.setText("Keeping configured strip count.")
+
+            def _run_edge_locality_diagnostic(self) -> None:
+                self._pull_state()
+                result = run_edge_locality_test(
+                    zone_count=max(1, int(self._state.zone_count)),
+                    edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"),
+                    sampling_quality=value_for_label(SAMPLING_QUALITY_LABELS, str(self.sampling_quality_combo.currentText()), default="high"),
+                    motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"),
+                    color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="natural"),
+                )
+                self.edge_locality_diagnostic_label.setText(result.summary)
 
             def _on_zone_count_slider_changed(self, *_args) -> None:
                 self._source_zones_locked_to_device_count = False
@@ -673,7 +728,7 @@ class SettingsDialog:
                 else:
                     vid_value = int(str(self.device_vid_combo.currentText()), 0)
                     pid_value = int(str(self.device_pid_combo.currentText()), 0)
-                new_zones = make_edge_weighted_zones(self._state.zone_count) if self._state.zone_preset == "edge-weighted" else make_horizontal_zones(self._state.zone_count)
+                new_zones = make_edge_weighted_zones(self._state.zone_count, edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight")) if self._state.layout_preset == "edge_strip" else make_horizontal_zones(self._state.zone_count)
                 calibration_schema_version = int(getattr(cfg, "calibration_schema_version", 1) or 1)
                 calibration_payload = CalibrationConfig(
                     schema_version=calibration_schema_version,
@@ -693,7 +748,7 @@ class SettingsDialog:
                     cfg,
                     fps=int(self.fps_slider.value()), sampling_quality=str(self.sampling_quality_combo.currentText()).lower(), brightness=self.brightness_slider.value() / 100.0,
                     smoothing=self.smoothing_slider.value() / 100.0, smoothing_speed=self.smoothing_speed_slider.value() / 100.0, led_gamma=self.led_gamma_slider.value() / 100.0,
-                    zones=new_zones, zone_preset=self._state.zone_preset, layout_preset=value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_preset_combo.currentText()), default="edge_strip"), edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="balanced"), motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"), color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="natural"), display_preset=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="sdr"), color_mode=("dynamic" if value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive") == "dynamic" else "balanced"), hdr_enabled=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="sdr") in {"hdr", "auto"},
+                    zones=new_zones, layout_preset=value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_preset_combo.currentText()), default="edge_strip"), edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"), motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"), color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="natural"), display_preset=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="hdr"),
                     start_on_launch=bool(self.start_on_launch_checkbox.isChecked()), device_zone_count=self._state.device_zone_count,
                     output_channel_order=str(self.output_channel_order_combo.currentText()), reverse_zones=self._state.reverse_zones,
                     manual_mapping_enabled=bool(self._state.manual_mapping_enabled),

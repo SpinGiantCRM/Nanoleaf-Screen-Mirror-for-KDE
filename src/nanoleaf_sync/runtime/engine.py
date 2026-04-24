@@ -214,7 +214,7 @@ def process_frame(
     led_gamma: float = 1.0,
     motion_preset: str = "responsive",
     color_style: str = "natural",
-    edge_locality: str = "balanced",
+    edge_locality: str = "tight",
     compositor_hdr_mode: bool = False,
     sdr_boost_nits: float = 80.0,
     hdr_max_nits: float = 1000.0,

@@ -81,7 +81,7 @@ class CalibrationVerificationReport:
 class CalibrationState:
     # Active/simple state
     zone_count: int
-    zone_preset: str
+    layout_preset: str
     reverse_zones: bool
     device_zone_count: int
     current_test_step: int = 0
@@ -120,7 +120,7 @@ class CalibrationState:
 
         return cls(
             zone_count=max(1, int(source_zone_count)),
-            zone_preset=str(getattr(cfg, "zone_preset", "edge-weighted")),
+            layout_preset=str(getattr(cfg, "layout_preset", "edge_strip")),
             reverse_zones=bool(getattr(calibration, "reverse_zones", False)),
             device_zone_count=max(1, int(configured_device_zone_count)),
             corner_anchor_top_left=int(getattr(calibration, "corner_anchor_top_left", -1)),
@@ -186,7 +186,7 @@ class CalibrationState:
         source_mode = "user-configured" if self.source_zones_user_configured else "auto-derived"
         return (
             f"{self.auto_detection_status()}\n"
-            f"Zone preset: {self.zone_preset} | source zones: {self.zone_count} | strip zones: {self.effective_device_zone_count()} | source mode: {source_mode}\n"
+            f"Layout preset: {self.layout_preset} | source zones: {self.zone_count} | strip zones: {self.effective_device_zone_count()} | source mode: {source_mode}\n"
             f"Anchors TL/TR/BR/BL: {self.corner_anchor_top_left}/{self.corner_anchor_top_right}/{self.corner_anchor_bottom_right}/{self.corner_anchor_bottom_left}\n"
             "Simple corner calibration preview\n"
             f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), reverse_zones=self.reverse_zones, explicit_zone_map=None, corner_anchor_top_left=self.corner_anchor_top_left, corner_anchor_top_right=self.corner_anchor_top_right, corner_anchor_bottom_right=self.corner_anchor_bottom_right, corner_anchor_bottom_left=self.corner_anchor_bottom_left, calibration_model='corner_anchored', resolved_mapping=snapshot)}"

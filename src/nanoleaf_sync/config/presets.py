@@ -96,10 +96,9 @@ def motion_profile(motion_preset: str) -> MotionProfile:
 def analyzer_mode_for_presets(*, motion_preset: str, color_style: str) -> str:
     motion = normalize_preset(motion_preset, allowed=MOTION_PRESETS, default=MOTION_PRESET_RESPONSIVE)
     style = normalize_preset(color_style, allowed=COLOR_STYLE_PRESETS, default=COLOR_STYLE_NATURAL)
+    # Natural style is accuracy-first and should preserve localized edge sampling behavior.
+    if style == COLOR_STYLE_NATURAL:
+        return "balanced"
     if motion == MOTION_PRESET_DYNAMIC and style == COLOR_STYLE_PUNCHY:
         return "hyper"
-    if motion == MOTION_PRESET_DYNAMIC or style in {COLOR_STYLE_VIVID, COLOR_STYLE_PUNCHY}:
-        return "dynamic"
-    if motion == MOTION_PRESET_CALM and style == COLOR_STYLE_NATURAL:
-        return "balanced"
-    return "default"
+    return "dynamic"
