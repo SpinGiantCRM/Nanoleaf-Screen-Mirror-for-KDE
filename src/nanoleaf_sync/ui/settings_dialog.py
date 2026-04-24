@@ -30,6 +30,7 @@ from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.runtime.edge_locality_diagnostics import run_edge_locality_test
 from nanoleaf_sync.runtime.color_accuracy_diagnostics import run_color_accuracy_diagnostic
 from nanoleaf_sync.runtime.color_processing import apply_color_style_mapping
+from nanoleaf_sync.runtime.readiness_check import run_readiness_check
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text as _mapping_preview_text
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
 
@@ -213,6 +214,8 @@ class SettingsDialog:
                 self.edge_locality_diagnostic_label = QLabel("")
                 self.color_accuracy_diagnostic_button = QPushButton("Run colour accuracy diagnostic")
                 self.color_accuracy_diagnostic_label = QLabel("")
+                self.run_self_check_button = QPushButton("Run self-check")
+                self.self_check_label = QLabel("")
                 self.preview_label = self.simple_calibration_widget.preview_text_label; self.preview_visual_label = self.simple_calibration_widget.preview_visual_label; self.test_label = QLabel("")
                 self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.sampling_quality_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel("")
 
@@ -242,6 +245,7 @@ class SettingsDialog:
                 self.run_latency_button.clicked.connect(self._run_latency_probe_manual)
                 self.edge_locality_diagnostic_button.clicked.connect(self._run_edge_locality_diagnostic)
                 self.color_accuracy_diagnostic_button.clicked.connect(self._run_color_accuracy_diagnostic)
+                self.run_self_check_button.clicked.connect(self._run_self_check)
                 self.use_detected_count_button.clicked.connect(self._use_detected_strip_count)
                 self.keep_configured_count_button.clicked.connect(self._keep_configured_strip_count)
                 self.reset_recalibrate_button.clicked.connect(self._reset_anchors)
@@ -332,7 +336,9 @@ class SettingsDialog:
                 layout.addWidget(self.edge_locality_diagnostic_label, 7, 0, 1, 3)
                 layout.addWidget(self.color_accuracy_diagnostic_button, 8, 0, 1, 3)
                 layout.addWidget(self.color_accuracy_diagnostic_label, 9, 0, 1, 3)
-                layout.addWidget(self.diagnostics_mapping_label, 10, 0, 1, 3)
+                layout.addWidget(self.run_self_check_button, 10, 0, 1, 3)
+                layout.addWidget(self.self_check_label, 11, 0, 1, 3)
+                layout.addWidget(self.diagnostics_mapping_label, 12, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -625,6 +631,18 @@ class SettingsDialog:
                     mapper=lambda rgb: apply_color_style_mapping(np.asarray([rgb], dtype=np.float32), color_style=style)[0],
                 )
                 self.color_accuracy_diagnostic_label.setText(result.summary)
+
+            def _run_self_check(self) -> None:
+                pending_cfg = self.updated_config()
+                report = run_readiness_check(
+                    config=pending_cfg,
+                    runtime_status=self._runtime_status,
+                    source_zone_count=int(self.zone_count_slider.value()),
+                )
+                lines = [report.status]
+                for issue in report.issues:
+                    lines.append(f"- {issue.fix}")
+                self.self_check_label.setText("\n".join(lines))
 
             def _on_zone_count_slider_changed(self, *_args) -> None:
                 self._source_zones_locked_to_device_count = False
