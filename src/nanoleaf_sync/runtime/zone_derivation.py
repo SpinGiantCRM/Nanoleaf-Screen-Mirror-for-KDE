@@ -15,6 +15,7 @@ class SourceZoneArtifacts:
     side_counts: tuple[int, int, int, int] | None
     zone_order_mode: str | None
     edge_sampling_thickness: float | None
+    localized_edge_sampling_active: bool
     frame_width: int | None
     frame_height: int | None
 
@@ -43,7 +44,9 @@ class SourceZoneArtifacts:
             f"source zones: {len(self.zones)} | strip zones: {device_zone_count} | "
             f"frame: {dims} | side counts: {side_text} | "
             f"zone order mode: {self.zone_order_mode or 'n/a'} | "
-            f"edge sampling thickness: {thickness} | source mode: {source_mode}"
+            f"edge sampling thickness: {thickness} | "
+            f"localized edge sampling: {'on' if self.localized_edge_sampling_active else 'off'} | "
+            f"source mode: {source_mode}"
         )
 
 
@@ -89,6 +92,7 @@ def derive_source_zone_artifacts(
             side_counts=None,
             zone_order_mode=None,
             edge_sampling_thickness=None,
+            localized_edge_sampling_active=False,
             frame_width=frame_width,
             frame_height=frame_height,
         )
@@ -101,6 +105,7 @@ def derive_source_zone_artifacts(
             side_counts=None,
             zone_order_mode="horizontal",
             edge_sampling_thickness=None,
+            localized_edge_sampling_active=False,
             frame_width=frame_width,
             frame_height=frame_height,
         )
@@ -120,6 +125,7 @@ def derive_source_zone_artifacts(
         side_counts=layout.side_counts,
         zone_order_mode=layout.order_mode,
         edge_sampling_thickness=layout.edge_thickness,
+        localized_edge_sampling_active=True,
         frame_width=frame_width,
         frame_height=frame_height,
     )

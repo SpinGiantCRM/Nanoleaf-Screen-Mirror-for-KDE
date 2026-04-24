@@ -18,7 +18,7 @@ from nanoleaf_sync.ui.calibration_state import (
 from nanoleaf_sync.ui.calibration_widget import SimpleCalibrationWidget
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.zone_calibration import corner_anchor_validation_summary
-from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
+from nanoleaf_sync.ui.zone_presets import edge_weighted_layout, make_edge_weighted_zones, make_horizontal_zones
 
 MAX_WIZARD_ZONE_COUNT = 128
 WIZARD_STEPS: tuple[str, ...] = (
@@ -268,6 +268,10 @@ class DisplayConfiguratorDialog:
                 self.device_zone_summary = QLabel("")
                 self.zone_count_explanation = QLabel("")
                 self.zone_change_notice = QLabel("")
+                self.advanced_details_group = QGroupBox("Advanced details")
+                self.advanced_details = QLabel("")
+                _set_checkable(self.advanced_details_group, True)
+                _set_checked(self.advanced_details_group, False)
 
                 # Step 1
                 self.simple_calibration_widget = SimpleCalibrationWidget(qt=qt, title="Corner calibration")
@@ -439,24 +443,41 @@ class DisplayConfiguratorDialog:
                 if hasattr(layout, "setVerticalSpacing"):
                     layout.setVerticalSpacing(4)
                 layout.addWidget(QLabel("Tune visual style with live preview"), 0, 0, 1, 3)
-                layout.addWidget(self.sampling_low_button, 1, 0)
-                layout.addWidget(self.sampling_balanced_button, 1, 1)
-                layout.addWidget(self.sampling_high_button, 1, 2)
-                layout.addWidget(self.dynamism_balanced_button, 2, 0, 1, 2)
-                layout.addWidget(self.dynamism_dynamic_button, 2, 2)
-                layout.addWidget(QLabel("Optional vibrancy"), 3, 0)
-                layout.addWidget(self.vibrancy_slider, 3, 1)
-                layout.addWidget(self.vibrancy_value, 3, 2)
-                layout.addWidget(QLabel("Screen sampling zone count"), 4, 0)
-                layout.addWidget(self.zone_count_slider, 4, 1)
-                layout.addWidget(self.zone_count_value, 4, 2)
-                layout.addWidget(QLabel("Zone layout preset"), 5, 0)
-                layout.addWidget(self.zone_preset_combo, 5, 1, 1, 2)
-                layout.addWidget(QLabel("Strip LED zone count"), 6, 0)
-                layout.addWidget(self.device_zone_summary, 6, 1, 1, 2)
-                layout.addWidget(self.zone_count_explanation, 7, 0, 1, 3)
-                layout.addWidget(self.summary_label, 8, 0, 1, 3)
-                layout.addWidget(self.finish_policy_note, 9, 0, 1, 3)
+
+                appearance = QGroupBox("Appearance")
+                appearance_layout = QGridLayout()
+                appearance_layout.addWidget(QLabel("Quality"), 0, 0)
+                appearance_layout.addWidget(self.sampling_low_button, 0, 1)
+                appearance_layout.addWidget(self.sampling_balanced_button, 0, 2)
+                appearance_layout.addWidget(self.sampling_high_button, 0, 3)
+                appearance_layout.addWidget(QLabel("Motion / Dynamism"), 1, 0)
+                appearance_layout.addWidget(self.dynamism_balanced_button, 1, 1, 1, 2)
+                appearance_layout.addWidget(self.dynamism_dynamic_button, 1, 3)
+                appearance_layout.addWidget(QLabel("Vibrancy"), 2, 0)
+                appearance_layout.addWidget(self.vibrancy_slider, 2, 1, 1, 2)
+                appearance_layout.addWidget(self.vibrancy_value, 2, 3)
+                appearance.setLayout(appearance_layout)
+                layout.addWidget(appearance, 1, 0, 1, 3)
+
+                layout_group = QGroupBox("Layout")
+                layout_group_layout = QGridLayout()
+                layout_group_layout.addWidget(QLabel("Edge sampling zone count"), 0, 0)
+                layout_group_layout.addWidget(self.zone_count_slider, 0, 1)
+                layout_group_layout.addWidget(self.zone_count_value, 0, 2)
+                layout_group_layout.addWidget(QLabel("Layout preset"), 1, 0)
+                layout_group_layout.addWidget(self.zone_preset_combo, 1, 1, 1, 2)
+                layout_group_layout.addWidget(QLabel("Strip LED zone count"), 2, 0)
+                layout_group_layout.addWidget(self.device_zone_summary, 2, 1, 1, 2)
+                layout_group.setLayout(layout_group_layout)
+                layout.addWidget(layout_group, 2, 0, 1, 3)
+
+                advanced_layout = QGridLayout()
+                advanced_layout.addWidget(self.zone_count_explanation, 0, 0, 1, 3)
+                advanced_layout.addWidget(self.summary_label, 1, 0, 1, 3)
+                advanced_layout.addWidget(self.advanced_details, 2, 0, 1, 3)
+                advanced_layout.addWidget(self.finish_policy_note, 3, 0, 1, 3)
+                self.advanced_details_group.setLayout(advanced_layout)
+                layout.addWidget(self.advanced_details_group, 3, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -722,7 +743,7 @@ class DisplayConfiguratorDialog:
                 normalized_offset = 0
                 self.device_zone_count_value.setText(str(effective_zone_count))
                 self.zone_count_explanation.setText(
-                    "Screen sampling zones = sampled regions on your display. Strip LED zones = physical LEDs on the Nanoleaf strip."
+                    "Edge sampling zones are sampled perimeter regions on your display."
                 )
                 if self._requires_manual_device_zone_count:
                     device_zone_status_text = (
@@ -761,14 +782,49 @@ class DisplayConfiguratorDialog:
                     "\n".join(
                         (
                             f"Display preset: {self.display_mode_combo.currentText().upper()}",
-                            f"Dynamism: {self.color_mode_combo.currentText()}",
-                            f"Zone preset: {self._state.zone_preset}",
-                            f"Sampling quality: {self.sampling_quality_combo.currentText()}",
+                            f"Quality: {self.sampling_quality_combo.currentText()}",
+                            f"Motion / Dynamism: {self.color_mode_combo.currentText()}",
                             f"Vibrancy: {self.vibrancy_slider.value()}%",
-                            f"Screen sampling zones: {self._state.zone_count}",
-                            f"Effective strip LED zones: {effective_zone_count}",
+                            f"Layout preset: {self._state.zone_preset}",
+                            f"Edge sampling zones: {self._state.zone_count}",
+                            f"Strip LED zones: {effective_zone_count}",
+                        )
+                    )
+                )
+                if self._state.zone_preset == "edge-weighted":
+                    frame_width = int(getattr(preview, "frame_width", 0) or 16)
+                    frame_height = int(getattr(preview, "frame_height", 0) or 9)
+                    configured_thickness = getattr(cfg, "edge_sampling_thickness", None)
+                    layout_info = edge_weighted_layout(
+                        zone_count=self._state.zone_count,
+                        width=frame_width,
+                        height=frame_height,
+                        edge_sampling_thickness=(
+                            float(configured_thickness)
+                            if configured_thickness is not None
+                            else None
+                        ),
+                    )
+                    side_counts = layout_info.side_counts
+                    side_counts_text = f"{side_counts[0]}/{side_counts[1]}/{side_counts[2]}/{side_counts[3]}"
+                    thickness_text = f"{layout_info.edge_thickness:.3f}"
+                    localized_text = "on"
+                else:
+                    side_counts_text = "n/a"
+                    thickness_text = "n/a"
+                    localized_text = "off"
+
+                self.advanced_details.setText(
+                    "\n".join(
+                        (
                             f"Calibration model: {self._state.calibration_model}",
+                            f"Sampling quality: {self.sampling_quality_combo.currentText()}",
                             "Calibration mode: corner anchors",
+                            f"Source zones: {self._state.zone_count}",
+                            f"Device zones: {effective_zone_count}",
+                            f"Per-side zone counts (top/right/bottom/left): {side_counts_text}",
+                            f"Edge sampling thickness: {thickness_text}",
+                            f"Localized edge sampling: {localized_text}",
                             (
                                 "Verification: "
                                 + verification.compact_summary()

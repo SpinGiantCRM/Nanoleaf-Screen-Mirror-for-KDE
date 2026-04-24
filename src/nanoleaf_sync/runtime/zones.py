@@ -132,6 +132,58 @@ def _get_integral_buffer(height: int, width: int) -> np.ndarray:
     return buffer
 
 
+def _edge_localized_weights(
+    *,
+    zone_x0: int,
+    zone_y0: int,
+    zone_x1: int,
+    zone_y1: int,
+    frame_w: int,
+    frame_h: int,
+) -> np.ndarray | None:
+    zone_w = max(0, int(zone_x1 - zone_x0))
+    zone_h = max(0, int(zone_y1 - zone_y0))
+    if zone_w <= 0 or zone_h <= 0:
+        return None
+
+    edge_thin_limit_w = max(2.0, frame_w * 0.22)
+    edge_thin_limit_h = max(2.0, frame_h * 0.22)
+    touches_top = zone_y0 <= 0 and zone_h <= edge_thin_limit_h
+    touches_bottom = zone_y1 >= frame_h and zone_h <= edge_thin_limit_h
+    touches_left = zone_x0 <= 0 and zone_w <= edge_thin_limit_w
+    touches_right = zone_x1 >= frame_w and zone_w <= edge_thin_limit_w
+    if (touches_top or touches_bottom) and (zone_w / max(1.0, float(frame_w))) > 0.40:
+        return None
+    if (touches_left or touches_right) and (zone_h / max(1.0, float(frame_h))) > 0.40:
+        return None
+    if not (touches_top or touches_bottom or touches_left or touches_right):
+        return None
+
+    yy, xx = np.indices((zone_h, zone_w), dtype=np.float32)
+    if touches_top or touches_bottom:
+        u = (xx + 0.5) / max(1.0, float(zone_w))
+        segment_center = np.exp(-0.5 * ((u - 0.5) / 0.24) ** 2)
+        if touches_top:
+            edge_distance = (yy + 0.5) / max(1.0, float(zone_h))
+        else:
+            edge_distance = (float(zone_h) - (yy + 0.5)) / max(1.0, float(zone_h))
+        edge_bias = np.exp(-5.5 * np.clip(edge_distance, 0.0, 1.0))
+    else:
+        u = (yy + 0.5) / max(1.0, float(zone_h))
+        segment_center = np.exp(-0.5 * ((u - 0.5) / 0.24) ** 2)
+        if touches_left:
+            edge_distance = (xx + 0.5) / max(1.0, float(zone_w))
+        else:
+            edge_distance = (float(zone_w) - (xx + 0.5)) / max(1.0, float(zone_w))
+        edge_bias = np.exp(-5.5 * np.clip(edge_distance, 0.0, 1.0))
+
+    weights = (segment_center * edge_bias).astype(np.float32, copy=False)
+    weight_sum = float(weights.sum())
+    if weight_sum <= 1e-6:
+        return None
+    return weights / weight_sum
+
+
 def zone_colors(
     image: np.ndarray,
     zones: Sequence[ZoneRect],
@@ -224,6 +276,25 @@ def zone_colors_array(
         avg_oklab = (sums[valid] / areas[valid, None]).astype(np.float32, copy=False)
         avg_linear_rgb = _oklab_to_linear_srgb(avg_oklab)
         means[valid] = linear01_to_srgb_u8(avg_linear_rgb)
+
+        valid_idx = np.flatnonzero(valid)
+        for idx in valid_idx:
+            weights = _edge_localized_weights(
+                zone_x0=int(x0[idx]),
+                zone_y0=int(y0[idx]),
+                zone_x1=int(x1[idx]),
+                zone_y1=int(y1[idx]),
+                frame_w=w,
+                frame_h=h,
+            )
+            if weights is None:
+                continue
+            patch = img[y0[idx]:y1[idx], x0[idx]:x1[idx]]
+            if patch.size == 0:
+                continue
+            patch_linear = srgb_u8_to_linear01(patch)
+            weighted_linear = (patch_linear * weights[:, :, None]).sum(axis=(0, 1), dtype=np.float64)
+            means[idx] = linear01_to_srgb_u8(weighted_linear.astype(np.float32, copy=False))
 
     normalized_mode = str(mode).strip().lower()
     if normalized_mode == "balanced":

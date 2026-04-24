@@ -73,3 +73,4 @@ def test_runtime_preview_reports_aspect_weighted_side_counts() -> None:
     assert "frame: 1920x1080" in preview
     assert "side counts: top/right/bottom/left=15/9/15/9" in preview
     assert "zone order mode: continuous_perimeter" in preview
+    assert "localized edge sampling: on" in preview
