@@ -14,6 +14,7 @@ from nanoleaf_sync.ui.calibration_state import (
     should_auto_run_latency_probe,
     build_testing_panel_state,
 )
+from nanoleaf_sync.ui.calibration_widget import SimpleCalibrationWidget
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text as _mapping_preview_text
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
@@ -130,18 +131,19 @@ class SettingsDialog:
                 self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_count_slider.setRange(1, MAX_ZONE_COUNT); self.zone_count_slider.setValue(self._state.zone_count)
                 self.zone_preset_combo = QComboBox(); self.zone_preset_combo.addItems(["Edge strip (recommended)", "Full-screen horizontal"]); self.zone_preset_combo.setCurrentIndex(0 if self._state.zone_preset == "edge-weighted" else 1)
                 self.zone_offset_slider = QSlider(qt["Qt"].Orientation.Horizontal); initial_offset_limit = max(1, self._state.effective_device_zone_count() - 1); self.zone_offset_slider.setRange(-initial_offset_limit, initial_offset_limit); self.zone_offset_slider.setValue(self._state.zone_offset)
-                self.reverse_checkbox = QCheckBox("Reverse strip orientation"); self.reverse_checkbox.setChecked(self._state.reverse_zones)
+                self.simple_calibration_widget = SimpleCalibrationWidget(qt=qt, title="Corner calibration")
+                self.reverse_checkbox = self.simple_calibration_widget.reverse_orientation_checkbox; self.reverse_checkbox.setChecked(self._state.reverse_zones)
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.device_zone_count_slider.setRange(1, MAX_ZONE_COUNT); self.device_zone_count_slider.setValue(self._state.device_zone_count)
                 self.corner_anchor_button = QPushButton("Set next top-left anchor")
-                self.assign_top_left_button = QPushButton("Assign current zone → Top-left")
-                self.assign_top_right_button = QPushButton("Assign current zone → Top-right")
-                self.assign_bottom_right_button = QPushButton("Assign current zone → Bottom-right")
-                self.assign_bottom_left_button = QPushButton("Assign current zone → Bottom-left")
-                self.reset_anchor_button = QPushButton("Reset corner anchors")
-                self.current_zone_label = QLabel("")
-                self.test_step_index_label = QLabel("")
+                self.assign_top_left_button = self.simple_calibration_widget.assign_top_left_button
+                self.assign_top_right_button = self.simple_calibration_widget.assign_top_right_button
+                self.assign_bottom_right_button = self.simple_calibration_widget.assign_bottom_right_button
+                self.assign_bottom_left_button = self.simple_calibration_widget.assign_bottom_left_button
+                self.reset_anchor_button = self.simple_calibration_widget.reset_anchors_button
+                self.current_zone_label = self.simple_calibration_widget.current_zone_label
+                self.test_step_index_label = self.simple_calibration_widget.step_index_label
 
-                self.test_step_button = QPushButton("Next test zone step") ; self.test_prev_button = QPushButton("Previous test zone step")
+                self.test_step_button = self.simple_calibration_widget.next_zone_button ; self.test_prev_button = self.simple_calibration_widget.prev_zone_button
                 self.test_mode_combo = QComboBox(); self.test_mode_combo.addItems([CALIBRATION_MODE_CORNER])
                 mode_set_enabled = getattr(self.test_mode_combo, "setEnabled", None)
                 if callable(mode_set_enabled):
@@ -196,7 +198,7 @@ class SettingsDialog:
                 self._apply_tooltips()
 
                 self.backend_info_label = QLabel("")
-                self.preview_label = QLabel(""); self.preview_visual_label = QLabel(""); self.test_label = QLabel("")
+                self.preview_label = self.simple_calibration_widget.preview_text_label; self.preview_visual_label = self.simple_calibration_widget.preview_visual_label; self.test_label = QLabel("")
                 self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.zone_offset_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.sampling_quality_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel(""); self.test_duration_value = QLabel(""); self.test_step_interval_value = QLabel(""); self.test_brightness_value = QLabel("")
 
                 for signal in (
@@ -211,12 +213,16 @@ class SettingsDialog:
                 ):
                     signal.connect(self._refresh_preview_label)
                 self.corner_anchor_button.clicked.connect(self._rotate_anchor)
-                self.assign_top_left_button.clicked.connect(lambda: self._assign_anchor("top_left"))
-                self.assign_top_right_button.clicked.connect(lambda: self._assign_anchor("top_right"))
-                self.assign_bottom_right_button.clicked.connect(lambda: self._assign_anchor("bottom_right"))
-                self.assign_bottom_left_button.clicked.connect(lambda: self._assign_anchor("bottom_left"))
-                self.reset_anchor_button.clicked.connect(self._reset_anchors)
-                self.test_step_button.clicked.connect(self._step_test_zone); self.test_prev_button.clicked.connect(self._prev_test_zone)
+                self.simple_calibration_widget.bind_callbacks(
+                    on_prev_zone=self._prev_test_zone,
+                    on_next_zone=self._step_test_zone,
+                    on_assign_top_left=lambda: self._assign_anchor("top_left"),
+                    on_assign_top_right=lambda: self._assign_anchor("top_right"),
+                    on_assign_bottom_right=lambda: self._assign_anchor("bottom_right"),
+                    on_assign_bottom_left=lambda: self._assign_anchor("bottom_left"),
+                    on_reset_anchors=self._reset_anchors,
+                    on_reverse_orientation_changed=self._on_calibration_controls_changed,
+                )
                 self.test_auto_checkbox.stateChanged.connect(self._on_test_auto_toggled); self.test_mode_combo.currentIndexChanged.connect(self._on_calibration_controls_changed)
                 self.test_step_interval_slider.valueChanged.connect(self._on_interval_changed)
                 self.test_brightness_slider.valueChanged.connect(self._on_calibration_controls_changed)
@@ -348,18 +354,7 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Screen sampling zone count"), 0, 0); layout.addWidget(self.zone_count_slider, 0, 1); layout.addWidget(self.zone_count_value, 0, 2)
                 layout.addWidget(QLabel("Zone layout preset"), 1, 0); layout.addWidget(self.zone_preset_combo, 1, 1, 1, 2)
                 layout.addWidget(QLabel("Global mapping zone offset (rotation)"), 2, 0); layout.addWidget(self.zone_offset_slider, 2, 1); layout.addWidget(self.zone_offset_value, 2, 2)
-                layout.addWidget(self.reverse_checkbox, 3, 0, 1, 2)
                 layout.addWidget(QLabel("Strip LED zone count"), 4, 0); layout.addWidget(self.device_zone_count_slider, 4, 1); layout.addWidget(self.device_zone_count_value, 4, 2)
-                row = 5
-                layout.addWidget(self.current_zone_label, row, 0, 1, 3)
-                layout.addWidget(self.assign_top_left_button, row + 1, 0, 1, 3)
-                layout.addWidget(self.assign_top_right_button, row + 2, 0, 1, 3)
-                layout.addWidget(self.assign_bottom_right_button, row + 3, 0, 1, 3)
-                layout.addWidget(self.assign_bottom_left_button, row + 4, 0, 1, 3)
-                layout.addWidget(self.reset_anchor_button, row + 5, 0, 1, 3)
-                layout.addWidget(self.corner_anchor_button, row + 6, 0, 1, 2)
-                layout.addWidget(self.preview_label, row + 7, 0, 1, 3)
-                layout.addWidget(self.preview_visual_label, row + 8, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -368,15 +363,15 @@ class SettingsDialog:
                 layout = QGridLayout()
                 layout.addWidget(QLabel(f"Calibration sequence:\n{calibration_sequence_text()}"), 0, 0, 1, 3)
                 layout.addWidget(QLabel("Test mode"), 1, 0); layout.addWidget(self.test_mode_combo, 1, 1, 1, 2)
-                layout.addWidget(self.test_step_button, 2, 0, 1, 2); layout.addWidget(self.test_prev_button, 2, 2)
-                layout.addWidget(QLabel("Test zone step index"), 3, 0); layout.addWidget(self.test_step_index_label, 3, 1, 1, 2)
-                layout.addWidget(self.test_auto_checkbox, 4, 0); layout.addWidget(self.test_loop_checkbox, 4, 1)
-                layout.addWidget(QLabel("Test duration (s)"), 5, 0); layout.addWidget(self.test_duration_slider, 5, 1); layout.addWidget(self.test_duration_value, 5, 2)
-                layout.addWidget(QLabel("Test step interval (ms)"), 6, 0); layout.addWidget(self.test_step_interval_slider, 6, 1); layout.addWidget(self.test_step_interval_value, 6, 2)
-                layout.addWidget(QLabel("Test brightness"), 7, 0); layout.addWidget(self.test_brightness_slider, 7, 1); layout.addWidget(self.test_brightness_value, 7, 2)
-                layout.addWidget(self.test_background_checkbox, 8, 0, 1, 2)
-                layout.addWidget(QLabel("Live preview: mapping changes are sent automatically."), 9, 0, 1, 3)
-                layout.addWidget(self.test_label, 10, 0, 1, 3)
+                row = self.simple_calibration_widget.add_to_layout(layout, row=2, include_header=False)
+                layout.addWidget(self.corner_anchor_button, row, 0, 1, 2); row += 1
+                layout.addWidget(self.test_auto_checkbox, row, 0); layout.addWidget(self.test_loop_checkbox, row, 1); row += 1
+                layout.addWidget(QLabel("Test duration (s)"), row, 0); layout.addWidget(self.test_duration_slider, row, 1); layout.addWidget(self.test_duration_value, row, 2); row += 1
+                layout.addWidget(QLabel("Test step interval (ms)"), row, 0); layout.addWidget(self.test_step_interval_slider, row, 1); layout.addWidget(self.test_step_interval_value, row, 2); row += 1
+                layout.addWidget(QLabel("Test brightness"), row, 0); layout.addWidget(self.test_brightness_slider, row, 1); layout.addWidget(self.test_brightness_value, row, 2); row += 1
+                layout.addWidget(self.test_background_checkbox, row, 0, 1, 2); row += 1
+                layout.addWidget(QLabel("Live preview: mapping changes are sent automatically."), row, 0, 1, 3); row += 1
+                layout.addWidget(self.test_label, row, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
