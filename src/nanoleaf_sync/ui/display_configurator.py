@@ -514,8 +514,6 @@ class DisplayConfiguratorDialog:
                 self._state.zone_preset = "edge-weighted" if str(self.zone_preset_combo.currentText()).startswith("Edge strip") else "horizontal"
                 self._state.reverse_zones = bool(self.reverse_checkbox.isChecked())
                 self._state.device_zone_count = int(self.device_zone_count_slider.value())
-                self._state.corner_offsets_enabled = False
-                self._state.corner_zone_offsets = [0, 0, 0, 0]
                 self._state.calibration_model = "corner_anchored"
 
             def _remap_zone_index_between_counts(self, zone_index: int, previous_count: int, new_count: int) -> int:
@@ -774,7 +772,6 @@ class DisplayConfiguratorDialog:
                             (
                                 "Verification: "
                                 + verification.compact_summary()
-                                + f" | Sentinel expected/assigned: {verification.expected_sentinels}/{verification.assigned_sentinels}"
                                 + (
                                     ""
                                     if not verification.remediation_hints
@@ -805,11 +802,9 @@ class DisplayConfiguratorDialog:
                 mapping_snapshot = resolve_calibration_mapping(
                     zone_count=max(1, int(self._state.zone_count)),
                     device_zone_count=max(1, int(self._state.effective_device_zone_count())),
-                    zone_offset=0,
                     reverse_zones=bool(self._state.reverse_zones),
                     manual_mapping_enabled=bool(self._state.manual_mapping_enabled),
                     explicit_zone_map=[int(i) for i in self._state.explicit_zone_map],
-                    corner_zone_offsets=self._state.active_corner_zone_offsets(),
                     corner_anchor_top_left=int(self._state.corner_anchor_top_left),
                     corner_anchor_top_right=int(self._state.corner_anchor_top_right),
                     corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
@@ -839,7 +834,6 @@ class DisplayConfiguratorDialog:
                     calibration_model="corner_anchored",
                     device_zone_count=int(self._state.device_zone_count),
                     output_channel_order=str(self._initial_calibration.output_channel_order),
-                    zone_offset=0,
                     reverse_zones=bool(self._state.reverse_zones),
                     manual_mapping_enabled=bool(self._state.manual_mapping_enabled),
                     explicit_zone_map=[int(i) for i in self._state.explicit_zone_map],
@@ -850,9 +844,6 @@ class DisplayConfiguratorDialog:
                     corner_anchor_fallback_active=bool(mapping_snapshot.invalid_corner_anchor_fallback_active),
                     corner_anchor_fallback_strategy=fallback_strategy,
                     corner_anchor_warning_codes=fallback_warning_codes,
-                    corner_start_anchor=int(self._state.corner_start_anchor),
-                    corner_offsets_enabled=bool(self._state.corner_offsets_enabled),
-                    corner_zone_offsets=self._state.active_corner_zone_offsets(),
                 )
                 return replace(
                     cfg,
@@ -867,9 +858,6 @@ class DisplayConfiguratorDialog:
                     sampling_quality=str(self.sampling_quality_combo.currentText()).lower(),
                     device_zone_count=self._state.device_zone_count,
                     reverse_zones=self._state.reverse_zones,
-                    zone_offset=0,
-                    corner_offsets_enabled=bool(self._state.corner_offsets_enabled),
-                    corner_zone_offsets=self._state.active_corner_zone_offsets(),
                     corner_anchor_top_left=anchor_top_left,
                     corner_anchor_top_right=anchor_top_right,
                     corner_anchor_bottom_right=anchor_bottom_right,
@@ -880,25 +868,6 @@ class DisplayConfiguratorDialog:
                     calibration_model="corner_anchored",
                     calibration_schema_version=int(calibration_payload.schema_version),
                     calibration=calibration_payload,
-                    calibration_validation_confidence=float(verification.confidence_score),
-                    calibration_validation_summary=(
-                        verification.compact_summary()
-                        + f" | sentinel_expected={verification.expected_sentinels} sentinel_assigned={verification.assigned_sentinels}"
-                        + (
-                            ""
-                            if not verification.remediation_hints
-                            else f" | Remediation: {'; '.join(verification.remediation_hints)}"
-                        )
-                        + f" | Action: {verification.remediation_action}"
-                        + (
-                            ""
-                            if not mapping_snapshot.invalid_corner_anchor_fallback_active
-                            else (
-                                f" | fallback_strategy={fallback_strategy} "
-                                f"fallback_warning_codes={tuple(fallback_warning_codes)}"
-                            )
-                        )
-                    ),
                     wizard_in_progress_state="",
                     wizard_completed=True,
                 )
@@ -908,11 +877,9 @@ class DisplayConfiguratorDialog:
                 mapping_snapshot = resolve_calibration_mapping(
                     zone_count=max(1, int(self._state.zone_count)),
                     device_zone_count=max(1, int(self._state.effective_device_zone_count())),
-                    zone_offset=0,
                     reverse_zones=bool(self._state.reverse_zones),
                     manual_mapping_enabled=bool(self._state.manual_mapping_enabled),
                     explicit_zone_map=[int(i) for i in self._state.explicit_zone_map],
-                    corner_zone_offsets=self._state.active_corner_zone_offsets(),
                     corner_anchor_top_left=int(self._state.corner_anchor_top_left),
                     corner_anchor_top_right=int(self._state.corner_anchor_top_right),
                     corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),

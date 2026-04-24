@@ -80,40 +80,7 @@ def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     )
     calibration_schema_version = max(1, calibration_schema_version)
 
-    # Top-level values are treated as legacy aliases and copied only when the
-    # canonical calibration block does not already provide a value.
-    alias_keys = (
-        "calibration_model",
-        "device_zone_count",
-        "output_channel_order",
-        "reverse_zones",
-        "manual_mapping_enabled",
-        "explicit_zone_map",
-        "corner_anchor_top_left",
-        "corner_anchor_top_right",
-        "corner_anchor_bottom_right",
-        "corner_anchor_bottom_left",
-        "corner_anchor_fallback_active",
-        "corner_anchor_fallback_strategy",
-        "corner_anchor_warning_codes",
-    )
-    for key in alias_keys:
-        if key not in calibration and key in migrated:
-            calibration[key] = migrated[key]
-
-    if "normalized_zone_offset" not in calibration:
-        calibration["normalized_zone_offset"] = 0
-    if "normalized_reverse_zones" not in calibration:
-        calibration["normalized_reverse_zones"] = calibration.get("reverse_zones", migrated.get("reverse_zones", False))
-    if "normalized_corner_anchors" not in calibration:
-        calibration["normalized_corner_anchors"] = [
-            calibration.get("corner_anchor_top_left", migrated.get("corner_anchor_top_left", -1)),
-            calibration.get("corner_anchor_top_right", migrated.get("corner_anchor_top_right", -1)),
-            calibration.get("corner_anchor_bottom_right", migrated.get("corner_anchor_bottom_right", -1)),
-            calibration.get("corner_anchor_bottom_left", migrated.get("corner_anchor_bottom_left", -1)),
-        ]
-    if "normalized_manual_zone_map" not in calibration:
-        calibration["normalized_manual_zone_map"] = calibration.get("explicit_zone_map", migrated.get("explicit_zone_map", []))
+    # Active schema only: calibration block is canonical.
     calibration["calibration_model"] = "corner_anchored"
     migrated["calibration_model"] = "corner_anchored"
 
@@ -156,31 +123,20 @@ def validate_config(cfg: AppConfig) -> AppConfig:
 
     raw_calibration = cfg.calibration or CalibrationConfig()
 
-    has_explicit_calibration_block = raw_calibration != CalibrationConfig()
-
-    def calibration_or_legacy(field: str, default: Any) -> Any:
-        calibration_value = getattr(raw_calibration, field, default)
-        legacy_value = getattr(cfg, field, default)
-        if has_explicit_calibration_block:
-            return calibration_value
-        if calibration_value == default and legacy_value != default:
-            return legacy_value
-        return calibration_value
-
     calibration_schema_version = _coerce_int(
         getattr(cfg, "calibration_schema_version", getattr(raw_calibration, "schema_version", 1)),
         1,
     )
     calibration_schema_version = max(1, calibration_schema_version)
-    raw_device_zone_count = int(calibration_or_legacy("device_zone_count", 0))
+    raw_device_zone_count = int(getattr(raw_calibration, "device_zone_count", 0))
     if raw_device_zone_count > 0:
         device_zone_count = raw_device_zone_count
     else:
-        # Keep 0 as the persisted "auto" sentinel when no explicit zones exist.
+        # Keep 0 as the persisted "auto" marker when no explicit zones exist.
         # This allows runtime/device detection to supply the physical strip length.
         device_zone_count = len(zones) if zones else 0
     output_channel_order = normalize_enum(
-        calibration_or_legacy("output_channel_order", "grb"),
+        getattr(raw_calibration, "output_channel_order", "grb"),
         allowed={
             "rgb": "rgb",
             "rbg": "rbg",
@@ -191,13 +147,12 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         },
         default="grb",
     )
-    zone_offset = 0
     manual_mapping_enabled = coerce_bool(
-        calibration_or_legacy("manual_mapping_enabled", AppConfig.manual_mapping_enabled),
+        getattr(raw_calibration, "manual_mapping_enabled", AppConfig.manual_mapping_enabled),
         AppConfig.manual_mapping_enabled,
     )
     calibration_model = normalize_enum(
-        calibration_or_legacy("calibration_model", AppConfig.calibration_model),
+        getattr(raw_calibration, "calibration_model", AppConfig.calibration_model),
         allowed={
             "corner_anchored": "corner_anchored",
             "corner-anchored": "corner_anchored",
@@ -210,38 +165,34 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         },
         default="corner_anchored",
     )
-    raw_explicit_zone_map = calibration_or_legacy("explicit_zone_map", [])
+    raw_explicit_zone_map = getattr(raw_calibration, "explicit_zone_map", [])
     explicit_zone_map = [int(i) for i in raw_explicit_zone_map] if raw_explicit_zone_map else []
-    corner_anchor_top_left = int(calibration_or_legacy("corner_anchor_top_left", -1))
-    corner_anchor_top_right = int(calibration_or_legacy("corner_anchor_top_right", -1))
-    corner_anchor_bottom_right = int(calibration_or_legacy("corner_anchor_bottom_right", -1))
-    corner_anchor_bottom_left = int(calibration_or_legacy("corner_anchor_bottom_left", -1))
+    corner_anchor_top_left = int(getattr(raw_calibration, "corner_anchor_top_left", -1))
+    corner_anchor_top_right = int(getattr(raw_calibration, "corner_anchor_top_right", -1))
+    corner_anchor_bottom_right = int(getattr(raw_calibration, "corner_anchor_bottom_right", -1))
+    corner_anchor_bottom_left = int(getattr(raw_calibration, "corner_anchor_bottom_left", -1))
     corner_anchor_fallback_active = coerce_bool(
-        calibration_or_legacy("corner_anchor_fallback_active", False),
+        getattr(raw_calibration, "corner_anchor_fallback_active", False),
         False,
     )
     corner_anchor_fallback_strategy = str(
-        calibration_or_legacy("corner_anchor_fallback_strategy", "")
+        getattr(raw_calibration, "corner_anchor_fallback_strategy", "")
         or ""
     ).strip()
     corner_anchor_warning_codes = [
         str(i).strip()
-        for i in (calibration_or_legacy("corner_anchor_warning_codes", []) or [])
+        for i in (getattr(raw_calibration, "corner_anchor_warning_codes", []) or [])
         if str(i).strip()
     ]
-    raw_normalized_corner_anchors = calibration_or_legacy("normalized_corner_anchors", []) or []
+    raw_normalized_corner_anchors = getattr(raw_calibration, "normalized_corner_anchors", []) or []
     normalized_corner_anchors = [int(i) for i in list(raw_normalized_corner_anchors)[:4]]
     while len(normalized_corner_anchors) < 4:
         normalized_corner_anchors.append(-1)
-    normalized_zone_offset = _coerce_int(
-        calibration_or_legacy("normalized_zone_offset", zone_offset),
-        zone_offset,
-    )
     normalized_reverse_zones = coerce_bool(
-        calibration_or_legacy("normalized_reverse_zones", coerce_bool(calibration_or_legacy("reverse_zones", False), False)),
-        coerce_bool(calibration_or_legacy("reverse_zones", False), False),
+        getattr(raw_calibration, "normalized_reverse_zones", coerce_bool(getattr(raw_calibration, "reverse_zones", False), False)),
+        coerce_bool(getattr(raw_calibration, "reverse_zones", False), False),
     )
-    raw_normalized_manual_zone_map = calibration_or_legacy("normalized_manual_zone_map", explicit_zone_map) or []
+    raw_normalized_manual_zone_map = getattr(raw_calibration, "normalized_manual_zone_map", explicit_zone_map) or []
     normalized_manual_zone_map = [int(i) for i in raw_normalized_manual_zone_map]
     effective_manual_mapping_enabled = manual_mapping_enabled
     normalized_calibration = CalibrationConfig(
@@ -250,12 +201,10 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         calibration_model=calibration_model,
         device_zone_count=device_zone_count,
         output_channel_order=output_channel_order,
-        normalized_zone_offset=normalized_zone_offset,
         normalized_reverse_zones=normalized_reverse_zones,
         normalized_corner_anchors=normalized_corner_anchors,
         normalized_manual_zone_map=normalized_manual_zone_map,
-        zone_offset=zone_offset,
-        reverse_zones=coerce_bool(calibration_or_legacy("reverse_zones", False), False),
+        reverse_zones=coerce_bool(getattr(raw_calibration, "reverse_zones", False), False),
         manual_mapping_enabled=effective_manual_mapping_enabled,
         explicit_zone_map=explicit_zone_map,
         corner_anchor_top_left=corner_anchor_top_left,
@@ -396,7 +345,6 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         calibration=normalized_calibration,
         device_zone_count=device_zone_count,
         output_channel_order=output_channel_order,
-        zone_offset=zone_offset,
         reverse_zones=normalized_calibration.reverse_zones,
         manual_mapping_enabled=effective_manual_mapping_enabled,
         calibration_model=calibration_model,
@@ -408,16 +356,11 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         corner_anchor_fallback_active=corner_anchor_fallback_active,
         corner_anchor_fallback_strategy=corner_anchor_fallback_strategy,
         corner_anchor_warning_codes=corner_anchor_warning_codes,
-        corner_start_anchor=-1,
-        corner_offsets_enabled=False,
-        corner_zone_offsets=[],
         auto_latency_policy=auto_latency_policy,
         latency_last_backend=latency_last_backend,
         latency_last_value_ms=latency_last_value_ms,
         latency_last_trigger=latency_last_trigger,
         latency_last_timestamp=latency_last_timestamp,
-        calibration_validation_confidence=0.0,
-        calibration_validation_summary="",
         max_consecutive_errors=max_consecutive_errors,
         reinit_backoff_ms=reinit_backoff_ms,
         status_log_interval_s=status_log_interval_s,

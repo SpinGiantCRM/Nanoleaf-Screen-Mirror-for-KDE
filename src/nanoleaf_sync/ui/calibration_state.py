@@ -18,7 +18,6 @@ from nanoleaf_sync.ui.zone_calibration import mapping_preview_text, mapping_prev
 
 logger = logging.getLogger(__name__)
 
-CORNER_OFFSET_LIMIT = 24
 DEFAULT_DERIVED_ZONE_COUNT = 8
 
 
@@ -61,9 +60,6 @@ class CalibrationVerificationReport:
     direction_confirmed: bool
     anchors_unique_valid: bool
     cycle_replay_confirmed: bool
-    sentinel_consistency: bool
-    expected_sentinels: tuple[int, ...]
-    assigned_sentinels: tuple[int, ...]
     direction_confidence_component: float
     anchors_confidence_component: float
     cycle_confidence_component: float
@@ -77,8 +73,7 @@ class CalibrationVerificationReport:
             f"verification={self.outcome_status} confidence={self.confidence_score:.2f} "
             f"(direction={'ok' if self.direction_confirmed else 'fix'}, "
             f"anchors={'ok' if self.anchors_unique_valid else 'fix'}, "
-            f"cycle={'ok' if self.cycle_replay_confirmed else 'fix'}, "
-            f"sentinel={'ok' if self.sentinel_consistency else 'fix'})"
+            f"cycle={'ok' if self.cycle_replay_confirmed else 'fix'})"
         )
 
 
@@ -97,13 +92,9 @@ class CalibrationState:
     detected_device_zone_count: int = 0
     source_zones_user_configured: bool = False
 
-    # Retained as inert/compatibility-only fields for old callers.
     explicit_zone_map: list[int] = field(default_factory=list)
     manual_mapping_enabled: bool = False
     calibration_model: str = "corner_anchored"
-    corner_start_anchor: int = -1
-    corner_offsets_enabled: bool = False
-    corner_zone_offsets: list[int] = field(default_factory=list)
 
     @classmethod
     def from_config(cls, cfg: AppConfig, runtime_status: dict | None = None) -> "CalibrationState":
@@ -141,14 +132,7 @@ class CalibrationState:
             explicit_zone_map=[int(i) for i in (getattr(calibration, "explicit_zone_map", []) or [])],
             manual_mapping_enabled=bool(getattr(calibration, "manual_mapping_enabled", False)),
             calibration_model="corner_anchored",
-            corner_start_anchor=int(getattr(calibration, "corner_start_anchor", -1)),
-            corner_offsets_enabled=bool(getattr(calibration, "corner_offsets_enabled", False)),
-            corner_zone_offsets=[int(i) for i in (getattr(calibration, "corner_zone_offsets", []) or [])][:4],
         )
-
-    def active_corner_zone_offsets(self) -> list[int]:
-        # Minimal active model does not use per-corner nudges.
-        return [0, 0, 0, 0]
 
     def validation_report(self) -> CalibrationVerificationReport:
         anchors = {
@@ -166,9 +150,6 @@ class CalibrationState:
             direction_confirmed=True,
             anchors_unique_valid=anchors_unique_valid,
             cycle_replay_confirmed=True,
-            sentinel_consistency=True,
-            expected_sentinels=(),
-            assigned_sentinels=(),
             direction_confidence_component=1.0,
             anchors_confidence_component=score,
             cycle_confidence_component=1.0,
@@ -190,11 +171,9 @@ class CalibrationState:
         return resolve_calibration_mapping(
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
-            zone_offset=0,
             reverse_zones=self.reverse_zones,
             manual_mapping_enabled=False,
             explicit_zone_map=None,
-            corner_zone_offsets=None,
             corner_anchor_top_left=self.corner_anchor_top_left,
             corner_anchor_top_right=self.corner_anchor_top_right,
             corner_anchor_bottom_right=self.corner_anchor_bottom_right,
@@ -210,7 +189,7 @@ class CalibrationState:
             f"Zone preset: {self.zone_preset} | source zones: {self.zone_count} | strip zones: {self.effective_device_zone_count()} | source mode: {source_mode}\n"
             f"Anchors TL/TR/BR/BL: {self.corner_anchor_top_left}/{self.corner_anchor_top_right}/{self.corner_anchor_bottom_right}/{self.corner_anchor_bottom_left}\n"
             "Simple corner calibration preview\n"
-            f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), zone_offset=0, reverse_zones=self.reverse_zones, explicit_zone_map=None, corner_zone_offsets=None, corner_anchor_top_left=self.corner_anchor_top_left, corner_anchor_top_right=self.corner_anchor_top_right, corner_anchor_bottom_right=self.corner_anchor_bottom_right, corner_anchor_bottom_left=self.corner_anchor_bottom_left, calibration_model='corner_anchored', resolved_mapping=snapshot)}"
+            f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), reverse_zones=self.reverse_zones, explicit_zone_map=None, corner_anchor_top_left=self.corner_anchor_top_left, corner_anchor_top_right=self.corner_anchor_top_right, corner_anchor_bottom_right=self.corner_anchor_bottom_right, corner_anchor_bottom_left=self.corner_anchor_bottom_left, calibration_model='corner_anchored', resolved_mapping=snapshot)}"
         )
 
     def mapping_preview_visual(self) -> str:
@@ -218,10 +197,8 @@ class CalibrationState:
         return mapping_preview_visual(
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
-            zone_offset=0,
             reverse_zones=self.reverse_zones,
             explicit_zone_map=None,
-            corner_zone_offsets=None,
             corner_anchor_top_left=self.corner_anchor_top_left,
             corner_anchor_top_right=self.corner_anchor_top_right,
             corner_anchor_bottom_right=self.corner_anchor_bottom_right,
@@ -235,10 +212,8 @@ class CalibrationState:
         return corner_anchor_steps(
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
-            zone_offset=0,
             reverse_zones=self.reverse_zones,
             explicit_zone_map=None,
-            corner_zone_offsets=None,
             start_anchor=None,
             calibration_model="corner_anchored",
             corner_anchor_top_left=self.corner_anchor_top_left,
@@ -277,11 +252,9 @@ class CalibrationState:
                 step=step,
                 zone_count=self.zone_count,
                 device_zone_count=self.effective_device_zone_count(),
-                zone_offset=0,
-                reverse_zones=self.reverse_zones,
+                    reverse_zones=self.reverse_zones,
                 explicit_zone_map=None,
-                corner_zone_offsets=None,
-                calibration_model="corner_anchored",
+                    calibration_model="corner_anchored",
                 corner_anchor_top_left=self.corner_anchor_top_left,
                 corner_anchor_top_right=self.corner_anchor_top_right,
                 corner_anchor_bottom_right=self.corner_anchor_bottom_right,
@@ -297,10 +270,8 @@ class CalibrationState:
             step=step,
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
-            zone_offset=0,
             reverse_zones=self.reverse_zones,
             explicit_zone_map=None,
-            corner_zone_offsets=None,
             calibration_model="corner_anchored",
             corner_anchor_top_left=self.corner_anchor_top_left,
             corner_anchor_top_right=self.corner_anchor_top_right,
@@ -392,11 +363,6 @@ def build_testing_panel_state(*, state: CalibrationState, runtime_status: dict |
         effective_zone_count=state.effective_device_zone_count(),
         active_test_description=active.label,
     )
-
-
-def next_corner_start_anchor(current: int, *, device_zone_count: int) -> int:
-    total = max(1, int(device_zone_count))
-    return (int(current) + 1) % total
 
 
 def build_latency_result(
