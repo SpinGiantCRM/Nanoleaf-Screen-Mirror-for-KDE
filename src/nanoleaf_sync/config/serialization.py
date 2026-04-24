@@ -4,6 +4,19 @@ import json
 from copy import deepcopy
 from typing import Any
 
+OBSOLETE_CALIBRATION_KEYS = {
+    "corner_start_anchor",
+    "corner_offsets_enabled",
+    "corner_zone_offsets",
+}
+OBSOLETE_TOP_LEVEL_KEYS = {
+    "corner_start_anchor",
+    "corner_offsets_enabled",
+    "corner_zone_offsets",
+    "calibration_validation_confidence",
+    "calibration_validation_summary",
+}
+
 
 def toml_render_scalar(value: Any) -> str:
     if isinstance(value, bool):
@@ -63,8 +76,12 @@ def _dump_toml_fallback(payload: dict[str, Any]) -> str:
 
 def _prepare_payload_for_round_trip(payload: dict[str, Any]) -> dict[str, Any]:
     prepared = deepcopy(payload)
+    for key in OBSOLETE_TOP_LEVEL_KEYS:
+        prepared.pop(key, None)
     calibration = prepared.get("calibration")
     if isinstance(calibration, dict):
+        for key in OBSOLETE_CALIBRATION_KEYS:
+            calibration.pop(key, None)
         schema_version = calibration.get(
             "calibration_schema_version",
             calibration.get("schema_version", prepared.get("calibration_schema_version", 1)),

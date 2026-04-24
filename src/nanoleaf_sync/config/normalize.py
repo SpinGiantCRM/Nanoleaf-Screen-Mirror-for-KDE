@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any, Dict, List
 
@@ -17,6 +18,22 @@ SAMPLING_QUALITY_TO_ZONE_STRIDE: dict[str, int] = {
     "high": 1,
 }
 CURRENT_CALIBRATION_SCHEMA_VERSION = 1
+LEGACY_WIZARD_FLOW_KEYS = {
+    "calibration_progress",
+    "current_phase",
+    "phase_completion_flags",
+    "phase_validation_state",
+    "checkpoint",
+    "rollback_checkpoint",
+    "phase_rollback_checkpoints",
+    "phase_boundary_checkpoints",
+    "action_history",
+    "calibration_validation_confidence",
+    "calibration_validation_summary",
+    "corner_start_anchor",
+    "corner_offsets_enabled",
+    "corner_zone_offsets",
+}
 
 
 def _coerce_int(value: Any, default: int) -> int:
@@ -52,6 +69,22 @@ def normalize_enum(value: Any, *, allowed: Dict[str, str], default: str) -> str:
     return allowed.get(normalized, default)
 
 
+def normalize_wizard_in_progress_state(raw_value: Any) -> str:
+    raw_text = str(raw_value or "").strip()
+    if not raw_text:
+        return ""
+    try:
+        payload = json.loads(raw_text)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return raw_text
+    if not isinstance(payload, dict):
+        return raw_text
+    sanitized_payload = {k: v for k, v in payload.items() if k not in LEGACY_WIZARD_FLOW_KEYS}
+    if not sanitized_payload:
+        return ""
+    return json.dumps(sanitized_payload, separators=(",", ":"), sort_keys=True)
+
+
 def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     migrated: Dict[str, Any] = dict(data)
     calibration_payload = migrated.get("calibration")
@@ -83,9 +116,6 @@ def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:
         "corner_anchor_fallback_active",
         "corner_anchor_fallback_strategy",
         "corner_anchor_warning_codes",
-        "corner_start_anchor",
-        "corner_offsets_enabled",
-        "corner_zone_offsets",
     )
     for key in alias_keys:
         if key not in calibration and key in migrated:
@@ -219,15 +249,6 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         for i in (calibration_or_legacy("corner_anchor_warning_codes", []) or [])
         if str(i).strip()
     ]
-    corner_start_anchor = int(calibration_or_legacy("corner_start_anchor", -1))
-    corner_offsets_enabled = coerce_bool(
-        calibration_or_legacy("corner_offsets_enabled", AppConfig.corner_offsets_enabled),
-        AppConfig.corner_offsets_enabled,
-    )
-    raw_corner_offsets = calibration_or_legacy("corner_zone_offsets", []) or []
-    corner_zone_offsets = [int(i) for i in list(raw_corner_offsets)[:4]]
-    while len(corner_zone_offsets) < 4:
-        corner_zone_offsets.append(0)
     raw_normalized_corner_anchors = calibration_or_legacy("normalized_corner_anchors", []) or []
     normalized_corner_anchors = [int(i) for i in list(raw_normalized_corner_anchors)[:4]]
     while len(normalized_corner_anchors) < 4:
@@ -264,9 +285,6 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         corner_anchor_fallback_active=corner_anchor_fallback_active,
         corner_anchor_fallback_strategy=corner_anchor_fallback_strategy,
         corner_anchor_warning_codes=corner_anchor_warning_codes,
-        corner_start_anchor=corner_start_anchor,
-        corner_offsets_enabled=corner_offsets_enabled,
-        corner_zone_offsets=corner_zone_offsets,
     )
     max_consecutive_errors = max(1, int(cfg.max_consecutive_errors))
     reinit_backoff_ms = max(0, int(cfg.reinit_backoff_ms))
@@ -303,12 +321,6 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     latency_last_value_ms = max(0.0, float(getattr(cfg, "latency_last_value_ms", 0.0) or 0.0))
     latency_last_trigger = str(getattr(cfg, "latency_last_trigger", "") or "").strip()
     latency_last_timestamp = str(getattr(cfg, "latency_last_timestamp", "") or "").strip()
-    calibration_validation_confidence = max(
-        0.0,
-        min(1.0, float(getattr(cfg, "calibration_validation_confidence", 0.0) or 0.0)),
-    )
-    calibration_validation_summary = str(getattr(cfg, "calibration_validation_summary", "") or "").strip()
-
     zone_preset = normalize_enum(
         cfg.zone_preset,
         allowed={
@@ -377,7 +389,9 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         zone_preset=zone_preset,
         color_mode=color_mode,
         wizard_completed=coerce_bool(getattr(cfg, "wizard_completed", False), False),
-        wizard_in_progress_state=str(getattr(cfg, "wizard_in_progress_state", "") or "").strip(),
+        wizard_in_progress_state=normalize_wizard_in_progress_state(
+            getattr(cfg, "wizard_in_progress_state", "")
+        ),
         hdr_enabled=coerce_bool(getattr(cfg, "hdr_enabled", False), False),
         start_on_launch=coerce_bool(getattr(cfg, "start_on_launch", False), False),
         device_vid=cfg.device_vid,
@@ -414,16 +428,16 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         corner_anchor_fallback_active=corner_anchor_fallback_active,
         corner_anchor_fallback_strategy=corner_anchor_fallback_strategy,
         corner_anchor_warning_codes=corner_anchor_warning_codes,
-        corner_start_anchor=corner_start_anchor,
-        corner_offsets_enabled=corner_offsets_enabled,
-        corner_zone_offsets=corner_zone_offsets,
+        corner_start_anchor=-1,
+        corner_offsets_enabled=False,
+        corner_zone_offsets=[],
         auto_latency_policy=auto_latency_policy,
         latency_last_backend=latency_last_backend,
         latency_last_value_ms=latency_last_value_ms,
         latency_last_trigger=latency_last_trigger,
         latency_last_timestamp=latency_last_timestamp,
-        calibration_validation_confidence=calibration_validation_confidence,
-        calibration_validation_summary=calibration_validation_summary,
+        calibration_validation_confidence=0.0,
+        calibration_validation_summary="",
         max_consecutive_errors=max_consecutive_errors,
         reinit_backoff_ms=reinit_backoff_ms,
         status_log_interval_s=status_log_interval_s,
