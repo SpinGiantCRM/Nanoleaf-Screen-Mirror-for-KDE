@@ -80,7 +80,7 @@ def test_simple_calibration_widget_preview_and_status_helpers() -> None:
     widget.set_step_status(step_index=1, step_total=8, active_zone=3, normalized_offset=-2)
     widget.set_preview(text="preview text", visual="preview visual")
 
-    assert "2/8" in widget.step_index_label.text
-    assert "Active strip zone: 3" in widget.current_zone_label.text
+    assert "Step 2 of 8" in widget.step_index_label.text
+    assert "Current LED: 2 of 8" in widget.current_zone_label.text
     assert widget.preview_text_label.text == "preview text"
     assert widget.preview_visual_label.text == "preview visual"

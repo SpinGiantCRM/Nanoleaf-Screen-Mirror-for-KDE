@@ -16,21 +16,26 @@ class SimpleCalibrationWidget:
 
         self.title = title
         self.header_label = QLabel(title)
-        self.preview_text_label = QLabel("")
+        self.preview_text_label = QLabel(
+            "Step through the LEDs until the lit LED matches a screen corner, then assign that corner."
+        )
         self.preview_visual_label = QLabel("")
-        self.current_zone_label = QLabel("")
+        self.current_zone_label = QLabel("Current LED: 1 of 1")
         self.step_index_label = QLabel("")
+        self.assigned_corners_label = QLabel("")
+        self.direction_label = QLabel("")
+        self.validation_label = QLabel("")
 
-        self.next_zone_button = QPushButton("Next zone")
-        self.prev_zone_button = QPushButton("Previous zone")
+        self.next_zone_button = QPushButton("Next LED")
+        self.prev_zone_button = QPushButton("Previous LED")
 
-        self.assign_top_left_button = QPushButton("Assign → Top-left")
-        self.assign_top_right_button = QPushButton("Assign → Top-right")
-        self.assign_bottom_right_button = QPushButton("Assign → Bottom-right")
-        self.assign_bottom_left_button = QPushButton("Assign → Bottom-left")
+        self.assign_top_left_button = QPushButton("Assign top-left")
+        self.assign_top_right_button = QPushButton("Assign top-right")
+        self.assign_bottom_right_button = QPushButton("Assign bottom-right")
+        self.assign_bottom_left_button = QPushButton("Assign bottom-left")
         self.reset_anchors_button = QPushButton("Reset anchors")
 
-        self.reverse_orientation_checkbox = QCheckBox("Reverse orientation")
+        self.reverse_orientation_checkbox = QCheckBox("Reverse direction")
 
         self.apply_button = QPushButton("Apply")
         self.save_button = QPushButton("Save")
@@ -73,12 +78,18 @@ class SimpleCalibrationWidget:
             current_row += 1
         layout.addWidget(self.preview_text_label, current_row, 0, 1, 3)
         current_row += 1
+        layout.addWidget(self.current_zone_label, current_row, 0, 1, 3)
+        current_row += 1
+        layout.addWidget(self.assigned_corners_label, current_row, 0, 1, 3)
+        current_row += 1
+        layout.addWidget(self.direction_label, current_row, 0, 1, 3)
+        current_row += 1
+        layout.addWidget(self.validation_label, current_row, 0, 1, 3)
+        current_row += 1
         layout.addWidget(self.prev_zone_button, current_row, 0)
         layout.addWidget(self.next_zone_button, current_row, 1, 1, 2)
         current_row += 1
         layout.addWidget(self.step_index_label, current_row, 0, 1, 3)
-        current_row += 1
-        layout.addWidget(self.current_zone_label, current_row, 0, 1, 3)
         current_row += 1
         layout.addWidget(self.assign_top_left_button, current_row, 0, 1, 3)
         current_row += 1
@@ -98,10 +109,11 @@ class SimpleCalibrationWidget:
         return current_row + 1
 
     def set_step_status(self, *, step_index: int, step_total: int, active_zone: int, normalized_offset: int) -> None:
-        self.step_index_label.setText(f"Zone step: {int(step_index) + 1}/{max(1, int(step_total))}")
-        self.current_zone_label.setText(
-            f"Active strip zone: {int(active_zone)} | Offset: {int(normalized_offset):+d}"
-        )
+        del active_zone, normalized_offset
+        current = int(step_index) + 1
+        total = max(1, int(step_total))
+        self.step_index_label.setText(f"Step {current} of {total}")
+        self.current_zone_label.setText(f"Current LED: {current} of {total}")
 
     def set_preview(self, *, text: str, visual: str) -> None:
         self.preview_text_label.setText(str(text))
