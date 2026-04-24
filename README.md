@@ -1,4 +1,4 @@
-# Nanoleaf Screen Mirror for KDE
+# Nanoleaf Screen Mirror for KDE (1.0.0 release track)
 
 Personal-first Nanoleaf USB screen mirroring app for KDE Plasma 6 on Linux.
 
@@ -17,6 +17,12 @@ This repo is intentionally lean: app code, packaging, and only practical docs ne
 paru -S --needed python-dacite
 cd packaging/arch
 makepkg -si
+```
+
+Install udev rule after package install:
+
+```bash
+./scripts/setup_udev.sh
 ```
 
 ## Quick start
@@ -42,6 +48,49 @@ nanoleaf-kde-sync-service
 - `nanoleaf-kde-sync-doctor` — environment/device diagnostics
 - `nanoleaf-kde-sync-smoke-test` — quick functional sanity check
 - `nanoleaf-kde-sync-autostart` — manage KDE autostart integration
+- `nanoleaf-kde-sync-reset` — reset config/calibration/diagnostic cache safely
+
+## First-run setup
+
+1. Start the tray app (`nanoleaf-kde-sync`).
+2. Complete the setup wizard.
+3. Keep **manual strip zone count** set to your real hardware value.
+4. Run a calibration test pattern and assign TL/TR/BR/BL anchors.
+
+Manual strip count is authoritative for runtime, mapping, and calibration. Device-reported count is diagnostics-only unless you explicitly apply a new value.
+
+## HDR / SDR notes
+
+- `Display preset = SDR`: SDR-safe defaults.
+- `Display preset = HDR`: HDR-first defaults.
+- `Display preset = Auto`: follows compositor capability.
+
+On Plasma HDR desktops, verify SDR white reference and compositor HDR settings in app diagnostics before tuning brightness.
+
+## Fresh install / reinstall / uninstall helpers
+
+Local checkout helpers:
+
+```bash
+./scripts/reinstall_local.sh
+./scripts/uninstall_local.sh
+# optional full purge:
+./scripts/uninstall_local.sh --purge-config
+```
+
+Reinstall helper stops old tray/service processes first to avoid stale runtime loops and HID handles.
+
+## Reset commands
+
+```bash
+nanoleaf-kde-sync-reset app-config --stop-runtime
+nanoleaf-kde-sync-reset calibration --stop-runtime
+nanoleaf-kde-sync-reset diagnostics --stop-runtime
+```
+
+- `app-config`: full config reset.
+- `calibration`: anchors/mapping/calibration payload only.
+- `diagnostics`: probe/latency/wizard draft caches only.
 
 ## Practical docs
 
@@ -57,4 +106,10 @@ Only CI needs to pass before release.
 
 - Linux
 - KDE Plasma 6 (Wayland recommended)
-- Supported Nanoleaf USB strip
+- Supported Nanoleaf USB strips: `NL82K1` (`0x37fa:0x8201`), `NL82K2` (`0x37fa:0x8202`)
+
+## Known limitations
+
+- Single-monitor flow only (no multi-monitor support).
+- Device strip count auto-detection is diagnostics-only; not auto-applied.
+- Desktop-entry launch context is still preferred for reliable KWin authorization.

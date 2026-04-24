@@ -126,18 +126,19 @@ class RuntimeLifecycle:
         self._state = state
         self._runner = runner
         self._thread: Optional[threading.Thread] = None
+        self._lock = threading.Lock()
 
     def start(self, *, startup_timeout_s: float = 1.0) -> bool:
-        if self.is_running():
-            return True
-
-        reset_startup(self._state)
-        self._thread = threading.Thread(
-            target=self._runner,
-            name="nanoleaf-sync",
-            daemon=True,
-        )
-        self._thread.start()
+        with self._lock:
+            if self._thread is not None and self._thread.is_alive():
+                return True
+            reset_startup(self._state)
+            self._thread = threading.Thread(
+                target=self._runner,
+                name="nanoleaf-sync",
+                daemon=True,
+            )
+            self._thread.start()
         if not wait_for_startup(self._state, timeout_s=startup_timeout_s):
             self.join(timeout=0.2)
             return False
@@ -147,9 +148,16 @@ class RuntimeLifecycle:
         self._state.stop_event.set()
 
     def join(self, timeout: Optional[float] = None) -> None:
-        if self._thread is None:
+        with self._lock:
+            thread = self._thread
+        if thread is None:
             return
-        self._thread.join(timeout=timeout)
+        thread.join(timeout=timeout)
+        with self._lock:
+            if self._thread is thread and not thread.is_alive():
+                self._thread = None
 
     def is_running(self) -> bool:
-        return self._thread is not None and self._thread.is_alive()
+        with self._lock:
+            thread = self._thread
+        return thread is not None and thread.is_alive()
