@@ -798,6 +798,15 @@ def run_loop(
                 hid_flush_or_wait_reason = "Not instrumented by current driver path."
                 hid_frame_build_reason = "Frame-build timing not separated from send_frame() in driver path."
                 hid_device_limited_label = "unknown"
+                hid_reports_per_frame = "unavailable"
+                hid_bytes_per_report = "unavailable"
+                hid_total_frame_bytes = "unavailable"
+                hid_report_data_sizes = "unavailable"
+                hid_per_report_write_ms = "unavailable"
+                hid_write_blocking = "unknown"
+                hid_write_retry_policy = "unknown"
+                hid_write_rate_limit_policy = "unknown"
+                hid_write_read_calls = "unavailable"
                 send_with_timing = getattr(driver, "send_frame_with_timing", None)
                 if callable(send_with_timing):
                     timing = send_with_timing(smoothed_colors)
@@ -823,6 +832,25 @@ def run_loop(
                     hid_device_limited_label = (
                         "yes" if bool(timing.get("device_limited", False)) else "no"
                     )
+                    hid_reports_per_frame = str(timing.get("reports_per_frame", "unavailable"))
+                    hid_bytes_per_report = str(timing.get("bytes_per_report", "unavailable"))
+                    hid_total_frame_bytes = str(timing.get("total_frame_bytes", "unavailable"))
+                    report_data_sizes = timing.get("report_data_sizes")
+                    hid_report_data_sizes = (
+                        ",".join(str(int(v)) for v in report_data_sizes)
+                        if isinstance(report_data_sizes, list)
+                        else "unavailable"
+                    )
+                    per_report_write_ms = timing.get("per_report_write_ms")
+                    hid_per_report_write_ms = (
+                        ",".join(f"{float(v):.3f}" for v in per_report_write_ms)
+                        if isinstance(per_report_write_ms, list)
+                        else "unavailable"
+                    )
+                    hid_write_blocking = "yes" if bool(timing.get("write_blocking", True)) else "no"
+                    hid_write_retry_policy = str(timing.get("write_retry_policy", "none"))
+                    hid_write_rate_limit_policy = str(timing.get("write_rate_limit_policy", "none"))
+                    hid_write_read_calls = str(timing.get("write_read_calls", "unavailable"))
                 else:
                     driver.send_frame(smoothed_colors)
                 send_done = time.perf_counter()
@@ -895,6 +923,15 @@ def run_loop(
                             "hid_flush_or_wait_reason": hid_flush_or_wait_reason,
                             "hid_frame_build_reason": hid_frame_build_reason,
                             "hid_device_write_limited": hid_device_limited_label,
+                            "hid_reports_per_frame": hid_reports_per_frame,
+                            "hid_bytes_per_report": hid_bytes_per_report,
+                            "hid_total_frame_bytes": hid_total_frame_bytes,
+                            "hid_report_data_sizes": hid_report_data_sizes,
+                            "hid_per_report_write_ms": hid_per_report_write_ms,
+                            "hid_write_blocking": hid_write_blocking,
+                            "hid_write_retry_policy": hid_write_retry_policy,
+                            "hid_write_rate_limit_policy": hid_write_rate_limit_policy,
+                            "hid_write_read_calls": hid_write_read_calls,
                         },
                     )
                 )

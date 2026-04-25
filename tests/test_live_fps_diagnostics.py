@@ -35,7 +35,18 @@ def _status_with_measurement(*, target_fps: float, effective_fps: float, include
             },
             "counters": {"no_pending_frame_ticks": 0, "capture_worker_error_count": 0},
             "flags": {"capture_worker_active": True},
-            "labels": {"latest_capture_backend_name": "kwin-dbus"},
+            "labels": {
+                "latest_capture_backend_name": "kwin-dbus",
+                "hid_reports_per_frame": "3",
+                "hid_bytes_per_report": "64",
+                "hid_total_frame_bytes": "147",
+                "hid_report_data_sizes": "64,64,19",
+                "hid_per_report_write_ms": "5.7,5.8,5.9",
+                "hid_write_blocking": "yes",
+                "hid_write_retry_policy": "none",
+                "hid_write_rate_limit_policy": "none",
+                "hid_write_read_calls": "1",
+            },
         }
     }
 
@@ -120,3 +131,21 @@ def test_limiter_inference_prefers_capture_availability_when_unattributed_gap_is
     assert any("inferred_unattributed_gap_ms: 60.00" in line for line in lines)
     assert any("Likely limiter: capture-frame availability" in line for line in lines)
     assert any("Gap attribution: runtime frequently had no pending captured frame" in line for line in lines)
+
+
+def test_hid_budget_guidance_flags_120_and_60_when_device_write_is_too_slow() -> None:
+    status = _status_with_measurement(target_fps=120.0, effective_fps=50.0)
+    stages = status["latency_measurement"]["stages"]
+    stages["hid_device_write_ms"]["median_ms"] = 17.4
+    lines = latency_breakdown_lines(status=status)
+    assert any("60 FPS cannot be reliably met due to HID write time" in line for line in lines)
+    assert any("120 FPS cannot be met due to HID write time" in line for line in lines)
+
+
+def test_hid_report_metadata_is_emitted_in_latency_breakdown() -> None:
+    lines = latency_breakdown_lines(status=_status_with_measurement(target_fps=120.0, effective_fps=98.0))
+    assert any("hid_reports_per_frame: 3" in line for line in lines)
+    assert any("hid_bytes_per_report: 64" in line for line in lines)
+    assert any("hid_total_frame_bytes: 147" in line for line in lines)
+    assert any("hid_per_report_write_ms: 5.7,5.8,5.9" in line for line in lines)
+    assert any("hid_write_retry_policy: none" in line for line in lines)

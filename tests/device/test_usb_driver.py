@@ -24,6 +24,26 @@ class FakeTransport:
             raise RuntimeError("No fake response queued")
         return self.responses.pop(0)
 
+    def transceive_with_timing(self, request: bytes) -> tuple[bytes, dict[str, int | float | bool | str | list[int] | list[float]]]:
+        response = self.transceive(request)
+        request_len = len(request)
+        report_size = 64
+        report_data_sizes = [min(report_size, request_len - offset) for offset in range(0, request_len, report_size)]
+        per_report_write_ms = [0.25 for _ in report_data_sizes]
+        return response, {
+            "report_count": len(report_data_sizes),
+            "bytes_per_report": report_size,
+            "report_data_sizes": report_data_sizes,
+            "total_frame_bytes": request_len,
+            "per_report_write_ms": per_report_write_ms,
+            "write_ms": sum(per_report_write_ms),
+            "flush_or_wait_ms": 0.8,
+            "write_blocking": True,
+            "retry_policy": "none",
+            "rate_limit_policy": "none",
+            "read_calls": 1,
+        }
+
     def close(self) -> None:
         self.closed = True
 
@@ -278,6 +298,33 @@ def test_send_frame_logs_multi_report_diagnostics_for_48_zones(caplog: pytest.Lo
     assert "report_count=3" in caplog.text
     assert "chunk_sizes=[64, 64, 19]" in caplog.text
     assert "command=0x02" in caplog.text
+
+
+def test_send_frame_with_timing_reports_hid_report_breakdown() -> None:
+    transport = FakeTransport([
+        _rsp(0x0C, b"\x00NL82K2"),
+        _rsp(0x03, b"\x00\x08"),
+        _rsp(0x06, b"\x00\x01"),
+        _rsp(0x08, b"\x00\x64"),
+        _rsp(0x02, b"\x00"),
+    ])
+    driver = NanoleafUSBDriver(
+        ids=NanoleafUSBIds(0x37FA, 0x8202),
+        transport=transport,
+        configured_zone_count=48,
+    )
+    driver.initialize()
+
+    timing = driver.send_frame_with_timing([(10, 20, 30)] * 48)
+
+    assert timing["reports_per_frame"] == 3
+    assert timing["bytes_per_report"] == 64
+    assert timing["total_frame_bytes"] == 147
+    assert timing["report_data_sizes"] == [64, 64, 19]
+    assert len(timing["per_report_write_ms"]) == 3
+    assert timing["write_blocking"] is True
+    assert timing["write_retry_policy"] == "none"
+    assert timing["write_rate_limit_policy"] == "none"
 
 
 def test_set_brightness_clamps_to_protocol_range() -> None:

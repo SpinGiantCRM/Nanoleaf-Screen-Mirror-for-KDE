@@ -74,6 +74,24 @@ def test_transceive_round_trip_with_report_id_prefix() -> None:
     assert fake.writes[0][1:4] == b"\x03\x00\x00"
 
 
+def test_write_with_timing_reports_multi_report_metadata() -> None:
+    fake = FakeHIDHandle([])
+    transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
+    transport._handle = fake
+    request = b"\x02\x00\x90" + (b"\x01" * 144)
+
+    timing = transport.write_with_timing(request)
+
+    assert timing["report_count"] == 3
+    assert timing["bytes_per_report"] == 64
+    assert timing["total_frame_bytes"] == len(request)
+    assert timing["report_data_sizes"] == [64, 64, 19]
+    assert len(timing["per_report_write_ms"]) == 3
+    assert timing["write_blocking"] is True
+    assert timing["retry_policy"] == "none"
+    assert timing["rate_limit_policy"] == "none"
+
+
 def test_transceive_multi_read_accumulates_full_tlv() -> None:
     fake = FakeHIDHandle([
         b"\x00\x8C\x00\x07\x00NL",
@@ -129,6 +147,21 @@ def test_transceive_accepts_prefixed_reply_when_prefix_disabled() -> None:
     response = transport.transceive(b"\x03\x00\x00")
 
     assert response == b"\x83\x00\x03\x00\x00\x0A"
+
+
+def test_transceive_with_timing_includes_write_and_wait_components() -> None:
+    fake = FakeHIDHandle([b"\x00\x83\x00\x03\x00\x00\x0A" + b"\x00" * 58])
+    transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
+    transport._handle = fake
+
+    response, timing = transport.transceive_with_timing(b"\x03\x00\x00")
+
+    assert response == b"\x83\x00\x03\x00\x00\x0A"
+    assert timing["report_count"] == 1
+    assert timing["total_frame_bytes"] == 3
+    assert len(timing["per_report_write_ms"]) == 1
+    assert timing["flush_or_wait_ms"] >= 0.0
+    assert timing["read_calls"] >= 1
 
 
 def test_transceive_times_out_on_empty_read() -> None:
