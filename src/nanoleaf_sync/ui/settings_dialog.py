@@ -46,7 +46,7 @@ from nanoleaf_sync.runtime.diagnostics_exports import (
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text as _mapping_preview_text
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones
 from nanoleaf_sync.ui.led_color_calibration_dialog import LedColorCalibrationDialog
-from nanoleaf_sync.capture.factory import run_explicit_xdg_portal_probe
+from nanoleaf_sync.capture.factory import run_explicit_xdg_portal_probe, run_fresh_backend_probe
 
 FPS_MIN = 1
 FPS_MAX = 120
@@ -218,9 +218,11 @@ class SettingsDialog:
                 self.auto_probe_policy_combo = QComboBox(); self.auto_probe_policy_combo.addItems(["on-change", "first-run", "each-boot"]); self.auto_probe_policy_combo.setCurrentIndex(max(0, self.auto_probe_policy_combo.findText(str(getattr(cfg, "auto_probe_policy", "on-change")))))
 
                 self.auto_latency_policy_combo = QComboBox(); self.auto_latency_policy_combo.addItems(["manual", "on-open", "on-open-once-per-backend"]); self.auto_latency_policy_combo.setCurrentIndex(max(0, self.auto_latency_policy_combo.findText(str(getattr(cfg, "auto_latency_policy", "manual")))))
-                self.run_latency_button = QPushButton("Measure latency")
+                self.run_latency_button = QPushButton("Measure active backend latency")
+                self.retest_backends_button = QPushButton("Re-test backends (fresh probe)")
                 self.test_xdg_portal_button = QPushButton("Test xdg-portal")
                 self.latency_label = QLabel(latency_result_summary(None))
+                self.xdg_hint_label = QLabel("")
 
                 self.hdr_transfer_combo = QComboBox(); self.hdr_transfer_combo.addItems(["srgb", "pq"]); self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))))
                 self.hdr_primaries_combo = QComboBox(); self.hdr_primaries_combo.addItems(["bt709", "bt2020"]); self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText(str(getattr(cfg, "hdr_primaries", "bt709")))))
@@ -286,6 +288,7 @@ class SettingsDialog:
                     on_walk_strip_once=self._step_test_zone,
                 )
                 self.run_latency_button.clicked.connect(self._run_latency_probe_manual)
+                self.retest_backends_button.clicked.connect(self._run_fresh_backend_probe)
                 self.test_xdg_portal_button.clicked.connect(self._run_xdg_portal_test)
                 self.edge_locality_diagnostic_button.clicked.connect(self._run_edge_locality_diagnostic)
                 self.color_accuracy_diagnostic_button.clicked.connect(self._run_color_accuracy_diagnostic)
@@ -402,25 +405,27 @@ class SettingsDialog:
                 layout.addWidget(self.auto_probe_policy_combo, 2, 1, 1, 2)
                 layout.addWidget(QLabel("Latency auto-run policy"), 3, 0)
                 layout.addWidget(self.auto_latency_policy_combo, 3, 1, 1, 2)
-                layout.addWidget(self.run_latency_button, 4, 0, 1, 2)
+                layout.addWidget(self.run_latency_button, 4, 0, 1, 1)
+                layout.addWidget(self.retest_backends_button, 4, 1, 1, 1)
                 layout.addWidget(self.test_xdg_portal_button, 4, 2, 1, 1)
                 layout.addWidget(self.latency_label, 5, 0, 1, 3)
-                layout.addWidget(self.edge_locality_diagnostic_button, 6, 0, 1, 3)
-                layout.addWidget(self.edge_locality_diagnostic_label, 7, 0, 1, 3)
-                layout.addWidget(self.color_accuracy_diagnostic_button, 8, 0, 1, 3)
-                layout.addWidget(self.color_accuracy_diagnostic_label, 9, 0, 1, 3)
-                layout.addWidget(self.run_self_check_button, 10, 0, 1, 3)
-                layout.addWidget(self.self_check_label, 11, 0, 1, 3)
-                layout.addWidget(self.capture_one_diagnostic_frame_button, 12, 0, 1, 3)
-                layout.addWidget(self.export_live_sampling_overlay_button, 13, 0, 1, 3)
-                layout.addWidget(self.export_synthetic_sampling_overlay_button, 14, 0, 1, 3)
-                layout.addWidget(self.sampling_export_label, 15, 0, 1, 3)
-                layout.addWidget(self.export_zone_report_button, 16, 0, 1, 3)
-                layout.addWidget(self.zone_report_label, 17, 0, 1, 3)
-                layout.addWidget(self.export_latency_report_button, 18, 0, 1, 3)
-                layout.addWidget(self.latency_report_label, 19, 0, 1, 3)
-                layout.addWidget(self.diagnostics_mapping_label, 20, 0, 1, 3)
-                layout.addWidget(self.hdr_colour_path_label, 21, 0, 1, 3)
+                layout.addWidget(self.xdg_hint_label, 6, 0, 1, 3)
+                layout.addWidget(self.edge_locality_diagnostic_button, 7, 0, 1, 3)
+                layout.addWidget(self.edge_locality_diagnostic_label, 8, 0, 1, 3)
+                layout.addWidget(self.color_accuracy_diagnostic_button, 9, 0, 1, 3)
+                layout.addWidget(self.color_accuracy_diagnostic_label, 10, 0, 1, 3)
+                layout.addWidget(self.run_self_check_button, 11, 0, 1, 3)
+                layout.addWidget(self.self_check_label, 12, 0, 1, 3)
+                layout.addWidget(self.capture_one_diagnostic_frame_button, 13, 0, 1, 3)
+                layout.addWidget(self.export_live_sampling_overlay_button, 14, 0, 1, 3)
+                layout.addWidget(self.export_synthetic_sampling_overlay_button, 15, 0, 1, 3)
+                layout.addWidget(self.sampling_export_label, 16, 0, 1, 3)
+                layout.addWidget(self.export_zone_report_button, 17, 0, 1, 3)
+                layout.addWidget(self.zone_report_label, 18, 0, 1, 3)
+                layout.addWidget(self.export_latency_report_button, 19, 0, 1, 3)
+                layout.addWidget(self.latency_report_label, 20, 0, 1, 3)
+                layout.addWidget(self.diagnostics_mapping_label, 21, 0, 1, 3)
+                layout.addWidget(self.hdr_colour_path_label, 22, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -1054,7 +1059,7 @@ class SettingsDialog:
                         triggered_by="manual",
                         details=f"{measured['details']}\n{probe_details}",
                     )
-                    self.run_latency_button.setText("Measure latency")
+                    self.run_latency_button.setText("Measure active backend latency")
                 else:
                     self._latest_latency = build_latency_result(
                         requested_policy=info.requested_policy,
@@ -1067,8 +1072,19 @@ class SettingsDialog:
                         triggered_by="manual",
                         details=f"Configured frame interval: {1000.0 / max(1, int(self.fps_slider.value())):.1f} ms at {int(self.fps_slider.value())} FPS\n{probe_details}",
                     )
-                    self.run_latency_button.setText("Measure latency")
+                    self.run_latency_button.setText("Measure active backend latency")
                 self.latency_label.setText(latency_result_summary(self._latest_latency))
+
+            def _run_fresh_backend_probe(self) -> None:
+                width = int(self._runtime_status.get("capture_width") or 1920)
+                height = int(self._runtime_status.get("capture_height") or 1080)
+                result = run_fresh_backend_probe(width=width, height=height)
+                self._runtime_status["backend_probe_attempts"] = list(result.get("attempts") or [])
+                selected = str(result.get("selected_backend") or "none")
+                self.latency_label.setText(
+                    "Fresh backend probe completed.\n"
+                    + self._backend_probe_breakdown_text(selected_backend=selected)
+                )
 
             def _run_xdg_portal_test(self) -> None:
                 self.latency_label.setText(
@@ -1080,11 +1096,27 @@ class SettingsDialog:
                         height=int(self._runtime_status.get("capture_height") or 1080),
                     )
                     self.latency_label.setText(
-                        "xdg-portal test: "
-                        f"status={result.get('status')} samples={result.get('sample_count')} "
-                        f"median={result.get('median_ms')} p95={result.get('p95_ms')} "
-                        f"jitter={result.get('jitter_ms')} reason={result.get('reason')}"
+                        "xdg-portal explicit test:\n"
+                        f"status={result.get('status')} mode={result.get('mode')} reason={result.get('reason')}\n"
+                        f"last_success_stage={result.get('last_success_stage') or '-'} failing_stage={result.get('failing_stage') or '-'}\n"
+                        + "\n".join(
+                            f"- {row.get('stage')}: {row.get('status')} {row.get('detail') or ''}".strip()
+                            for row in (result.get("stages") or [])
+                            if isinstance(row, dict)
+                        )
                     )
+                    if str(result.get("status")) == "failed":
+                        details = result.get("details") or {}
+                        self.xdg_hint_label.setText(
+                            "Troubleshooting hints (run manually):\n"
+                            "systemctl --user status xdg-desktop-portal xdg-desktop-portal-kde pipewire wireplumber\n"
+                            "journalctl --user -u xdg-desktop-portal -u xdg-desktop-portal-kde -u pipewire -u wireplumber --since \"10 minutes ago\" --no-pager\n"
+                            f"Details: expected_bytes={details.get('expected_bytes')} received_bytes={details.get('received_bytes')} "
+                            f"caps={details.get('caps')} size={details.get('width')}x{details.get('height')} "
+                            f"timeout_s={details.get('first_frame_timeout_s')} empty_buffers={details.get('empty_buffer_count')}"
+                        )
+                    else:
+                        self.xdg_hint_label.setText("")
                 except Exception as exc:  # noqa: BLE001
                     self.latency_label.setText(f"xdg-portal test failed: {exc}")
 
@@ -1105,7 +1137,7 @@ class SettingsDialog:
                             triggered_by="auto",
                             details=f"{measured['details']}\n{probe_details}",
                         )
-                        self.run_latency_button.setText("Measure latency")
+                        self.run_latency_button.setText("Measure active backend latency")
                     else:
                         self._latest_latency = build_latency_result(
                             requested_policy=info.requested_policy,
@@ -1118,7 +1150,7 @@ class SettingsDialog:
                             triggered_by="auto",
                             details=f"Configured frame interval: {1000.0 / max(1, int(self.fps_slider.value())):.1f} ms at {int(self.fps_slider.value())} FPS\n{probe_details}",
                         )
-                        self.run_latency_button.setText("Measure latency")
+                        self.run_latency_button.setText("Measure active backend latency")
                     self.latency_label.setText(latency_result_summary(self._latest_latency))
 
             def _measured_latency_from_runtime(self, *, triggered_by: str) -> dict[str, object] | None:
@@ -1156,13 +1188,19 @@ class SettingsDialog:
             def _backend_probe_breakdown_text(self, *, selected_backend: str) -> str:
                 rows = self._runtime_status.get("backend_probe_attempts")
                 if not isinstance(rows, list) or not rows:
-                    return "Backend attempts: unavailable (probe not run yet)."
+                    return "Backend attempts: unavailable (no fresh backend probe has run in this session)."
                 measured_rows = 0
                 formatted: list[str] = []
+                cached_backend = str(self._runtime_status.get("cached_probe_backend") or "").strip()
+                if cached_backend:
+                    formatted.append(
+                        f"Using cached backend: {cached_backend}. Press Re-test backends to measure candidates again."
+                    )
                 for item in rows:
                     if not isinstance(item, dict):
                         continue
                     status = str(item.get("status") or "skipped")
+                    mode = str(item.get("mode") or ("failed" if status == "failed" else "fresh-probe"))
                     sample_count = int(item.get("sample_count") or 0)
                     if status == "tested" and sample_count > 0:
                         measured_rows += 1
@@ -1175,15 +1213,18 @@ class SettingsDialog:
                     jitter_text = f"{float(jitter):.1f}" if isinstance(jitter, (int, float)) else "-"
                     score_text = f"{float(score):.2f}" if isinstance(score, (int, float)) else "-"
                     formatted.append(
-                        f"- {item.get('backend')}: {status} reason={item.get('reason') or '-'} "
+                        f"- {item.get('backend')}: {status} mode={mode} reason={item.get('reason') or '-'} "
                         f"samples={sample_count} median={median_text} p95={p95_text} jitter={jitter_text} "
                         f"score={score_text} selected_reason={item.get('selected_reason') or '-'} "
+                        f"tentative={'yes' if bool(item.get('tentative')) else 'no'} "
                         f"{'[selected]' if bool(item.get('selected')) else ''}"
                     )
-                if measured_rows < 2:
-                    formatted.insert(0, "Best backend: not enough measured candidates (need >=2).")
+                if measured_rows <= 0:
+                    formatted.insert(0, "No fresh backend probe has run in this session.")
+                elif measured_rows < 2:
+                    formatted.insert(0, "Fresh probe measured fewer than two candidates; selection is tentative.")
                 else:
-                    formatted.insert(0, f"Best backend selected: {selected_backend}.")
+                    formatted.insert(0, f"Fresh probe best backend selected: {selected_backend}.")
                 return "Backend attempts:\n" + "\n".join(formatted)
 
             def focus_section(self, section_name: str) -> bool:

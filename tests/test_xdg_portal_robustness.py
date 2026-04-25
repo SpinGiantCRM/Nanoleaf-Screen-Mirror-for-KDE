@@ -176,3 +176,45 @@ def test_read_frame_gstreamer_raises_clear_error_on_cold_start_timeout(monkeypat
 
     with pytest.raises(XDGPortalError, match="timed out waiting for first frame bytes"):
         backend._read_frame_gstreamer()
+
+
+def test_read_frame_gstreamer_reports_repeated_empty_buffers(monkeypatch) -> None:
+    backend = XDGPortalCapture(width=2, height=2)
+    backend._frame_bytes = 12
+    backend._shm_file = types.SimpleNamespace(name=str(Path("/tmp/fake.raw")))
+    backend._shm_mm = _FakeReadableMMap(b"")
+    backend._first_frame_ready = False
+    backend._first_frame_deadline_s = 0.2
+    backend._first_frame_poll_interval_s = 0.0
+    backend._shm_initial_mtime_ns = 100
+    backend._MAX_EMPTY_FIRST_BUFFERS = 2
+
+    stats = iter(
+        [
+            types.SimpleNamespace(st_size=12, st_mtime_ns=101),
+            types.SimpleNamespace(st_size=12, st_mtime_ns=102),
+        ]
+    )
+    monotonic_values = iter([0.0, 0.01, 0.02, 0.03])
+    monkeypatch.setattr("os.stat", lambda _path: next(stats))
+    monkeypatch.setattr("time.monotonic", lambda: next(monotonic_values))
+    monkeypatch.setattr("time.sleep", lambda _seconds: None)
+
+    with pytest.raises(XDGPortalError, match="produced empty buffers"):
+        backend._read_frame_gstreamer()
+
+
+def test_explicit_diagnostic_returns_staged_failure(monkeypatch) -> None:
+    backend = XDGPortalCapture(width=2, height=2)
+
+    def _boom() -> None:
+        raise XDGPortalError("OpenPipeWireRemote failed: synthetic")
+
+    monkeypatch.setattr(backend, "initialize", _boom)
+    monkeypatch.setattr(backend, "close", lambda: None)
+
+    result = backend.run_explicit_diagnostic()
+    assert result["status"] == "failed"
+    assert result["mode"] == "explicit-test"
+    assert result["failing_stage"] == "PipeWire node/stream received"
+    assert isinstance(result["stages"], list)
