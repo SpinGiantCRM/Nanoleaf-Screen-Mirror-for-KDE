@@ -46,6 +46,7 @@ from nanoleaf_sync.runtime.diagnostics_exports import (
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text as _mapping_preview_text
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones
 from nanoleaf_sync.ui.led_color_calibration_dialog import LedColorCalibrationDialog
+from nanoleaf_sync.capture.factory import run_explicit_xdg_portal_probe
 
 FPS_MIN = 1
 FPS_MAX = 120
@@ -218,6 +219,7 @@ class SettingsDialog:
 
                 self.auto_latency_policy_combo = QComboBox(); self.auto_latency_policy_combo.addItems(["manual", "on-open", "on-open-once-per-backend"]); self.auto_latency_policy_combo.setCurrentIndex(max(0, self.auto_latency_policy_combo.findText(str(getattr(cfg, "auto_latency_policy", "manual")))))
                 self.run_latency_button = QPushButton("Measure latency")
+                self.test_xdg_portal_button = QPushButton("Test xdg-portal")
                 self.latency_label = QLabel(latency_result_summary(None))
 
                 self.hdr_transfer_combo = QComboBox(); self.hdr_transfer_combo.addItems(["srgb", "pq"]); self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))))
@@ -284,6 +286,7 @@ class SettingsDialog:
                     on_walk_strip_once=self._step_test_zone,
                 )
                 self.run_latency_button.clicked.connect(self._run_latency_probe_manual)
+                self.test_xdg_portal_button.clicked.connect(self._run_xdg_portal_test)
                 self.edge_locality_diagnostic_button.clicked.connect(self._run_edge_locality_diagnostic)
                 self.color_accuracy_diagnostic_button.clicked.connect(self._run_color_accuracy_diagnostic)
                 self.run_self_check_button.clicked.connect(self._run_self_check)
@@ -400,6 +403,7 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Latency auto-run policy"), 3, 0)
                 layout.addWidget(self.auto_latency_policy_combo, 3, 1, 1, 2)
                 layout.addWidget(self.run_latency_button, 4, 0, 1, 2)
+                layout.addWidget(self.test_xdg_portal_button, 4, 2, 1, 1)
                 layout.addWidget(self.latency_label, 5, 0, 1, 3)
                 layout.addWidget(self.edge_locality_diagnostic_button, 6, 0, 1, 3)
                 layout.addWidget(self.edge_locality_diagnostic_label, 7, 0, 1, 3)
@@ -837,25 +841,28 @@ class SettingsDialog:
 
             def _on_guided_calibration_opened(self) -> None:
                 self._runtime_status["_guided_calibration_step"] = 0
+                self._runtime_status["_guided_locality_marker"] = 0
                 self._send_guided_calibration_pattern()
 
             def _on_guided_calibration_step_changed(self, step: int) -> None:
                 self._runtime_status["_guided_calibration_step"] = int(step)
+                self._runtime_status["_guided_locality_marker"] = 0
                 self._send_guided_calibration_pattern()
 
             def _on_guided_calibration_closed(self) -> None:
                 self._runtime_status.pop("_guided_calibration_step", None)
+                self._runtime_status.pop("_guided_locality_marker", None)
 
             def _guided_pattern_base(self, step: int) -> list[tuple[int, int, int]]:
                 levels: list[list[tuple[int, int, int]]] = [
-                    [(255, 255, 255)],
-                    [(0, 0, 0), (4, 4, 4), (12, 12, 12), (24, 24, 24)],
-                    [(32, 32, 32), (64, 64, 64), (128, 128, 128), (255, 255, 255)],
-                    [(255, 240, 220), (255, 255, 255), (220, 235, 255)],
-                    [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (0, 255, 255), (255, 0, 255)],
-                    [(120, 110, 100), (110, 120, 130), (130, 120, 110), (110, 110, 120)],
-                    [(255, 255, 255), (0, 0, 0)],
-                    [(255, 255, 255)],
+                    [(0, 0, 0), (2, 2, 2), (8, 8, 8), (16, 16, 16)],  # black / near-black
+                    [(24, 24, 24), (64, 64, 64), (160, 160, 160), (255, 255, 255)],  # grey ramp
+                    [(255, 0, 0)],  # red
+                    [(0, 255, 0)],  # green
+                    [(0, 0, 255)],  # blue
+                    [(0, 255, 255), (255, 0, 255), (255, 255, 0)],  # CMY
+                    [(255, 170, 32)],  # locality marker handled specially
+                    [(200, 200, 200), (255, 255, 255)],  # final neutral
                 ]
                 return levels[max(0, min(step, len(levels) - 1))]
 
@@ -878,7 +885,13 @@ class SettingsDialog:
                 calibrated = apply_led_calibration(np.asarray(base, dtype=np.float32), calibration)
                 colors = [tuple(int(v) for v in row.tolist()) for row in np.clip(np.rint(calibrated), 0, 255).astype(np.uint8)]
                 device_zones = max(1, int(self.device_zone_count_slider.value()))
-                repeated = [colors[i % len(colors)] for i in range(device_zones)]
+                if step == 6:
+                    marker = max(0, int(self._runtime_status.get("_guided_locality_marker", 0)))
+                    repeated = [(0, 0, 0) for _ in range(device_zones)]
+                    repeated[marker % device_zones] = colors[0]
+                    self._runtime_status["_guided_locality_marker"] = marker + 1
+                else:
+                    repeated = [colors[i % len(colors)] for i in range(device_zones)]
                 self._calibration_sender(repeated)
 
             def _send_reference_test_colours(self) -> None:
@@ -1057,6 +1070,24 @@ class SettingsDialog:
                     self.run_latency_button.setText("Measure latency")
                 self.latency_label.setText(latency_result_summary(self._latest_latency))
 
+            def _run_xdg_portal_test(self) -> None:
+                self.latency_label.setText(
+                    "Testing xdg-portal. Approve the KDE/portal screen or window selection prompt if it appears."
+                )
+                try:
+                    result = run_explicit_xdg_portal_probe(
+                        width=int(self._runtime_status.get("capture_width") or 1920),
+                        height=int(self._runtime_status.get("capture_height") or 1080),
+                    )
+                    self.latency_label.setText(
+                        "xdg-portal test: "
+                        f"status={result.get('status')} samples={result.get('sample_count')} "
+                        f"median={result.get('median_ms')} p95={result.get('p95_ms')} "
+                        f"jitter={result.get('jitter_ms')} reason={result.get('reason')}"
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    self.latency_label.setText(f"xdg-portal test failed: {exc}")
+
             def _maybe_auto_run_latency_check(self):
                 if should_auto_run_latency_probe(policy=str(self.auto_latency_policy_combo.currentText()), last_result=self._latest_latency, active_backend=self._active_backend()):
                     info = backend_selection_info(self._runtime_status, cfg)
@@ -1097,7 +1128,7 @@ class SettingsDialog:
                 stages = measurement.get("stages")
                 if not isinstance(stages, dict):
                     return None
-                total_row = stages.get("frame_total_ms") if isinstance(stages.get("frame_total_ms"), dict) else {}
+                total_row = stages.get("actual_work_ms") if isinstance(stages.get("actual_work_ms"), dict) else {}
                 gap_row = stages.get("loop_gap_ms") if isinstance(stages.get("loop_gap_ms"), dict) else {}
                 sample_count = int(total_row.get("sample_count") or 0)
                 if sample_count <= 0:
@@ -1115,9 +1146,9 @@ class SettingsDialog:
                         f"Measured live runtime samples (n={sample_count}, median={pipeline_median:.1f}ms, p95={pipeline_p95:.1f}ms, max={pipeline_max:.1f}ms)"
                     ),
                     "details": (
-                        f"{'Manual' if triggered_by == 'manual' else 'Auto'} measured runtime latency | "
-                        f"loop-gap median/p95={cadence_median:.1f}/{cadence_p95:.1f}ms | "
-                        f"frame-total median/p95/max={pipeline_median:.1f}/{pipeline_p95:.1f}/{pipeline_max:.1f}ms | "
+                        f"{'Manual' if triggered_by == 'manual' else 'Auto'} measured runtime work time (not cadence) | "
+                        f"loop-gap median/p95={cadence_median:.1f}/{cadence_p95:.1f}ms (cadence) | "
+                        f"actual-work median/p95/max={pipeline_median:.1f}/{pipeline_p95:.1f}/{pipeline_max:.1f}ms | "
                         f"effective FPS={effective_fps:.1f} | dropped/skipped={dropped} | samples={sample_count}"
                     ),
                 }
@@ -1138,12 +1169,15 @@ class SettingsDialog:
                     median = item.get("median_ms")
                     p95 = item.get("p95_ms")
                     jitter = item.get("jitter_ms")
+                    score = item.get("score")
                     median_text = f"{float(median):.1f}" if isinstance(median, (int, float)) else "-"
                     p95_text = f"{float(p95):.1f}" if isinstance(p95, (int, float)) else "-"
                     jitter_text = f"{float(jitter):.1f}" if isinstance(jitter, (int, float)) else "-"
+                    score_text = f"{float(score):.2f}" if isinstance(score, (int, float)) else "-"
                     formatted.append(
                         f"- {item.get('backend')}: {status} reason={item.get('reason') or '-'} "
                         f"samples={sample_count} median={median_text} p95={p95_text} jitter={jitter_text} "
+                        f"score={score_text} selected_reason={item.get('selected_reason') or '-'} "
                         f"{'[selected]' if bool(item.get('selected')) else ''}"
                     )
                 if measured_rows < 2:

@@ -6,14 +6,14 @@ from nanoleaf_sync.ui.qt_lazy import load_qt
 
 
 CALIBRATION_STEPS: tuple[str, ...] = (
-    "1. Reset baseline",
-    "2. Black level",
-    "3. Grey/white brightness",
-    "4. White balance",
-    "5. Saturated colours",
-    "6. Low-saturation colours",
-    "7. Locality/spread check",
-    "8. Save profile",
+    "1. Black / near-black cutoff",
+    "2. Grey ramp + white",
+    "3. Red primary",
+    "4. Green primary",
+    "5. Blue primary",
+    "6. Cyan/Magenta/Yellow secondaries",
+    "7. Moving locality marker",
+    "8. Final neutral confirmation",
 )
 
 

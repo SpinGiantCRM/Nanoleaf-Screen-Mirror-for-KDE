@@ -163,6 +163,8 @@ def _resolve_auto_backend_with_probe(
                     "median_ms": None,
                     "p95_ms": None,
                     "jitter_ms": None,
+                    "score": None,
+                    "selected_reason": "",
                     "selected": candidate == fallback,
                 }
                 for candidate in AUTO_PROBE_CANDIDATES
@@ -188,6 +190,8 @@ def _resolve_auto_backend_with_probe(
                     "median_ms": None,
                     "p95_ms": None,
                     "jitter_ms": None,
+                    "score": None,
+                    "selected_reason": "",
                     "selected": candidate == cached,
                 }
                 for candidate in AUTO_PROBE_CANDIDATES
@@ -209,12 +213,14 @@ def _resolve_auto_backend_with_probe(
             probe_rows.append(
                 {
                     "backend": candidate.candidate,
-                    "status": ("tested" if latencies else ("failed" if candidate.errors else "skipped")),
-                    "reason": "; ".join(error.message for error in candidate.errors) if candidate.errors else "",
+                    "status": str(getattr(candidate, "status", "tested" if latencies else ("failed" if candidate.errors else "skipped"))),
+                    "reason": str(getattr(candidate, "reason", "") or ("; ".join(error.message for error in candidate.errors) if candidate.errors else "")),
                     "sample_count": len(latencies),
                     "median_ms": candidate.median_ms,
                     "p95_ms": candidate.p95_ms,
-                    "jitter_ms": ((max(latencies) - min(latencies)) if len(latencies) > 1 else 0.0) if latencies else None,
+                    "jitter_ms": candidate.jitter_ms,
+                    "score": candidate.score,
+                    "selected_reason": candidate.reason,
                     "selected": candidate.candidate == result.selected_backend,
                 }
             )
@@ -247,6 +253,8 @@ def _resolve_auto_backend_with_probe(
                     "median_ms": None,
                     "p95_ms": None,
                     "jitter_ms": None,
+                    "score": None,
+                    "selected_reason": "",
                     "selected": candidate == fallback,
                 }
                 for candidate in AUTO_PROBE_CANDIDATES
@@ -259,6 +267,37 @@ def _resolve_auto_backend_with_probe(
         )
 
     return fallback
+
+
+def run_explicit_xdg_portal_probe(*, width: int, height: int) -> dict[str, object]:
+    from nanoleaf_sync.capture.auto_probe import ProbeConfig, probe_backends
+
+    result = probe_backends(
+        width,
+        height,
+        [XDG_PORTAL_BACKEND],
+        ProbeConfig(
+            allow_interactive=True,
+            quick_probe=True,
+            measure_iterations=20,
+            global_timeout_s=45.0,
+            instantiate_timeout_s=45.0,
+            warmup_timeout_s=20.0,
+            capture_timeout_s=10.0,
+        ),
+    )
+    row = result.candidates[0] if result.candidates else None
+    return {
+        "selected_backend": result.selected_backend,
+        "status": getattr(row, "status", "failed") if row else "failed",
+        "reason": getattr(row, "reason", "No result") if row else "No result",
+        "sample_count": len(getattr(row, "latencies_ms", []) or []),
+        "median_ms": getattr(row, "median_ms", None),
+        "p95_ms": getattr(row, "p95_ms", None),
+        "jitter_ms": getattr(row, "jitter_ms", None),
+        "score": getattr(row, "score", None),
+        "timed_out": bool(result.timed_out),
+    }
 
 
 def _resolve_prefer_backend(

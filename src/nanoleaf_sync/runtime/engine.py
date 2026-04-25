@@ -32,15 +32,13 @@ from nanoleaf_sync.runtime.compositor import (
 )
 from nanoleaf_sync.capture.latency_probe import (
     FrameTimingSample,
-    STAGE_CAPTURE_READ,
     STAGE_CAPTURE_WAIT,
-    STAGE_COLOUR_PROCESSING,
-    STAGE_FRAME_CONVERT,
-    STAGE_FRAME_TOTAL,
+    STAGE_PACING_WAIT,
+    STAGE_IDLE_WAIT,
+    STAGE_FRAME_PROCESSING,
+    STAGE_ACTUAL_WORK,
     STAGE_HID_WRITE,
     STAGE_LOOP_GAP,
-    STAGE_SMOOTHING,
-    STAGE_ZONE_SAMPLING,
 )
 from nanoleaf_sync.runtime.startup import reinitialize_backends, should_reinitialize
 from nanoleaf_sync.runtime.state import (
@@ -477,6 +475,7 @@ def run_loop(
     sent_any_frame = False
     ewma_capture_to_send_ms = 0.0
     last_send_done_ts: float | None = None
+    last_pacing_wait_ms: float | None = None
     last_replaced_count = 0
 
     pending_slot = PendingFrameSlot()
@@ -518,6 +517,8 @@ def run_loop(
         send_done = start
         skip_tick = False
         capture_wait_ms: float | None = None
+        idle_wait_ms: float | None = None
+        pacing_wait_ms: float | None = last_pacing_wait_ms
         frame = None
         pending = None
 
@@ -559,7 +560,7 @@ def run_loop(
                         wait_start = time.perf_counter()
                         pending_slot.wait(timeout=min(0.005, wait_budget))
                         wait_end = time.perf_counter()
-                        capture_wait_ms = (wait_end - wait_start) * 1000.0
+                        idle_wait_ms = (wait_end - wait_start) * 1000.0
                         pending = pending_slot.pop()
                     if pending is None:
                         if stop_requested:
@@ -682,7 +683,8 @@ def run_loop(
                 driver.send_frame(smoothed_colors)
                 send_done = time.perf_counter()
                 hid_write_ms = (send_done - hid_write_start) * 1000.0
-                frame_total_ms = (send_done - captured_at) * 1000.0
+                frame_processing_ms = (processing_end - start) * 1000.0
+                actual_work_ms = (send_done - start) * 1000.0
                 loop_gap_ms = ((send_done - last_send_done_ts) * 1000.0) if last_send_done_ts is not None else None
                 last_send_done_ts = send_done
                 replaced_count = pending_slot.get_replaced_count()
@@ -692,15 +694,17 @@ def run_loop(
                     FrameTimingSample(
                         stage_ms={
                             STAGE_CAPTURE_WAIT: capture_wait_ms,
-                            STAGE_CAPTURE_READ: None,
-                            STAGE_FRAME_CONVERT: processing_timings.frame_convert_ms,
-                            STAGE_ZONE_SAMPLING: processing_timings.zone_sampling_ms,
-                            STAGE_COLOUR_PROCESSING: processing_timings.colour_processing_ms,
-                            STAGE_SMOOTHING: processing_timings.smoothing_ms,
+                            STAGE_PACING_WAIT: pacing_wait_ms,
+                            STAGE_IDLE_WAIT: idle_wait_ms,
+                            STAGE_FRAME_PROCESSING: frame_processing_ms,
+                            STAGE_ACTUAL_WORK: actual_work_ms,
                             STAGE_HID_WRITE: hid_write_ms,
-                            STAGE_FRAME_TOTAL: frame_total_ms,
                             STAGE_LOOP_GAP: loop_gap_ms,
+                            "end_to_end_live_ms": None,
                         },
+                        target_fps=float(fps),
+                        fps_cap=float(fps),
+                        fps_cap_reason="UI FPS control cap",
                         dropped_or_skipped_frames_delta=dropped_delta,
                     )
                 )
@@ -762,8 +766,13 @@ def run_loop(
         if now - next_deadline > interval_s:
             # Drop accumulated lag to keep output responsive under overload.
             next_deadline = now
+            last_pacing_wait_ms = None
         elif now < next_deadline:
-            time.sleep(next_deadline - now)
+            pacing_wait_s = next_deadline - now
+            last_pacing_wait_ms = pacing_wait_s * 1000.0
+            time.sleep(pacing_wait_s)
+        else:
+            last_pacing_wait_ms = None
 
     capture_thread.join(timeout=1.0)
     if capture_thread.is_alive():

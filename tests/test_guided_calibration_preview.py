@@ -5,6 +5,8 @@ def test_guided_calibration_dialog_drives_live_preview_hooks() -> None:
     assert "on_close=self._on_guided_calibration_closed" in text
     assert "def _send_guided_calibration_pattern(self) -> None:" in text
     assert "apply_led_calibration(" in text
+    assert "if step == 6:" in text
+    assert "_guided_locality_marker" in text
 
 
 def test_led_dialog_calls_open_close_and_step_callbacks() -> None:
@@ -12,3 +14,4 @@ def test_led_dialog_calls_open_close_and_step_callbacks() -> None:
     assert "if callable(on_open):" in text
     assert "if callable(on_step_changed):" in text
     assert "def done(self, result: int) -> None:" in text
+    assert "Cyan/Magenta/Yellow secondaries" in text

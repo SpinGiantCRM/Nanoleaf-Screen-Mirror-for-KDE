@@ -6,6 +6,9 @@ def test_latency_backend_breakdown_reports_all_attempts() -> None:
     assert "median=" in text
     assert "p95=" in text
     assert "jitter=" in text
+    assert "score=" in text
+    assert "selected_reason=" in text
+    assert "Test xdg-portal" in text
 
 
 def test_service_exposes_backend_probe_attempts() -> None:
