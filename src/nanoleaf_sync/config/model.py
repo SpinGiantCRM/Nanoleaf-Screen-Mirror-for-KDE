@@ -160,6 +160,11 @@ class AppConfig:
     # Logging / misc
     status_log_interval_s: float = 5.0
     verbose: bool = False
+    # Optional process scheduling niceness preference.
+    # normal: no niceness change
+    # high: best-effort attempt to set nice=-5
+    # very_high_experimental: best-effort attempt to set nice=-10
+    performance_priority: str = "normal"
 
     def effective_calibration(self) -> CalibrationConfig:
         """Return the canonical calibration snapshot for runtime/UI consumers."""

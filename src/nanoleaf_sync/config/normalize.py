@@ -155,6 +155,15 @@ def validate_config(cfg: AppConfig) -> AppConfig:
 
     prefer_backend = normalize_backend_preference(cfg.prefer_backend)
     auto_probe_policy = normalize_enum(getattr(cfg, "auto_probe_policy", AppConfig.auto_probe_policy), allowed={"first-run": "first-run", "first_run": "first-run", "each-boot": "each-boot", "each_boot": "each-boot", "on-change": "on-change", "on_change": "on-change"}, default=AppConfig.auto_probe_policy)
+    performance_priority = normalize_enum(
+        getattr(cfg, "performance_priority", AppConfig.performance_priority),
+        allowed={
+            "normal": "normal",
+            "high": "high",
+            "very_high_experimental": "very_high_experimental",
+        },
+        default=AppConfig.performance_priority,
+    )
 
     def _normalize_profile(profile: object) -> LedCalibrationProfile:
         p = profile if isinstance(profile, LedCalibrationProfile) else LedCalibrationProfile()
@@ -239,4 +248,5 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         reinit_backoff_ms=max(0, int(cfg.reinit_backoff_ms)),
         status_log_interval_s=max(0.5, float(cfg.status_log_interval_s)),
         verbose=coerce_bool(getattr(cfg, "verbose", False), False),
+        performance_priority=performance_priority,
     )

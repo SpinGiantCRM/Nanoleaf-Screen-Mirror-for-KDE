@@ -46,6 +46,10 @@ class RuntimeState:
     latest_edge_sampling_thickness: float | None = None
     latest_zone_diagnostics: List[dict[str, Any]] = field(default_factory=list)
     latest_side_variance_diagnostics: dict[str, dict[str, float | bool]] = field(default_factory=dict)
+    configured_priority_mode: str = "normal"
+    effective_nice_value: int | None = None
+    priority_apply_status: str = "not_attempted"
+    priority_apply_error: str = ""
 
     def reset_for_start(self) -> None:
         self.prev_smoothed_colors = []
@@ -70,6 +74,10 @@ class RuntimeState:
         self.latest_edge_sampling_thickness = None
         self.latest_zone_diagnostics = []
         self.latest_side_variance_diagnostics = {}
+        self.configured_priority_mode = "normal"
+        self.effective_nice_value = None
+        self.priority_apply_status = "not_attempted"
+        self.priority_apply_error = ""
 
     def mark_startup(self, succeeded: bool) -> None:
         self.startup_succeeded = succeeded
@@ -150,6 +158,10 @@ class RuntimeState:
             ),
             "max_consecutive_errors": max_consecutive_errors,
             "reinit_backoff_ms": reinit_backoff_ms,
+            "configured_priority_mode": str(self.configured_priority_mode or "normal"),
+            "effective_nice_value": self.effective_nice_value,
+            "priority_apply_status": str(self.priority_apply_status or "not_attempted"),
+            "priority_apply_error": str(self.priority_apply_error or ""),
         }
 
 

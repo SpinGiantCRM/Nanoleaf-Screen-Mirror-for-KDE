@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Sequence
 
 from nanoleaf_sync.device.hid_transport import HIDTransport
@@ -56,6 +57,7 @@ class NanoleafUSBDriver(DeviceDriver):
         self._initialized = False
         self._cached_on_state: bool | None = None
         self._cached_brightness: int | None = None
+        self.last_send_timing: dict[str, float | bool | str | None] = {}
 
     def _request(self, cmd: int, payload: bytes = b"") -> bytes:
         request = self._protocol.build_request(cmd, payload)
@@ -118,7 +120,7 @@ class NanoleafUSBDriver(DeviceDriver):
         self._request(CMD_SET_BRIGHTNESS, bytes((clamped,)))
         self._cached_brightness = clamped
 
-    def set_zone_colors(self, colors: Sequence[RGBTuple]) -> None:
+    def set_zone_colors(self, colors: Sequence[RGBTuple], *, return_timing: bool = False) -> dict[str, float | bool | str | None] | None:
         if not self._initialized:
             self.initialize()
         if self.zone_count is None:
@@ -136,6 +138,7 @@ class NanoleafUSBDriver(DeviceDriver):
         if self._cached_brightness == 0:
             self.set_brightness(self._min_nonzero_brightness)
 
+        frame_build_start = time.perf_counter()
         normalized = [
             (max(0, min(255, int(r))), max(0, min(255, int(g))), max(0, min(255, int(b))))
             for r, g, b in colors
@@ -158,6 +161,7 @@ class NanoleafUSBDriver(DeviceDriver):
             for rgb in normalized
             for ch in self._output_channel_order
         )
+        frame_build_end = time.perf_counter()
         request_len = 3 + len(payload)
         report_size = int(getattr(self._transport, "report_size", self.report_size))
         report_count = max(1, (request_len + report_size - 1) // report_size) if report_size > 0 else 0
@@ -178,10 +182,35 @@ class NanoleafUSBDriver(DeviceDriver):
             report_count,
             chunk_sizes,
         )
+        device_write_start = time.perf_counter()
         self._request(CMD_SET_ZONE_COLORS, payload)
+        device_write_end = time.perf_counter()
+        timing = {
+            "frame_build_ms": (frame_build_end - frame_build_start) * 1000.0,
+            "device_write_ms": (device_write_end - device_write_start) * 1000.0,
+            "flush_or_wait_ms": None,
+            "device_limited": True,
+            "flush_or_wait_reason": "No explicit flush/wait path in current HID transport.",
+        }
+        self.last_send_timing = timing
+        if return_timing:
+            return timing
+        return None
 
     def send_frame(self, colors: Sequence[RGBTuple]) -> None:
         self.set_zone_colors(colors)
+
+    def send_frame_with_timing(self, colors: Sequence[RGBTuple]) -> dict[str, float | bool | str | None]:
+        timing = self.set_zone_colors(colors, return_timing=True)
+        if isinstance(timing, dict):
+            return timing
+        return {
+            "frame_build_ms": None,
+            "device_write_ms": None,
+            "flush_or_wait_ms": None,
+            "device_limited": False,
+            "flush_or_wait_reason": "Timing unavailable.",
+        }
 
     def close(self) -> None:
         try:

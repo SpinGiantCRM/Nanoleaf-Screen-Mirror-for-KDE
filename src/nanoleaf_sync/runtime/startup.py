@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 import threading
 from threading import Thread
@@ -12,6 +13,41 @@ from nanoleaf_sync.runtime.state import RuntimeState
 
 
 logger = logging.getLogger(__name__)
+
+
+def _current_nice_value() -> int | None:
+    try:
+        return int(os.getpriority(os.PRIO_PROCESS, 0))
+    except Exception:
+        return None
+
+
+def apply_process_priority(*, config: AppConfig, state: RuntimeState) -> None:
+    mode = str(getattr(config, "performance_priority", "normal") or "normal").strip().lower()
+    target_by_mode = {
+        "normal": None,
+        "high": -5,
+        "very_high_experimental": -10,
+    }
+    target = target_by_mode.get(mode)
+    state.configured_priority_mode = mode if mode in target_by_mode else "normal"
+    state.effective_nice_value = _current_nice_value()
+    state.priority_apply_error = ""
+
+    if target is None:
+        state.priority_apply_status = "not_requested"
+        return
+
+    current_nice = _current_nice_value()
+    desired_nice = target if current_nice is None else min(int(current_nice), int(target))
+    try:
+        os.setpriority(os.PRIO_PROCESS, 0, int(desired_nice))
+        state.priority_apply_status = "applied"
+        state.effective_nice_value = _current_nice_value()
+    except Exception as exc:
+        state.priority_apply_status = "failed"
+        state.priority_apply_error = str(exc)
+        state.effective_nice_value = _current_nice_value()
 
 
 def reset_startup(state: RuntimeState) -> None:
@@ -100,6 +136,7 @@ def run_runtime_engine(
     from nanoleaf_sync.runtime.engine import run_loop
 
     state.reset_for_start()
+    apply_process_priority(config=config, state=state)
     if not initialize_or_fail(
         install_drivers=install_drivers,
         close_backends=close_backends,
