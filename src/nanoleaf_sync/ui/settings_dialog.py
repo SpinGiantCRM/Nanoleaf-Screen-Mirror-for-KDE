@@ -355,7 +355,12 @@ class SettingsDialog:
                     "Responsive: adaptive default for games and general use. "
                     "Dynamic: fastest response with basic flicker control."
                 )
-                self.color_style_combo.setToolTip("Reference/Natural: accurate colour, preserves greys. Ambient: recommended stable glow. Vivid: richer colour. Punchy: strongest effect.")
+                self.color_style_combo.setToolTip(
+                    "Reference: Most accurate. Preserves greys as neutral light, avoids saturation boost, turns off only for black/near-black.\n"
+                    "Ambient: Recommended glow. Similar to Reference, with slightly stronger neutral brightness and smoother ambience.\n"
+                    "Vivid: Richer colour response.\n"
+                    "Punchy: Strong stylised colour effect."
+                )
                 self.edge_locality_combo.setToolTip("Tight: most accurate/least bleed. Balanced: softer ambient look. Wide: cinematic blend.")
                 self.light_spread_combo.setToolTip("Neighbour blending only. Precise = least spread, Balanced = default, Soft = cinematic.")
                 self.hdr_max_nits_slider.setToolTip("Reference display peak brightness for HDR tone mapping.")
@@ -412,10 +417,11 @@ class SettingsDialog:
                 layout.addWidget(self.motion_preset_combo, 1, 1, 1, 2)
                 layout.addWidget(QLabel("Color style"), 2, 0)
                 layout.addWidget(self.color_style_combo, 2, 1, 1, 2)
-                layout.addWidget(QLabel("Edge locality"), 3, 0)
-                layout.addWidget(self.edge_locality_combo, 3, 1, 1, 2)
-                layout.addWidget(QLabel("Light spread"), 4, 0)
-                layout.addWidget(self.light_spread_combo, 4, 1, 1, 2)
+                layout.addWidget(QLabel("Grey and white screen areas create neutral ambient light. Black areas turn the LEDs off."), 3, 0, 1, 3)
+                layout.addWidget(QLabel("Edge locality"), 4, 0)
+                layout.addWidget(self.edge_locality_combo, 4, 1, 1, 2)
+                layout.addWidget(QLabel("Light spread"), 5, 0)
+                layout.addWidget(self.light_spread_combo, 5, 1, 1, 2)
                 hdr_advanced = QGroupBox("HDR advanced controls")
                 hdr_advanced.setCheckable(True)
                 hdr_advanced.setChecked(False)
@@ -439,7 +445,7 @@ class SettingsDialog:
                 advanced_layout.addWidget(self.hdr_max_nits_slider, 9, 1)
                 advanced_layout.addWidget(self.hdr_max_nits_value, 9, 2)
                 hdr_advanced.setLayout(advanced_layout)
-                layout.addWidget(hdr_advanced, 5, 0, 1, 3)
+                layout.addWidget(hdr_advanced, 6, 0, 1, 3)
                 led_cal = QGroupBox("LED colour calibration")
                 led_layout = QGridLayout()
                 led_layout.addWidget(QLabel("Red gain"), 0, 0); led_layout.addWidget(self.red_gain_slider, 0, 1); led_layout.addWidget(self.red_gain_value, 0, 2)
@@ -451,8 +457,8 @@ class SettingsDialog:
                 led_layout.addWidget(self.reset_led_calibration_button, 6, 0, 1, 2)
                 led_layout.addWidget(self.reference_test_colours_button, 6, 2)
                 led_cal.setLayout(led_layout)
-                layout.addWidget(led_cal, 6, 0, 1, 3)
-                layout.addWidget(self.display_configurator_button, 7, 0, 1, 3)
+                layout.addWidget(led_cal, 7, 0, 1, 3)
+                layout.addWidget(self.display_configurator_button, 8, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -869,6 +875,7 @@ class SettingsDialog:
                             bool(styled_cap[1][0]),
                         )
                     )(apply_color_style_mapping_with_diagnostics(np.asarray([rgb], dtype=np.float32), color_style=style)),
+                    color_style=style,
                 )
                 self.color_accuracy_diagnostic_label.setText(result.summary)
 

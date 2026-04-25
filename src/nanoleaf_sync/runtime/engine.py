@@ -19,7 +19,12 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.presets import analyzer_mode_for_presets, motion_profile
 from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping_from_config
 from nanoleaf_sync.runtime.processing import zones_from_config
-from nanoleaf_sync.runtime.color_processing import LedCalibration, apply_color_style_mapping, apply_led_calibration
+from nanoleaf_sync.runtime.color_processing import (
+    LedCalibration,
+    apply_color_style_mapping,
+    apply_led_calibration,
+    color_pipeline_diagnostics,
+)
 from nanoleaf_sync.runtime.zone_derivation import derive_source_zone_artifacts
 from nanoleaf_sync.runtime.compositor import (
     apply_sdr_boost_compensation,
@@ -601,6 +606,11 @@ def run_loop(
                             "sampled_rgb": sampled_rgb,
                             "final_output_rgb": final_rgb,
                             "mapped_physical_led_index": mapped_led_index,
+                            **color_pipeline_diagnostics(
+                                input_rgb=sampled_rgb,
+                                output_rgb=final_rgb,
+                                color_style=str(getattr(config, "color_style", "reference")),
+                            ),
                         }
                     )
                 side_var = _side_variance_diagnostics(

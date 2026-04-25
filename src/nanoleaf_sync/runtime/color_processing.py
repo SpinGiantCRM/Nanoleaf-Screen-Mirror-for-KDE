@@ -50,16 +50,20 @@ class StyleProfile:
     chroma_boost: float
     chroma_cap_ratio: float
     chroma_compression: float
-    neutral_lift: float
-    neutral_threshold: float
+    black_luminance_cutoff: float
+    black_luminance_knee: float
+    neutral_chroma_threshold: float
+    neutral_chroma_knee: float
+    neutral_luminance_floor: float
+    neutral_luminance_gain: float
 
 
 STYLE_PROFILES = {
-    "reference": StyleProfile(1.0, 1.05, 0.08, 0.06, 0.030),
-    "natural": StyleProfile(1.0, 1.05, 0.08, 0.06, 0.030),
-    "ambient": StyleProfile(1.02, 1.10, 0.10, 0.15, 0.038),
-    "vivid": StyleProfile(1.10, 1.28, 0.07, 0.12, 0.036),
-    "punchy": StyleProfile(1.20, 1.42, 0.05, 0.14, 0.036),
+    "reference": StyleProfile(1.0, 1.05, 0.0, 0.0032, 0.0024, 0.028, 0.010, 0.0, 1.00),
+    "natural": StyleProfile(1.0, 1.05, 0.0, 0.0032, 0.0024, 0.028, 0.010, 0.0, 1.00),
+    "ambient": StyleProfile(1.0, 1.08, 0.0, 0.0028, 0.0028, 0.032, 0.012, 0.0, 1.08),
+    "vivid": StyleProfile(1.10, 1.28, 0.07, 0.0018, 0.0018, 0.024, 0.010, 0.0, 1.04),
+    "punchy": StyleProfile(1.20, 1.42, 0.05, 0.0018, 0.0018, 0.022, 0.010, 0.0, 1.06),
 }
 
 
@@ -86,6 +90,12 @@ def _oklab_to_linear(oklab: np.ndarray) -> np.ndarray:
     return lms @ _M1_INV_T
 
 
+def _smoothstep(edge0: np.ndarray, edge1: np.ndarray, x: np.ndarray) -> np.ndarray:
+    width = np.maximum(edge1 - edge0, 1e-6)
+    t = np.clip((x - edge0) / width, 0.0, 1.0)
+    return t * t * (3.0 - (2.0 * t))
+
+
 def rgb_u8_to_oklch(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     linear = srgb_u8_to_linear01(np.asarray(rgb, dtype=np.uint8))
     oklab = _linear_to_oklab(linear)
@@ -107,6 +117,12 @@ def oklch_to_rgb_u8(l: np.ndarray, c: np.ndarray, h: np.ndarray) -> np.ndarray:
 def apply_color_style_mapping_with_diagnostics(colors: np.ndarray, *, color_style: str) -> tuple[np.ndarray, np.ndarray]:
     style = STYLE_PROFILES.get(str(color_style).strip().lower(), STYLE_PROFILES["ambient"])
     rgb = np.clip(np.rint(colors), 0.0, 255.0).astype(np.uint8, copy=False)
+    linear = srgb_u8_to_linear01(rgb)
+    y = np.clip(
+        (0.2126 * linear[..., 0]) + (0.7152 * linear[..., 1]) + (0.0722 * linear[..., 2]),
+        0.0,
+        1.0,
+    )
     l, c, h = rgb_u8_to_oklch(rgb)
 
     c_boosted = c * style.chroma_boost
@@ -115,11 +131,28 @@ def apply_color_style_mapping_with_diagnostics(colors: np.ndarray, *, color_styl
     c_capped = np.minimum(c_boosted, c_cap)
     c_mapped = c_capped / (1.0 + (style.chroma_compression * c_capped))
 
-    neutral_weight = np.clip((style.neutral_threshold - c) / max(style.neutral_threshold, 1e-6), 0.0, 1.0)
-    l_mapped = np.clip(l + (neutral_weight * style.neutral_lift * (1.0 - l)), 0.0, 1.0)
-    low_sat = c < 0.05
-    l_mapped = np.where(low_sat, np.maximum(l_mapped, l * 0.92), l_mapped)
-    c_mapped = np.where(neutral_weight > 0.85, 0.0, c_mapped)
+    # Luminance model:
+    # - near-black falls to off via a smooth knee
+    # - low chroma preserves neutral luminance and trends to white
+    # - moderate chroma blends neutral luminance and sampled hue
+    # - high chroma follows hue with per-style chroma caps/compression
+    black_gate = _smoothstep(
+        np.full_like(y, style.black_luminance_cutoff - style.black_luminance_knee),
+        np.full_like(y, style.black_luminance_cutoff + style.black_luminance_knee),
+        y,
+    )
+    neutral_weight = 1.0 - _smoothstep(
+        np.full_like(c, max(0.0, style.neutral_chroma_threshold - style.neutral_chroma_knee)),
+        np.full_like(c, style.neutral_chroma_threshold + style.neutral_chroma_knee),
+        c,
+    )
+    neutral_y = np.clip((np.maximum(y, style.neutral_luminance_floor) * style.neutral_luminance_gain), 0.0, 1.0)
+    neutral_l = np.cbrt(neutral_y)
+    l_mapped = np.clip((neutral_l * neutral_weight) + (l * (1.0 - neutral_weight)), 0.0, 1.0)
+    c_mapped = c_mapped * (1.0 - (0.92 * neutral_weight))
+
+    l_mapped *= black_gate
+    c_mapped *= black_gate
 
     out = oklch_to_rgb_u8(l_mapped.astype(np.float32), c_mapped.astype(np.float32), h.astype(np.float32))
     return out, cap_applied
@@ -155,27 +188,52 @@ def apply_led_calibration(colors: np.ndarray, calibration: LedCalibration) -> np
     return np.clip(out, 0.0, 255.0)
 
 
-def color_pipeline_diagnostics(*, input_rgb: Any, output_rgb: Any, chroma_cap_applied: bool = False) -> dict[str, float | bool | tuple[int, int, int]]:
+def color_pipeline_diagnostics(
+    *,
+    input_rgb: Any,
+    output_rgb: Any,
+    chroma_cap_applied: bool = False,
+    color_style: str = "reference",
+) -> dict[str, float | bool | tuple[int, int, int]]:
     in_rgb = np.clip(np.rint(np.asarray(input_rgb, dtype=np.float32)), 0.0, 255.0).astype(np.uint8)
     out_rgb = np.clip(np.rint(np.asarray(output_rgb, dtype=np.float32)), 0.0, 255.0).astype(np.uint8)
+    style = STYLE_PROFILES.get(str(color_style).strip().lower(), STYLE_PROFILES["ambient"])
     l_in, c_in, h_in = rgb_u8_to_oklch(in_rgb[None, :])
     l_out, c_out, h_out = rgb_u8_to_oklch(out_rgb[None, :])
     c_in_v = float(c_in[0])
     c_out_v = float(c_out[0])
+    l_in_v = float(l_in[0])
+    l_out_v = float(l_out[0])
+    in_linear = srgb_u8_to_linear01(in_rgb[None, :])[0]
+    out_linear = srgb_u8_to_linear01(out_rgb[None, :])[0]
+    y_in_v = float(np.clip((0.2126 * in_linear[0]) + (0.7152 * in_linear[1]) + (0.0722 * in_linear[2]), 0.0, 1.0))
+    y_out_v = float(np.clip((0.2126 * out_linear[0]) + (0.7152 * out_linear[1]) + (0.0722 * out_linear[2]), 0.0, 1.0))
     hue_diff = float(np.degrees(np.arctan2(np.sin(h_out[0] - h_in[0]), np.cos(h_out[0] - h_in[0]))))
     neutral_in = c_in_v < 0.015
     neutral_out = c_out_v < 0.015
+    black_cutoff_applied = bool(y_in_v <= (style.black_luminance_cutoff + style.black_luminance_knee) and y_out_v < 0.002)
+    neutral_floor_applied = bool(c_in_v <= (style.neutral_chroma_threshold + style.neutral_chroma_knee) and y_out_v >= min(1.0, y_in_v * style.neutral_luminance_gain))
+    grey_neutrality_ok = bool((not neutral_in) or neutral_out)
+    black_cutoff_ok = bool((y_in_v > style.black_luminance_cutoff) or y_out_v <= max(0.002, style.black_luminance_cutoff + style.black_luminance_knee))
     return {
         "input_rgb": tuple(int(v) for v in in_rgb.tolist()),
         "output_rgb": tuple(int(v) for v in out_rgb.tolist()),
-        "input_lightness": float(l_in[0]),
-        "output_lightness": float(l_out[0]),
+        "input_lightness": l_in_v,
+        "output_lightness": l_out_v,
         "input_chroma": c_in_v,
+        "sampled_luminance": y_in_v,
+        "output_luminance": y_out_v,
+        "sampled_chroma": c_in_v,
         "output_chroma": c_out_v,
         "input_hue_degrees": float(np.degrees(h_in[0])),
         "output_hue_degrees": float(np.degrees(h_out[0])),
         "chroma_ratio": float(c_out_v / c_in_v) if c_in_v > 1e-6 else 1.0,
         "hue_difference_degrees": 0.0 if neutral_in else hue_diff,
-        "neutral_grey_preserved": bool((not neutral_in) or neutral_out),
+        "neutral_grey_preserved": grey_neutrality_ok,
+        "grey_neutrality_verdict": "pass" if grey_neutrality_ok else "fail",
+        "black_cutoff_verdict": "pass" if black_cutoff_ok else "fail",
+        "neutral_luminance_output_value": l_out_v,
+        "neutral_floor_applied": neutral_floor_applied,
+        "black_cutoff_applied": black_cutoff_applied,
         "chroma_cap_applied": bool(chroma_cap_applied),
     }

@@ -400,7 +400,13 @@ class DisplayConfiguratorDialog:
                     "Responsive: adaptive default for games and general use. "
                     "Dynamic: fastest response with basic flicker control.",
                 )
-                self._set_tooltip(self.color_style_combo, "Reference/Natural: accurate colour, preserves greys. Ambient: recommended stable glow. Vivid: richer colour. Punchy: strongest effect.")
+                self._set_tooltip(
+                    self.color_style_combo,
+                    "Reference: Most accurate. Preserves greys as neutral light, avoids saturation boost, turns off only for black/near-black.\n"
+                    "Ambient: Recommended glow. Similar to Reference, with slightly stronger neutral brightness and smoother ambience.\n"
+                    "Vivid: Richer colour response.\n"
+                    "Punchy: Strong stylised colour effect.",
+                )
 
             def _build_step_1(self, QWidget, QGridLayout, QLabel):
                 page = QWidget()
