@@ -10,6 +10,7 @@ from nanoleaf_sync.config.presets import (
     COLOR_STYLE_PRESETS,
     DISPLAY_PRESETS,
     EDGE_LOCALITY_PRESETS,
+    LIGHT_SPREAD_PRESETS,
     LAYOUT_PRESETS,
     MOTION_PRESETS,
     SAMPLING_QUALITY_PRESETS,
@@ -92,12 +93,19 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     smoothing = max(0.0, min(1.0, float(cfg.smoothing)))
     smoothing_speed = max(0.0, min(4.0, float(cfg.smoothing_speed)))
     led_gamma = max(1.0, min(4.0, float(cfg.led_gamma)))
+    red_gain = max(0.5, min(1.5, float(getattr(cfg, "red_gain", 1.0))))
+    green_gain = max(0.5, min(1.5, float(getattr(cfg, "green_gain", 1.0))))
+    blue_gain = max(0.5, min(1.5, float(getattr(cfg, "blue_gain", 1.0))))
+    white_balance_temperature = max(-1.0, min(1.0, float(getattr(cfg, "white_balance_temperature", 0.0))))
+    chroma_compression = max(0.0, min(0.6, float(getattr(cfg, "chroma_compression", 0.0))))
+    neutral_luminance_gain = max(0.7, min(1.5, float(getattr(cfg, "neutral_luminance_gain", 1.0))))
     fps = max(1, min(120, int(cfg.fps)))
 
     sampling_quality = normalize_preset(getattr(cfg, "sampling_quality", AppConfig.sampling_quality), allowed=SAMPLING_QUALITY_PRESETS, default=AppConfig.sampling_quality)
     zone_sampling_stride = sampling_quality_to_zone_stride(sampling_quality)
     layout_preset = normalize_layout_preset(getattr(cfg, "layout_preset", AppConfig.layout_preset))
     edge_locality = normalize_preset(getattr(cfg, "edge_locality", AppConfig.edge_locality), allowed=EDGE_LOCALITY_PRESETS, default=AppConfig.edge_locality)
+    light_spread = normalize_preset(getattr(cfg, "light_spread", AppConfig.light_spread), allowed=LIGHT_SPREAD_PRESETS, default=AppConfig.light_spread)
     motion_preset = normalize_preset(getattr(cfg, "motion_preset", AppConfig.motion_preset), allowed=MOTION_PRESETS, default=AppConfig.motion_preset)
     color_style = normalize_preset(getattr(cfg, "color_style", AppConfig.color_style), allowed=COLOR_STYLE_PRESETS, default=AppConfig.color_style)
     display_preset = normalize_preset(getattr(cfg, "display_preset", AppConfig.display_preset), allowed=DISPLAY_PRESETS, default=AppConfig.display_preset)
@@ -153,10 +161,17 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         smoothing=smoothing,
         smoothing_speed=smoothing_speed,
         led_gamma=led_gamma,
+        red_gain=red_gain,
+        green_gain=green_gain,
+        blue_gain=blue_gain,
+        white_balance_temperature=white_balance_temperature,
+        chroma_compression=chroma_compression,
+        neutral_luminance_gain=neutral_luminance_gain,
         zones=zones,
         zone_sampling_stride=zone_sampling_stride,
         layout_preset=layout_preset,
         edge_locality=edge_locality,
+        light_spread=light_spread,
         sampling_quality=sampling_quality,
         motion_preset=motion_preset,
         color_style=color_style,

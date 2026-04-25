@@ -86,8 +86,11 @@ def diagnostics_text_lines(*, status: dict, cfg: AppConfig) -> list[str]:
         f"Source-zone count: {geo['source_zone_count']} | Strip LED zone count: {geo['strip_zone_count']}",
         f"Per-side zone counts (T/R/B/L): {side_counts[0]}/{side_counts[1]}/{side_counts[2]}/{side_counts[3]}",
         f"Edge thickness: {geo['edge_thickness'] if geo['edge_thickness'] is not None else 'n/a'} | sample_step: {geo['sample_step']} | edge locality: {geo['edge_locality']}",
+        f"Light spread mode: {status.get('light_spread', 'balanced')}",
         f"Display preset: {geo['display_preset']} | HDR enabled/assumed: {'yes' if geo['hdr_enabled_assumed'] else 'no'}",
         geo["warning_text"] if geo["geometry_warning"] else "Display geometry and capture frame space are consistent.",
+        "If per-zone output remains varied but the wall looks blended, this is likely physical diffusion.",
+        "If per-zone output is already flat, software processing/sampling spread is likely.",
     ]
 
 

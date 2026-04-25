@@ -57,3 +57,11 @@ def test_vivid_and_punchy_allow_more_chroma_than_reference() -> None:
 def test_natural_style_chroma_ratio_caps_at_105() -> None:
     saturated = _map_single((235, 80, 40), "natural")
     assert float(saturated["chroma_ratio"]) <= 1.05
+
+
+
+def test_color_diagnostic_includes_hue_and_cap_metrics() -> None:
+    result = _map_single((235, 80, 40), "reference")
+    assert "chroma_ratio" in result
+    assert "hue_difference_degrees" in result
+    assert "chroma_cap_applied" in result

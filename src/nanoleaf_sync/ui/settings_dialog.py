@@ -19,6 +19,7 @@ from nanoleaf_sync.ui.preset_ui import (
     COLOR_STYLE_LABELS,
     DISPLAY_PRESET_LABELS,
     EDGE_LOCALITY_LABELS,
+    LIGHT_SPREAD_LABELS,
     LAYOUT_PRESET_LABELS,
     MOTION_PRESET_LABELS,
     SAMPLING_QUALITY_LABELS,
@@ -29,7 +30,12 @@ from nanoleaf_sync.ui.preset_ui import (
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.runtime.edge_locality_diagnostics import run_edge_locality_test
 from nanoleaf_sync.runtime.color_accuracy_diagnostics import run_color_accuracy_diagnostic
-from nanoleaf_sync.runtime.color_processing import apply_color_style_mapping, color_pipeline_diagnostics
+from nanoleaf_sync.runtime.color_processing import (
+    LedCalibration,
+    apply_color_style_mapping_with_diagnostics,
+    apply_led_calibration,
+    color_pipeline_diagnostics,
+)
 from nanoleaf_sync.runtime.readiness_check import run_readiness_check
 from nanoleaf_sync.runtime.compositor import effective_sdr_boost
 from nanoleaf_sync.runtime.diagnostics_exports import (
@@ -160,6 +166,7 @@ class SettingsDialog:
                 self.motion_preset_combo = QComboBox(); self.motion_preset_combo.addItems(labels(MOTION_PRESET_LABELS)); self.motion_preset_combo.setCurrentIndex(max(0, self.motion_preset_combo.findText(label_for_value(MOTION_PRESET_LABELS, str(getattr(cfg, "motion_preset", "responsive")), default="Responsive"))))
                 self.color_style_combo = QComboBox(); self.color_style_combo.addItems(labels(COLOR_STYLE_LABELS)); self.color_style_combo.setCurrentIndex(max(0, self.color_style_combo.findText(label_for_value(COLOR_STYLE_LABELS, str(getattr(cfg, "color_style", "ambient")), default="Ambient (recommended)"))))
                 self.edge_locality_combo = QComboBox(); self.edge_locality_combo.addItems(labels(EDGE_LOCALITY_LABELS)); self.edge_locality_combo.setCurrentIndex(max(0, self.edge_locality_combo.findText(label_for_value(EDGE_LOCALITY_LABELS, str(getattr(cfg, "edge_locality", "tight")), default="Tight"))))
+                self.light_spread_combo = QComboBox(); self.light_spread_combo.addItems(labels(LIGHT_SPREAD_LABELS)); self.light_spread_combo.setCurrentIndex(max(0, self.light_spread_combo.findText(label_for_value(LIGHT_SPREAD_LABELS, str(getattr(cfg, "light_spread", "balanced")), default="Balanced"))))
                 self.start_on_launch_checkbox = QCheckBox("Start mirroring automatically when tray app opens"); self.start_on_launch_checkbox.setChecked(bool(getattr(cfg, "start_on_launch", False)))
 
                 self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_count_slider.setRange(1, MAX_ZONE_COUNT); self.zone_count_slider.setValue(self._state.zone_count)
@@ -218,6 +225,14 @@ class SettingsDialog:
                 self.hdr_max_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.hdr_max_nits_slider.setRange(HDR_MAX_NITS_MIN, HDR_MAX_NITS_MAX); self.hdr_max_nits_slider.setValue(int(getattr(cfg, "hdr_max_nits", 1000.0)))
                 self.sampling_quality_combo = QComboBox(); self.sampling_quality_combo.addItems(labels(SAMPLING_QUALITY_LABELS)); self.sampling_quality_combo.setCurrentIndex(max(0, self.sampling_quality_combo.findText(label_for_value(SAMPLING_QUALITY_LABELS, str(getattr(cfg, "sampling_quality", "high")), default="High"))))
                 self.led_gamma_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.led_gamma_slider.setRange(100, 400); self.led_gamma_slider.setValue(int(round(getattr(cfg, "led_gamma", 1.0) * 100)))
+                self.red_gain_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.red_gain_slider.setRange(50, 150); self.red_gain_slider.setValue(int(round(getattr(cfg, "red_gain", 1.0) * 100)))
+                self.green_gain_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.green_gain_slider.setRange(50, 150); self.green_gain_slider.setValue(int(round(getattr(cfg, "green_gain", 1.0) * 100)))
+                self.blue_gain_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.blue_gain_slider.setRange(50, 150); self.blue_gain_slider.setValue(int(round(getattr(cfg, "blue_gain", 1.0) * 100)))
+                self.white_balance_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.white_balance_slider.setRange(-100, 100); self.white_balance_slider.setValue(int(round(getattr(cfg, "white_balance_temperature", 0.0) * 100)))
+                self.chroma_compression_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.chroma_compression_slider.setRange(0, 60); self.chroma_compression_slider.setValue(int(round(getattr(cfg, "chroma_compression", 0.0) * 100)))
+                self.neutral_luminance_gain_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.neutral_luminance_gain_slider.setRange(70, 150); self.neutral_luminance_gain_slider.setValue(int(round(getattr(cfg, "neutral_luminance_gain", 1.0) * 100)))
+                self.reset_led_calibration_button = QPushButton("Reset calibration")
+                self.reference_test_colours_button = QPushButton("Reference test colours")
                 self.display_configurator_button = QPushButton("Re-run Display Setup"); self.display_configurator_button.clicked.connect(self._open_configurator)
                 self.open_calibration_tool_button = QPushButton("Open calibration tool"); self.open_calibration_tool_button.clicked.connect(self._open_configurator)
                 self._apply_tooltips()
@@ -238,7 +253,7 @@ class SettingsDialog:
                 self.sampling_export_label = QLabel("")
                 self.zone_report_label = QLabel("")
                 self.preview_label = self.simple_calibration_widget.preview_text_label; self.preview_visual_label = self.simple_calibration_widget.preview_visual_label; self.test_label = QLabel("")
-                self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.sampling_quality_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel("")
+                self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.sampling_quality_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel(""); self.red_gain_value = QLabel(""); self.green_gain_value = QLabel(""); self.blue_gain_value = QLabel(""); self.white_balance_value = QLabel(""); self.chroma_compression_value = QLabel(""); self.neutral_luminance_gain_value = QLabel("")
 
                 for signal in (
                     self.sampling_quality_combo.currentIndexChanged,
@@ -279,6 +294,8 @@ class SettingsDialog:
                 self.sdr_white_reference_preset_combo.currentIndexChanged.connect(self._on_sdr_white_preset_changed)
                 self.detect_sdr_white_button.clicked.connect(self._detect_kde_sdr_white_reference)
                 self.use_detected_sdr_white_button.clicked.connect(self._use_detected_sdr_white_reference)
+                self.reset_led_calibration_button.clicked.connect(self._reset_led_calibration)
+                self.reference_test_colours_button.clicked.connect(self._send_reference_test_colours)
 
                 buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
                 buttons.accepted.connect(self.accept); buttons.rejected.connect(self.reject)
@@ -340,6 +357,7 @@ class SettingsDialog:
                 )
                 self.color_style_combo.setToolTip("Reference/Natural: accurate colour, preserves greys. Ambient: recommended stable glow. Vivid: richer colour. Punchy: strongest effect.")
                 self.edge_locality_combo.setToolTip("Tight: most accurate/least bleed. Balanced: softer ambient look. Wide: cinematic blend.")
+                self.light_spread_combo.setToolTip("Neighbour blending only. Precise = least spread, Balanced = default, Soft = cinematic.")
                 self.hdr_max_nits_slider.setToolTip("Reference display peak brightness for HDR tone mapping.")
                 self.capture_backend_combo.setToolTip("Select auto or force a specific capture backend.")
                 self.device_model_combo.setToolTip("Select your Nanoleaf USB hardware model.")
@@ -353,6 +371,8 @@ class SettingsDialog:
                 self.compositor_hdr_mode_checkbox.setToolTip("Enable compensation when KDE Plasma is running SDR content on HDR.")
                 self.sdr_boost_nits_slider.setToolTip("Plasma SDR white reference in nits when compositor HDR mode is enabled.")
                 self.sdr_white_reference_preset_combo.setToolTip("Preset SDR white reference levels (80/120/160/203 nits or custom).")
+                self.chroma_compression_slider.setToolTip("Chroma compression: reduces LED oversaturation.")
+                self.white_balance_slider.setToolTip("White balance: adjusts LED tint warmer/cooler.")
 
             def _build_backend_section(self, QGroupBox, QGridLayout, QLabel):
                 group = QGroupBox("Diagnostics")
@@ -394,6 +414,8 @@ class SettingsDialog:
                 layout.addWidget(self.color_style_combo, 2, 1, 1, 2)
                 layout.addWidget(QLabel("Edge locality"), 3, 0)
                 layout.addWidget(self.edge_locality_combo, 3, 1, 1, 2)
+                layout.addWidget(QLabel("Light spread"), 4, 0)
+                layout.addWidget(self.light_spread_combo, 4, 1, 1, 2)
                 hdr_advanced = QGroupBox("HDR advanced controls")
                 hdr_advanced.setCheckable(True)
                 hdr_advanced.setChecked(False)
@@ -417,8 +439,20 @@ class SettingsDialog:
                 advanced_layout.addWidget(self.hdr_max_nits_slider, 9, 1)
                 advanced_layout.addWidget(self.hdr_max_nits_value, 9, 2)
                 hdr_advanced.setLayout(advanced_layout)
-                layout.addWidget(hdr_advanced, 4, 0, 1, 3)
-                layout.addWidget(self.display_configurator_button, 5, 0, 1, 3)
+                layout.addWidget(hdr_advanced, 5, 0, 1, 3)
+                led_cal = QGroupBox("LED colour calibration")
+                led_layout = QGridLayout()
+                led_layout.addWidget(QLabel("Red gain"), 0, 0); led_layout.addWidget(self.red_gain_slider, 0, 1); led_layout.addWidget(self.red_gain_value, 0, 2)
+                led_layout.addWidget(QLabel("Green gain"), 1, 0); led_layout.addWidget(self.green_gain_slider, 1, 1); led_layout.addWidget(self.green_gain_value, 1, 2)
+                led_layout.addWidget(QLabel("Blue gain"), 2, 0); led_layout.addWidget(self.blue_gain_slider, 2, 1); led_layout.addWidget(self.blue_gain_value, 2, 2)
+                led_layout.addWidget(QLabel("White balance"), 3, 0); led_layout.addWidget(self.white_balance_slider, 3, 1); led_layout.addWidget(self.white_balance_value, 3, 2)
+                led_layout.addWidget(QLabel("Chroma compression"), 4, 0); led_layout.addWidget(self.chroma_compression_slider, 4, 1); led_layout.addWidget(self.chroma_compression_value, 4, 2)
+                led_layout.addWidget(QLabel("Neutral luminance gain"), 5, 0); led_layout.addWidget(self.neutral_luminance_gain_slider, 5, 1); led_layout.addWidget(self.neutral_luminance_gain_value, 5, 2)
+                led_layout.addWidget(self.reset_led_calibration_button, 6, 0, 1, 2)
+                led_layout.addWidget(self.reference_test_colours_button, 6, 2)
+                led_cal.setLayout(led_layout)
+                layout.addWidget(led_cal, 6, 0, 1, 3)
+                layout.addWidget(self.display_configurator_button, 7, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -490,7 +524,7 @@ class SettingsDialog:
             def _refresh_numeric_labels(self):
                 if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower() != "custom":
                     self._set_slider_value_safely(self.sdr_boost_nits_slider, int(str(self.sdr_white_reference_preset_combo.currentText()).split(" ", 1)[0]))
-                self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.sampling_quality_value.setText({"Low": "Better performance", "Balanced": "Default", "High": "Best visual fidelity"}.get(str(self.sampling_quality_combo.currentText()), "Default")); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}")
+                self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.sampling_quality_value.setText({"Low": "Better performance", "Balanced": "Default", "High": "Best visual fidelity"}.get(str(self.sampling_quality_combo.currentText()), "Default")); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}"); self.red_gain_value.setText(f"{self.red_gain_slider.value()/100.0:.2f}"); self.green_gain_value.setText(f"{self.green_gain_slider.value()/100.0:.2f}"); self.blue_gain_value.setText(f"{self.blue_gain_slider.value()/100.0:.2f}"); self.white_balance_value.setText(f"{self.white_balance_slider.value()/100.0:+.2f}"); self.chroma_compression_value.setText(f"{self.chroma_compression_slider.value()/100.0:.2f}"); self.neutral_luminance_gain_value.setText(f"{self.neutral_luminance_gain_slider.value()/100.0:.2f}")
 
             def _refresh_preview_label(self):
                 self._refresh_numeric_labels(); self._pull_state()
@@ -596,8 +630,10 @@ class SettingsDialog:
                 ratios = []
                 neutral_ok = True
                 for rgb in samples:
-                    out = apply_color_style_mapping(np.asarray([rgb], dtype=np.float32), color_style=style)[0]
-                    diag = color_pipeline_diagnostics(input_rgb=rgb, output_rgb=tuple(int(v) for v in out.tolist()))
+                    styled, cap = apply_color_style_mapping_with_diagnostics(np.asarray([rgb], dtype=np.float32), color_style=style)
+                    led = apply_led_calibration(styled.astype(np.float32, copy=False), LedCalibration(red_gain=self.red_gain_slider.value()/100.0, green_gain=self.green_gain_slider.value()/100.0, blue_gain=self.blue_gain_slider.value()/100.0, led_gamma=self.led_gamma_slider.value()/100.0, white_balance_temperature=self.white_balance_slider.value()/100.0, chroma_compression=self.chroma_compression_slider.value()/100.0, neutral_luminance_gain=self.neutral_luminance_gain_slider.value()/100.0))
+                    out = np.clip(np.rint(led[0]), 0.0, 255.0).astype(np.uint8)
+                    diag = color_pipeline_diagnostics(input_rgb=rgb, output_rgb=tuple(int(v) for v in out.tolist()), chroma_cap_applied=bool(cap[0]))
                     ratios.append(float(diag["chroma_ratio"]))
                     neutral_ok = neutral_ok and bool(diag["neutral_grey_preserved"])
                 self.hdr_colour_path_label.setText(
@@ -718,6 +754,26 @@ class SettingsDialog:
                 )
                 self._refresh_preview_label()
 
+            def _reset_led_calibration(self) -> None:
+                self._set_slider_value_safely(self.red_gain_slider, 100)
+                self._set_slider_value_safely(self.green_gain_slider, 100)
+                self._set_slider_value_safely(self.blue_gain_slider, 100)
+                self._set_slider_value_safely(self.white_balance_slider, 0)
+                self._set_slider_value_safely(self.chroma_compression_slider, 0)
+                self._set_slider_value_safely(self.neutral_luminance_gain_slider, 100)
+                self._refresh_preview_label()
+
+            def _send_reference_test_colours(self) -> None:
+                if self._calibration_sender is None:
+                    self.color_accuracy_diagnostic_label.setText("Reference test colours unavailable while mirroring sender is not active.")
+                    return
+                pattern = [
+                    (255, 255, 255), (255, 0, 0), (0, 255, 0), (0, 0, 255),
+                    (0, 255, 255), (255, 0, 255), (255, 255, 0), (128, 128, 128),
+                ]
+                self._calibration_sender(pattern)
+                self.color_accuracy_diagnostic_label.setText("Reference test colours sent.")
+
             def _assign_anchor(self, corner: str):
                 current_zone = self._current_calibration_step().device_zone_index
                 if corner == "top_left":
@@ -807,7 +863,12 @@ class SettingsDialog:
             def _run_color_accuracy_diagnostic(self) -> None:
                 style = value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient")
                 result = run_color_accuracy_diagnostic(
-                    mapper=lambda rgb: apply_color_style_mapping(np.asarray([rgb], dtype=np.float32), color_style=style)[0],
+                    mapper=lambda rgb: (
+                        lambda styled_cap: (
+                            np.clip(np.rint(apply_led_calibration(styled_cap[0].astype(np.float32), LedCalibration(red_gain=self.red_gain_slider.value()/100.0, green_gain=self.green_gain_slider.value()/100.0, blue_gain=self.blue_gain_slider.value()/100.0, led_gamma=self.led_gamma_slider.value()/100.0, white_balance_temperature=self.white_balance_slider.value()/100.0, chroma_compression=self.chroma_compression_slider.value()/100.0, neutral_luminance_gain=self.neutral_luminance_gain_slider.value()/100.0))[0]),0.0,255.0).astype(np.uint8),
+                            bool(styled_cap[1][0]),
+                        )
+                    )(apply_color_style_mapping_with_diagnostics(np.asarray([rgb], dtype=np.float32), color_style=style)),
                 )
                 self.color_accuracy_diagnostic_label.setText(result.summary)
 
@@ -981,7 +1042,8 @@ class SettingsDialog:
                     cfg,
                     fps=int(self.fps_slider.value()), sampling_quality=str(self.sampling_quality_combo.currentText()).lower(), brightness=self.brightness_slider.value() / 100.0,
                     smoothing=self.smoothing_slider.value() / 100.0, smoothing_speed=self.smoothing_speed_slider.value() / 100.0, led_gamma=self.led_gamma_slider.value() / 100.0,
-                    zones=new_zones, layout_preset=value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_preset_combo.currentText()), default="edge_strip"), edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"), motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"), color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"), display_preset=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="hdr"),
+                    red_gain=self.red_gain_slider.value() / 100.0, green_gain=self.green_gain_slider.value() / 100.0, blue_gain=self.blue_gain_slider.value() / 100.0, white_balance_temperature=self.white_balance_slider.value() / 100.0, chroma_compression=self.chroma_compression_slider.value() / 100.0, neutral_luminance_gain=self.neutral_luminance_gain_slider.value() / 100.0,
+                    zones=new_zones, layout_preset=value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_preset_combo.currentText()), default="edge_strip"), edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"), light_spread=value_for_label(LIGHT_SPREAD_LABELS, str(self.light_spread_combo.currentText()), default="balanced"), motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"), color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"), display_preset=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="hdr"),
                     start_on_launch=bool(self.start_on_launch_checkbox.isChecked()), device_zone_count=self._state.device_zone_count,
                     output_channel_order=str(self.output_channel_order_combo.currentText()), reverse_zones=self._state.reverse_zones,
                     corner_anchor_top_left=int(self._state.corner_anchor_top_left),

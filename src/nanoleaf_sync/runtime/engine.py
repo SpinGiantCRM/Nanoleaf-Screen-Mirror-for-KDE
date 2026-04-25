@@ -19,7 +19,7 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.presets import analyzer_mode_for_presets, motion_profile
 from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping_from_config
 from nanoleaf_sync.runtime.processing import zones_from_config
-from nanoleaf_sync.runtime.color_processing import apply_color_style_mapping
+from nanoleaf_sync.runtime.color_processing import LedCalibration, apply_color_style_mapping, apply_led_calibration
 from nanoleaf_sync.runtime.zone_derivation import derive_source_zone_artifacts
 from nanoleaf_sync.runtime.compositor import (
     apply_sdr_boost_compensation,
@@ -283,6 +283,32 @@ def _ensure_runtime_artifacts(
     return zones_px, state.cached_device_zone_indices_np
 
 
+
+
+def _apply_neighbor_blend(mapped: np.ndarray, *, spread_mode: str) -> np.ndarray:
+    mode = str(spread_mode or "balanced").strip().lower()
+    weight = {"precise": 0.04, "balanced": 0.12, "soft": 0.24}.get(mode, 0.12)
+    if mapped.shape[0] < 8 or weight <= 0.0:
+        return mapped
+    prev = np.roll(mapped, 1, axis=0)
+    nxt = np.roll(mapped, -1, axis=0)
+    return ((1.0 - (2.0 * weight)) * mapped) + (weight * prev) + (weight * nxt)
+
+
+def _side_variance_diagnostics(*, sampled: np.ndarray, final: np.ndarray, side_counts: tuple[int, int, int, int]) -> dict[str, dict[str, float | bool]]:
+    out: dict[str, dict[str, float | bool]] = {}
+    names = ("top", "right", "bottom", "left")
+    start = 0
+    for name, count in zip(names, side_counts):
+        end = start + max(0, int(count))
+        s = sampled[start:end]
+        f = final[start:end]
+        sampled_var = float(np.var(s.astype(np.float32))) if s.size else 0.0
+        final_var = float(np.var(f.astype(np.float32))) if f.size else 0.0
+        flattened = sampled_var > 120.0 and final_var < max(40.0, sampled_var * 0.25)
+        out[name] = {"sampled_variance": sampled_var, "final_variance": final_var, "processing_flattened": flattened}
+        start = end
+    return out
 def process_frame(
     *,
     frame,
@@ -295,6 +321,13 @@ def process_frame(
     zone_sampling_stride: int = 1,
     led_gamma: float = 1.0,
     motion_preset: str = "responsive",
+    light_spread: str = "balanced",
+    red_gain: float = 1.0,
+    green_gain: float = 1.0,
+    blue_gain: float = 1.0,
+    white_balance_temperature: float = 0.0,
+    chroma_compression: float = 0.0,
+    neutral_luminance_gain: float = 1.0,
     color_style: str = "natural",
     edge_locality: str = "tight",
     compositor_hdr_mode: bool = False,
@@ -338,6 +371,7 @@ def process_frame(
 
     mapped = raw_colors[zone_indices].astype(np.float32, copy=False)
     mapped = apply_color_style_mapping(mapped, color_style=color_style).astype(np.float32, copy=False)
+    mapped = _apply_neighbor_blend(mapped, spread_mode=light_spread).astype(np.float32, copy=False)
 
     b = max(0.0, min(1.0, float(brightness)))
     if b != 1.0:
@@ -359,12 +393,18 @@ def process_frame(
                 motion_preset=motion_preset,
             )
 
-    gamma = max(1.0, min(4.0, float(led_gamma)))
-    if abs(gamma - 1.0) > 1e-6:
-        np.clip(mapped, 0.0, 255.0, out=mapped)
-        mapped /= 255.0
-        np.power(mapped, 1.0 / gamma, out=mapped)
-        mapped *= 255.0
+    mapped = apply_led_calibration(
+        mapped,
+        LedCalibration(
+            red_gain=red_gain,
+            green_gain=green_gain,
+            blue_gain=blue_gain,
+            led_gamma=led_gamma,
+            white_balance_temperature=white_balance_temperature,
+            chroma_compression=chroma_compression,
+            neutral_luminance_gain=neutral_luminance_gain,
+        ),
+    )
 
     np.clip(mapped, 0.0, 255.0, out=mapped)
     np.rint(mapped, out=mapped)
@@ -509,6 +549,13 @@ def run_loop(
                     zone_sampling_stride=config.zone_sampling_stride,
                     led_gamma=config.led_gamma,
                     motion_preset=getattr(config, "motion_preset", "responsive"),
+                    light_spread=getattr(config, "light_spread", "balanced"),
+                    red_gain=float(getattr(config, "red_gain", 1.0)),
+                    green_gain=float(getattr(config, "green_gain", 1.0)),
+                    blue_gain=float(getattr(config, "blue_gain", 1.0)),
+                    white_balance_temperature=float(getattr(config, "white_balance_temperature", 0.0)),
+                    chroma_compression=float(getattr(config, "chroma_compression", 0.0)),
+                    neutral_luminance_gain=float(getattr(config, "neutral_luminance_gain", 1.0)),
                     color_style=getattr(config, "color_style", "natural"),
                     edge_locality=getattr(config, "edge_locality", "balanced"),
                     compositor_hdr_mode=getattr(config, "compositor_hdr_mode", False),
@@ -556,7 +603,16 @@ def run_loop(
                             "mapped_physical_led_index": mapped_led_index,
                         }
                     )
+                side_var = _side_variance_diagnostics(
+                    sampled=sampled_zone_colors,
+                    final=final_zone_colors,
+                    side_counts=state.latest_zone_side_counts,
+                )
+                for row in zone_diagnostics:
+                    row["side_variance"] = side_var.get(str(row.get("side")), {})
+                    row["processing_flattened_side"] = bool(row["side_variance"].get("processing_flattened", False))
                 state.latest_zone_diagnostics = zone_diagnostics
+                state.latest_side_variance_diagnostics = side_var
                 driver.send_frame(smoothed_colors)
                 send_done = time.perf_counter()
                 state.latency_probe.add_sample(

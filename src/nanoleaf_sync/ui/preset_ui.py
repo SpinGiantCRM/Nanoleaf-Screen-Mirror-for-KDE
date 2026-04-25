@@ -14,6 +14,9 @@ from nanoleaf_sync.config.presets import (
     EDGE_LOCALITY_WIDE,
     LAYOUT_PRESET_EDGE_STRIP,
     LAYOUT_PRESET_HORIZONTAL_DEBUG,
+    LIGHT_SPREAD_BALANCED,
+    LIGHT_SPREAD_PRECISE,
+    LIGHT_SPREAD_SOFT,
     MOTION_PRESET_CALM,
     MOTION_PRESET_DYNAMIC,
     MOTION_PRESET_RESPONSIVE,
@@ -48,6 +51,13 @@ COLOR_STYLE_LABELS: tuple[tuple[str, str], ...] = (
     ("Vivid", COLOR_STYLE_VIVID),
     ("Punchy", COLOR_STYLE_PUNCHY),
 )
+
+LIGHT_SPREAD_LABELS: tuple[tuple[str, str], ...] = (
+    ("Precise", LIGHT_SPREAD_PRECISE),
+    ("Balanced", LIGHT_SPREAD_BALANCED),
+    ("Soft", LIGHT_SPREAD_SOFT),
+)
+
 DISPLAY_PRESET_LABELS: tuple[tuple[str, str], ...] = (
     ("SDR", DISPLAY_PRESET_SDR),
     ("HDR", DISPLAY_PRESET_HDR),
