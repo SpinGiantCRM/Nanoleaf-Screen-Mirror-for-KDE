@@ -50,11 +50,31 @@ def _tray_shell(service) -> SimpleNamespace:
         tray_icon=fake_icon,
         _idle_icon="idle",
         _running_icon="running",
+        action_start=SimpleNamespace(setEnabled=lambda *_args, **_kwargs: None, setText=lambda *_args, **_kwargs: None),
+        action_status=SimpleNamespace(setText=lambda *_args, **_kwargs: None),
         _refresh_mode_labels=lambda: None,
         QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Warning=1)),
+        _app_version="test",
         _messages=messages,
         _icon_updates=icon_updates,
     )
+
+
+class _FakeServiceWaitingStart:
+    last_error = None
+
+    def __init__(self) -> None:
+        self.start_calls = 0
+
+    def start(self) -> bool:
+        self.start_calls += 1
+        return True
+
+    def is_running(self) -> bool:
+        return True
+
+    def get_status(self) -> dict:
+        return {"startup_state": "waiting_for_screen_selection"}
 
 
 def test_on_start_catches_service_exceptions_and_keeps_tray_alive(monkeypatch) -> None:
@@ -82,6 +102,15 @@ def test_on_start_failed_result_reports_error_without_quitting() -> None:
 
     assert any("Start failed: device open failed" in message for message in fake_tray._messages)
     assert fake_tray._icon_updates[-1] == "idle"
+
+
+def test_on_start_is_idempotent_while_waiting_for_screen_selection() -> None:
+    service = _FakeServiceWaitingStart()
+    fake_tray = _tray_shell(service)
+
+    NanoleafTrayApp.on_start(fake_tray)
+
+    assert service.start_calls == 0
 
 
 def test_run_opens_display_configurator_without_delayed_balloon_when_wizard_incomplete() -> None:

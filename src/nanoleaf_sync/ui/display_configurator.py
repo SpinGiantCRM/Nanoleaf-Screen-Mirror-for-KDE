@@ -170,7 +170,7 @@ class DisplayConfiguratorDialog:
                 self._device_zone_count_confirmed = not self._requires_manual_device_zone_count
                 self._source_zones_locked_to_device_count = (
                     not bool(self._state.source_zones_user_configured)
-                    and str(self._state.layout_preset) == "edge-weighted"
+                    and str(self._state.layout_preset) == "edge_strip"
                 )
 
                 self.step_label = QLabel("")
@@ -233,10 +233,7 @@ class DisplayConfiguratorDialog:
                 self.hdr_max_nits_slider.setValue(min(int(getattr(cfg, "hdr_max_nits", 1000.0)), self.hdr_max_nits_slider.maximum()))
                 self.hdr_max_nits_label = QLabel("HDR max brightness")
                 self.hdr_max_nits_value = QLabel("")
-                self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
-                self.zone_count_slider.setRange(1, MAX_WIZARD_ZONE_COUNT)
-                self.zone_count_slider.setValue(self._state.zone_count)
-                self.zone_count_value = QLabel("")
+                self.zone_count_readout = QLabel("")
                 self.sampling_quality_combo = QComboBox()
                 self.sampling_quality_combo.addItems(labels(SAMPLING_QUALITY_LABELS))
                 self.sampling_quality_combo.setCurrentIndex(max(0, self.sampling_quality_combo.findText(label_for_value(SAMPLING_QUALITY_LABELS, str(getattr(cfg, "sampling_quality", "high")), default="High"))))
@@ -306,7 +303,6 @@ class DisplayConfiguratorDialog:
                     self.reverse_checkbox.stateChanged,
                 ):
                     signal.connect(self._refresh)
-                self.zone_count_slider.valueChanged.connect(self._on_zone_count_changed)
                 self.device_zone_count_slider.valueChanged.connect(self._on_device_zone_count_changed)
                 self._on_device_zone_count_changed(refresh=False)
                 self.display_advanced_group.toggled.connect(
@@ -474,8 +470,7 @@ class DisplayConfiguratorDialog:
                 layout_group = QGroupBox("Layout")
                 layout_group_layout = QGridLayout()
                 layout_group_layout.addWidget(QLabel("Screen sampling zones"), 0, 0)
-                layout_group_layout.addWidget(self.zone_count_slider, 0, 1)
-                layout_group_layout.addWidget(self.zone_count_value, 0, 2)
+                layout_group_layout.addWidget(self.zone_count_readout, 0, 1, 1, 2)
                 layout_group_layout.addWidget(QLabel("Strip LED zones"), 1, 0)
                 layout_group_layout.addWidget(self.device_zone_summary, 1, 1, 1, 2)
                 layout_group.setLayout(layout_group_layout)
@@ -524,7 +519,7 @@ class DisplayConfiguratorDialog:
                 self._refresh()
 
             def _pull_state_from_controls(self) -> None:
-                self._state.zone_count = int(self.zone_count_slider.value())
+                self._state.zone_count = int(self.device_zone_count_slider.value())
                 selected_layout = value_for_label(
                     LAYOUT_PRESET_LABELS,
                     str(self.layout_debug_combo.currentText()),
@@ -533,6 +528,9 @@ class DisplayConfiguratorDialog:
                 self._state.layout_preset = selected_layout
                 self._state.reverse_zones = bool(self.reverse_checkbox.isChecked())
                 self._state.device_zone_count = int(self.device_zone_count_slider.value())
+                if self._state.layout_preset == "edge_strip":
+                    self._state.zone_count = int(self._state.device_zone_count)
+                    self._state.source_zones_user_configured = False
                 self._state.calibration_model = "corner_anchored"
 
             def _remap_zone_index_between_counts(self, zone_index: int, previous_count: int, new_count: int) -> int:
@@ -585,7 +583,7 @@ class DisplayConfiguratorDialog:
                     self._set_slider_value_safely(self.device_zone_count_slider, clamped_zone_count)
                 new_zone_count = max(1, int(self.device_zone_count_slider.value()))
                 if self._source_zones_locked_to_device_count:
-                    self._set_slider_value_safely(self.zone_count_slider, new_zone_count)
+                    self._state.zone_count = new_zone_count
                 if previous_zone_count != new_zone_count:
                     self._state.corner_anchor_top_left = -1
                     self._state.corner_anchor_top_right = -1
@@ -595,11 +593,6 @@ class DisplayConfiguratorDialog:
                     self.zone_change_notice.setText("Changing strip count invalidates calibration.")
                 if refresh:
                     self._refresh()
-
-            def _on_zone_count_changed(self, *_args) -> None:
-                self._source_zones_locked_to_device_count = False
-                self._state.source_zones_user_configured = True
-                self._refresh()
 
             def _on_zone_preset_changed(self, *_args) -> None:
                 if value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_debug_combo.currentText()), default="edge_strip") != "edge_strip":
@@ -711,11 +704,14 @@ class DisplayConfiguratorDialog:
 
                 self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
                 self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits")
-                self.zone_count_value.setText(str(self.zone_count_slider.value()))
+                self.zone_count_readout.setText(
+                    f"{self._state.zone_count}, matched to strip LED zones"
+                )
                 normalized_offset = 0
                 self.device_zone_count_value.setText(str(effective_zone_count))
                 self.zone_count_explanation.setText(
-                    "Screen sampling zones are sampled perimeter regions on your display."
+                    "Screen sampling zones match your strip LED zones.\n"
+                    "Sampling quality controls how many pixels are sampled inside each zone."
                 )
                 device_zone_status_text = (
                     "Set this to the number of physical lighting zones on your strip. "
@@ -1018,11 +1014,11 @@ class DisplayConfiguratorDialog:
                     return False
                 self._flow.index = max(0, min(len(WIZARD_STEPS) - 1, int(data.get("flow_index", self._flow.index))))
                 self._test_step = int(data.get("test_step", self._test_step))
-                self.zone_count_slider.setValue(int(data.get("zone_count", self.zone_count_slider.value())))
                 preset = str(data.get("layout_preset", self._state.layout_preset))
                 self.layout_debug_combo.setCurrentIndex(0 if preset == "edge_strip" else 1)
                 self.reverse_checkbox.setChecked(bool(data.get("reverse_zones", self.reverse_checkbox.isChecked())))
                 self.device_zone_count_slider.setValue(int(data.get("device_zone_count", self.device_zone_count_slider.value())))
+                self._state.zone_count = int(self.device_zone_count_slider.value())
                 display_idx = self.display_preset_combo.findText(label_for_value(DISPLAY_PRESET_LABELS, str(data.get("display_preset", "hdr")), default="HDR"))
                 if display_idx >= 0:
                     self.display_preset_combo.setCurrentIndex(display_idx)

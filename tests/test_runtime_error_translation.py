@@ -32,3 +32,11 @@ def test_translate_kwin_decode_error() -> None:
         RuntimeError("KWin screenshot payload decode failed for byte payload.")
     )
     assert translated.kind == "kwin-decode"
+
+
+def test_translate_portal_cancelled_start_error() -> None:
+    translated = translate_runtime_error(
+        RuntimeError("Portal negotiation failed: Start denied (response=1).")
+    )
+    assert translated.kind == "screen-selection-cancelled"
+    assert translated.summary == "Screen selection cancelled."

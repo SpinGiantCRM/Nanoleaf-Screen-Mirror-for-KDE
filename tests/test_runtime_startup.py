@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import threading
+import time
 
 from nanoleaf_sync.runtime.startup import reinitialize_backends
 from nanoleaf_sync.runtime.state import RuntimeState
 from nanoleaf_sync.runtime.zone_derivation import effective_zone_count
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
+from nanoleaf_sync.runtime.startup import RuntimeLifecycle
 
 
 class _Closable:
@@ -78,3 +80,51 @@ def test_zone_derivation_ignores_detected_strip_length_when_config_is_legacy_aut
         device_zone_count=0,
     )
     assert effective_zone_count(config=cfg, detected_device_zone_count=64) == 2
+
+
+def test_runtime_lifecycle_start_is_single_flight_under_rapid_requests() -> None:
+    state = RuntimeState()
+    started = threading.Event()
+    release = threading.Event()
+    run_count = {"value": 0}
+
+    def _runner() -> None:
+        run_count["value"] += 1
+        started.set()
+        state.mark_startup(True)
+        release.wait(timeout=2.0)
+
+    lifecycle = RuntimeLifecycle(state=state, runner=_runner)
+
+    def _start() -> None:
+        lifecycle.start(startup_timeout_s=0.01)
+
+    workers = [threading.Thread(target=_start) for _ in range(10)]
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join(timeout=1.0)
+
+    assert started.wait(timeout=1.0)
+    assert run_count["value"] == 1
+    release.set()
+    lifecycle.join(timeout=1.0)
+
+
+def test_runtime_lifecycle_stop_from_starting_state_cleans_up_to_idle() -> None:
+    state = RuntimeState()
+    allow_exit = threading.Event()
+
+    def _runner() -> None:
+        # Deliberately keep startup pending until stop() is issued.
+        while not state.stop_event.is_set():
+            time.sleep(0.001)
+        allow_exit.wait(timeout=0.2)
+
+    lifecycle = RuntimeLifecycle(state=state, runner=_runner)
+    assert lifecycle.start(startup_timeout_s=0.01) is True
+    assert lifecycle.startup_state() == "starting"
+    lifecycle.stop()
+    allow_exit.set()
+    lifecycle.join(timeout=1.0)
+    assert lifecycle.startup_state() == "idle"
