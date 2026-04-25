@@ -3,6 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.runtime.output_session import OutputSessionController
 from nanoleaf_sync.ui.tray_app import NanoleafTrayApp
 
 
@@ -39,6 +40,9 @@ class _FakeService:
     def get_status(self) -> dict[str, int]:
         return dict(self._status)
 
+    def join(self, timeout: float | None = None) -> None:
+        _ = timeout
+
 
 class _FakeCfgMgr:
     def __init__(self) -> None:
@@ -58,6 +62,7 @@ def _fake_tray(service: _FakeService, *, messages: list[str], make_driver):
         cfg_mgr=cfg_mgr,
         _preview_driver=None,
         _preview_paused_service=False,
+        _output_session=OutputSessionController(),
         _make_preview_driver=make_driver,
         on_stop=lambda: service.stop(),
         tray_icon=SimpleNamespace(showMessage=lambda _title, message, _icon, _ms: messages.append(message)),

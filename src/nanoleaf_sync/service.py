@@ -26,6 +26,7 @@ from nanoleaf_sync.capture.dimensions import (
     resolve_capture_dims,
 )
 from nanoleaf_sync.capture.factory import create_capture_backend
+from nanoleaf_sync.capture.factory import last_auto_probe_report
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.store import ConfigManager
 from nanoleaf_sync.device.interfaces import DeviceDriver, NanoleafUSBIds
@@ -244,6 +245,7 @@ class NanoleafSyncService:
             f"policy={self.config.auto_probe_policy}, reason={self._selection_reason}, "
             f"cached={self.config.auto_selected_backend or 'none'}"
         )
+        status["backend_probe_attempts"] = last_auto_probe_report()
         status["device_mode"] = "real-usb"
         status["device_discovered"] = device_discovered
         status["device_model"] = device_model

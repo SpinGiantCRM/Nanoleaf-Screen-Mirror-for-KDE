@@ -13,7 +13,6 @@ from nanoleaf_sync.config.presets import (
     EDGE_LOCALITY_TIGHT,
     EDGE_LOCALITY_WIDE,
     LAYOUT_PRESET_EDGE_STRIP,
-    LAYOUT_PRESET_HORIZONTAL_DEBUG,
     LIGHT_SPREAD_BALANCED,
     LIGHT_SPREAD_PRECISE,
     LIGHT_SPREAD_SOFT,
@@ -27,7 +26,6 @@ from nanoleaf_sync.config.presets import (
 
 LAYOUT_PRESET_LABELS: tuple[tuple[str, str], ...] = (
     ("Edge strip", LAYOUT_PRESET_EDGE_STRIP),
-    ("Horizontal (diagnostic, not recommended)", LAYOUT_PRESET_HORIZONTAL_DEBUG),
 )
 EDGE_LOCALITY_LABELS: tuple[tuple[str, str], ...] = (
     ("Tight", EDGE_LOCALITY_TIGHT),

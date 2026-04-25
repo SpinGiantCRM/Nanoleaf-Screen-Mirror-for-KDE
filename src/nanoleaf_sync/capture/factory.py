@@ -33,6 +33,8 @@ _cached_probe_winner: str | None = None
 _cached_probe_winner_lock = threading.Lock()
 _capability_cache_lock = threading.Lock()
 _capability_cache: dict[str, tuple[float, bool]] = {}
+_last_auto_probe_report_lock = threading.Lock()
+_last_auto_probe_report: list[dict[str, object]] = []
 
 
 
@@ -47,6 +49,17 @@ def reset_cached_probe_winner() -> None:
 def reset_capability_check_cache() -> None:
     with _capability_cache_lock:
         _capability_cache.clear()
+
+
+def last_auto_probe_report() -> list[dict[str, object]]:
+    with _last_auto_probe_report_lock:
+        return [dict(row) for row in _last_auto_probe_report]
+
+
+def _set_last_auto_probe_report(entries: list[dict[str, object]]) -> None:
+    with _last_auto_probe_report_lock:
+        _last_auto_probe_report.clear()
+        _last_auto_probe_report.extend(dict(item) for item in entries)
 
 
 def _capability_cache_get_or_refresh(
@@ -140,6 +153,21 @@ def _resolve_auto_backend_with_probe(
     fallback = _resolve_auto_backend()
     enabled, disable_reason = _probe_enabled(auto_probe_enabled)
     if not enabled:
+        _set_last_auto_probe_report(
+            [
+                {
+                    "backend": candidate,
+                    "status": "skipped",
+                    "reason": f"Auto-probe disabled: {disable_reason}",
+                    "sample_count": 0,
+                    "median_ms": None,
+                    "p95_ms": None,
+                    "jitter_ms": None,
+                    "selected": candidate == fallback,
+                }
+                for candidate in AUTO_PROBE_CANDIDATES
+            ]
+        )
         logger.info(
             "capture auto-probe skipped; using capability fallback=%s reason=%s",
             fallback,
@@ -150,6 +178,21 @@ def _resolve_auto_backend_with_probe(
     with _cached_probe_winner_lock:
         cached = cached_probe_winner or _cached_probe_winner
     if is_valid_probe_candidate(cached):
+        _set_last_auto_probe_report(
+            [
+                {
+                    "backend": candidate,
+                    "status": "skipped",
+                    "reason": f"Using cached winner '{cached}'",
+                    "sample_count": 0,
+                    "median_ms": None,
+                    "p95_ms": None,
+                    "jitter_ms": None,
+                    "selected": candidate == cached,
+                }
+                for candidate in AUTO_PROBE_CANDIDATES
+            ]
+        )
         logger.info("capture auto-probe using cached winner=%s", cached)
         return str(cached)
 
@@ -160,6 +203,22 @@ def _resolve_auto_backend_with_probe(
         from nanoleaf_sync.capture.auto_probe import ProbeConfig, probe_backends
 
         result = probe_backends(width, height, candidates, ProbeConfig())
+        probe_rows: list[dict[str, object]] = []
+        for candidate in result.candidates:
+            latencies = list(getattr(candidate, "latencies_ms", []) or [])
+            probe_rows.append(
+                {
+                    "backend": candidate.candidate,
+                    "status": ("tested" if latencies else ("failed" if candidate.errors else "skipped")),
+                    "reason": "; ".join(error.message for error in candidate.errors) if candidate.errors else "",
+                    "sample_count": len(latencies),
+                    "median_ms": candidate.median_ms,
+                    "p95_ms": candidate.p95_ms,
+                    "jitter_ms": ((max(latencies) - min(latencies)) if len(latencies) > 1 else 0.0) if latencies else None,
+                    "selected": candidate.candidate == result.selected_backend,
+                }
+            )
+        _set_last_auto_probe_report(probe_rows)
         tested = ", ".join(item.candidate for item in result.candidates)
         logger.info("capture auto-probe tested candidates=%s", tested)
 
@@ -178,6 +237,21 @@ def _resolve_auto_backend_with_probe(
             fallback,
         )
     except Exception as exc:  # noqa: BLE001 - preserve startup reliability
+        _set_last_auto_probe_report(
+            [
+                {
+                    "backend": candidate,
+                    "status": "failed",
+                    "reason": f"Auto-probe failed: {exc}",
+                    "sample_count": 0,
+                    "median_ms": None,
+                    "p95_ms": None,
+                    "jitter_ms": None,
+                    "selected": candidate == fallback,
+                }
+                for candidate in AUTO_PROBE_CANDIDATES
+            ]
+        )
         logger.warning(
             "capture auto-probe failed; using capability fallback=%s reason=%s",
             fallback,
