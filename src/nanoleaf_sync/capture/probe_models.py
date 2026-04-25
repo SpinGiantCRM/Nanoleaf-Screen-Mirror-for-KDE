@@ -18,6 +18,8 @@ class ProbeError:
 @dataclass(slots=True)
 class CandidateProbeResult:
     candidate: str
+    status: str = "untested"
+    reason: str = ""
     attempted_captures: int = 0
     success_count: int = 0
     failure_count: int = 0
@@ -25,6 +27,9 @@ class CandidateProbeResult:
     errors: list[ProbeError] = field(default_factory=list)
     median_ms: float | None = None
     p95_ms: float | None = None
+    jitter_ms: float | None = None
+    score: float | None = None
+    tentative: bool = False
     qualified: bool = False
 
     @property
@@ -34,8 +39,11 @@ class CandidateProbeResult:
 
 @dataclass(frozen=True, slots=True)
 class ProbeConfig:
-    measure_iterations: int = 5
+    measure_iterations: int = 20
     min_success_ratio: float = 0.6
+    min_confident_samples: int = 20
+    quick_probe: bool = False
+    allow_interactive: bool = False
     global_timeout_s: float = 8.0
     instantiate_timeout_s: float = 2.0
     warmup_timeout_s: float = 2.0

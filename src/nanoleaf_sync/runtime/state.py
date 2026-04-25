@@ -129,6 +129,9 @@ class RuntimeState:
                 else {
                     "live_mirroring_only": bool(measurement.live_mirroring_only),
                     "dropped_or_skipped_frames": int(measurement.dropped_or_skipped_frames),
+                    "target_fps": float(measurement.target_fps),
+                    "fps_cap": float(measurement.fps_cap),
+                    "fps_cap_reason": str(measurement.fps_cap_reason),
                     "effective_output_fps": float(measurement.effective_output_fps),
                     "stages": {
                         stage: {

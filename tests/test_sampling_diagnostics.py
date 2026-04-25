@@ -13,7 +13,7 @@ from nanoleaf_sync.runtime.diagnostics_exports import (
     export_zone_report,
 )
 from nanoleaf_sync.runtime.state import RuntimeState
-from nanoleaf_sync.capture.latency_probe import FrameTimingSample, STAGE_FRAME_TOTAL, STAGE_LOOP_GAP
+from nanoleaf_sync.capture.latency_probe import FrameTimingSample, STAGE_ACTUAL_WORK, STAGE_LOOP_GAP
 from nanoleaf_sync.ui.calibration_state import LatencyProbeResult, latency_result_summary
 from nanoleaf_sync.runtime.engine import process_frame
 from nanoleaf_sync.runtime.processing import zones_from_config
@@ -186,7 +186,7 @@ def test_per_zone_differences_survive_processing() -> None:
 def test_latency_diagnostics_show_unavailable_stage_honestly() -> None:
     state = RuntimeState()
     state.latency_probe.add_stage_sample(
-        FrameTimingSample(stage_ms={STAGE_FRAME_TOTAL: 8.0, STAGE_LOOP_GAP: 10.0})
+        FrameTimingSample(stage_ms={STAGE_ACTUAL_WORK: 8.0, STAGE_LOOP_GAP: 10.0})
     )
     status = state.status_snapshot(
         running=True,
@@ -199,14 +199,14 @@ def test_latency_diagnostics_show_unavailable_stage_honestly() -> None:
     )
     lines = diagnostics_text_lines(status=status, cfg=AppConfig())
     text = "\n".join(lines)
-    assert "capture_read_ms: unavailable" in text
-    assert "frame_total_ms: median=" in text
+    assert "end_to_end_live_ms: unavailable" in text
+    assert "actual_work_ms: median=" in text
 
 
 def test_latency_samples_reset_on_runtime_start() -> None:
     state = RuntimeState()
     state.latency_probe.add_stage_sample(
-        FrameTimingSample(stage_ms={STAGE_FRAME_TOTAL: 7.0, STAGE_LOOP_GAP: 8.0})
+        FrameTimingSample(stage_ms={STAGE_ACTUAL_WORK: 7.0, STAGE_LOOP_GAP: 8.0})
     )
     assert state.latency_probe.measurement() is not None
     state.reset_for_start()
@@ -216,7 +216,7 @@ def test_latency_samples_reset_on_runtime_start() -> None:
 def test_latency_export_includes_new_stage_fields() -> None:
     state = RuntimeState()
     state.latency_probe.add_stage_sample(
-        FrameTimingSample(stage_ms={STAGE_FRAME_TOTAL: 9.0, STAGE_LOOP_GAP: 12.0})
+        FrameTimingSample(stage_ms={STAGE_ACTUAL_WORK: 9.0, STAGE_LOOP_GAP: 12.0})
     )
     status = state.status_snapshot(
         running=True,
@@ -230,4 +230,4 @@ def test_latency_export_includes_new_stage_fields() -> None:
     out = export_latency_report(status=status)
     payload = out.read_text(encoding="utf-8")
     assert "stage,available,sample_count,median_ms,p95_ms,max_ms" in payload
-    assert "frame_total_ms,True,1,9.0,9.0,9.0" in payload
+    assert "actual_work_ms,True,1,9.0,9.0,9.0" in payload

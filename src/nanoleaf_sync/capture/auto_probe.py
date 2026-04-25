@@ -16,6 +16,8 @@ from nanoleaf_sync.capture.probe_models import (
 )
 from nanoleaf_sync.capture.probe_timing import call_with_timeout, monotonic_s
 
+INTERACTIVE_SKIP_REASON = "interactive portal permission required; use Test xdg-portal to run."
+
 
 def _default_backend_factory(candidate: str, width: int, height: int) -> CaptureBackend:
     return create_capture_backend(
@@ -36,10 +38,13 @@ def _mark_stats(stats: CandidateProbeResult, min_success_ratio: float) -> None:
     if stats.latencies_ms:
         stats.median_ms = statistics.median(stats.latencies_ms)
         stats.p95_ms = _compute_p95(stats.latencies_ms)
+        stats.jitter_ms = (max(stats.latencies_ms) - min(stats.latencies_ms)) if len(stats.latencies_ms) > 1 else 0.0
 
     total = stats.attempted_captures
     ratio = (stats.success_count / total) if total > 0 else 0.0
     stats.qualified = ratio >= min_success_ratio
+    if stats.status == "untested":
+        stats.status = "tested" if stats.success_count > 0 else ("failed" if stats.errors else "skipped")
 
 
 def _record_error(stats: CandidateProbeResult, error: ProbeError) -> None:
@@ -72,7 +77,7 @@ def probe_backends(
 ) -> ProbeResult:
     """Probe candidate capture backends and rank by reliability then latency."""
 
-    iterations = max(3, min(5, int(probe_config.measure_iterations)))
+    iterations = max(3, int(probe_config.measure_iterations))
     factory = cast(BackendFactory, probe_config.backend_factory or _default_backend_factory)
 
     started = monotonic_s()
@@ -81,6 +86,15 @@ def probe_backends(
     results: list[CandidateProbeResult] = []
 
     for candidate in candidates:
+        if candidate == "xdg-portal" and not probe_config.allow_interactive:
+            results.append(
+                CandidateProbeResult(
+                    candidate=candidate,
+                    status="skipped",
+                    reason=INTERACTIVE_SKIP_REASON,
+                )
+            )
+            continue
         if monotonic_s() >= deadline:
             timed_out = True
             break
@@ -131,12 +145,15 @@ def probe_backends(
 
         except Exception as exc:  # noqa: BLE001 - diagnostics collection
             _record_error(stats, _build_probe_error("instantiate", exc))
+            stats.status = "failed"
         finally:
             stats.failure_count = max(
                 stats.failure_count,
                 stats.attempted_captures - stats.success_count,
             )
             _mark_stats(stats, probe_config.min_success_ratio)
+            if stats.errors and not stats.reason:
+                stats.reason = "; ".join(error.message for error in stats.errors)
             results.append(stats)
 
             if backend is not None:
@@ -152,16 +169,42 @@ def probe_backends(
                     except Exception as exc:  # noqa: BLE001 - diagnostics collection
                         _record_error(stats, _build_probe_error("close", exc))
 
+    min_samples = max(3, int(probe_config.min_confident_samples))
+    scored: list[CandidateProbeResult] = []
+    for item in results:
+        if item.status != "tested" or item.median_ms is None or item.p95_ms is None:
+            item.score = None
+            scored.append(item)
+            continue
+        sample_count = len(item.latencies_ms)
+        sample_penalty = 0.0 if sample_count >= min_samples or probe_config.quick_probe else (min_samples - sample_count) * 4.0
+        item.tentative = sample_count < min_samples and not probe_config.quick_probe
+        item.score = (
+            (item.median_ms * 1.0)
+            + (item.p95_ms * 0.75)
+            + ((item.jitter_ms or 0.0) * 0.6)
+            + sample_penalty
+        )
+        scored.append(item)
+
     ranked = sorted(
-        results,
+        scored,
         key=lambda item: (
             not item.qualified,
-            float("inf") if item.median_ms is None else round(item.median_ms),
+            float("inf") if item.score is None else item.score,
+            float("inf") if item.p95_ms is None else item.p95_ms,
+            float("inf") if item.jitter_ms is None else item.jitter_ms,
             item.candidate,
         ),
     )
 
-    selected = ranked[0].candidate if ranked and ranked[0].qualified else None
+    selected_row = ranked[0] if ranked and ranked[0].qualified and ranked[0].score is not None else None
+    selected = selected_row.candidate if selected_row is not None else None
+    if selected_row is not None:
+        selected_row.reason = (
+            f"selected via score={selected_row.score:.2f}"
+            + (" (tentative: low sample count)" if selected_row.tentative else "")
+        )
     return ProbeResult(
         selected_backend=selected,
         candidates=ranked,

@@ -104,25 +104,32 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
 
     live_only = bool(measurement.get("live_mirroring_only", False))
     dropped = int(measurement.get("dropped_or_skipped_frames") or 0)
+    target_fps = float(measurement.get("target_fps") or 0.0)
     fps = float(measurement.get("effective_output_fps") or 0.0)
+    fps_cap = float(measurement.get("fps_cap") or 0.0)
+    fps_cap_reason = str(measurement.get("fps_cap_reason") or "none")
     stages = measurement.get("stages")
     if not isinstance(stages, dict):
         return ["Live mirroring latency stages: unavailable (stage timing payload missing)."]
     lines = [
         "Live mirroring latency stages (live-only metrics: yes)." if live_only
         else "Live mirroring latency stages (live-only metrics: no).",
-        f"Effective output FPS: {fps:.1f} | dropped/skipped frames: {dropped}",
+        f"Target FPS: {target_fps:.1f} | Effective output FPS: {fps:.1f} | dropped/skipped frames: {dropped}",
+        (
+            f"FPS cap: {fps_cap:.1f} ({fps_cap_reason})"
+            if fps_cap > 0.0
+            else "FPS cap: unavailable"
+        ),
     ]
     stage_order = (
-        "capture_wait_ms",
-        "capture_read_ms",
-        "frame_convert_ms",
-        "zone_sampling_ms",
-        "colour_processing_ms",
-        "smoothing_ms",
-        "hid_write_ms",
-        "frame_total_ms",
         "loop_gap_ms",
+        "pacing_wait_ms",
+        "idle_wait_ms",
+        "capture_wait_ms",
+        "frame_processing_ms",
+        "actual_work_ms",
+        "hid_write_ms",
+        "end_to_end_live_ms",
     )
     for stage in stage_order:
         row = stages.get(stage)
@@ -283,6 +290,9 @@ def export_latency_report(*, status: dict) -> Path:
                 "p95_ms",
                 "max_ms",
                 "live_mirroring_only",
+                "target_fps",
+                "fps_cap",
+                "fps_cap_reason",
                 "effective_output_fps",
                 "dropped_or_skipped_frames",
             ],
@@ -290,14 +300,13 @@ def export_latency_report(*, status: dict) -> Path:
         writer.writeheader()
         for stage in (
             "capture_wait_ms",
-            "capture_read_ms",
-            "frame_convert_ms",
-            "zone_sampling_ms",
-            "colour_processing_ms",
-            "smoothing_ms",
+            "pacing_wait_ms",
+            "idle_wait_ms",
+            "frame_processing_ms",
+            "actual_work_ms",
             "hid_write_ms",
-            "frame_total_ms",
             "loop_gap_ms",
+            "end_to_end_live_ms",
         ):
             row = stages.get(stage) or {}
             writer.writerow(
@@ -309,6 +318,9 @@ def export_latency_report(*, status: dict) -> Path:
                     "p95_ms": float(row.get("p95_ms", 0.0) or 0.0),
                     "max_ms": float(row.get("max_ms", 0.0) or 0.0),
                     "live_mirroring_only": bool(measurement.get("live_mirroring_only", False)),
+                    "target_fps": float(measurement.get("target_fps", 0.0) or 0.0),
+                    "fps_cap": float(measurement.get("fps_cap", 0.0) or 0.0),
+                    "fps_cap_reason": str(measurement.get("fps_cap_reason", "") or ""),
                     "effective_output_fps": float(measurement.get("effective_output_fps", 0.0) or 0.0),
                     "dropped_or_skipped_frames": int(measurement.get("dropped_or_skipped_frames", 0) or 0),
                 }

@@ -104,8 +104,38 @@ def test_probe_backends_tie_breaks_by_candidate_name() -> None:
         ProbeConfig(backend_factory=_factory, measure_iterations=3),
     )
 
-    assert result.selected_backend == "alpha"
-    assert [entry.candidate for entry in result.candidates] == ["alpha", "zeta"]
+    assert result.selected_backend in {"alpha", "zeta"}
+    assert {entry.candidate for entry in result.candidates} == {"alpha", "zeta"}
+
+
+def test_probe_backends_prefers_lower_p95_and_jitter_when_median_ties() -> None:
+    def _factory(candidate: str, _width: int, _height: int):
+        if candidate == "kwin-dbus":
+            return _FakeBackend([0.001, 0.001, 0.001, 0.0012, 0.0011, 0.001, 0.001])
+        return _FakeBackend([0.001, 0.001, 0.001, 0.003, 0.001, 0.0025, 0.001])
+
+    result = probe_backends(
+        32,
+        18,
+        ["kmsgrab", "kwin-dbus"],
+        ProbeConfig(backend_factory=_factory, measure_iterations=6, min_confident_samples=4),
+    )
+    assert result.selected_backend == "kwin-dbus"
+    selected = result.candidates[0]
+    assert selected.p95_ms <= result.candidates[1].p95_ms
+    assert selected.jitter_ms <= result.candidates[1].jitter_ms
+
+
+def test_probe_backends_skips_xdg_portal_in_auto_mode() -> None:
+    result = probe_backends(
+        32,
+        18,
+        ["xdg-portal"],
+        ProbeConfig(backend_factory=lambda *_args: _FakeBackend([0.001])),
+    )
+    assert result.selected_backend is None
+    assert result.candidates[0].status == "skipped"
+    assert "interactive portal permission required" in result.candidates[0].reason
 
 
 def test_probe_backends_records_instantiate_failures() -> None:

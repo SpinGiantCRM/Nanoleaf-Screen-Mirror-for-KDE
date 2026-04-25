@@ -7,25 +7,23 @@ from typing import Iterable
 
 
 STAGE_CAPTURE_WAIT = "capture_wait_ms"
-STAGE_CAPTURE_READ = "capture_read_ms"
-STAGE_FRAME_CONVERT = "frame_convert_ms"
-STAGE_ZONE_SAMPLING = "zone_sampling_ms"
-STAGE_COLOUR_PROCESSING = "colour_processing_ms"
-STAGE_SMOOTHING = "smoothing_ms"
+STAGE_PACING_WAIT = "pacing_wait_ms"
+STAGE_IDLE_WAIT = "idle_wait_ms"
+STAGE_FRAME_PROCESSING = "frame_processing_ms"
+STAGE_ACTUAL_WORK = "actual_work_ms"
 STAGE_HID_WRITE = "hid_write_ms"
-STAGE_FRAME_TOTAL = "frame_total_ms"
 STAGE_LOOP_GAP = "loop_gap_ms"
+STAGE_END_TO_END_LIVE = "end_to_end_live_ms"
 
 ALL_STAGE_NAMES = (
-    STAGE_CAPTURE_WAIT,
-    STAGE_CAPTURE_READ,
-    STAGE_FRAME_CONVERT,
-    STAGE_ZONE_SAMPLING,
-    STAGE_COLOUR_PROCESSING,
-    STAGE_SMOOTHING,
-    STAGE_HID_WRITE,
-    STAGE_FRAME_TOTAL,
     STAGE_LOOP_GAP,
+    STAGE_PACING_WAIT,
+    STAGE_IDLE_WAIT,
+    STAGE_CAPTURE_WAIT,
+    STAGE_FRAME_PROCESSING,
+    STAGE_ACTUAL_WORK,
+    STAGE_HID_WRITE,
+    STAGE_END_TO_END_LIVE,
 )
 
 
@@ -42,6 +40,9 @@ class StageStats:
 class LatencyMeasurement:
     live_mirroring_only: bool
     dropped_or_skipped_frames: int
+    target_fps: float
+    fps_cap: float
+    fps_cap_reason: str
     effective_output_fps: float
     stages: dict[str, StageStats]
 
@@ -49,6 +50,9 @@ class LatencyMeasurement:
 @dataclass(frozen=True)
 class FrameTimingSample:
     stage_ms: dict[str, float | None]
+    target_fps: float | None = None
+    fps_cap: float | None = None
+    fps_cap_reason: str = ""
     dropped_or_skipped_frames_delta: int = 0
 
 
@@ -76,6 +80,9 @@ class LatencyProbe:
             stage: deque(maxlen=self._max_samples) for stage in ALL_STAGE_NAMES
         }
         self._dropped_or_skipped_frames = 0
+        self._target_fps = 0.0
+        self._fps_cap = 0.0
+        self._fps_cap_reason = ""
 
     def add_stage_sample(self, sample: FrameTimingSample) -> bool:
         seen_any = False
@@ -90,6 +97,11 @@ class LatencyProbe:
             seen_any = True
 
         self._dropped_or_skipped_frames += max(0, int(sample.dropped_or_skipped_frames_delta))
+        if sample.target_fps is not None:
+            self._target_fps = max(0.0, float(sample.target_fps))
+        if sample.fps_cap is not None:
+            self._fps_cap = max(0.0, float(sample.fps_cap))
+        self._fps_cap_reason = str(sample.fps_cap_reason or self._fps_cap_reason)
         return seen_any
 
     def measurement(self) -> LatencyMeasurement | None:
@@ -124,6 +136,9 @@ class LatencyProbe:
         return LatencyMeasurement(
             live_mirroring_only=True,
             dropped_or_skipped_frames=int(self._dropped_or_skipped_frames),
+            target_fps=float(self._target_fps),
+            fps_cap=float(self._fps_cap),
+            fps_cap_reason=str(self._fps_cap_reason),
             effective_output_fps=effective_output_fps,
             stages=stage_stats,
         )
