@@ -33,6 +33,11 @@ from nanoleaf_sync.runtime.compositor import (
 from nanoleaf_sync.capture.latency_probe import (
     FrameTimingSample,
     STAGE_CAPTURE_WAIT,
+    STAGE_CAPTURE_CALL,
+    STAGE_CAPTURE_WORKER_LOOP_GAP,
+    STAGE_CAPTURE_SUCCESS_INTERVAL,
+    STAGE_FRAME_HANDOFF_WAIT,
+    STAGE_PENDING_FRAME_AGE,
     STAGE_PACING_WAIT,
     STAGE_IDLE_WAIT,
     STAGE_FRAME_PROCESSING,
@@ -48,6 +53,7 @@ from nanoleaf_sync.capture.latency_probe import (
     STAGE_HID_DEVICE_WRITE,
     STAGE_HID_FLUSH_OR_WAIT,
     STAGE_LOOP_GAP,
+    STAGE_INFERRED_UNATTRIBUTED_GAP,
 )
 from nanoleaf_sync.runtime.startup import reinitialize_backends, should_reinitialize
 from nanoleaf_sync.runtime.state import (
@@ -497,9 +503,24 @@ def run_loop(
     capture_worker_lock = threading.Lock()
     capture_worker_error: Exception | None = None
     capture_worker_failures = 0
+    capture_worker_error_count = 0
+    capture_worker_active = False
+    capture_call_ms_latest: float | None = None
+    capture_worker_loop_gap_ms_latest: float | None = None
+    capture_success_interval_ms_latest: float | None = None
+    last_capture_completed_ts: float | None = None
+    last_capture_success_ts: float | None = None
+    latest_capture_backend_name = "unavailable"
+    no_pending_frame_ticks = 0
+    last_reported_capture_worker_error_count = 0
 
     def _capture_worker() -> None:
-        nonlocal capture_worker_error, capture_worker_failures
+        nonlocal capture_worker_error, capture_worker_failures, capture_worker_error_count
+        nonlocal capture_worker_active, capture_call_ms_latest, capture_worker_loop_gap_ms_latest
+        nonlocal capture_success_interval_ms_latest, last_capture_completed_ts, last_capture_success_ts
+        nonlocal latest_capture_backend_name
+        with capture_worker_lock:
+            capture_worker_active = True
         while not state.stop_event.is_set():
             try:
                 if state.is_reinitializing:
@@ -509,18 +530,34 @@ def run_loop(
                 if capture is None:
                     time.sleep(0.001)
                     continue
+                latest_capture_backend_name = str(getattr(capture, "name", "unknown"))
+                capture_start = time.perf_counter()
                 frame = capture.capture()
+                capture_end = time.perf_counter()
+                call_ms = (capture_end - capture_start) * 1000.0
+                with capture_worker_lock:
+                    capture_call_ms_latest = call_ms
+                    if last_capture_completed_ts is not None:
+                        capture_worker_loop_gap_ms_latest = (capture_end - last_capture_completed_ts) * 1000.0
+                    last_capture_completed_ts = capture_end
                 if frame is None:
                     continue
-                pending_slot.put_latest(frame=frame, captured_at=time.perf_counter())
+                with capture_worker_lock:
+                    if last_capture_success_ts is not None:
+                        capture_success_interval_ms_latest = (capture_end - last_capture_success_ts) * 1000.0
+                    last_capture_success_ts = capture_end
+                pending_slot.put_latest(frame=frame, captured_at=capture_end)
                 with capture_worker_lock:
                     capture_worker_error = None
                     capture_worker_failures = 0
             except Exception as exc:
                 with capture_worker_lock:
                     capture_worker_failures += 1
+                    capture_worker_error_count += 1
                     capture_worker_error = exc
                 time.sleep(0.005)
+        with capture_worker_lock:
+            capture_worker_active = False
 
     capture_thread = threading.Thread(target=_capture_worker, name="capture-worker", daemon=True)
     capture_thread.start()
@@ -534,6 +571,8 @@ def run_loop(
         capture_wait_ms: float | None = None
         idle_wait_ms: float | None = None
         pacing_wait_ms: float | None = last_pacing_wait_ms
+        frame_handoff_wait_ms: float | None = None
+        pending_frame_age_ms: float | None = None
         frame = None
         pending = None
 
@@ -576,14 +615,17 @@ def run_loop(
                         pending_slot.wait(timeout=min(0.005, wait_budget))
                         wait_end = time.perf_counter()
                         idle_wait_ms = (wait_end - wait_start) * 1000.0
+                        frame_handoff_wait_ms = idle_wait_ms
                         pending = pending_slot.pop()
                     if pending is None:
+                        no_pending_frame_ticks += 1
                         if stop_requested:
                             break
                         skip_tick = True
                         continue
                     frame = pending.frame
                     captured_at = pending.captured_at
+                    pending_frame_age_ms = max(0.0, (time.perf_counter() - captured_at) * 1000.0)
 
             if skip_tick:
                 pass
@@ -702,7 +744,15 @@ def run_loop(
                 frame_processing_ms = (processing_end - start) * 1000.0
                 actual_work_ms = (send_done - start) * 1000.0
                 loop_gap_ms = ((send_done - last_send_done_ts) * 1000.0) if last_send_done_ts is not None else None
+                inferred_unattributed_gap_ms = (
+                    max(0.0, loop_gap_ms - actual_work_ms)
+                    if loop_gap_ms is not None
+                    else None
+                )
                 last_send_done_ts = send_done
+                with capture_worker_lock:
+                    capture_worker_active_now = bool(capture_worker_active)
+                    capture_worker_error_count_now = int(capture_worker_error_count)
                 replaced_count = pending_slot.get_replaced_count()
                 dropped_delta = max(0, replaced_count - last_replaced_count)
                 last_replaced_count = replaced_count
@@ -710,6 +760,11 @@ def run_loop(
                     FrameTimingSample(
                         stage_ms={
                             STAGE_CAPTURE_WAIT: capture_wait_ms,
+                            STAGE_CAPTURE_CALL: capture_call_ms_latest,
+                            STAGE_CAPTURE_WORKER_LOOP_GAP: capture_worker_loop_gap_ms_latest,
+                            STAGE_CAPTURE_SUCCESS_INTERVAL: capture_success_interval_ms_latest,
+                            STAGE_FRAME_HANDOFF_WAIT: frame_handoff_wait_ms,
+                            STAGE_PENDING_FRAME_AGE: pending_frame_age_ms,
                             STAGE_PACING_WAIT: pacing_wait_ms,
                             STAGE_IDLE_WAIT: idle_wait_ms,
                             STAGE_FRAME_PROCESSING: frame_processing_ms,
@@ -725,14 +780,29 @@ def run_loop(
                             STAGE_HID_DEVICE_WRITE: hid_device_write_ms,
                             STAGE_HID_FLUSH_OR_WAIT: None,
                             STAGE_LOOP_GAP: loop_gap_ms,
+                            STAGE_INFERRED_UNATTRIBUTED_GAP: inferred_unattributed_gap_ms,
                             "end_to_end_live_ms": None,
                         },
                         target_fps=float(fps),
                         fps_cap=float(fps),
                         fps_cap_reason="UI FPS control cap",
                         dropped_or_skipped_frames_delta=dropped_delta,
+                        counters_delta={
+                            "no_pending_frame_ticks": no_pending_frame_ticks,
+                            "capture_worker_error_count": max(
+                                0, capture_worker_error_count_now - last_reported_capture_worker_error_count
+                            ),
+                        },
+                        flags={"capture_worker_active": capture_worker_active_now},
+                        labels={
+                            "latest_capture_backend_name": latest_capture_backend_name,
+                            "hid_flush_or_wait_reason": "Not instrumented by current driver path.",
+                            "hid_frame_build_reason": "Frame-build timing not separated from send_frame() in driver path.",
+                        },
                     )
                 )
+                last_reported_capture_worker_error_count = capture_worker_error_count_now
+                no_pending_frame_ticks = 0
                 capture_to_send_ms = (send_done - captured_at) * 1000.0
                 ewma_capture_to_send_ms = (
                     (0.9 * ewma_capture_to_send_ms) + (0.1 * capture_to_send_ms)

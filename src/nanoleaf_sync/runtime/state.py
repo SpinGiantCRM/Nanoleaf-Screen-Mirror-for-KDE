@@ -133,6 +133,9 @@ class RuntimeState:
                     "fps_cap": float(measurement.fps_cap),
                     "fps_cap_reason": str(measurement.fps_cap_reason),
                     "effective_output_fps": float(measurement.effective_output_fps),
+                    "counters": {str(key): int(value) for key, value in measurement.counters.items()},
+                    "flags": {str(key): bool(value) for key, value in measurement.flags.items()},
+                    "labels": {str(key): str(value) for key, value in measurement.labels.items()},
                     "stages": {
                         stage: {
                             "available": bool(stats.available),

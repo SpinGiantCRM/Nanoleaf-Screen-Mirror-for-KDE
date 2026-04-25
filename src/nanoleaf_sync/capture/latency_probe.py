@@ -7,6 +7,11 @@ from typing import Iterable
 
 
 STAGE_CAPTURE_WAIT = "capture_wait_ms"
+STAGE_CAPTURE_CALL = "capture_call_ms"
+STAGE_CAPTURE_WORKER_LOOP_GAP = "capture_worker_loop_gap_ms"
+STAGE_CAPTURE_SUCCESS_INTERVAL = "capture_success_interval_ms"
+STAGE_FRAME_HANDOFF_WAIT = "frame_handoff_wait_ms"
+STAGE_PENDING_FRAME_AGE = "pending_frame_age_ms"
 STAGE_PACING_WAIT = "pacing_wait_ms"
 STAGE_IDLE_WAIT = "idle_wait_ms"
 STAGE_FRAME_PROCESSING = "frame_processing_ms"
@@ -22,6 +27,7 @@ STAGE_HID_FRAME_BUILD = "hid_frame_build_ms"
 STAGE_HID_DEVICE_WRITE = "hid_device_write_ms"
 STAGE_HID_FLUSH_OR_WAIT = "hid_flush_or_wait_ms"
 STAGE_LOOP_GAP = "loop_gap_ms"
+STAGE_INFERRED_UNATTRIBUTED_GAP = "inferred_unattributed_gap_ms"
 STAGE_END_TO_END_LIVE = "end_to_end_live_ms"
 
 ALL_STAGE_NAMES = (
@@ -29,6 +35,11 @@ ALL_STAGE_NAMES = (
     STAGE_PACING_WAIT,
     STAGE_IDLE_WAIT,
     STAGE_CAPTURE_WAIT,
+    STAGE_CAPTURE_CALL,
+    STAGE_CAPTURE_WORKER_LOOP_GAP,
+    STAGE_CAPTURE_SUCCESS_INTERVAL,
+    STAGE_FRAME_HANDOFF_WAIT,
+    STAGE_PENDING_FRAME_AGE,
     STAGE_FRAME_PROCESSING,
     STAGE_FRAME_CONVERT,
     STAGE_ZONE_SAMPLING,
@@ -42,6 +53,7 @@ ALL_STAGE_NAMES = (
     STAGE_HID_DEVICE_WRITE,
     STAGE_HID_FLUSH_OR_WAIT,
     STAGE_END_TO_END_LIVE,
+    STAGE_INFERRED_UNATTRIBUTED_GAP,
 )
 
 
@@ -63,6 +75,9 @@ class LatencyMeasurement:
     fps_cap_reason: str
     effective_output_fps: float
     stages: dict[str, StageStats]
+    counters: dict[str, int]
+    flags: dict[str, bool]
+    labels: dict[str, str]
 
 
 @dataclass(frozen=True)
@@ -72,6 +87,9 @@ class FrameTimingSample:
     fps_cap: float | None = None
     fps_cap_reason: str = ""
     dropped_or_skipped_frames_delta: int = 0
+    counters_delta: dict[str, int] | None = None
+    flags: dict[str, bool] | None = None
+    labels: dict[str, str] | None = None
 
 
 def _percentile(values: list[float], q: float) -> float:
@@ -98,6 +116,9 @@ class LatencyProbe:
             stage: deque(maxlen=self._max_samples) for stage in ALL_STAGE_NAMES
         }
         self._dropped_or_skipped_frames = 0
+        self._counters: dict[str, int] = {}
+        self._flags: dict[str, bool] = {}
+        self._labels: dict[str, str] = {}
         self._target_fps = 0.0
         self._fps_cap = 0.0
         self._fps_cap_reason = ""
@@ -115,6 +136,19 @@ class LatencyProbe:
             seen_any = True
 
         self._dropped_or_skipped_frames += max(0, int(sample.dropped_or_skipped_frames_delta))
+        if isinstance(sample.counters_delta, dict):
+            for key, delta in sample.counters_delta.items():
+                if int(delta) == 0:
+                    continue
+                self._counters[str(key)] = self._counters.get(str(key), 0) + int(delta)
+        if isinstance(sample.flags, dict):
+            for key, value in sample.flags.items():
+                self._flags[str(key)] = bool(value)
+        if isinstance(sample.labels, dict):
+            for key, value in sample.labels.items():
+                text = str(value or "").strip()
+                if text:
+                    self._labels[str(key)] = text
         if sample.target_fps is not None:
             self._target_fps = max(0.0, float(sample.target_fps))
         if sample.fps_cap is not None:
@@ -159,6 +193,9 @@ class LatencyProbe:
             fps_cap_reason=str(self._fps_cap_reason),
             effective_output_fps=effective_output_fps,
             stages=stage_stats,
+            counters=dict(self._counters),
+            flags=dict(self._flags),
+            labels=dict(self._labels),
         )
 
     def stage_values(self, stage_name: str) -> list[float]:

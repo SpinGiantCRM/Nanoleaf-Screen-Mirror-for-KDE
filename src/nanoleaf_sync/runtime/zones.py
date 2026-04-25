@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+from functools import lru_cache
 from typing import List, Sequence, Tuple
 
 import numpy as np
@@ -161,25 +162,34 @@ def _edge_localized_weights(
     if not (touches_top or touches_bottom or touches_left or touches_right):
         return None
 
-    profile = edge_locality_profile(edge_locality)
+    orientation = "top" if touches_top else "bottom" if touches_bottom else "left" if touches_left else "right"
+    return _edge_weight_template(
+        zone_h=zone_h,
+        zone_w=zone_w,
+        orientation=orientation,
+        locality=str(edge_locality),
+    )
+
+
+@lru_cache(maxsize=256)
+def _edge_weight_template(*, zone_h: int, zone_w: int, orientation: str, locality: str) -> np.ndarray | None:
+    profile = edge_locality_profile(locality)
     yy, xx = np.indices((zone_h, zone_w), dtype=np.float32)
-    if touches_top or touches_bottom:
+    if orientation in {"top", "bottom"}:
         u = (xx + 0.5) / max(1.0, float(zone_w))
         segment_center = np.exp(-0.5 * ((u - 0.5) / profile.center_sigma) ** 2)
-        if touches_top:
+        if orientation == "top":
             edge_distance = (yy + 0.5) / max(1.0, float(zone_h))
         else:
             edge_distance = (float(zone_h) - (yy + 0.5)) / max(1.0, float(zone_h))
-        edge_bias = np.exp(-profile.edge_bias * np.clip(edge_distance, 0.0, 1.0))
     else:
         u = (yy + 0.5) / max(1.0, float(zone_h))
         segment_center = np.exp(-0.5 * ((u - 0.5) / profile.center_sigma) ** 2)
-        if touches_left:
+        if orientation == "left":
             edge_distance = (xx + 0.5) / max(1.0, float(zone_w))
         else:
             edge_distance = (float(zone_w) - (xx + 0.5)) / max(1.0, float(zone_w))
-        edge_bias = np.exp(-profile.edge_bias * np.clip(edge_distance, 0.0, 1.0))
-
+    edge_bias = np.exp(-profile.edge_bias * np.clip(edge_distance, 0.0, 1.0))
     weights = (segment_center * edge_bias).astype(np.float32, copy=False)
     weight_sum = float(weights.sum())
     if weight_sum <= 1e-6:
@@ -252,11 +262,11 @@ def zone_colors_array(
         bx1 = int(np.max(x1[valid]))
         by1 = int(np.max(y1[valid]))
 
-        cropped = img[by0:by1, bx0:bx1, :]
-        linear_rgb = srgb_u8_to_linear01(cropped)
-        oklab = _linear_srgb_to_oklab(linear_rgb)
+        linear_img = srgb_u8_to_linear01(img)
+        cropped_linear = linear_img[by0:by1, bx0:bx1, :]
+        oklab = _linear_srgb_to_oklab(cropped_linear)
 
-        crop_h, crop_w, _ = cropped.shape
+        crop_h, crop_w, _ = cropped_linear.shape
         integral = _get_integral_buffer(crop_h + 1, crop_w + 1)
         integral[0, :, :] = 0.0
         integral[:, 0, :] = 0.0
@@ -294,10 +304,9 @@ def zone_colors_array(
             )
             if weights is None:
                 continue
-            patch = img[y0[idx]:y1[idx], x0[idx]:x1[idx]]
-            if patch.size == 0:
+            patch_linear = linear_img[y0[idx]:y1[idx], x0[idx]:x1[idx]]
+            if patch_linear.size == 0:
                 continue
-            patch_linear = srgb_u8_to_linear01(patch)
             weighted_linear = (patch_linear * weights[:, :, None]).sum(axis=(0, 1), dtype=np.float64)
             means[idx] = linear01_to_srgb_u8(weighted_linear.astype(np.float32, copy=False))
 

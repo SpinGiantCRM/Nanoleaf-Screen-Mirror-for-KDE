@@ -97,3 +97,28 @@ def test_motion_preset_does_not_break_spatial_locality() -> None:
     bottom = colors[top_n + right_n : top_n + right_n + bottom_n]
     assert sum(1 for c in top[-4:] if c[0] > 85) >= 1
     assert sum(1 for c in bottom if c[0] > 70) <= 1
+
+
+def test_process_frame_reports_zone_sampling_timing_after_optimisation() -> None:
+    frame = np.zeros((90, 160, 3), dtype=np.uint8)
+    frame[:8, -8:, :] = [255, 0, 0]
+    cfg = _cfg_with_valid_calibration(48, zones=[], layout_preset="edge_strip")
+    state = RuntimeState()
+    zones_px, device_zone_indices = _ensure_runtime_artifacts(
+        state=state,
+        config=cfg,
+        img_w=160,
+        img_h=90,
+        detected_device_zone_count=48,
+    )
+    _out, _sampled, _pre, _final, timings = process_frame(
+        frame=frame,
+        prev_smoothed_colors=[],
+        zones_px=zones_px,
+        device_zone_indices=device_zone_indices,
+        brightness=1.0,
+        smoothing=1.0,
+        return_diagnostics=True,
+    )
+    assert timings.zone_sampling_ms is not None
+    assert timings.zone_sampling_ms >= 0.0
