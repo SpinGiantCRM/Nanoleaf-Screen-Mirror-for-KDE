@@ -35,6 +35,7 @@ _capability_cache_lock = threading.Lock()
 _capability_cache: dict[str, tuple[float, bool]] = {}
 _last_auto_probe_report_lock = threading.Lock()
 _last_auto_probe_report: list[dict[str, object]] = []
+_explicit_portal_probe_lock = threading.Lock()
 
 
 
@@ -60,6 +61,66 @@ def _set_last_auto_probe_report(entries: list[dict[str, object]]) -> None:
     with _last_auto_probe_report_lock:
         _last_auto_probe_report.clear()
         _last_auto_probe_report.extend(dict(item) for item in entries)
+
+
+def _probe_row(
+    *,
+    backend: str,
+    status: str,
+    reason: str,
+    selected: bool,
+    mode: str,
+    sample_count: int = 0,
+    median_ms: float | None = None,
+    p95_ms: float | None = None,
+    jitter_ms: float | None = None,
+    score: float | None = None,
+    selected_reason: str = "",
+    tentative: bool = False,
+) -> dict[str, object]:
+    return {
+        "backend": backend,
+        "status": status,
+        "reason": reason,
+        "mode": mode,
+        "sample_count": sample_count,
+        "median_ms": median_ms,
+        "p95_ms": p95_ms,
+        "jitter_ms": jitter_ms,
+        "score": score,
+        "selected_reason": selected_reason,
+        "selected": selected,
+        "tentative": tentative,
+    }
+
+
+def _probe_rows_from_result(*, result, mode: str) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for candidate in result.candidates:
+        latencies = list(getattr(candidate, "latencies_ms", []) or [])
+        status = str(getattr(candidate, "status", "tested" if latencies else ("failed" if candidate.errors else "skipped")))
+        row_mode = mode
+        if status == "skipped" and candidate.candidate == XDG_PORTAL_BACKEND:
+            row_mode = "skipped-interactive"
+        elif status == "failed":
+            row_mode = "failed"
+        rows.append(
+            _probe_row(
+                backend=candidate.candidate,
+                status=status,
+                reason=str(getattr(candidate, "reason", "") or ("; ".join(error.message for error in candidate.errors) if candidate.errors else "")),
+                sample_count=len(latencies),
+                median_ms=candidate.median_ms,
+                p95_ms=candidate.p95_ms,
+                jitter_ms=candidate.jitter_ms,
+                score=candidate.score,
+                selected_reason=str(getattr(candidate, "reason", "") or ""),
+                selected=(candidate.candidate == result.selected_backend),
+                tentative=bool(getattr(candidate, "tentative", False)),
+                mode=row_mode,
+            )
+        )
+    return rows
 
 
 def _capability_cache_get_or_refresh(
@@ -155,18 +216,13 @@ def _resolve_auto_backend_with_probe(
     if not enabled:
         _set_last_auto_probe_report(
             [
-                {
-                    "backend": candidate,
-                    "status": "skipped",
-                    "reason": f"Auto-probe disabled: {disable_reason}",
-                    "sample_count": 0,
-                    "median_ms": None,
-                    "p95_ms": None,
-                    "jitter_ms": None,
-                    "score": None,
-                    "selected_reason": "",
-                    "selected": candidate == fallback,
-                }
+                _probe_row(
+                    backend=candidate,
+                    status="skipped",
+                    reason=f"Auto-probe disabled: {disable_reason}",
+                    selected=(candidate == fallback),
+                    mode="unavailable",
+                )
                 for candidate in AUTO_PROBE_CANDIDATES
             ]
         )
@@ -182,18 +238,13 @@ def _resolve_auto_backend_with_probe(
     if is_valid_probe_candidate(cached):
         _set_last_auto_probe_report(
             [
-                {
-                    "backend": candidate,
-                    "status": "skipped",
-                    "reason": f"Using cached winner '{cached}'",
-                    "sample_count": 0,
-                    "median_ms": None,
-                    "p95_ms": None,
-                    "jitter_ms": None,
-                    "score": None,
-                    "selected_reason": "",
-                    "selected": candidate == cached,
-                }
+                _probe_row(
+                    backend=candidate,
+                    status="skipped",
+                    reason=f"Using cached winner '{cached}'",
+                    selected=(candidate == cached),
+                    mode="cached",
+                )
                 for candidate in AUTO_PROBE_CANDIDATES
             ]
         )
@@ -207,23 +258,7 @@ def _resolve_auto_backend_with_probe(
         from nanoleaf_sync.capture.auto_probe import ProbeConfig, probe_backends
 
         result = probe_backends(width, height, candidates, ProbeConfig())
-        probe_rows: list[dict[str, object]] = []
-        for candidate in result.candidates:
-            latencies = list(getattr(candidate, "latencies_ms", []) or [])
-            probe_rows.append(
-                {
-                    "backend": candidate.candidate,
-                    "status": str(getattr(candidate, "status", "tested" if latencies else ("failed" if candidate.errors else "skipped"))),
-                    "reason": str(getattr(candidate, "reason", "") or ("; ".join(error.message for error in candidate.errors) if candidate.errors else "")),
-                    "sample_count": len(latencies),
-                    "median_ms": candidate.median_ms,
-                    "p95_ms": candidate.p95_ms,
-                    "jitter_ms": candidate.jitter_ms,
-                    "score": candidate.score,
-                    "selected_reason": candidate.reason,
-                    "selected": candidate.candidate == result.selected_backend,
-                }
-            )
+        probe_rows = _probe_rows_from_result(result=result, mode="fresh-probe")
         _set_last_auto_probe_report(probe_rows)
         tested = ", ".join(item.candidate for item in result.candidates)
         logger.info("capture auto-probe tested candidates=%s", tested)
@@ -245,18 +280,13 @@ def _resolve_auto_backend_with_probe(
     except Exception as exc:  # noqa: BLE001 - preserve startup reliability
         _set_last_auto_probe_report(
             [
-                {
-                    "backend": candidate,
-                    "status": "failed",
-                    "reason": f"Auto-probe failed: {exc}",
-                    "sample_count": 0,
-                    "median_ms": None,
-                    "p95_ms": None,
-                    "jitter_ms": None,
-                    "score": None,
-                    "selected_reason": "",
-                    "selected": candidate == fallback,
-                }
+                _probe_row(
+                    backend=candidate,
+                    status="failed",
+                    reason=f"Auto-probe failed: {exc}",
+                    selected=(candidate == fallback),
+                    mode="failed",
+                )
                 for candidate in AUTO_PROBE_CANDIDATES
             ]
         )
@@ -269,35 +299,44 @@ def _resolve_auto_backend_with_probe(
     return fallback
 
 
-def run_explicit_xdg_portal_probe(*, width: int, height: int) -> dict[str, object]:
+def run_fresh_backend_probe(*, width: int, height: int) -> dict[str, object]:
     from nanoleaf_sync.capture.auto_probe import ProbeConfig, probe_backends
 
     result = probe_backends(
         width,
         height,
-        [XDG_PORTAL_BACKEND],
-        ProbeConfig(
-            allow_interactive=True,
-            quick_probe=True,
-            measure_iterations=20,
-            global_timeout_s=45.0,
-            instantiate_timeout_s=45.0,
-            warmup_timeout_s=20.0,
-            capture_timeout_s=10.0,
-        ),
+        list(AUTO_PROBE_CANDIDATES),
+        ProbeConfig(allow_interactive=False),
     )
-    row = result.candidates[0] if result.candidates else None
+    rows = _probe_rows_from_result(result=result, mode="fresh-probe")
+    _set_last_auto_probe_report(rows)
     return {
         "selected_backend": result.selected_backend,
-        "status": getattr(row, "status", "failed") if row else "failed",
-        "reason": getattr(row, "reason", "No result") if row else "No result",
-        "sample_count": len(getattr(row, "latencies_ms", []) or []),
-        "median_ms": getattr(row, "median_ms", None),
-        "p95_ms": getattr(row, "p95_ms", None),
-        "jitter_ms": getattr(row, "jitter_ms", None),
-        "score": getattr(row, "score", None),
         "timed_out": bool(result.timed_out),
+        "attempts": rows,
     }
+
+
+def run_explicit_xdg_portal_probe(*, width: int, height: int) -> dict[str, object]:
+    if not _explicit_portal_probe_lock.acquire(blocking=False):
+        return {
+            "selected_backend": None,
+            "status": "failed",
+            "mode": "explicit-test",
+            "reason": "A Test xdg-portal operation is already in progress.",
+            "sample_count": 0,
+            "median_ms": None,
+            "p95_ms": None,
+            "jitter_ms": None,
+            "score": None,
+            "timed_out": False,
+            "stages": [],
+        }
+    try:
+        probe = XDGPortalCapture(width=width, height=height)
+        return probe.run_explicit_diagnostic()
+    finally:
+        _explicit_portal_probe_lock.release()
 
 
 def _resolve_prefer_backend(

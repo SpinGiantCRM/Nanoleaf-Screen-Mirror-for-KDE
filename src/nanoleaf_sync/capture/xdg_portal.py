@@ -8,6 +8,7 @@ PipeWire. A restore token is persisted so users are not repeatedly prompted.
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 import logging
 import os
 import threading
@@ -27,6 +28,25 @@ class XDGPortalError(RuntimeError):
     """Raised when portal negotiation or PipeWire capture fails."""
 
 
+@dataclass(slots=True)
+class PortalDiagnosticState:
+    stages: list[dict[str, object]]
+    last_success_stage: str
+    failing_stage: str
+    negotiated_caps: str | None = None
+    empty_buffer_count: int = 0
+    expected_bytes: int = 0
+    received_bytes: int = 0
+    timeout_s: float = 0.0
+
+    def mark(self, stage: str, status: str, detail: str = "") -> None:
+        self.stages.append({"stage": stage, "status": status, "detail": detail})
+        if status == "ok":
+            self.last_success_stage = stage
+        elif status == "failed":
+            self.failing_stage = stage
+
+
 class XDGPortalCapture:
     """Screen capture via org.freedesktop.portal.ScreenCast + PipeWire."""
 
@@ -37,8 +57,9 @@ class XDGPortalCapture:
     _PORTAL_IFACE = "org.freedesktop.portal.ScreenCast"
     _SESSION_IFACE = "org.freedesktop.portal.Session"
     _REQUEST_IFACE = "org.freedesktop.portal.Request"
-    _GSTREAMER_FIRST_FRAME_TIMEOUT_S = 1.0
+    _GSTREAMER_FIRST_FRAME_TIMEOUT_S = 6.0
     _GSTREAMER_FIRST_FRAME_POLL_INTERVAL_S = 0.02
+    _MAX_EMPTY_FIRST_BUFFERS = 12
 
     def __init__(
         self,
@@ -239,6 +260,119 @@ class XDGPortalCapture:
         fd = os.dup(pw_reply.unix_fds[0])
         return fd, node_id
 
+    def run_explicit_diagnostic(self) -> dict[str, object]:
+        diag = PortalDiagnosticState(
+            stages=[],
+            last_success_stage="",
+            failing_stage="",
+            expected_bytes=self.width * self.height * 3,
+            timeout_s=float(self._GSTREAMER_FIRST_FRAME_TIMEOUT_S),
+        )
+        diag.mark("portal service available", "ok")
+        diag.mark("ScreenCast interface available", "ok")
+        diag.mark("session created", "pending")
+        diag.mark("source selection prompt shown / skipped / restored", "pending")
+        diag.mark("user approved / cancelled / timed out", "pending")
+        diag.mark("PipeWire node/stream received", "pending")
+        diag.mark("GStreamer pipeline created", "pending")
+        diag.mark("pipeline reached PAUSED/PLAYING", "pending")
+        diag.mark("caps/format negotiated", "pending")
+        diag.mark("first buffer received", "pending")
+        diag.mark("first non-empty frame received", "pending")
+        diag.mark("frame dimensions/stride/bytes validated", "pending")
+        try:
+            self.initialize()
+            diag.mark("session created", "ok")
+            diag.mark("source selection prompt shown / skipped / restored", "ok")
+            diag.mark("user approved / cancelled / timed out", "ok")
+            diag.mark("PipeWire node/stream received", "ok")
+            diag.mark("GStreamer pipeline created", "ok" if self._use_gstreamer else "skipped", "pipewire-python path active")
+            diag.mark("pipeline reached PAUSED/PLAYING", "ok")
+            diag.mark("caps/format negotiated", "ok", f"video/x-raw,format=RGB,width={self.width},height={self.height}")
+            frame = self.capture()
+            diag.mark("first buffer received", "ok")
+            if frame.size <= 0:
+                raise XDGPortalError("Empty frame payload after successful stream start.")
+            diag.mark("first non-empty frame received", "ok")
+            expected_bytes = self.width * self.height * 3
+            received_bytes = int(frame.nbytes)
+            diag.expected_bytes = expected_bytes
+            diag.received_bytes = received_bytes
+            if received_bytes < expected_bytes:
+                raise XDGPortalError(
+                    f"Frame bytes too small for negotiated dimensions (received={received_bytes}, expected={expected_bytes})."
+                )
+            diag.mark("frame dimensions/stride/bytes validated", "ok")
+            return {
+                "selected_backend": "xdg-portal",
+                "mode": "explicit-test",
+                "status": "tested",
+                "reason": "explicit xdg-portal test completed",
+                "sample_count": 1,
+                "median_ms": None,
+                "p95_ms": None,
+                "jitter_ms": None,
+                "score": None,
+                "timed_out": False,
+                "stages": diag.stages,
+                "last_success_stage": diag.last_success_stage,
+                "failing_stage": "",
+                "details": {
+                    "expected_bytes": diag.expected_bytes,
+                    "received_bytes": diag.received_bytes,
+                    "caps": f"RGB {self.width}x{self.height}",
+                    "width": self.width,
+                    "height": self.height,
+                    "first_frame_timeout_s": self._GSTREAMER_FIRST_FRAME_TIMEOUT_S,
+                    "empty_buffer_count": getattr(self, "_empty_first_buffers", 0),
+                },
+            }
+        except Exception as exc:  # noqa: BLE001
+            message = str(exc)
+            failing_stage = "session created"
+            if "SelectSources" in message or "source selection" in message:
+                failing_stage = "source selection prompt shown / skipped / restored"
+            elif "Start denied" in message:
+                failing_stage = "user approved / cancelled / timed out"
+            elif "OpenPipeWireRemote" in message or "PipeWire" in message:
+                failing_stage = "PipeWire node/stream received"
+            elif "GStreamer" in message:
+                failing_stage = "first non-empty frame received"
+            elif "Frame bytes too small" in message:
+                failing_stage = "frame dimensions/stride/bytes validated"
+            diag.mark(failing_stage, "failed", message)
+            reason = message
+            if "produced empty buffers" in message:
+                reason = (
+                    "PipeWire stream opened but produced empty buffers; likely format negotiation or portal stream issue."
+                )
+            return {
+                "selected_backend": None,
+                "mode": "explicit-test",
+                "status": "failed",
+                "reason": reason,
+                "sample_count": 0,
+                "median_ms": None,
+                "p95_ms": None,
+                "jitter_ms": None,
+                "score": None,
+                "timed_out": "timed out" in message.lower(),
+                "stages": diag.stages,
+                "last_success_stage": diag.last_success_stage,
+                "failing_stage": failing_stage,
+                "details": {
+                    "expected_bytes": diag.expected_bytes,
+                    "received_bytes": getattr(self, "_last_first_frame_size", 0),
+                    "caps": f"RGB {self.width}x{self.height}",
+                    "width": self.width,
+                    "height": self.height,
+                    "first_frame_timeout_s": self._GSTREAMER_FIRST_FRAME_TIMEOUT_S,
+                    "empty_buffer_count": getattr(self, "_empty_first_buffers", 0),
+                },
+            }
+        finally:
+            self.close()
+
     def _open_pipewire_stream(self, fd: int, node_id: int) -> None:
         supported, reason = self._pipewire_python_is_supported()
         if not supported:
@@ -343,6 +477,8 @@ class XDGPortalCapture:
         self._first_frame_ready = False
         self._first_frame_deadline_s = self._GSTREAMER_FIRST_FRAME_TIMEOUT_S
         self._first_frame_poll_interval_s = self._GSTREAMER_FIRST_FRAME_POLL_INTERVAL_S
+        self._empty_first_buffers = 0
+        self._last_first_frame_size = 0
         self._shm_initial_mtime_ns = os.stat(self._shm_file.name).st_mtime_ns
         self._use_gstreamer = True
 
@@ -372,15 +508,26 @@ class XDGPortalCapture:
         deadline = time.monotonic() + self._first_frame_deadline_s
         last_size = -1
         last_mtime_ns = None
+        empty_buffers = 0
 
         while time.monotonic() < deadline:
             stat = os.stat(self._shm_file.name)
             last_size = stat.st_size
+            self._last_first_frame_size = last_size
             last_mtime_ns = stat.st_mtime_ns
             if stat.st_size >= self._frame_bytes and stat.st_mtime_ns > self._shm_initial_mtime_ns:
                 self._shm_mm.seek(0)
                 first_frame = self._shm_mm.read(self._frame_bytes)
-                if len(first_frame) == self._frame_bytes:
+                payload_len = len(first_frame)
+                if payload_len <= 0:
+                    empty_buffers += 1
+                    self._empty_first_buffers = empty_buffers
+                    if empty_buffers >= self._MAX_EMPTY_FIRST_BUFFERS:
+                        raise XDGPortalError(
+                            "PipeWire stream opened but produced empty buffers; likely format negotiation or portal stream issue. "
+                            f"(empty_buffers={empty_buffers}, expected={self._frame_bytes}, timeout_s={self._first_frame_deadline_s})."
+                        )
+                elif payload_len == self._frame_bytes:
                     self._first_frame_ready = True
                     return
             time.sleep(self._first_frame_poll_interval_s)
