@@ -251,6 +251,17 @@ class NanoleafSyncService:
             f"cached={self.config.auto_selected_backend or 'none'}"
         )
         status["backend_probe_attempts"] = last_auto_probe_report()
+        measurement = status.get("latency_measurement")
+        if isinstance(measurement, dict):
+            labels = measurement.setdefault("labels", {})
+            selected_backend = str(status.get("selected_capture_backend") or status.get("effective_capture_backend") or "")
+            for row in status["backend_probe_attempts"]:
+                if str(row.get("backend", "")) != selected_backend:
+                    continue
+                median_ms = row.get("median_ms")
+                if median_ms is not None:
+                    labels["benchmark_capture_ms"] = f"{float(median_ms):.2f}"
+                break
         status["device_mode"] = "real-usb"
         status["device_discovered"] = device_discovered
         status["device_model"] = device_model
@@ -263,6 +274,7 @@ class NanoleafSyncService:
         status["source_zone_count"] = len(self._runtime.latest_zones_px)
         status["source_zone_side_counts"] = tuple(int(i) for i in self._runtime.latest_zone_side_counts)
         status["zone_sampling_stride"] = int(getattr(self.config, "zone_sampling_stride", 1))
+        status["zone_sampling_engine"] = str(getattr(self.config, "zone_sampling_engine", "auto"))
         status["edge_locality"] = str(getattr(self.config, "edge_locality", "balanced"))
         status["light_spread"] = str(getattr(self.config, "light_spread", "balanced"))
         status["display_preset"] = str(getattr(self.config, "display_preset", "hdr"))
@@ -354,6 +366,7 @@ class NanoleafSyncService:
                 smoothing=self.config.smoothing,
                 smoothing_speed=self.config.smoothing_speed,
                 zone_sampling_stride=self.config.zone_sampling_stride,
+                zone_sampling_engine=getattr(self.config, "zone_sampling_engine", "auto"),
                 led_gamma=self.config.led_gamma,
                 motion_preset=getattr(self.config, "motion_preset", "responsive"),
                 color_style=getattr(self.config, "color_style", "ambient"),

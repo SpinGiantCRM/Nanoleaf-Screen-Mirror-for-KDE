@@ -1,7 +1,9 @@
 import numpy as np
+import threading
+import time
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
-from nanoleaf_sync.runtime.engine import _ensure_runtime_artifacts, _mapping_signature, process_frame
+from nanoleaf_sync.runtime.engine import _ensure_runtime_artifacts, _mapping_signature, process_frame, run_loop
 from nanoleaf_sync.runtime.state import RuntimeState
 from nanoleaf_sync.ui.zone_presets import edge_side_counts
 
@@ -122,3 +124,37 @@ def test_process_frame_reports_zone_sampling_timing_after_optimisation() -> None
     )
     assert timings.zone_sampling_ms is not None
     assert timings.zone_sampling_ms >= 0.0
+
+
+def test_run_loop_waits_when_no_pending_frame_available() -> None:
+    class _NoFrameCapture:
+        name = "kwin-dbus"
+        last_capture_path = "kwin-dbus:test"
+
+        def capture(self):
+            return None
+
+    class _DummyDriver:
+        def send_frame(self, _colors):
+            return None
+
+    state = RuntimeState()
+    cfg = _cfg_with_valid_calibration(48, fps=120)
+    stopper = threading.Thread(target=lambda: (time.sleep(0.06), state.stop_event.set()), daemon=True)
+    stopper.start()
+    run_loop(
+        config=cfg,
+        state=state,
+        get_capture=lambda: _NoFrameCapture(),
+        get_driver=lambda: _DummyDriver(),
+        install_drivers=lambda: True,
+        close_backends=lambda: None,
+    )
+    measurement = state.latency_probe.measurement()
+    assert measurement is not None
+    no_pending = int(measurement.counters.get("no_pending_frame_ticks", 0))
+    assert no_pending < 40
+    assert "no_pending_frame_rate_per_second" in measurement.labels
+    assert measurement.stages["runtime_idle_wait_ms"].available
+    assert measurement.stages["frame_available_wait_ms"].available
+    assert measurement.stages["runtime_capture_call_ms"].available

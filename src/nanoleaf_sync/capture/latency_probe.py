@@ -8,12 +8,15 @@ from typing import Iterable
 
 STAGE_CAPTURE_WAIT = "capture_wait_ms"
 STAGE_CAPTURE_CALL = "capture_call_ms"
+STAGE_RUNTIME_CAPTURE_CALL = "runtime_capture_call_ms"
 STAGE_CAPTURE_WORKER_LOOP_GAP = "capture_worker_loop_gap_ms"
 STAGE_CAPTURE_SUCCESS_INTERVAL = "capture_success_interval_ms"
 STAGE_FRAME_HANDOFF_WAIT = "frame_handoff_wait_ms"
+STAGE_FRAME_AVAILABLE_WAIT = "frame_available_wait_ms"
 STAGE_PENDING_FRAME_AGE = "pending_frame_age_ms"
 STAGE_PACING_WAIT = "pacing_wait_ms"
 STAGE_IDLE_WAIT = "idle_wait_ms"
+STAGE_RUNTIME_IDLE_WAIT = "runtime_idle_wait_ms"
 STAGE_FRAME_PROCESSING = "frame_processing_ms"
 STAGE_FRAME_CONVERT = "frame_convert_ms"
 STAGE_ZONE_SAMPLING = "zone_sampling_ms"
@@ -34,11 +37,14 @@ ALL_STAGE_NAMES = (
     STAGE_LOOP_GAP,
     STAGE_PACING_WAIT,
     STAGE_IDLE_WAIT,
+    STAGE_RUNTIME_IDLE_WAIT,
     STAGE_CAPTURE_WAIT,
     STAGE_CAPTURE_CALL,
+    STAGE_RUNTIME_CAPTURE_CALL,
     STAGE_CAPTURE_WORKER_LOOP_GAP,
     STAGE_CAPTURE_SUCCESS_INTERVAL,
     STAGE_FRAME_HANDOFF_WAIT,
+    STAGE_FRAME_AVAILABLE_WAIT,
     STAGE_PENDING_FRAME_AGE,
     STAGE_FRAME_PROCESSING,
     STAGE_FRAME_CONVERT,

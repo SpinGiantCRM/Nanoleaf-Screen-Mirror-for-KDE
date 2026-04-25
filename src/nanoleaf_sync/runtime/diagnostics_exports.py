@@ -172,6 +172,7 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
     actual_work = _stage("actual_work_ms")
     capture_wait = _stage("capture_wait_ms")
     capture_call = _stage("capture_call_ms")
+    runtime_capture_call = _stage("runtime_capture_call_ms")
     capture_worker_loop_gap = _stage("capture_worker_loop_gap_ms")
     capture_success_interval = _stage("capture_success_interval_ms")
     frame_handoff_wait = _stage("frame_handoff_wait_ms")
@@ -183,6 +184,9 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
     capture_worker_error_count = int(counters.get("capture_worker_error_count", 0) or 0)
     capture_worker_active = bool(flags.get("capture_worker_active", False))
     latest_capture_backend_name = str(labels.get("latest_capture_backend_name", "unavailable") or "unavailable")
+    capture_backend_method = str(labels.get("capture_backend_method", "") or "")
+    benchmark_capture_ms = str(labels.get("benchmark_capture_ms", "") or "")
+    no_pending_rate = str(labels.get("no_pending_frame_rate_per_second", "") or "")
     hid_device_write_limited = str(labels.get("hid_device_write_limited", "unknown") or "unknown")
 
     target_met_threshold = max(1.0, target_fps * 0.95)
@@ -302,6 +306,9 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
         else "inferred_unattributed_gap_ms: unavailable",
         f"capture_worker_active: {'yes' if capture_worker_active else 'no'}",
         f"latest_capture_backend_name: {latest_capture_backend_name}",
+        f"capture_backend_method: {capture_backend_method or 'unavailable'}",
+        f"benchmark_capture_ms: {benchmark_capture_ms or 'unavailable'}",
+        f"no_pending_frame_rate_per_second: {no_pending_rate or 'unavailable'}",
         f"no_pending_frame_ticks: {no_pending_frame_ticks}",
         f"capture_worker_error_count: {capture_worker_error_count}",
         f"configured_priority_mode: {status.get('configured_priority_mode', 'normal')}",
@@ -343,9 +350,12 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
             _format_stage_pair("actual_work_ms", "actual_work_ms"),
             _format_stage_pair("capture_wait_ms", "capture_wait_ms"),
             _format_stage_pair("capture_call_ms", "capture_call_ms"),
+            _format_stage_pair("runtime_capture_call_ms", "runtime_capture_call_ms"),
             _format_stage_pair("capture_worker_loop_gap_ms", "capture_worker_loop_gap_ms"),
             _format_stage_pair("capture_success_interval_ms", "capture_success_interval_ms"),
             _format_stage_pair("frame_handoff_wait_ms", "frame_handoff_wait_ms"),
+            _format_stage_pair("frame_available_wait_ms", "frame_available_wait_ms"),
+            _format_stage_pair("runtime_idle_wait_ms", "runtime_idle_wait_ms"),
             _format_stage_pair("pending_frame_age_ms", "pending_frame_age_ms"),
             _format_stage_pair("frame_processing_ms", "frame_processing_ms"),
             _format_stage_pair("frame_convert_ms", "frame_convert_ms"),
@@ -522,12 +532,15 @@ def export_latency_report(*, status: dict) -> Path:
         for stage in (
             "capture_wait_ms",
             "capture_call_ms",
+            "runtime_capture_call_ms",
             "capture_worker_loop_gap_ms",
             "capture_success_interval_ms",
             "frame_handoff_wait_ms",
+            "frame_available_wait_ms",
             "pending_frame_age_ms",
             "pacing_wait_ms",
             "idle_wait_ms",
+            "runtime_idle_wait_ms",
             "frame_processing_ms",
             "frame_convert_ms",
             "zone_sampling_ms",

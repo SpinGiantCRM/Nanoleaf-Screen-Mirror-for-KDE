@@ -34,12 +34,15 @@ from nanoleaf_sync.capture.latency_probe import (
     FrameTimingSample,
     STAGE_CAPTURE_WAIT,
     STAGE_CAPTURE_CALL,
+    STAGE_RUNTIME_CAPTURE_CALL,
     STAGE_CAPTURE_WORKER_LOOP_GAP,
     STAGE_CAPTURE_SUCCESS_INTERVAL,
     STAGE_FRAME_HANDOFF_WAIT,
+    STAGE_FRAME_AVAILABLE_WAIT,
     STAGE_PENDING_FRAME_AGE,
     STAGE_PACING_WAIT,
     STAGE_IDLE_WAIT,
+    STAGE_RUNTIME_IDLE_WAIT,
     STAGE_FRAME_PROCESSING,
     STAGE_FRAME_CONVERT,
     STAGE_ZONE_SAMPLING,
@@ -359,6 +362,7 @@ def process_frame(
     smoothing: float,
     smoothing_speed: float = 0.75,
     zone_sampling_stride: int = 1,
+    zone_sampling_engine: str = "auto",
     led_gamma: float = 1.0,
     motion_preset: str = "responsive",
     light_spread: str = "balanced",
@@ -405,6 +409,7 @@ def process_frame(
         mode=analyzer_mode,
         previous_zone_colors=prev_smoothed_colors,
         edge_locality=edge_locality,
+        engine=zone_sampling_engine,
     )
     if raw_colors.size == 0:
         return []
@@ -511,14 +516,17 @@ def run_loop(
     last_capture_completed_ts: float | None = None
     last_capture_success_ts: float | None = None
     latest_capture_backend_name = "unavailable"
+    latest_capture_backend_method = ""
     no_pending_frame_ticks = 0
+    no_pending_frame_events = 0
+    no_pending_started_at = time.perf_counter()
     last_reported_capture_worker_error_count = 0
 
     def _capture_worker() -> None:
         nonlocal capture_worker_error, capture_worker_failures, capture_worker_error_count
         nonlocal capture_worker_active, capture_call_ms_latest, capture_worker_loop_gap_ms_latest
         nonlocal capture_success_interval_ms_latest, last_capture_completed_ts, last_capture_success_ts
-        nonlocal latest_capture_backend_name
+        nonlocal latest_capture_backend_name, latest_capture_backend_method
         with capture_worker_lock:
             capture_worker_active = True
         while not state.stop_event.is_set():
@@ -531,6 +539,7 @@ def run_loop(
                     time.sleep(0.001)
                     continue
                 latest_capture_backend_name = str(getattr(capture, "name", "unknown"))
+                latest_capture_backend_method = str(getattr(capture, "last_capture_path", "") or "")
                 capture_start = time.perf_counter()
                 frame = capture.capture()
                 capture_end = time.perf_counter()
@@ -619,16 +628,61 @@ def run_loop(
                         pending = pending_slot.pop()
                     if pending is None:
                         no_pending_frame_ticks += 1
+                        no_pending_frame_events += 1
                         if stop_requested:
                             break
                         skip_tick = True
-                        continue
-                    frame = pending.frame
-                    captured_at = pending.captured_at
-                    pending_frame_age_ms = max(0.0, (time.perf_counter() - captured_at) * 1000.0)
+                        frame_handoff_wait_ms = idle_wait_ms
+                    else:
+                        frame = pending.frame
+                        captured_at = pending.captured_at
+                        pending_frame_age_ms = max(0.0, (time.perf_counter() - captured_at) * 1000.0)
 
             if skip_tick:
-                pass
+                with capture_worker_lock:
+                    capture_worker_active_now = bool(capture_worker_active)
+                    capture_worker_error_count_now = int(capture_worker_error_count)
+                state.latency_probe.add_stage_sample(
+                    FrameTimingSample(
+                        stage_ms={
+                            STAGE_CAPTURE_WAIT: capture_wait_ms,
+                            STAGE_CAPTURE_CALL: capture_call_ms_latest,
+                            STAGE_RUNTIME_CAPTURE_CALL: capture_call_ms_latest,
+                            STAGE_CAPTURE_WORKER_LOOP_GAP: capture_worker_loop_gap_ms_latest,
+                            STAGE_CAPTURE_SUCCESS_INTERVAL: capture_success_interval_ms_latest,
+                            STAGE_FRAME_HANDOFF_WAIT: frame_handoff_wait_ms,
+                            STAGE_FRAME_AVAILABLE_WAIT: frame_handoff_wait_ms,
+                            STAGE_PENDING_FRAME_AGE: pending_frame_age_ms,
+                            STAGE_PACING_WAIT: pacing_wait_ms,
+                            STAGE_IDLE_WAIT: idle_wait_ms,
+                            STAGE_RUNTIME_IDLE_WAIT: idle_wait_ms,
+                            STAGE_FRAME_PROCESSING: None,
+                            STAGE_ACTUAL_WORK: None,
+                            STAGE_LOOP_GAP: None,
+                        },
+                        target_fps=float(fps),
+                        fps_cap=float(fps),
+                        fps_cap_reason="UI FPS control cap",
+                        dropped_or_skipped_frames_delta=0,
+                        counters_delta={
+                            "no_pending_frame_ticks": no_pending_frame_ticks,
+                            "capture_errors_retries": max(
+                                0, capture_worker_error_count_now - last_reported_capture_worker_error_count
+                            ),
+                            "capture_worker_error_count": max(
+                                0, capture_worker_error_count_now - last_reported_capture_worker_error_count
+                            ),
+                        },
+                        flags={"capture_worker_active": capture_worker_active_now},
+                        labels={
+                            "latest_capture_backend_name": latest_capture_backend_name,
+                            "capture_backend_method": latest_capture_backend_method,
+                            "no_pending_frame_rate_per_second": f"{(no_pending_frame_events / max(0.001, time.perf_counter() - no_pending_started_at)):.2f}",
+                        },
+                    )
+                )
+                last_reported_capture_worker_error_count = capture_worker_error_count_now
+                no_pending_frame_ticks = 0
             else:
                 assert frame is not None
                 img_h, img_w, _ = frame.shape
@@ -658,6 +712,7 @@ def run_loop(
                     smoothing=config.smoothing,
                     smoothing_speed=config.smoothing_speed,
                     zone_sampling_stride=config.zone_sampling_stride,
+                    zone_sampling_engine=getattr(config, "zone_sampling_engine", "auto"),
                     led_gamma=float(getattr(active_profile, "led_gamma", config.led_gamma)),
                     motion_preset=getattr(config, "motion_preset", "responsive"),
                     light_spread=getattr(config, "light_spread", "balanced"),
@@ -794,12 +849,15 @@ def run_loop(
                         stage_ms={
                             STAGE_CAPTURE_WAIT: capture_wait_ms,
                             STAGE_CAPTURE_CALL: capture_call_ms_latest,
+                            STAGE_RUNTIME_CAPTURE_CALL: capture_call_ms_latest,
                             STAGE_CAPTURE_WORKER_LOOP_GAP: capture_worker_loop_gap_ms_latest,
                             STAGE_CAPTURE_SUCCESS_INTERVAL: capture_success_interval_ms_latest,
                             STAGE_FRAME_HANDOFF_WAIT: frame_handoff_wait_ms,
+                            STAGE_FRAME_AVAILABLE_WAIT: frame_handoff_wait_ms,
                             STAGE_PENDING_FRAME_AGE: pending_frame_age_ms,
                             STAGE_PACING_WAIT: pacing_wait_ms,
                             STAGE_IDLE_WAIT: idle_wait_ms,
+                            STAGE_RUNTIME_IDLE_WAIT: idle_wait_ms,
                             STAGE_FRAME_PROCESSING: frame_processing_ms,
                             STAGE_FRAME_CONVERT: processing_timings.frame_convert_ms,
                             STAGE_ZONE_SAMPLING: processing_timings.zone_sampling_ms,
@@ -822,6 +880,9 @@ def run_loop(
                         dropped_or_skipped_frames_delta=dropped_delta,
                         counters_delta={
                             "no_pending_frame_ticks": no_pending_frame_ticks,
+                            "capture_errors_retries": max(
+                                0, capture_worker_error_count_now - last_reported_capture_worker_error_count
+                            ),
                             "capture_worker_error_count": max(
                                 0, capture_worker_error_count_now - last_reported_capture_worker_error_count
                             ),
@@ -829,6 +890,8 @@ def run_loop(
                         flags={"capture_worker_active": capture_worker_active_now},
                         labels={
                             "latest_capture_backend_name": latest_capture_backend_name,
+                            "capture_backend_method": latest_capture_backend_method,
+                            "no_pending_frame_rate_per_second": f"{(no_pending_frame_events / max(0.001, time.perf_counter() - no_pending_started_at)):.2f}",
                             "hid_flush_or_wait_reason": hid_flush_or_wait_reason,
                             "hid_frame_build_reason": hid_frame_build_reason,
                             "hid_device_write_limited": hid_device_limited_label,
