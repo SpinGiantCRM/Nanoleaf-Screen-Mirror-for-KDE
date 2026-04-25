@@ -17,6 +17,11 @@ def _status_with_measurement(*, target_fps: float, effective_fps: float, include
                 "pacing_wait_ms": {"available": True, "median_ms": 0.80, "p95_ms": 1.20, "max_ms": 1.30, "sample_count": 60},
                 "actual_work_ms": {"available": True, "median_ms": 6.70, "p95_ms": 8.10, "max_ms": 8.40, "sample_count": 60},
                 "capture_wait_ms": {"available": True, "median_ms": 1.20, "p95_ms": 2.30, "max_ms": 2.50, "sample_count": 60},
+                "capture_call_ms": {"available": True, "median_ms": 1.10, "p95_ms": 2.20, "max_ms": 2.40, "sample_count": 60},
+                "capture_worker_loop_gap_ms": {"available": True, "median_ms": 8.10, "p95_ms": 9.00, "max_ms": 9.20, "sample_count": 60},
+                "capture_success_interval_ms": {"available": True, "median_ms": 8.20, "p95_ms": 9.10, "max_ms": 9.30, "sample_count": 60},
+                "frame_handoff_wait_ms": {"available": True, "median_ms": 0.30, "p95_ms": 0.60, "max_ms": 0.80, "sample_count": 60},
+                "pending_frame_age_ms": {"available": True, "median_ms": 0.90, "p95_ms": 1.20, "max_ms": 1.40, "sample_count": 60},
                 "frame_processing_ms": {"available": True, "median_ms": 2.40, "p95_ms": 3.20, "max_ms": 3.40, "sample_count": 60},
                 "frame_convert_ms": {"available": True, "median_ms": 0.20, "p95_ms": 0.30, "max_ms": 0.35, "sample_count": 60},
                 "zone_sampling_ms": {"available": True, "median_ms": 0.90, "p95_ms": 1.20, "max_ms": 1.30, "sample_count": 60},
@@ -26,7 +31,11 @@ def _status_with_measurement(*, target_fps: float, effective_fps: float, include
                 "output_prepare_ms": {"available": True, "median_ms": 0.10, "p95_ms": 0.20, "max_ms": 0.30, "sample_count": 60},
                 "hid_write_ms": {"available": True, "median_ms": 0.60, "p95_ms": 1.00, "max_ms": 1.10, "sample_count": 60},
                 "hid_device_write_ms": {"available": True, "median_ms": 0.60, "p95_ms": 1.00, "max_ms": 1.10, "sample_count": 60},
+                "inferred_unattributed_gap_ms": {"available": True, "median_ms": 1.70, "p95_ms": 2.00, "max_ms": 2.20, "sample_count": 60},
             },
+            "counters": {"no_pending_frame_ticks": 0, "capture_worker_error_count": 0},
+            "flags": {"capture_worker_active": True},
+            "labels": {"latest_capture_backend_name": "kwin-dbus"},
         }
     }
 
@@ -98,3 +107,16 @@ def test_live_fps_diagnostics_cap_reason_is_displayed() -> None:
 def test_live_fps_diagnostics_excludes_manual_benchmark_contamination_message() -> None:
     lines = latency_breakdown_lines(status=_status_with_measurement(target_fps=120.0, effective_fps=119.0))
     assert any("xdg-portal benchmark samples excluded" in line for line in lines)
+
+
+def test_limiter_inference_prefers_capture_availability_when_unattributed_gap_is_large() -> None:
+    status = _status_with_measurement(target_fps=120.0, effective_fps=12.8)
+    stages = status["latency_measurement"]["stages"]
+    stages["loop_gap_ms"]["median_ms"] = 78.0
+    stages["actual_work_ms"]["median_ms"] = 18.0
+    stages["capture_call_ms"]["median_ms"] = 58.0
+    status["latency_measurement"]["counters"]["no_pending_frame_ticks"] = 80
+    lines = latency_breakdown_lines(status=status)
+    assert any("inferred_unattributed_gap_ms: 60.00" in line for line in lines)
+    assert any("Likely limiter: capture-frame availability" in line for line in lines)
+    assert any("Gap attribution: runtime frequently had no pending captured frame" in line for line in lines)

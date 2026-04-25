@@ -144,6 +144,9 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
 
     live_only = bool(measurement.get("live_mirroring_only", False))
     dropped = int(measurement.get("dropped_or_skipped_frames") or 0)
+    counters = measurement.get("counters") if isinstance(measurement.get("counters"), dict) else {}
+    flags = measurement.get("flags") if isinstance(measurement.get("flags"), dict) else {}
+    labels = measurement.get("labels") if isinstance(measurement.get("labels"), dict) else {}
     target_fps = float(measurement.get("target_fps") or 0.0)
     effective_output_fps = float(measurement.get("effective_output_fps") or 0.0)
     fps_cap = float(measurement.get("fps_cap") or 0.0)
@@ -169,8 +172,17 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
     actual_work = _stage("actual_work_ms")
     capture_wait = _stage("capture_wait_ms")
     capture_call = _stage("capture_call_ms")
+    capture_worker_loop_gap = _stage("capture_worker_loop_gap_ms")
+    capture_success_interval = _stage("capture_success_interval_ms")
+    frame_handoff_wait = _stage("frame_handoff_wait_ms")
+    pending_frame_age = _stage("pending_frame_age_ms")
     frame_processing = _stage("frame_processing_ms")
     hid_write = _stage("hid_write_ms")
+    inferred_unattributed_gap = _stage("inferred_unattributed_gap_ms")
+    no_pending_frame_ticks = int(counters.get("no_pending_frame_ticks", 0) or 0)
+    capture_worker_error_count = int(counters.get("capture_worker_error_count", 0) or 0)
+    capture_worker_active = bool(flags.get("capture_worker_active", False))
+    latest_capture_backend_name = str(labels.get("latest_capture_backend_name", "unavailable") or "unavailable")
 
     target_met_threshold = max(1.0, target_fps * 0.95)
     target_met = target_fps > 0.0 and effective_output_fps >= target_met_threshold
@@ -190,6 +202,7 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
     )
 
     limiter_line = "Likely limiter: unavailable (insufficient stage data)."
+    gap_attribution_line = "Gap attribution: unknown."
     budget_lines: list[str] = []
     if not target_met and target_fps > 0.0:
         actual_work_median = float(actual_work["median_ms"])
@@ -204,6 +217,7 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
         actual_over_budget = actual_work["available"] and actual_work_median > frame_interval_target_ms
         work_under_budget_comfortably = actual_work["available"] and actual_work_median < (0.80 * frame_interval_target_ms)
         loop_gap_high = loop_gap["available"] and loop_gap_median > (1.15 * frame_interval_target_ms)
+        unattributed_gap_ms = max(0.0, loop_gap_median - actual_work_median) if loop_gap["available"] and actual_work["available"] else 0.0
 
         configured_budget = frame_interval_target_ms
         if configured_budget > 0.0 and actual_work["available"]:
@@ -244,6 +258,28 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
             if limiter_candidates:
                 limiter_line = f"Likely limiter: {max(limiter_candidates, key=lambda item: item[1])[0]}."
 
+        if unattributed_gap_ms > 1.0:
+            if no_pending_frame_ticks > 0:
+                gap_attribution_line = (
+                    "Gap attribution: runtime frequently had no pending captured frame; "
+                    "output cadence is limited by frame availability/capture worker pace."
+                )
+                limiter_line = (
+                    "Likely limiter: capture-frame availability (capture worker gap), "
+                    "with secondary costs from zone sampling and HID write."
+                )
+            elif capture_call["available"] and capture_call["median_ms"] >= max(5.0, 0.65 * loop_gap_median):
+                gap_attribution_line = "Gap attribution: capture worker spends most of each cycle inside capture.capture()."
+                limiter_line = "Likely limiter: capture backend call latency."
+            elif frame_handoff_wait["available"] and frame_handoff_wait["median_ms"] > 1.0:
+                gap_attribution_line = "Gap attribution: runtime spends measurable time waiting on pending frame handoff."
+            elif pacing_wait["available"] and pacing_wait_median > 1.0:
+                gap_attribution_line = "Gap attribution: scheduler/pacing sleep contributes to the gap."
+            else:
+                gap_attribution_line = "Gap attribution: unattributed runtime gap remains; inspect capture worker and scheduler metrics."
+        elif loop_gap_high and not actual_over_budget and pacing_wait["available"]:
+            gap_attribution_line = "Gap attribution: cadence mostly delayed by pacing/scheduler sleeps."
+
     cap_line = "No intentional FPS cap reported."
     if fps_cap > 0.0:
         cap_line = f"Intentional FPS cap: {fps_cap:.1f} FPS ({fps_cap_reason})."
@@ -257,8 +293,18 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
         f"frame_interval_target_ms: {frame_interval_target_ms:.2f}",
         status_line,
         limiter_line,
+        gap_attribution_line,
         cap_line,
         f"dropped/skipped frames: {dropped}",
+        f"inferred_unattributed_gap_ms: {max(0.0, float(loop_gap['median_ms']) - float(actual_work['median_ms'])):.2f}"
+        if loop_gap["available"] and actual_work["available"]
+        else "inferred_unattributed_gap_ms: unavailable",
+        f"capture_worker_active: {'yes' if capture_worker_active else 'no'}",
+        f"latest_capture_backend_name: {latest_capture_backend_name}",
+        f"no_pending_frame_ticks: {no_pending_frame_ticks}",
+        f"capture_worker_error_count: {capture_worker_error_count}",
+        f"hid_frame_build_ms: unavailable ({labels.get('hid_frame_build_reason', 'not instrumented')})",
+        f"hid_flush_or_wait_ms: unavailable ({labels.get('hid_flush_or_wait_reason', 'not instrumented')})",
     ]
     lines.extend(budget_lines)
 
@@ -278,6 +324,10 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
             _format_stage_pair("actual_work_ms", "actual_work_ms"),
             _format_stage_pair("capture_wait_ms", "capture_wait_ms"),
             _format_stage_pair("capture_call_ms", "capture_call_ms"),
+            _format_stage_pair("capture_worker_loop_gap_ms", "capture_worker_loop_gap_ms"),
+            _format_stage_pair("capture_success_interval_ms", "capture_success_interval_ms"),
+            _format_stage_pair("frame_handoff_wait_ms", "frame_handoff_wait_ms"),
+            _format_stage_pair("pending_frame_age_ms", "pending_frame_age_ms"),
             _format_stage_pair("frame_processing_ms", "frame_processing_ms"),
             _format_stage_pair("frame_convert_ms", "frame_convert_ms"),
             _format_stage_pair("zone_sampling_ms", "zone_sampling_ms"),
@@ -286,9 +336,9 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
             _format_stage_pair("led_calibration_ms", "led_calibration_ms"),
             _format_stage_pair("output_prepare_ms", "output_prepare_ms"),
             _format_stage_pair("hid_write_ms", "hid_write_ms"),
-            _format_stage_pair("hid_frame_build_ms", "hid_frame_build_ms"),
             _format_stage_pair("hid_device_write_ms", "hid_device_write_ms"),
-            _format_stage_pair("hid_flush_or_wait_ms", "hid_flush_or_wait_ms"),
+            _format_stage_pair("send_frame_total_ms", "hid_write_ms"),
+            _format_stage_pair("inferred_unattributed_gap_ms", "inferred_unattributed_gap_ms"),
             _format_stage_pair("end_to_end_live_ms", "end_to_end_live_ms"),
         ]
     )
@@ -450,6 +500,11 @@ def export_latency_report(*, status: dict) -> Path:
         writer.writeheader()
         for stage in (
             "capture_wait_ms",
+            "capture_call_ms",
+            "capture_worker_loop_gap_ms",
+            "capture_success_interval_ms",
+            "frame_handoff_wait_ms",
+            "pending_frame_age_ms",
             "pacing_wait_ms",
             "idle_wait_ms",
             "frame_processing_ms",
@@ -465,6 +520,7 @@ def export_latency_report(*, status: dict) -> Path:
             "hid_device_write_ms",
             "hid_flush_or_wait_ms",
             "loop_gap_ms",
+            "inferred_unattributed_gap_ms",
             "end_to_end_live_ms",
         ):
             row = stages.get(stage) or {}
