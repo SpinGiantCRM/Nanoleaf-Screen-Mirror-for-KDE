@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import threading
 from dataclasses import dataclass
 from typing import Sequence, Tuple
 
@@ -126,3 +127,64 @@ def test_service_can_restart_after_stop() -> None:
     status = service.get_status()
     assert status["frames_sent"] >= 1
     assert driver.frames_sent > first_run_frames
+
+
+class BlockingCapture(CaptureBackend):
+    name = "blocking"
+    last_capture_path: str | None = None
+
+    def __init__(self, width: int, height: int, *, close_unblocks: bool) -> None:
+        self._frame = np.zeros((height, width, 3), dtype=np.uint8)
+        self._close_unblocks = bool(close_unblocks)
+        self._entered = threading.Event()
+        self._released = threading.Event()
+        self.close_calls = 0
+
+    def capture(self) -> np.ndarray:
+        self._entered.set()
+        self._released.wait()
+        return self._frame
+
+    def close(self) -> None:
+        self.close_calls += 1
+        if self._close_unblocks:
+            self._released.set()
+
+    def wait_until_blocked(self, timeout: float = 1.0) -> bool:
+        return self._entered.wait(timeout=timeout)
+
+    def release(self) -> None:
+        self._released.set()
+
+
+def test_stop_unblocks_blocked_capture_when_close_can_cancel() -> None:
+    cfg = AppConfig(fps=30, verbose=False, use_mock_capture=False, device_zone_count=8)
+    capture = BlockingCapture(width=16, height=9, close_unblocks=True)
+    driver = FakeDriver()
+    service = NanoleafSyncService(config=cfg, capture_backend_override=capture, driver_override=driver)
+
+    assert service.start() is True
+    assert capture.wait_until_blocked(timeout=1.0) is True
+
+    assert service.stop(timeout=0.8) is True
+    assert _wait_until(lambda: not service.is_running(), timeout_s=1.0)
+    assert capture.close_calls >= 1
+    assert driver.initialized is False
+    assert service.stop(timeout=0.2) is True
+
+
+def test_stop_timeout_returns_false_when_runtime_remains_blocked() -> None:
+    cfg = AppConfig(fps=30, verbose=False, use_mock_capture=False)
+    capture = BlockingCapture(width=16, height=9, close_unblocks=False)
+    driver = FakeDriver()
+    service = NanoleafSyncService(config=cfg, capture_backend_override=capture, driver_override=driver)
+
+    assert service.start() is True
+    assert capture.wait_until_blocked(timeout=1.0) is True
+
+    assert service.stop(timeout=0.05) is False
+    assert service.is_running() is True
+
+    capture.release()
+    assert service.stop(timeout=1.0) is True
+    assert _wait_until(lambda: not service.is_running(), timeout_s=1.0)

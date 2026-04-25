@@ -123,9 +123,16 @@ def run_runtime_engine(
 
 
 class RuntimeLifecycle:
-    def __init__(self, *, state: RuntimeState, runner: Callable[[], None]) -> None:
+    def __init__(
+        self,
+        *,
+        state: RuntimeState,
+        runner: Callable[[], None],
+        on_stop_requested: Callable[[], None] | None = None,
+    ) -> None:
         self._state = state
         self._runner = runner
+        self._on_stop_requested = on_stop_requested
         self._thread: Optional[Thread] = None
         self._lock = threading.Lock()
         self._state_name = "idle"
@@ -162,12 +169,25 @@ class RuntimeLifecycle:
             self._sync_state_locked()
         return self.is_running()
 
-    def stop(self) -> None:
+    def stop(self, *, join_timeout: Optional[float] = None) -> bool:
+        stop_requested = False
         with self._lock:
             self._sync_state_locked()
             if self._state_name in {"starting", "running"}:
                 self._state_name = "stopping"
+                stop_requested = True
+            elif self._state_name in {"idle", "error"}:
+                return True
         self._state.stop_event.set()
+        if stop_requested and self._on_stop_requested is not None:
+            try:
+                self._on_stop_requested()
+            except Exception:
+                logger.exception("runtime stop callback failed")
+        if join_timeout is not None:
+            self.join(timeout=join_timeout)
+            return not self.is_running()
+        return True
 
     def join(self, timeout: Optional[float] = None) -> None:
         if self._thread is None:
@@ -175,11 +195,13 @@ class RuntimeLifecycle:
         self._thread.join(timeout=timeout)
         with self._lock:
             self._sync_state_locked()
+            if self._thread is not None and not self._thread.is_alive():
+                self._thread = None
 
     def is_running(self) -> bool:
         with self._lock:
             self._sync_state_locked()
-            return self._state_name in {"starting", "running"}
+            return bool(self._thread is not None and self._thread.is_alive())
 
     def startup_state(self) -> str:
         with self._lock:
