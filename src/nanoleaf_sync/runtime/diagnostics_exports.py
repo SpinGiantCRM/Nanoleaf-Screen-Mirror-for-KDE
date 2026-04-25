@@ -15,6 +15,18 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.state import ZoneRect
 
 
+def _normalize_side_counts(raw: object, *, source_zone_count: int) -> tuple[int, int, int, int] | None:
+    if not isinstance(raw, (tuple, list)) or len(raw) != 4:
+        return None
+    try:
+        counts = tuple(max(0, int(i)) for i in raw)
+    except (TypeError, ValueError):
+        return None
+    if sum(counts) <= 0 and source_zone_count > 0:
+        return None
+    return counts
+
+
 def evaluate_geometry(*, status: dict, cfg: AppConfig) -> dict[str, object]:
     kde_w = int(status.get("kde_display_width") or 0)
     kde_h = int(status.get("kde_display_height") or 0)
@@ -28,15 +40,25 @@ def evaluate_geometry(*, status: dict, cfg: AppConfig) -> dict[str, object]:
     logical_w = int(round(kde_w / kde_scale)) if kde_w > 0 and kde_scale > 0 else 0
     logical_h = int(round(kde_h / kde_scale)) if kde_h > 0 and kde_scale > 0 else 0
     logical_match = logical_w > 0 and logical_h > 0 and cap_w == logical_w and cap_h == logical_h
+    expected_match = expected_w > 0 and expected_h > 0 and cap_w == expected_w and cap_h == expected_h
     inferred_scale = (float(kde_w) / float(cap_w)) if kde_w > 0 and cap_w > 0 else 0.0
+    physical_aspect = (float(kde_w) / float(kde_h)) if kde_w > 0 and kde_h > 0 else 0.0
+    capture_aspect = (float(cap_w) / float(cap_h)) if cap_w > 0 and cap_h > 0 else 0.0
+    aspect_delta = abs(physical_aspect - capture_aspect) if physical_aspect > 0.0 and capture_aspect > 0.0 else None
 
     coordinate_mode = "unknown"
     if physical_match:
         coordinate_mode = "physical"
     elif logical_match:
         coordinate_mode = "logical"
+    elif expected_match:
+        coordinate_mode = "scaled"
     elif kde_w > 0 and cap_w > 0:
         coordinate_mode = "scaled"
+
+    inferred_scale_sane = inferred_scale >= 1.1 and inferred_scale <= 16.0
+    aspect_consistent = aspect_delta is not None and aspect_delta <= 0.03
+    intentional_scaled = bool(expected_match and not physical_match and inferred_scale_sane and aspect_consistent)
 
     mismatch = bool(
         cap_w > 0
@@ -45,7 +67,10 @@ def evaluate_geometry(*, status: dict, cfg: AppConfig) -> dict[str, object]:
         and kde_h > 0
         and not physical_match
         and not logical_match
+        and not expected_match
     )
+    source_zone_count = int(status.get("source_zone_count") or 0)
+    side_counts = _normalize_side_counts(status.get("source_zone_side_counts"), source_zone_count=source_zone_count)
 
     return {
         "kde_display_size": (kde_w, kde_h),
@@ -54,25 +79,38 @@ def evaluate_geometry(*, status: dict, cfg: AppConfig) -> dict[str, object]:
         "captured_frame_size": (cap_w, cap_h),
         "expected_display_size": (expected_w, expected_h),
         "matches_physical": physical_match,
-        "matches_logical": logical_match,
+        "matches_logical": logical_match or expected_match,
         "inferred_scale_factor": inferred_scale if inferred_scale > 0 else None,
+        "inferred_scale_sane": inferred_scale_sane,
+        "expected_match": expected_match,
+        "intentional_scaled_capture": intentional_scaled,
+        "aspect_delta": aspect_delta,
         "coordinate_mode": coordinate_mode,
-        "source_zone_count": int(status.get("source_zone_count") or 0),
+        "source_zone_count": source_zone_count,
         "strip_zone_count": int(status.get("configured_device_zone_count") or getattr(cfg, "device_zone_count", 0) or 0),
-        "side_counts": tuple(int(i) for i in (status.get("source_zone_side_counts") or (0, 0, 0, 0))),
+        "side_counts": side_counts,
         "edge_thickness": status.get("edge_sampling_thickness"),
         "sample_step": int(status.get("zone_sampling_stride") or getattr(cfg, "zone_sampling_stride", 1) or 1),
         "edge_locality": status.get("edge_locality") or getattr(cfg, "edge_locality", "balanced"),
         "display_preset": status.get("display_preset") or getattr(cfg, "display_preset", "hdr"),
         "hdr_enabled_assumed": str(getattr(cfg, "display_preset", "hdr")).lower() == "hdr",
         "geometry_warning": mismatch,
-        "warning_text": "Captured frame size does not match display geometry. Sampling positions may be scaled or offset.",
+        "warning_text": (
+            f"Captured frame is scaled/downsampled from physical display by {inferred_scale:.1f}x; sampling coordinates are scaled."
+            if intentional_scaled and inferred_scale > 0.0
+            else "Captured frame size does not match display geometry. Sampling positions may be scaled or offset."
+        ),
     }
 
 
 def diagnostics_text_lines(*, status: dict, cfg: AppConfig) -> list[str]:
     geo = evaluate_geometry(status=status, cfg=cfg)
     side_counts = geo["side_counts"]
+    side_counts_text = (
+        f"{side_counts[0]}/{side_counts[1]}/{side_counts[2]}/{side_counts[3]}"
+        if isinstance(side_counts, tuple)
+        else "unavailable"
+    )
     latency_lines = latency_breakdown_lines(status=status)
     return [
         f"KDE display resolution: {geo['kde_display_size'][0]}x{geo['kde_display_size'][1]}",
@@ -85,12 +123,14 @@ def diagnostics_text_lines(*, status: dict, cfg: AppConfig) -> list[str]:
         f"Inferred scale factor: {geo['inferred_scale_factor']:.3f}" if geo['inferred_scale_factor'] else "Inferred scale factor: unknown",
         f"Coordinate mode: {geo['coordinate_mode']}",
         f"Source-zone count: {geo['source_zone_count']} | Strip LED zone count: {geo['strip_zone_count']}",
-        f"Per-side zone counts (T/R/B/L): {side_counts[0]}/{side_counts[1]}/{side_counts[2]}/{side_counts[3]}",
+        f"Per-side zone counts (T/R/B/L): {side_counts_text}",
         f"Edge thickness: {geo['edge_thickness'] if geo['edge_thickness'] is not None else 'n/a'} | sample_step: {geo['sample_step']} | edge locality: {geo['edge_locality']}",
         f"Light spread mode: {status.get('light_spread', 'balanced')}",
         f"Display preset: {geo['display_preset']} | HDR enabled/assumed: {'yes' if geo['hdr_enabled_assumed'] else 'no'}",
         "Grey and white screen areas create neutral ambient light. Black areas turn the LEDs off.",
-        geo["warning_text"] if geo["geometry_warning"] else "Display geometry and capture frame space are consistent.",
+        geo["warning_text"]
+        if geo["geometry_warning"] or bool(geo.get("intentional_scaled_capture"))
+        else "Display geometry and capture frame space are consistent.",
         "If per-zone output remains varied but the wall looks blended, this is likely physical diffusion.",
         "If per-zone output is already flat, software processing/sampling spread is likely.",
         *latency_lines,
@@ -143,29 +183,66 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
             else "FPS target is not configured."
         )
 
+    frame_plus_hid_median = (
+        float(frame_processing["median_ms"]) + float(hid_write["median_ms"])
+        if frame_processing["available"] and hid_write["available"]
+        else None
+    )
+
     limiter_line = "Likely limiter: unavailable (insufficient stage data)."
+    budget_lines: list[str] = []
     if not target_met and target_fps > 0.0:
-        limiter_candidates: list[tuple[str, float]] = []
-        if capture_wait["available"]:
-            limiter_candidates.append(("capture", float(capture_wait["median_ms"])))
-        if frame_processing["available"]:
-            limiter_candidates.append(("processing", float(frame_processing["median_ms"])))
-        if hid_write["available"]:
-            limiter_candidates.append(("HID write", float(hid_write["median_ms"])))
-        scheduler_pressure = 0.0
-        if loop_gap["available"]:
-            scheduler_pressure = max(0.0, float(loop_gap["median_ms"]) - frame_interval_target_ms)
-            scheduler_pressure = max(
-                scheduler_pressure,
-                max(0.0, float(loop_gap["p95_ms"]) - float(loop_gap["median_ms"])),
+        actual_work_median = float(actual_work["median_ms"])
+        loop_gap_median = float(loop_gap["median_ms"])
+        pacing_wait_median = float(pacing_wait["median_ms"])
+        pacing_is_negligible = (not pacing_wait["available"]) or pacing_wait_median <= 0.5
+        work_tracks_loop_gap = (
+            actual_work["available"]
+            and loop_gap["available"]
+            and abs(actual_work_median - loop_gap_median) <= max(1.0, 0.12 * max(actual_work_median, loop_gap_median))
+        )
+        actual_over_budget = actual_work["available"] and actual_work_median > frame_interval_target_ms
+        work_under_budget_comfortably = actual_work["available"] and actual_work_median < (0.80 * frame_interval_target_ms)
+        loop_gap_high = loop_gap["available"] and loop_gap_median > (1.15 * frame_interval_target_ms)
+
+        configured_budget = frame_interval_target_ms
+        if configured_budget > 0.0 and actual_work["available"]:
+            budget_lines.append(
+                f"{int(round(target_fps))} FPS budget: {configured_budget:.2f}ms; actual work median: {actual_work_median:.2f}ms."
             )
-        if pacing_wait["available"]:
-            scheduler_pressure = max(scheduler_pressure, float(pacing_wait["median_ms"]))
-        if scheduler_pressure > 0.0:
-            limiter_candidates.append(("pacing/scheduler", scheduler_pressure))
-        if limiter_candidates:
-            limiting_stage = max(limiter_candidates, key=lambda item: item[1])[0]
-            limiter_line = f"Likely limiter: {limiting_stage}."
+        if frame_plus_hid_median is not None:
+            for compare_fps in (120, 90, 60, 30):
+                compare_budget = 1000.0 / float(compare_fps)
+                if compare_fps == int(round(target_fps)) or compare_fps == 60:
+                    budget_lines.append(
+                        f"{compare_fps} FPS budget: {compare_budget:.2f}ms; frame processing + HID write median: {frame_plus_hid_median:.2f}ms."
+                    )
+            if frame_plus_hid_median > configured_budget:
+                budget_lines.append(
+                    "frame_processing_ms + hid_write_ms exceeds the configured frame budget."
+                )
+
+        if actual_over_budget and work_tracks_loop_gap and pacing_is_negligible:
+            if frame_plus_hid_median is not None and frame_plus_hid_median >= (0.65 * actual_work_median):
+                limiter_line = "Likely limiter: actual work, dominated by frame processing + HID write."
+            else:
+                limiter_line = "Likely limiter: actual work."
+        elif work_under_budget_comfortably and loop_gap_high:
+            limiter_line = "Likely limiter: pacing/scheduler."
+        else:
+            limiter_candidates: list[tuple[str, float]] = []
+            if capture_wait["available"]:
+                limiter_candidates.append(("capture", float(capture_wait["median_ms"])))
+            if frame_processing["available"]:
+                limiter_candidates.append(("frame processing", float(frame_processing["median_ms"])))
+            if hid_write["available"]:
+                limiter_candidates.append(("HID write", float(hid_write["median_ms"])))
+            if actual_work["available"]:
+                limiter_candidates.append(("actual work", actual_work_median))
+            if loop_gap_high and not actual_over_budget:
+                limiter_candidates.append(("pacing/scheduler", loop_gap_median - frame_interval_target_ms))
+            if limiter_candidates:
+                limiter_line = f"Likely limiter: {max(limiter_candidates, key=lambda item: item[1])[0]}."
 
     cap_line = "No intentional FPS cap reported."
     if fps_cap > 0.0:
@@ -183,6 +260,7 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
         cap_line,
         f"dropped/skipped frames: {dropped}",
     ]
+    lines.extend(budget_lines)
 
     def _format_stage_pair(label: str, stage_name: str) -> str:
         row = stages.get(stage_name)
@@ -201,7 +279,16 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
             _format_stage_pair("capture_wait_ms", "capture_wait_ms"),
             _format_stage_pair("capture_call_ms", "capture_call_ms"),
             _format_stage_pair("frame_processing_ms", "frame_processing_ms"),
+            _format_stage_pair("frame_convert_ms", "frame_convert_ms"),
+            _format_stage_pair("zone_sampling_ms", "zone_sampling_ms"),
+            _format_stage_pair("colour_processing_ms", "colour_processing_ms"),
+            _format_stage_pair("smoothing_ms", "smoothing_ms"),
+            _format_stage_pair("led_calibration_ms", "led_calibration_ms"),
+            _format_stage_pair("output_prepare_ms", "output_prepare_ms"),
             _format_stage_pair("hid_write_ms", "hid_write_ms"),
+            _format_stage_pair("hid_frame_build_ms", "hid_frame_build_ms"),
+            _format_stage_pair("hid_device_write_ms", "hid_device_write_ms"),
+            _format_stage_pair("hid_flush_or_wait_ms", "hid_flush_or_wait_ms"),
             _format_stage_pair("end_to_end_live_ms", "end_to_end_live_ms"),
         ]
     )
@@ -366,8 +453,17 @@ def export_latency_report(*, status: dict) -> Path:
             "pacing_wait_ms",
             "idle_wait_ms",
             "frame_processing_ms",
+            "frame_convert_ms",
+            "zone_sampling_ms",
+            "colour_processing_ms",
+            "smoothing_ms",
+            "led_calibration_ms",
+            "output_prepare_ms",
             "actual_work_ms",
             "hid_write_ms",
+            "hid_frame_build_ms",
+            "hid_device_write_ms",
+            "hid_flush_or_wait_ms",
             "loop_gap_ms",
             "end_to_end_live_ms",
         ):

@@ -18,7 +18,14 @@ def _status_with_measurement(*, target_fps: float, effective_fps: float, include
                 "actual_work_ms": {"available": True, "median_ms": 6.70, "p95_ms": 8.10, "max_ms": 8.40, "sample_count": 60},
                 "capture_wait_ms": {"available": True, "median_ms": 1.20, "p95_ms": 2.30, "max_ms": 2.50, "sample_count": 60},
                 "frame_processing_ms": {"available": True, "median_ms": 2.40, "p95_ms": 3.20, "max_ms": 3.40, "sample_count": 60},
+                "frame_convert_ms": {"available": True, "median_ms": 0.20, "p95_ms": 0.30, "max_ms": 0.35, "sample_count": 60},
+                "zone_sampling_ms": {"available": True, "median_ms": 0.90, "p95_ms": 1.20, "max_ms": 1.30, "sample_count": 60},
+                "colour_processing_ms": {"available": True, "median_ms": 0.80, "p95_ms": 1.00, "max_ms": 1.20, "sample_count": 60},
+                "smoothing_ms": {"available": True, "median_ms": 0.25, "p95_ms": 0.35, "max_ms": 0.40, "sample_count": 60},
+                "led_calibration_ms": {"available": True, "median_ms": 0.20, "p95_ms": 0.30, "max_ms": 0.40, "sample_count": 60},
+                "output_prepare_ms": {"available": True, "median_ms": 0.10, "p95_ms": 0.20, "max_ms": 0.30, "sample_count": 60},
                 "hid_write_ms": {"available": True, "median_ms": 0.60, "p95_ms": 1.00, "max_ms": 1.10, "sample_count": 60},
+                "hid_device_write_ms": {"available": True, "median_ms": 0.60, "p95_ms": 1.00, "max_ms": 1.10, "sample_count": 60},
             },
         }
     }
@@ -42,6 +49,40 @@ def test_live_fps_diagnostics_target_not_met_status_and_limiter_text() -> None:
     lines = latency_breakdown_lines(status=status)
     assert any("120 FPS target is not being met." in line for line in lines)
     assert any("Likely limiter:" in line for line in lines)
+
+
+def test_limiter_inference_prefers_actual_work_over_scheduler_when_work_tracks_loop_gap() -> None:
+    status = _status_with_measurement(target_fps=120.0, effective_fps=50.0)
+    stages = status["latency_measurement"]["stages"]
+    stages["loop_gap_ms"]["median_ms"] = 20.0
+    stages["actual_work_ms"]["median_ms"] = 19.99
+    stages["frame_processing_ms"]["median_ms"] = 9.07
+    stages["hid_write_ms"]["median_ms"] = 7.64
+    stages["pacing_wait_ms"] = {"available": False, "median_ms": 0.0, "p95_ms": 0.0, "max_ms": 0.0, "sample_count": 0}
+    lines = latency_breakdown_lines(status=status)
+    assert any("Likely limiter: actual work, dominated by frame processing + HID write." in line for line in lines)
+    assert any("120 FPS budget: 8.33ms; actual work median: 19.99ms." in line for line in lines)
+    assert any("60 FPS budget: 16.67ms; frame processing + HID write median: 16.71ms." in line for line in lines)
+    assert any("frame_processing_ms + hid_write_ms exceeds the configured frame budget." in line for line in lines)
+
+
+def test_scheduler_limiter_only_when_work_is_below_budget_but_loop_gap_is_high() -> None:
+    status = _status_with_measurement(target_fps=120.0, effective_fps=70.0)
+    stages = status["latency_measurement"]["stages"]
+    stages["actual_work_ms"]["median_ms"] = 5.8
+    stages["loop_gap_ms"]["median_ms"] = 14.5
+    stages["pacing_wait_ms"]["median_ms"] = 3.8
+    lines = latency_breakdown_lines(status=status)
+    assert any("Likely limiter: pacing/scheduler." in line for line in lines)
+
+
+def test_budget_comparison_highlights_frame_plus_hid_over_60_fps_budget() -> None:
+    status = _status_with_measurement(target_fps=120.0, effective_fps=55.0)
+    stages = status["latency_measurement"]["stages"]
+    stages["frame_processing_ms"]["median_ms"] = 10.2
+    stages["hid_write_ms"]["median_ms"] = 6.8
+    lines = latency_breakdown_lines(status=status)
+    assert any("60 FPS budget: 16.67ms; frame processing + HID write median: 17.00ms." in line for line in lines)
 
 
 def test_live_fps_diagnostics_no_samples_message() -> None:

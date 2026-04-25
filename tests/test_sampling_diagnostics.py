@@ -62,20 +62,38 @@ def test_bottom_left_green_block_stays_local() -> None:
     assert np.mean(colors[:5, 1]) < 140
 
 
-def test_geometry_warning_for_fractional_scaling_mismatch() -> None:
+def test_geometry_reports_intentional_downscaled_capture_as_valid_scaled_sampling() -> None:
     cfg = AppConfig()
     status = {
         "kde_display_width": 3840,
         "kde_display_height": 2160,
-        "kde_scale_factor": 1.7,
+        "kde_scale_factor": 1.0,
         "captured_frame_width": 480,
         "captured_frame_height": 270,
         "capture_width": 480,
         "capture_height": 270,
     }
     geo = evaluate_geometry(status=status, cfg=cfg)
+    assert geo["geometry_warning"] is False
+    assert geo["intentional_scaled_capture"] is True
+    lines = diagnostics_text_lines(status=status, cfg=cfg)
+    assert any("scaled/downsampled from physical display by 8.0x" in line for line in lines)
+
+
+def test_geometry_warning_for_true_capture_mismatch() -> None:
+    cfg = AppConfig()
+    status = {
+        "kde_display_width": 3840,
+        "kde_display_height": 2160,
+        "kde_scale_factor": 1.7,
+        "captured_frame_width": 480,
+        "captured_frame_height": 300,
+        "capture_width": 480,
+        "capture_height": 270,
+    }
+    geo = evaluate_geometry(status=status, cfg=cfg)
     assert geo["geometry_warning"] is True
-    assert geo["coordinate_mode"] in {"scaled", "unknown"}
+    assert geo["intentional_scaled_capture"] is False
 
 
 def test_diagnostics_text_includes_4k_and_170_percent_path() -> None:
@@ -91,6 +109,29 @@ def test_diagnostics_text_includes_4k_and_170_percent_path() -> None:
     text = "\n".join(lines)
     assert "3840x2160" in text
     assert "1.7" in text
+
+
+def test_per_side_zone_counts_show_unavailable_instead_of_all_zero() -> None:
+    cfg = AppConfig()
+    status = {
+        "source_zone_count": 48,
+        "source_zone_side_counts": (0, 0, 0, 0),
+    }
+    lines = diagnostics_text_lines(status=status, cfg=cfg)
+    assert any("Per-side zone counts (T/R/B/L): unavailable" in line for line in lines)
+
+
+def test_per_side_zone_counts_show_non_zero_sum_for_edge_strip_48() -> None:
+    cfg = AppConfig(device_zone_count=48, layout_preset="edge_strip")
+    status = {
+        "source_zone_count": 48,
+        "source_zone_side_counts": (12, 12, 12, 12),
+    }
+    geo = evaluate_geometry(status=status, cfg=cfg)
+    assert geo["side_counts"] == (12, 12, 12, 12)
+    assert sum(geo["side_counts"]) == 48
+    lines = diagnostics_text_lines(status=status, cfg=cfg)
+    assert any("Per-side zone counts (T/R/B/L): 12/12/12/12" in line for line in lines)
 
 
 def test_overlay_export_creates_png(tmp_path: Path) -> None:
