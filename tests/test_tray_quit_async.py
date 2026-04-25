@@ -16,6 +16,9 @@ class _FakeService:
     def is_running(self) -> bool:
         return self._running
 
+    def get_status(self) -> dict:
+        return {"startup_state": "running" if self._running else "idle"}
+
 
 class _FakeTimer:
     def __init__(self) -> None:
@@ -70,3 +73,36 @@ def test_on_quit_is_non_blocking_and_idempotent() -> None:
     callback()
 
     assert quit_calls == ["quit"]
+
+
+class _FakeServiceStopTimeout(_FakeService):
+    def stop(self, timeout=1.5):  # noqa: ARG002 - signature matches real service
+        self.stop_calls += 1
+        return False
+
+
+def test_on_stop_reports_timeout_without_pretending_idle() -> None:
+    service = _FakeServiceStopTimeout()
+    messages: list[str] = []
+    icons: list[str] = []
+    fake_tray = SimpleNamespace(
+        service=service,
+        tray_icon=SimpleNamespace(
+            setIcon=lambda icon: icons.append(icon),
+            showMessage=lambda _title, text, _icon, _timeout: messages.append(text),
+        ),
+        _idle_icon="idle",
+        _running_icon="running",
+        _refresh_mode_labels=lambda: None,
+        _shutdown_in_progress=False,
+        _shutdown_timeout_s=0.1,
+        _schedule_stop_warning=lambda _svc: None,
+        QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Warning=2)),
+    )
+    fake_tray._request_stop = lambda **kwargs: NanoleafTrayApp._request_stop(fake_tray, **kwargs)
+
+    NanoleafTrayApp.on_stop(fake_tray)
+
+    assert service.stop_calls == 1
+    assert icons[-1] == "running"
+    assert any("still stopping" in msg for msg in messages)

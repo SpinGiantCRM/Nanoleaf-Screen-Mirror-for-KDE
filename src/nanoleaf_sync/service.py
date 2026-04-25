@@ -158,7 +158,11 @@ class NanoleafSyncService:
         self._driver_override = driver_override
 
         self._runtime = RuntimeState()
-        self._lifecycle = RuntimeLifecycle(state=self._runtime, runner=self._run_runtime)
+        self._lifecycle = RuntimeLifecycle(
+            state=self._runtime,
+            runner=self._run_runtime,
+            on_stop_requested=self._interrupt_runtime_for_stop,
+        )
 
         self._capture_width, self._capture_height = _resolve_capture_dims(self.config)
         self._cached_probe_winner: str | None = None
@@ -180,8 +184,9 @@ class NanoleafSyncService:
     def start(self) -> bool:
         return self._lifecycle.start(startup_timeout_s=1.0)
 
-    def stop(self) -> None:
-        self._lifecycle.stop()
+    def stop(self, timeout: Optional[float] = 1.5) -> bool:
+        join_timeout = max(0.0, float(timeout)) if timeout is not None else None
+        return self._lifecycle.stop(join_timeout=join_timeout)
 
     def join(self, timeout: Optional[float] = None) -> None:
         self._lifecycle.join(timeout=timeout)
@@ -425,6 +430,26 @@ class NanoleafSyncService:
             self._device_discovered = False
             self._device_model = None
             self._device_zone_count = None
+
+    def _send_stop_black_frame(self) -> None:
+        driver = self._driver
+        if driver is None:
+            return
+        try:
+            zone_count = int(getattr(driver, "zone_count", 0) or 0)
+            if zone_count <= 0:
+                zone_count = int(getattr(driver, "reported_zone_count", 0) or 0)
+            if zone_count <= 0:
+                zone_count = int(getattr(self.config, "device_zone_count", 0) or 0)
+            if zone_count <= 0:
+                return
+            driver.send_frame([(0, 0, 0)] * zone_count)
+        except Exception:
+            logger.debug("Unable to send final stop frame.", exc_info=True)
+
+    def _interrupt_runtime_for_stop(self) -> None:
+        self._send_stop_black_frame()
+        self._close_backends()
 
     def _close_backends(self) -> None:
         capture = self._capture

@@ -540,11 +540,19 @@ class NanoleafTrayApp:
                 7000,
             )
 
-    def _request_stop(self) -> None:
+    def _request_stop(self, *, timeout_s: float | None = None) -> bool:
         try:
+            if timeout_s is None:
+                result = self.service.stop()
+            else:
+                result = self.service.stop(timeout=timeout_s)
+            return bool(result) if result is not None else (not self.service.is_running())
+        except TypeError:
             self.service.stop()
+            return not self.service.is_running()
         except Exception as exc:
             _log.warning("Service stop request failed: %s", exc, exc_info=True)
+            return False
 
     def _set_idle_ui_state(self) -> None:
         self.tray_icon.setIcon(self._idle_icon)
@@ -562,8 +570,22 @@ class NanoleafTrayApp:
 
     def on_stop(self):
         service = self.service
-        self._request_stop()
-        self._set_idle_ui_state()
+        was_running = service.is_running()
+        stopped = self._request_stop(timeout_s=self._shutdown_timeout_s)
+        still_running = service.is_running()
+        if stopped and not still_running:
+            self._set_idle_ui_state()
+            return
+
+        self.tray_icon.setIcon(self._running_icon if still_running else self._idle_icon)
+        self._refresh_mode_labels()
+        if was_running or still_running:
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                "Mirroring is still stopping or failed to stop within timeout.",
+                self.QSystemTrayIcon.MessageIcon.Warning,
+                7000,
+            )
         if not bool(getattr(self, "_shutdown_in_progress", False)):
             self._schedule_stop_warning(service)
 
@@ -881,7 +903,10 @@ class NanoleafTrayApp:
         self._shutdown_in_progress = True
         self._shutdown_deadline = time.monotonic() + self._shutdown_timeout_s
         self._close_preview_driver(resume_service=False)
-        self._request_stop()
+        try:
+            self._request_stop(timeout_s=0.0)
+        except TypeError:
+            self._request_stop()
         self._set_idle_ui_state()
         self.QTimer.singleShot(0, self._poll_shutdown_completion)
 
