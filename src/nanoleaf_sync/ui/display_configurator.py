@@ -394,7 +394,12 @@ class DisplayConfiguratorDialog:
                 self._set_tooltip(self.compositor_hdr_mode_checkbox, "Enable compensation when KDE Plasma maps SDR into HDR output.")
                 self._set_tooltip(self.sdr_boost_nits_slider, "Plasma SDR white reference in nits when compositor HDR mode is enabled.")
                 self._set_tooltip(self.edge_locality_combo, "Tight: most accurate/least bleed. Balanced: softer ambient look. Wide: cinematic blend.")
-                self._set_tooltip(self.motion_preset_combo, "Calm: smoother/slower. Responsive: recommended. Dynamic: punchier and reactive.")
+                self._set_tooltip(
+                    self.motion_preset_combo,
+                    "Calm: smoother fades for video and desktop. "
+                    "Responsive: adaptive default for games and general use. "
+                    "Dynamic: fastest response with basic flicker control.",
+                )
                 self._set_tooltip(self.color_style_combo, "Reference/Natural: accurate colour, preserves greys. Ambient: recommended stable glow. Vivid: richer colour. Punchy: strongest effect.")
 
             def _build_step_1(self, QWidget, QGridLayout, QLabel):

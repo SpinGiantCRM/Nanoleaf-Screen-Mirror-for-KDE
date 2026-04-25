@@ -333,7 +333,11 @@ class SettingsDialog:
                 self.zone_count_slider.setToolTip("Number of screen sampling zones sampled from the display.")
                 self.reverse_checkbox.setToolTip("Flip strip direction if the mapping appears mirrored.")
                 self.display_preset_combo.setToolTip("Select SDR, HDR, or Auto display behavior.")
-                self.motion_preset_combo.setToolTip("Calm: smoother/slower. Responsive: recommended. Dynamic: punchier and more reactive.")
+                self.motion_preset_combo.setToolTip(
+                    "Calm: smoother fades for video and desktop. "
+                    "Responsive: adaptive default for games and general use. "
+                    "Dynamic: fastest response with basic flicker control."
+                )
                 self.color_style_combo.setToolTip("Reference/Natural: accurate colour, preserves greys. Ambient: recommended stable glow. Vivid: richer colour. Punchy: strongest effect.")
                 self.edge_locality_combo.setToolTip("Tight: most accurate/least bleed. Balanced: softer ambient look. Wide: cinematic blend.")
                 self.hdr_max_nits_slider.setToolTip("Reference display peak brightness for HDR tone mapping.")
