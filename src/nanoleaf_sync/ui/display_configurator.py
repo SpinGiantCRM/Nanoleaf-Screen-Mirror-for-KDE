@@ -21,14 +21,13 @@ from nanoleaf_sync.ui.preset_ui import (
     COLOR_STYLE_LABELS,
     DISPLAY_PRESET_LABELS,
     EDGE_LOCALITY_LABELS,
-    LAYOUT_PRESET_LABELS,
     MOTION_PRESET_LABELS,
     SAMPLING_QUALITY_LABELS,
     label_for_value,
     labels,
     value_for_label,
 )
-from nanoleaf_sync.ui.zone_presets import edge_weighted_layout, make_edge_weighted_zones, make_horizontal_zones
+from nanoleaf_sync.ui.zone_presets import edge_weighted_layout, make_edge_weighted_zones
 
 MAX_WIZARD_ZONE_COUNT = 128
 WIZARD_STEPS: tuple[str, ...] = (
@@ -203,13 +202,6 @@ class DisplayConfiguratorDialog:
                 _set_checked(self.display_advanced_group, False)
 
                 # Step 3
-                self.layout_preset_combo = QComboBox()
-                self.layout_preset_combo.addItems([LAYOUT_PRESET_LABELS[0][0]])
-                self.layout_preset_combo.setCurrentIndex(0)
-                self.layout_debug_combo = QComboBox()
-                self.layout_debug_combo.addItems(labels(LAYOUT_PRESET_LABELS))
-                current_layout = "horizontal_debug" if self._state.layout_preset == "horizontal" else str(getattr(cfg, "layout_preset", "edge_strip"))
-                self.layout_debug_combo.setCurrentIndex(max(0, self.layout_debug_combo.findText(label_for_value(LAYOUT_PRESET_LABELS, current_layout, default="Edge strip"))))
                 self.edge_locality_combo = QComboBox()
                 self.edge_locality_combo.addItems(labels(EDGE_LOCALITY_LABELS))
                 self.edge_locality_combo.setCurrentIndex(max(0, self.edge_locality_combo.findText(label_for_value(EDGE_LOCALITY_LABELS, str(getattr(cfg, "edge_locality", "tight")), default="Tight"))))
@@ -299,7 +291,6 @@ class DisplayConfiguratorDialog:
                     self.motion_preset_combo.currentIndexChanged,
                     self.color_style_combo.currentIndexChanged,
                     self.edge_locality_combo.currentIndexChanged,
-                    self.layout_debug_combo.currentIndexChanged,
                     self.reverse_checkbox.stateChanged,
                 ):
                     signal.connect(self._refresh)
@@ -466,7 +457,7 @@ class DisplayConfiguratorDialog:
                 appearance = QGroupBox("Appearance")
                 appearance_layout = QGridLayout()
                 appearance_layout.addWidget(QLabel("Layout"), 0, 0)
-                appearance_layout.addWidget(self.layout_preset_combo, 0, 1, 1, 2)
+                appearance_layout.addWidget(QLabel("Edge strip"), 0, 1, 1, 2)
                 appearance_layout.addWidget(QLabel("Edge locality"), 1, 0)
                 appearance_layout.addWidget(self.edge_locality_combo, 1, 1, 1, 2)
                 appearance_layout.addWidget(QLabel("Quality"), 2, 0)
@@ -491,10 +482,8 @@ class DisplayConfiguratorDialog:
                 advanced_layout.addWidget(self.zone_count_explanation, 0, 0, 1, 3)
                 advanced_layout.addWidget(self.summary_label, 1, 0, 1, 3)
                 advanced_layout.addWidget(self.advanced_details, 2, 0, 1, 3)
-                advanced_layout.addWidget(QLabel("Layout (Advanced/Debug)"), 3, 0)
-                advanced_layout.addWidget(self.layout_debug_combo, 3, 1, 1, 2)
-                advanced_layout.addWidget(self.diagnostics_layout_label, 4, 0, 1, 3)
-                advanced_layout.addWidget(self.finish_policy_note, 5, 0, 1, 3)
+                advanced_layout.addWidget(self.diagnostics_layout_label, 3, 0, 1, 3)
+                advanced_layout.addWidget(self.finish_policy_note, 4, 0, 1, 3)
                 self.advanced_details_group.setLayout(advanced_layout)
                 layout.addWidget(self.advanced_details_group, 3, 0, 1, 3)
                 page.setLayout(layout)
@@ -531,12 +520,7 @@ class DisplayConfiguratorDialog:
 
             def _pull_state_from_controls(self) -> None:
                 self._state.zone_count = int(self.device_zone_count_slider.value())
-                selected_layout = value_for_label(
-                    LAYOUT_PRESET_LABELS,
-                    str(self.layout_debug_combo.currentText()),
-                    default="edge_strip",
-                )
-                self._state.layout_preset = selected_layout
+                self._state.layout_preset = "edge_strip"
                 self._state.reverse_zones = bool(self.reverse_checkbox.isChecked())
                 self._state.device_zone_count = int(self.device_zone_count_slider.value())
                 if self._state.layout_preset == "edge_strip":
@@ -606,8 +590,6 @@ class DisplayConfiguratorDialog:
                     self._refresh()
 
             def _on_zone_preset_changed(self, *_args) -> None:
-                if value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_debug_combo.currentText()), default="edge_strip") != "edge_strip":
-                    self._source_zones_locked_to_device_count = False
                 self._refresh()
 
             def _refresh(self) -> None:
@@ -894,7 +876,7 @@ class DisplayConfiguratorDialog:
                 anchor_bottom_right = int(self._state.corner_anchor_bottom_right)
                 anchor_bottom_left = int(self._state.corner_anchor_bottom_left)
                 zone_count = self._state.zone_count
-                new_zones = make_edge_weighted_zones(zone_count, edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight")) if self._state.layout_preset == "edge_strip" else make_horizontal_zones(zone_count)
+                new_zones = make_edge_weighted_zones(zone_count, edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"))
                 calibration_payload = CalibrationConfig(
                     schema_version=int(getattr(cfg, "calibration_schema_version", 1) or 1),
                     calibration_model="corner_anchored",
@@ -908,7 +890,7 @@ class DisplayConfiguratorDialog:
                 )
                 return replace(
                     cfg,
-                    layout_preset=value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_debug_combo.currentText()), default="edge_strip"),
+                    layout_preset="edge_strip",
                     edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"),
                     sampling_quality=value_for_label(SAMPLING_QUALITY_LABELS, str(self.sampling_quality_combo.currentText()), default="high"),
                     motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"),
@@ -962,7 +944,7 @@ class DisplayConfiguratorDialog:
                     "motion_preset": value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"),
                     "color_style": value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"),
                     "edge_locality": value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"),
-                    "layout_preset": value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_debug_combo.currentText()), default="edge_strip"),
+                    "layout_preset": "edge_strip",
                     "corner_anchor_top_left": int(self._state.corner_anchor_top_left),
                     "corner_anchor_top_right": int(self._state.corner_anchor_top_right),
                     "corner_anchor_bottom_right": int(self._state.corner_anchor_bottom_right),
@@ -1025,8 +1007,7 @@ class DisplayConfiguratorDialog:
                     return False
                 self._flow.index = max(0, min(len(WIZARD_STEPS) - 1, int(data.get("flow_index", self._flow.index))))
                 self._test_step = int(data.get("test_step", self._test_step))
-                preset = str(data.get("layout_preset", self._state.layout_preset))
-                self.layout_debug_combo.setCurrentIndex(0 if preset == "edge_strip" else 1)
+                _ = str(data.get("layout_preset", self._state.layout_preset))
                 self.reverse_checkbox.setChecked(bool(data.get("reverse_zones", self.reverse_checkbox.isChecked())))
                 self.device_zone_count_slider.setValue(int(data.get("device_zone_count", self.device_zone_count_slider.value())))
                 self._state.zone_count = int(self.device_zone_count_slider.value())

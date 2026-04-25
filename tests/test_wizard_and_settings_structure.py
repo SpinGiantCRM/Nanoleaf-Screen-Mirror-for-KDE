@@ -45,7 +45,8 @@ def test_wizard_and_settings_use_canonical_preset_vocabulary() -> None:
 def test_horizontal_layout_is_not_primary_recommendation() -> None:
     wizard = open("src/nanoleaf_sync/ui/display_configurator.py", "r", encoding="utf-8").read()
     helper = open("src/nanoleaf_sync/ui/preset_ui.py", "r", encoding="utf-8").read()
-    assert "Horizontal (diagnostic, not recommended)" in helper
+    assert "Horizontal (diagnostic, not recommended)" not in helper
+    assert "layout_debug_combo" not in wizard
     assert "Full-screen horizontal" not in wizard
 
 

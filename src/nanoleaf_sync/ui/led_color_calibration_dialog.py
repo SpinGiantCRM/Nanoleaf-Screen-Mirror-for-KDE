@@ -25,6 +25,9 @@ class LedColorCalibrationDialog:
         on_reset: Callable[[], None],
         on_helper_adjust: Callable[[str], None],
         on_save_profile: Callable[[], None],
+        on_step_changed: Callable[[int], None] | None = None,
+        on_open: Callable[[], None] | None = None,
+        on_close: Callable[[], None] | None = None,
     ) -> None:
         qt = load_qt()
         QDialog = qt["QDialog"]
@@ -78,9 +81,13 @@ class LedColorCalibrationDialog:
                 reset_button.clicked.connect(on_reset)
                 save_button.clicked.connect(on_save_profile)
                 self._refresh()
+                if callable(on_open):
+                    on_open()
 
             def _refresh(self) -> None:
                 self.step_label.setText(CALIBRATION_STEPS[self._step])
+                if callable(on_step_changed):
+                    on_step_changed(self._step)
 
             def _next(self) -> None:
                 self._step = min(len(CALIBRATION_STEPS) - 1, self._step + 1)
@@ -89,6 +96,11 @@ class LedColorCalibrationDialog:
             def _prev(self) -> None:
                 self._step = max(0, self._step - 1)
                 self._refresh()
+
+            def done(self, result: int) -> None:
+                if callable(on_close):
+                    on_close()
+                super().done(result)
 
         self._dialog = _Dialog()
 

@@ -20,7 +20,6 @@ from nanoleaf_sync.ui.preset_ui import (
     DISPLAY_PRESET_LABELS,
     EDGE_LOCALITY_LABELS,
     LIGHT_SPREAD_LABELS,
-    LAYOUT_PRESET_LABELS,
     MOTION_PRESET_LABELS,
     SAMPLING_QUALITY_LABELS,
     label_for_value,
@@ -44,7 +43,7 @@ from nanoleaf_sync.runtime.diagnostics_exports import (
     export_zone_report,
 )
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text as _mapping_preview_text
-from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones, make_horizontal_zones
+from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones
 from nanoleaf_sync.ui.led_color_calibration_dialog import LedColorCalibrationDialog
 
 FPS_MIN = 1
@@ -171,7 +170,6 @@ class SettingsDialog:
                 self.start_on_launch_checkbox = QCheckBox("Start mirroring automatically when tray app opens"); self.start_on_launch_checkbox.setChecked(bool(getattr(cfg, "start_on_launch", False)))
 
                 self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_count_slider.setRange(1, MAX_ZONE_COUNT); self.zone_count_slider.setValue(self._state.zone_count)
-                self.layout_preset_combo = QComboBox(); self.layout_preset_combo.addItems(labels(LAYOUT_PRESET_LABELS)); self.layout_preset_combo.setCurrentIndex(max(0, self.layout_preset_combo.findText(label_for_value(LAYOUT_PRESET_LABELS, str(getattr(cfg, "layout_preset", "horizontal_debug" if self._state.layout_preset == "horizontal" else "edge_strip")), default="Edge strip"))))
                 self.simple_calibration_widget = SimpleCalibrationWidget(qt=qt, title="Corner calibration")
                 self.reverse_checkbox = self.simple_calibration_widget.reverse_orientation_checkbox; self.reverse_checkbox.setChecked(self._state.reverse_zones)
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.device_zone_count_slider.setRange(1, self._device_zone_count_max()); self.device_zone_count_slider.setValue(self._state.device_zone_count)
@@ -268,7 +266,6 @@ class SettingsDialog:
                 ):
                     signal.connect(self._refresh_preview_label)
                 self.zone_count_slider.valueChanged.connect(self._on_zone_count_slider_changed)
-                self.layout_preset_combo.currentIndexChanged.connect(self._on_zone_preset_changed)
                 self.device_zone_count_slider.valueChanged.connect(self._on_device_zone_count_slider_changed)
                 self._on_device_zone_count_slider_changed()
                 self.simple_calibration_widget.bind_callbacks(
@@ -493,7 +490,6 @@ class SettingsDialog:
                 group = QGroupBox("Edge Mapping")
                 layout = QGridLayout()
                 layout.addWidget(QLabel("Screen sampling zone count"), 0, 0); layout.addWidget(self.zone_count_slider, 0, 1); layout.addWidget(self.zone_count_value, 0, 2)
-                layout.addWidget(QLabel("Layout"), 1, 0); layout.addWidget(self.layout_preset_combo, 1, 1, 1, 2)
                 layout.addWidget(QLabel("Strip LED zone count"), 4, 0); layout.addWidget(self.device_zone_count_slider, 4, 1); layout.addWidget(self.device_zone_count_value, 4, 2)
                 layout.addWidget(self.device_zone_count_status_label, 5, 0, 1, 3)
                 layout.addWidget(self.strip_count_warning_label, 6, 0, 1, 3)
@@ -527,8 +523,7 @@ class SettingsDialog:
             def wants_display_configurator(self) -> bool: return bool(self._open_display_configurator)
 
             def _pull_state(self):
-                layout_preset = value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_preset_combo.currentText()), default="edge_strip")
-                self._state.zone_count = int(self.zone_count_slider.value()); self._state.layout_preset = layout_preset; self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value())
+                self._state.zone_count = int(self.zone_count_slider.value()); self._state.layout_preset = "edge_strip"; self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value())
                 self._state.calibration_model = "corner_anchored"
 
             def _set_slider_value_safely(self, slider, value: int) -> None:
@@ -786,6 +781,7 @@ class SettingsDialog:
                 self._set_slider_value_safely(self.black_luminance_cutoff_slider, 32)
                 self._set_slider_value_safely(self.black_luminance_knee_slider, 24)
                 self._refresh_preview_label()
+                self._send_guided_calibration_pattern()
 
             def _guided_helper_adjust(self, label: str) -> None:
                 if label == "Too blue":
@@ -802,12 +798,16 @@ class SettingsDialog:
                     self._set_slider_value_safely(self.red_gain_slider, self.red_gain_slider.value() - 1)
                     self._set_slider_value_safely(self.green_gain_slider, self.green_gain_slider.value() - 1)
                     self._set_slider_value_safely(self.blue_gain_slider, self.blue_gain_slider.value() + 1)
+                elif label == "Looks neutral":
+                    self.color_accuracy_diagnostic_label.setText("Looks neutral: keeping current preview values.")
                 self._refresh_preview_label()
+                self._send_guided_calibration_pattern()
 
             def _save_active_led_calibration_profile(self) -> None:
                 style = str(self.display_preset_combo.currentText()).strip().lower()
                 target = "SDR" if style == "sdr" else "HDR"
                 self.color_accuracy_diagnostic_label.setText(f"Saved active LED calibration profile for {target}.")
+                self._send_guided_calibration_pattern()
 
             def _open_guided_led_calibration(self) -> None:
                 dialog = LedColorCalibrationDialog(
@@ -815,8 +815,57 @@ class SettingsDialog:
                     on_reset=self._reset_led_calibration,
                     on_helper_adjust=self._guided_helper_adjust,
                     on_save_profile=self._save_active_led_calibration_profile,
+                    on_step_changed=self._on_guided_calibration_step_changed,
+                    on_open=self._on_guided_calibration_opened,
+                    on_close=self._on_guided_calibration_closed,
                 )
                 dialog.exec()
+
+            def _on_guided_calibration_opened(self) -> None:
+                self._runtime_status["_guided_calibration_step"] = 0
+                self._send_guided_calibration_pattern()
+
+            def _on_guided_calibration_step_changed(self, step: int) -> None:
+                self._runtime_status["_guided_calibration_step"] = int(step)
+                self._send_guided_calibration_pattern()
+
+            def _on_guided_calibration_closed(self) -> None:
+                self._runtime_status.pop("_guided_calibration_step", None)
+
+            def _guided_pattern_base(self, step: int) -> list[tuple[int, int, int]]:
+                levels: list[list[tuple[int, int, int]]] = [
+                    [(255, 255, 255)],
+                    [(0, 0, 0), (4, 4, 4), (12, 12, 12), (24, 24, 24)],
+                    [(32, 32, 32), (64, 64, 64), (128, 128, 128), (255, 255, 255)],
+                    [(255, 240, 220), (255, 255, 255), (220, 235, 255)],
+                    [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (0, 255, 255), (255, 0, 255)],
+                    [(120, 110, 100), (110, 120, 130), (130, 120, 110), (110, 110, 120)],
+                    [(255, 255, 255), (0, 0, 0)],
+                    [(255, 255, 255)],
+                ]
+                return levels[max(0, min(step, len(levels) - 1))]
+
+            def _send_guided_calibration_pattern(self) -> None:
+                if self._calibration_sender is None:
+                    return
+                step = int(self._runtime_status.get("_guided_calibration_step", 0) or 0)
+                base = self._guided_pattern_base(step)
+                calibration = LedCalibration(
+                    red_gain=self.red_gain_slider.value() / 100.0,
+                    green_gain=self.green_gain_slider.value() / 100.0,
+                    blue_gain=self.blue_gain_slider.value() / 100.0,
+                    led_gamma=self.led_gamma_slider.value() / 100.0,
+                    white_balance_temperature=self.white_balance_slider.value() / 100.0,
+                    chroma_compression=self.chroma_compression_slider.value() / 100.0,
+                    neutral_luminance_gain=self.neutral_luminance_gain_slider.value() / 100.0,
+                    black_luminance_cutoff=self.black_luminance_cutoff_slider.value() / 10000.0,
+                    black_luminance_knee=self.black_luminance_knee_slider.value() / 10000.0,
+                )
+                calibrated = apply_led_calibration(np.asarray(base, dtype=np.float32), calibration)
+                colors = [tuple(int(v) for v in row.tolist()) for row in np.clip(np.rint(calibrated), 0, 255).astype(np.uint8)]
+                device_zones = max(1, int(self.device_zone_count_slider.value()))
+                repeated = [colors[i % len(colors)] for i in range(device_zones)]
+                self._calibration_sender(repeated)
 
             def _send_reference_test_colours(self) -> None:
                 if self._calibration_sender is None:
@@ -952,11 +1001,6 @@ class SettingsDialog:
                 self._state.source_zones_user_configured = True
                 self._refresh_preview_label()
 
-            def _on_zone_preset_changed(self, *_args) -> None:
-                if value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_preset_combo.currentText()), default="edge_strip") != "edge_strip":
-                    self._source_zones_locked_to_device_count = False
-                self._refresh_preview_label()
-
             def _active_backend(self) -> str:
                 preview_status = {
                     **(runtime_status or {}),
@@ -970,6 +1014,7 @@ class SettingsDialog:
             def _run_latency_probe_manual(self):
                 info = backend_selection_info(self._runtime_status, cfg)
                 measured = self._measured_latency_from_runtime(triggered_by="manual")
+                probe_details = self._backend_probe_breakdown_text(selected_backend=self._active_backend())
                 if measured is not None:
                     self._latest_latency = build_latency_result(
                         requested_policy=info.requested_policy,
@@ -980,7 +1025,7 @@ class SettingsDialog:
                         measurement_kind="measured",
                         confidence_note=measured["confidence_note"],
                         triggered_by="manual",
-                        details=measured["details"],
+                        details=f"{measured['details']}\n{probe_details}",
                     )
                     self.run_latency_button.setText("Measure latency")
                 else:
@@ -993,7 +1038,7 @@ class SettingsDialog:
                         measurement_kind="unavailable",
                         confidence_note="Start mirroring before measuring latency.",
                         triggered_by="manual",
-                        details=f"Configured frame interval: {1000.0 / max(1, int(self.fps_slider.value())):.1f} ms at {int(self.fps_slider.value())} FPS",
+                        details=f"Configured frame interval: {1000.0 / max(1, int(self.fps_slider.value())):.1f} ms at {int(self.fps_slider.value())} FPS\n{probe_details}",
                     )
                     self.run_latency_button.setText("Measure latency")
                 self.latency_label.setText(latency_result_summary(self._latest_latency))
@@ -1002,6 +1047,7 @@ class SettingsDialog:
                 if should_auto_run_latency_probe(policy=str(self.auto_latency_policy_combo.currentText()), last_result=self._latest_latency, active_backend=self._active_backend()):
                     info = backend_selection_info(self._runtime_status, cfg)
                     measured = self._measured_latency_from_runtime(triggered_by="auto")
+                    probe_details = self._backend_probe_breakdown_text(selected_backend=self._active_backend())
                     if measured is not None:
                         self._latest_latency = build_latency_result(
                             requested_policy=info.requested_policy,
@@ -1012,7 +1058,7 @@ class SettingsDialog:
                             measurement_kind="measured",
                             confidence_note=measured["confidence_note"],
                             triggered_by="auto",
-                            details=measured["details"],
+                            details=f"{measured['details']}\n{probe_details}",
                         )
                         self.run_latency_button.setText("Measure latency")
                     else:
@@ -1025,7 +1071,7 @@ class SettingsDialog:
                             measurement_kind="unavailable",
                             confidence_note="Runtime has not processed frames yet.",
                             triggered_by="auto",
-                            details=f"Configured frame interval: {1000.0 / max(1, int(self.fps_slider.value())):.1f} ms at {int(self.fps_slider.value())} FPS",
+                            details=f"Configured frame interval: {1000.0 / max(1, int(self.fps_slider.value())):.1f} ms at {int(self.fps_slider.value())} FPS\n{probe_details}",
                         )
                         self.run_latency_button.setText("Measure latency")
                     self.latency_label.setText(latency_result_summary(self._latest_latency))
@@ -1055,6 +1101,36 @@ class SettingsDialog:
                     ),
                 }
 
+            def _backend_probe_breakdown_text(self, *, selected_backend: str) -> str:
+                rows = self._runtime_status.get("backend_probe_attempts")
+                if not isinstance(rows, list) or not rows:
+                    return "Backend attempts: unavailable (probe not run yet)."
+                measured_rows = 0
+                formatted: list[str] = []
+                for item in rows:
+                    if not isinstance(item, dict):
+                        continue
+                    status = str(item.get("status") or "skipped")
+                    sample_count = int(item.get("sample_count") or 0)
+                    if status == "tested" and sample_count > 0:
+                        measured_rows += 1
+                    median = item.get("median_ms")
+                    p95 = item.get("p95_ms")
+                    jitter = item.get("jitter_ms")
+                    median_text = f"{float(median):.1f}" if isinstance(median, (int, float)) else "-"
+                    p95_text = f"{float(p95):.1f}" if isinstance(p95, (int, float)) else "-"
+                    jitter_text = f"{float(jitter):.1f}" if isinstance(jitter, (int, float)) else "-"
+                    formatted.append(
+                        f"- {item.get('backend')}: {status} reason={item.get('reason') or '-'} "
+                        f"samples={sample_count} median={median_text} p95={p95_text} jitter={jitter_text} "
+                        f"{'[selected]' if bool(item.get('selected')) else ''}"
+                    )
+                if measured_rows < 2:
+                    formatted.insert(0, "Best backend: not enough measured candidates (need >=2).")
+                else:
+                    formatted.insert(0, f"Best backend selected: {selected_backend}.")
+                return "Backend attempts:\n" + "\n".join(formatted)
+
             def focus_section(self, section_name: str) -> bool:
                 target = self._section_widgets.get(section_name)
                 if target is None:
@@ -1080,7 +1156,7 @@ class SettingsDialog:
                 else:
                     vid_value = int(str(self.device_vid_combo.currentText()), 0)
                     pid_value = int(str(self.device_pid_combo.currentText()), 0)
-                new_zones = make_edge_weighted_zones(self._state.zone_count, edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight")) if self._state.layout_preset == "edge_strip" else make_horizontal_zones(self._state.zone_count)
+                new_zones = make_edge_weighted_zones(self._state.zone_count, edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"))
                 calibration_schema_version = int(getattr(cfg, "calibration_schema_version", 1) or 1)
                 calibration_payload = CalibrationConfig(
                     schema_version=calibration_schema_version,
@@ -1129,7 +1205,7 @@ class SettingsDialog:
                         if str(self.display_preset_combo.currentText()).strip().lower() != "sdr"
                         else getattr(cfg, "led_calibration_profile_hdr", LedCalibrationProfile())
                     ),
-                    zones=new_zones, layout_preset=value_for_label(LAYOUT_PRESET_LABELS, str(self.layout_preset_combo.currentText()), default="edge_strip"), edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"), light_spread=value_for_label(LIGHT_SPREAD_LABELS, str(self.light_spread_combo.currentText()), default="balanced"), motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"), color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"), display_preset=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="hdr"),
+                    zones=new_zones, layout_preset="edge_strip", edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"), light_spread=value_for_label(LIGHT_SPREAD_LABELS, str(self.light_spread_combo.currentText()), default="balanced"), motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"), color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"), display_preset=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="hdr"),
                     start_on_launch=bool(self.start_on_launch_checkbox.isChecked()), device_zone_count=self._state.device_zone_count,
                     output_channel_order=str(self.output_channel_order_combo.currentText()), reverse_zones=self._state.reverse_zones,
                     corner_anchor_top_left=int(self._state.corner_anchor_top_left),

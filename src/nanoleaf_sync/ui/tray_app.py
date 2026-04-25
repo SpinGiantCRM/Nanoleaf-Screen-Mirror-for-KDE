@@ -28,6 +28,7 @@ from nanoleaf_sync.tools.output_format import describe_mode, summarize_command_o
 from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.settings_dialog import SettingsDialog
+from nanoleaf_sync.runtime.output_session import OutputSessionController
 
 SELF_CHECK_IMPORTS: tuple[str, ...] = (
     "nanoleaf_sync.config.store",
@@ -173,6 +174,7 @@ class NanoleafTrayApp:
         self._startup_warning: str | None = None
         self._preview_driver = None
         self._preview_paused_service = False
+        self._output_session = OutputSessionController()
         try:
             self._config_created = self.cfg_mgr.initialize(mode="full-real", force=False)
             self.config = self.cfg_mgr.load()
@@ -225,15 +227,19 @@ class NanoleafTrayApp:
 
         was_paused = self._preview_paused_service
         self._preview_paused_service = False
+        self._output_session.release("setup")
         if was_paused and resume_service and not self.service.is_running():
             self.service.start()
 
     def _acquire_preview_driver(self):
         if self._preview_driver is not None:
             return self._preview_driver
-        if self.service.is_running():
+        running = self.service.is_running()
+        self._output_session.acquire("setup", mirroring_active=running)
+        if running:
             self._preview_paused_service = True
-            self.on_stop()
+            self.service.stop()
+            self.service.join(timeout=1.2)
         driver = self._make_preview_driver()
         driver.initialize()
         self._preview_driver = driver
