@@ -44,3 +44,13 @@ def test_sdr_white_reference_controls_present() -> None:
     assert "Capture one diagnostic frame" in text
     assert "Export live sampling overlay" in text
     assert "Export synthetic sampling test overlay" in text
+
+
+def test_guided_led_calibration_controls_present() -> None:
+    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    assert "Calibrate LED colour" in text
+    assert "Black cutoff" in text
+    assert "Neutral luminance: controls how bright grey/white screen areas appear on the LEDs." in text
+    assert "Reference mode is used for calibration because it avoids saturation boost." in open(
+        "src/nanoleaf_sync/ui/led_color_calibration_dialog.py", "r", encoding="utf-8"
+    ).read()

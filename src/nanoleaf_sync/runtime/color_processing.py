@@ -76,6 +76,8 @@ class LedCalibration:
     white_balance_temperature: float = 0.0
     chroma_compression: float = 0.0
     neutral_luminance_gain: float = 1.0
+    black_luminance_cutoff: float = 0.0032
+    black_luminance_knee: float = 0.0024
 
 
 def _linear_to_oklab(linear_rgb: np.ndarray) -> np.ndarray:
@@ -182,6 +184,22 @@ def apply_led_calibration(colors: np.ndarray, calibration: LedCalibration) -> np
     l = np.clip(l * (1.0 + (neutral_gain - 1.0) * neutral_w), 0.0, 1.0)
     out = oklch_to_rgb_u8(l.astype(np.float32), c.astype(np.float32), h.astype(np.float32)).astype(np.float32)
 
+    cutoff = np.clip(float(calibration.black_luminance_cutoff), 0.0, 0.03)
+    knee = np.clip(float(calibration.black_luminance_knee), 0.0005, 0.03)
+    if cutoff > 0.0:
+        out_linear = srgb_u8_to_linear01(np.clip(np.rint(out), 0.0, 255.0).astype(np.uint8, copy=False))
+        y = np.clip(
+            (0.2126 * out_linear[..., 0]) + (0.7152 * out_linear[..., 1]) + (0.0722 * out_linear[..., 2]),
+            0.0,
+            1.0,
+        )
+        gate = _smoothstep(
+            np.full_like(y, max(0.0, cutoff - knee)),
+            np.full_like(y, cutoff + knee),
+            y,
+        )[..., None]
+        out *= gate
+
     gamma = np.clip(float(calibration.led_gamma), 1.0, 4.0)
     if abs(gamma - 1.0) > 1e-6:
         out = np.power(np.clip(out / 255.0, 0.0, 1.0), 1.0 / gamma) * 255.0
@@ -236,4 +254,5 @@ def color_pipeline_diagnostics(
         "neutral_floor_applied": neutral_floor_applied,
         "black_cutoff_applied": black_cutoff_applied,
         "chroma_cap_applied": bool(chroma_cap_applied),
+        "led_calibration_applied": tuple(int(v) for v in in_rgb.tolist()) != tuple(int(v) for v in out_rgb.tolist()),
     }
