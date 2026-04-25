@@ -45,6 +45,7 @@ class RuntimeState:
     latest_zone_side_counts: Tuple[int, int, int, int] = (0, 0, 0, 0)
     latest_edge_sampling_thickness: float | None = None
     latest_zone_diagnostics: List[dict[str, Any]] = field(default_factory=list)
+    latest_side_variance_diagnostics: dict[str, dict[str, float | bool]] = field(default_factory=dict)
 
     def reset_for_start(self) -> None:
         self.prev_smoothed_colors = []
@@ -68,6 +69,7 @@ class RuntimeState:
         self.latest_zone_side_counts = (0, 0, 0, 0)
         self.latest_edge_sampling_thickness = None
         self.latest_zone_diagnostics = []
+        self.latest_side_variance_diagnostics = {}
 
     def mark_startup(self, succeeded: bool) -> None:
         self.startup_succeeded = succeeded

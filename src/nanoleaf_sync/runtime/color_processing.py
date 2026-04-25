@@ -63,6 +63,17 @@ STYLE_PROFILES = {
 }
 
 
+@dataclass(frozen=True)
+class LedCalibration:
+    red_gain: float = 1.0
+    green_gain: float = 1.0
+    blue_gain: float = 1.0
+    led_gamma: float = 1.0
+    white_balance_temperature: float = 0.0
+    chroma_compression: float = 0.0
+    neutral_luminance_gain: float = 1.0
+
+
 def _linear_to_oklab(linear_rgb: np.ndarray) -> np.ndarray:
     lms = linear_rgb @ _M1_T
     lms_cbrt = np.cbrt(np.clip(lms, 0.0, None))
@@ -93,13 +104,15 @@ def oklch_to_rgb_u8(l: np.ndarray, c: np.ndarray, h: np.ndarray) -> np.ndarray:
     return linear01_to_srgb_u8(linear)
 
 
-def apply_color_style_mapping(colors: np.ndarray, *, color_style: str) -> np.ndarray:
+def apply_color_style_mapping_with_diagnostics(colors: np.ndarray, *, color_style: str) -> tuple[np.ndarray, np.ndarray]:
     style = STYLE_PROFILES.get(str(color_style).strip().lower(), STYLE_PROFILES["ambient"])
     rgb = np.clip(np.rint(colors), 0.0, 255.0).astype(np.uint8, copy=False)
     l, c, h = rgb_u8_to_oklch(rgb)
 
     c_boosted = c * style.chroma_boost
-    c_capped = np.minimum(c_boosted, c * style.chroma_cap_ratio)
+    c_cap = c * style.chroma_cap_ratio
+    cap_applied = c_boosted > c_cap + 1e-7
+    c_capped = np.minimum(c_boosted, c_cap)
     c_mapped = c_capped / (1.0 + (style.chroma_compression * c_capped))
 
     neutral_weight = np.clip((style.neutral_threshold - c) / max(style.neutral_threshold, 1e-6), 0.0, 1.0)
@@ -108,10 +121,41 @@ def apply_color_style_mapping(colors: np.ndarray, *, color_style: str) -> np.nda
     l_mapped = np.where(low_sat, np.maximum(l_mapped, l * 0.92), l_mapped)
     c_mapped = np.where(neutral_weight > 0.85, 0.0, c_mapped)
 
-    return oklch_to_rgb_u8(l_mapped.astype(np.float32), c_mapped.astype(np.float32), h.astype(np.float32))
+    out = oklch_to_rgb_u8(l_mapped.astype(np.float32), c_mapped.astype(np.float32), h.astype(np.float32))
+    return out, cap_applied
 
 
-def color_pipeline_diagnostics(*, input_rgb: Any, output_rgb: Any) -> dict[str, float | bool | tuple[int, int, int]]:
+def apply_color_style_mapping(colors: np.ndarray, *, color_style: str) -> np.ndarray:
+    out, _ = apply_color_style_mapping_with_diagnostics(colors, color_style=color_style)
+    return out
+
+
+def apply_led_calibration(colors: np.ndarray, calibration: LedCalibration) -> np.ndarray:
+    rgb = np.clip(np.asarray(colors, dtype=np.float32), 0.0, 255.0)
+    gains = np.asarray([calibration.red_gain, calibration.green_gain, calibration.blue_gain], dtype=np.float32)
+    rgb *= np.clip(gains, 0.5, 1.5)
+
+    wb = float(np.clip(calibration.white_balance_temperature, -1.0, 1.0))
+    if abs(wb) > 1e-6:
+        wb_gain = np.asarray([1.0 + (0.12 * wb), 1.0, 1.0 - (0.12 * wb)], dtype=np.float32)
+        rgb *= wb_gain
+
+    rgb8 = np.clip(np.rint(rgb), 0.0, 255.0).astype(np.uint8, copy=False)
+    l, c, h = rgb_u8_to_oklch(rgb8)
+    c = c / (1.0 + (np.clip(float(calibration.chroma_compression), 0.0, 0.6) * c))
+
+    neutral_w = np.clip((0.03 - c) / 0.03, 0.0, 1.0)
+    neutral_gain = np.clip(float(calibration.neutral_luminance_gain), 0.7, 1.5)
+    l = np.clip(l * (1.0 + (neutral_gain - 1.0) * neutral_w), 0.0, 1.0)
+    out = oklch_to_rgb_u8(l.astype(np.float32), c.astype(np.float32), h.astype(np.float32)).astype(np.float32)
+
+    gamma = np.clip(float(calibration.led_gamma), 1.0, 4.0)
+    if abs(gamma - 1.0) > 1e-6:
+        out = np.power(np.clip(out / 255.0, 0.0, 1.0), 1.0 / gamma) * 255.0
+    return np.clip(out, 0.0, 255.0)
+
+
+def color_pipeline_diagnostics(*, input_rgb: Any, output_rgb: Any, chroma_cap_applied: bool = False) -> dict[str, float | bool | tuple[int, int, int]]:
     in_rgb = np.clip(np.rint(np.asarray(input_rgb, dtype=np.float32)), 0.0, 255.0).astype(np.uint8)
     out_rgb = np.clip(np.rint(np.asarray(output_rgb, dtype=np.float32)), 0.0, 255.0).astype(np.uint8)
     l_in, c_in, h_in = rgb_u8_to_oklch(in_rgb[None, :])
@@ -128,7 +172,10 @@ def color_pipeline_diagnostics(*, input_rgb: Any, output_rgb: Any) -> dict[str, 
         "output_lightness": float(l_out[0]),
         "input_chroma": c_in_v,
         "output_chroma": c_out_v,
+        "input_hue_degrees": float(np.degrees(h_in[0])),
+        "output_hue_degrees": float(np.degrees(h_out[0])),
         "chroma_ratio": float(c_out_v / c_in_v) if c_in_v > 1e-6 else 1.0,
         "hue_difference_degrees": 0.0 if neutral_in else hue_diff,
         "neutral_grey_preserved": bool((not neutral_in) or neutral_out),
+        "chroma_cap_applied": bool(chroma_cap_applied),
     }

@@ -51,6 +51,12 @@ class AppConfig:
     smoothing: float = 0.5  # One-Euro minimum responsiveness in [0.0, 1.0]
     smoothing_speed: float = 0.75  # Adaptive motion gain in [0.0, 4.0]; lower = slower response / more smoothing.
     led_gamma: float = 1.0  # Output correction for LED electrical response.
+    red_gain: float = 1.0
+    green_gain: float = 1.0
+    blue_gain: float = 1.0
+    white_balance_temperature: float = 0.0  # Cool/warm tint bias in [-1, 1].
+    chroma_compression: float = 0.0
+    neutral_luminance_gain: float = 1.0
 
     # Zones
     zones: list[ZoneConfig] = field(default_factory=list)
@@ -63,6 +69,7 @@ class AppConfig:
     # New preset architecture (canonical model).
     layout_preset: str = "edge_strip"
     edge_locality: str = "balanced"
+    light_spread: str = "balanced"
     sampling_quality: str = "high"
     motion_preset: str = "responsive"
     color_style: str = "ambient"
