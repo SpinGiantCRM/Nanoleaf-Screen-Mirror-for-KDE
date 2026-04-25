@@ -46,7 +46,11 @@ from nanoleaf_sync.runtime.diagnostics_exports import (
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text as _mapping_preview_text
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones
 from nanoleaf_sync.ui.led_color_calibration_dialog import LedColorCalibrationDialog
-from nanoleaf_sync.capture.factory import run_explicit_xdg_portal_probe, run_fresh_backend_probe
+from nanoleaf_sync.capture.factory import (
+    run_explicit_xdg_portal_probe,
+    run_fresh_backend_probe,
+    run_manual_portal_benchmark,
+)
 
 FPS_MIN = 1
 FPS_MAX = 120
@@ -221,6 +225,7 @@ class SettingsDialog:
                 self.run_latency_button = QPushButton("Measure active backend latency")
                 self.retest_backends_button = QPushButton("Re-test backends (fresh probe)")
                 self.test_xdg_portal_button = QPushButton("Test xdg-portal")
+                self.benchmark_xdg_portal_button = QPushButton("Benchmark xdg-portal")
                 self.latency_label = QLabel(latency_result_summary(None))
                 self.xdg_hint_label = QLabel("")
 
@@ -290,6 +295,7 @@ class SettingsDialog:
                 self.run_latency_button.clicked.connect(self._run_latency_probe_manual)
                 self.retest_backends_button.clicked.connect(self._run_fresh_backend_probe)
                 self.test_xdg_portal_button.clicked.connect(self._run_xdg_portal_test)
+                self.benchmark_xdg_portal_button.clicked.connect(self._run_xdg_portal_benchmark)
                 self.edge_locality_diagnostic_button.clicked.connect(self._run_edge_locality_diagnostic)
                 self.color_accuracy_diagnostic_button.clicked.connect(self._run_color_accuracy_diagnostic)
                 self.run_self_check_button.clicked.connect(self._run_self_check)
@@ -408,24 +414,25 @@ class SettingsDialog:
                 layout.addWidget(self.run_latency_button, 4, 0, 1, 1)
                 layout.addWidget(self.retest_backends_button, 4, 1, 1, 1)
                 layout.addWidget(self.test_xdg_portal_button, 4, 2, 1, 1)
-                layout.addWidget(self.latency_label, 5, 0, 1, 3)
-                layout.addWidget(self.xdg_hint_label, 6, 0, 1, 3)
-                layout.addWidget(self.edge_locality_diagnostic_button, 7, 0, 1, 3)
-                layout.addWidget(self.edge_locality_diagnostic_label, 8, 0, 1, 3)
-                layout.addWidget(self.color_accuracy_diagnostic_button, 9, 0, 1, 3)
-                layout.addWidget(self.color_accuracy_diagnostic_label, 10, 0, 1, 3)
-                layout.addWidget(self.run_self_check_button, 11, 0, 1, 3)
-                layout.addWidget(self.self_check_label, 12, 0, 1, 3)
-                layout.addWidget(self.capture_one_diagnostic_frame_button, 13, 0, 1, 3)
-                layout.addWidget(self.export_live_sampling_overlay_button, 14, 0, 1, 3)
-                layout.addWidget(self.export_synthetic_sampling_overlay_button, 15, 0, 1, 3)
-                layout.addWidget(self.sampling_export_label, 16, 0, 1, 3)
-                layout.addWidget(self.export_zone_report_button, 17, 0, 1, 3)
-                layout.addWidget(self.zone_report_label, 18, 0, 1, 3)
-                layout.addWidget(self.export_latency_report_button, 19, 0, 1, 3)
-                layout.addWidget(self.latency_report_label, 20, 0, 1, 3)
-                layout.addWidget(self.diagnostics_mapping_label, 21, 0, 1, 3)
-                layout.addWidget(self.hdr_colour_path_label, 22, 0, 1, 3)
+                layout.addWidget(self.benchmark_xdg_portal_button, 5, 0, 1, 3)
+                layout.addWidget(self.latency_label, 6, 0, 1, 3)
+                layout.addWidget(self.xdg_hint_label, 7, 0, 1, 3)
+                layout.addWidget(self.edge_locality_diagnostic_button, 8, 0, 1, 3)
+                layout.addWidget(self.edge_locality_diagnostic_label, 9, 0, 1, 3)
+                layout.addWidget(self.color_accuracy_diagnostic_button, 10, 0, 1, 3)
+                layout.addWidget(self.color_accuracy_diagnostic_label, 11, 0, 1, 3)
+                layout.addWidget(self.run_self_check_button, 12, 0, 1, 3)
+                layout.addWidget(self.self_check_label, 13, 0, 1, 3)
+                layout.addWidget(self.capture_one_diagnostic_frame_button, 14, 0, 1, 3)
+                layout.addWidget(self.export_live_sampling_overlay_button, 15, 0, 1, 3)
+                layout.addWidget(self.export_synthetic_sampling_overlay_button, 16, 0, 1, 3)
+                layout.addWidget(self.sampling_export_label, 17, 0, 1, 3)
+                layout.addWidget(self.export_zone_report_button, 18, 0, 1, 3)
+                layout.addWidget(self.zone_report_label, 19, 0, 1, 3)
+                layout.addWidget(self.export_latency_report_button, 20, 0, 1, 3)
+                layout.addWidget(self.latency_report_label, 21, 0, 1, 3)
+                layout.addWidget(self.diagnostics_mapping_label, 22, 0, 1, 3)
+                layout.addWidget(self.hdr_colour_path_label, 23, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -1119,6 +1126,41 @@ class SettingsDialog:
                         self.xdg_hint_label.setText("")
                 except Exception as exc:  # noqa: BLE001
                     self.latency_label.setText(f"xdg-portal test failed: {exc}")
+
+            def _run_xdg_portal_benchmark(self) -> None:
+                self.latency_label.setText(
+                    "Running manual xdg-portal benchmark. This may show a portal consent prompt."
+                )
+                width = int(self._runtime_status.get("capture_width") or 1920)
+                height = int(self._runtime_status.get("capture_height") or 1080)
+                result = run_manual_portal_benchmark(width=width, height=height, samples=30)
+                if str(result.get("status")) != "tested":
+                    reason = str(result.get("reason") or "unknown failure")
+                    self.latency_label.setText(f"Manual xdg-portal benchmark failed: {reason}")
+                    return
+                rows = []
+                for item in list(result.get("results") or []):
+                    if not isinstance(item, dict):
+                        continue
+                    rows.append(
+                        (
+                            f"- backend={item.get('backend')} target={item.get('target_capture_size')} "
+                            f"actual={item.get('actual_frame_size')} format={item.get('format')} "
+                            f"bytes={item.get('frame_bytes')} stride={item.get('stride')} "
+                            f"median={float(item.get('median_capture_ms') or 0.0):.2f}ms "
+                            f"p95={float(item.get('p95_capture_ms') or 0.0):.2f}ms "
+                            f"jitter={float(item.get('jitter_ms') or 0.0):.2f}ms "
+                            f"fps={float(item.get('effective_fps') or 0.0):.2f} "
+                            f"empty={item.get('empty_buffers')} failed={item.get('failed_frames')} "
+                            f"cpu-conv={float(item.get('cpu_conversion_median_ms') or 0.0):.2f}ms "
+                            f"e2e={item.get('e2e_frame_to_hid_ms')}"
+                        )
+                    )
+                self.latency_label.setText(
+                    "Manual xdg-portal benchmark:\n"
+                    f"status={result.get('status')} recommendation={result.get('recommendation')}\n"
+                    + "\n".join(rows)
+                )
 
             def _maybe_auto_run_latency_check(self):
                 if should_auto_run_latency_probe(policy=str(self.auto_latency_policy_combo.currentText()), last_result=self._latest_latency, active_backend=self._active_backend()):

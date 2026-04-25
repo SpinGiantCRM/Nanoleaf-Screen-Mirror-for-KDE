@@ -12,6 +12,8 @@ def test_latency_backend_breakdown_reports_all_attempts() -> None:
     assert "selected_reason=" in text
     assert "Re-test backends (fresh probe)" in text
     assert "Test xdg-portal" in text
+    assert "Benchmark xdg-portal" in text
+    assert "def _run_xdg_portal_benchmark" in text
 
 
 def test_service_exposes_backend_probe_attempts() -> None:

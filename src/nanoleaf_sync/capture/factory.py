@@ -4,6 +4,7 @@ from importlib import import_module
 import logging
 import os
 from pathlib import Path
+import statistics
 import threading
 import time
 from typing import Callable
@@ -36,6 +37,7 @@ _capability_cache: dict[str, tuple[float, bool]] = {}
 _last_auto_probe_report_lock = threading.Lock()
 _last_auto_probe_report: list[dict[str, object]] = []
 _explicit_portal_probe_lock = threading.Lock()
+_portal_benchmark_lock = threading.Lock()
 
 
 
@@ -337,6 +339,133 @@ def run_explicit_xdg_portal_probe(*, width: int, height: int) -> dict[str, objec
         return probe.run_explicit_diagnostic()
     finally:
         _explicit_portal_probe_lock.release()
+
+
+def _percentile(values: list[float], pct: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    idx = int(round((len(ordered) - 1) * pct))
+    return float(ordered[max(0, min(len(ordered) - 1, idx))])
+
+
+def _jitter(values: list[float]) -> float:
+    if len(values) <= 1:
+        return 0.0
+    return float(max(values) - min(values))
+
+
+def _benchmark_backend(*, backend_name: str, width: int, height: int, samples: int) -> dict[str, object]:
+    backend = create_capture_backend(
+        width=width,
+        height=height,
+        use_mock_capture=False,
+        prefer_backend=backend_name,
+    )
+    capture_ms: list[float] = []
+    conversion_ms: list[float] = []
+    empty_buffers = 0
+    failed_frames = 0
+    frame_bytes = 0
+    actual_size = "unknown"
+    fmt = "unknown"
+    stride = None
+    started = time.monotonic()
+    try:
+        for _ in range(max(1, samples)):
+            call_start = time.monotonic()
+            try:
+                frame = backend.capture()
+            except Exception:
+                failed_frames += 1
+                continue
+            capture_ms.append((time.monotonic() - call_start) * 1000.0)
+            convert_start = time.monotonic()
+            if frame.size <= 0 or frame.nbytes <= 0:
+                empty_buffers += 1
+            frame_bytes = int(frame.nbytes)
+            if frame.ndim == 3:
+                actual_size = f"{frame.shape[1]}x{frame.shape[0]}"
+                fmt = "RGB"
+                stride = int(frame.strides[0]) if frame.strides else None
+            conversion_ms.append((time.monotonic() - convert_start) * 1000.0)
+    finally:
+        close_fn = getattr(backend, "close", None)
+        if callable(close_fn):
+            close_fn()
+
+    elapsed_s = max(0.0001, time.monotonic() - started)
+    return {
+        "backend": backend_name,
+        "target_capture_size": f"{width}x{height}",
+        "actual_frame_size": actual_size,
+        "format": fmt,
+        "frame_bytes": frame_bytes,
+        "stride": stride,
+        "median_capture_ms": float(statistics.median(capture_ms)) if capture_ms else 0.0,
+        "p95_capture_ms": _percentile(capture_ms, 0.95),
+        "jitter_ms": _jitter(capture_ms),
+        "effective_fps": len(capture_ms) / elapsed_s,
+        "empty_buffers": empty_buffers,
+        "failed_frames": failed_frames,
+        "cpu_conversion_median_ms": float(statistics.median(conversion_ms)) if conversion_ms else 0.0,
+        "e2e_frame_to_hid_ms": None,
+        "sample_count": len(capture_ms),
+    }
+
+
+def run_manual_portal_benchmark(*, width: int, height: int, samples: int = 30) -> dict[str, object]:
+    if not _portal_benchmark_lock.acquire(blocking=False):
+        return {
+            "status": "failed",
+            "mode": "manual-benchmark",
+            "reason": "A Benchmark xdg-portal operation is already in progress.",
+        }
+    try:
+        portal_test = run_explicit_xdg_portal_probe(width=width, height=height)
+        if str(portal_test.get("status")) != "tested":
+            return {
+                "status": "failed",
+                "mode": "manual-benchmark",
+                "reason": portal_test.get("reason")
+                or "Portal stream negotiated, but no CPU-readable frame was received.",
+                "portal_test": portal_test,
+            }
+
+        portal_stats = _benchmark_backend(
+            backend_name=XDG_PORTAL_BACKEND,
+            width=width,
+            height=height,
+            samples=samples,
+        )
+        kwin_stats = _benchmark_backend(
+            backend_name=KWIN_DBUS_BACKEND,
+            width=width,
+            height=height,
+            samples=samples,
+        )
+        portal_better = (
+            float(portal_stats["p95_capture_ms"]) <= float(kwin_stats["p95_capture_ms"])
+            and float(portal_stats["jitter_ms"]) <= float(kwin_stats["jitter_ms"])
+            and int(portal_stats["empty_buffers"]) == 0
+            and int(portal_stats["sample_count"]) >= max(10, samples // 2)
+        )
+        return {
+            "status": "tested",
+            "mode": "manual-benchmark",
+            "selected_backend": KWIN_DBUS_BACKEND,
+            "reason": "Manual xdg-portal benchmark completed.",
+            "recommendation": (
+                "candidate default (manual benchmark only; not auto-selected)"
+                if portal_better
+                else "working fallback, not recommended"
+            ),
+            "portal_requires_prompt_each_launch": None,
+            "results": [portal_stats, kwin_stats],
+            "portal_test": portal_test,
+        }
+    finally:
+        _portal_benchmark_lock.release()
 
 
 def _resolve_prefer_backend(

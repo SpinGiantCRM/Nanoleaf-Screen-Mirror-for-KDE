@@ -1,9 +1,7 @@
 import asyncio
-import logging
-import sys
 import types
-from pathlib import Path
 
+import numpy as np
 import pytest
 
 from nanoleaf_sync.capture.xdg_portal import XDGPortalCapture, XDGPortalError
@@ -25,45 +23,31 @@ def test_negotiate_portal_fails_cleanly_without_unique_name(monkeypatch) -> None
         asyncio.run(backend._negotiate_portal())
 
 
-class _FakeProc:
-    def __init__(self) -> None:
-        self.terminated = False
-        self.killed = False
-
-    def terminate(self) -> None:
-        self.terminated = True
-
-    def wait(self, timeout: float) -> None:  # pragma: no cover - trivial
-        raise TimeoutError("synthetic wait timeout")
-
-    def kill(self) -> None:
-        self.killed = True
-
-
-class _FakeMMap:
-    def __init__(self) -> None:
-        self.closed = False
-
-    def close(self) -> None:
-        self.closed = True
-
-
-def test_close_pipewire_stream_kills_stuck_gstreamer_process(monkeypatch) -> None:
+def test_close_pipewire_stream_stops_gstreamer_pipeline(monkeypatch) -> None:
     backend = XDGPortalCapture(width=4, height=4)
     backend._use_gstreamer = True
-    backend._gst_proc = _FakeProc()
-    backend._shm_mm = _FakeMMap()
-    backend._shm_file = types.SimpleNamespace(name="/tmp/fake-portal-frame.raw")
+    calls: list[str] = []
 
-    unlinked: list[str] = []
-    monkeypatch.setattr("os.unlink", lambda path: unlinked.append(path))
+    class _FakePipeline:
+        def set_state(self, _state) -> None:
+            calls.append("null")
+
+    backend._gst_pipeline = _FakePipeline()
+
+    class _FakeGst:
+        class State:
+            NULL = object()
+
+    import sys
+
+    monkeypatch.setitem(sys.modules, "gi", types.SimpleNamespace())
+    monkeypatch.setitem(sys.modules, "gi.repository", types.SimpleNamespace(Gst=_FakeGst))
 
     backend._close_pipewire_stream()
 
-    assert backend._gst_proc.terminated is True
-    assert backend._gst_proc.killed is True
-    assert backend._shm_mm.closed is True
-    assert unlinked == ["/tmp/fake-portal-frame.raw"]
+    assert calls == ["null"]
+    assert backend._gst_pipeline is None
+    assert backend._gst_sink is None
 
 
 def test_open_pipewire_stream_falls_back_when_binding_symbols_missing(
@@ -82,10 +66,12 @@ def test_open_pipewire_stream_falls_back_when_binding_symbols_missing(
     def _fake_open_via_gstreamer(fd: int, node_id: int) -> None:
         calls.append((fd, node_id))
 
+    import sys
+
     monkeypatch.setitem(sys.modules, "pipewire", _FakePipewire())
     monkeypatch.setattr(backend, "_open_via_gstreamer", _fake_open_via_gstreamer)
 
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level("INFO"):
         backend._open_pipewire_stream(fd=11, node_id=22)
 
     assert calls == [(11, 22)]
@@ -93,115 +79,83 @@ def test_open_pipewire_stream_falls_back_when_binding_symbols_missing(
     assert "SpaPod" in caplog.text
 
 
-def test_open_pipewire_stream_falls_back_on_pipewire_attribute_error(
-    monkeypatch, caplog: pytest.LogCaptureFixture
-) -> None:
-    backend = XDGPortalCapture(width=4, height=4)
-    calls: list[tuple[int, int]] = []
-
-    def _raise_attr_error(_fd: int, _node_id: int) -> None:
-        raise AttributeError("synthetic missing attribute")
-
-    def _fake_open_via_gstreamer(fd: int, node_id: int) -> None:
-        calls.append((fd, node_id))
-
-    monkeypatch.setattr(backend, "_pipewire_python_is_supported", lambda: (True, "supported"))
-    monkeypatch.setattr(backend, "_open_via_pipewire_python", _raise_attr_error)
-    monkeypatch.setattr(backend, "_open_via_gstreamer", _fake_open_via_gstreamer)
-
-    with caplog.at_level(logging.WARNING):
-        backend._open_pipewire_stream(fd=33, node_id=44)
-
-    assert calls == [(33, 44)]
-    assert "falling back to GStreamer" in caplog.text
-
-
-class _FakeReadableMMap:
-    def __init__(self, payload: bytes) -> None:
-        self._payload = payload
-
-    def seek(self, _offset: int) -> None:
-        return
-
-    def read(self, size: int) -> bytes:
-        return self._payload[:size]
-
-
-def test_read_frame_gstreamer_waits_for_first_frame_then_returns_array(monkeypatch) -> None:
+def test_read_frame_gstreamer_returns_none_without_sink() -> None:
     backend = XDGPortalCapture(width=2, height=2)
-    backend._frame_bytes = 12
-    backend._shm_file = types.SimpleNamespace(name="/tmp/fake.raw")
-    backend._shm_mm = _FakeReadableMMap(bytes(range(12)))
-    backend._first_frame_ready = False
-    backend._first_frame_deadline_s = 0.1
-    backend._first_frame_poll_interval_s = 0.0
-    backend._shm_initial_mtime_ns = 100
+    backend._use_gstreamer = True
+    assert backend._read_frame_gstreamer() is None
 
-    stats = iter(
-        [
-            types.SimpleNamespace(st_size=12, st_mtime_ns=100),
-            types.SimpleNamespace(st_size=12, st_mtime_ns=101),
-        ]
+
+def test_mapped_bytes_to_rgb_handles_bgrx_and_stride_padding() -> None:
+    backend = XDGPortalCapture(width=2, height=1)
+    # Two pixels in BGRx with 4 bytes of row padding
+    payload = bytes([
+        10, 20, 30, 0,
+        40, 50, 60, 0,
+        0, 0, 0, 0,
+    ])
+    frame = backend._mapped_bytes_to_rgb(
+        payload=payload,
+        width=2,
+        height=1,
+        fmt="BGRx",
+        stride=12,
     )
-    monotonic_values = iter([0.0, 0.01, 0.02, 0.03])
-
-    monkeypatch.setattr("os.stat", lambda _path: next(stats))
-    monkeypatch.setattr("time.monotonic", lambda: next(monotonic_values))
-    monkeypatch.setattr("time.sleep", lambda _seconds: None)
-
-    frame = backend._read_frame_gstreamer()
-
     assert frame is not None
-    assert frame.shape == (2, 2, 3)
-    assert backend._first_frame_ready is True
+    assert frame.shape == (1, 2, 3)
+    # Converted RGB
+    assert frame[0, 0].tolist() == [30, 20, 10]
+    assert frame[0, 1].tolist() == [60, 50, 40]
 
 
-def test_read_frame_gstreamer_raises_clear_error_on_cold_start_timeout(monkeypatch) -> None:
+@pytest.mark.parametrize("fmt", ["RGB", "BGR", "RGBx", "BGRx", "RGBA", "BGRA"])
+def test_mapped_bytes_to_rgb_supports_multiple_formats(fmt: str) -> None:
+    backend = XDGPortalCapture(width=1, height=1)
+    if fmt in {"RGB", "BGR"}:
+        payload = bytes([1, 2, 3])
+    else:
+        payload = bytes([1, 2, 3, 255])
+    frame = backend._mapped_bytes_to_rgb(payload=payload, width=1, height=1, fmt=fmt, stride=None)
+    assert isinstance(frame, np.ndarray)
+    assert frame.shape == (1, 1, 3)
+
+
+def test_explicit_diagnostic_reports_zero_byte_buffer_details(monkeypatch) -> None:
     backend = XDGPortalCapture(width=2, height=2)
-    backend._frame_bytes = 12
-    backend._shm_file = types.SimpleNamespace(name=str(Path("/tmp/fake.raw")))
-    backend._shm_mm = _FakeReadableMMap(b"")
-    backend._first_frame_ready = False
-    backend._first_frame_deadline_s = 0.01
-    backend._first_frame_poll_interval_s = 0.0
-    backend._shm_initial_mtime_ns = 100
 
-    monotonic_values = iter([0.0, 0.005, 0.02])
-    monkeypatch.setattr(
-        "os.stat",
-        lambda _path: types.SimpleNamespace(st_size=0, st_mtime_ns=100),
-    )
-    monkeypatch.setattr("time.monotonic", lambda: next(monotonic_values))
-    monkeypatch.setattr("time.sleep", lambda _seconds: None)
+    monkeypatch.setattr(backend, "initialize", lambda: None)
+    monkeypatch.setattr(backend, "close", lambda: None)
 
-    with pytest.raises(XDGPortalError, match="timed out waiting for first frame bytes"):
-        backend._read_frame_gstreamer()
+    def _capture() -> np.ndarray:
+        backend._last_frame_diag = {
+            "sample_received": True,
+            "buffer_present": True,
+            "buffer_reported_size": 0,
+            "memory_count": 1,
+            "mapped_memory_size": 0,
+            "caps": "video/x-raw,format=RGB,width=2,height=2",
+            "width": 2,
+            "height": 2,
+            "format": "RGB",
+            "framerate": "30/1",
+            "stride": 6,
+            "pts_ns": 100,
+            "dts_ns": 90,
+            "duration_ns": 33_000_000,
+            "empty_buffer_count": 3,
+            "non_empty_buffer_count": 0,
+        }
+        return np.zeros((0,), dtype=np.uint8)
 
+    monkeypatch.setattr(backend, "capture", _capture)
 
-def test_read_frame_gstreamer_reports_repeated_empty_buffers(monkeypatch) -> None:
-    backend = XDGPortalCapture(width=2, height=2)
-    backend._frame_bytes = 12
-    backend._shm_file = types.SimpleNamespace(name=str(Path("/tmp/fake.raw")))
-    backend._shm_mm = _FakeReadableMMap(b"")
-    backend._first_frame_ready = False
-    backend._first_frame_deadline_s = 0.2
-    backend._first_frame_poll_interval_s = 0.0
-    backend._shm_initial_mtime_ns = 100
-    backend._MAX_EMPTY_FIRST_BUFFERS = 2
-
-    stats = iter(
-        [
-            types.SimpleNamespace(st_size=12, st_mtime_ns=101),
-            types.SimpleNamespace(st_size=12, st_mtime_ns=102),
-        ]
-    )
-    monotonic_values = iter([0.0, 0.01, 0.02, 0.03])
-    monkeypatch.setattr("os.stat", lambda _path: next(stats))
-    monkeypatch.setattr("time.monotonic", lambda: next(monotonic_values))
-    monkeypatch.setattr("time.sleep", lambda _seconds: None)
-
-    with pytest.raises(XDGPortalError, match="produced empty buffers"):
-        backend._read_frame_gstreamer()
+    result = backend.run_explicit_diagnostic()
+    assert result["status"] == "failed"
+    details = result["details"]
+    assert details["sample_received"] is True
+    assert details["buffer_present"] is True
+    assert details["buffer_reported_size"] == 0
+    assert details["mapped_memory_size"] == 0
+    assert details["empty_buffer_count"] == 3
 
 
 def test_explicit_diagnostic_returns_staged_failure(monkeypatch) -> None:
