@@ -46,6 +46,15 @@ def test_sdr_white_reference_controls_present() -> None:
     assert "Export synthetic sampling test overlay" in text
 
 
+def test_fps_slider_label_value_and_tooltip_text() -> None:
+    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    assert "Target capture/output FPS" in text
+    assert 'self.fps_value.setText(f"{self.fps_slider.value()} FPS")' in text
+    assert "This is the target update rate. Actual output FPS may be lower if capture, processing, or HID output cannot keep up." in text
+    assert 'self.fps_slider.setRange(FPS_MIN, FPS_MAX)' in text
+    assert "FPS_MAX = 120" in text
+
+
 def test_guided_led_calibration_controls_present() -> None:
     text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
     assert "Calibrate LED colour" in text
