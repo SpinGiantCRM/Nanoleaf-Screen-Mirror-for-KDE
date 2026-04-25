@@ -39,6 +39,19 @@ class CalibrationConfig:
 
 
 @dataclass
+class LedCalibrationProfile:
+    red_gain: float = 1.0
+    green_gain: float = 1.0
+    blue_gain: float = 1.0
+    led_gamma: float = 1.0
+    white_balance_temperature: float = 0.0
+    chroma_compression: float = 0.0
+    neutral_luminance_gain: float = 1.0
+    black_luminance_cutoff: float = 0.0032
+    black_luminance_knee: float = 0.0024
+
+
+@dataclass
 class AppConfig:
     # Capture
     fps: int = 30
@@ -57,6 +70,10 @@ class AppConfig:
     white_balance_temperature: float = 0.0  # Cool/warm tint bias in [-1, 1].
     chroma_compression: float = 0.0
     neutral_luminance_gain: float = 1.0
+    black_luminance_cutoff: float = 0.0032
+    black_luminance_knee: float = 0.0024
+    led_calibration_profile_sdr: LedCalibrationProfile = field(default_factory=LedCalibrationProfile)
+    led_calibration_profile_hdr: LedCalibrationProfile = field(default_factory=LedCalibrationProfile)
 
     # Zones
     zones: list[ZoneConfig] = field(default_factory=list)

@@ -5,7 +5,7 @@ import logging
 from typing import Any, Dict, List
 
 from nanoleaf_sync.capture.backend_selection import normalize_backend_preference, normalize_cached_backend
-from nanoleaf_sync.config.model import AppConfig, CalibrationConfig, ZoneConfig
+from nanoleaf_sync.config.model import AppConfig, CalibrationConfig, LedCalibrationProfile, ZoneConfig
 from nanoleaf_sync.config.presets import (
     COLOR_STYLE_PRESETS,
     DISPLAY_PRESETS,
@@ -99,6 +99,8 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     white_balance_temperature = max(-1.0, min(1.0, float(getattr(cfg, "white_balance_temperature", 0.0))))
     chroma_compression = max(0.0, min(0.6, float(getattr(cfg, "chroma_compression", 0.0))))
     neutral_luminance_gain = max(0.7, min(1.5, float(getattr(cfg, "neutral_luminance_gain", 1.0))))
+    black_luminance_cutoff = max(0.0, min(0.03, float(getattr(cfg, "black_luminance_cutoff", 0.0032))))
+    black_luminance_knee = max(0.0005, min(0.03, float(getattr(cfg, "black_luminance_knee", 0.0024))))
     fps = max(1, min(120, int(cfg.fps)))
 
     sampling_quality = normalize_preset(getattr(cfg, "sampling_quality", AppConfig.sampling_quality), allowed=SAMPLING_QUALITY_PRESETS, default=AppConfig.sampling_quality)
@@ -154,6 +156,23 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     prefer_backend = normalize_backend_preference(cfg.prefer_backend)
     auto_probe_policy = normalize_enum(getattr(cfg, "auto_probe_policy", AppConfig.auto_probe_policy), allowed={"first-run": "first-run", "first_run": "first-run", "each-boot": "each-boot", "each_boot": "each-boot", "on-change": "on-change", "on_change": "on-change"}, default=AppConfig.auto_probe_policy)
 
+    def _normalize_profile(profile: object) -> LedCalibrationProfile:
+        p = profile if isinstance(profile, LedCalibrationProfile) else LedCalibrationProfile()
+        return LedCalibrationProfile(
+            red_gain=max(0.5, min(1.5, float(getattr(p, "red_gain", 1.0)))),
+            green_gain=max(0.5, min(1.5, float(getattr(p, "green_gain", 1.0)))),
+            blue_gain=max(0.5, min(1.5, float(getattr(p, "blue_gain", 1.0)))),
+            led_gamma=max(1.0, min(4.0, float(getattr(p, "led_gamma", 1.0)))),
+            white_balance_temperature=max(-1.0, min(1.0, float(getattr(p, "white_balance_temperature", 0.0)))),
+            chroma_compression=max(0.0, min(0.6, float(getattr(p, "chroma_compression", 0.0)))),
+            neutral_luminance_gain=max(0.7, min(1.5, float(getattr(p, "neutral_luminance_gain", 1.0)))),
+            black_luminance_cutoff=max(0.0, min(0.03, float(getattr(p, "black_luminance_cutoff", 0.0032)))),
+            black_luminance_knee=max(0.0005, min(0.03, float(getattr(p, "black_luminance_knee", 0.0024)))),
+        )
+
+    sdr_profile = _normalize_profile(getattr(cfg, "led_calibration_profile_sdr", LedCalibrationProfile()))
+    hdr_profile = _normalize_profile(getattr(cfg, "led_calibration_profile_hdr", LedCalibrationProfile()))
+
     return AppConfig(
         fps=fps,
         prefer_backend=prefer_backend,
@@ -167,6 +186,10 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         white_balance_temperature=white_balance_temperature,
         chroma_compression=chroma_compression,
         neutral_luminance_gain=neutral_luminance_gain,
+        black_luminance_cutoff=black_luminance_cutoff,
+        black_luminance_knee=black_luminance_knee,
+        led_calibration_profile_sdr=sdr_profile,
+        led_calibration_profile_hdr=hdr_profile,
         zones=zones,
         zone_sampling_stride=zone_sampling_stride,
         layout_preset=layout_preset,

@@ -356,7 +356,7 @@ class NanoleafSyncService:
                 hdr_max_nits=getattr(self.config, "hdr_max_nits", 1000.0),
                 return_diagnostics=True,
             )
-            _, sampled_zone_colors, final_zone_colors = processed
+            _, sampled_zone_colors, pre_led_colors, final_zone_colors = processed
             self._runtime.latest_frame_rgb = frame
             self._runtime.last_frame_width = int(img_w)
             self._runtime.last_frame_height = int(img_h)
@@ -366,6 +366,7 @@ class NanoleafSyncService:
             rows: list[dict[str, object]] = []
             for zone_index, rect in enumerate(zones_px):
                 sampled_rgb = tuple(int(c) for c in sampled_zone_colors[zone_index].tolist())
+                pre_led_rgb = tuple(int(c) for c in pre_led_colors[zone_index].tolist())
                 final_rgb = tuple(int(c) for c in final_zone_colors[zone_index].tolist())
                 top, right, bottom, left = self._runtime.latest_zone_side_counts
                 if zone_index < top:
@@ -384,6 +385,7 @@ class NanoleafSyncService:
                         "side": side,
                         "pixel_rect": rect,
                         "sampled_rgb": sampled_rgb,
+                        "output_rgb_before_led_calibration": pre_led_rgb,
                         "final_output_rgb": final_rgb,
                         "mapped_physical_led_index": zone_index,
                     }

@@ -333,13 +333,15 @@ def process_frame(
     white_balance_temperature: float = 0.0,
     chroma_compression: float = 0.0,
     neutral_luminance_gain: float = 1.0,
+    black_luminance_cutoff: float = 0.0032,
+    black_luminance_knee: float = 0.0024,
     color_style: str = "natural",
     edge_locality: str = "tight",
     compositor_hdr_mode: bool = False,
     sdr_boost_nits: float = 80.0,
     hdr_max_nits: float = 1000.0,
     return_diagnostics: bool = False,
-) -> list[RGBTuple] | tuple[list[RGBTuple], np.ndarray, np.ndarray]:
+) -> list[RGBTuple] | tuple[list[RGBTuple], np.ndarray, np.ndarray, np.ndarray]:
     """
     Hot-path frame processing pipeline:
     capture frame -> zone colors -> map -> brightness/smoothing -> send-ready colors.
@@ -398,6 +400,7 @@ def process_frame(
                 motion_preset=motion_preset,
             )
 
+    pre_led_calibration = np.array(mapped, copy=True)
     mapped = apply_led_calibration(
         mapped,
         LedCalibration(
@@ -408,6 +411,8 @@ def process_frame(
             white_balance_temperature=white_balance_temperature,
             chroma_compression=chroma_compression,
             neutral_luminance_gain=neutral_luminance_gain,
+            black_luminance_cutoff=black_luminance_cutoff,
+            black_luminance_knee=black_luminance_knee,
         ),
     )
 
@@ -416,7 +421,7 @@ def process_frame(
     out = mapped.astype(np.uint8, copy=False)
     out_list = [tuple(int(c) for c in row) for row in out.tolist()]
     if return_diagnostics:
-        return out_list, raw_colors.astype(np.uint8, copy=False), out
+        return out_list, raw_colors.astype(np.uint8, copy=False), pre_led_calibration.astype(np.uint8, copy=False), out
     return out_list
 
 
@@ -543,6 +548,11 @@ def run_loop(
                     ),
                 )
 
+                active_profile = (
+                    getattr(config, "led_calibration_profile_sdr", None)
+                    if str(getattr(config, "display_preset", "hdr")).strip().lower() == "sdr"
+                    else getattr(config, "led_calibration_profile_hdr", None)
+                )
                 processed = process_frame(
                     frame=frame,
                     prev_smoothed_colors=state.prev_smoothed_colors,
@@ -552,15 +562,17 @@ def run_loop(
                     smoothing=config.smoothing,
                     smoothing_speed=config.smoothing_speed,
                     zone_sampling_stride=config.zone_sampling_stride,
-                    led_gamma=config.led_gamma,
+                    led_gamma=float(getattr(active_profile, "led_gamma", config.led_gamma)),
                     motion_preset=getattr(config, "motion_preset", "responsive"),
                     light_spread=getattr(config, "light_spread", "balanced"),
-                    red_gain=float(getattr(config, "red_gain", 1.0)),
-                    green_gain=float(getattr(config, "green_gain", 1.0)),
-                    blue_gain=float(getattr(config, "blue_gain", 1.0)),
-                    white_balance_temperature=float(getattr(config, "white_balance_temperature", 0.0)),
-                    chroma_compression=float(getattr(config, "chroma_compression", 0.0)),
-                    neutral_luminance_gain=float(getattr(config, "neutral_luminance_gain", 1.0)),
+                    red_gain=float(getattr(active_profile, "red_gain", getattr(config, "red_gain", 1.0))),
+                    green_gain=float(getattr(active_profile, "green_gain", getattr(config, "green_gain", 1.0))),
+                    blue_gain=float(getattr(active_profile, "blue_gain", getattr(config, "blue_gain", 1.0))),
+                    white_balance_temperature=float(getattr(active_profile, "white_balance_temperature", getattr(config, "white_balance_temperature", 0.0))),
+                    chroma_compression=float(getattr(active_profile, "chroma_compression", getattr(config, "chroma_compression", 0.0))),
+                    neutral_luminance_gain=float(getattr(active_profile, "neutral_luminance_gain", getattr(config, "neutral_luminance_gain", 1.0))),
+                    black_luminance_cutoff=float(getattr(active_profile, "black_luminance_cutoff", getattr(config, "black_luminance_cutoff", 0.0032))),
+                    black_luminance_knee=float(getattr(active_profile, "black_luminance_knee", getattr(config, "black_luminance_knee", 0.0024))),
                     color_style=getattr(config, "color_style", "natural"),
                     edge_locality=getattr(config, "edge_locality", "balanced"),
                     compositor_hdr_mode=getattr(config, "compositor_hdr_mode", False),
@@ -568,7 +580,7 @@ def run_loop(
                     hdr_max_nits=getattr(config, "hdr_max_nits", 1000.0),
                     return_diagnostics=True,
                 )
-                smoothed_colors, sampled_zone_colors, final_zone_colors = processed
+                smoothed_colors, sampled_zone_colors, pre_led_colors, final_zone_colors = processed
                 processing_end = time.perf_counter()
                 state.prev_smoothed_colors = smoothed_colors
                 state.last_frame_width = int(img_w)
@@ -584,8 +596,10 @@ def run_loop(
                             mapped_led_index = led_idx
                             break
                     if mapped_led_index is None:
+                        pre_led_rgb = sampled_rgb
                         final_rgb = sampled_rgb
                     else:
+                        pre_led_rgb = tuple(int(c) for c in pre_led_colors[mapped_led_index].tolist())
                         final_rgb = tuple(int(c) for c in final_zone_colors[mapped_led_index].tolist())
                     top, right, bottom, left = state.latest_zone_side_counts
                     if zone_index < top:
@@ -604,13 +618,16 @@ def run_loop(
                             "side": side,
                             "pixel_rect": rect,
                             "sampled_rgb": sampled_rgb,
+                            "output_rgb_before_led_calibration": pre_led_rgb,
                             "final_output_rgb": final_rgb,
                             "mapped_physical_led_index": mapped_led_index,
+                            "input_luminance": color_pipeline_diagnostics(input_rgb=sampled_rgb, output_rgb=sampled_rgb, color_style=str(getattr(config, "color_style", "reference")))["sampled_luminance"],
                             **color_pipeline_diagnostics(
                                 input_rgb=sampled_rgb,
                                 output_rgb=final_rgb,
                                 color_style=str(getattr(config, "color_style", "reference")),
                             ),
+                            "led_calibration_applied": pre_led_rgb != final_rgb,
                         }
                     )
                 side_var = _side_variance_diagnostics(
