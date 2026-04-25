@@ -88,6 +88,7 @@ def diagnostics_text_lines(*, status: dict, cfg: AppConfig) -> list[str]:
         f"Edge thickness: {geo['edge_thickness'] if geo['edge_thickness'] is not None else 'n/a'} | sample_step: {geo['sample_step']} | edge locality: {geo['edge_locality']}",
         f"Light spread mode: {status.get('light_spread', 'balanced')}",
         f"Display preset: {geo['display_preset']} | HDR enabled/assumed: {'yes' if geo['hdr_enabled_assumed'] else 'no'}",
+        "Grey and white screen areas create neutral ambient light. Black areas turn the LEDs off.",
         geo["warning_text"] if geo["geometry_warning"] else "Display geometry and capture frame space are consistent.",
         "If per-zone output remains varied but the wall looks blended, this is likely physical diffusion.",
         "If per-zone output is already flat, software processing/sampling spread is likely.",
@@ -185,7 +186,30 @@ def export_zone_report(*, rows: Sequence[dict[str, object]]) -> Path:
     out_dir = Path(tempfile.gettempdir()) / "nanoleaf-kde-sync"
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"zone-report-{int(time.time())}.csv"
-    fields = ["zone_index", "side", "pixel_rect", "sampled_rgb", "final_output_rgb", "mapped_physical_led_index"]
+    base_fields = ["zone_index", "side", "pixel_rect", "sampled_rgb", "final_output_rgb", "mapped_physical_led_index"]
+    extra_fields = [
+        "input_lightness",
+        "output_lightness",
+        "input_chroma",
+        "output_chroma",
+        "chroma_ratio",
+        "neutral_floor_applied",
+        "black_cutoff_applied",
+        "grey_neutrality_verdict",
+        "black_cutoff_verdict",
+        "neutral_luminance_output_value",
+    ]
+    seen = set(base_fields)
+    fields = list(base_fields)
+    for key in extra_fields:
+        if any(key in row for row in rows):
+            fields.append(key)
+            seen.add(key)
+    for row in rows:
+        for key in row.keys():
+            if key not in seen:
+                fields.append(key)
+                seen.add(key)
     with path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=fields)
         writer.writeheader()
