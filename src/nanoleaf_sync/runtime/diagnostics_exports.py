@@ -77,7 +77,7 @@ def diagnostics_text_lines(*, status: dict, cfg: AppConfig) -> list[str]:
     return [
         f"KDE display resolution: {geo['kde_display_size'][0]}x{geo['kde_display_size'][1]}",
         f"KDE scale factor: {geo['kde_scale_factor'] or 'unknown'}",
-        f"Capture backend: {geo['capture_backend']}",
+        f"Selected backend: {geo['capture_backend']}",
         f"Captured frame size: {geo['captured_frame_size'][0]}x{geo['captured_frame_size'][1]}",
         f"Expected display size: {geo['expected_display_size'][0]}x{geo['expected_display_size'][1]}",
         f"Match physical display: {'yes' if geo['matches_physical'] else 'no'}",
@@ -100,48 +100,111 @@ def diagnostics_text_lines(*, status: dict, cfg: AppConfig) -> list[str]:
 def latency_breakdown_lines(*, status: dict) -> list[str]:
     measurement = status.get("latency_measurement")
     if not isinstance(measurement, dict):
-        return ["Live mirroring latency stages: unavailable (no live runtime samples yet)."]
+        return ["Start mirroring to measure live output FPS."]
 
     live_only = bool(measurement.get("live_mirroring_only", False))
     dropped = int(measurement.get("dropped_or_skipped_frames") or 0)
     target_fps = float(measurement.get("target_fps") or 0.0)
-    fps = float(measurement.get("effective_output_fps") or 0.0)
+    effective_output_fps = float(measurement.get("effective_output_fps") or 0.0)
     fps_cap = float(measurement.get("fps_cap") or 0.0)
     fps_cap_reason = str(measurement.get("fps_cap_reason") or "none")
     stages = measurement.get("stages")
     if not isinstance(stages, dict):
-        return ["Live mirroring latency stages: unavailable (stage timing payload missing)."]
-    lines = [
-        "Live mirroring latency stages (live-only metrics: yes)." if live_only
-        else "Live mirroring latency stages (live-only metrics: no).",
-        f"Target FPS: {target_fps:.1f} | Effective output FPS: {fps:.1f} | dropped/skipped frames: {dropped}",
-        (
-            f"FPS cap: {fps_cap:.1f} ({fps_cap_reason})"
-            if fps_cap > 0.0
-            else "FPS cap: unavailable"
-        ),
-    ]
-    stage_order = (
-        "loop_gap_ms",
-        "pacing_wait_ms",
-        "idle_wait_ms",
-        "capture_wait_ms",
-        "frame_processing_ms",
-        "actual_work_ms",
-        "hid_write_ms",
-        "end_to_end_live_ms",
-    )
-    for stage in stage_order:
-        row = stages.get(stage)
-        if not isinstance(row, dict) or not bool(row.get("available", False)):
-            lines.append(f"- {stage}: unavailable")
-            continue
-        lines.append(
-            f"- {stage}: median={float(row.get('median_ms') or 0.0):.2f}ms "
-            f"p95={float(row.get('p95_ms') or 0.0):.2f}ms "
-            f"max={float(row.get('max_ms') or 0.0):.2f}ms "
-            f"n={int(row.get('sample_count') or 0)}"
+        return ["Live output timing diagnostics unavailable (stage timing payload missing)."]
+    frame_interval_target_ms = (1000.0 / target_fps) if target_fps > 0.0 else 0.0
+
+    def _stage(stage_name: str) -> dict[str, float | int | bool]:
+        row = stages.get(stage_name)
+        if not isinstance(row, dict):
+            return {"available": False, "median_ms": 0.0, "p95_ms": 0.0, "sample_count": 0}
+        return {
+            "available": bool(row.get("available", False)),
+            "median_ms": float(row.get("median_ms") or 0.0),
+            "p95_ms": float(row.get("p95_ms") or 0.0),
+            "sample_count": int(row.get("sample_count") or 0),
+        }
+
+    loop_gap = _stage("loop_gap_ms")
+    pacing_wait = _stage("pacing_wait_ms")
+    actual_work = _stage("actual_work_ms")
+    capture_wait = _stage("capture_wait_ms")
+    capture_call = _stage("capture_call_ms")
+    frame_processing = _stage("frame_processing_ms")
+    hid_write = _stage("hid_write_ms")
+
+    target_met_threshold = max(1.0, target_fps * 0.95)
+    target_met = target_fps > 0.0 and effective_output_fps >= target_met_threshold
+    if target_met:
+        status_line = f"{int(round(target_fps))} FPS target is being met."
+    else:
+        status_line = (
+            f"{int(round(target_fps))} FPS target is not being met."
+            if target_fps > 0.0
+            else "FPS target is not configured."
         )
+
+    limiter_line = "Likely limiter: unavailable (insufficient stage data)."
+    if not target_met and target_fps > 0.0:
+        limiter_candidates: list[tuple[str, float]] = []
+        if capture_wait["available"]:
+            limiter_candidates.append(("capture", float(capture_wait["median_ms"])))
+        if frame_processing["available"]:
+            limiter_candidates.append(("processing", float(frame_processing["median_ms"])))
+        if hid_write["available"]:
+            limiter_candidates.append(("HID write", float(hid_write["median_ms"])))
+        scheduler_pressure = 0.0
+        if loop_gap["available"]:
+            scheduler_pressure = max(0.0, float(loop_gap["median_ms"]) - frame_interval_target_ms)
+            scheduler_pressure = max(
+                scheduler_pressure,
+                max(0.0, float(loop_gap["p95_ms"]) - float(loop_gap["median_ms"])),
+            )
+        if pacing_wait["available"]:
+            scheduler_pressure = max(scheduler_pressure, float(pacing_wait["median_ms"]))
+        if scheduler_pressure > 0.0:
+            limiter_candidates.append(("pacing/scheduler", scheduler_pressure))
+        if limiter_candidates:
+            limiting_stage = max(limiter_candidates, key=lambda item: item[1])[0]
+            limiter_line = f"Likely limiter: {limiting_stage}."
+
+    cap_line = "No intentional FPS cap reported."
+    if fps_cap > 0.0:
+        cap_line = f"Intentional FPS cap: {fps_cap:.1f} FPS ({fps_cap_reason})."
+
+    lines = [
+        "Live output timing samples (live mirroring only; xdg-portal benchmark samples excluded)."
+        if live_only
+        else "Live output timing samples (payload includes non-live data; inspect source).",
+        f"configured_target_fps: {target_fps:.1f}",
+        f"effective_output_fps: {effective_output_fps:.1f}",
+        f"frame_interval_target_ms: {frame_interval_target_ms:.2f}",
+        status_line,
+        limiter_line,
+        cap_line,
+        f"dropped/skipped frames: {dropped}",
+    ]
+
+    def _format_stage_pair(label: str, stage_name: str) -> str:
+        row = stages.get(stage_name)
+        if not isinstance(row, dict) or not bool(row.get("available", False)):
+            return f"{label}: unavailable"
+        return (
+            f"{label}: median={float(row.get('median_ms') or 0.0):.2f}ms "
+            f"p95={float(row.get('p95_ms') or 0.0):.2f}ms"
+        )
+
+    lines.extend(
+        [
+            _format_stage_pair("loop_gap_ms", "loop_gap_ms"),
+            _format_stage_pair("pacing_wait_ms", "pacing_wait_ms"),
+            _format_stage_pair("actual_work_ms", "actual_work_ms"),
+            _format_stage_pair("capture_wait_ms", "capture_wait_ms"),
+            _format_stage_pair("capture_call_ms", "capture_call_ms"),
+            _format_stage_pair("frame_processing_ms", "frame_processing_ms"),
+            _format_stage_pair("hid_write_ms", "hid_write_ms"),
+            _format_stage_pair("end_to_end_live_ms", "end_to_end_live_ms"),
+        ]
+    )
     return lines
 
 

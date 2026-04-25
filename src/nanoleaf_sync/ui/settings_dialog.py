@@ -364,7 +364,9 @@ class SettingsDialog:
                 self.brightness_slider.setToolTip("Overall output intensity. Lower values reduce LED brightness.")
                 self.smoothing_slider.setToolTip("Blends frame-to-frame colors to reduce flicker.")
                 self.smoothing_speed_slider.setToolTip("Motion response gain for smoothing. Lower values react slower (more smoothing); 0 keeps the strongest smoothing.")
-                self.fps_slider.setToolTip("Capture/update target rate. Higher FPS uses more CPU/GPU.")
+                self.fps_slider.setToolTip(
+                    "This is the target update rate. Actual output FPS may be lower if capture, processing, or HID output cannot keep up."
+                )
                 self.sampling_quality_combo.setToolTip("Low = better performance, Balanced = default, High = best visual fidelity.")
                 self.led_gamma_slider.setToolTip("Gamma correction for LED response. 1.00 keeps output linear.")
                 self.zone_count_slider.setToolTip("Number of screen sampling zones sampled from the display.")
@@ -502,7 +504,7 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Brightness"), 0, 0); layout.addWidget(self.brightness_slider, 0, 1); layout.addWidget(self.brightness_value, 0, 2)
                 layout.addWidget(QLabel("Smoothing"), 1, 0); layout.addWidget(self.smoothing_slider, 1, 1); layout.addWidget(self.smoothing_value, 1, 2)
                 layout.addWidget(QLabel("Smoothing speed"), 2, 0); layout.addWidget(self.smoothing_speed_slider, 2, 1); layout.addWidget(self.smoothing_speed_value, 2, 2)
-                layout.addWidget(QLabel("Capture FPS"), 3, 0); layout.addWidget(self.fps_slider, 3, 1); layout.addWidget(self.fps_value, 3, 2)
+                layout.addWidget(QLabel("Target capture/output FPS"), 3, 0); layout.addWidget(self.fps_slider, 3, 1); layout.addWidget(self.fps_value, 3, 2)
                 layout.addWidget(QLabel("Quality"), 4, 0); layout.addWidget(self.sampling_quality_combo, 4, 1); layout.addWidget(self.sampling_quality_value, 4, 2)
                 layout.addWidget(QLabel("Vibrancy (LED gamma)"), 5, 0); layout.addWidget(self.led_gamma_slider, 5, 1); layout.addWidget(self.led_gamma_value, 5, 2)
                 group.setLayout(layout)
@@ -562,7 +564,7 @@ class SettingsDialog:
             def _refresh_numeric_labels(self):
                 if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower() != "custom":
                     self._set_slider_value_safely(self.sdr_boost_nits_slider, int(str(self.sdr_white_reference_preset_combo.currentText()).split(" ", 1)[0]))
-                self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} fps"); self.sampling_quality_value.setText({"Low": "Better performance", "Balanced": "Default", "High": "Best visual fidelity"}.get(str(self.sampling_quality_combo.currentText()), "Default")); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}"); self.red_gain_value.setText(f"{self.red_gain_slider.value()/100.0:.2f}"); self.green_gain_value.setText(f"{self.green_gain_slider.value()/100.0:.2f}"); self.blue_gain_value.setText(f"{self.blue_gain_slider.value()/100.0:.2f}"); self.white_balance_value.setText(f"{self.white_balance_slider.value()/100.0:+.2f}"); self.chroma_compression_value.setText(f"{self.chroma_compression_slider.value()/100.0:.2f}"); self.neutral_luminance_gain_value.setText(f"{self.neutral_luminance_gain_slider.value()/100.0:.2f}"); self.black_luminance_cutoff_value.setText(f"{self.black_luminance_cutoff_slider.value()/10000.0:.4f}"); self.black_luminance_knee_value.setText(f"{self.black_luminance_knee_slider.value()/10000.0:.4f}")
+                self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} FPS"); self.sampling_quality_value.setText({"Low": "Better performance", "Balanced": "Default", "High": "Best visual fidelity"}.get(str(self.sampling_quality_combo.currentText()), "Default")); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}"); self.red_gain_value.setText(f"{self.red_gain_slider.value()/100.0:.2f}"); self.green_gain_value.setText(f"{self.green_gain_slider.value()/100.0:.2f}"); self.blue_gain_value.setText(f"{self.blue_gain_slider.value()/100.0:.2f}"); self.white_balance_value.setText(f"{self.white_balance_slider.value()/100.0:+.2f}"); self.chroma_compression_value.setText(f"{self.chroma_compression_slider.value()/100.0:.2f}"); self.neutral_luminance_gain_value.setText(f"{self.neutral_luminance_gain_slider.value()/100.0:.2f}"); self.black_luminance_cutoff_value.setText(f"{self.black_luminance_cutoff_slider.value()/10000.0:.4f}"); self.black_luminance_knee_value.setText(f"{self.black_luminance_knee_slider.value()/10000.0:.4f}")
 
             def _refresh_preview_label(self):
                 self._refresh_numeric_labels(); self._pull_state()
@@ -645,7 +647,7 @@ class SettingsDialog:
                             f"Mapping preview: {self._state.mapping_preview_visual()}",
                             f"Raw device→source mapping: {self._state.mapping_preview_text()}",
                             (
-                                "Live diagnostics unavailable.\nStart mirroring or capture one diagnostic frame to collect live sampling data."
+                                "Live diagnostics unavailable.\nStart mirroring to measure live output FPS."
                                 if not isinstance(self._runtime_status.get("_latest_frame_rgb"), np.ndarray)
                                 else "Live diagnostics available from latest captured frame."
                             ),
