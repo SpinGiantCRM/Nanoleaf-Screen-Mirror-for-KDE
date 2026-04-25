@@ -1,4 +1,5 @@
 import asyncio
+import sys
 import types
 
 import numpy as np
@@ -172,3 +173,178 @@ def test_explicit_diagnostic_returns_staged_failure(monkeypatch) -> None:
     assert result["mode"] == "explicit-test"
     assert result["failing_stage"] == "PipeWire node/stream received"
     assert isinstance(result["stages"], list)
+
+
+def test_extract_caps_metadata_reads_fraction_framerate_without_raising() -> None:
+    backend = XDGPortalCapture(width=2, height=2)
+
+    class _FakeStructure:
+        def get_int(self, key: str) -> tuple[bool, int]:
+            return True, 2 if key == "width" else 1
+
+        def get_string(self, _key: str) -> str:
+            return "RGB"
+
+        def get_fraction(self, _key: str) -> tuple[bool, int, int]:
+            return True, 60, 1
+
+    class _FakeCaps:
+        def to_string(self) -> str:
+            return "video/x-raw,format=RGB,width=2,height=1,framerate=60/1"
+
+        def get_size(self) -> int:
+            return 1
+
+        def get_structure(self, _index: int) -> _FakeStructure:
+            return _FakeStructure()
+
+    fake_video = types.SimpleNamespace(
+        VideoInfo=types.SimpleNamespace(new_from_caps=lambda _caps: types.SimpleNamespace(stride=[6]))
+    )
+
+    metadata = backend._extract_caps_metadata(_FakeCaps(), GstVideo=fake_video)
+
+    assert metadata["caps"] == "video/x-raw,format=RGB,width=2,height=1,framerate=60/1"
+    assert metadata["framerate"] == "60/1"
+    assert metadata["caps_metadata_warning"] is None
+
+
+def test_pull_gst_frame_continues_when_fraction_parse_raises(monkeypatch) -> None:
+    backend = XDGPortalCapture(width=1, height=1)
+    backend._GSTREAMER_FIRST_FRAME_POLL_INTERVAL_S = 0.001
+
+    class _FakeStructure:
+        def get_int(self, key: str) -> tuple[bool, int]:
+            if key == "width":
+                return True, 1
+            if key == "height":
+                return True, 1
+            return False, 0
+
+        def get_string(self, _key: str) -> str:
+            return "RGB"
+
+        def get_fraction(self, _key: str) -> tuple[bool, int, int]:
+            raise TypeError("unknown type GstFraction")
+
+    class _FakeCaps:
+        def to_string(self) -> str:
+            return "video/x-raw,format=RGB,width=1,height=1,framerate=60/1"
+
+        def get_size(self) -> int:
+            return 1
+
+        def get_structure(self, _index: int) -> _FakeStructure:
+            return _FakeStructure()
+
+    class _FakeMapInfo:
+        def __init__(self) -> None:
+            self.data = bytes([1, 2, 3])
+            self.size = 3
+
+    class _FakeBuffer:
+        pts = 0
+        dts = 0
+        duration = 0
+
+        def get_size(self) -> int:
+            return 3
+
+        def n_memory(self) -> int:
+            return 1
+
+        def map(self, _flags):
+            return True, _FakeMapInfo()
+
+        def unmap(self, _map_info) -> None:
+            return None
+
+    class _FakeSample:
+        def get_caps(self) -> _FakeCaps:
+            return _FakeCaps()
+
+        def get_buffer(self) -> _FakeBuffer:
+            return _FakeBuffer()
+
+    class _FakeSink:
+        def try_pull_sample(self, _timeout_ns: int) -> _FakeSample:
+            return _FakeSample()
+
+    fake_gst = types.SimpleNamespace(MapFlags=types.SimpleNamespace(READ=object()))
+    fake_gst_video = types.SimpleNamespace(
+        VideoInfo=types.SimpleNamespace(new_from_caps=lambda _caps: types.SimpleNamespace(stride=[3]))
+    )
+    monkeypatch.setitem(sys.modules, "gi", types.SimpleNamespace())
+    monkeypatch.setitem(sys.modules, "gi.repository", types.SimpleNamespace(Gst=fake_gst, GstVideo=fake_gst_video))
+
+    mapped_calls: list[dict[str, object]] = []
+    original_map = backend._mapped_bytes_to_rgb
+
+    def _recorded_map(**kwargs):
+        mapped_calls.append(kwargs)
+        return original_map(**kwargs)
+
+    monkeypatch.setattr(backend, "_mapped_bytes_to_rgb", _recorded_map)
+
+    frame, diag = backend._pull_gst_frame(_FakeSink(), timeout_s=0.05)
+    failure_summary = backend._describe_gst_pull_failure(diag)
+
+    assert isinstance(frame, np.ndarray)
+    assert mapped_calls, "_mapped_bytes_to_rgb should be attempted even when framerate parsing fails"
+    assert diag["framerate"] == "unknown"
+    assert diag["caps_metadata_warning"] == "unknown type GstFraction"
+    assert diag["rgb_conversion_success"] is True
+    assert "metadata parse warning=unknown type GstFraction" in failure_summary
+
+
+def test_open_via_gstreamer_succeeds_even_with_caps_metadata_warning(monkeypatch) -> None:
+    backend = XDGPortalCapture(width=1, height=1)
+
+    class _FakePipeline:
+        def __init__(self) -> None:
+            self.sink = object()
+
+        def get_by_name(self, _name: str):
+            return self.sink
+
+        def set_state(self, _state):
+            return _FakeGst.StateChangeReturn.SUCCESS
+
+    class _FakeGst:
+        class State:
+            PLAYING = object()
+            NULL = object()
+
+        class StateChangeReturn:
+            FAILURE = object()
+            SUCCESS = object()
+
+        @staticmethod
+        def init(_arg) -> None:
+            return None
+
+        @staticmethod
+        def parse_launch(_desc: str) -> _FakePipeline:
+            return _FakePipeline()
+
+    monkeypatch.setitem(sys.modules, "gi", types.SimpleNamespace())
+    monkeypatch.setitem(sys.modules, "gi.repository", types.SimpleNamespace(Gst=_FakeGst))
+
+    frame = np.zeros((1, 1, 3), dtype=np.uint8)
+    diag = {
+        "sample_received": True,
+        "buffer_present": True,
+        "buffer_reported_size": 3,
+        "mapped_memory_size": 3,
+        "format": "RGB",
+        "framerate": "unknown",
+        "caps_metadata_warning": "unknown type GstFraction",
+        "rgb_conversion_attempted": True,
+        "rgb_conversion_success": True,
+    }
+    monkeypatch.setattr(backend, "_pull_gst_frame", lambda _sink, timeout_s: (frame, diag))
+
+    backend._open_via_gstreamer(fd=7, node_id=77)
+
+    assert backend._use_gstreamer is True
+    assert backend._gst_sink is not None
