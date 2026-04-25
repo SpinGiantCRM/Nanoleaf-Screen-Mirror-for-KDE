@@ -1,30 +1,60 @@
 from __future__ import annotations
 
-from nanoleaf_sync.capture.latency_probe import LatencyProbe
+from nanoleaf_sync.capture.latency_probe import (
+    FrameTimingSample,
+    LatencyProbe,
+    STAGE_CAPTURE_WAIT,
+    STAGE_COLOUR_PROCESSING,
+    STAGE_FRAME_TOTAL,
+    STAGE_HID_WRITE,
+    STAGE_LOOP_GAP,
+    STAGE_SMOOTHING,
+)
 
 
-def test_latency_probe_populates_measured_statistics() -> None:
+def test_latency_probe_populates_per_stage_statistics() -> None:
     probe = LatencyProbe(max_samples=16)
-    base = 100.0
-    for i, delta in enumerate([0.016, 0.017, 0.016, 0.018, 0.016]):
-        capture = base + (i * 0.016)
-        process_done = capture + 0.003
-        send_done = capture + delta
-        assert probe.add_sample(
-            capture_ts=capture,
-            process_done_ts=process_done,
-            send_done_ts=send_done,
+    samples = [
+        FrameTimingSample(
+            stage_ms={
+                STAGE_CAPTURE_WAIT: 1.2,
+                STAGE_COLOUR_PROCESSING: 2.5,
+                STAGE_SMOOTHING: 1.1,
+                STAGE_HID_WRITE: 0.8,
+                STAGE_FRAME_TOTAL: 7.4,
+                STAGE_LOOP_GAP: 8.3,
+            },
+            dropped_or_skipped_frames_delta=1 if i == 0 else 0,
         )
+        for i in range(5)
+    ]
+    for row in samples:
+        assert probe.add_stage_sample(row)
 
     measurement = probe.measurement()
     assert measurement is not None
-    assert measurement.sample_count == 5
-    assert measurement.pipeline_median_ms > 0.0
-    assert measurement.pipeline_p95_ms >= measurement.pipeline_median_ms
-    assert measurement.pipeline_jitter_ms >= 0.0
+    total = measurement.stages[STAGE_FRAME_TOTAL]
+    assert total.sample_count == 5
+    assert total.median_ms > 0.0
+    assert total.p95_ms >= total.median_ms
+    assert total.max_ms >= total.p95_ms
+    assert measurement.dropped_or_skipped_frames == 1
+    assert measurement.effective_output_fps > 0.0
 
 
-def test_latency_probe_rejects_invalid_timestamps() -> None:
+def test_latency_probe_reports_unavailable_stage_honestly() -> None:
     probe = LatencyProbe()
-    assert probe.add_sample(capture_ts=1.0, process_done_ts=0.5, send_done_ts=1.2) is False
+    probe.add_stage_sample(
+        FrameTimingSample(stage_ms={STAGE_FRAME_TOTAL: 8.0, STAGE_LOOP_GAP: 8.3})
+    )
+    measurement = probe.measurement()
+    assert measurement is not None
+    assert measurement.stages[STAGE_CAPTURE_WAIT].available is False
+
+
+def test_latency_probe_rejects_negative_stage_values() -> None:
+    probe = LatencyProbe()
+    assert probe.add_stage_sample(
+        FrameTimingSample(stage_ms={STAGE_FRAME_TOTAL: -1.0})
+    ) is False
     assert probe.measurement() is None

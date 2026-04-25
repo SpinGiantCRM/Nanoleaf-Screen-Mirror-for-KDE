@@ -30,6 +30,18 @@ from nanoleaf_sync.runtime.compositor import (
     apply_sdr_boost_compensation,
     effective_sdr_boost,
 )
+from nanoleaf_sync.capture.latency_probe import (
+    FrameTimingSample,
+    STAGE_CAPTURE_READ,
+    STAGE_CAPTURE_WAIT,
+    STAGE_COLOUR_PROCESSING,
+    STAGE_FRAME_CONVERT,
+    STAGE_FRAME_TOTAL,
+    STAGE_HID_WRITE,
+    STAGE_LOOP_GAP,
+    STAGE_SMOOTHING,
+    STAGE_ZONE_SAMPLING,
+)
 from nanoleaf_sync.runtime.startup import reinitialize_backends, should_reinitialize
 from nanoleaf_sync.runtime.state import (
     DeviceZoneMappingSignature,
@@ -56,6 +68,14 @@ class AdaptiveSmoothingDiagnostics:
     min_effective_alpha: float
     max_effective_alpha: float
     deadband_active: bool
+
+
+@dataclass(frozen=True)
+class FrameProcessingTimings:
+    frame_convert_ms: float | None = None
+    zone_sampling_ms: float | None = None
+    colour_processing_ms: float | None = None
+    smoothing_ms: float | None = None
 
 
 class PendingFrameSlot:
@@ -341,7 +361,7 @@ def process_frame(
     sdr_boost_nits: float = 80.0,
     hdr_max_nits: float = 1000.0,
     return_diagnostics: bool = False,
-) -> list[RGBTuple] | tuple[list[RGBTuple], np.ndarray, np.ndarray, np.ndarray]:
+) -> list[RGBTuple] | tuple[list[RGBTuple], np.ndarray, np.ndarray, np.ndarray, FrameProcessingTimings]:
     """
     Hot-path frame processing pipeline:
     capture frame -> zone colors -> map -> brightness/smoothing -> send-ready colors.
@@ -351,6 +371,8 @@ def process_frame(
             f"Capture returned unexpected frame shape: {getattr(frame, 'shape', None)}"
         )
 
+    timings = FrameProcessingTimings()
+    stage_start = time.perf_counter()
     boost = effective_sdr_boost(sdr_boost_nits=sdr_boost_nits)
     if compositor_hdr_mode and abs(boost - 1.0) > 1e-6:
         frame = apply_sdr_boost_compensation(
@@ -358,6 +380,7 @@ def process_frame(
             sdr_boost_nits=sdr_boost_nits,
             hdr_max_nits=hdr_max_nits,
         )
+    frame_convert_done = time.perf_counter()
 
     analyzer_mode = analyzer_mode_for_presets(motion_preset=motion_preset, color_style=color_style)
     raw_colors = zone_colors_array(
@@ -370,6 +393,7 @@ def process_frame(
     )
     if raw_colors.size == 0:
         return []
+    sampling_done = time.perf_counter()
 
     if isinstance(device_zone_indices, np.ndarray):
         zone_indices = device_zone_indices
@@ -378,6 +402,7 @@ def process_frame(
 
     mapped = raw_colors[zone_indices].astype(np.float32, copy=False)
     mapped = apply_color_style_mapping(mapped, color_style=color_style).astype(np.float32, copy=False)
+    colour_processing_done = time.perf_counter()
     mapped = _apply_neighbor_blend(mapped, spread_mode=light_spread).astype(np.float32, copy=False)
 
     b = max(0.0, min(1.0, float(brightness)))
@@ -399,6 +424,7 @@ def process_frame(
                 smoothing_speed=smoothing_speed,
                 motion_preset=motion_preset,
             )
+    smoothing_done = time.perf_counter()
 
     pre_led_calibration = np.array(mapped, copy=True)
     mapped = apply_led_calibration(
@@ -421,7 +447,13 @@ def process_frame(
     out = mapped.astype(np.uint8, copy=False)
     out_list = [tuple(int(c) for c in row) for row in out.tolist()]
     if return_diagnostics:
-        return out_list, raw_colors.astype(np.uint8, copy=False), pre_led_calibration.astype(np.uint8, copy=False), out
+        timings = FrameProcessingTimings(
+            frame_convert_ms=(frame_convert_done - stage_start) * 1000.0,
+            zone_sampling_ms=(sampling_done - frame_convert_done) * 1000.0,
+            colour_processing_ms=(colour_processing_done - sampling_done) * 1000.0,
+            smoothing_ms=(smoothing_done - colour_processing_done) * 1000.0,
+        )
+        return out_list, raw_colors.astype(np.uint8, copy=False), pre_led_calibration.astype(np.uint8, copy=False), out, timings
     return out_list
 
 
@@ -444,6 +476,8 @@ def run_loop(
     sent_in_window = 0
     sent_any_frame = False
     ewma_capture_to_send_ms = 0.0
+    last_send_done_ts: float | None = None
+    last_replaced_count = 0
 
     pending_slot = PendingFrameSlot()
     capture_worker_lock = threading.Lock()
@@ -483,6 +517,7 @@ def run_loop(
         processing_end = start
         send_done = start
         skip_tick = False
+        capture_wait_ms: float | None = None
         frame = None
         pending = None
 
@@ -521,7 +556,10 @@ def run_loop(
                             0.0,
                             min(interval_s, next_deadline - time.perf_counter()),
                         )
+                        wait_start = time.perf_counter()
                         pending_slot.wait(timeout=min(0.005, wait_budget))
+                        wait_end = time.perf_counter()
+                        capture_wait_ms = (wait_end - wait_start) * 1000.0
                         pending = pending_slot.pop()
                     if pending is None:
                         if stop_requested:
@@ -580,7 +618,7 @@ def run_loop(
                     hdr_max_nits=getattr(config, "hdr_max_nits", 1000.0),
                     return_diagnostics=True,
                 )
-                smoothed_colors, sampled_zone_colors, pre_led_colors, final_zone_colors = processed
+                smoothed_colors, sampled_zone_colors, pre_led_colors, final_zone_colors, processing_timings = processed
                 processing_end = time.perf_counter()
                 state.prev_smoothed_colors = smoothed_colors
                 state.last_frame_width = int(img_w)
@@ -640,12 +678,31 @@ def run_loop(
                     row["processing_flattened_side"] = bool(row["side_variance"].get("processing_flattened", False))
                 state.latest_zone_diagnostics = zone_diagnostics
                 state.latest_side_variance_diagnostics = side_var
+                hid_write_start = time.perf_counter()
                 driver.send_frame(smoothed_colors)
                 send_done = time.perf_counter()
-                state.latency_probe.add_sample(
-                    capture_ts=captured_at,
-                    process_done_ts=processing_end,
-                    send_done_ts=send_done,
+                hid_write_ms = (send_done - hid_write_start) * 1000.0
+                frame_total_ms = (send_done - captured_at) * 1000.0
+                loop_gap_ms = ((send_done - last_send_done_ts) * 1000.0) if last_send_done_ts is not None else None
+                last_send_done_ts = send_done
+                replaced_count = pending_slot.get_replaced_count()
+                dropped_delta = max(0, replaced_count - last_replaced_count)
+                last_replaced_count = replaced_count
+                state.latency_probe.add_stage_sample(
+                    FrameTimingSample(
+                        stage_ms={
+                            STAGE_CAPTURE_WAIT: capture_wait_ms,
+                            STAGE_CAPTURE_READ: None,
+                            STAGE_FRAME_CONVERT: processing_timings.frame_convert_ms,
+                            STAGE_ZONE_SAMPLING: processing_timings.zone_sampling_ms,
+                            STAGE_COLOUR_PROCESSING: processing_timings.colour_processing_ms,
+                            STAGE_SMOOTHING: processing_timings.smoothing_ms,
+                            STAGE_HID_WRITE: hid_write_ms,
+                            STAGE_FRAME_TOTAL: frame_total_ms,
+                            STAGE_LOOP_GAP: loop_gap_ms,
+                        },
+                        dropped_or_skipped_frames_delta=dropped_delta,
+                    )
                 )
                 capture_to_send_ms = (send_done - captured_at) * 1000.0
                 ewma_capture_to_send_ms = (

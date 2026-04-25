@@ -8,9 +8,12 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.diagnostics_exports import (
     diagnostics_text_lines,
     evaluate_geometry,
+    export_latency_report,
     export_sampling_overlay,
     export_zone_report,
 )
+from nanoleaf_sync.runtime.state import RuntimeState
+from nanoleaf_sync.capture.latency_probe import FrameTimingSample, STAGE_FRAME_TOTAL, STAGE_LOOP_GAP
 from nanoleaf_sync.ui.calibration_state import LatencyProbeResult, latency_result_summary
 from nanoleaf_sync.runtime.engine import process_frame
 from nanoleaf_sync.runtime.processing import zones_from_config
@@ -178,3 +181,53 @@ def test_per_zone_differences_survive_processing() -> None:
     assert out_arr.shape[0] == len(zones_px)
     assert np.std(out_arr[:, 0]) > 10
     assert np.std(out_arr[:, 1]) > 10
+
+
+def test_latency_diagnostics_show_unavailable_stage_honestly() -> None:
+    state = RuntimeState()
+    state.latency_probe.add_stage_sample(
+        FrameTimingSample(stage_ms={STAGE_FRAME_TOTAL: 8.0, STAGE_LOOP_GAP: 10.0})
+    )
+    status = state.status_snapshot(
+        running=True,
+        capture_backend_name="kmsgrab",
+        capture_path=None,
+        capture_width=1920,
+        capture_height=1080,
+        max_consecutive_errors=5,
+        reinit_backoff_ms=500,
+    )
+    lines = diagnostics_text_lines(status=status, cfg=AppConfig())
+    text = "\n".join(lines)
+    assert "capture_read_ms: unavailable" in text
+    assert "frame_total_ms: median=" in text
+
+
+def test_latency_samples_reset_on_runtime_start() -> None:
+    state = RuntimeState()
+    state.latency_probe.add_stage_sample(
+        FrameTimingSample(stage_ms={STAGE_FRAME_TOTAL: 7.0, STAGE_LOOP_GAP: 8.0})
+    )
+    assert state.latency_probe.measurement() is not None
+    state.reset_for_start()
+    assert state.latency_probe.measurement() is None
+
+
+def test_latency_export_includes_new_stage_fields() -> None:
+    state = RuntimeState()
+    state.latency_probe.add_stage_sample(
+        FrameTimingSample(stage_ms={STAGE_FRAME_TOTAL: 9.0, STAGE_LOOP_GAP: 12.0})
+    )
+    status = state.status_snapshot(
+        running=True,
+        capture_backend_name="kmsgrab",
+        capture_path=None,
+        capture_width=1920,
+        capture_height=1080,
+        max_consecutive_errors=5,
+        reinit_backoff_ms=500,
+    )
+    out = export_latency_report(status=status)
+    payload = out.read_text(encoding="utf-8")
+    assert "stage,available,sample_count,median_ms,p95_ms,max_ms" in payload
+    assert "frame_total_ms,True,1,9.0,9.0,9.0" in payload
