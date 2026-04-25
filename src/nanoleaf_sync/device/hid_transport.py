@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import sys
+import time
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
@@ -285,19 +286,66 @@ class HIDTransport:
         report[: len(payload)] = payload
         return bytes(report)
 
-    def write(self, report: bytes | bytearray | memoryview | Sequence[int]) -> None:
-        if self._handle is None:
-            raise RuntimeError("HID transport not opened.")
-        payload = bytes(report)
+    def _write_payload(self, payload: bytes) -> dict[str, int | float | list[int] | list[float] | bool | str]:
         payload_capacity = self.report_size
         if payload_capacity <= 0:
             raise RuntimeError(
                 f"Invalid HID report size {payload_capacity}; expected a positive report size"
             )
+        report_count = (len(payload) + payload_capacity - 1) // payload_capacity if payload else 0
+        report_data_sizes = [
+            min(payload_capacity, len(payload) - offset)
+            for offset in range(0, len(payload), payload_capacity)
+        ]
 
-        for offset in range(0, len(payload), payload_capacity):
-            chunk = payload[offset : offset + payload_capacity]
-            self._handle.write(self._build_report(chunk))
+        report_len = payload_capacity + (1 if self.use_report_id_prefix else 0)
+        report_buffer = bytearray(report_len)
+        data_offset = 1 if self.use_report_id_prefix else 0
+        if self.use_report_id_prefix:
+            report_buffer[0] = 0x00
+
+        per_report_write_ms: list[float] = []
+        previous_chunk_size = 0
+        total_write_start = time.perf_counter()
+        for offset, chunk_size in zip(range(0, len(payload), payload_capacity), report_data_sizes):
+            if chunk_size > 0:
+                chunk = payload[offset : offset + chunk_size]
+                report_buffer[data_offset : data_offset + chunk_size] = chunk
+            if previous_chunk_size > chunk_size:
+                report_buffer[data_offset + chunk_size : data_offset + previous_chunk_size] = b"\x00" * (
+                    previous_chunk_size - chunk_size
+                )
+            write_start = time.perf_counter()
+            self._handle.write(report_buffer)
+            write_end = time.perf_counter()
+            per_report_write_ms.append((write_end - write_start) * 1000.0)
+            previous_chunk_size = chunk_size
+        total_write_ms = (time.perf_counter() - total_write_start) * 1000.0
+        return {
+            "report_count": int(report_count),
+            "bytes_per_report": int(payload_capacity),
+            "report_data_sizes": report_data_sizes,
+            "total_frame_bytes": int(len(payload)),
+            "per_report_write_ms": per_report_write_ms,
+            "write_ms": float(total_write_ms),
+            "write_blocking": True,
+            "retry_policy": "none",
+            "rate_limit_policy": "none",
+        }
+
+    def write(self, report: bytes | bytearray | memoryview | Sequence[int]) -> None:
+        if self._handle is None:
+            raise RuntimeError("HID transport not opened.")
+        payload = bytes(report)
+        self._write_payload(payload)
+
+    def write_with_timing(
+        self, report: bytes | bytearray | memoryview | Sequence[int]
+    ) -> dict[str, int | float | list[int] | list[float] | bool | str]:
+        if self._handle is None:
+            raise RuntimeError("HID transport not opened.")
+        payload = bytes(report)
+        return self._write_payload(payload)
 
     def read(self) -> bytes:
         if self._handle is None:
@@ -311,6 +359,12 @@ class HIDTransport:
         return raw
 
     def transceive(self, request: bytes) -> bytes:
+        response, _ = self.transceive_with_timing(request)
+        return response
+
+    def transceive_with_timing(
+        self, request: bytes
+    ) -> tuple[bytes, dict[str, int | float | list[int] | list[float] | bool | str]]:
         """Write TLV request bytes and read enough framed HID bytes for a full TLV response.
 
         Root cause note: some devices (for example NL82K2 firmware variants) return 64-byte
@@ -319,7 +373,7 @@ class HIDTransport:
         length accounting. We therefore evaluate both framing variants and accept the first
         complete TLV that matches the expected response type.
         """
-        self.write(request)
+        write_timing = self.write_with_timing(request)
 
         expected_type = (request[0] + 0x80) & 0xFF
         preferred_first = bool(self.use_report_id_prefix)
@@ -332,9 +386,12 @@ class HIDTransport:
         guard_window_s = max(1.0, float(self.read_timeout_ms) / 1000.0 * 4.0)
         remaining_budget_s = guard_window_s
         per_read_budget_s = max(float(self.read_timeout_ms) / 1000.0, 0.001)
+        read_start = time.perf_counter()
+        read_calls = 0
         while True:
             # Read up to report-size + report-id byte. hidapi may still return 64 bytes.
             raw_chunk = self._handle.read(self.report_size + 1, self.read_timeout_ms)
+            read_calls += 1
             remaining_budget_s -= per_read_budget_s
             if not raw_chunk:
                 if remaining_budget_s > 0:
@@ -355,7 +412,10 @@ class HIDTransport:
                     )
                 expected_len = candidate["expected_len"]
                 if expected_len is not None and len(candidate["buffer"]) >= expected_len:
-                    return bytes(candidate["buffer"][:expected_len])
+                    timing = dict(write_timing)
+                    timing["flush_or_wait_ms"] = (time.perf_counter() - read_start) * 1000.0
+                    timing["read_calls"] = int(read_calls)
+                    return bytes(candidate["buffer"][:expected_len]), timing
             if remaining_budget_s <= 0:
                 received = max(len(c["buffer"]) for c in candidates)
                 raise RuntimeError(

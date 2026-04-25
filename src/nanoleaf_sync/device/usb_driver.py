@@ -50,6 +50,7 @@ class NanoleafUSBDriver(DeviceDriver):
                 "output_channel_order must be a permutation of 'rgb' (for example: rgb, grb, bgr)."
             )
         self._output_channel_order = order
+        self._output_channel_indices = tuple({"r": 0, "g": 1, "b": 2}[ch] for ch in self._output_channel_order)
 
         self.model_number: str | None = None
         self.zone_count: int | None = None
@@ -63,6 +64,20 @@ class NanoleafUSBDriver(DeviceDriver):
         request = self._protocol.build_request(cmd, payload)
         raw_response = self._transport.transceive(request)
         return self._protocol.parse_response(cmd, raw_response)
+
+    def _request_with_timing(self, cmd: int, payload: bytes = b"") -> tuple[bytes, dict[str, float | int | bool | str | list[int] | list[float]]]:
+        request = self._protocol.build_request(cmd, payload)
+        transceive_with_timing = getattr(self._transport, "transceive_with_timing", None)
+        if callable(transceive_with_timing):
+            raw_response, timing = transceive_with_timing(request)
+            parsed = self._protocol.parse_response(cmd, raw_response)
+            normalized_timing: dict[str, float | int | bool | str | list[int] | list[float]] = {}
+            if isinstance(timing, dict):
+                normalized_timing.update(timing)
+            return parsed, normalized_timing
+        raw_response = self._transport.transceive(request)
+        parsed = self._protocol.parse_response(cmd, raw_response)
+        return parsed, {}
 
     def initialize(self) -> None:
         if self._initialized:
@@ -155,12 +170,13 @@ class NanoleafUSBDriver(DeviceDriver):
                 "Update device_zone_count calibration/config so runtime mapping matches the physical strip."
             )
 
-        index_by_channel = {"r": 0, "g": 1, "b": 2}
-        payload = bytes(
-            rgb[index_by_channel[ch]]
-            for rgb in normalized
-            for ch in self._output_channel_order
-        )
+        payload_buffer = bytearray(len(normalized) * 3)
+        write_idx = 0
+        for rgb in normalized:
+            for channel_idx in self._output_channel_indices:
+                payload_buffer[write_idx] = rgb[channel_idx]
+                write_idx += 1
+        payload = bytes(payload_buffer)
         frame_build_end = time.perf_counter()
         request_len = 3 + len(payload)
         report_size = int(getattr(self._transport, "report_size", self.report_size))
@@ -182,15 +198,53 @@ class NanoleafUSBDriver(DeviceDriver):
             report_count,
             chunk_sizes,
         )
-        device_write_start = time.perf_counter()
-        self._request(CMD_SET_ZONE_COLORS, payload)
-        device_write_end = time.perf_counter()
+        _, transport_timing = self._request_with_timing(CMD_SET_ZONE_COLORS, payload)
+        device_write_ms = float(transport_timing.get("write_ms") or 0.0)
+        flush_or_wait_ms = (
+            float(transport_timing.get("flush_or_wait_ms"))
+            if transport_timing.get("flush_or_wait_ms") is not None
+            else None
+        )
+        report_data_sizes = transport_timing.get("report_data_sizes")
+        per_report_write_ms = transport_timing.get("per_report_write_ms")
+        total_bytes = int(transport_timing.get("total_frame_bytes") or request_len)
+        reports_per_frame = int(transport_timing.get("report_count") or report_count)
+        bytes_per_report = int(transport_timing.get("bytes_per_report") or report_size)
+        if isinstance(report_data_sizes, list) and isinstance(per_report_write_ms, list):
+            self._logger.debug(
+                "USB HID write timing: reports_per_frame=%d bytes_per_report=%d total_frame_bytes=%d "
+                "report_data_sizes=%s per_report_write_ms=%s write_ms=%.2f flush_or_wait_ms=%s "
+                "write_blocking=%s retry_policy=%s rate_limit_policy=%s",
+                reports_per_frame,
+                bytes_per_report,
+                total_bytes,
+                report_data_sizes,
+                [round(float(v), 3) for v in per_report_write_ms],
+                device_write_ms,
+                f"{float(flush_or_wait_ms):.3f}" if flush_or_wait_ms is not None else "unavailable",
+                "yes" if bool(transport_timing.get("write_blocking", True)) else "no",
+                str(transport_timing.get("retry_policy", "none")),
+                str(transport_timing.get("rate_limit_policy", "none")),
+            )
         timing = {
             "frame_build_ms": (frame_build_end - frame_build_start) * 1000.0,
-            "device_write_ms": (device_write_end - device_write_start) * 1000.0,
-            "flush_or_wait_ms": None,
-            "device_limited": True,
-            "flush_or_wait_reason": "No explicit flush/wait path in current HID transport.",
+            "device_write_ms": device_write_ms,
+            "flush_or_wait_ms": flush_or_wait_ms,
+            "device_limited": device_write_ms >= 5.0,
+            "flush_or_wait_reason": (
+                "Measured as HID response wait/read time in transport transceive path."
+                if flush_or_wait_ms is not None
+                else "Flush/wait timing unavailable in current HID transport path."
+            ),
+            "reports_per_frame": reports_per_frame,
+            "bytes_per_report": bytes_per_report,
+            "total_frame_bytes": total_bytes,
+            "report_data_sizes": report_data_sizes if isinstance(report_data_sizes, list) else chunk_sizes,
+            "per_report_write_ms": per_report_write_ms if isinstance(per_report_write_ms, list) else [],
+            "write_blocking": bool(transport_timing.get("write_blocking", True)),
+            "write_retry_policy": str(transport_timing.get("retry_policy", "none")),
+            "write_rate_limit_policy": str(transport_timing.get("rate_limit_policy", "none")),
+            "write_read_calls": int(transport_timing.get("read_calls") or 0),
         }
         self.last_send_timing = timing
         if return_timing:

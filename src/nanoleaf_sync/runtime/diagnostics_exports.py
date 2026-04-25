@@ -179,6 +179,7 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
     pending_frame_age = _stage("pending_frame_age_ms")
     frame_processing = _stage("frame_processing_ms")
     hid_write = _stage("hid_write_ms")
+    hid_device_write = _stage("hid_device_write_ms")
     inferred_unattributed_gap = _stage("inferred_unattributed_gap_ms")
     no_pending_frame_ticks = int(counters.get("no_pending_frame_ticks", 0) or 0)
     capture_worker_error_count = int(counters.get("capture_worker_error_count", 0) or 0)
@@ -188,6 +189,15 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
     benchmark_capture_ms = str(labels.get("benchmark_capture_ms", "") or "")
     no_pending_rate = str(labels.get("no_pending_frame_rate_per_second", "") or "")
     hid_device_write_limited = str(labels.get("hid_device_write_limited", "unknown") or "unknown")
+    hid_reports_per_frame = str(labels.get("hid_reports_per_frame", "unavailable") or "unavailable")
+    hid_bytes_per_report = str(labels.get("hid_bytes_per_report", "unavailable") or "unavailable")
+    hid_total_frame_bytes = str(labels.get("hid_total_frame_bytes", "unavailable") or "unavailable")
+    hid_report_data_sizes = str(labels.get("hid_report_data_sizes", "unavailable") or "unavailable")
+    hid_per_report_write_ms = str(labels.get("hid_per_report_write_ms", "unavailable") or "unavailable")
+    hid_write_blocking = str(labels.get("hid_write_blocking", "unknown") or "unknown")
+    hid_write_retry_policy = str(labels.get("hid_write_retry_policy", "unknown") or "unknown")
+    hid_write_rate_limit_policy = str(labels.get("hid_write_rate_limit_policy", "unknown") or "unknown")
+    hid_write_read_calls = str(labels.get("hid_write_read_calls", "unavailable") or "unavailable")
 
     target_met_threshold = max(1.0, target_fps * 0.95)
     target_met = target_fps > 0.0 and effective_output_fps >= target_met_threshold
@@ -322,6 +332,15 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
         f"hid_frame_build_ms: unavailable ({labels.get('hid_frame_build_reason', 'not instrumented')})",
         f"hid_flush_or_wait_ms: unavailable ({labels.get('hid_flush_or_wait_reason', 'not instrumented')})",
         f"hid_device_write_limited: {hid_device_write_limited}",
+        f"hid_reports_per_frame: {hid_reports_per_frame}",
+        f"hid_bytes_per_report: {hid_bytes_per_report}",
+        f"hid_total_frame_bytes: {hid_total_frame_bytes}",
+        f"hid_report_data_sizes: {hid_report_data_sizes}",
+        f"hid_per_report_write_ms: {hid_per_report_write_ms}",
+        f"hid_write_blocking: {hid_write_blocking}",
+        f"hid_write_retry_policy: {hid_write_retry_policy}",
+        f"hid_write_rate_limit_policy: {hid_write_rate_limit_policy}",
+        f"hid_write_read_calls: {hid_write_read_calls}",
     ]
     lines.extend(budget_lines)
     if target_fps >= 120.0 and actual_work["available"] and float(actual_work["median_ms"]) > (1000.0 / 120.0):
@@ -329,9 +348,17 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
     if actual_work["available"] and (1000.0 / 60.0) <= float(actual_work["median_ms"]) <= 20.0:
         lines.append("60 FPS is near target but currently slightly over budget.")
         lines.append("Try 60 FPS for stable use.")
-    if hid_write["available"] and float(hid_write["median_ms"]) >= 5.0:
+    if hid_device_write["available"] and float(hid_device_write["median_ms"]) >= 5.0:
         lines.append(
-            f"HID path appears device-write limited (hid_device_write_ms median ~{float(hid_write['median_ms']):.2f}ms)."
+            f"HID path appears device-write limited (hid_device_write_ms median ~{float(hid_device_write['median_ms']):.2f}ms)."
+        )
+    if hid_device_write["available"] and float(hid_device_write["median_ms"]) > (1000.0 / 60.0):
+        lines.append(
+            "60 FPS cannot be reliably met due to HID write time (hid_device_write_ms exceeds 16.67ms)."
+        )
+    if hid_device_write["available"] and float(hid_device_write["median_ms"]) > (1000.0 / 120.0):
+        lines.append(
+            "120 FPS cannot be met due to HID write time (hid_device_write_ms exceeds 8.33ms)."
         )
 
     def _format_stage_pair(label: str, stage_name: str) -> str:
