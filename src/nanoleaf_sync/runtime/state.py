@@ -127,12 +127,19 @@ class RuntimeState:
                 None
                 if measurement is None
                 else {
-                    "sample_count": measurement.sample_count,
-                    "capture_interval_median_ms": measurement.capture_interval_median_ms,
-                    "capture_interval_p95_ms": measurement.capture_interval_p95_ms,
-                    "pipeline_median_ms": measurement.pipeline_median_ms,
-                    "pipeline_p95_ms": measurement.pipeline_p95_ms,
-                    "pipeline_jitter_ms": measurement.pipeline_jitter_ms,
+                    "live_mirroring_only": bool(measurement.live_mirroring_only),
+                    "dropped_or_skipped_frames": int(measurement.dropped_or_skipped_frames),
+                    "effective_output_fps": float(measurement.effective_output_fps),
+                    "stages": {
+                        stage: {
+                            "available": bool(stats.available),
+                            "sample_count": int(stats.sample_count),
+                            "median_ms": float(stats.median_ms),
+                            "p95_ms": float(stats.p95_ms),
+                            "max_ms": float(stats.max_ms),
+                        }
+                        for stage, stats in measurement.stages.items()
+                    },
                 }
             ),
             "max_consecutive_errors": max_consecutive_errors,

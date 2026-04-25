@@ -39,6 +39,7 @@ from nanoleaf_sync.runtime.readiness_check import run_readiness_check
 from nanoleaf_sync.runtime.compositor import effective_sdr_boost
 from nanoleaf_sync.runtime.diagnostics_exports import (
     diagnostics_text_lines,
+    export_latency_report,
     export_sampling_overlay,
     export_zone_report,
 )
@@ -252,9 +253,11 @@ class SettingsDialog:
                 self.export_live_sampling_overlay_button = QPushButton("Export live sampling overlay")
                 self.export_synthetic_sampling_overlay_button = QPushButton("Export synthetic sampling test overlay")
                 self.export_zone_report_button = QPushButton("Export per-zone colour report")
+                self.export_latency_report_button = QPushButton("Export live latency breakdown")
                 self.self_check_label = QLabel("")
                 self.sampling_export_label = QLabel("")
                 self.zone_report_label = QLabel("")
+                self.latency_report_label = QLabel("")
                 self.preview_label = self.simple_calibration_widget.preview_text_label; self.preview_visual_label = self.simple_calibration_widget.preview_visual_label; self.test_label = QLabel("")
                 self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.sampling_quality_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel(""); self.red_gain_value = QLabel(""); self.green_gain_value = QLabel(""); self.blue_gain_value = QLabel(""); self.white_balance_value = QLabel(""); self.chroma_compression_value = QLabel(""); self.neutral_luminance_gain_value = QLabel(""); self.black_luminance_cutoff_value = QLabel(""); self.black_luminance_knee_value = QLabel("")
 
@@ -288,6 +291,7 @@ class SettingsDialog:
                 self.export_live_sampling_overlay_button.clicked.connect(self._export_live_sampling_overlay)
                 self.export_synthetic_sampling_overlay_button.clicked.connect(self._export_synthetic_sampling_overlay)
                 self.export_zone_report_button.clicked.connect(self._export_zone_report)
+                self.export_latency_report_button.clicked.connect(self._export_latency_report)
                 self.use_detected_count_button.clicked.connect(self._use_detected_strip_count)
                 self.keep_configured_count_button.clicked.connect(self._keep_configured_strip_count)
                 self.reset_recalibrate_button.clicked.connect(self._reset_anchors)
@@ -409,8 +413,10 @@ class SettingsDialog:
                 layout.addWidget(self.sampling_export_label, 15, 0, 1, 3)
                 layout.addWidget(self.export_zone_report_button, 16, 0, 1, 3)
                 layout.addWidget(self.zone_report_label, 17, 0, 1, 3)
-                layout.addWidget(self.diagnostics_mapping_label, 18, 0, 1, 3)
-                layout.addWidget(self.hdr_colour_path_label, 19, 0, 1, 3)
+                layout.addWidget(self.export_latency_report_button, 18, 0, 1, 3)
+                layout.addWidget(self.latency_report_label, 19, 0, 1, 3)
+                layout.addWidget(self.diagnostics_mapping_label, 20, 0, 1, 3)
+                layout.addWidget(self.hdr_colour_path_label, 21, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -719,6 +725,14 @@ class SettingsDialog:
                         ]
                     )
                 )
+
+            def _export_latency_report(self) -> None:
+                try:
+                    out = export_latency_report(status=self._runtime_status)
+                except ValueError as exc:
+                    self.latency_report_label.setText(str(exc))
+                    return
+                self.latency_report_label.setText(f"Exported live latency stage breakdown: {out}")
 
             def _sync_device_model_selection(self):
                 selected_model = str(self.device_model_combo.currentText())
@@ -1080,24 +1094,31 @@ class SettingsDialog:
                 measurement = self._runtime_status.get("latency_measurement")
                 if not isinstance(measurement, dict):
                     return None
-                sample_count = int(measurement.get("sample_count") or 0)
+                stages = measurement.get("stages")
+                if not isinstance(stages, dict):
+                    return None
+                total_row = stages.get("frame_total_ms") if isinstance(stages.get("frame_total_ms"), dict) else {}
+                gap_row = stages.get("loop_gap_ms") if isinstance(stages.get("loop_gap_ms"), dict) else {}
+                sample_count = int(total_row.get("sample_count") or 0)
                 if sample_count <= 0:
                     return None
-                pipeline_median = float(measurement.get("pipeline_median_ms") or 0.0)
-                pipeline_p95 = float(measurement.get("pipeline_p95_ms") or 0.0)
-                cadence_median = float(measurement.get("capture_interval_median_ms") or 0.0)
-                cadence_p95 = float(measurement.get("capture_interval_p95_ms") or 0.0)
-                jitter = float(measurement.get("pipeline_jitter_ms") or 0.0)
+                pipeline_median = float(total_row.get("median_ms") or 0.0)
+                pipeline_p95 = float(total_row.get("p95_ms") or 0.0)
+                pipeline_max = float(total_row.get("max_ms") or 0.0)
+                cadence_median = float(gap_row.get("median_ms") or 0.0)
+                cadence_p95 = float(gap_row.get("p95_ms") or 0.0)
+                dropped = int(measurement.get("dropped_or_skipped_frames") or 0)
+                effective_fps = float(measurement.get("effective_output_fps") or 0.0)
                 return {
                     "latency_ms": pipeline_median,
                     "confidence_note": (
-                        f"Measured runtime samples (n={sample_count}, median={pipeline_median:.1f}ms, p95={pipeline_p95:.1f}ms, jitter={jitter:.1f}ms)"
+                        f"Measured live runtime samples (n={sample_count}, median={pipeline_median:.1f}ms, p95={pipeline_p95:.1f}ms, max={pipeline_max:.1f}ms)"
                     ),
                     "details": (
                         f"{'Manual' if triggered_by == 'manual' else 'Auto'} measured runtime latency | "
-                        f"cadence median/p95={cadence_median:.1f}/{cadence_p95:.1f}ms | "
-                        f"pipeline median/p95={pipeline_median:.1f}/{pipeline_p95:.1f}ms | "
-                        f"jitter={jitter:.1f}ms | samples={sample_count}"
+                        f"loop-gap median/p95={cadence_median:.1f}/{cadence_p95:.1f}ms | "
+                        f"frame-total median/p95/max={pipeline_median:.1f}/{pipeline_p95:.1f}/{pipeline_max:.1f}ms | "
+                        f"effective FPS={effective_fps:.1f} | dropped/skipped={dropped} | samples={sample_count}"
                     ),
                 }
 

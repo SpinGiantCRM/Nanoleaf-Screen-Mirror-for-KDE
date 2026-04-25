@@ -363,7 +363,7 @@ class NanoleafSyncService:
                 hdr_max_nits=getattr(self.config, "hdr_max_nits", 1000.0),
                 return_diagnostics=True,
             )
-            _, sampled_zone_colors, pre_led_colors, final_zone_colors = processed
+            _, sampled_zone_colors, pre_led_colors, final_zone_colors, _timings = processed
             self._runtime.latest_frame_rgb = frame
             self._runtime.last_frame_width = int(img_w)
             self._runtime.last_frame_height = int(img_h)

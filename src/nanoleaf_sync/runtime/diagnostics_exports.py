@@ -73,6 +73,7 @@ def evaluate_geometry(*, status: dict, cfg: AppConfig) -> dict[str, object]:
 def diagnostics_text_lines(*, status: dict, cfg: AppConfig) -> list[str]:
     geo = evaluate_geometry(status=status, cfg=cfg)
     side_counts = geo["side_counts"]
+    latency_lines = latency_breakdown_lines(status=status)
     return [
         f"KDE display resolution: {geo['kde_display_size'][0]}x{geo['kde_display_size'][1]}",
         f"KDE scale factor: {geo['kde_scale_factor'] or 'unknown'}",
@@ -92,7 +93,49 @@ def diagnostics_text_lines(*, status: dict, cfg: AppConfig) -> list[str]:
         geo["warning_text"] if geo["geometry_warning"] else "Display geometry and capture frame space are consistent.",
         "If per-zone output remains varied but the wall looks blended, this is likely physical diffusion.",
         "If per-zone output is already flat, software processing/sampling spread is likely.",
+        *latency_lines,
     ]
+
+
+def latency_breakdown_lines(*, status: dict) -> list[str]:
+    measurement = status.get("latency_measurement")
+    if not isinstance(measurement, dict):
+        return ["Live mirroring latency stages: unavailable (no live runtime samples yet)."]
+
+    live_only = bool(measurement.get("live_mirroring_only", False))
+    dropped = int(measurement.get("dropped_or_skipped_frames") or 0)
+    fps = float(measurement.get("effective_output_fps") or 0.0)
+    stages = measurement.get("stages")
+    if not isinstance(stages, dict):
+        return ["Live mirroring latency stages: unavailable (stage timing payload missing)."]
+    lines = [
+        "Live mirroring latency stages (live-only metrics: yes)." if live_only
+        else "Live mirroring latency stages (live-only metrics: no).",
+        f"Effective output FPS: {fps:.1f} | dropped/skipped frames: {dropped}",
+    ]
+    stage_order = (
+        "capture_wait_ms",
+        "capture_read_ms",
+        "frame_convert_ms",
+        "zone_sampling_ms",
+        "colour_processing_ms",
+        "smoothing_ms",
+        "hid_write_ms",
+        "frame_total_ms",
+        "loop_gap_ms",
+    )
+    for stage in stage_order:
+        row = stages.get(stage)
+        if not isinstance(row, dict) or not bool(row.get("available", False)):
+            lines.append(f"- {stage}: unavailable")
+            continue
+        lines.append(
+            f"- {stage}: median={float(row.get('median_ms') or 0.0):.2f}ms "
+            f"p95={float(row.get('p95_ms') or 0.0):.2f}ms "
+            f"max={float(row.get('max_ms') or 0.0):.2f}ms "
+            f"n={int(row.get('sample_count') or 0)}"
+        )
+    return lines
 
 
 def _png_pack(tag: bytes, data: bytes) -> bytes:
@@ -215,6 +258,61 @@ def export_zone_report(*, rows: Sequence[dict[str, object]]) -> Path:
         writer.writeheader()
         for row in rows:
             writer.writerow({key: row.get(key, "") for key in fields})
+    return path
+
+
+def export_latency_report(*, status: dict) -> Path:
+    measurement = status.get("latency_measurement")
+    if not isinstance(measurement, dict):
+        raise ValueError("No live latency diagnostics available. Start live mirroring to collect timing samples.")
+    stages = measurement.get("stages")
+    if not isinstance(stages, dict):
+        raise ValueError("Latency diagnostics payload is malformed.")
+
+    out_dir = Path(tempfile.gettempdir()) / "nanoleaf-kde-sync"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / f"latency-breakdown-{int(time.time())}.csv"
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(
+            fh,
+            fieldnames=[
+                "stage",
+                "available",
+                "sample_count",
+                "median_ms",
+                "p95_ms",
+                "max_ms",
+                "live_mirroring_only",
+                "effective_output_fps",
+                "dropped_or_skipped_frames",
+            ],
+        )
+        writer.writeheader()
+        for stage in (
+            "capture_wait_ms",
+            "capture_read_ms",
+            "frame_convert_ms",
+            "zone_sampling_ms",
+            "colour_processing_ms",
+            "smoothing_ms",
+            "hid_write_ms",
+            "frame_total_ms",
+            "loop_gap_ms",
+        ):
+            row = stages.get(stage) or {}
+            writer.writerow(
+                {
+                    "stage": stage,
+                    "available": bool(row.get("available", False)),
+                    "sample_count": int(row.get("sample_count", 0) or 0),
+                    "median_ms": float(row.get("median_ms", 0.0) or 0.0),
+                    "p95_ms": float(row.get("p95_ms", 0.0) or 0.0),
+                    "max_ms": float(row.get("max_ms", 0.0) or 0.0),
+                    "live_mirroring_only": bool(measurement.get("live_mirroring_only", False)),
+                    "effective_output_fps": float(measurement.get("effective_output_fps", 0.0) or 0.0),
+                    "dropped_or_skipped_frames": int(measurement.get("dropped_or_skipped_frames", 0) or 0),
+                }
+            )
     return path
 
 

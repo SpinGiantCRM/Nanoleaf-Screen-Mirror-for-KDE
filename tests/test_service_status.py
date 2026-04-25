@@ -186,3 +186,15 @@ def test_clear_backends_resets_cached_device_metadata() -> None:
     assert status["device_zone_count"] is None
     assert status["detected_device_zone_count"] is None
     assert status["effective_runtime_zone_count"] is None
+
+
+def test_one_shot_diagnostic_capture_does_not_pollute_live_latency_metrics() -> None:
+    svc = NanoleafSyncService(
+        config=_make_cfg(),
+        capture_backend_override=FakeCapture(name="mock"),
+        driver_override=FakeDriver(),
+    )
+    result = svc.capture_one_diagnostic_frame()
+    assert result["ok"] is True
+    status = svc.get_status()
+    assert status["latency_measurement"] is None
