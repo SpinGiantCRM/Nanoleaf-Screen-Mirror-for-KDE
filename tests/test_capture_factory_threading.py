@@ -8,6 +8,7 @@ from nanoleaf_sync.capture.factory import (
     _cached_probe_winner_lock,
     _resolve_auto_backend_with_probe,
     _has_drm_device,
+    run_manual_portal_benchmark,
     run_explicit_xdg_portal_probe,
     run_fresh_backend_probe,
     reset_cached_probe_winner,
@@ -142,3 +143,77 @@ def test_run_explicit_xdg_portal_probe_is_single_flight(monkeypatch) -> None:
     assert second_result["status"] == "failed"
     assert "already in progress" in str(second_result["reason"])
     assert first_result["status"] == "tested"
+
+
+def test_run_manual_portal_benchmark_is_single_flight(monkeypatch) -> None:
+    gate = threading.Event()
+    release = threading.Event()
+
+    def _fake_explicit(*, width: int, height: int):
+        gate.set()
+        release.wait(timeout=1.0)
+        return {"status": "tested", "mode": "explicit-test"}
+
+    monkeypatch.setattr("nanoleaf_sync.capture.factory.run_explicit_xdg_portal_probe", _fake_explicit)
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.factory._benchmark_backend",
+        lambda **kwargs: {
+            "backend": kwargs["backend_name"],
+            "target_capture_size": "64x64",
+            "actual_frame_size": "64x64",
+            "format": "RGB",
+            "frame_bytes": 12288,
+            "stride": 192,
+            "median_capture_ms": 1.0,
+            "p95_capture_ms": 1.5,
+            "jitter_ms": 0.2,
+            "effective_fps": 30.0,
+            "empty_buffers": 0,
+            "failed_frames": 0,
+            "cpu_conversion_median_ms": 0.1,
+            "e2e_frame_to_hid_ms": None,
+            "sample_count": 30,
+        },
+    )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(run_manual_portal_benchmark, width=64, height=64, samples=5)
+        assert gate.wait(timeout=1.0)
+        second = pool.submit(run_manual_portal_benchmark, width=64, height=64, samples=5)
+        second_result = second.result(timeout=1.0)
+        release.set()
+        first_result = first.result(timeout=1.0)
+
+    assert second_result["status"] == "failed"
+    assert "already in progress" in str(second_result["reason"])
+    assert first_result["status"] == "tested"
+
+
+def test_run_manual_portal_benchmark_keeps_kwin_selected_when_portal_is_slower(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.factory.run_explicit_xdg_portal_probe",
+        lambda **_kwargs: {"status": "tested", "mode": "explicit-test"},
+    )
+
+    def _fake_bench(*, backend_name: str, **_kwargs):
+        if backend_name == "xdg-portal":
+            return {
+                "backend": backend_name,
+                "p95_capture_ms": 9.0,
+                "jitter_ms": 4.0,
+                "empty_buffers": 0,
+                "sample_count": 30,
+            }
+        return {
+            "backend": backend_name,
+            "p95_capture_ms": 3.0,
+            "jitter_ms": 1.0,
+            "empty_buffers": 0,
+            "sample_count": 30,
+        }
+
+    monkeypatch.setattr("nanoleaf_sync.capture.factory._benchmark_backend", _fake_bench)
+    result = run_manual_portal_benchmark(width=64, height=64, samples=30)
+    assert result["status"] == "tested"
+    assert result["selected_backend"] == "kwin-dbus"
+    assert "working fallback" in str(result["recommendation"])

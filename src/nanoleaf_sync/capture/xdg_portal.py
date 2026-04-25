@@ -38,6 +38,20 @@ class PortalDiagnosticState:
     expected_bytes: int = 0
     received_bytes: int = 0
     timeout_s: float = 0.0
+    sample_received: bool = False
+    buffer_present: bool = False
+    buffer_reported_size: int = 0
+    memory_count: int = 0
+    mapped_memory_size: int = 0
+    stride: int | None = None
+    pts_ns: int | None = None
+    dts_ns: int | None = None
+    duration_ns: int | None = None
+    negotiated_format: str | None = None
+    negotiated_width: int | None = None
+    negotiated_height: int | None = None
+    negotiated_framerate: str | None = None
+    non_empty_buffer_count: int = 0
 
     def mark(self, stage: str, status: str, detail: str = "") -> None:
         self.stages.append({"stage": stage, "status": status, "detail": detail})
@@ -60,6 +74,7 @@ class XDGPortalCapture:
     _GSTREAMER_FIRST_FRAME_TIMEOUT_S = 6.0
     _GSTREAMER_FIRST_FRAME_POLL_INTERVAL_S = 0.02
     _MAX_EMPTY_FIRST_BUFFERS = 12
+    _APP_SINK_FORMATS = ("RGB", "BGR", "BGRx", "RGBx", "RGBA", "BGRA")
 
     def __init__(
         self,
@@ -81,6 +96,9 @@ class XDGPortalCapture:
         self._portal_bus = None
         self._initialized = False
         self._use_gstreamer = False
+        self._empty_first_buffers = 0
+        self._non_empty_first_buffers = 0
+        self._last_frame_diag: dict[str, object] = {}
 
     def initialize(self) -> None:
         """Negotiate portal session and open PipeWire stream."""
@@ -288,9 +306,31 @@ class XDGPortalCapture:
             diag.mark("PipeWire node/stream received", "ok")
             diag.mark("GStreamer pipeline created", "ok" if self._use_gstreamer else "skipped", "pipewire-python path active")
             diag.mark("pipeline reached PAUSED/PLAYING", "ok")
-            diag.mark("caps/format negotiated", "ok", f"video/x-raw,format=RGB,width={self.width},height={self.height}")
+            caps_detail = str(self._last_frame_diag.get("caps") or "unknown")
+            diag.mark("caps/format negotiated", "ok", caps_detail)
             frame = self.capture()
-            diag.mark("first buffer received", "ok")
+            diag.sample_received = bool(self._last_frame_diag.get("sample_received"))
+            diag.buffer_present = bool(self._last_frame_diag.get("buffer_present"))
+            diag.buffer_reported_size = int(self._last_frame_diag.get("buffer_reported_size") or 0)
+            diag.memory_count = int(self._last_frame_diag.get("memory_count") or 0)
+            diag.mapped_memory_size = int(self._last_frame_diag.get("mapped_memory_size") or 0)
+            diag.stride = self._last_frame_diag.get("stride") if isinstance(self._last_frame_diag.get("stride"), int) else None
+            diag.pts_ns = self._last_frame_diag.get("pts_ns") if isinstance(self._last_frame_diag.get("pts_ns"), int) else None
+            diag.dts_ns = self._last_frame_diag.get("dts_ns") if isinstance(self._last_frame_diag.get("dts_ns"), int) else None
+            diag.duration_ns = (
+                self._last_frame_diag.get("duration_ns")
+                if isinstance(self._last_frame_diag.get("duration_ns"), int)
+                else None
+            )
+            diag.negotiated_format = str(self._last_frame_diag.get("format") or "")
+            diag.negotiated_width = int(self._last_frame_diag.get("width") or 0) or None
+            diag.negotiated_height = int(self._last_frame_diag.get("height") or 0) or None
+            diag.negotiated_framerate = str(self._last_frame_diag.get("framerate") or "")
+            diag.empty_buffer_count = int(self._last_frame_diag.get("empty_buffer_count") or self._empty_first_buffers)
+            diag.non_empty_buffer_count = int(
+                self._last_frame_diag.get("non_empty_buffer_count") or self._non_empty_first_buffers
+            )
+            diag.mark("first buffer received", "ok" if diag.sample_received and diag.buffer_present else "failed")
             if frame.size <= 0:
                 raise XDGPortalError("Empty frame payload after successful stream start.")
             diag.mark("first non-empty frame received", "ok")
@@ -321,10 +361,23 @@ class XDGPortalCapture:
                     "expected_bytes": diag.expected_bytes,
                     "received_bytes": diag.received_bytes,
                     "caps": f"RGB {self.width}x{self.height}",
-                    "width": self.width,
-                    "height": self.height,
+                    "sample_received": diag.sample_received,
+                    "buffer_present": diag.buffer_present,
+                    "buffer_reported_size": diag.buffer_reported_size,
+                    "memory_count": diag.memory_count,
+                    "mapped_memory_size": diag.mapped_memory_size,
+                    "caps": self._last_frame_diag.get("caps"),
+                    "width": diag.negotiated_width or self.width,
+                    "height": diag.negotiated_height or self.height,
+                    "format": diag.negotiated_format,
+                    "framerate": diag.negotiated_framerate,
+                    "stride": diag.stride,
+                    "pts_ns": diag.pts_ns,
+                    "dts_ns": diag.dts_ns,
+                    "duration_ns": diag.duration_ns,
                     "first_frame_timeout_s": self._GSTREAMER_FIRST_FRAME_TIMEOUT_S,
-                    "empty_buffer_count": getattr(self, "_empty_first_buffers", 0),
+                    "empty_buffer_count": diag.empty_buffer_count,
+                    "non_empty_buffer_count": diag.non_empty_buffer_count,
                 },
             }
         except Exception as exc:  # noqa: BLE001
@@ -362,12 +415,26 @@ class XDGPortalCapture:
                 "failing_stage": failing_stage,
                 "details": {
                     "expected_bytes": diag.expected_bytes,
-                    "received_bytes": getattr(self, "_last_first_frame_size", 0),
-                    "caps": f"RGB {self.width}x{self.height}",
-                    "width": self.width,
-                    "height": self.height,
+                    "received_bytes": int(self._last_frame_diag.get("buffer_reported_size") or 0),
+                    "sample_received": bool(self._last_frame_diag.get("sample_received")),
+                    "buffer_present": bool(self._last_frame_diag.get("buffer_present")),
+                    "buffer_reported_size": int(self._last_frame_diag.get("buffer_reported_size") or 0),
+                    "memory_count": int(self._last_frame_diag.get("memory_count") or 0),
+                    "mapped_memory_size": int(self._last_frame_diag.get("mapped_memory_size") or 0),
+                    "caps": self._last_frame_diag.get("caps"),
+                    "width": int(self._last_frame_diag.get("width") or self.width),
+                    "height": int(self._last_frame_diag.get("height") or self.height),
+                    "format": self._last_frame_diag.get("format"),
+                    "framerate": self._last_frame_diag.get("framerate"),
+                    "stride": self._last_frame_diag.get("stride"),
+                    "pts_ns": self._last_frame_diag.get("pts_ns"),
+                    "dts_ns": self._last_frame_diag.get("dts_ns"),
+                    "duration_ns": self._last_frame_diag.get("duration_ns"),
                     "first_frame_timeout_s": self._GSTREAMER_FIRST_FRAME_TIMEOUT_S,
-                    "empty_buffer_count": getattr(self, "_empty_first_buffers", 0),
+                    "empty_buffer_count": int(self._last_frame_diag.get("empty_buffer_count") or self._empty_first_buffers),
+                    "non_empty_buffer_count": int(
+                        self._last_frame_diag.get("non_empty_buffer_count") or self._non_empty_first_buffers
+                    ),
                 },
             }
         finally:
@@ -447,40 +514,50 @@ class XDGPortalCapture:
         self._use_gstreamer = False
 
     def _open_via_gstreamer(self, fd: int, node_id: int) -> None:
-        import mmap
-        import subprocess
-        import tempfile
+        from gi.repository import Gst
 
-        self._shm_file = tempfile.NamedTemporaryFile(delete=False, suffix=".raw")
-        frame_bytes = self.width * self.height * 3
-        self._shm_file.write(b"\x00" * frame_bytes)
-        self._shm_file.flush()
-
-        cmd = [
-            "gst-launch-1.0",
-            "-q",
-            "pipewiresrc",
-            f"fd={fd}",
-            f"path={node_id}",
-            "!",
-            "videoconvert",
-            "!",
-            f"video/x-raw,format=RGB,width={self.width},height={self.height}",
-            "!",
-            "filesink",
-            f"location={self._shm_file.name}",
-            "append=false",
-        ]
-        self._gst_proc = subprocess.Popen(cmd, close_fds=True, pass_fds=(fd,))
-        self._shm_mm = mmap.mmap(self._shm_file.fileno(), frame_bytes)
-        self._frame_bytes = frame_bytes
-        self._first_frame_ready = False
-        self._first_frame_deadline_s = self._GSTREAMER_FIRST_FRAME_TIMEOUT_S
-        self._first_frame_poll_interval_s = self._GSTREAMER_FIRST_FRAME_POLL_INTERVAL_S
+        Gst.init(None)
+        errors: list[str] = []
+        self._last_frame_diag = {}
         self._empty_first_buffers = 0
-        self._last_first_frame_size = 0
-        self._shm_initial_mtime_ns = os.stat(self._shm_file.name).st_mtime_ns
-        self._use_gstreamer = True
+        self._non_empty_first_buffers = 0
+
+        for fmt in self._APP_SINK_FORMATS:
+            pipeline_desc = (
+                f"pipewiresrc fd={fd} path={node_id} do-timestamp=true "
+                "! queue leaky=downstream max-size-buffers=2 max-size-bytes=0 max-size-time=0 "
+                "! videoconvert ! videoscale "
+                f"! video/x-raw,width={self.width},height={self.height},format={fmt} "
+                "! appsink name=sink emit-signals=false sync=false max-buffers=2 drop=true"
+            )
+            try:
+                pipeline = Gst.parse_launch(pipeline_desc)
+                appsink = pipeline.get_by_name("sink")
+                if appsink is None:
+                    raise XDGPortalError("GStreamer appsink was not created.")
+                ret = pipeline.set_state(Gst.State.PLAYING)
+                if ret == Gst.StateChangeReturn.FAILURE:
+                    raise XDGPortalError(f"GStreamer failed to start with format={fmt}.")
+                frame, diag = self._pull_gst_frame(appsink, timeout_s=self._GSTREAMER_FIRST_FRAME_TIMEOUT_S)
+                self._last_frame_diag = diag
+                if frame is not None:
+                    self._gst_pipeline = pipeline
+                    self._gst_sink = appsink
+                    self._use_gstreamer = True
+                    return
+                pipeline.set_state(Gst.State.NULL)
+                errors.append(f"{fmt}: no CPU-readable frame")
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"{fmt}: {exc}")
+                try:
+                    pipeline.set_state(Gst.State.NULL)
+                except Exception:
+                    pass
+
+        raise XDGPortalError(
+            "Portal stream negotiated, but no CPU-readable frame was received. "
+            f"format_attempts={'; '.join(errors)}"
+        )
 
     def _read_pipewire_frame(self) -> Optional[np.ndarray]:
         if self._use_gstreamer:
@@ -496,73 +573,158 @@ class XDGPortalCapture:
         return np.frombuffer(data, dtype=np.uint8).reshape(self.height, self.width, 3).copy()
 
     def _read_frame_gstreamer(self) -> Optional[np.ndarray]:
-        if not getattr(self, "_first_frame_ready", True):
-            self._wait_for_first_gstreamer_frame()
-        self._shm_mm.seek(0)
-        raw = self._shm_mm.read(self._frame_bytes)
-        if len(raw) < self._frame_bytes:
+        sink = getattr(self, "_gst_sink", None)
+        if sink is None:
             return None
-        return np.frombuffer(raw, dtype=np.uint8).reshape(self.height, self.width, 3).copy()
+        frame, diag = self._pull_gst_frame(sink, timeout_s=1.0)
+        self._last_frame_diag = diag
+        return frame
 
-    def _wait_for_first_gstreamer_frame(self) -> None:
-        deadline = time.monotonic() + self._first_frame_deadline_s
-        last_size = -1
-        last_mtime_ns = None
-        empty_buffers = 0
+    def _pull_gst_frame(self, appsink, *, timeout_s: float) -> tuple[Optional[np.ndarray], dict[str, object]]:
+        from gi.repository import Gst, GstVideo
+
+        deadline = time.monotonic() + max(0.01, timeout_s)
+        empty_buffers = self._empty_first_buffers
+        non_empty_buffers = self._non_empty_first_buffers
+        last_diag: dict[str, object] = {
+            "sample_received": False,
+            "buffer_present": False,
+            "buffer_reported_size": 0,
+            "memory_count": 0,
+            "mapped_memory_size": 0,
+            "caps": None,
+            "width": 0,
+            "height": 0,
+            "format": None,
+            "framerate": None,
+            "stride": None,
+            "pts_ns": None,
+            "dts_ns": None,
+            "duration_ns": None,
+            "empty_buffer_count": empty_buffers,
+            "non_empty_buffer_count": non_empty_buffers,
+        }
 
         while time.monotonic() < deadline:
-            stat = os.stat(self._shm_file.name)
-            last_size = stat.st_size
-            self._last_first_frame_size = last_size
-            last_mtime_ns = stat.st_mtime_ns
-            if stat.st_size >= self._frame_bytes and stat.st_mtime_ns > self._shm_initial_mtime_ns:
-                self._shm_mm.seek(0)
-                first_frame = self._shm_mm.read(self._frame_bytes)
-                payload_len = len(first_frame)
-                if payload_len <= 0:
-                    empty_buffers += 1
-                    self._empty_first_buffers = empty_buffers
-                    if empty_buffers >= self._MAX_EMPTY_FIRST_BUFFERS:
-                        raise XDGPortalError(
-                            "PipeWire stream opened but produced empty buffers; likely format negotiation or portal stream issue. "
-                            f"(empty_buffers={empty_buffers}, expected={self._frame_bytes}, timeout_s={self._first_frame_deadline_s})."
-                        )
-                elif payload_len == self._frame_bytes:
-                    self._first_frame_ready = True
-                    return
-            time.sleep(self._first_frame_poll_interval_s)
+            timeout_ns = int(self._GSTREAMER_FIRST_FRAME_POLL_INTERVAL_S * 1_000_000_000)
+            sample = (
+                appsink.try_pull_sample(timeout_ns)
+                if hasattr(appsink, "try_pull_sample")
+                else appsink.emit("try-pull-sample", timeout_ns)
+            )
+            if sample is None:
+                time.sleep(self._GSTREAMER_FIRST_FRAME_POLL_INTERVAL_S)
+                continue
+            last_diag["sample_received"] = True
+            caps = sample.get_caps()
+            caps_str = caps.to_string() if caps is not None else None
+            last_diag["caps"] = caps_str
+            if caps is not None and caps.get_size() > 0:
+                structure = caps.get_structure(0)
+                last_diag["width"] = int(structure.get_value("width") or 0)
+                last_diag["height"] = int(structure.get_value("height") or 0)
+                last_diag["format"] = structure.get_value("format")
+                fps_num = structure.get_value("framerate")
+                if fps_num is not None:
+                    last_diag["framerate"] = str(fps_num)
+                try:
+                    video_info = GstVideo.VideoInfo.new_from_caps(caps)
+                    if video_info is not None:
+                        last_diag["stride"] = int(video_info.stride[0])
+                except Exception:
+                    pass
 
-        raise XDGPortalError(
-            "GStreamer capture initialization timed out waiting for first frame bytes "
-            f"(size={last_size}, mtime_ns={last_mtime_ns}, expected={self._frame_bytes})."
-        )
+            buffer = sample.get_buffer()
+            if buffer is None:
+                continue
+            last_diag["buffer_present"] = True
+            last_diag["buffer_reported_size"] = int(buffer.get_size())
+            last_diag["memory_count"] = int(buffer.n_memory())
+            last_diag["pts_ns"] = int(buffer.pts) if int(buffer.pts) >= 0 else None
+            last_diag["dts_ns"] = int(buffer.dts) if int(buffer.dts) >= 0 else None
+            last_diag["duration_ns"] = int(buffer.duration) if int(buffer.duration) >= 0 else None
+
+            mapped, map_info = buffer.map(Gst.MapFlags.READ)
+            if not mapped:
+                empty_buffers += 1
+                last_diag["empty_buffer_count"] = empty_buffers
+                continue
+            try:
+                mapped_size = int(getattr(map_info, "size", 0))
+                last_diag["mapped_memory_size"] = mapped_size
+                if mapped_size <= 0:
+                    empty_buffers += 1
+                    last_diag["empty_buffer_count"] = empty_buffers
+                    if empty_buffers >= self._MAX_EMPTY_FIRST_BUFFERS:
+                        self._empty_first_buffers = empty_buffers
+                        self._non_empty_first_buffers = non_empty_buffers
+                        return None, last_diag
+                    continue
+                frame = self._mapped_bytes_to_rgb(
+                    payload=bytes(map_info.data),
+                    width=int(last_diag["width"] or self.width),
+                    height=int(last_diag["height"] or self.height),
+                    fmt=str(last_diag["format"] or "RGB"),
+                    stride=(
+                        int(last_diag["stride"])
+                        if isinstance(last_diag.get("stride"), int) and int(last_diag["stride"]) > 0
+                        else None
+                    ),
+                )
+                if frame is not None:
+                    non_empty_buffers += 1
+                    last_diag["non_empty_buffer_count"] = non_empty_buffers
+                    self._empty_first_buffers = empty_buffers
+                    self._non_empty_first_buffers = non_empty_buffers
+                    return frame, last_diag
+            finally:
+                buffer.unmap(map_info)
+
+        self._empty_first_buffers = empty_buffers
+        self._non_empty_first_buffers = non_empty_buffers
+        return None, last_diag
+
+    def _mapped_bytes_to_rgb(
+        self,
+        *,
+        payload: bytes,
+        width: int,
+        height: int,
+        fmt: str,
+        stride: int | None,
+    ) -> Optional[np.ndarray]:
+        channels = 3 if fmt in {"RGB", "BGR"} else 4 if fmt in {"RGBx", "BGRx", "RGBA", "BGRA"} else 0
+        if channels <= 0 or width <= 0 or height <= 0:
+            return None
+        min_stride = width * channels
+        row_stride = max(min_stride, int(stride or 0))
+        expected = row_stride * height
+        if len(payload) < expected:
+            return None
+        frame2d = np.frombuffer(payload[:expected], dtype=np.uint8).reshape(height, row_stride)
+        packed = frame2d[:, : min_stride].reshape(height, width, channels)
+        if fmt == "RGB":
+            return packed[:, :, :3].copy()
+        if fmt == "BGR":
+            return packed[:, :, [2, 1, 0]].copy()
+        if fmt in {"RGBx", "RGBA"}:
+            return packed[:, :, :3].copy()
+        if fmt in {"BGRx", "BGRA"}:
+            return packed[:, :, [2, 1, 0]].copy()
+        return None
 
     def _close_pipewire_stream(self) -> None:
         if self._use_gstreamer:
-            proc = getattr(self, "_gst_proc", None)
-            if proc is not None:
+            pipeline = getattr(self, "_gst_pipeline", None)
+            if pipeline is not None:
                 try:
-                    proc.terminate()
-                    proc.wait(timeout=1.0)
-                except Exception:
-                    try:
-                        proc.kill()
-                        proc.wait(timeout=1.0)
-                    except Exception:
-                        pass
-            mm = getattr(self, "_shm_mm", None)
-            if mm is not None:
-                mm.close()
-            f = getattr(self, "_shm_file", None)
-            if f is not None:
-                try:
-                    f.close()
+                    from gi.repository import Gst
+
+                    pipeline.set_state(Gst.State.NULL)
                 except Exception:
                     pass
-                try:
-                    os.unlink(f.name)
-                except OSError:
-                    pass
+            self._gst_pipeline = None
+            self._gst_sink = None
             return
 
         loop = getattr(self, "_pw_main_loop", None)
