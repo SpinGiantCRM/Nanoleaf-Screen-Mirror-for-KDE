@@ -10,8 +10,17 @@ STAGE_CAPTURE_WAIT = "capture_wait_ms"
 STAGE_PACING_WAIT = "pacing_wait_ms"
 STAGE_IDLE_WAIT = "idle_wait_ms"
 STAGE_FRAME_PROCESSING = "frame_processing_ms"
+STAGE_FRAME_CONVERT = "frame_convert_ms"
+STAGE_ZONE_SAMPLING = "zone_sampling_ms"
+STAGE_COLOUR_PROCESSING = "colour_processing_ms"
+STAGE_SMOOTHING = "smoothing_ms"
+STAGE_LED_CALIBRATION = "led_calibration_ms"
+STAGE_OUTPUT_PREPARE = "output_prepare_ms"
 STAGE_ACTUAL_WORK = "actual_work_ms"
 STAGE_HID_WRITE = "hid_write_ms"
+STAGE_HID_FRAME_BUILD = "hid_frame_build_ms"
+STAGE_HID_DEVICE_WRITE = "hid_device_write_ms"
+STAGE_HID_FLUSH_OR_WAIT = "hid_flush_or_wait_ms"
 STAGE_LOOP_GAP = "loop_gap_ms"
 STAGE_END_TO_END_LIVE = "end_to_end_live_ms"
 
@@ -21,8 +30,17 @@ ALL_STAGE_NAMES = (
     STAGE_IDLE_WAIT,
     STAGE_CAPTURE_WAIT,
     STAGE_FRAME_PROCESSING,
+    STAGE_FRAME_CONVERT,
+    STAGE_ZONE_SAMPLING,
+    STAGE_COLOUR_PROCESSING,
+    STAGE_SMOOTHING,
+    STAGE_LED_CALIBRATION,
+    STAGE_OUTPUT_PREPARE,
     STAGE_ACTUAL_WORK,
     STAGE_HID_WRITE,
+    STAGE_HID_FRAME_BUILD,
+    STAGE_HID_DEVICE_WRITE,
+    STAGE_HID_FLUSH_OR_WAIT,
     STAGE_END_TO_END_LIVE,
 )
 

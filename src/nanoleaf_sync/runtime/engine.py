@@ -36,8 +36,17 @@ from nanoleaf_sync.capture.latency_probe import (
     STAGE_PACING_WAIT,
     STAGE_IDLE_WAIT,
     STAGE_FRAME_PROCESSING,
+    STAGE_FRAME_CONVERT,
+    STAGE_ZONE_SAMPLING,
+    STAGE_COLOUR_PROCESSING,
+    STAGE_SMOOTHING,
+    STAGE_LED_CALIBRATION,
+    STAGE_OUTPUT_PREPARE,
     STAGE_ACTUAL_WORK,
     STAGE_HID_WRITE,
+    STAGE_HID_FRAME_BUILD,
+    STAGE_HID_DEVICE_WRITE,
+    STAGE_HID_FLUSH_OR_WAIT,
     STAGE_LOOP_GAP,
 )
 from nanoleaf_sync.runtime.startup import reinitialize_backends, should_reinitialize
@@ -74,6 +83,8 @@ class FrameProcessingTimings:
     zone_sampling_ms: float | None = None
     colour_processing_ms: float | None = None
     smoothing_ms: float | None = None
+    led_calibration_ms: float | None = None
+    output_prepare_ms: float | None = None
 
 
 class PendingFrameSlot:
@@ -439,17 +450,21 @@ def process_frame(
             black_luminance_knee=black_luminance_knee,
         ),
     )
+    led_calibration_done = time.perf_counter()
 
     np.clip(mapped, 0.0, 255.0, out=mapped)
     np.rint(mapped, out=mapped)
     out = mapped.astype(np.uint8, copy=False)
     out_list = [tuple(int(c) for c in row) for row in out.tolist()]
+    output_prepare_done = time.perf_counter()
     if return_diagnostics:
         timings = FrameProcessingTimings(
             frame_convert_ms=(frame_convert_done - stage_start) * 1000.0,
             zone_sampling_ms=(sampling_done - frame_convert_done) * 1000.0,
             colour_processing_ms=(colour_processing_done - sampling_done) * 1000.0,
             smoothing_ms=(smoothing_done - colour_processing_done) * 1000.0,
+            led_calibration_ms=(led_calibration_done - smoothing_done) * 1000.0,
+            output_prepare_ms=(output_prepare_done - led_calibration_done) * 1000.0,
         )
         return out_list, raw_colors.astype(np.uint8, copy=False), pre_led_calibration.astype(np.uint8, copy=False), out, timings
     return out_list
@@ -683,6 +698,7 @@ def run_loop(
                 driver.send_frame(smoothed_colors)
                 send_done = time.perf_counter()
                 hid_write_ms = (send_done - hid_write_start) * 1000.0
+                hid_device_write_ms = hid_write_ms
                 frame_processing_ms = (processing_end - start) * 1000.0
                 actual_work_ms = (send_done - start) * 1000.0
                 loop_gap_ms = ((send_done - last_send_done_ts) * 1000.0) if last_send_done_ts is not None else None
@@ -697,8 +713,17 @@ def run_loop(
                             STAGE_PACING_WAIT: pacing_wait_ms,
                             STAGE_IDLE_WAIT: idle_wait_ms,
                             STAGE_FRAME_PROCESSING: frame_processing_ms,
+                            STAGE_FRAME_CONVERT: processing_timings.frame_convert_ms,
+                            STAGE_ZONE_SAMPLING: processing_timings.zone_sampling_ms,
+                            STAGE_COLOUR_PROCESSING: processing_timings.colour_processing_ms,
+                            STAGE_SMOOTHING: processing_timings.smoothing_ms,
+                            STAGE_LED_CALIBRATION: processing_timings.led_calibration_ms,
+                            STAGE_OUTPUT_PREPARE: processing_timings.output_prepare_ms,
                             STAGE_ACTUAL_WORK: actual_work_ms,
                             STAGE_HID_WRITE: hid_write_ms,
+                            STAGE_HID_FRAME_BUILD: None,
+                            STAGE_HID_DEVICE_WRITE: hid_device_write_ms,
+                            STAGE_HID_FLUSH_OR_WAIT: None,
                             STAGE_LOOP_GAP: loop_gap_ms,
                             "end_to_end_live_ms": None,
                         },
