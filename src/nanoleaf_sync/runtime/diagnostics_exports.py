@@ -183,6 +183,7 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
     capture_worker_error_count = int(counters.get("capture_worker_error_count", 0) or 0)
     capture_worker_active = bool(flags.get("capture_worker_active", False))
     latest_capture_backend_name = str(labels.get("latest_capture_backend_name", "unavailable") or "unavailable")
+    hid_device_write_limited = str(labels.get("hid_device_write_limited", "unknown") or "unknown")
 
     target_met_threshold = max(1.0, target_fps * 0.95)
     target_met = target_fps > 0.0 and effective_output_fps >= target_met_threshold
@@ -303,10 +304,28 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
         f"latest_capture_backend_name: {latest_capture_backend_name}",
         f"no_pending_frame_ticks: {no_pending_frame_ticks}",
         f"capture_worker_error_count: {capture_worker_error_count}",
+        f"configured_priority_mode: {status.get('configured_priority_mode', 'normal')}",
+        f"effective_nice_value: {status.get('effective_nice_value', 'unavailable')}",
+        f"priority_apply_status: {status.get('priority_apply_status', 'not_attempted')}",
+        (
+            f"priority_apply_error: {status.get('priority_apply_error')}"
+            if str(status.get("priority_apply_error", "")).strip()
+            else "priority_apply_error: none"
+        ),
         f"hid_frame_build_ms: unavailable ({labels.get('hid_frame_build_reason', 'not instrumented')})",
         f"hid_flush_or_wait_ms: unavailable ({labels.get('hid_flush_or_wait_reason', 'not instrumented')})",
+        f"hid_device_write_limited: {hid_device_write_limited}",
     ]
     lines.extend(budget_lines)
+    if target_fps >= 120.0 and actual_work["available"] and float(actual_work["median_ms"]) > (1000.0 / 120.0):
+        lines.append("120 FPS is over budget.")
+    if actual_work["available"] and (1000.0 / 60.0) <= float(actual_work["median_ms"]) <= 20.0:
+        lines.append("60 FPS is near target but currently slightly over budget.")
+        lines.append("Try 60 FPS for stable use.")
+    if hid_write["available"] and float(hid_write["median_ms"]) >= 5.0:
+        lines.append(
+            f"HID path appears device-write limited (hid_device_write_ms median ~{float(hid_write['median_ms']):.2f}ms)."
+        )
 
     def _format_stage_pair(label: str, stage_name: str) -> str:
         row = stages.get(stage_name)
@@ -336,7 +355,9 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
             _format_stage_pair("led_calibration_ms", "led_calibration_ms"),
             _format_stage_pair("output_prepare_ms", "output_prepare_ms"),
             _format_stage_pair("hid_write_ms", "hid_write_ms"),
+            _format_stage_pair("hid_frame_build_ms", "hid_frame_build_ms"),
             _format_stage_pair("hid_device_write_ms", "hid_device_write_ms"),
+            _format_stage_pair("hid_flush_or_wait_ms", "hid_flush_or_wait_ms"),
             _format_stage_pair("send_frame_total_ms", "hid_write_ms"),
             _format_stage_pair("inferred_unattributed_gap_ms", "inferred_unattributed_gap_ms"),
             _format_stage_pair("end_to_end_live_ms", "end_to_end_live_ms"),

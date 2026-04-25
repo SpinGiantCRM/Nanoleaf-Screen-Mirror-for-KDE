@@ -11,6 +11,19 @@ from nanoleaf_sync.config.presets import edge_locality_profile
 
 RGBTuple = Tuple[int, int, int]
 ZoneRect = Tuple[int, int, int, int]
+_ZoneSamplingPlan = tuple[
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    int,
+    int,
+    int,
+    int,
+    tuple[tuple[int, int, int, int, int, np.ndarray], ...],
+]
 
 _M1 = np.array(
     [
@@ -197,6 +210,72 @@ def _edge_weight_template(*, zone_h: int, zone_w: int, orientation: str, localit
     return weights / weight_sum
 
 
+@lru_cache(maxsize=128)
+def _cached_sampling_plan(
+    zones_key: tuple[tuple[int, int, int, int], ...],
+    frame_w: int,
+    frame_h: int,
+    sample_step: int,
+    edge_locality: str,
+) -> _ZoneSamplingPlan:
+    step = max(1, int(sample_step))
+    h = int(frame_h)
+    w = int(frame_w)
+    zones_arr = np.asarray(zones_key, dtype=np.intp)
+    x = zones_arr[:, 0]
+    y = zones_arr[:, 1]
+    zw = zones_arr[:, 2]
+    zh = zones_arr[:, 3]
+    if step > 1:
+        h = max(1, h // step + (1 if (h % step) else 0))
+        w = max(1, w // step + (1 if (w % step) else 0))
+        x = x // step
+        y = y // step
+        zw = (zw + (step - 1)) // step
+        zh = (zh + (step - 1)) // step
+    x0 = np.clip(x, 0, w)
+    y0 = np.clip(y, 0, h)
+    x1 = np.clip(x0 + zw, 0, w)
+    y1 = np.clip(y0 + zh, 0, h)
+    areas = (x1 - x0) * (y1 - y0)
+    valid = areas > 0
+    valid_idx = np.flatnonzero(valid).astype(np.intp, copy=False)
+
+    bx0 = int(np.min(x0[valid])) if valid.any() else 0
+    by0 = int(np.min(y0[valid])) if valid.any() else 0
+    bx1 = int(np.max(x1[valid])) if valid.any() else 0
+    by1 = int(np.max(y1[valid])) if valid.any() else 0
+
+    edge_plans: list[tuple[int, int, int, int, np.ndarray]] = []
+    for idx in valid_idx.tolist():
+        weights = _edge_localized_weights(
+            zone_x0=int(x0[idx]),
+            zone_y0=int(y0[idx]),
+            zone_x1=int(x1[idx]),
+            zone_y1=int(y1[idx]),
+            frame_w=w,
+            frame_h=h,
+            edge_locality=edge_locality,
+        )
+        if weights is None:
+            continue
+        edge_plans.append((idx, int(y0[idx]), int(y1[idx]), int(x0[idx]), int(x1[idx]), weights))
+
+    return (
+        x0,
+        y0,
+        x1,
+        y1,
+        areas,
+        valid_idx,
+        bx0,
+        by0,
+        bx1,
+        by1,
+        tuple(edge_plans),
+    )
+
+
 def zone_colors(
     image: np.ndarray,
     zones: Sequence[ZoneRect],
@@ -229,39 +308,25 @@ def zone_colors_array(
         return np.zeros((0, 3), dtype=np.uint8)
 
     step = max(1, int(sample_step))
-
-    zones_arr = np.asarray(zones, dtype=np.intp)
-    x = zones_arr[:, 0]
-    y = zones_arr[:, 1]
-    zw = zones_arr[:, 2]
-    zh = zones_arr[:, 3]
-
+    zones_key = tuple(
+        (int(zone[0]), int(zone[1]), int(zone[2]), int(zone[3]))
+        for zone in zones
+    )
     if step > 1:
-        # Sample a strided working image and map zone coordinates into that space.
         img = img[::step, ::step, :]
         h, w, _ = img.shape
-        x = x // step
-        y = y // step
-        # Ceil-div to preserve minimally-sized zones after downsampling.
-        zw = (zw + (step - 1)) // step
-        zh = (zh + (step - 1)) // step
 
-    x0 = np.clip(x, 0, w)
-    y0 = np.clip(y, 0, h)
-    x1 = np.clip(x0 + zw, 0, w)
-    y1 = np.clip(y0 + zh, 0, h)
-
-    areas = (x1 - x0) * (y1 - y0)
-
+    x0, y0, x1, y1, areas, valid_idx, bx0, by0, bx1, by1, edge_plans = _cached_sampling_plan(
+        zones_key,
+        w,
+        h,
+        step,
+        str(edge_locality),
+    )
     valid = areas > 0
 
     sums = np.zeros((len(zones), 3), dtype=np.float64)
     if valid.any():
-        bx0 = int(np.min(x0[valid]))
-        by0 = int(np.min(y0[valid]))
-        bx1 = int(np.max(x1[valid]))
-        by1 = int(np.max(y1[valid]))
-
         linear_img = srgb_u8_to_linear01(img)
         cropped_linear = linear_img[by0:by1, bx0:bx1, :]
         oklab = _linear_srgb_to_oklab(cropped_linear)
@@ -277,7 +342,6 @@ def zone_colors_array(
         cx1 = x1 - bx0
         cy1 = y1 - by0
 
-        valid_idx = np.flatnonzero(valid)
         sums[valid_idx] = (
             integral[cy1[valid_idx], cx1[valid_idx]]
             - integral[cy0[valid_idx], cx1[valid_idx]]
@@ -291,23 +355,9 @@ def zone_colors_array(
         avg_linear_rgb = _oklab_to_linear_srgb(avg_oklab)
         means[valid] = linear01_to_srgb_u8(avg_linear_rgb)
 
-        valid_idx = np.flatnonzero(valid)
-        for idx in valid_idx:
-            weights = _edge_localized_weights(
-                zone_x0=int(x0[idx]),
-                zone_y0=int(y0[idx]),
-                zone_x1=int(x1[idx]),
-                zone_y1=int(y1[idx]),
-                frame_w=w,
-                frame_h=h,
-                edge_locality=edge_locality,
-            )
-            if weights is None:
-                continue
-            patch_linear = linear_img[y0[idx]:y1[idx], x0[idx]:x1[idx]]
-            if patch_linear.size == 0:
-                continue
-            weighted_linear = (patch_linear * weights[:, :, None]).sum(axis=(0, 1), dtype=np.float64)
+        for idx, py0, py1, px0, px1, weights in edge_plans:
+            patch_linear = linear_img[py0:py1, px0:px1]
+            weighted_linear = np.einsum("hwc,hw->c", patch_linear, weights, dtype=np.float64)
             means[idx] = linear01_to_srgb_u8(weighted_linear.astype(np.float32, copy=False))
 
     normalized_mode = str(mode).strip().lower()

@@ -39,3 +39,11 @@ def test_app_config_has_canonical_preset_fields() -> None:
     assert cfg.motion_preset in {"calm", "responsive", "dynamic"}
     assert cfg.color_style in {"reference", "natural", "ambient", "vivid", "punchy"}
     assert cfg.display_preset in {"sdr", "hdr", "auto"}
+    assert cfg.performance_priority in {"normal", "high", "very_high_experimental"}
+
+
+def test_validate_config_normalizes_performance_priority() -> None:
+    cfg = validate_config(AppConfig(performance_priority="VERY_HIGH_EXPERIMENTAL"))
+    assert cfg.performance_priority == "very_high_experimental"
+    fallback = validate_config(AppConfig(performance_priority="turbo"))
+    assert fallback.performance_priority == "normal"

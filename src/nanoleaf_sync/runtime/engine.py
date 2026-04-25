@@ -737,10 +737,43 @@ def run_loop(
                 state.latest_zone_diagnostics = zone_diagnostics
                 state.latest_side_variance_diagnostics = side_var
                 hid_write_start = time.perf_counter()
-                driver.send_frame(smoothed_colors)
+                hid_frame_build_ms: float | None = None
+                hid_device_write_ms: float | None = None
+                hid_flush_or_wait_ms: float | None = None
+                hid_flush_or_wait_reason = "Not instrumented by current driver path."
+                hid_frame_build_reason = "Frame-build timing not separated from send_frame() in driver path."
+                hid_device_limited_label = "unknown"
+                send_with_timing = getattr(driver, "send_frame_with_timing", None)
+                if callable(send_with_timing):
+                    timing = send_with_timing(smoothed_colors)
+                    hid_frame_build_ms = (
+                        float(timing.get("frame_build_ms"))
+                        if isinstance(timing, dict) and timing.get("frame_build_ms") is not None
+                        else None
+                    )
+                    hid_device_write_ms = (
+                        float(timing.get("device_write_ms"))
+                        if isinstance(timing, dict) and timing.get("device_write_ms") is not None
+                        else None
+                    )
+                    hid_flush_or_wait_ms = (
+                        float(timing.get("flush_or_wait_ms"))
+                        if isinstance(timing, dict) and timing.get("flush_or_wait_ms") is not None
+                        else None
+                    )
+                    hid_flush_or_wait_reason = str(
+                        timing.get("flush_or_wait_reason", hid_flush_or_wait_reason)
+                    )
+                    hid_frame_build_reason = "Measured inside driver send path."
+                    hid_device_limited_label = (
+                        "yes" if bool(timing.get("device_limited", False)) else "no"
+                    )
+                else:
+                    driver.send_frame(smoothed_colors)
                 send_done = time.perf_counter()
                 hid_write_ms = (send_done - hid_write_start) * 1000.0
-                hid_device_write_ms = hid_write_ms
+                if hid_device_write_ms is None:
+                    hid_device_write_ms = hid_write_ms
                 frame_processing_ms = (processing_end - start) * 1000.0
                 actual_work_ms = (send_done - start) * 1000.0
                 loop_gap_ms = ((send_done - last_send_done_ts) * 1000.0) if last_send_done_ts is not None else None
@@ -776,9 +809,9 @@ def run_loop(
                             STAGE_OUTPUT_PREPARE: processing_timings.output_prepare_ms,
                             STAGE_ACTUAL_WORK: actual_work_ms,
                             STAGE_HID_WRITE: hid_write_ms,
-                            STAGE_HID_FRAME_BUILD: None,
+                            STAGE_HID_FRAME_BUILD: hid_frame_build_ms,
                             STAGE_HID_DEVICE_WRITE: hid_device_write_ms,
-                            STAGE_HID_FLUSH_OR_WAIT: None,
+                            STAGE_HID_FLUSH_OR_WAIT: hid_flush_or_wait_ms,
                             STAGE_LOOP_GAP: loop_gap_ms,
                             STAGE_INFERRED_UNATTRIBUTED_GAP: inferred_unattributed_gap_ms,
                             "end_to_end_live_ms": None,
@@ -796,8 +829,9 @@ def run_loop(
                         flags={"capture_worker_active": capture_worker_active_now},
                         labels={
                             "latest_capture_backend_name": latest_capture_backend_name,
-                            "hid_flush_or_wait_reason": "Not instrumented by current driver path.",
-                            "hid_frame_build_reason": "Frame-build timing not separated from send_frame() in driver path.",
+                            "hid_flush_or_wait_reason": hid_flush_or_wait_reason,
+                            "hid_frame_build_reason": hid_frame_build_reason,
+                            "hid_device_write_limited": hid_device_limited_label,
                         },
                     )
                 )
