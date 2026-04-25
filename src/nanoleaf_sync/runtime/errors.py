@@ -114,6 +114,23 @@ def translate_runtime_error(error: Exception) -> UserFacingError:
             ),
         )
 
+    if "start denied (response=1)" in normalized:
+        return UserFacingError(
+            kind="screen-selection-cancelled",
+            summary="Screen selection cancelled.",
+            guidance="Press Start again and choose a screen to continue.",
+        )
+
+    if "portal negotiation failed" in normalized or "portal start" in normalized:
+        return UserFacingError(
+            kind="portal-backend",
+            summary=message,
+            guidance=(
+                "The screen-share portal reported an error. "
+                "Retry once, then run `nanoleaf-kde-sync-doctor --capture` if it persists."
+            ),
+        )
+
     return UserFacingError(
         kind="runtime",
         summary=message,

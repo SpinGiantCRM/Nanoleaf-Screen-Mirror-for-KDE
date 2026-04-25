@@ -219,6 +219,13 @@ class NanoleafSyncService:
         status["requested_capture_backend"] = self.config.prefer_backend
         status["selected_capture_backend"] = self._effective_capture_backend or self.config.auto_selected_backend or ""
         status["effective_capture_backend"] = self._effective_capture_backend or capture_backend_name
+        lifecycle_state = self._lifecycle.startup_state()
+        startup_state = lifecycle_state
+        if lifecycle_state in {"starting", "running"}:
+            backend_hint = str(status.get("effective_capture_backend") or status.get("selected_capture_backend") or "")
+            if backend_hint == "xdg-portal" and int(status.get("frames_sent") or 0) <= 0:
+                startup_state = "waiting_for_screen_selection"
+        status["startup_state"] = startup_state
         status["selection_reason"] = self._selection_reason
         status["backend_unresolved_reason"] = (
             ""

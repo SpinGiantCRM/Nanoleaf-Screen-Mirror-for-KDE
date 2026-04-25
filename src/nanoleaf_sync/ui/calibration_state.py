@@ -98,12 +98,16 @@ class CalibrationState:
     def from_config(cls, cfg: AppConfig, runtime_status: dict | None = None) -> "CalibrationState":
         runtime_status = runtime_status or {}
         calibration = cfg.effective_calibration()
+        layout_preset = str(getattr(cfg, "layout_preset", "edge_strip"))
         source_zone_count = len(cfg.zones) if cfg.zones else 0
         source_zones_user_configured = bool(cfg.zones)
         configured_device_zone_count = int(getattr(calibration, "device_zone_count", 0))
         if configured_device_zone_count <= 0:
             configured_device_zone_count = int(getattr(cfg, "device_zone_count", 0))
         detected = int(runtime_status.get("device_zone_count") or 0)
+        if layout_preset == "edge_strip" and configured_device_zone_count > 0:
+            source_zone_count = configured_device_zone_count
+            source_zones_user_configured = False
         if source_zone_count <= 0:
             if configured_device_zone_count > 0:
                 source_zone_count = configured_device_zone_count
@@ -114,7 +118,7 @@ class CalibrationState:
 
         return cls(
             zone_count=max(1, int(source_zone_count)),
-            layout_preset=str(getattr(cfg, "layout_preset", "edge_strip")),
+            layout_preset=layout_preset,
             reverse_zones=bool(getattr(calibration, "reverse_zones", False)),
             device_zone_count=max(1, int(configured_device_zone_count)),
             corner_anchor_top_left=int(getattr(calibration, "corner_anchor_top_left", -1)),

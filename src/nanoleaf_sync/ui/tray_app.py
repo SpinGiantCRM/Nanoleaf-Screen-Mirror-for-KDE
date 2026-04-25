@@ -455,6 +455,12 @@ class NanoleafTrayApp:
     def _refresh_mode_labels(self) -> None:
         running = self.service.is_running()
         status = self.service.get_status()
+        startup_state = str(status.get("startup_state") or ("running" if running else "idle"))
+        waiting_for_screen = startup_state == "waiting_for_screen_selection"
+        start_action_enabled = startup_state in {"idle", "error"}
+        set_enabled = getattr(self.action_start, "setEnabled", None)
+        if callable(set_enabled):
+            set_enabled(start_action_enabled)
         capture_mode, device_mode = describe_mode(
             self.config.use_mock_capture,
             self.config.prefer_backend,
@@ -467,17 +473,26 @@ class NanoleafTrayApp:
         unresolved_reason = status.get("backend_unresolved_reason") or ""
         self.tray_icon.setToolTip(
             "nanoleaf-kde-sync\n"
-            f"State: {'running' if running else 'idle'}\n{capture_mode}\n{device_mode}\n"
+            f"State: {startup_state}\n{capture_mode}\n{device_mode}\n"
             f"Requested backend policy: {self.config.prefer_backend}\n"
             f"Selected backend: {selected_backend}\n"
             f"Effective backend: {effective_backend}"
             + (f"\nBackend note: {unresolved_reason}" if unresolved_reason else "")
         )
         self.action_status.setText(
-            f"About / Status ({'Running' if running else 'Idle'} · v{self._app_version})"
+            f"About / Status ({startup_state.replace('_', ' ').title()} · v{self._app_version})"
         )
+        if waiting_for_screen:
+            self.action_start.setText("Start (Waiting for screen selection)")
+        else:
+            self.action_start.setText("Start")
 
     def on_start(self):
+        start_status = self.service.get_status()
+        startup_state = str(start_status.get("startup_state") or "")
+        if startup_state in {"starting", "waiting_for_screen_selection", "running", "stopping"}:
+            self._refresh_mode_labels()
+            return
         close_preview = getattr(self, "_close_preview_driver", None)
         if callable(close_preview):
             close_preview(resume_service=False)
@@ -499,12 +514,22 @@ class NanoleafTrayApp:
 
         self.tray_icon.setIcon(self._running_icon if running else self._idle_icon)
         self._refresh_mode_labels()
-        if not running:
-            status = self.service.get_status()
-            guidance = status.get("last_error_guidance") or "Run nanoleaf-kde-sync-doctor for diagnostics."
+        status = self.service.get_status()
+        startup_state = str(status.get("startup_state") or "")
+        if startup_state == "waiting_for_screen_selection":
             self.tray_icon.showMessage(
                 "nanoleaf-kde-sync",
-                f"Start failed: {self.service.last_error or 'unknown error'}\n{guidance}",
+                "Waiting for screen selection",
+                self.QSystemTrayIcon.MessageIcon.Information,
+                5000,
+            )
+            return
+        if not running:
+            guidance = status.get("last_error_guidance") or "Run nanoleaf-kde-sync-doctor for diagnostics."
+            error_text = self.service.last_error or "unknown error"
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                f"Start failed: {error_text}\n{guidance}",
                 self.QSystemTrayIcon.MessageIcon.Warning,
                 7000,
             )

@@ -1,4 +1,5 @@
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
+from nanoleaf_sync.ui.zone_presets import make_horizontal_zones
 from nanoleaf_sync.ui.calibration_state import CalibrationState
 
 
@@ -17,3 +18,15 @@ def test_calibration_state_keeps_manual_strip_count_when_runtime_reports_differe
     state = CalibrationState.from_config(cfg, {"device_zone_count": 54})
     assert state.device_zone_count == 48
     assert state.zone_count == 48
+
+
+def test_calibration_state_ignores_stale_source_zone_count_in_edge_strip_mode() -> None:
+    cfg = AppConfig(
+        device_zone_count=48,
+        layout_preset="edge_strip",
+        zones=make_horizontal_zones(8),
+        calibration=CalibrationConfig(device_zone_count=48),
+    )
+    state = CalibrationState.from_config(cfg, {"device_zone_count": 48})
+    assert state.zone_count == 48
+    assert state.source_zones_user_configured is False

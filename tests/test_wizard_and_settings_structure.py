@@ -19,6 +19,8 @@ def test_step3_look_and_feel_uses_clean_sections_with_collapsed_advanced_details
     assert 'QLabel("Motion")' in text
     assert 'QLabel("Color style")' in text
     assert 'QLabel("Screen sampling zones")' in text
+    assert "matched to strip LED zones" in text
+    assert "self.zone_count_slider" not in text
     assert "_set_group_contents_visible(self.advanced_details_group" in text
 
 

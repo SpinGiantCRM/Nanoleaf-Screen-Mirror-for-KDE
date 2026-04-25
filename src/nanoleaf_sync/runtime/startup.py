@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+import threading
 from threading import Thread
 from typing import Callable, Optional
 
@@ -126,30 +127,77 @@ class RuntimeLifecycle:
         self._state = state
         self._runner = runner
         self._thread: Optional[Thread] = None
+        self._lock = threading.Lock()
+        self._state_name = "idle"
 
     def start(self, *, startup_timeout_s: float = 1.0) -> bool:
-        if self.is_running():
-            return True
+        with self._lock:
+            self._sync_state_locked()
+            if self._state_name in {"starting", "running"}:
+                return True
+            if self._state_name == "stopping":
+                return False
 
-        reset_startup(self._state)
-        self._thread = Thread(
-            target=self._runner,
-            name="nanoleaf-sync",
-            daemon=True,
-        )
-        self._thread.start()
-        if not wait_for_startup(self._state, timeout_s=startup_timeout_s):
+            reset_startup(self._state)
+            self._thread = Thread(
+                target=self._runner,
+                name="nanoleaf-sync",
+                daemon=True,
+            )
+            self._state_name = "starting"
+            self._thread.start()
+
+        startup_completed = self._state.startup_complete.wait(timeout=max(0.0, float(startup_timeout_s)))
+        if not startup_completed:
+            # Startup is still in-flight (for example, awaiting user portal consent).
+            with self._lock:
+                self._sync_state_locked()
+            return True
+        if not self._state.startup_succeeded:
             self.join(timeout=0.2)
+            with self._lock:
+                self._sync_state_locked()
             return False
+        with self._lock:
+            self._sync_state_locked()
         return self.is_running()
 
     def stop(self) -> None:
+        with self._lock:
+            self._sync_state_locked()
+            if self._state_name in {"starting", "running"}:
+                self._state_name = "stopping"
         self._state.stop_event.set()
 
     def join(self, timeout: Optional[float] = None) -> None:
         if self._thread is None:
             return
         self._thread.join(timeout=timeout)
+        with self._lock:
+            self._sync_state_locked()
 
     def is_running(self) -> bool:
-        return self._thread is not None and self._thread.is_alive()
+        with self._lock:
+            self._sync_state_locked()
+            return self._state_name in {"starting", "running"}
+
+    def startup_state(self) -> str:
+        with self._lock:
+            self._sync_state_locked()
+            return self._state_name
+
+    def _sync_state_locked(self) -> None:
+        thread_alive = self._thread is not None and self._thread.is_alive()
+        if thread_alive:
+            if self._state_name in {"idle", "error"}:
+                self._state_name = "running" if self._state.startup_complete.is_set() else "starting"
+            elif self._state_name == "starting" and self._state.startup_complete.is_set() and self._state.startup_succeeded:
+                self._state_name = "running"
+            return
+        if self._state_name == "stopping":
+            self._state_name = "idle"
+            return
+        if self._state.startup_complete.is_set() and not self._state.startup_succeeded:
+            self._state_name = "error"
+        else:
+            self._state_name = "idle"
