@@ -83,6 +83,11 @@ class AppConfig:
     # Zone sampling stride (1 = every pixel, 2 = every other pixel, etc.).
     # Larger values reduce CPU cost at the expense of color precision.
     zone_sampling_stride: int = 1
+    # Zone sampling engine:
+    # - auto: choose the faster proven path for the active frame/zone shape
+    # - legacy: pre-optimisation direct RGB integral sampling
+    # - optimized: Oklab integral sampling path
+    zone_sampling_engine: str = "auto"
     # New preset architecture (canonical model).
     layout_preset: str = "edge_strip"
     edge_locality: str = "balanced"

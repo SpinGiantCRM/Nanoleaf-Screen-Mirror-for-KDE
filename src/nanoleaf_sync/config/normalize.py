@@ -164,6 +164,11 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         },
         default=AppConfig.performance_priority,
     )
+    zone_sampling_engine = normalize_enum(
+        getattr(cfg, "zone_sampling_engine", AppConfig.zone_sampling_engine),
+        allowed={"auto": "auto", "legacy": "legacy", "optimized": "optimized"},
+        default=AppConfig.zone_sampling_engine,
+    )
 
     def _normalize_profile(profile: object) -> LedCalibrationProfile:
         p = profile if isinstance(profile, LedCalibrationProfile) else LedCalibrationProfile()
@@ -201,6 +206,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         led_calibration_profile_hdr=hdr_profile,
         zones=zones,
         zone_sampling_stride=zone_sampling_stride,
+        zone_sampling_engine=zone_sampling_engine,
         layout_preset=layout_preset,
         edge_locality=edge_locality,
         light_spread=light_spread,

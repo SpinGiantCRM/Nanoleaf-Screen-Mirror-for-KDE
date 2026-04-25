@@ -40,6 +40,7 @@ def test_app_config_has_canonical_preset_fields() -> None:
     assert cfg.color_style in {"reference", "natural", "ambient", "vivid", "punchy"}
     assert cfg.display_preset in {"sdr", "hdr", "auto"}
     assert cfg.performance_priority in {"normal", "high", "very_high_experimental"}
+    assert cfg.zone_sampling_engine in {"auto", "legacy", "optimized"}
 
 
 def test_validate_config_normalizes_performance_priority() -> None:
@@ -47,3 +48,10 @@ def test_validate_config_normalizes_performance_priority() -> None:
     assert cfg.performance_priority == "very_high_experimental"
     fallback = validate_config(AppConfig(performance_priority="turbo"))
     assert fallback.performance_priority == "normal"
+
+
+def test_validate_config_normalizes_zone_sampling_engine() -> None:
+    cfg = validate_config(AppConfig(zone_sampling_engine="LEGACY"))
+    assert cfg.zone_sampling_engine == "legacy"
+    fallback = validate_config(AppConfig(zone_sampling_engine="turbo"))
+    assert fallback.zone_sampling_engine == "auto"

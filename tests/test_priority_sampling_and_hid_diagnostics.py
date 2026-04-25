@@ -7,6 +7,10 @@ from nanoleaf_sync.runtime.diagnostics_exports import latency_breakdown_lines
 from nanoleaf_sync.runtime.startup import apply_process_priority
 from nanoleaf_sync.runtime.state import RuntimeState
 from nanoleaf_sync.runtime.zones import (
+    _AUTO_ENGINE_CACHE,
+    _cached_sampling_plan,
+    _zone_means_legacy,
+    _zone_means_optimized,
     _edge_localized_weights,
     _linear_srgb_to_oklab,
     _oklab_to_linear_srgb,
@@ -170,6 +174,29 @@ def test_zone_sampling_output_equivalence_after_sampling_plan_optimization() -> 
         (0, 100, 32, 68),
         (0, 32, 32, 68),
     ]
-    optimized = zone_colors_array(frame, zones, mode="balanced", edge_locality="balanced")
+    optimized = zone_colors_array(frame, zones, mode="balanced", edge_locality="balanced", engine="optimized")
     reference = _legacy_reference_zone_colors(frame, zones)
     np.testing.assert_array_equal(optimized, reference)
+
+
+def test_zone_sampling_auto_picks_faster_engine_for_48_edge_zones() -> None:
+    rng = np.random.default_rng(7)
+    frame = rng.integers(0, 255, size=(270, 480, 3), dtype=np.uint8)
+    zones = [(i * 10 % 448, 0 if i < 24 else 236, 32, 34) for i in range(48)]
+    _AUTO_ENGINE_CACHE.clear()
+    auto = zone_colors_array(frame, zones, mode="balanced", edge_locality="balanced", engine="auto")
+    key = (tuple((int(a), int(b), int(c), int(d)) for a, b, c, d in zones), frame.shape[1], frame.shape[0], 1, "balanced")
+    assert _AUTO_ENGINE_CACHE.get(key) in {"legacy", "optimized"}
+    zones_key = tuple((int(a), int(b), int(c), int(d)) for a, b, c, d in zones)
+    x0, y0, x1, y1, areas, valid_idx, bx0, by0, bx1, by1, edge_plans = _cached_sampling_plan(
+        zones_key, frame.shape[1], frame.shape[0], 1, "balanced"
+    )
+    valid = areas > 0
+    legacy = _zone_means_legacy(
+        image=frame, x0=x0, y0=y0, x1=x1, y1=y1, areas=areas, valid=valid, valid_idx=valid_idx, bx0=bx0, by0=by0, bx1=bx1, by1=by1, edge_plans=edge_plans
+    )
+    optimized = _zone_means_optimized(
+        image=frame, x0=x0, y0=y0, x1=x1, y1=y1, areas=areas, valid=valid, valid_idx=valid_idx, bx0=bx0, by0=by0, bx1=bx1, by1=by1, edge_plans=edge_plans
+    )
+    assert np.max(np.abs(legacy.astype(np.int16) - optimized.astype(np.int16))) <= 30
+    np.testing.assert_array_equal(auto, legacy if _AUTO_ENGINE_CACHE.get(key) == "legacy" else optimized)

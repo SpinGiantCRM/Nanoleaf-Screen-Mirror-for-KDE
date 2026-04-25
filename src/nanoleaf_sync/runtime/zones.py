@@ -63,6 +63,7 @@ _M1_INV_T = np.ascontiguousarray(_M1_INV.T)
 _M2_INV_T = np.ascontiguousarray(_M2_INV.T)
 
 _thread_local = threading.local()
+_AUTO_ENGINE_CACHE: dict[tuple[tuple[tuple[int, int, int, int], ...], int, int, int, str], str] = {}
 
 
 _COLOR_MODE_PROFILES = {
@@ -294,6 +295,7 @@ def zone_colors_array(
     mode: str = "balanced",
     previous_zone_colors: Sequence[RGBTuple] | None = None,
     edge_locality: str = "balanced",
+    engine: str = "auto",
 ) -> np.ndarray:
     """
     Given a list of screen regions and an image, return average RGB per zone.
@@ -303,6 +305,7 @@ def zone_colors_array(
 
     img = _ensure_rgb_u8(image)
     h, w, _ = img.shape
+    orig_h, orig_w = h, w
 
     if not zones:
         return np.zeros((0, 3), dtype=np.uint8)
@@ -318,47 +321,69 @@ def zone_colors_array(
 
     x0, y0, x1, y1, areas, valid_idx, bx0, by0, bx1, by1, edge_plans = _cached_sampling_plan(
         zones_key,
-        w,
-        h,
+        orig_w,
+        orig_h,
         step,
         str(edge_locality),
     )
     valid = areas > 0
 
-    sums = np.zeros((len(zones), 3), dtype=np.float64)
-    if valid.any():
-        linear_img = srgb_u8_to_linear01(img)
-        cropped_linear = linear_img[by0:by1, bx0:bx1, :]
-        oklab = _linear_srgb_to_oklab(cropped_linear)
-
-        crop_h, crop_w, _ = cropped_linear.shape
-        integral = _get_integral_buffer(crop_h + 1, crop_w + 1)
-        integral[0, :, :] = 0.0
-        integral[:, 0, :] = 0.0
-        integral[1:, 1:, :] = oklab.cumsum(axis=0, dtype=np.float64).cumsum(axis=1, dtype=np.float64)
-
-        cx0 = x0 - bx0
-        cy0 = y0 - by0
-        cx1 = x1 - bx0
-        cy1 = y1 - by0
-
-        sums[valid_idx] = (
-            integral[cy1[valid_idx], cx1[valid_idx]]
-            - integral[cy0[valid_idx], cx1[valid_idx]]
-            - integral[cy1[valid_idx], cx0[valid_idx]]
-            + integral[cy0[valid_idx], cx0[valid_idx]]
-        )
-
     means = np.zeros((len(zones), 3), dtype=np.uint8)
     if valid.any():
-        avg_oklab = (sums[valid] / areas[valid, None]).astype(np.float32, copy=False)
-        avg_linear_rgb = _oklab_to_linear_srgb(avg_oklab)
-        means[valid] = linear01_to_srgb_u8(avg_linear_rgb)
-
-        for idx, py0, py1, px0, px1, weights in edge_plans:
-            patch_linear = linear_img[py0:py1, px0:px1]
-            weighted_linear = np.einsum("hwc,hw->c", patch_linear, weights, dtype=np.float64)
-            means[idx] = linear01_to_srgb_u8(weighted_linear.astype(np.float32, copy=False))
+        normalized_engine = str(engine or "auto").strip().lower()
+        selected_engine = normalized_engine
+        if normalized_engine == "auto":
+            cache_key = (zones_key, w, h, step, str(edge_locality))
+            selected_engine = _AUTO_ENGINE_CACHE.get(cache_key, "")
+            if not selected_engine:
+                selected_engine = _select_faster_engine_auto(
+                    image=img,
+                    x0=x0,
+                    y0=y0,
+                    x1=x1,
+                    y1=y1,
+                    areas=areas,
+                    valid=valid,
+                    valid_idx=valid_idx,
+                    bx0=bx0,
+                    by0=by0,
+                    bx1=bx1,
+                    by1=by1,
+                    edge_plans=edge_plans,
+                )
+                _AUTO_ENGINE_CACHE[cache_key] = selected_engine
+        if selected_engine == "legacy":
+            means = _zone_means_legacy(
+                image=img,
+                x0=x0,
+                y0=y0,
+                x1=x1,
+                y1=y1,
+                areas=areas,
+                valid=valid,
+                valid_idx=valid_idx,
+                bx0=bx0,
+                by0=by0,
+                bx1=bx1,
+                by1=by1,
+                edge_plans=edge_plans,
+            )
+        else:
+            means = _zone_means_optimized(
+                image=img,
+                x0=x0,
+                y0=y0,
+                x1=x1,
+                y1=y1,
+                areas=areas,
+                valid=valid,
+                valid_idx=valid_idx,
+                bx0=bx0,
+                by0=by0,
+                bx1=bx1,
+                by1=by1,
+                edge_plans=edge_plans,
+            )
 
     normalized_mode = str(mode).strip().lower()
     if normalized_mode == "balanced":
@@ -415,3 +440,138 @@ def zone_colors_array(
         out[idx] = np.clip(candidate, 0.0, 255.0)
 
     return np.clip(np.rint(out), 0.0, 255.0).astype(np.uint8)
+
+
+def _zone_means_legacy(
+    *,
+    image: np.ndarray,
+    x0: np.ndarray,
+    y0: np.ndarray,
+    x1: np.ndarray,
+    y1: np.ndarray,
+    areas: np.ndarray,
+    valid: np.ndarray,
+    valid_idx: np.ndarray,
+    bx0: int,
+    by0: int,
+    bx1: int,
+    by1: int,
+    edge_plans: tuple[tuple[int, int, int, int, int, np.ndarray], ...],
+) -> np.ndarray:
+    means = np.zeros((len(x0), 3), dtype=np.uint8)
+    if not valid.any():
+        return means
+    cropped = image[by0:by1, bx0:bx1].astype(np.float64, copy=False)
+    integral = _get_integral_buffer(cropped.shape[0] + 1, cropped.shape[1] + 1)
+    integral[0, :, :] = 0.0
+    integral[:, 0, :] = 0.0
+    integral[1:, 1:, :] = cropped.cumsum(axis=0, dtype=np.float64).cumsum(axis=1, dtype=np.float64)
+    cx0 = x0 - bx0
+    cy0 = y0 - by0
+    cx1 = x1 - bx0
+    cy1 = y1 - by0
+    sums = (
+        integral[cy1[valid_idx], cx1[valid_idx]]
+        - integral[cy0[valid_idx], cx1[valid_idx]]
+        - integral[cy1[valid_idx], cx0[valid_idx]]
+        + integral[cy0[valid_idx], cx0[valid_idx]]
+    )
+    means[valid] = np.clip(np.rint(sums / areas[valid_idx, None]), 0.0, 255.0).astype(np.uint8, copy=False)
+    for idx, py0, py1, px0, px1, weights in edge_plans:
+        patch = image[py0:py1, px0:px1].astype(np.float64, copy=False)
+        weighted = np.einsum("hwc,hw->c", patch, weights, dtype=np.float64)
+        means[idx] = np.clip(np.rint(weighted), 0.0, 255.0).astype(np.uint8, copy=False)
+    return means
+
+
+def _zone_means_optimized(
+    *,
+    image: np.ndarray,
+    x0: np.ndarray,
+    y0: np.ndarray,
+    x1: np.ndarray,
+    y1: np.ndarray,
+    areas: np.ndarray,
+    valid: np.ndarray,
+    valid_idx: np.ndarray,
+    bx0: int,
+    by0: int,
+    bx1: int,
+    by1: int,
+    edge_plans: tuple[tuple[int, int, int, int, int, np.ndarray], ...],
+) -> np.ndarray:
+    means = np.zeros((len(x0), 3), dtype=np.uint8)
+    if not valid.any():
+        return means
+    linear_img = srgb_u8_to_linear01(image)
+    cropped_linear = linear_img[by0:by1, bx0:bx1, :]
+    oklab = _linear_srgb_to_oklab(cropped_linear)
+    crop_h, crop_w, _ = cropped_linear.shape
+    integral = _get_integral_buffer(crop_h + 1, crop_w + 1)
+    integral[0, :, :] = 0.0
+    integral[:, 0, :] = 0.0
+    integral[1:, 1:, :] = oklab.cumsum(axis=0, dtype=np.float64).cumsum(axis=1, dtype=np.float64)
+    cx0 = x0 - bx0
+    cy0 = y0 - by0
+    cx1 = x1 - bx0
+    cy1 = y1 - by0
+    sums = (
+        integral[cy1[valid_idx], cx1[valid_idx]]
+        - integral[cy0[valid_idx], cx1[valid_idx]]
+        - integral[cy1[valid_idx], cx0[valid_idx]]
+        + integral[cy0[valid_idx], cx0[valid_idx]]
+    )
+    avg_oklab = (sums / areas[valid_idx, None]).astype(np.float32, copy=False)
+    means[valid] = linear01_to_srgb_u8(_oklab_to_linear_srgb(avg_oklab))
+    for idx, py0, py1, px0, px1, weights in edge_plans:
+        patch_linear = linear_img[py0:py1, px0:px1]
+        weighted_linear = np.einsum("hwc,hw->c", patch_linear, weights, dtype=np.float64)
+        means[idx] = linear01_to_srgb_u8(weighted_linear.astype(np.float32, copy=False))
+    return means
+
+
+def _select_faster_engine_auto(
+    *,
+    image: np.ndarray,
+    x0: np.ndarray,
+    y0: np.ndarray,
+    x1: np.ndarray,
+    y1: np.ndarray,
+    areas: np.ndarray,
+    valid: np.ndarray,
+    valid_idx: np.ndarray,
+    bx0: int,
+    by0: int,
+    bx1: int,
+    by1: int,
+    edge_plans: tuple[tuple[int, int, int, int, int, np.ndarray], ...],
+) -> str:
+    import time
+
+    def _time(fn) -> tuple[float, np.ndarray]:
+        start = time.perf_counter()
+        out = fn(
+            image=image,
+            x0=x0,
+            y0=y0,
+            x1=x1,
+            y1=y1,
+            areas=areas,
+            valid=valid,
+            valid_idx=valid_idx,
+            bx0=bx0,
+            by0=by0,
+            bx1=bx1,
+            by1=by1,
+            edge_plans=edge_plans,
+        )
+        return (time.perf_counter() - start) * 1000.0, out
+
+    legacy_ms, legacy_out = _time(_zone_means_legacy)
+    optimized_ms, optimized_out = _time(_zone_means_optimized)
+    max_abs_delta = int(np.max(np.abs(legacy_out.astype(np.int16) - optimized_out.astype(np.int16)))) if legacy_out.size else 0
+    if legacy_ms <= optimized_ms:
+        return "legacy"
+    if max_abs_delta <= 6:
+        return "optimized"
+    return "legacy"
