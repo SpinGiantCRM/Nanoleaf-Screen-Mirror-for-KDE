@@ -325,7 +325,7 @@ class XDGPortalCapture:
             diag.negotiated_format = str(self._last_frame_diag.get("format") or "")
             diag.negotiated_width = int(self._last_frame_diag.get("width") or 0) or None
             diag.negotiated_height = int(self._last_frame_diag.get("height") or 0) or None
-            diag.negotiated_framerate = str(self._last_frame_diag.get("framerate") or "")
+            diag.negotiated_framerate = str(self._last_frame_diag.get("framerate") or "unknown")
             diag.empty_buffer_count = int(self._last_frame_diag.get("empty_buffer_count") or self._empty_first_buffers)
             diag.non_empty_buffer_count = int(
                 self._last_frame_diag.get("non_empty_buffer_count") or self._non_empty_first_buffers
@@ -371,6 +371,7 @@ class XDGPortalCapture:
                     "height": diag.negotiated_height or self.height,
                     "format": diag.negotiated_format,
                     "framerate": diag.negotiated_framerate,
+                    "caps_metadata_warning": self._last_frame_diag.get("caps_metadata_warning"),
                     "stride": diag.stride,
                     "pts_ns": diag.pts_ns,
                     "dts_ns": diag.dts_ns,
@@ -425,7 +426,8 @@ class XDGPortalCapture:
                     "width": int(self._last_frame_diag.get("width") or self.width),
                     "height": int(self._last_frame_diag.get("height") or self.height),
                     "format": self._last_frame_diag.get("format"),
-                    "framerate": self._last_frame_diag.get("framerate"),
+                    "framerate": self._last_frame_diag.get("framerate") or "unknown",
+                    "caps_metadata_warning": self._last_frame_diag.get("caps_metadata_warning"),
                     "stride": self._last_frame_diag.get("stride"),
                     "pts_ns": self._last_frame_diag.get("pts_ns"),
                     "dts_ns": self._last_frame_diag.get("dts_ns"),
@@ -546,7 +548,7 @@ class XDGPortalCapture:
                     self._use_gstreamer = True
                     return
                 pipeline.set_state(Gst.State.NULL)
-                errors.append(f"{fmt}: no CPU-readable frame")
+                errors.append(f"{fmt}: {self._describe_gst_pull_failure(diag)}")
             except Exception as exc:  # noqa: BLE001
                 errors.append(f"{fmt}: {exc}")
                 try:
@@ -558,6 +560,22 @@ class XDGPortalCapture:
             "Portal stream negotiated, but no CPU-readable frame was received. "
             f"format_attempts={'; '.join(errors)}"
         )
+
+    def _describe_gst_pull_failure(self, diag: dict[str, object]) -> str:
+        warning = diag.get("caps_metadata_warning")
+        warning_text = f"; metadata parse warning={warning}" if warning else ""
+        if not bool(diag.get("sample_received")):
+            return f"no sample{warning_text}"
+        if not bool(diag.get("buffer_present")):
+            return f"no buffer{warning_text}"
+        if diag.get("map_attempted") and not bool(diag.get("map_success")):
+            return f"map failure{warning_text}"
+        if int(diag.get("buffer_reported_size") or 0) <= 0 or int(diag.get("mapped_memory_size") or 0) <= 0:
+            return f"zero-byte buffer{warning_text}"
+        if diag.get("rgb_conversion_attempted") and not bool(diag.get("rgb_conversion_success")):
+            fmt = diag.get("format") or "unknown"
+            return f"unsupported pixel format ({fmt}){warning_text}"
+        return f"no CPU-readable frame{warning_text}"
 
     def _read_pipewire_frame(self) -> Optional[np.ndarray]:
         if self._use_gstreamer:
@@ -597,10 +615,15 @@ class XDGPortalCapture:
             "height": 0,
             "format": None,
             "framerate": None,
+            "caps_metadata_warning": None,
             "stride": None,
             "pts_ns": None,
             "dts_ns": None,
             "duration_ns": None,
+            "map_attempted": False,
+            "map_success": False,
+            "rgb_conversion_attempted": False,
+            "rgb_conversion_success": False,
             "empty_buffer_count": empty_buffers,
             "non_empty_buffer_count": non_empty_buffers,
         }
@@ -617,22 +640,7 @@ class XDGPortalCapture:
                 continue
             last_diag["sample_received"] = True
             caps = sample.get_caps()
-            caps_str = caps.to_string() if caps is not None else None
-            last_diag["caps"] = caps_str
-            if caps is not None and caps.get_size() > 0:
-                structure = caps.get_structure(0)
-                last_diag["width"] = int(structure.get_value("width") or 0)
-                last_diag["height"] = int(structure.get_value("height") or 0)
-                last_diag["format"] = structure.get_value("format")
-                fps_num = structure.get_value("framerate")
-                if fps_num is not None:
-                    last_diag["framerate"] = str(fps_num)
-                try:
-                    video_info = GstVideo.VideoInfo.new_from_caps(caps)
-                    if video_info is not None:
-                        last_diag["stride"] = int(video_info.stride[0])
-                except Exception:
-                    pass
+            last_diag.update(self._extract_caps_metadata(caps, GstVideo=GstVideo))
 
             buffer = sample.get_buffer()
             if buffer is None:
@@ -644,11 +652,14 @@ class XDGPortalCapture:
             last_diag["dts_ns"] = int(buffer.dts) if int(buffer.dts) >= 0 else None
             last_diag["duration_ns"] = int(buffer.duration) if int(buffer.duration) >= 0 else None
 
+            last_diag["map_attempted"] = True
             mapped, map_info = buffer.map(Gst.MapFlags.READ)
             if not mapped:
+                last_diag["map_success"] = False
                 empty_buffers += 1
                 last_diag["empty_buffer_count"] = empty_buffers
                 continue
+            last_diag["map_success"] = True
             try:
                 mapped_size = int(getattr(map_info, "size", 0))
                 last_diag["mapped_memory_size"] = mapped_size
@@ -660,6 +671,7 @@ class XDGPortalCapture:
                         self._non_empty_first_buffers = non_empty_buffers
                         return None, last_diag
                     continue
+                last_diag["rgb_conversion_attempted"] = True
                 frame = self._mapped_bytes_to_rgb(
                     payload=bytes(map_info.data),
                     width=int(last_diag["width"] or self.width),
@@ -672,17 +684,69 @@ class XDGPortalCapture:
                     ),
                 )
                 if frame is not None:
+                    last_diag["rgb_conversion_success"] = True
                     non_empty_buffers += 1
                     last_diag["non_empty_buffer_count"] = non_empty_buffers
                     self._empty_first_buffers = empty_buffers
                     self._non_empty_first_buffers = non_empty_buffers
                     return frame, last_diag
+                last_diag["rgb_conversion_success"] = False
             finally:
                 buffer.unmap(map_info)
 
         self._empty_first_buffers = empty_buffers
         self._non_empty_first_buffers = non_empty_buffers
         return None, last_diag
+
+    def _extract_caps_metadata(self, caps, *, GstVideo) -> dict[str, object]:
+        metadata: dict[str, object] = {
+            "caps": None,
+            "width": 0,
+            "height": 0,
+            "format": None,
+            "framerate": None,
+            "stride": None,
+            "caps_metadata_warning": None,
+        }
+        warnings: list[str] = []
+        if caps is None:
+            return metadata
+        try:
+            metadata["caps"] = caps.to_string()
+        except Exception as exc:  # noqa: BLE001
+            warnings.append(str(exc))
+        try:
+            if caps.get_size() > 0:
+                structure = caps.get_structure(0)
+                ok_width, width = structure.get_int("width")
+                if ok_width:
+                    metadata["width"] = int(width)
+                ok_height, height = structure.get_int("height")
+                if ok_height:
+                    metadata["height"] = int(height)
+                fmt = structure.get_string("format")
+                if fmt is not None:
+                    metadata["format"] = str(fmt)
+                try:
+                    ok_fps, fps_num, fps_den = structure.get_fraction("framerate")
+                    if ok_fps:
+                        metadata["framerate"] = f"{int(fps_num)}/{int(fps_den)}"
+                    else:
+                        metadata["framerate"] = "unknown"
+                except Exception as exc:  # noqa: BLE001
+                    metadata["framerate"] = "unknown"
+                    warnings.append(str(exc))
+                try:
+                    video_info = GstVideo.VideoInfo.new_from_caps(caps)
+                    if video_info is not None:
+                        metadata["stride"] = int(video_info.stride[0])
+                except Exception:
+                    pass
+        except Exception as exc:  # noqa: BLE001
+            warnings.append(str(exc))
+        if warnings:
+            metadata["caps_metadata_warning"] = "; ".join(filter(None, warnings))
+        return metadata
 
     def _mapped_bytes_to_rgb(
         self,
