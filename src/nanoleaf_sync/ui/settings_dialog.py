@@ -22,6 +22,7 @@ from nanoleaf_sync.ui.preset_ui import (
     LIGHT_SPREAD_LABELS,
     MOTION_PRESET_LABELS,
     SAMPLING_QUALITY_LABELS,
+    PERFORMANCE_PRIORITY_LABELS,
     label_for_value,
     labels,
     value_for_label,
@@ -233,6 +234,7 @@ class SettingsDialog:
                 self.hdr_primaries_combo = QComboBox(); self.hdr_primaries_combo.addItems(["bt709", "bt2020"]); self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText(str(getattr(cfg, "hdr_primaries", "bt709")))))
                 self.hdr_max_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.hdr_max_nits_slider.setRange(HDR_MAX_NITS_MIN, HDR_MAX_NITS_MAX); self.hdr_max_nits_slider.setValue(int(getattr(cfg, "hdr_max_nits", 1000.0)))
                 self.sampling_quality_combo = QComboBox(); self.sampling_quality_combo.addItems(labels(SAMPLING_QUALITY_LABELS)); self.sampling_quality_combo.setCurrentIndex(max(0, self.sampling_quality_combo.findText(label_for_value(SAMPLING_QUALITY_LABELS, str(getattr(cfg, "sampling_quality", "high")), default="High"))))
+                self.performance_priority_combo = QComboBox(); self.performance_priority_combo.addItems(labels(PERFORMANCE_PRIORITY_LABELS)); self.performance_priority_combo.setCurrentIndex(max(0, self.performance_priority_combo.findText(label_for_value(PERFORMANCE_PRIORITY_LABELS, str(getattr(cfg, "performance_priority", "normal")), default="Normal"))))
                 self.led_gamma_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.led_gamma_slider.setRange(100, 400); self.led_gamma_slider.setValue(int(round(getattr(cfg, "led_gamma", 1.0) * 100)))
                 self.red_gain_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.red_gain_slider.setRange(50, 150); self.red_gain_slider.setValue(int(round(getattr(cfg, "red_gain", 1.0) * 100)))
                 self.green_gain_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.green_gain_slider.setRange(50, 150); self.green_gain_slider.setValue(int(round(getattr(cfg, "green_gain", 1.0) * 100)))
@@ -368,6 +370,7 @@ class SettingsDialog:
                     "This is the target update rate. Actual output FPS may be lower if capture, processing, or HID output cannot keep up."
                 )
                 self.sampling_quality_combo.setToolTip("Low = better performance, Balanced = default, High = best visual fidelity.")
+                self.performance_priority_combo.setToolTip("High priority may improve scheduling consistency. It may fail without permission. Very high is experimental.")
                 self.led_gamma_slider.setToolTip("Gamma correction for LED response. 1.00 keeps output linear.")
                 self.zone_count_slider.setToolTip("Number of screen sampling zones sampled from the display.")
                 self.reverse_checkbox.setToolTip("Flip strip direction if the mapping appears mirrored.")
@@ -506,7 +509,8 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Smoothing speed"), 2, 0); layout.addWidget(self.smoothing_speed_slider, 2, 1); layout.addWidget(self.smoothing_speed_value, 2, 2)
                 layout.addWidget(QLabel("Target capture/output FPS"), 3, 0); layout.addWidget(self.fps_slider, 3, 1); layout.addWidget(self.fps_value, 3, 2)
                 layout.addWidget(QLabel("Quality"), 4, 0); layout.addWidget(self.sampling_quality_combo, 4, 1); layout.addWidget(self.sampling_quality_value, 4, 2)
-                layout.addWidget(QLabel("Vibrancy (LED gamma)"), 5, 0); layout.addWidget(self.led_gamma_slider, 5, 1); layout.addWidget(self.led_gamma_value, 5, 2)
+                layout.addWidget(QLabel("Performance priority"), 5, 0); layout.addWidget(self.performance_priority_combo, 5, 1, 1, 2)
+                layout.addWidget(QLabel("Vibrancy (LED gamma)"), 6, 0); layout.addWidget(self.led_gamma_slider, 6, 1); layout.addWidget(self.led_gamma_value, 6, 2)
                 group.setLayout(layout)
                 return group
 
@@ -1312,7 +1316,7 @@ class SettingsDialog:
                 )
                 return replace(
                     cfg,
-                    fps=int(self.fps_slider.value()), sampling_quality=str(self.sampling_quality_combo.currentText()).lower(), brightness=self.brightness_slider.value() / 100.0,
+                    fps=int(self.fps_slider.value()), sampling_quality=str(self.sampling_quality_combo.currentText()).lower(), performance_priority=value_for_label(PERFORMANCE_PRIORITY_LABELS, str(self.performance_priority_combo.currentText()), default="normal"), brightness=self.brightness_slider.value() / 100.0,
                     smoothing=self.smoothing_slider.value() / 100.0, smoothing_speed=self.smoothing_speed_slider.value() / 100.0, led_gamma=self.led_gamma_slider.value() / 100.0,
                     red_gain=self.red_gain_slider.value() / 100.0, green_gain=self.green_gain_slider.value() / 100.0, blue_gain=self.blue_gain_slider.value() / 100.0, white_balance_temperature=self.white_balance_slider.value() / 100.0, chroma_compression=self.chroma_compression_slider.value() / 100.0, neutral_luminance_gain=self.neutral_luminance_gain_slider.value() / 100.0, black_luminance_cutoff=self.black_luminance_cutoff_slider.value() / 10000.0, black_luminance_knee=self.black_luminance_knee_slider.value() / 10000.0,
                     led_calibration_profile_sdr=(

@@ -63,3 +63,12 @@ def test_guided_led_calibration_controls_present() -> None:
     assert "Reference mode is used for calibration because it avoids saturation boost." in open(
         "src/nanoleaf_sync/ui/led_color_calibration_dialog.py", "r", encoding="utf-8"
     ).read()
+
+
+def test_performance_priority_dropdown_present_and_persisted() -> None:
+    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    assert "Performance priority" in text
+    assert "performance_priority_combo" in text
+    assert "Very high experimental" in open("src/nanoleaf_sync/ui/preset_ui.py", "r", encoding="utf-8").read()
+    assert "High priority may improve scheduling consistency. It may fail without permission. Very high is experimental." in text
+    assert "performance_priority=value_for_label(PERFORMANCE_PRIORITY_LABELS" in text
