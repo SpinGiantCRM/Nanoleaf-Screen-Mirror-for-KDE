@@ -62,6 +62,12 @@ DISPLAY_PRESET_LABELS: tuple[tuple[str, str], ...] = (
     ("Auto", DISPLAY_PRESET_AUTO),
 )
 
+PERFORMANCE_PRIORITY_LABELS: tuple[tuple[str, str], ...] = (
+    ("Normal", "normal"),
+    ("High", "high"),
+    ("Very high experimental", "very_high_experimental"),
+)
+
 
 def labels(options: tuple[tuple[str, str], ...]) -> list[str]:
     return [label for label, _value in options]
