@@ -23,6 +23,7 @@ dependencies = [
 test = [
   "pytest>=8",
   "pytest-cov>=5",
+  "pytest-timeout>=2.3",
   "ruff>=0.6",
   "mypy>=1.0",
 ]

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+
 import numpy as np
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig, ZoneConfig
@@ -94,23 +96,34 @@ def test_run_loop_with_usb_driver_initializes_then_sends_frame() -> None:
     state = RuntimeState()
     capture = _SingleFrameCapture(frame)
 
-    original_send_frame = driver.send_frame
+    original_send_frame_with_timing = driver.send_frame_with_timing
+    send_calls = 0
 
-    def _send_frame_then_stop(zone_colors) -> None:
-        original_send_frame(zone_colors)
+    def _send_frame_then_stop(zone_colors):
+        nonlocal send_calls
+        send_calls += 1
+        # Stop even if a mocked transport response is exhausted to avoid retries/reinit loops.
         state.stop_event.set()
+        return original_send_frame_with_timing(zone_colors)
 
-    driver.send_frame = _send_frame_then_stop
+    driver.send_frame_with_timing = _send_frame_then_stop
 
-    run_runtime_engine(
-        config=cfg,
-        state=state,
-        get_capture=lambda: capture,
-        get_driver=lambda: driver,
-        install_drivers=driver.initialize,
-        close_backends=driver.close,
-        clear_backends=lambda: None,
-    )
+    watchdog = threading.Timer(1.0, state.stop_event.set)
+    watchdog.start()
+    try:
+        run_runtime_engine(
+            config=cfg,
+            state=state,
+            get_capture=lambda: capture,
+            get_driver=lambda: driver,
+            install_drivers=driver.initialize,
+            close_backends=driver.close,
+            clear_backends=lambda: None,
+        )
+    finally:
+        watchdog.cancel()
+
+    assert send_calls >= 1
 
     assert transport.open_calls == 1
     assert transport.close_calls == 1

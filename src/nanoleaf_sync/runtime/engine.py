@@ -101,26 +101,34 @@ class PendingFrameSlot:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
+        self._cond = threading.Condition(self._lock)
         self._pending: PendingFrame | None = None
-        self._ready = threading.Event()
         self.replaced_frames = 0
 
     def put_latest(self, frame: np.ndarray, captured_at: float) -> None:
-        with self._lock:
+        with self._cond:
             if self._pending is not None:
                 self.replaced_frames += 1
             self._pending = PendingFrame(frame=frame, captured_at=captured_at)
-            self._ready.set()
+            self._cond.notify()
 
     def pop(self) -> PendingFrame | None:
         with self._lock:
             pending = self._pending
             self._pending = None
-            self._ready.clear()
             return pending
 
     def wait(self, timeout: float) -> bool:
-        return self._ready.wait(timeout=max(0.0, float(timeout)))
+        with self._cond:
+            return self._cond.wait_for(
+                lambda: self._pending is not None,
+                timeout=max(0.0, float(timeout)),
+            )
+
+
+    def has_pending(self) -> bool:
+        with self._lock:
+            return self._pending is not None
 
     def get_replaced_count(self) -> int:
         with self._lock:
@@ -537,6 +545,9 @@ def run_loop(
                 capture = get_capture()
                 if capture is None:
                     time.sleep(0.001)
+                    continue
+                if pending_slot.has_pending():
+                    time.sleep(0.0005)
                     continue
                 latest_capture_backend_name = str(getattr(capture, "name", "unknown"))
                 latest_capture_backend_method = str(getattr(capture, "last_capture_path", "") or "")
