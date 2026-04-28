@@ -158,3 +158,58 @@ def test_run_loop_waits_when_no_pending_frame_available() -> None:
     assert measurement.stages["runtime_idle_wait_ms"].available
     assert measurement.stages["frame_available_wait_ms"].available
     assert measurement.stages["runtime_capture_call_ms"].available
+
+
+def test_run_loop_records_live_send_policy_without_response_wait_penalty() -> None:
+    class _FastCapture:
+        name = "kwin-dbus"
+        last_capture_path = "kwin-dbus:test"
+
+        def capture(self):
+            frame = np.zeros((24, 32, 3), dtype=np.uint8)
+            frame[:, :] = [30, 40, 50]
+            return frame
+
+    class _FastDriver:
+        reported_zone_count = 48
+        zone_count = 48
+
+        def send_frame_with_timing(self, _colors):
+            return {
+                "frame_build_ms": 0.30,
+                "device_write_ms": 1.20,
+                "flush_or_wait_ms": 0.10,
+                "device_limited": False,
+                "flush_or_wait_reason": "Bounded nonblocking drain for stale responses.",
+                "reports_per_frame": 3,
+                "bytes_per_report": 64,
+                "total_frame_bytes": 147,
+                "report_data_sizes": [64, 64, 19],
+                "per_report_write_ms": [0.4, 0.4, 0.4],
+                "write_blocking": True,
+                "write_retry_policy": "none",
+                "write_rate_limit_policy": "none",
+                "write_read_calls": 0,
+                "live_send_policy": "nonblocking_drain",
+                "response_wait_skipped": True,
+            }
+
+    state = RuntimeState()
+    cfg = _cfg_with_valid_calibration(48, fps=60)
+    stopper = threading.Thread(target=lambda: (time.sleep(0.08), state.stop_event.set()), daemon=True)
+    stopper.start()
+    run_loop(
+        config=cfg,
+        state=state,
+        get_capture=lambda: _FastCapture(),
+        get_driver=lambda: _FastDriver(),
+        install_drivers=lambda: True,
+        close_backends=lambda: None,
+    )
+    measurement = state.latency_probe.measurement()
+    assert measurement is not None
+    assert measurement.labels.get("hid_live_send_policy") == "nonblocking_drain"
+    assert measurement.labels.get("hid_response_wait_skipped") == "yes"
+    assert measurement.labels.get("hid_write_read_calls") == "0"
+    assert measurement.stages["hid_flush_or_wait_ms"].available
+    assert float(measurement.stages["hid_flush_or_wait_ms"].median_ms) < 5.0

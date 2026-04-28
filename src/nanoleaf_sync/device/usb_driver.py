@@ -65,6 +65,10 @@ class NanoleafUSBDriver(DeviceDriver):
         raw_response = self._transport.transceive(request)
         return self._protocol.parse_response(cmd, raw_response)
 
+    @staticmethod
+    def _is_live_frame_command(cmd: int) -> bool:
+        return int(cmd) == int(CMD_SET_ZONE_COLORS)
+
     def _request_with_timing(self, cmd: int, payload: bytes = b"") -> tuple[bytes, dict[str, float | int | bool | str | list[int] | list[float]]]:
         request = self._protocol.build_request(cmd, payload)
         transceive_with_timing = getattr(self._transport, "transceive_with_timing", None)
@@ -198,7 +202,47 @@ class NanoleafUSBDriver(DeviceDriver):
             report_count,
             chunk_sizes,
         )
-        _, transport_timing = self._request_with_timing(CMD_SET_ZONE_COLORS, payload)
+        request = self._protocol.build_request(CMD_SET_ZONE_COLORS, payload)
+        transport_timing: dict[str, float | int | bool | str | list[int] | list[float]] = {}
+        live_send_policy = "response_required"
+        response_wait_skipped = False
+        send_err: Exception | None = None
+        if self._is_live_frame_command(CMD_SET_ZONE_COLORS):
+            write_with_nonblocking_drain = getattr(self._transport, "write_with_nonblocking_drain", None)
+            write_with_timing = getattr(self._transport, "write_with_timing", None)
+            if callable(write_with_nonblocking_drain):
+                live_send_policy = "nonblocking_drain"
+                response_wait_skipped = True
+                try:
+                    maybe_timing = write_with_nonblocking_drain(request)
+                    if isinstance(maybe_timing, dict):
+                        transport_timing = maybe_timing
+                except Exception as exc:
+                    send_err = exc
+                    live_send_policy = "response_required"
+                    response_wait_skipped = False
+            elif callable(write_with_timing):
+                live_send_policy = "write_only"
+                response_wait_skipped = True
+                try:
+                    maybe_timing = write_with_timing(request)
+                    if isinstance(maybe_timing, dict):
+                        transport_timing = maybe_timing
+                    transport_timing.setdefault("flush_or_wait_ms", 0.0)
+                    transport_timing.setdefault("read_calls", 0)
+                except Exception as exc:
+                    send_err = exc
+                    live_send_policy = "response_required"
+                    response_wait_skipped = False
+        if live_send_policy == "response_required":
+            try:
+                _, transport_timing = self._request_with_timing(CMD_SET_ZONE_COLORS, payload)
+            except Exception:
+                if send_err is not None:
+                    raise RuntimeError(
+                        "Live frame write-only path failed and response-required fallback also failed."
+                    ) from send_err
+                raise
         device_write_ms = float(transport_timing.get("write_ms") or 0.0)
         flush_or_wait_ms = (
             float(transport_timing.get("flush_or_wait_ms"))
@@ -245,7 +289,11 @@ class NanoleafUSBDriver(DeviceDriver):
             "write_retry_policy": str(transport_timing.get("retry_policy", "none")),
             "write_rate_limit_policy": str(transport_timing.get("rate_limit_policy", "none")),
             "write_read_calls": int(transport_timing.get("read_calls") or 0),
+            "live_send_policy": live_send_policy,
+            "response_wait_skipped": response_wait_skipped,
         }
+        if send_err is not None:
+            timing["write_only_failure_reason"] = f"{type(send_err).__name__}: {send_err}"
         self.last_send_timing = timing
         if return_timing:
             return timing
