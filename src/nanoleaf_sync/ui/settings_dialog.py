@@ -396,7 +396,9 @@ class SettingsDialog:
                 self.setLayout(root)
 
                 self._sync_device_model_selection()
-                self._refresh_numeric_labels(); self._refresh_preview_label(); self._maybe_auto_run_latency_check()
+                self._refresh_numeric_labels(); self._refresh_preview_label()
+                self._update_latency_label_for_latest_probe_result()
+                self._maybe_auto_run_latency_check()
                 if initial_section:
                     self.focus_section(initial_section)
 
@@ -1210,10 +1212,7 @@ class SettingsDialog:
                 result = run_fresh_backend_probe(width=width, height=height)
                 self._runtime_status["backend_probe_attempts"] = list(result.get("attempts") or [])
                 selected = str(result.get("selected_backend") or "none")
-                self.latency_label.setText(
-                    "Fresh backend probe completed.\n"
-                    + self._backend_probe_breakdown_text(selected_backend=selected)
-                )
+                self.latency_label.setText(self._backend_probe_breakdown_text(selected_backend=selected, result_origin="manual"))
 
             def _run_xdg_portal_test(self) -> None:
                 self.latency_label.setText(
@@ -1316,6 +1315,18 @@ class SettingsDialog:
                         )
                         self.run_latency_button.setText("Measure active backend latency")
                     self.latency_label.setText(latency_result_summary(self._latest_latency))
+                elif self._latest_latency is None:
+                    self._update_latency_label_for_latest_probe_result()
+
+            def _update_latency_label_for_latest_probe_result(self) -> None:
+                selected = str(
+                    self._runtime_status.get("selected_capture_backend")
+                    or self._runtime_status.get("effective_capture_backend")
+                    or self._runtime_status.get("cached_probe_backend")
+                    or self._active_backend()
+                    or "none"
+                )
+                self.latency_label.setText(self._backend_probe_breakdown_text(selected_backend=selected, result_origin="auto"))
 
             def _measured_latency_from_runtime(self, *, triggered_by: str) -> dict[str, object] | None:
                 measurement = self._runtime_status.get("latency_measurement")
@@ -1349,35 +1360,48 @@ class SettingsDialog:
                     ),
                 }
 
-            def _backend_probe_breakdown_text(self, *, selected_backend: str) -> str:
+            def _backend_probe_breakdown_text(self, *, selected_backend: str, result_origin: str | None = None) -> str:
                 rows = self._runtime_status.get("backend_probe_attempts")
                 if not isinstance(rows, list) or not rows:
-                    return "Backend attempts: unavailable (no fresh backend probe has run in this session)."
+                    return (
+                        "Last auto-run probe result: waiting for first result.\n"
+                        "Backend attempts: unavailable (probe has not yet run in this session)."
+                    )
                 measured_rows = 0
                 formatted: list[str] = []
                 cached_backend = str(self._runtime_status.get("cached_probe_backend") or "").strip()
-                if cached_backend:
-                    formatted.append(
-                        f"Using cached backend: {cached_backend}. Press Re-test backends to measure candidates again."
-                    )
+                has_auto_rows = False
                 for item in rows:
                     if not isinstance(item, dict):
                         continue
                     status = str(item.get("status") or "skipped")
                     mode = str(item.get("mode") or ("failed" if status == "failed" else "fresh-probe"))
+                    has_auto_rows = has_auto_rows or mode in {"cached", "fresh-probe", "failed", "skipped-interactive", "unavailable"}
                     sample_count = int(item.get("sample_count") or 0)
                     if status == "tested" and sample_count > 0:
                         measured_rows += 1
                     normalized_item = dict(item)
                     normalized_item["mode"] = mode
                     formatted.append(f"- {format_backend_attempt_row(normalized_item)}")
-                if measured_rows <= 0:
-                    formatted.insert(0, "No fresh backend probe has run in this session.")
-                elif measured_rows < 2:
-                    formatted.insert(0, "Fresh probe measured fewer than two candidates; selection is tentative.")
+                selected_line = f"Selected backend: {selected_backend}."
+                if result_origin == "manual":
+                    header = "Last manual probe result."
+                elif result_origin == "auto":
+                    header = "Last auto-run probe result." if has_auto_rows else "Last auto-run probe result: waiting for first result."
                 else:
-                    formatted.insert(0, f"Fresh probe best backend selected: {selected_backend}.")
-                return "Backend attempts:\n" + "\n".join(formatted)
+                    header = "Last probe result."
+                if cached_backend and result_origin != "manual":
+                    formatted.insert(
+                        0,
+                        f"Using cached backend: {cached_backend}. Press Re-test backends to run a fresh manual probe.",
+                    )
+                if measured_rows <= 0:
+                    formatted.insert(0, "No measured candidate timings yet in this session.")
+                elif measured_rows < 2:
+                    formatted.insert(0, "Measured fewer than two candidates; backend choice may be tentative.")
+                else:
+                    formatted.insert(0, f"Best measured backend: {selected_backend}.")
+                return f"{header}\n{selected_line}\nCandidate backends:\n" + "\n".join(formatted)
 
             def _apply_settings(self) -> None:
                 apply_fn = self._on_apply
