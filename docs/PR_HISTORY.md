@@ -1,0 +1,318 @@
+# PR_HISTORY
+
+Exhaustive one-line PR index derived from local git merge metadata (`Merge pull request #...`).
+When exact PR titles are unavailable, entries explicitly avoid inference.
+
+- #1 — legacy/implementation — metadata title hint: codex/refactor and clean codebase — lesson: verify with tests and avoid inferring details beyond metadata.
+- #2 — legacy/implementation — metadata title hint: codex/implement bundle a in spingiantcrm — lesson: verify with tests and avoid inferring details beyond metadata.
+- #3 — legacy/implementation — metadata title hint: codex/implement bundle b for repo — lesson: verify with tests and avoid inferring details beyond metadata.
+- #4 — legacy/implementation — metadata title hint: codex/implement bundle c for project cleanup — lesson: verify with tests and avoid inferring details beyond metadata.
+- #5 — legacy/implementation — metadata title hint: codex/refactor runtime package and engine loop — lesson: verify with tests and avoid inferring details beyond metadata.
+- #7 — legacy/implementation — metadata title hint: codex/remove screen_capture and clean imports — lesson: verify with tests and avoid inferring details beyond metadata.
+- #9 — legacy/implementation — metadata title hint: codex/add cached runtime artifacts to state.py — lesson: verify with tests and avoid inferring details beyond metadata.
+- #10 — legacy/implementation — metadata title hint: codex/move lifecycle wiring to runtime modules — lesson: verify with tests and avoid inferring details beyond metadata.
+- #11 — legacy/implementation — metadata title hint: codex/create capture backend protocol and update backends — lesson: verify with tests and avoid inferring details beyond metadata.
+- #12 — legacy/implementation — metadata title hint: codex/refactor color functions to new modules — lesson: verify with tests and avoid inferring details beyond metadata.
+- #13 — legacy/implementation — metadata title hint: codex/refactor nanoleaf_usb.py into multiple files — lesson: verify with tests and avoid inferring details beyond metadata.
+- #14 — legacy/implementation — metadata title hint: codex/split tray.py into multiple components — lesson: verify with tests and avoid inferring details beyond metadata.
+- #15 — legacy/implementation — metadata title hint: codex/refactor config module structure — lesson: verify with tests and avoid inferring details beyond metadata.
+- #16 — legacy/implementation — metadata title hint: codex/refactor project structure and imports — lesson: verify with tests and avoid inferring details beyond metadata.
+- #17 — legacy/implementation — metadata title hint: codex/implement 12 commit checklist and rename folder — lesson: verify with tests and avoid inferring details beyond metadata.
+- #19 — legacy/implementation — metadata title hint: codex/improve repository structure and code — lesson: verify with tests and avoid inferring details beyond metadata.
+- #20 — legacy/implementation — metadata title hint: codex/update readme configuration and content — lesson: verify with tests and avoid inferring details beyond metadata.
+- #21 — legacy/implementation — metadata title hint: codex/github mention point project readme to root readme and expa — lesson: verify with tests and avoid inferring details beyond metadata.
+- #22 — legacy/implementation — metadata title hint: codex/update documentation for installation instructions — lesson: verify with tests and avoid inferring details beyond metadata.
+- #23 — legacy/maintenance — metadata title hint: codex/fix double sleep in run loop — lesson: verify with tests and avoid inferring details beyond metadata.
+- #24 — legacy/maintenance — metadata title hint: codex/fix mocknanoleafusbdriver initialization issue — lesson: verify with tests and avoid inferring details beyond metadata.
+- #25 — legacy/implementation — metadata title hint: codex/optimize hot path frame processing — lesson: verify with tests and avoid inferring details beyond metadata.
+- #26 — legacy/implementation — metadata title hint: codex/optimize color pipeline allocations — lesson: verify with tests and avoid inferring details beyond metadata.
+- #27 — legacy/maintenance — metadata title hint: codex/fix critical issues in nanoleaf repo — lesson: verify with tests and avoid inferring details beyond metadata.
+- #28 — legacy/implementation — metadata title hint: codex/implement kwin d bus and display detection — lesson: verify with tests and avoid inferring details beyond metadata.
+- #29 — legacy/implementation — metadata title hint: codex/upgrade kwin screenshot capture for plasma 6 — lesson: verify with tests and avoid inferring details beyond metadata.
+- #30 — legacy/implementation — metadata title hint: codex/implement real usb protocol for nanoleaf — lesson: verify with tests and avoid inferring details beyond metadata.
+- #31 — legacy/maintenance — metadata title hint: codex/fix protocol mismatches in usb driver — lesson: verify with tests and avoid inferring details beyond metadata.
+- #32 — legacy/implementation — metadata title hint: codex/stabilize app for first usable state — lesson: verify with tests and avoid inferring details beyond metadata.
+- #33 — legacy/implementation — metadata title hint: codex/polish app for first usable release — lesson: verify with tests and avoid inferring details beyond metadata.
+- #34 — legacy/implementation — metadata title hint: codex/prepare first release candidate for arch/cachyos — lesson: verify with tests and avoid inferring details beyond metadata.
+- #35 — legacy/implementation — metadata title hint: codex/prepare repository for public release candidate — lesson: verify with tests and avoid inferring details beyond metadata.
+- #36 — legacy/implementation — metadata title hint: codex/create simple end user install experience — lesson: verify with tests and avoid inferring details beyond metadata.
+- #37 — legacy/maintenance — metadata title hint: codex/fix standalone download for installer — lesson: verify with tests and avoid inferring details beyond metadata.
+- #38 — legacy/maintenance — metadata title hint: codex/fix release workflow for appimage — lesson: verify with tests and avoid inferring details beyond metadata.
+- #39 — legacy/implementation — metadata title hint: codex/update pkgbuild version to 0.1.0 — lesson: verify with tests and avoid inferring details beyond metadata.
+- #40 — legacy/implementation — metadata title hint: codex/update github actions for node 24 support — lesson: verify with tests and avoid inferring details beyond metadata.
+- #41 — legacy/implementation — metadata title hint: codex/harden linux setup for arch/cachyos kde — lesson: verify with tests and avoid inferring details beyond metadata.
+- #42 — legacy/implementation — metadata title hint: codex/add ci jobs and update release checklist — lesson: verify with tests and avoid inferring details beyond metadata.
+- #43 — legacy/implementation — metadata title hint: codex/update workflows for non root arch builds — lesson: verify with tests and avoid inferring details beyond metadata.
+- #44 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #45 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #46 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #47 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #48 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #49 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #50 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #51 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #52 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #53 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #54 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #55 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #56 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #57 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #58 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #59 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #60 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #61 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #62 — legacy/implementation — metadata title hint: codex/task title 19iszd — lesson: verify with tests and avoid inferring details beyond metadata.
+- #63 — legacy/implementation — metadata title hint: codex/task title 0dd93q — lesson: verify with tests and avoid inferring details beyond metadata.
+- #64 — legacy/implementation — metadata title hint: codex/task title mcad9u — lesson: verify with tests and avoid inferring details beyond metadata.
+- #65 — legacy/implementation — metadata title hint: codex/task title 5yfdgg — lesson: verify with tests and avoid inferring details beyond metadata.
+- #66 — legacy/implementation — metadata title hint: codex/task title v4xzd0 — lesson: verify with tests and avoid inferring details beyond metadata.
+- #67 — legacy/implementation — metadata title hint: codex/task title c4jg2u — lesson: verify with tests and avoid inferring details beyond metadata.
+- #68 — legacy/implementation — metadata title hint: codex/task title f6obyo — lesson: verify with tests and avoid inferring details beyond metadata.
+- #69 — legacy/implementation — metadata title hint: codex/task title rq2cxq — lesson: verify with tests and avoid inferring details beyond metadata.
+- #70 — legacy/implementation — metadata title hint: codex/task title evqmib — lesson: verify with tests and avoid inferring details beyond metadata.
+- #71 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #72 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #74 — legacy/implementation — metadata title hint: codex/task title r7789l — lesson: verify with tests and avoid inferring details beyond metadata.
+- #75 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #76 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #77 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #78 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #79 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #80 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #81 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #82 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #83 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #84 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #85 — legacy/implementation — metadata title hint: codex/remove mock drivers from codebase — lesson: verify with tests and avoid inferring details beyond metadata.
+- #86 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #87 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #88 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #89 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #90 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #91 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #92 — legacy/maintenance — metadata title hint: codex/fix hid transport and improve ux for kde — lesson: verify with tests and avoid inferring details beyond metadata.
+- #93 — legacy/maintenance — metadata title hint: codex/fix version file update on releases — lesson: verify with tests and avoid inferring details beyond metadata.
+- #94 — legacy/implementation — metadata title hint: codex/improve repository health and documentation — lesson: verify with tests and avoid inferring details beyond metadata.
+- #95 — legacy/maintenance — metadata title hint: codex/fix real mode kde capture issues — lesson: verify with tests and avoid inferring details beyond metadata.
+- #96 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #97 — legacy/maintenance — metadata title hint: codex/patch app to fix kde authorization issues — lesson: verify with tests and avoid inferring details beyond metadata.
+- #98 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #99 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #100 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #101 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #102 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #103 — legacy/maintenance — metadata title hint: codex/fix ci checks failure — lesson: verify with tests and avoid inferring details beyond metadata.
+- #104 — legacy/maintenance — metadata title hint: codex/fix multiple ci and test bugs — lesson: verify with tests and avoid inferring details beyond metadata.
+- #105 — legacy/maintenance — metadata title hint: codex/fix assertion error in test_detect_primary_screen_dims — lesson: verify with tests and avoid inferring details beyond metadata.
+- #106 — legacy/implementation — metadata title hint: codex/clean up documentation errors — lesson: verify with tests and avoid inferring details beyond metadata.
+- #107 — legacy/implementation — metadata title hint: codex/update arch/cachyos installation documentation — lesson: verify with tests and avoid inferring details beyond metadata.
+- #108 — legacy/maintenance — metadata title hint: codex/fix runtime issues with zone mapping — lesson: verify with tests and avoid inferring details beyond metadata.
+- #109 — legacy/maintenance — metadata title hint: codex/fix ci test failures in pytest — lesson: verify with tests and avoid inferring details beyond metadata.
+- #110 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #111 — legacy/implementation — metadata title hint: codex/cleanup repository and update version number — lesson: verify with tests and avoid inferring details beyond metadata.
+- #112 — legacy/maintenance — metadata title hint: codex/fix broken ci tests — lesson: verify with tests and avoid inferring details beyond metadata.
+- #113 — legacy/maintenance — metadata title hint: codex/fix ux and launch issues — lesson: verify with tests and avoid inferring details beyond metadata.
+- #114 — legacy/implementation — metadata title hint: codex/implement latency and color accuracy improvements — lesson: verify with tests and avoid inferring details beyond metadata.
+- #115 — legacy/maintenance — metadata title hint: codex/fix fps cap mismatch in settings — lesson: verify with tests and avoid inferring details beyond metadata.
+- #116 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #117 — legacy/implementation — metadata title hint: codex/add zone calibration flow in app — lesson: verify with tests and avoid inferring details beyond metadata.
+- #118 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #119 — legacy/maintenance — metadata title hint: codex/fix calibration ux and runtime issues — lesson: verify with tests and avoid inferring details beyond metadata.
+- #120 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #121 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #122 — legacy/implementation — metadata title hint: codex/update factory.py and service startup flow — lesson: verify with tests and avoid inferring details beyond metadata.
+- #123 — legacy/implementation — metadata title hint: codex/extend config model for auto probing — lesson: verify with tests and avoid inferring details beyond metadata.
+- #124 — legacy/implementation — metadata title hint: codex/update runtime status and settings surfaces — lesson: verify with tests and avoid inferring details beyond metadata.
+- #125 — legacy/implementation — metadata title hint: codex/perform scoped cleanup in nanoleaf_sync — lesson: verify with tests and avoid inferring details beyond metadata.
+- #126 — legacy/implementation — metadata title hint: codex/update documentation for probe behavior and policies — lesson: verify with tests and avoid inferring details beyond metadata.
+- #127 — legacy/implementation — metadata title hint: codex/add unit and integration tests for capture — lesson: verify with tests and avoid inferring details beyond metadata.
+- #128 — legacy/implementation — metadata title hint: codex/analyze repository for unnecessary elements — lesson: verify with tests and avoid inferring details beyond metadata.
+- #129 — legacy/implementation — metadata title hint: codex/complete tasks in repo_cull_audit.md — lesson: verify with tests and avoid inferring details beyond metadata.
+- #130 — legacy/maintenance — metadata title hint: codex/fix ci tests and remove readme — lesson: verify with tests and avoid inferring details beyond metadata.
+- #131 — legacy/implementation — metadata title hint: codex/improve calibration and diagnostics ux — lesson: verify with tests and avoid inferring details beyond metadata.
+- #132 — legacy/implementation — metadata title hint: codex/implement consolidation pass for calibration and testing — lesson: verify with tests and avoid inferring details beyond metadata.
+- #133 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #134 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #135 — legacy/implementation — metadata title hint: codex/task title — lesson: verify with tests and avoid inferring details beyond metadata.
+- #136 — legacy/implementation — metadata title hint: codex/implement ux and calibration improvements — lesson: verify with tests and avoid inferring details beyond metadata.
+- #137 — legacy/maintenance — metadata title hint: codex/implement ux and calibration fixes for nanoleaf — lesson: verify with tests and avoid inferring details beyond metadata.
+- #138 — legacy/maintenance — metadata title hint: codex/fix layout, calibration, and startup issues — lesson: verify with tests and avoid inferring details beyond metadata.
+- #139 — legacy/maintenance — metadata title hint: codex/find and fix all issues — lesson: verify with tests and avoid inferring details beyond metadata.
+- #140 — legacy/maintenance — metadata title hint: codex/fix unused variable in settings_dialog.py — lesson: verify with tests and avoid inferring details beyond metadata.
+- #141 — legacy/implementation — metadata title hint: codex/refactor calibration and ui layout — lesson: verify with tests and avoid inferring details beyond metadata.
+- #142 — legacy/maintenance — metadata title hint: codex/fix corner refinement settings loss — lesson: verify with tests and avoid inferring details beyond metadata.
+- #143 — legacy/maintenance — metadata title hint: codex/fix critical issues in user interface — lesson: verify with tests and avoid inferring details beyond metadata.
+- #144 — legacy/maintenance — metadata title hint: codex/fix critical issues in user interface — lesson: verify with tests and avoid inferring details beyond metadata.
+- #145 — legacy/implementation — metadata title hint: codex/redesign corner anchor calibration system — lesson: verify with tests and avoid inferring details beyond metadata.
+- #146 — legacy/maintenance — metadata title hint: codex/fix failing ci test and bugs — lesson: verify with tests and avoid inferring details beyond metadata.
+- #147 — legacy/implementation — metadata title hint: codex/refactor calibration methods and ui design — lesson: verify with tests and avoid inferring details beyond metadata.
+- #148 — legacy/implementation — metadata title hint: codex/refactor calibration system to match nanoleaf app — lesson: verify with tests and avoid inferring details beyond metadata.
+- #149 — legacy/maintenance — metadata title hint: codex/fix wasted space in ui and calibration — lesson: verify with tests and avoid inferring details beyond metadata.
+- #150 — legacy/maintenance — metadata title hint: codex/fix app crashing after setup — lesson: verify with tests and avoid inferring details beyond metadata.
+- #151 — legacy/maintenance — metadata title hint: codex/fix physical strip zone offset change issue — lesson: verify with tests and avoid inferring details beyond metadata.
+- #152 — legacy/maintenance — metadata title hint: codex/fix failing ci check — lesson: verify with tests and avoid inferring details beyond metadata.
+- #153 — legacy/maintenance — metadata title hint: codex/fix stream error in nanoleaf kde sync — lesson: verify with tests and avoid inferring details beyond metadata.
+- #154 — legacy/implementation — metadata title hint: codex/preserve advanced mapping fields on settings save — lesson: verify with tests and avoid inferring details beyond metadata.
+- #155 — legacy/implementation — metadata title hint: codex/initialize frame in main loop and harden control flow — lesson: verify with tests and avoid inferring details beyond metadata.
+- #156 — legacy/implementation — metadata title hint: codex/add threading lock for cached_probe_winner — lesson: verify with tests and avoid inferring details beyond metadata.
+- #157 — legacy/implementation — metadata title hint: codex/add module level lock for _process_boot_probe_done — lesson: verify with tests and avoid inferring details beyond metadata.
+- #158 — legacy/implementation — metadata title hint: codex/update _close_backends for nulling references — lesson: verify with tests and avoid inferring details beyond metadata.
+- #159 — legacy/implementation — metadata title hint: codex/update preview failure handling — lesson: verify with tests and avoid inferring details beyond metadata.
+- #160 — legacy/implementation — metadata title hint: codex/refactor on_quit to use async stop orchestration — lesson: verify with tests and avoid inferring details beyond metadata.
+- #161 — legacy/implementation — metadata title hint: codex/remove unsupported pipewire symbols — lesson: verify with tests and avoid inferring details beyond metadata.
+- #162 — legacy/implementation — metadata title hint: codex/add warm up logic for frame capture — lesson: verify with tests and avoid inferring details beyond metadata.
+- #163 — legacy/implementation — metadata title hint: codex/wrap _drm_capture_impl in try/except block — lesson: verify with tests and avoid inferring details beyond metadata.
+- #164 — legacy/implementation — metadata title hint: codex/refactor reset_auto_probe_cache to use dataclasses.replace — lesson: verify with tests and avoid inferring details beyond metadata.
+- #165 — legacy/implementation — metadata title hint: codex/normalize corner_zone_offsets to four ints — lesson: verify with tests and avoid inferring details beyond metadata.
+- #166 — legacy/implementation — metadata title hint: codex/revise smoothing speed behavior and documentation — lesson: verify with tests and avoid inferring details beyond metadata.
+- #167 — legacy/implementation — metadata title hint: codex/return list of zeros for total 0 — lesson: verify with tests and avoid inferring details beyond metadata.
+- #168 — legacy/implementation — metadata title hint: codex/update string assertion to behavior check — lesson: verify with tests and avoid inferring details beyond metadata.
+- #169 — legacy/implementation — metadata title hint: codex/evaluate and clean up protocol_stub.py — lesson: verify with tests and avoid inferring details beyond metadata.
+- #170 — legacy/implementation — metadata title hint: codex/remove dead valueerror branch or add assertion — lesson: verify with tests and avoid inferring details beyond metadata.
+- #171 — legacy/maintenance — metadata title hint: codex/fix failing ci tests — lesson: verify with tests and avoid inferring details beyond metadata.
+- #172 — legacy/implementation — metadata title hint: codex/optimize version file automation — lesson: verify with tests and avoid inferring details beyond metadata.
+- #173 — legacy/implementation — metadata title hint: codex/gate explicit_zone_map behind config flag — lesson: verify with tests and avoid inferring details beyond metadata.
+- #174 — legacy/implementation — metadata title hint: codex/remove calibrationdiagnosticsdialog and update tests — lesson: verify with tests and avoid inferring details beyond metadata.
+- #175 — legacy/implementation — metadata title hint: codex/implement real latency probe module — lesson: verify with tests and avoid inferring details beyond metadata.
+- #176 — legacy/implementation — metadata title hint: codex/update edge thickness adaptation and tests — lesson: verify with tests and avoid inferring details beyond metadata.
+- #177 — legacy/implementation — metadata title hint: codex/refactor ui labels for test zone step — lesson: verify with tests and avoid inferring details beyond metadata.
+- #178 — legacy/implementation — metadata title hint: codex/refactor tray actions to direct sections — lesson: verify with tests and avoid inferring details beyond metadata.
+- #179 — legacy/implementation — metadata title hint: codex/implement cross cutting changes for presets and terminology — lesson: verify with tests and avoid inferring details beyond metadata.
+- #180 — legacy/implementation — metadata title hint: codex/simplify runtime and ui controls — lesson: verify with tests and avoid inferring details beyond metadata.
+- #181 — legacy/implementation — metadata title hint: codex/implement dynamic calibration adjustments — lesson: verify with tests and avoid inferring details beyond metadata.
+- #182 — legacy/implementation — metadata title hint: codex/refactor display configurator onboarding flow — lesson: verify with tests and avoid inferring details beyond metadata.
+- #183 — legacy/maintenance — metadata title hint: codex/fix failing ci tests — lesson: verify with tests and avoid inferring details beyond metadata.
+- #184 — legacy/maintenance — metadata title hint: codex/implement ui flow fix and regression coverage — lesson: verify with tests and avoid inferring details beyond metadata.
+- #185 — legacy/implementation — metadata title hint: codex/update validate_config to include edge_sampling_thickness — lesson: verify with tests and avoid inferring details beyond metadata.
+- #186 — legacy/implementation — metadata title hint: codex/update device_zone_mapping_signature annotation — lesson: verify with tests and avoid inferring details beyond metadata.
+- #187 — legacy/implementation — metadata title hint: codex/extend create_capture_backend with new kwargs — lesson: verify with tests and avoid inferring details beyond metadata.
+- #188 — legacy/implementation — metadata title hint: codex/refactor call_with_timeout for non blocking shutdown — lesson: verify with tests and avoid inferring details beyond metadata.
+- #189 — legacy/implementation — metadata title hint: codex/preserve running intent across rerun wizard path — lesson: verify with tests and avoid inferring details beyond metadata.
+- #190 — legacy/implementation — metadata title hint: codex/replace exact payload equality with tolerance assertions — lesson: verify with tests and avoid inferring details beyond metadata.
+- #191 — legacy/implementation — metadata title hint: codex/update expected byte computation in screenshot2 — lesson: verify with tests and avoid inferring details beyond metadata.
+- #192 — legacy/maintenance — metadata title hint: codex/fix calibration light position issue — lesson: verify with tests and avoid inferring details beyond metadata.
+- #193 — legacy/implementation — metadata title hint: codex/implement authoritative calibration model — lesson: verify with tests and avoid inferring details beyond metadata.
+- #194 — legacy/implementation — metadata title hint: codex/enhance wizard flow with states and validation — lesson: verify with tests and avoid inferring details beyond metadata.
+- #195 — legacy/implementation — metadata title hint: codex/define shared calibration resolution path — lesson: verify with tests and avoid inferring details beyond metadata.
+- #196 — legacy/implementation — metadata title hint: codex/enhance calibration ux for recoverability — lesson: verify with tests and avoid inferring details beyond metadata.
+- #197 — legacy/implementation — metadata title hint: codex/add deterministic validation checks for calibration — lesson: verify with tests and avoid inferring details beyond metadata.
+- #198 — legacy/implementation — metadata title hint: codex/version calibration configuration safely — lesson: verify with tests and avoid inferring details beyond metadata.
+- #199 — legacy/implementation — metadata title hint: codex/add calibration parity specification documentation — lesson: verify with tests and avoid inferring details beyond metadata.
+- #200 — legacy/implementation — metadata title hint: codex/implement quality safe batch processing — lesson: verify with tests and avoid inferring details beyond metadata.
+- #201 — legacy/implementation — metadata title hint: codex/create calibration_parity_spec.md documentation — lesson: verify with tests and avoid inferring details beyond metadata.
+- #202 — legacy/implementation — metadata title hint: codex/refactor config model for calibration versioning — lesson: verify with tests and avoid inferring details beyond metadata.
+- #203 — legacy/implementation — metadata title hint: codex/create centralized calibration mapping resolver — lesson: verify with tests and avoid inferring details beyond metadata.
+- #204 — legacy/implementation — metadata title hint: codex/upgrade calibration wizard logic — lesson: verify with tests and avoid inferring details beyond metadata.
+- #205 — legacy/implementation — metadata title hint: codex/update anchor assignment behavior and validation — lesson: verify with tests and avoid inferring details beyond metadata.
+- #206 — legacy/implementation — metadata title hint: codex/add objective checks for calibration reliability — lesson: verify with tests and avoid inferring details beyond metadata.
+- #207 — legacy/implementation — metadata title hint: codex/add checkpoint and undo functionality in calibration — lesson: verify with tests and avoid inferring details beyond metadata.
+- #208 — legacy/implementation — metadata title hint: codex/build test matrix for parity spec — lesson: verify with tests and avoid inferring details beyond metadata.
+- #209 — legacy/implementation — metadata title hint: codex/implement batches to minimize rework — lesson: verify with tests and avoid inferring details beyond metadata.
+- #210 — legacy/implementation — metadata title hint: codex/add zone count change invalidation logic — lesson: verify with tests and avoid inferring details beyond metadata.
+- #211 — legacy/implementation — metadata title hint: codex/clarify and enforce calibration policy — lesson: verify with tests and avoid inferring details beyond metadata.
+- #212 — legacy/implementation — metadata title hint: codex/implement release gate verification process — lesson: verify with tests and avoid inferring details beyond metadata.
+- #213 — legacy/implementation — metadata title hint: codex/confirm stability in physical scenarios — lesson: verify with tests and avoid inferring details beyond metadata.
+- #214 — legacy/implementation — metadata title hint: codex/improve ui quality before release — lesson: verify with tests and avoid inferring details beyond metadata.
+- #215 — legacy/implementation — metadata title hint: codex/implement rollout strategy and telemetry — lesson: verify with tests and avoid inferring details beyond metadata.
+- #216 — legacy/implementation — metadata title hint: codex/implement regression prevention measures — lesson: verify with tests and avoid inferring details beyond metadata.
+- #217 — legacy/implementation — metadata title hint: codex/update calibration parity test checklist — lesson: verify with tests and avoid inferring details beyond metadata.
+- #218 — legacy/implementation — metadata title hint: codex/implement sequence aware invalidation in calibration state — lesson: verify with tests and avoid inferring details beyond metadata.
+- #219 — legacy/implementation — metadata title hint: codex/refactor display configurator logic — lesson: verify with tests and avoid inferring details beyond metadata.
+- #220 — legacy/implementation — metadata title hint: codex/unify invalid corner anchor surfacing — lesson: verify with tests and avoid inferring details beyond metadata.
+- #221 — legacy/implementation — metadata title hint: codex/populate documentation for calibration validation and tests — lesson: verify with tests and avoid inferring details beyond metadata.
+- #222 — legacy/implementation — metadata title hint: codex/audit codebase for critical issues — lesson: verify with tests and avoid inferring details beyond metadata.
+- #223 — legacy/implementation — metadata title hint: codex/implement feedback from comprehensive audit grl9gm — lesson: verify with tests and avoid inferring details beyond metadata.
+- #224 — legacy/implementation — metadata title hint: codex/implement feedback from codebase audit — lesson: verify with tests and avoid inferring details beyond metadata.
+- #225 — legacy/implementation — metadata title hint: codex/remove unnecessary files and documentation — lesson: verify with tests and avoid inferring details beyond metadata.
+- #226 — legacy/implementation — metadata title hint: codex/evaluate and update ci tests — lesson: verify with tests and avoid inferring details beyond metadata.
+- #227 — legacy/maintenance — metadata title hint: codex/fix release workflow for version sync — lesson: verify with tests and avoid inferring details beyond metadata.
+- #228 — legacy/implementation — metadata title hint: codex/audit repo for scope compliance — lesson: verify with tests and avoid inferring details beyond metadata.
+- #229 — legacy/implementation — metadata title hint: codex/remove mention of old calibration systems — lesson: verify with tests and avoid inferring details beyond metadata.
+- #230 — legacy/maintenance — metadata title hint: codex/audit and fix hid device opening issues — lesson: verify with tests and avoid inferring details beyond metadata.
+- #231 — legacy/implementation — metadata title hint: codex/update hidtransport.open method — lesson: verify with tests and avoid inferring details beyond metadata.
+- #232 — legacy/implementation — metadata title hint: codex/update hid checks and tests in doctor.py — lesson: verify with tests and avoid inferring details beyond metadata.
+- #233 — legacy/implementation — metadata title hint: codex/update smoke test error messages and add tests — lesson: verify with tests and avoid inferring details beyond metadata.
+- #234 — legacy/implementation — metadata title hint: codex/update documentation for workflow details — lesson: verify with tests and avoid inferring details beyond metadata.
+- #235 — legacy/implementation — metadata title hint: codex/refactor color module exports and add smoke tests — lesson: verify with tests and avoid inferring details beyond metadata.
+- #236 — legacy/implementation — metadata title hint: codex/refactor auto_probe warmup error handling — lesson: verify with tests and avoid inferring details beyond metadata.
+- #237 — legacy/implementation — metadata title hint: codex/refactor locking and caching in capture module — lesson: verify with tests and avoid inferring details beyond metadata.
+- #238 — legacy/implementation — metadata title hint: codex/remove _process_boot_probe_done dependency — lesson: verify with tests and avoid inferring details beyond metadata.
+- #239 — legacy/implementation — metadata title hint: codex/update quit finalization and icon mapping — lesson: verify with tests and avoid inferring details beyond metadata.
+- #240 — legacy/implementation — metadata title hint: codex/update script entrypoint and clean up files — lesson: verify with tests and avoid inferring details beyond metadata.
+- #241 — legacy/implementation — metadata title hint: codex/create documentation files and update references — lesson: verify with tests and avoid inferring details beyond metadata.
+- #242 — legacy/implementation — metadata title hint: codex/add missing contract tests for weak spots — lesson: verify with tests and avoid inferring details beyond metadata.
+- #243 — legacy/implementation — metadata title hint: codex/clarify release process and checks — lesson: verify with tests and avoid inferring details beyond metadata.
+- #244 — legacy/maintenance — metadata title hint: codex/fix failing ci tests — lesson: verify with tests and avoid inferring details beyond metadata.
+- #245 — legacy/implementation — metadata title hint: codex/audit hidapi open failure on linux — lesson: verify with tests and avoid inferring details beyond metadata.
+- #246 — legacy/maintenance — metadata title hint: codex/audit and fix hidapi backend for linux — lesson: verify with tests and avoid inferring details beyond metadata.
+- #247 — legacy/implementation — metadata title hint: codex/remove old calibration methods — lesson: verify with tests and avoid inferring details beyond metadata.
+- #248 — legacy/maintenance — metadata title hint: codex/simplify calibration menu and fix offset — lesson: verify with tests and avoid inferring details beyond metadata.
+- #249 — legacy/maintenance — metadata title hint: codex/fix strip length cap issue — lesson: verify with tests and avoid inferring details beyond metadata.
+- #250 — legacy/maintenance — metadata title hint: codex/fix strip length cap issue — lesson: verify with tests and avoid inferring details beyond metadata.
+- #251 — legacy/maintenance — metadata title hint: codex/find and fix strip length cap — lesson: verify with tests and avoid inferring details beyond metadata.
+- #252 — legacy/maintenance — metadata title hint: codex/fix calibration test pattern timeout — lesson: verify with tests and avoid inferring details beyond metadata.
+- #253 — legacy/maintenance — metadata title hint: codex/fix calibration test pattern read error — lesson: verify with tests and avoid inferring details beyond metadata.
+- #254 — legacy/implementation — metadata title hint: codex/refactor calibration model to corner anchored — lesson: verify with tests and avoid inferring details beyond metadata.
+- #255 — legacy/implementation — metadata title hint: codex/implement tlv request handling improvements — lesson: verify with tests and avoid inferring details beyond metadata.
+- #256 — legacy/maintenance — metadata title hint: codex/fix failing ci tests — lesson: verify with tests and avoid inferring details beyond metadata.
+- #257 — legacy/maintenance — metadata title hint: codex/fix send test pattern functionality — lesson: verify with tests and avoid inferring details beyond metadata.
+- #258 — legacy/maintenance — metadata title hint: codex/fix bugs in capture and tests — lesson: verify with tests and avoid inferring details beyond metadata.
+- #259 — legacy/maintenance — metadata title hint: codex/fix broken ci tests — lesson: verify with tests and avoid inferring details beyond metadata.
+- #260 — legacy/maintenance — metadata title hint: codex/fix led calibration offset bug — lesson: verify with tests and avoid inferring details beyond metadata.
+- #261 — legacy/maintenance — metadata title hint: codex/fix broken release — lesson: verify with tests and avoid inferring details beyond metadata.
+- #262 — legacy/implementation — metadata title hint: codex/add shared calibration ui component — lesson: verify with tests and avoid inferring details beyond metadata.
+- #263 — legacy/implementation — metadata title hint: codex/refactor calibration state for simplicity — lesson: verify with tests and avoid inferring details beyond metadata.
+- #264 — legacy/implementation — metadata title hint: codex/remove old calibration ui and update surfaces — lesson: verify with tests and avoid inferring details beyond metadata.
+- #265 — legacy/implementation — metadata title hint: codex/cleanup calibration config persistence — lesson: verify with tests and avoid inferring details beyond metadata.
+- #266 — legacy/implementation — metadata title hint: codex/rewrite tests and remove obsolete code paths — lesson: verify with tests and avoid inferring details beyond metadata.
+- #267 — legacy/implementation — metadata title hint: codex/cleanup legacy calibration code and verify tests — lesson: verify with tests and avoid inferring details beyond metadata.
+- #268 — legacy/implementation — metadata title hint: codex/remove compatibility only calibration shims — lesson: verify with tests and avoid inferring details beyond metadata.
+- #269 — legacy/maintenance — metadata title hint: codex/fix device zone count configuration bug — lesson: verify with tests and avoid inferring details beyond metadata.
+- #270 — legacy/maintenance — metadata title hint: codex/fix zone count propagation bug — lesson: verify with tests and avoid inferring details beyond metadata.
+- #271 — legacy/implementation — metadata title hint: codex/implement 48 zone usb output support — lesson: verify with tests and avoid inferring details beyond metadata.
+- #272 — legacy/maintenance — metadata title hint: codex/fix calibration bugs for led zones — lesson: verify with tests and avoid inferring details beyond metadata.
+- #273 — legacy/implementation — metadata title hint: codex/remove global mapping zone offset — lesson: verify with tests and avoid inferring details beyond metadata.
+- #274 — legacy/implementation — metadata title hint: codex/refactor screen mirroring for edge sampling — lesson: verify with tests and avoid inferring details beyond metadata.
+- #275 — legacy/implementation — metadata title hint: codex/remove legacy calibration compatibility code — lesson: verify with tests and avoid inferring details beyond metadata.
+- #276 — legacy/implementation — metadata title hint: codex/update edge sampling for monitor lightstrip — lesson: verify with tests and avoid inferring details beyond metadata.
+- #277 — legacy/implementation — metadata title hint: codex/add ability to display app version — lesson: verify with tests and avoid inferring details beyond metadata.
+- #278 — legacy/implementation — metadata title hint: codex/improve edge sampling localization — lesson: verify with tests and avoid inferring details beyond metadata.
+- #279 — legacy/implementation — metadata title hint: codex/implement new preset architecture and edge locality — lesson: verify with tests and avoid inferring details beyond metadata.
+- #280 — legacy/implementation — metadata title hint: codex/update wizard and settings ui for presets — lesson: verify with tests and avoid inferring details beyond metadata.
+- #281 — legacy/maintenance — metadata title hint: codex/fix failing ci tasks — lesson: verify with tests and avoid inferring details beyond metadata.
+- #282 — legacy/implementation — metadata title hint: codex/clean up ui and user experience — lesson: verify with tests and avoid inferring details beyond metadata.
+- #283 — legacy/maintenance — metadata title hint: codex/fix failing ci tests — lesson: verify with tests and avoid inferring details beyond metadata.
+- #284 — legacy/implementation — metadata title hint: codex/perform product quality cleanup pass — lesson: verify with tests and avoid inferring details beyond metadata.
+- #285 — legacy/implementation — metadata title hint: codex/remove auto promotion of led zone count — lesson: verify with tests and avoid inferring details beyond metadata.
+- #286 — legacy/implementation — metadata title hint: codex/prepare app for 1.0.0 release — lesson: verify with tests and avoid inferring details beyond metadata.
+- #287 — legacy/implementation — metadata title hint: codex/review and simplify 1.0 hardening changes — lesson: verify with tests and avoid inferring details beyond metadata.
+- #288 — legacy/implementation — metadata title hint: codex/enhance ambient color accuracy and processing — lesson: verify with tests and avoid inferring details beyond metadata.
+- #289 — legacy/implementation — metadata title hint: codex/implement strict simplification and correctness pass — lesson: verify with tests and avoid inferring details beyond metadata.
+- #290 — legacy/implementation — metadata title hint: codex/add self check button in diagnostics — lesson: verify with tests and avoid inferring details beyond metadata.
+- #291 — legacy/implementation — metadata title hint: codex/harden hdr colour handling and diagnostics — lesson: verify with tests and avoid inferring details beyond metadata.
+- #292 — legacy/implementation — metadata title hint: codex/add diagnostics and tests for kde sampling issues — lesson: verify with tests and avoid inferring details beyond metadata.
+- #293 — legacy/implementation — metadata title hint: codex/add sdr white preset to setup wizard — lesson: verify with tests and avoid inferring details beyond metadata.
+- #294 — legacy/maintenance — metadata title hint: codex/fix bugs in screen sharing and setup wizard — lesson: verify with tests and avoid inferring details beyond metadata.
+- #295 — legacy/implementation — metadata title hint: codex/implement adaptive temporal smoothing — lesson: verify with tests and avoid inferring details beyond metadata.
+- #296 — legacy/implementation — metadata title hint: codex/improve led colour calibration and accuracy — lesson: verify with tests and avoid inferring details beyond metadata.
+- #297 — legacy/implementation — metadata title hint: codex/refine ambient color handling for leds — lesson: verify with tests and avoid inferring details beyond metadata.
+- #298 — legacy/implementation — metadata title hint: codex/implement guided led colour calibration workflow — lesson: verify with tests and avoid inferring details beyond metadata.
+- #299 — legacy/maintenance — metadata title hint: codex/fix setup and calibration issues — lesson: verify with tests and avoid inferring details beyond metadata.
+- #300 — legacy/maintenance — metadata title hint: codex/fix screen mirroring stop lifecycle bug — lesson: verify with tests and avoid inferring details beyond metadata.
+- #301 — legacy/implementation — metadata title hint: codex/add latency source isolation diagnostics — lesson: verify with tests and avoid inferring details beyond metadata.
+- #302 — legacy/maintenance — metadata title hint: codex/fix diagnostics and colour calibration issues — lesson: verify with tests and avoid inferring details beyond metadata.
+- #303 — legacy/implementation — metadata title hint: codex/improve diagnostics ux for backend tests — lesson: verify with tests and avoid inferring details beyond metadata.
+- #304 — legacy/maintenance — metadata title hint: codex/fix xdg portal backend to produce frames — lesson: verify with tests and avoid inferring details beyond metadata.
+- #305 — legacy/maintenance — metadata title hint: codex/fix xdg portal gstreamer benchmark failure — lesson: verify with tests and avoid inferring details beyond metadata.
+- #306 — legacy/implementation — metadata title hint: codex/improve fps target ui and diagnostics — lesson: verify with tests and avoid inferring details beyond metadata.
+- #307 — legacy/maintenance — metadata title hint: codex/fix runtime diagnostics and bottleneck reporting — lesson: verify with tests and avoid inferring details beyond metadata.
+- #308 — diagnostics — runtime FPS attribution instrumentation fix — lesson: good; diagnostics-first optimization workflow.
+- #309 — risky optimization — priority/FPS recommendation changes caused regression — lesson: risky; performance changes need diagnostics and fallback paths.
+- #310 — regression recovery — fixes regression introduced after #309 — lesson: good; add fallback/regression checks.
+- #311 — optimization — HID write-path performance changes — lesson: good with caveat; validate with full suite where practical.
+- #312 — mixed/risky — performance priority UI landed with partial validation context — lesson: risky; target tests useful but full suite preferred.
+- #313 — ci/guardrails — CI timeout root-cause fix with checks — lesson: good; fix cause and add guardrails.
+- #314 — regression fix — Stop action preserves tray app lifecycle — lesson: good recovery; protect lifecycle invariants.
+- #315 — focused implementation — save UX + diagnostics formatting fix — lesson: good; small fixes with tests are preferred.
+- #316 — focused implementation — advanced settings separation delivered — lesson: good; implement requested UI with targeted tests.
+- #317 — docs/planning deferral — menu revamp planning doc only — lesson: bad example; avoid plan-only deferrals unless requested.
