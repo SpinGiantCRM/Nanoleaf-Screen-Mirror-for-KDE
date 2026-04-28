@@ -232,6 +232,8 @@ class NanoleafSyncService:
             if backend_hint == "xdg-portal" and int(status.get("frames_sent") or 0) <= 0:
                 startup_state = "waiting_for_screen_selection"
         status["startup_state"] = startup_state
+        status["lifecycle_state"] = str(status.get("lifecycle_state") or lifecycle_state)
+        status["start_failure_reason"] = str(status.get("start_failure_reason") or "")
         status["selection_reason"] = self._selection_reason
         status["backend_unresolved_reason"] = (
             ""
@@ -492,6 +494,8 @@ class NanoleafSyncService:
         claimed_each_boot_probe = False
 
         try:
+            self._runtime.capture_backend_ready = False
+            self._runtime.driver_ready = False
             if self._capture_backend_override is not None:
                 self._capture = self._capture_backend_override
                 self._selection_reason = "explicit"
@@ -568,6 +572,7 @@ class NanoleafSyncService:
                     else:
                         self._selection_reason = "fallback"
             self._effective_capture_backend = getattr(self._capture, "name", None)
+            self._runtime.capture_backend_ready = self._capture is not None
 
             if self._driver_override is not None:
                 self._driver = self._driver_override
@@ -575,13 +580,17 @@ class NanoleafSyncService:
                 self._driver = self._make_device_driver()
 
             self._driver.initialize()
+            self._runtime.driver_ready = True
             with self._status_lock:
                 self._device_discovered = True
                 self._device_model = getattr(self._driver, "model_number", None)
                 self._device_zone_count = getattr(self._driver, "zone_count", None)
             if claimed_each_boot_probe:
                 self._finish_each_boot_probe(success=True)
-        except Exception:
+        except Exception as exc:
+            self._runtime.start_failure_reason = str(exc)
+            self._runtime.capture_backend_ready = self._capture is not None
+            self._runtime.driver_ready = False
             if claimed_each_boot_probe:
                 self._finish_each_boot_probe(success=False)
             raise

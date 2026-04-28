@@ -535,10 +535,11 @@ class NanoleafTrayApp:
                 7000,
             )
 
-        self.tray_icon.setIcon(self._running_icon if running else self._idle_icon)
-        self._safe_refresh_mode_labels()
         status = self._safe_service_status()
         startup_state = str(status.get("startup_state") or "")
+        running = bool(running and startup_state == "running")
+        self.tray_icon.setIcon(self._running_icon if running else self._idle_icon)
+        self._safe_refresh_mode_labels()
         if startup_state == "waiting_for_screen_selection":
             self.tray_icon.showMessage(
                 "nanoleaf-kde-sync",
@@ -631,11 +632,13 @@ class NanoleafTrayApp:
         threading.Thread(target=worker, daemon=True).start()
 
     def _handle_auto_start_result(self, running: bool) -> None:
-        self.tray_icon.setIcon(self._running_icon if running else self._idle_icon)
-        self._safe_refresh_mode_labels()
-        if running:
-            return
         status = self.service.get_status()
+        startup_state = str(status.get("startup_state") or "")
+        effective_running = bool(running and startup_state == "running")
+        self.tray_icon.setIcon(self._running_icon if effective_running else self._idle_icon)
+        self._safe_refresh_mode_labels()
+        if effective_running:
+            return
         guidance = status.get("last_error_guidance") or "Run nanoleaf-kde-sync-doctor for diagnostics."
         self.tray_icon.showMessage(
             "nanoleaf-kde-sync",

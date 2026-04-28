@@ -91,6 +91,12 @@ def test_service_startup_failure_sets_error_and_not_running() -> None:
     status = svc.get_status()
     assert status["running"] is False
     assert "synthetic initialize failure" in (status["last_error"] or "")
+    assert status["lifecycle_state"] == "failed"
+    assert "synthetic initialize failure" in status["start_failure_reason"]
+    assert status["capture_backend_ready"] is True
+    assert status["driver_ready"] is False
+    assert status["first_frame_seen"] is False
+    assert status["first_frame_sent"] is False
 
 
 def test_capture_mode_replay_is_explicit() -> None:

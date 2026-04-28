@@ -17,6 +17,8 @@ def test_latency_backend_breakdown_reports_all_attempts() -> None:
     assert "selected={'yes' if bool(row.get('selected')) else 'no'}" in diagnostics_text
     assert "tentative={'yes' if bool(row.get('tentative')) else 'no'}" in diagnostics_text
     assert "Re-test backends (fresh probe)" in text
+    assert "Stop mirroring before re-testing backends." in text
+    assert "def _backend_probe_blocked_by_runtime_state" in text
     assert "Test xdg-portal" in text
     assert "Benchmark xdg-portal" in text
     assert "def _run_xdg_portal_benchmark" in text

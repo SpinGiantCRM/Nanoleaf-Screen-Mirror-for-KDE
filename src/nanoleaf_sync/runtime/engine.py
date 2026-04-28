@@ -529,6 +529,8 @@ def run_loop(
     no_pending_frame_events = 0
     no_pending_started_at = time.perf_counter()
     last_reported_capture_worker_error_count = 0
+    startup_started_at = time.perf_counter()
+    startup_frame_timeout_s = max(0.1, float(getattr(config, "startup_frame_timeout_s", 1.5)))
 
     def _capture_worker() -> None:
         nonlocal capture_worker_error, capture_worker_failures, capture_worker_error_count
@@ -647,6 +649,7 @@ def run_loop(
                     else:
                         frame = pending.frame
                         captured_at = pending.captured_at
+                        state.first_frame_seen = True
                         pending_frame_age_ms = max(0.0, (time.perf_counter() - captured_at) * 1000.0)
 
             if skip_tick:
@@ -963,6 +966,11 @@ def run_loop(
 
                 state.record_success()
                 sent_any_frame = True
+                state.first_frame_sent = True
+                if not state.startup_complete.is_set():
+                    state.start_failure_reason = ""
+                    state.lifecycle_state = "running"
+                    state.mark_startup(True)
                 last_sent_zone_count = len(smoothed_colors)
                 sent_in_window += 1
         except Exception as e:
@@ -984,6 +992,23 @@ def run_loop(
                     close_backends=close_backends,
                     state=state,
                 )
+
+        if (not sent_any_frame) and (not state.startup_complete.is_set()):
+            startup_elapsed = time.perf_counter() - startup_started_at
+            if startup_elapsed >= startup_frame_timeout_s and latest_capture_backend_name != "xdg-portal":
+                backend_name = latest_capture_backend_name or "unavailable"
+                backend_method = latest_capture_backend_method or "unavailable"
+                reason = (
+                    "Start failed before first frame: capture backend produced no frame "
+                    f"within {startup_frame_timeout_s:.1f}s (backend={backend_name}, method={backend_method})."
+                )
+                state.last_error = reason
+                state.last_error_kind = "capture-timeout"
+                state.last_error_guidance = "Check capture backend readiness and retry."
+                state.start_failure_reason = reason
+                state.lifecycle_state = "failed"
+                state.mark_startup(False)
+                break
 
         next_deadline += interval_s
         now = time.perf_counter()

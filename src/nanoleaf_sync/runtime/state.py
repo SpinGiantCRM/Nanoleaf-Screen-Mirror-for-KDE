@@ -50,6 +50,12 @@ class RuntimeState:
     effective_nice_value: int | None = None
     priority_apply_status: str = "not_attempted"
     priority_apply_error: str = ""
+    lifecycle_state: str = "idle"
+    start_failure_reason: str = ""
+    capture_backend_ready: bool = False
+    driver_ready: bool = False
+    first_frame_seen: bool = False
+    first_frame_sent: bool = False
 
     def reset_for_start(self) -> None:
         self.prev_smoothed_colors = []
@@ -78,6 +84,12 @@ class RuntimeState:
         self.effective_nice_value = None
         self.priority_apply_status = "not_attempted"
         self.priority_apply_error = ""
+        self.lifecycle_state = "starting"
+        self.start_failure_reason = ""
+        self.capture_backend_ready = False
+        self.driver_ready = False
+        self.first_frame_seen = False
+        self.first_frame_sent = False
 
     def mark_startup(self, succeeded: bool) -> None:
         self.startup_succeeded = succeeded
@@ -162,6 +174,12 @@ class RuntimeState:
             "effective_nice_value": self.effective_nice_value,
             "priority_apply_status": str(self.priority_apply_status or "not_attempted"),
             "priority_apply_error": str(self.priority_apply_error or ""),
+            "lifecycle_state": str(self.lifecycle_state or "idle"),
+            "start_failure_reason": str(self.start_failure_reason or ""),
+            "capture_backend_ready": bool(self.capture_backend_ready),
+            "driver_ready": bool(self.driver_ready),
+            "first_frame_seen": bool(self.first_frame_seen),
+            "first_frame_sent": bool(self.first_frame_sent),
         }
 
 
