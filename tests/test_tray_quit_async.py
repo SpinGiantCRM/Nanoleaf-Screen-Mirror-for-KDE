@@ -49,6 +49,7 @@ def test_on_quit_is_non_blocking_and_idempotent() -> None:
         _close_preview_driver=lambda *, resume_service=False: None,
     )
     fake_tray._request_stop = lambda: NanoleafTrayApp._request_stop(fake_tray)
+    fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(fake_tray)
     fake_tray._set_idle_ui_state = lambda: NanoleafTrayApp._set_idle_ui_state(fake_tray)
     fake_tray._poll_shutdown_completion = lambda: NanoleafTrayApp._poll_shutdown_completion(fake_tray)
     fake_tray._finalize_quit = lambda: NanoleafTrayApp._finalize_quit(fake_tray)
@@ -101,6 +102,7 @@ def test_on_stop_reports_timeout_without_pretending_idle() -> None:
     )
     fake_tray._service_running = lambda svc=None: NanoleafTrayApp._service_running(fake_tray, svc)
     fake_tray._request_stop = lambda **kwargs: NanoleafTrayApp._request_stop(fake_tray, **kwargs)
+    fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(fake_tray)
 
     NanoleafTrayApp.on_stop(fake_tray)
 
@@ -136,6 +138,7 @@ def test_on_stop_handles_service_state_query_errors_without_exiting() -> None:
     )
     fake_tray._service_running = lambda svc=None: NanoleafTrayApp._service_running(fake_tray, svc)
     fake_tray._request_stop = lambda **kwargs: NanoleafTrayApp._request_stop(fake_tray, **kwargs)
+    fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(fake_tray)
 
     NanoleafTrayApp.on_stop(fake_tray)
 
@@ -143,3 +146,98 @@ def test_on_stop_handles_service_state_query_errors_without_exiting() -> None:
     assert icons[-1] == "idle"
     assert messages == []
     assert quit_calls == []
+
+
+class _FakeServiceStartFailure:
+    def __init__(self) -> None:
+        self.stop_calls = 0
+        self.start_calls = 0
+        self._running = False
+        self.last_error = "simulated start failure"
+
+    def start(self) -> bool:
+        self.start_calls += 1
+        return False
+
+    def stop(self, timeout=1.5):  # noqa: ARG002 - compatibility with real service API
+        self.stop_calls += 1
+        return True
+
+    def is_running(self) -> bool:
+        return self._running
+
+    def get_status(self) -> dict:
+        return {
+            "startup_state": "error",
+            "last_error_guidance": "Use diagnostics.",
+        }
+
+
+def test_on_start_failure_stays_alive_and_stop_after_failure_is_safe() -> None:
+    service = _FakeServiceStartFailure()
+    messages: list[str] = []
+    icons: list[str] = []
+    quit_calls: list[str] = []
+    fake_tray = SimpleNamespace(
+        service=service,
+        tray_icon=SimpleNamespace(
+            setIcon=lambda icon: icons.append(icon),
+            showMessage=lambda _title, text, _icon, _timeout: messages.append(text),
+        ),
+        app=SimpleNamespace(quit=lambda: quit_calls.append("quit")),
+        _idle_icon="idle",
+        _running_icon="running",
+        _close_preview_driver=lambda *, resume_service=False: None,
+        _refresh_mode_labels=lambda: None,
+        _shutdown_in_progress=False,
+        _shutdown_timeout_s=0.1,
+        _schedule_stop_warning=lambda _svc: None,
+        QSystemTrayIcon=SimpleNamespace(
+            MessageIcon=SimpleNamespace(Warning=2, Information=1),
+        ),
+    )
+    fake_tray._safe_service_status = lambda: NanoleafTrayApp._safe_service_status(fake_tray)
+    fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(fake_tray)
+    fake_tray._service_running = lambda svc=None: NanoleafTrayApp._service_running(fake_tray, svc)
+    fake_tray._request_stop = lambda **kwargs: NanoleafTrayApp._request_stop(fake_tray, **kwargs)
+    fake_tray._set_idle_ui_state = lambda: NanoleafTrayApp._set_idle_ui_state(fake_tray)
+
+    NanoleafTrayApp.on_start(fake_tray)
+    NanoleafTrayApp.on_stop(fake_tray)
+
+    assert service.start_calls == 1
+    assert service.stop_calls == 1
+    assert icons[0] == "idle"
+    assert any("Start failed" in msg for msg in messages)
+    assert quit_calls == []
+
+
+class _FakeServiceStatusCrash(_FakeServiceStartFailure):
+    def get_status(self) -> dict:
+        raise RuntimeError("status unavailable")
+
+
+def test_on_start_contains_status_exceptions_at_callback_boundary() -> None:
+    service = _FakeServiceStatusCrash()
+    messages: list[str] = []
+    fake_tray = SimpleNamespace(
+        service=service,
+        tray_icon=SimpleNamespace(
+            setIcon=lambda _icon: None,
+            showMessage=lambda _title, text, _icon, _timeout: messages.append(text),
+        ),
+        _idle_icon="idle",
+        _running_icon="running",
+        _close_preview_driver=lambda *, resume_service=False: None,
+        _refresh_mode_labels=lambda: (_ for _ in ()).throw(RuntimeError("ui unavailable")),
+        QSystemTrayIcon=SimpleNamespace(
+            MessageIcon=SimpleNamespace(Warning=2, Information=1),
+        ),
+    )
+    fake_tray._safe_service_status = lambda: NanoleafTrayApp._safe_service_status(fake_tray)
+    fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(fake_tray)
+
+    NanoleafTrayApp.on_start(fake_tray)
+
+    assert service.start_calls == 1
+    assert any("Start failed" in msg for msg in messages)
