@@ -47,6 +47,47 @@ class FakeTransport:
     def close(self) -> None:
         self.closed = True
 
+    def write_with_timing(self, request: bytes) -> dict[str, int | float | bool | str | list[int] | list[float]]:
+        self.requests.append(request)
+        request_len = len(request)
+        report_size = 64
+        report_data_sizes = [min(report_size, request_len - offset) for offset in range(0, request_len, report_size)]
+        per_report_write_ms = [0.25 for _ in report_data_sizes]
+        return {
+            "report_count": len(report_data_sizes),
+            "bytes_per_report": report_size,
+            "report_data_sizes": report_data_sizes,
+            "total_frame_bytes": request_len,
+            "per_report_write_ms": per_report_write_ms,
+            "write_ms": sum(per_report_write_ms),
+            "flush_or_wait_ms": 0.0,
+            "write_blocking": True,
+            "retry_policy": "none",
+            "rate_limit_policy": "none",
+            "read_calls": 0,
+        }
+
+    def write_with_nonblocking_drain(
+        self,
+        request: bytes,
+        *,
+        max_drain_reads: int = 2,
+    ) -> dict[str, int | float | bool | str | list[int] | list[float]]:
+        timing = self.write_with_timing(request)
+        timing["flush_or_wait_ms"] = 0.1
+        timing["read_calls"] = min(1, max_drain_reads)
+        return timing
+
+
+class FailingWriteTransport(FakeTransport):
+    def write_with_nonblocking_drain(
+        self,
+        request: bytes,
+        *,
+        max_drain_reads: int = 2,
+    ) -> dict[str, int | float | bool | str | list[int] | list[float]]:
+        raise RuntimeError("write-only failed")
+
 
 class FailingOpenTransport(FakeTransport):
     def open(self) -> None:
@@ -325,6 +366,27 @@ def test_send_frame_with_timing_reports_hid_report_breakdown() -> None:
     assert timing["write_blocking"] is True
     assert timing["write_retry_policy"] == "none"
     assert timing["write_rate_limit_policy"] == "none"
+    assert timing["live_send_policy"] == "nonblocking_drain"
+    assert timing["response_wait_skipped"] is True
+    assert timing["write_read_calls"] == 1
+
+
+def test_send_frame_falls_back_to_response_required_when_live_write_only_fails() -> None:
+    transport = FailingWriteTransport([
+        _rsp(0x0C, b"\x00NL82K2"),
+        _rsp(0x03, b"\x00\x08"),
+        _rsp(0x06, b"\x00\x01"),
+        _rsp(0x08, b"\x00\x64"),
+        _rsp(0x02, b"\x00"),
+    ])
+    driver = NanoleafUSBDriver(ids=NanoleafUSBIds(0x37FA, 0x8202), transport=transport, configured_zone_count=8)
+    driver.initialize()
+
+    timing = driver.send_frame_with_timing([(10, 20, 30)] * 8)
+
+    assert timing["live_send_policy"] == "response_required"
+    assert timing["response_wait_skipped"] is False
+    assert timing["write_read_calls"] == 1
 
 
 def test_set_brightness_clamps_to_protocol_range() -> None:
@@ -339,6 +401,16 @@ def test_set_brightness_clamps_to_protocol_range() -> None:
 
     assert transport.requests[0][3:] == b"\xFF"
     assert transport.requests[1][3:] == b"\x00"
+
+
+def test_control_commands_remain_response_required_path() -> None:
+    transport = FakeTransport([_rsp(0x09, b"\x00")])
+    driver = NanoleafUSBDriver(ids=NanoleafUSBIds(0x37FA, 0x8202), transport=transport)
+
+    driver.set_brightness(10)
+
+    assert len(transport.requests) == 1
+    assert transport.requests[0][0] == 0x09
 
 
 def test_min_nonzero_brightness_clamps_to_255() -> None:

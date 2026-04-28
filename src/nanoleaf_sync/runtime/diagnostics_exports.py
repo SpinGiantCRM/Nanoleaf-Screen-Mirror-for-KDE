@@ -222,6 +222,8 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
     hid_write_retry_policy = str(labels.get("hid_write_retry_policy", "unknown") or "unknown")
     hid_write_rate_limit_policy = str(labels.get("hid_write_rate_limit_policy", "unknown") or "unknown")
     hid_write_read_calls = str(labels.get("hid_write_read_calls", "unavailable") or "unavailable")
+    hid_live_send_policy = str(labels.get("hid_live_send_policy", "response_required") or "response_required")
+    hid_response_wait_skipped = str(labels.get("hid_response_wait_skipped", "no") or "no")
 
     target_met_threshold = max(1.0, target_fps * 0.95)
     target_met = target_fps > 0.0 and effective_output_fps >= target_met_threshold
@@ -365,6 +367,8 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
         f"hid_write_retry_policy: {hid_write_retry_policy}",
         f"hid_write_rate_limit_policy: {hid_write_rate_limit_policy}",
         f"hid_write_read_calls: {hid_write_read_calls}",
+        f"live_send_policy: {hid_live_send_policy}",
+        f"response_wait_skipped: {hid_response_wait_skipped}",
     ]
     lines.extend(budget_lines)
     if target_fps >= 120.0 and actual_work["available"] and float(actual_work["median_ms"]) > (1000.0 / 120.0):

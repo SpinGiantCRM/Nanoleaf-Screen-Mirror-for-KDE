@@ -46,6 +46,8 @@ def _status_with_measurement(*, target_fps: float, effective_fps: float, include
                 "hid_write_retry_policy": "none",
                 "hid_write_rate_limit_policy": "none",
                 "hid_write_read_calls": "1",
+                "hid_live_send_policy": "nonblocking_drain",
+                "hid_response_wait_skipped": "yes",
             },
         }
     }
@@ -149,3 +151,5 @@ def test_hid_report_metadata_is_emitted_in_latency_breakdown() -> None:
     assert any("hid_total_frame_bytes: 147" in line for line in lines)
     assert any("hid_per_report_write_ms: 5.7,5.8,5.9" in line for line in lines)
     assert any("hid_write_retry_policy: none" in line for line in lines)
+    assert any("live_send_policy: nonblocking_drain" in line for line in lines)
+    assert any("response_wait_skipped: yes" in line for line in lines)

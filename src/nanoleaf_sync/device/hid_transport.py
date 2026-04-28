@@ -362,6 +362,33 @@ class HIDTransport:
         response, _ = self.transceive_with_timing(request)
         return response
 
+    def write_with_nonblocking_drain(
+        self,
+        report: bytes | bytearray | memoryview | Sequence[int],
+        *,
+        max_drain_reads: int = 2,
+    ) -> dict[str, int | float | list[int] | list[float] | bool | str]:
+        if self._handle is None:
+            raise RuntimeError("HID transport not opened.")
+        payload = bytes(report)
+        timing = dict(self._write_payload(payload))
+        drain_start = time.perf_counter()
+        drain_reads = 0
+        max_reads = max(0, int(max_drain_reads))
+        try:
+            for _ in range(max_reads):
+                raw_chunk = self._handle.read(
+                    self.report_size + (1 if self.use_report_id_prefix else 0),
+                    0,
+                )
+                if not raw_chunk:
+                    break
+                drain_reads += 1
+        finally:
+            timing["flush_or_wait_ms"] = (time.perf_counter() - drain_start) * 1000.0
+            timing["read_calls"] = int(drain_reads)
+        return timing
+
     def transceive_with_timing(
         self, request: bytes
     ) -> tuple[bytes, dict[str, int | float | list[int] | list[float] | bool | str]]:

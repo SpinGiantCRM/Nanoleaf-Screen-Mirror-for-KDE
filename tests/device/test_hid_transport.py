@@ -164,6 +164,19 @@ def test_transceive_with_timing_includes_write_and_wait_components() -> None:
     assert timing["read_calls"] >= 1
 
 
+def test_write_with_nonblocking_drain_does_not_wait_for_response() -> None:
+    fake = FakeHIDHandle([b"\x00\x83\x00\x03\x00\x00\x0A" + b"\x00" * 58, b""])
+    transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
+    transport._handle = fake
+
+    timing = transport.write_with_nonblocking_drain(b"\x03\x00\x00", max_drain_reads=2)
+
+    assert timing["report_count"] == 1
+    assert timing["total_frame_bytes"] == 3
+    assert timing["read_calls"] == 1
+    assert timing["flush_or_wait_ms"] >= 0.0
+
+
 def test_transceive_times_out_on_empty_read() -> None:
     fake = FakeHIDHandle([])
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)

@@ -818,6 +818,8 @@ def run_loop(
                 hid_write_retry_policy = "unknown"
                 hid_write_rate_limit_policy = "unknown"
                 hid_write_read_calls = "unavailable"
+                hid_live_send_policy = "response_required"
+                hid_response_wait_skipped = "no"
                 send_with_timing = getattr(driver, "send_frame_with_timing", None)
                 if callable(send_with_timing):
                     timing = send_with_timing(smoothed_colors)
@@ -862,6 +864,8 @@ def run_loop(
                     hid_write_retry_policy = str(timing.get("write_retry_policy", "none"))
                     hid_write_rate_limit_policy = str(timing.get("write_rate_limit_policy", "none"))
                     hid_write_read_calls = str(timing.get("write_read_calls", "unavailable"))
+                    hid_live_send_policy = str(timing.get("live_send_policy", "response_required"))
+                    hid_response_wait_skipped = "yes" if bool(timing.get("response_wait_skipped", False)) else "no"
                 else:
                     driver.send_frame(smoothed_colors)
                 send_done = time.perf_counter()
@@ -943,6 +947,8 @@ def run_loop(
                             "hid_write_retry_policy": hid_write_retry_policy,
                             "hid_write_rate_limit_policy": hid_write_rate_limit_policy,
                             "hid_write_read_calls": hid_write_read_calls,
+                            "hid_live_send_policy": hid_live_send_policy,
+                            "hid_response_wait_skipped": hid_response_wait_skipped,
                         },
                     )
                 )
