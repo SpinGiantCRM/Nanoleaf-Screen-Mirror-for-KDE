@@ -42,6 +42,7 @@ from nanoleaf_sync.runtime.diagnostics_exports import (
     diagnostics_text_lines,
     export_latency_report,
     export_sampling_overlay,
+    format_backend_attempt_row,
     export_zone_report,
 )
 from nanoleaf_sync.ui.zone_calibration import mapping_preview_text as _mapping_preview_text
@@ -118,6 +119,7 @@ class SettingsDialog:
         diagnostic_capture: Callable[[], dict[str, object]] | None = None,
         runtime_status: dict | None = None,
         initial_section: str | None = None,
+        on_apply: Callable[[AppConfig], None] | None = None,
     ):
         qt = load_qt()
         QDialog = qt["QDialog"]
@@ -145,6 +147,7 @@ class SettingsDialog:
                 self._calibration_sender = calibration_sender
                 self._diagnostic_capture = diagnostic_capture
                 self._runtime_status = runtime_status or {}
+                self._on_apply = on_apply
                 self._state = CalibrationState.from_config(cfg, runtime_status)
                 self._source_zones_locked_to_device_count = (
                     not bool(self._state.source_zones_user_configured)
@@ -319,8 +322,9 @@ class SettingsDialog:
                 self.guided_led_calibration_button.clicked.connect(self._open_guided_led_calibration)
                 self.save_led_calibration_profile_button.clicked.connect(self._save_active_led_calibration_profile)
 
-                buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
-                buttons.accepted.connect(self.accept); buttons.rejected.connect(self.reject)
+                buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Close)
+                buttons.accepted.connect(self._apply_settings)
+                buttons.rejected.connect(self.reject)
 
                 root = QVBoxLayout()
                 scroll = QScrollArea()
@@ -1252,21 +1256,9 @@ class SettingsDialog:
                     sample_count = int(item.get("sample_count") or 0)
                     if status == "tested" and sample_count > 0:
                         measured_rows += 1
-                    median = item.get("median_ms")
-                    p95 = item.get("p95_ms")
-                    jitter = item.get("jitter_ms")
-                    score = item.get("score")
-                    median_text = f"{float(median):.1f}" if isinstance(median, (int, float)) else "-"
-                    p95_text = f"{float(p95):.1f}" if isinstance(p95, (int, float)) else "-"
-                    jitter_text = f"{float(jitter):.1f}" if isinstance(jitter, (int, float)) else "-"
-                    score_text = f"{float(score):.2f}" if isinstance(score, (int, float)) else "-"
-                    formatted.append(
-                        f"- {item.get('backend')}: {status} mode={mode} reason={item.get('reason') or '-'} "
-                        f"samples={sample_count} median={median_text} p95={p95_text} jitter={jitter_text} "
-                        f"score={score_text} selected_reason={item.get('selected_reason') or '-'} "
-                        f"tentative={'yes' if bool(item.get('tentative')) else 'no'} "
-                        f"{'[selected]' if bool(item.get('selected')) else ''}"
-                    )
+                    normalized_item = dict(item)
+                    normalized_item["mode"] = mode
+                    formatted.append(f"- {format_backend_attempt_row(normalized_item)}")
                 if measured_rows <= 0:
                     formatted.insert(0, "No fresh backend probe has run in this session.")
                 elif measured_rows < 2:
@@ -1274,6 +1266,12 @@ class SettingsDialog:
                 else:
                     formatted.insert(0, f"Fresh probe best backend selected: {selected_backend}.")
                 return "Backend attempts:\n" + "\n".join(formatted)
+
+            def _apply_settings(self) -> None:
+                apply_fn = self._on_apply
+                if not callable(apply_fn):
+                    return
+                apply_fn(self.updated_config())
 
             def focus_section(self, section_name: str) -> bool:
                 target = self._section_widgets.get(section_name)

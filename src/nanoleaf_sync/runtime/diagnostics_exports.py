@@ -15,6 +15,30 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.state import ZoneRect
 
 
+def _format_latency_metric(value: object, *, precision: int = 1) -> str:
+    if isinstance(value, (int, float)):
+        return f"{float(value):.{precision}f}"
+    return "-"
+
+
+def format_backend_attempt_row(row: dict[str, object]) -> str:
+    backend = str(row.get("backend") or "unknown")
+    status = str(row.get("status") or "skipped")
+    mode = str(row.get("mode") or ("failed" if status == "failed" else "fresh-probe"))
+    sample_count = int(row.get("sample_count") or 0)
+    reason = str(row.get("reason") or "-")
+    return (
+        f"{backend}: status={status} mode={mode} samples={sample_count} "
+        f"median={_format_latency_metric(row.get('median_ms'))} "
+        f"p95={_format_latency_metric(row.get('p95_ms'))} "
+        f"jitter={_format_latency_metric(row.get('jitter_ms'))} "
+        f"score={_format_latency_metric(row.get('score'), precision=2)} "
+        f"selected={'yes' if bool(row.get('selected')) else 'no'} "
+        f"tentative={'yes' if bool(row.get('tentative')) else 'no'} "
+        f"reason={reason}"
+    )
+
+
 def _normalize_side_counts(raw: object, *, source_zone_count: int) -> tuple[int, int, int, int] | None:
     if not isinstance(raw, (tuple, list)) or len(raw) != 4:
         return None

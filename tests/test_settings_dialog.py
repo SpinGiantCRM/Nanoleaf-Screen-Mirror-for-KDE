@@ -72,3 +72,12 @@ def test_performance_priority_dropdown_present_and_persisted() -> None:
     assert "Very high experimental" in open("src/nanoleaf_sync/ui/preset_ui.py", "r", encoding="utf-8").read()
     assert "High priority may improve scheduling consistency. It may fail without permission. Very high is experimental." in text
     assert "performance_priority=value_for_label(PERFORMANCE_PRIORITY_LABELS" in text
+
+
+def test_save_applies_without_closing_dialog() -> None:
+    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    assert "QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Close" in text
+    assert "buttons.accepted.connect(self._apply_settings)" in text
+    assert "buttons.rejected.connect(self.reject)" in text
+    assert "def _apply_settings(self) -> None:" in text
+    assert "apply_fn(self.updated_config())" in text
