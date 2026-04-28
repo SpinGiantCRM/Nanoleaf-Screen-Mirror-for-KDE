@@ -15,9 +15,14 @@ def test_settings_dialog_source_uses_preset_ui_labels() -> None:
     assert "layout_preset" in text
     assert "motion_preset_combo" in text
     assert "color_style_combo" in text
-    assert 'QGroupBox("Diagnostics")' in text
+    assert 'QGroupBox("Advanced / Troubleshooting")' in text
     assert "Raw device→source mapping" in text
     assert "HDR colour path" in text
+    assert "Runtime Status" in text
+    assert "Backend & Probing" in text
+    assert "Diagnostics Actions" in text
+    assert "Quality Diagnostics" in text
+    assert "Recovery Tools" in text
     assert "SDR white reference controls how bright SDR/desktop content appears when HDR is enabled." in text
     assert 'window_title = "nanoleaf-kde-sync Settings" if view_mode != SETTINGS_VIEW_ADVANCED else "nanoleaf-kde-sync Advanced / Troubleshooting"' in text
     assert "if self._view_mode == SETTINGS_VIEW_ADVANCED:" in text
