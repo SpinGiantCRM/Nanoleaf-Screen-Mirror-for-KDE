@@ -108,3 +108,13 @@ def test_save_applies_without_closing_dialog() -> None:
     assert "buttons.rejected.connect(self.reject)" in text
     assert "def _apply_settings(self) -> None:" in text
     assert "apply_fn(self.updated_config())" in text
+
+
+def test_settings_dialog_surfaces_latest_auto_and_manual_probe_results() -> None:
+    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    assert "def _update_latency_label_for_latest_probe_result(self) -> None:" in text
+    assert "self._update_latency_label_for_latest_probe_result()" in text
+    assert "Last auto-run probe result." in text
+    assert "Last manual probe result." in text
+    assert "waiting for first result" in text
+    assert "Candidate backends:" in text
