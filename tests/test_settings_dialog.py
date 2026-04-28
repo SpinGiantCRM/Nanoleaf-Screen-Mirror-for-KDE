@@ -117,4 +117,7 @@ def test_settings_dialog_surfaces_latest_auto_and_manual_probe_results() -> None
     assert "Last auto-run probe result." in text
     assert "Last manual probe result." in text
     assert "waiting for first result" in text
+    assert "Stop mirroring before re-testing backends." in text
+    assert "def _update_backend_probe_button_state" in text
+    assert "def _backend_probe_blocked_by_runtime_state" in text
     assert "Candidate backends:" in text

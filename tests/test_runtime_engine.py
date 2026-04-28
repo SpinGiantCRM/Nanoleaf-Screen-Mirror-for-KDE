@@ -213,3 +213,71 @@ def test_run_loop_records_live_send_policy_without_response_wait_penalty() -> No
     assert measurement.labels.get("hid_write_read_calls") == "0"
     assert measurement.stages["hid_flush_or_wait_ms"].available
     assert float(measurement.stages["hid_flush_or_wait_ms"].median_ms) < 5.0
+
+
+def test_run_loop_fails_start_when_no_first_frame_arrives() -> None:
+    class _NoFrameCapture:
+        name = "kwin-dbus"
+        last_capture_path = "unavailable"
+
+        def capture(self):
+            return None
+
+    class _Driver:
+        reported_zone_count = 48
+        zone_count = 48
+
+        def send_frame(self, _colors):
+            return None
+
+    state = RuntimeState()
+    cfg = _cfg_with_valid_calibration(48, fps=60)
+    setattr(cfg, "startup_frame_timeout_s", 0.12)
+    run_loop(
+        config=cfg,
+        state=state,
+        get_capture=lambda: _NoFrameCapture(),
+        get_driver=lambda: _Driver(),
+        install_drivers=lambda: True,
+        close_backends=lambda: None,
+    )
+
+    assert state.startup_complete.is_set()
+    assert state.startup_succeeded is False
+    assert state.first_frame_seen is False
+    assert state.first_frame_sent is False
+    assert state.start_failure_reason.startswith("Start failed before first frame")
+
+
+def test_run_loop_marks_startup_complete_after_first_frame_send() -> None:
+    class _Capture:
+        name = "kwin-dbus"
+        last_capture_path = "kwin-dbus:test"
+
+        def capture(self):
+            frame = np.zeros((24, 32, 3), dtype=np.uint8)
+            frame[:, :] = [80, 20, 10]
+            return frame
+
+    class _Driver:
+        reported_zone_count = 48
+        zone_count = 48
+
+        def send_frame(self, _colors):
+            state.stop_event.set()
+
+    state = RuntimeState()
+    cfg = _cfg_with_valid_calibration(48, fps=30)
+    run_loop(
+        config=cfg,
+        state=state,
+        get_capture=lambda: _Capture(),
+        get_driver=lambda: _Driver(),
+        install_drivers=lambda: True,
+        close_backends=lambda: None,
+    )
+
+    assert state.startup_complete.is_set()
+    assert state.startup_succeeded is True
+    assert state.first_frame_seen is True
+    assert state.first_frame_sent is True

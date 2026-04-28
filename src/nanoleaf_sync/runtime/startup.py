@@ -54,6 +54,8 @@ def reset_startup(state: RuntimeState) -> None:
     state.stop_event.clear()
     state.startup_complete.clear()
     state.startup_succeeded = False
+    state.lifecycle_state = "starting"
+    state.start_failure_reason = ""
 
 
 def wait_for_startup(state: RuntimeState, timeout_s: float = 1.0) -> bool:
@@ -74,12 +76,15 @@ def initialize_or_fail(
         state.last_error = translated.summary
         state.last_error_kind = translated.kind
         state.last_error_guidance = translated.guidance
+        state.start_failure_reason = translated.summary
+        state.lifecycle_state = "failed"
         state.mark_startup(False)
         logger.exception("service startup failed")
         close_backends()
         return False
 
-    state.mark_startup(True)
+    state.capture_backend_ready = True
+    state.driver_ready = True
     return True
 
 
@@ -189,17 +194,20 @@ class RuntimeLifecycle:
                 daemon=True,
             )
             self._state_name = "starting"
+            self._state.lifecycle_state = "starting"
             self._thread.start()
 
         startup_completed = self._state.startup_complete.wait(timeout=max(0.0, float(startup_timeout_s)))
         if not startup_completed:
             # Startup is still in-flight (for example, awaiting user portal consent).
             with self._lock:
+                self._state.lifecycle_state = "starting"
                 self._sync_state_locked()
             return True
         if not self._state.startup_succeeded:
             self.join(timeout=0.2)
             with self._lock:
+                self._state.lifecycle_state = "failed"
                 self._sync_state_locked()
             return False
         with self._lock:
@@ -212,6 +220,7 @@ class RuntimeLifecycle:
             self._sync_state_locked()
             if self._state_name in {"starting", "running"}:
                 self._state_name = "stopping"
+                self._state.lifecycle_state = "stopping"
                 stop_requested = True
             elif self._state_name in {"idle", "error"}:
                 return True
@@ -250,13 +259,18 @@ class RuntimeLifecycle:
         if thread_alive:
             if self._state_name in {"idle", "error"}:
                 self._state_name = "running" if self._state.startup_complete.is_set() else "starting"
+                self._state.lifecycle_state = self._state_name
             elif self._state_name == "starting" and self._state.startup_complete.is_set() and self._state.startup_succeeded:
                 self._state_name = "running"
+                self._state.lifecycle_state = "running"
             return
         if self._state_name == "stopping":
             self._state_name = "idle"
+            self._state.lifecycle_state = "idle"
             return
         if self._state.startup_complete.is_set() and not self._state.startup_succeeded:
             self._state_name = "error"
+            self._state.lifecycle_state = "failed"
         else:
             self._state_name = "idle"
+            self._state.lifecycle_state = "idle"

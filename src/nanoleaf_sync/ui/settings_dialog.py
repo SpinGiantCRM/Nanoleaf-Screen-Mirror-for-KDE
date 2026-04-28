@@ -330,6 +330,7 @@ class SettingsDialog:
                 )
                 self.run_latency_button.clicked.connect(self._run_latency_probe_manual)
                 self.retest_backends_button.clicked.connect(self._run_fresh_backend_probe)
+                self._update_backend_probe_button_state()
                 self.test_xdg_portal_button.clicked.connect(self._run_xdg_portal_test)
                 self.benchmark_xdg_portal_button.clicked.connect(self._run_xdg_portal_benchmark)
                 self.edge_locality_diagnostic_button.clicked.connect(self._run_edge_locality_diagnostic)
@@ -1206,7 +1207,28 @@ class SettingsDialog:
                     self.run_latency_button.setText("Measure active backend latency")
                 self.latency_label.setText(latency_result_summary(self._latest_latency))
 
+            def _update_backend_probe_button_state(self) -> None:
+                blocked = self._backend_probe_blocked_by_runtime_state()
+                self.retest_backends_button.setEnabled(not blocked)
+                if blocked:
+                    self.retest_backends_button.setToolTip("Stop mirroring before re-testing backends.")
+                else:
+                    self.retest_backends_button.setToolTip("")
+
+            def _backend_probe_blocked_by_runtime_state(self) -> bool:
+                startup_state = str(self._runtime_status.get("startup_state") or "").strip().lower()
+                lifecycle_state = str(self._runtime_status.get("lifecycle_state") or "").strip().lower()
+                running = bool(self._runtime_status.get("running"))
+                if running:
+                    return True
+                blocked_states = {"starting", "running", "stopping", "failed", "error", "waiting_for_screen_selection"}
+                return startup_state in blocked_states or lifecycle_state in blocked_states
+
             def _run_fresh_backend_probe(self) -> None:
+                if self._backend_probe_blocked_by_runtime_state():
+                    self._update_backend_probe_button_state()
+                    self.latency_label.setText("Stop mirroring before re-testing backends.")
+                    return
                 width = int(self._runtime_status.get("capture_width") or 1920)
                 height = int(self._runtime_status.get("capture_height") or 1080)
                 result = run_fresh_backend_probe(width=width, height=height)
