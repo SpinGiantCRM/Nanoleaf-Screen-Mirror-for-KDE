@@ -423,7 +423,7 @@ class NanoleafSyncService:
                 except Exception:
                     pass
 
-    def _make_device_driver(self) -> DeviceDriver:
+    def _make_device_driver(self, *, enable_live_frame_write_optimization: bool = True) -> DeviceDriver:
         ids = NanoleafUSBIds(vid=self.config.device_vid, pid=self.config.device_pid)
         if int(ids.vid) == 0 or int(ids.pid) == 0:
             raise ValueError(
@@ -434,6 +434,7 @@ class NanoleafSyncService:
             ids=ids,
             output_channel_order=self.config.output_channel_order,
             configured_zone_count=int(getattr(self.config, "device_zone_count", 0) or 0),
+            enable_live_frame_write_optimization=enable_live_frame_write_optimization,
         )
 
     def _clear_backends(self) -> None:

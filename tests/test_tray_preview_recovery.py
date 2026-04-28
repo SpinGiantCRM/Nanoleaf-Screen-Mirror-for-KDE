@@ -176,3 +176,18 @@ def test_send_calibration_preview_never_promotes_manual_zone_count_from_detected
     assert service.config.calibration.device_zone_count == 8
     assert fake_tray.cfg_mgr.saved is None
     assert any("synced_device_zone_count=8" in message for message in messages)
+
+
+def test_make_preview_driver_disables_live_write_optimization_for_setup_paths() -> None:
+    captured: dict[str, bool] = {}
+
+    class _Service:
+        def _make_device_driver(self, *, enable_live_frame_write_optimization: bool = True):
+            captured["enable_live_frame_write_optimization"] = bool(enable_live_frame_write_optimization)
+            return object()
+
+    tray = SimpleNamespace(service=_Service())
+
+    NanoleafTrayApp._make_preview_driver(tray)
+
+    assert captured["enable_live_frame_write_optimization"] is False

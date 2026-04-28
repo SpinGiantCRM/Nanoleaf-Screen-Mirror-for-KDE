@@ -389,6 +389,29 @@ def test_send_frame_falls_back_to_response_required_when_live_write_only_fails()
     assert timing["write_read_calls"] == 1
 
 
+def test_send_frame_can_force_response_required_path_for_setup_preview() -> None:
+    transport = FakeTransport([
+        _rsp(0x0C, b"\x00NL82K2"),
+        _rsp(0x03, b"\x00\x08"),
+        _rsp(0x06, b"\x00\x01"),
+        _rsp(0x08, b"\x00\x64"),
+        _rsp(0x02, b"\x00"),
+    ])
+    driver = NanoleafUSBDriver(
+        ids=NanoleafUSBIds(0x37FA, 0x8202),
+        transport=transport,
+        configured_zone_count=8,
+        enable_live_frame_write_optimization=False,
+    )
+    driver.initialize()
+
+    timing = driver.send_frame_with_timing([(10, 20, 30)] * 8)
+
+    assert timing["live_send_policy"] == "response_required"
+    assert timing["response_wait_skipped"] is False
+    assert timing["write_read_calls"] == 1
+
+
 def test_set_brightness_clamps_to_protocol_range() -> None:
     transport = FakeTransport([
         _rsp(0x09, b"\x00"),

@@ -35,6 +35,7 @@ class NanoleafUSBDriver(DeviceDriver):
         min_nonzero_brightness: int = 10,
         output_channel_order: str = "grb",
         configured_zone_count: int = 0,
+        enable_live_frame_write_optimization: bool = True,
     ) -> None:
         self.ids = ids
         self.report_size = int(report_size)
@@ -44,6 +45,7 @@ class NanoleafUSBDriver(DeviceDriver):
         self._protocol = protocol or NanoleafTLVProtocol()
         self._min_nonzero_brightness = max(1, min(255, int(min_nonzero_brightness)))
         self._configured_zone_count = max(0, int(configured_zone_count))
+        self._enable_live_frame_write_optimization = bool(enable_live_frame_write_optimization)
         order = str(output_channel_order or "grb").strip().lower()
         if sorted(order) != ["b", "g", "r"]:
             raise ValueError(
@@ -207,7 +209,7 @@ class NanoleafUSBDriver(DeviceDriver):
         live_send_policy = "response_required"
         response_wait_skipped = False
         send_err: Exception | None = None
-        if self._is_live_frame_command(CMD_SET_ZONE_COLORS):
+        if self._is_live_frame_command(CMD_SET_ZONE_COLORS) and self._enable_live_frame_write_optimization:
             write_with_nonblocking_drain = getattr(self._transport, "write_with_nonblocking_drain", None)
             write_with_timing = getattr(self._transport, "write_with_timing", None)
             if callable(write_with_nonblocking_drain):
