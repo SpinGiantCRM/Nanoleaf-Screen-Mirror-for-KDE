@@ -1,15 +1,18 @@
 def test_latency_backend_breakdown_reports_all_attempts() -> None:
     text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    diagnostics_text = open("src/nanoleaf_sync/runtime/diagnostics_exports.py", "r", encoding="utf-8").read()
     assert "def _backend_probe_breakdown_text" in text
     assert "No fresh backend probe has run in this session." in text
-    assert "samples=" in text
-    assert "median=" in text
-    assert "p95=" in text
-    assert "jitter=" in text
-    assert "score=" in text
+    assert "format_backend_attempt_row" in text
+    assert "samples=" in diagnostics_text
+    assert "median=" in diagnostics_text
+    assert "p95=" in diagnostics_text
+    assert "jitter=" in diagnostics_text
+    assert "score=" in diagnostics_text
     assert "mode=" in text
     assert "Using cached backend:" in text
-    assert "selected_reason=" in text
+    assert "selected={'yes' if bool(row.get('selected')) else 'no'}" in diagnostics_text
+    assert "tentative={'yes' if bool(row.get('tentative')) else 'no'}" in diagnostics_text
     assert "Re-test backends (fresh probe)" in text
     assert "Test xdg-portal" in text
     assert "Benchmark xdg-portal" in text

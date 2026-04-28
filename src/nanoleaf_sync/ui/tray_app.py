@@ -666,6 +666,16 @@ class NanoleafTrayApp:
         self.tray_icon.showMessage("nanoleaf-kde-sync", message, self.QSystemTrayIcon.MessageIcon.Information, 6000)
 
     def on_settings(self, *, initial_section: str | None = None):
+        def _apply_settings_dialog_config(new_cfg) -> None:
+            self.cfg_mgr.save(new_cfg)
+            self.config = new_cfg
+            if was_running and self.service.is_running():
+                self.on_stop()
+            self.service = NanoleafSyncService(config=self.config)
+            self._refresh_mode_labels()
+            if was_running:
+                self.on_start()
+
         dlg = SettingsDialog(
             parent=None,
             cfg=self.config,
@@ -673,6 +683,7 @@ class NanoleafTrayApp:
             diagnostic_capture=getattr(self.service, "capture_one_diagnostic_frame", None),
             runtime_status=self.service.get_status(),
             initial_section=initial_section,
+            on_apply=_apply_settings_dialog_config,
         )
         was_running = self.service.is_running() or bool(getattr(self, "_preview_paused_service", False))
         accepted = dlg.exec() == self.QDialog.DialogCode.Accepted
@@ -689,16 +700,7 @@ class NanoleafTrayApp:
             self.cfg_mgr.save(self.config)
             self.on_display_configurator(was_running_intent=was_running)
             return
-        new_cfg = dlg.updated_config()
-        self.cfg_mgr.save(new_cfg)
-        self.config = new_cfg
-        if was_running and self.service.is_running():
-            self.on_stop()
-        self.service = NanoleafSyncService(config=self.config)
-        self._refresh_mode_labels()
-
-        if was_running:
-            self.on_start()
+        _apply_settings_dialog_config(dlg.updated_config())
 
 
     def on_troubleshooting(self) -> None:
