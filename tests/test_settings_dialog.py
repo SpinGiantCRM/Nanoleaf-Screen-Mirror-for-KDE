@@ -19,6 +19,8 @@ def test_settings_dialog_source_uses_preset_ui_labels() -> None:
     assert "Raw device→source mapping" in text
     assert "HDR colour path" in text
     assert "SDR white reference controls how bright SDR/desktop content appears when HDR is enabled." in text
+    assert 'window_title = "nanoleaf-kde-sync Settings" if view_mode != SETTINGS_VIEW_ADVANCED else "nanoleaf-kde-sync Advanced / Troubleshooting"' in text
+    assert "if self._view_mode == SETTINGS_VIEW_ADVANCED:" in text
 
 
 def test_settings_primary_sections_do_not_expose_raw_mapping_text() -> None:
@@ -53,6 +55,7 @@ def test_fps_slider_label_value_and_tooltip_text() -> None:
     assert "This is the target update rate. Actual output FPS may be lower if capture, processing, or HID output cannot keep up." in text
     assert 'self.fps_slider.setRange(FPS_MIN, FPS_MAX)' in text
     assert "FPS_MAX = 120" in text
+    assert 'layout.addWidget(QLabel("Capture backend"), 7, 0); layout.addWidget(self.capture_backend_combo, 7, 1, 1, 2)' in text
 
 
 def test_guided_led_calibration_controls_present() -> None:

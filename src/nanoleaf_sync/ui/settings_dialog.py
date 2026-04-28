@@ -72,6 +72,9 @@ SETTINGS_SECTIONS: tuple[str, ...] = (
     "Diagnostics",
 )
 
+SETTINGS_VIEW_STANDARD = "standard"
+SETTINGS_VIEW_ADVANCED = "advanced"
+
 class _FallbackLayout:
     def addWidget(self, *_args, **_kwargs) -> None:
         return None
@@ -120,6 +123,7 @@ class SettingsDialog:
         runtime_status: dict | None = None,
         initial_section: str | None = None,
         on_apply: Callable[[AppConfig], None] | None = None,
+        view_mode: str = SETTINGS_VIEW_STANDARD,
     ):
         qt = load_qt()
         QDialog = qt["QDialog"]
@@ -139,7 +143,8 @@ class SettingsDialog:
         class _Dialog(QDialog):
             def __init__(self):
                 super().__init__(parent)
-                self.setWindowTitle("nanoleaf-kde-sync Settings")
+                window_title = "nanoleaf-kde-sync Settings" if view_mode != SETTINGS_VIEW_ADVANCED else "nanoleaf-kde-sync Advanced / Troubleshooting"
+                self.setWindowTitle(window_title)
                 resize = getattr(self, "resize", None)
                 if callable(resize):
                     resize(860, 760)
@@ -157,6 +162,7 @@ class SettingsDialog:
                 self._latest_latency = None
                 self._section_widgets: dict[str, object] = {}
                 self._settings_scroll = None
+                self._view_mode = str(view_mode or SETTINGS_VIEW_STANDARD).strip().lower()
 
                 self.brightness_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.brightness_slider.setRange(0, 100); self.brightness_slider.setValue(int(round(cfg.brightness * 100)))
                 self.smoothing_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.smoothing_slider.setRange(0, 100); self.smoothing_slider.setValue(int(round(cfg.smoothing * 100)))
@@ -348,12 +354,15 @@ class SettingsDialog:
                     "Device": output_section,
                     "Diagnostics": diagnostics_section,
                 }
-                content_layout.addWidget(display_section)
-                content_layout.addWidget(runtime_section)
-                content_layout.addWidget(zone_mapping_section)
-                content_layout.addWidget(calibration_section)
-                content_layout.addWidget(output_section)
-                content_layout.addWidget(diagnostics_section)
+
+                if self._view_mode == SETTINGS_VIEW_ADVANCED:
+                    content_layout.addWidget(diagnostics_section)
+                else:
+                    content_layout.addWidget(display_section)
+                    content_layout.addWidget(runtime_section)
+                    content_layout.addWidget(zone_mapping_section)
+                    content_layout.addWidget(calibration_section)
+                    content_layout.addWidget(output_section)
                 content_layout.addStretch(1)
                 content.setLayout(content_layout)
                 scroll.setWidget(content)
@@ -414,34 +423,32 @@ class SettingsDialog:
                 group = QGroupBox("Diagnostics")
                 layout = QGridLayout()
                 layout.addWidget(self.backend_info_label, 0, 0, 1, 3)
-                layout.addWidget(QLabel("Capture backend policy"), 1, 0)
-                layout.addWidget(self.capture_backend_combo, 1, 1, 1, 2)
-                layout.addWidget(QLabel("Auto-probe policy"), 2, 0)
-                layout.addWidget(self.auto_probe_policy_combo, 2, 1, 1, 2)
-                layout.addWidget(QLabel("Latency auto-run policy"), 3, 0)
-                layout.addWidget(self.auto_latency_policy_combo, 3, 1, 1, 2)
-                layout.addWidget(self.run_latency_button, 4, 0, 1, 1)
-                layout.addWidget(self.retest_backends_button, 4, 1, 1, 1)
-                layout.addWidget(self.test_xdg_portal_button, 4, 2, 1, 1)
-                layout.addWidget(self.benchmark_xdg_portal_button, 5, 0, 1, 3)
-                layout.addWidget(self.latency_label, 6, 0, 1, 3)
-                layout.addWidget(self.xdg_hint_label, 7, 0, 1, 3)
-                layout.addWidget(self.edge_locality_diagnostic_button, 8, 0, 1, 3)
-                layout.addWidget(self.edge_locality_diagnostic_label, 9, 0, 1, 3)
-                layout.addWidget(self.color_accuracy_diagnostic_button, 10, 0, 1, 3)
-                layout.addWidget(self.color_accuracy_diagnostic_label, 11, 0, 1, 3)
-                layout.addWidget(self.run_self_check_button, 12, 0, 1, 3)
-                layout.addWidget(self.self_check_label, 13, 0, 1, 3)
-                layout.addWidget(self.capture_one_diagnostic_frame_button, 14, 0, 1, 3)
-                layout.addWidget(self.export_live_sampling_overlay_button, 15, 0, 1, 3)
-                layout.addWidget(self.export_synthetic_sampling_overlay_button, 16, 0, 1, 3)
-                layout.addWidget(self.sampling_export_label, 17, 0, 1, 3)
-                layout.addWidget(self.export_zone_report_button, 18, 0, 1, 3)
-                layout.addWidget(self.zone_report_label, 19, 0, 1, 3)
-                layout.addWidget(self.export_latency_report_button, 20, 0, 1, 3)
-                layout.addWidget(self.latency_report_label, 21, 0, 1, 3)
-                layout.addWidget(self.diagnostics_mapping_label, 22, 0, 1, 3)
-                layout.addWidget(self.hdr_colour_path_label, 23, 0, 1, 3)
+                layout.addWidget(QLabel("Auto-probe policy"), 1, 0)
+                layout.addWidget(self.auto_probe_policy_combo, 1, 1, 1, 2)
+                layout.addWidget(QLabel("Latency auto-run policy"), 2, 0)
+                layout.addWidget(self.auto_latency_policy_combo, 2, 1, 1, 2)
+                layout.addWidget(self.run_latency_button, 3, 0, 1, 1)
+                layout.addWidget(self.retest_backends_button, 3, 1, 1, 1)
+                layout.addWidget(self.test_xdg_portal_button, 3, 2, 1, 1)
+                layout.addWidget(self.benchmark_xdg_portal_button, 4, 0, 1, 3)
+                layout.addWidget(self.latency_label, 5, 0, 1, 3)
+                layout.addWidget(self.xdg_hint_label, 6, 0, 1, 3)
+                layout.addWidget(self.edge_locality_diagnostic_button, 7, 0, 1, 3)
+                layout.addWidget(self.edge_locality_diagnostic_label, 8, 0, 1, 3)
+                layout.addWidget(self.color_accuracy_diagnostic_button, 9, 0, 1, 3)
+                layout.addWidget(self.color_accuracy_diagnostic_label, 10, 0, 1, 3)
+                layout.addWidget(self.run_self_check_button, 11, 0, 1, 3)
+                layout.addWidget(self.self_check_label, 12, 0, 1, 3)
+                layout.addWidget(self.capture_one_diagnostic_frame_button, 13, 0, 1, 3)
+                layout.addWidget(self.export_live_sampling_overlay_button, 14, 0, 1, 3)
+                layout.addWidget(self.export_synthetic_sampling_overlay_button, 15, 0, 1, 3)
+                layout.addWidget(self.sampling_export_label, 16, 0, 1, 3)
+                layout.addWidget(self.export_zone_report_button, 17, 0, 1, 3)
+                layout.addWidget(self.zone_report_label, 18, 0, 1, 3)
+                layout.addWidget(self.export_latency_report_button, 19, 0, 1, 3)
+                layout.addWidget(self.latency_report_label, 20, 0, 1, 3)
+                layout.addWidget(self.diagnostics_mapping_label, 21, 0, 1, 3)
+                layout.addWidget(self.hdr_colour_path_label, 22, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -515,6 +522,7 @@ class SettingsDialog:
                 layout.addWidget(QLabel("Quality"), 4, 0); layout.addWidget(self.sampling_quality_combo, 4, 1); layout.addWidget(self.sampling_quality_value, 4, 2)
                 layout.addWidget(QLabel("Performance priority"), 5, 0); layout.addWidget(self.performance_priority_combo, 5, 1, 1, 2)
                 layout.addWidget(QLabel("Vibrancy (LED gamma)"), 6, 0); layout.addWidget(self.led_gamma_slider, 6, 1); layout.addWidget(self.led_gamma_value, 6, 2)
+                layout.addWidget(QLabel("Capture backend"), 7, 0); layout.addWidget(self.capture_backend_combo, 7, 1, 1, 2)
                 group.setLayout(layout)
                 return group
 

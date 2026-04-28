@@ -105,7 +105,7 @@ def test_on_settings_cancel_discards_changes(monkeypatch) -> None:
     assert fake_tray.service.config.device_zone_count == 3
 
 
-def test_on_open_calibration_settings_routes_to_settings_dialog() -> None:
+def test_on_open_advanced_settings_routes_to_settings_dialog() -> None:
     calls = {"settings": 0, "messages": 0}
 
     class _TrayIcon:
@@ -115,10 +115,10 @@ def test_on_open_calibration_settings_routes_to_settings_dialog() -> None:
     fake_tray = SimpleNamespace(
         tray_icon=_TrayIcon(),
         QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Information=1)),
-        on_settings=lambda: calls.__setitem__("settings", calls["settings"] + 1),
+        on_settings=lambda **_kwargs: calls.__setitem__("settings", calls["settings"] + 1),
     )
 
-    NanoleafTrayApp.on_open_calibration_settings(fake_tray)
+    NanoleafTrayApp.on_open_advanced_settings(fake_tray)
 
     assert calls["settings"] == 1
     assert calls["messages"] == 1

@@ -410,9 +410,10 @@ class NanoleafTrayApp:
         self.action_stop = self.QAction("Stop", menu)
         self.action_settings = self.QAction("Settings", menu)
         self.action_display_wizard = self.QAction("Setup Wizard", menu)
-        self.action_calibration_settings = self.QAction("Calibration & Testing", menu)
+        self.action_advanced_settings = self.QAction("Advanced / Troubleshooting", menu)
         self.action_status = self.QAction("About / Status", menu)
-        self.action_troubleshooting = self.QAction("Help / Troubleshooting", menu)
+        self.action_troubleshooting = self.QAction("Troubleshooting", menu)
+        self.action_troubleshooting_guide = self.QAction("Open Troubleshooting Guide", menu)
         self.action_enable_autostart = self.QAction("Enable autostart", menu)
         self.action_disable_autostart = self.QAction("Disable autostart", menu)
         self.action_reset_probe_cache = self.QAction("Reset Auto-Probe Cache (force fresh selection)", menu)
@@ -426,7 +427,8 @@ class NanoleafTrayApp:
         self.action_settings.triggered.connect(self.on_settings)
         self.action_display_wizard.triggered.connect(self.on_display_configurator)
         self.action_troubleshooting.triggered.connect(self.on_troubleshooting)
-        self.action_calibration_settings.triggered.connect(self.on_open_calibration_settings)
+        self.action_troubleshooting_guide.triggered.connect(self.on_open_troubleshooting_guide)
+        self.action_advanced_settings.triggered.connect(self.on_open_advanced_settings)
         self.action_status.triggered.connect(self.on_status)
         self.action_enable_autostart.triggered.connect(self.on_enable_autostart)
         self.action_disable_autostart.triggered.connect(self.on_disable_autostart)
@@ -437,8 +439,9 @@ class NanoleafTrayApp:
         self.action_quit.triggered.connect(self.on_quit)
 
         advanced_menu = self.QMenu("Troubleshooting / Advanced", menu)
+        advanced_menu.addAction(self.action_advanced_settings)
         advanced_menu.addAction(self.action_troubleshooting)
-        advanced_menu.addAction(self.action_calibration_settings)
+        advanced_menu.addAction(self.action_troubleshooting_guide)
         advanced_menu.addSeparator()
         advanced_menu.addAction(self.action_doctor)
         advanced_menu.addAction(self.action_smoke)
@@ -665,7 +668,7 @@ class NanoleafTrayApp:
             message = f"{message}\n\n{first_run_message(mode)}"
         self.tray_icon.showMessage("nanoleaf-kde-sync", message, self.QSystemTrayIcon.MessageIcon.Information, 6000)
 
-    def on_settings(self, *, initial_section: str | None = None):
+    def on_settings(self, *, initial_section: str | None = None, view_mode: str = "standard"):
         def _apply_settings_dialog_config(new_cfg) -> None:
             self.cfg_mgr.save(new_cfg)
             self.config = new_cfg
@@ -684,6 +687,7 @@ class NanoleafTrayApp:
             runtime_status=self.service.get_status(),
             initial_section=initial_section,
             on_apply=_apply_settings_dialog_config,
+            view_mode=view_mode,
         )
         was_running = self.service.is_running() or bool(getattr(self, "_preview_paused_service", False))
         accepted = dlg.exec() == self.QDialog.DialogCode.Accepted
@@ -704,6 +708,9 @@ class NanoleafTrayApp:
 
 
     def on_troubleshooting(self) -> None:
+        self.on_settings(initial_section="Diagnostics", view_mode="advanced")
+
+    def on_open_troubleshooting_guide(self) -> None:
         guide_path = Path(__file__).resolve().parents[3] / "docs" / "TROUBLESHOOTING.md"
         if guide_path.exists():
             try:
@@ -729,7 +736,8 @@ class NanoleafTrayApp:
             None,
             "nanoleaf-kde-sync troubleshooting",
             (
-                "Run diagnostics from the tray menu:\n"
+                "Run diagnostics from Troubleshooting / Advanced:\n"
+                "• Advanced / Troubleshooting\n"
                 "• Run Doctor\n"
                 "• Run Smoke Test\n\n"
                 "If those checks fail, open docs/TROUBLESHOOTING.md in the project source."
@@ -775,14 +783,11 @@ class NanoleafTrayApp:
         dialog.exec()
         self._refresh_mode_labels()
 
-    def on_open_calibration_settings(self) -> None:
-        try:
-            self.on_settings(initial_section="Calibration & Testing")
-        except TypeError:
-            self.on_settings()
+    def on_open_advanced_settings(self) -> None:
+        self.on_settings(initial_section="Diagnostics", view_mode="advanced")
         self.tray_icon.showMessage(
             "nanoleaf-kde-sync",
-            "Opened Settings → Calibration & Testing.",
+            "Opened Advanced / Troubleshooting.",
             self.QSystemTrayIcon.MessageIcon.Information,
             3000,
         )

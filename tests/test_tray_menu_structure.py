@@ -13,10 +13,10 @@ def test_tray_top_level_is_focused_for_daily_use() -> None:
     text = Path("src/nanoleaf_sync/ui/tray_app.py").read_text(encoding="utf-8")
     assert 'self.action_display_wizard = self.QAction("Setup Wizard", menu)' in text
     assert 'self.action_status = self.QAction("About / Status", menu)' in text
-    assert 'self.action_calibration_settings = self.QAction("Calibration & Testing", menu)' in text
-    assert "advanced_menu.addAction(self.action_calibration_settings)" in text
+    assert 'self.action_advanced_settings = self.QAction("Advanced / Troubleshooting", menu)' in text
+    assert "advanced_menu.addAction(self.action_advanced_settings)" in text
     assert "Calibration tools moved to Settings" not in text
-    assert 'self.on_settings(initial_section="Calibration & Testing")' in text
+    assert 'self.on_settings(initial_section="Diagnostics", view_mode="advanced")' in text
 
 
 def test_tray_tooltip_includes_backend_resolution_and_state_label() -> None:
