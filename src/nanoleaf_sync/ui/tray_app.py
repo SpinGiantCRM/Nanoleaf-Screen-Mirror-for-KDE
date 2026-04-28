@@ -558,6 +558,14 @@ class NanoleafTrayApp:
         self.tray_icon.setIcon(self._idle_icon)
         self._refresh_mode_labels()
 
+    def _service_running(self, service=None) -> bool:
+        target = service if service is not None else self.service
+        try:
+            return bool(target.is_running())
+        except Exception as exc:
+            _log.warning("Unable to query service running state: %s", exc, exc_info=True)
+            return False
+
     def _schedule_stop_warning(self, service) -> None:
         def _warn_if_still_running() -> None:
             try:
@@ -570,9 +578,13 @@ class NanoleafTrayApp:
 
     def on_stop(self):
         service = self.service
-        was_running = service.is_running()
-        stopped = self._request_stop(timeout_s=self._shutdown_timeout_s)
-        still_running = service.is_running()
+        was_running = self._service_running(service)
+        try:
+            stopped = self._request_stop(timeout_s=self._shutdown_timeout_s)
+        except Exception as exc:
+            _log.warning("Unhandled stop action exception: %s", exc, exc_info=True)
+            stopped = False
+        still_running = self._service_running(service)
         if stopped and not still_running:
             self._set_idle_ui_state()
             return

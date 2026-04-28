@@ -99,6 +99,7 @@ def test_on_stop_reports_timeout_without_pretending_idle() -> None:
         _schedule_stop_warning=lambda _svc: None,
         QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Warning=2)),
     )
+    fake_tray._service_running = lambda svc=None: NanoleafTrayApp._service_running(fake_tray, svc)
     fake_tray._request_stop = lambda **kwargs: NanoleafTrayApp._request_stop(fake_tray, **kwargs)
 
     NanoleafTrayApp.on_stop(fake_tray)
@@ -106,3 +107,39 @@ def test_on_stop_reports_timeout_without_pretending_idle() -> None:
     assert service.stop_calls == 1
     assert icons[-1] == "running"
     assert any("still stopping" in msg for msg in messages)
+
+
+class _FakeServiceStateError(_FakeService):
+    def is_running(self) -> bool:
+        raise RuntimeError("runtime state unavailable")
+
+
+def test_on_stop_handles_service_state_query_errors_without_exiting() -> None:
+    service = _FakeServiceStateError()
+    messages: list[str] = []
+    icons: list[str] = []
+    quit_calls: list[str] = []
+    fake_tray = SimpleNamespace(
+        service=service,
+        app=SimpleNamespace(quit=lambda: quit_calls.append("quit")),
+        tray_icon=SimpleNamespace(
+            setIcon=lambda icon: icons.append(icon),
+            showMessage=lambda _title, text, _icon, _timeout: messages.append(text),
+        ),
+        _idle_icon="idle",
+        _running_icon="running",
+        _refresh_mode_labels=lambda: None,
+        _shutdown_in_progress=False,
+        _shutdown_timeout_s=0.1,
+        _schedule_stop_warning=lambda _svc: None,
+        QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Warning=2)),
+    )
+    fake_tray._service_running = lambda svc=None: NanoleafTrayApp._service_running(fake_tray, svc)
+    fake_tray._request_stop = lambda **kwargs: NanoleafTrayApp._request_stop(fake_tray, **kwargs)
+
+    NanoleafTrayApp.on_stop(fake_tray)
+
+    assert service.stop_calls == 1
+    assert icons[-1] == "idle"
+    assert messages == []
+    assert quit_calls == []
