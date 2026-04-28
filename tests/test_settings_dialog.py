@@ -63,6 +63,25 @@ def test_fps_slider_label_value_and_tooltip_text() -> None:
     assert 'layout.addWidget(QLabel("Capture backend"), 7, 0); layout.addWidget(self.capture_backend_combo, 7, 1, 1, 2)' in text
 
 
+def test_slider_readouts_bind_live_value_updates() -> None:
+    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    assert "def _bind_live_numeric_updates(self) -> None:" in text
+    assert "self.brightness_slider.valueChanged" in text
+    assert "self.smoothing_slider.valueChanged" in text
+    assert "self.fps_slider.valueChanged" in text
+    assert "self.hdr_max_nits_slider.valueChanged" in text
+    assert "self.black_luminance_knee_slider.valueChanged" in text
+    assert "signal.connect(self._refresh_numeric_labels)" in text
+
+
+def test_settings_layout_uses_consistent_spacing_helpers() -> None:
+    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    assert "def _configure_section_layout(self, layout) -> None:" in text
+    assert "def _help_text_label(self, QLabel, text: str):" in text
+    assert "self._configure_section_layout(layout)" in text
+    assert "self._configure_value_label(label)" in text
+
+
 def test_guided_led_calibration_controls_present() -> None:
     text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
     assert "Calibrate LED colour" in text

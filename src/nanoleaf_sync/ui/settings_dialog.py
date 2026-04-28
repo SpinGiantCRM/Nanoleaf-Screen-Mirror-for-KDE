@@ -283,6 +283,28 @@ class SettingsDialog:
                 )
                 self.preview_label = self.simple_calibration_widget.preview_text_label; self.preview_visual_label = self.simple_calibration_widget.preview_visual_label; self.test_label = QLabel("")
                 self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.sampling_quality_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel(""); self.red_gain_value = QLabel(""); self.green_gain_value = QLabel(""); self.blue_gain_value = QLabel(""); self.white_balance_value = QLabel(""); self.chroma_compression_value = QLabel(""); self.neutral_luminance_gain_value = QLabel(""); self.black_luminance_cutoff_value = QLabel(""); self.black_luminance_knee_value = QLabel("")
+                for label in (
+                    self.brightness_value,
+                    self.smoothing_value,
+                    self.fps_value,
+                    self.zone_count_value,
+                    self.device_zone_count_value,
+                    self.hdr_max_nits_value,
+                    self.sdr_boost_nits_value,
+                    self.sampling_quality_value,
+                    self.smoothing_speed_value,
+                    self.led_gamma_value,
+                    self.red_gain_value,
+                    self.green_gain_value,
+                    self.blue_gain_value,
+                    self.white_balance_value,
+                    self.chroma_compression_value,
+                    self.neutral_luminance_gain_value,
+                    self.black_luminance_cutoff_value,
+                    self.black_luminance_knee_value,
+                ):
+                    self._configure_value_label(label)
+                self._bind_live_numeric_updates()
 
                 for signal in (
                     self.sampling_quality_combo.currentIndexChanged,
@@ -422,15 +444,77 @@ class SettingsDialog:
                 self.black_luminance_cutoff_slider.setToolTip("Black cutoff: controls when near-black screen areas turn the LEDs off.")
                 self.white_balance_slider.setToolTip("White balance: adjusts LED tint warmer/cooler.")
 
+            def _configure_section_layout(self, layout) -> None:
+                set_margins = getattr(layout, "setContentsMargins", None)
+                if callable(set_margins):
+                    set_margins(12, 10, 12, 12)
+                set_spacing = getattr(layout, "setHorizontalSpacing", None)
+                if callable(set_spacing):
+                    set_spacing(14)
+                set_vertical_spacing = getattr(layout, "setVerticalSpacing", None)
+                if callable(set_vertical_spacing):
+                    set_vertical_spacing(9)
+                set_column_stretch = getattr(layout, "setColumnStretch", None)
+                if callable(set_column_stretch):
+                    set_column_stretch(1, 1)
+                set_column_minimum_width = getattr(layout, "setColumnMinimumWidth", None)
+                if callable(set_column_minimum_width):
+                    set_column_minimum_width(2, 120)
+
+            def _section_heading(self, QLabel, text: str):
+                label = QLabel(text)
+                set_style = getattr(label, "setStyleSheet", None)
+                if callable(set_style):
+                    set_style("font-weight: 600;")
+                return label
+
+            def _help_text_label(self, QLabel, text: str):
+                label = QLabel(text)
+                set_wrap = getattr(label, "setWordWrap", None)
+                if callable(set_wrap):
+                    set_wrap(True)
+                return label
+
+            def _configure_value_label(self, label) -> None:
+                set_alignment = getattr(label, "setAlignment", None)
+                if callable(set_alignment):
+                    set_alignment(qt["Qt"].AlignmentFlag.AlignRight | qt["Qt"].AlignmentFlag.AlignVCenter)
+                set_min_width = getattr(label, "setMinimumWidth", None)
+                if callable(set_min_width):
+                    set_min_width(86)
+
+            def _bind_live_numeric_updates(self) -> None:
+                for signal in (
+                    self.brightness_slider.valueChanged,
+                    self.smoothing_slider.valueChanged,
+                    self.smoothing_speed_slider.valueChanged,
+                    self.fps_slider.valueChanged,
+                    self.zone_count_slider.valueChanged,
+                    self.device_zone_count_slider.valueChanged,
+                    self.hdr_max_nits_slider.valueChanged,
+                    self.led_gamma_slider.valueChanged,
+                    self.red_gain_slider.valueChanged,
+                    self.green_gain_slider.valueChanged,
+                    self.blue_gain_slider.valueChanged,
+                    self.white_balance_slider.valueChanged,
+                    self.chroma_compression_slider.valueChanged,
+                    self.neutral_luminance_gain_slider.valueChanged,
+                    self.black_luminance_cutoff_slider.valueChanged,
+                    self.black_luminance_knee_slider.valueChanged,
+                    self.sampling_quality_combo.currentIndexChanged,
+                ):
+                    signal.connect(self._refresh_numeric_labels)
+
             def _build_backend_section(self, QGroupBox, QGridLayout, QLabel):
                 group = QGroupBox("Advanced / Troubleshooting")
                 layout = QGridLayout()
-                layout.addWidget(QLabel("Runtime Status"), 0, 0, 1, 3)
+                self._configure_section_layout(layout)
+                layout.addWidget(self._section_heading(QLabel, "Runtime Status"), 0, 0, 1, 3)
                 layout.addWidget(self.backend_info_label, 1, 0, 1, 3)
                 layout.addWidget(self.diagnostics_mapping_label, 2, 0, 1, 3)
                 layout.addWidget(self.hdr_colour_path_label, 3, 0, 1, 3)
 
-                layout.addWidget(QLabel("Backend & Probing"), 4, 0, 1, 3)
+                layout.addWidget(self._section_heading(QLabel, "Backend & Probing"), 4, 0, 1, 3)
                 layout.addWidget(QLabel("Auto-probe policy"), 5, 0)
                 layout.addWidget(self.auto_probe_policy_combo, 5, 1, 1, 2)
                 layout.addWidget(QLabel("Latency auto-run policy"), 6, 0)
@@ -442,7 +526,7 @@ class SettingsDialog:
                 layout.addWidget(self.latency_label, 9, 0, 1, 3)
                 layout.addWidget(self.xdg_hint_label, 10, 0, 1, 3)
 
-                layout.addWidget(QLabel("Diagnostics Actions"), 11, 0, 1, 3)
+                layout.addWidget(self._section_heading(QLabel, "Diagnostics Actions"), 11, 0, 1, 3)
                 layout.addWidget(self.run_self_check_button, 12, 0, 1, 3)
                 layout.addWidget(self.self_check_label, 13, 0, 1, 3)
                 layout.addWidget(self.capture_one_diagnostic_frame_button, 14, 0, 1, 3)
@@ -454,13 +538,13 @@ class SettingsDialog:
                 layout.addWidget(self.export_latency_report_button, 20, 0, 1, 3)
                 layout.addWidget(self.latency_report_label, 21, 0, 1, 3)
 
-                layout.addWidget(QLabel("Quality Diagnostics"), 22, 0, 1, 3)
+                layout.addWidget(self._section_heading(QLabel, "Quality Diagnostics"), 22, 0, 1, 3)
                 layout.addWidget(self.edge_locality_diagnostic_button, 23, 0, 1, 3)
                 layout.addWidget(self.edge_locality_diagnostic_label, 24, 0, 1, 3)
                 layout.addWidget(self.color_accuracy_diagnostic_button, 25, 0, 1, 3)
                 layout.addWidget(self.color_accuracy_diagnostic_label, 26, 0, 1, 3)
 
-                layout.addWidget(QLabel("Recovery Tools"), 27, 0, 1, 3)
+                layout.addWidget(self._section_heading(QLabel, "Recovery Tools"), 27, 0, 1, 3)
                 layout.addWidget(self.recovery_tools_hint_label, 28, 0, 1, 3)
                 group.setLayout(layout)
                 return group
@@ -468,13 +552,14 @@ class SettingsDialog:
             def _build_display_section(self, QGroupBox, QGridLayout, QLabel):
                 group = QGroupBox("Display & Color")
                 layout = QGridLayout()
+                self._configure_section_layout(layout)
                 layout.addWidget(QLabel("Display mode"), 0, 0)
                 layout.addWidget(self.display_preset_combo, 0, 1, 1, 2)
                 layout.addWidget(QLabel("Motion"), 1, 0)
                 layout.addWidget(self.motion_preset_combo, 1, 1, 1, 2)
                 layout.addWidget(QLabel("Color style"), 2, 0)
                 layout.addWidget(self.color_style_combo, 2, 1, 1, 2)
-                layout.addWidget(QLabel("Grey and white screen areas create neutral ambient light. Black areas turn the LEDs off."), 3, 0, 1, 3)
+                layout.addWidget(self._help_text_label(QLabel, "Grey and white screen areas create neutral ambient light. Black areas turn the LEDs off."), 3, 0, 1, 3)
                 layout.addWidget(QLabel("Edge locality"), 4, 0)
                 layout.addWidget(self.edge_locality_combo, 4, 1, 1, 2)
                 layout.addWidget(QLabel("Light spread"), 5, 0)
@@ -483,17 +568,18 @@ class SettingsDialog:
                 hdr_advanced.setCheckable(True)
                 hdr_advanced.setChecked(False)
                 advanced_layout = QGridLayout()
+                self._configure_section_layout(advanced_layout)
                 advanced_layout.addWidget(self.compositor_hdr_mode_checkbox, 0, 0, 1, 3)
                 advanced_layout.addWidget(QLabel("SDR white reference preset"), 1, 0)
                 advanced_layout.addWidget(self.sdr_white_reference_preset_combo, 1, 1, 1, 2)
                 advanced_layout.addWidget(QLabel("SDR white reference"), 2, 0)
                 advanced_layout.addWidget(self.sdr_boost_nits_slider, 2, 1)
                 advanced_layout.addWidget(self.sdr_boost_nits_value, 2, 2)
-                advanced_layout.addWidget(QLabel("SDR white reference controls how bright SDR/desktop content appears when HDR is enabled."), 3, 0, 1, 3)
+                advanced_layout.addWidget(self._help_text_label(QLabel, "SDR white reference controls how bright SDR/desktop content appears when HDR is enabled."), 3, 0, 1, 3)
                 advanced_layout.addWidget(self.detect_sdr_white_button, 4, 0, 1, 2)
                 advanced_layout.addWidget(self.use_detected_sdr_white_button, 4, 2)
                 advanced_layout.addWidget(self.detected_sdr_white_label, 5, 0, 1, 3)
-                advanced_layout.addWidget(QLabel("KDE guidance: 203 nits is a useful PQ reference. 160/120 can be more comfortable. 80 nits is nominal SDR and may look dim."), 6, 0, 1, 3)
+                advanced_layout.addWidget(self._help_text_label(QLabel, "KDE guidance: 203 nits is a useful PQ reference. 160/120 can be more comfortable. 80 nits is nominal SDR and may look dim."), 6, 0, 1, 3)
                 advanced_layout.addWidget(QLabel("HDR transfer"), 7, 0)
                 advanced_layout.addWidget(self.hdr_transfer_combo, 7, 1, 1, 2)
                 advanced_layout.addWidget(QLabel("HDR primaries"), 8, 0)
@@ -505,6 +591,7 @@ class SettingsDialog:
                 layout.addWidget(hdr_advanced, 6, 0, 1, 3)
                 led_cal = QGroupBox("LED colour calibration")
                 led_layout = QGridLayout()
+                self._configure_section_layout(led_layout)
                 led_layout.addWidget(QLabel("Red gain"), 0, 0); led_layout.addWidget(self.red_gain_slider, 0, 1); led_layout.addWidget(self.red_gain_value, 0, 2)
                 led_layout.addWidget(QLabel("Green gain"), 1, 0); led_layout.addWidget(self.green_gain_slider, 1, 1); led_layout.addWidget(self.green_gain_value, 1, 2)
                 led_layout.addWidget(QLabel("Blue gain"), 2, 0); led_layout.addWidget(self.blue_gain_slider, 2, 1); led_layout.addWidget(self.blue_gain_value, 2, 2)
@@ -517,8 +604,8 @@ class SettingsDialog:
                 led_layout.addWidget(self.reference_test_colours_button, 8, 1, 1, 1)
                 led_layout.addWidget(self.guided_led_calibration_button, 8, 2, 1, 1)
                 led_layout.addWidget(self.save_led_calibration_profile_button, 9, 0, 1, 3)
-                led_layout.addWidget(QLabel("Reference: Most accurate. Preserves greys as neutral light, avoids saturation boost, turns off only for black/near-black."), 10, 0, 1, 3)
-                led_layout.addWidget(QLabel("Ambient: Recommended glow. Similar to Reference, with slightly stronger neutral brightness and smoother ambience."), 11, 0, 1, 3)
+                led_layout.addWidget(self._help_text_label(QLabel, "Reference: Most accurate. Preserves greys as neutral light, avoids saturation boost, turns off only for black/near-black."), 10, 0, 1, 3)
+                led_layout.addWidget(self._help_text_label(QLabel, "Ambient: Recommended glow. Similar to Reference, with slightly stronger neutral brightness and smoother ambience."), 11, 0, 1, 3)
                 led_cal.setLayout(led_layout)
                 layout.addWidget(led_cal, 7, 0, 1, 3)
                 layout.addWidget(self.display_configurator_button, 8, 0, 1, 3)
@@ -528,6 +615,7 @@ class SettingsDialog:
             def _build_runtime_section(self, QGroupBox, QGridLayout, QLabel):
                 group = QGroupBox("Performance")
                 layout = QGridLayout()
+                self._configure_section_layout(layout)
                 layout.addWidget(QLabel("Brightness"), 0, 0); layout.addWidget(self.brightness_slider, 0, 1); layout.addWidget(self.brightness_value, 0, 2)
                 layout.addWidget(QLabel("Smoothing"), 1, 0); layout.addWidget(self.smoothing_slider, 1, 1); layout.addWidget(self.smoothing_value, 1, 2)
                 layout.addWidget(QLabel("Smoothing speed"), 2, 0); layout.addWidget(self.smoothing_speed_slider, 2, 1); layout.addWidget(self.smoothing_speed_value, 2, 2)
@@ -542,6 +630,7 @@ class SettingsDialog:
             def _build_zone_mapping_section(self, QGroupBox, QGridLayout, QLabel):
                 group = QGroupBox("Edge Mapping")
                 layout = QGridLayout()
+                self._configure_section_layout(layout)
                 layout.addWidget(QLabel("Screen sampling zone count"), 0, 0); layout.addWidget(self.zone_count_slider, 0, 1); layout.addWidget(self.zone_count_value, 0, 2)
                 layout.addWidget(QLabel("Strip LED zone count"), 4, 0); layout.addWidget(self.device_zone_count_slider, 4, 1); layout.addWidget(self.device_zone_count_value, 4, 2)
                 layout.addWidget(self.device_zone_count_status_label, 5, 0, 1, 3)
@@ -555,7 +644,8 @@ class SettingsDialog:
             def _build_calibration_testing_section(self, QGroupBox, QGridLayout, QLabel):
                 group = QGroupBox("Calibration")
                 layout = QGridLayout()
-                layout.addWidget(QLabel("Use corner calibration to map the strip to your display corners."), 0, 0, 1, 3)
+                self._configure_section_layout(layout)
+                layout.addWidget(self._help_text_label(QLabel, "Use corner calibration to map the strip to your display corners."), 0, 0, 1, 3)
                 layout.addWidget(self.open_calibration_tool_button, 1, 0, 1, 3)
                 layout.addWidget(self.test_label, 2, 0, 1, 3)
                 group.setLayout(layout)
@@ -564,6 +654,7 @@ class SettingsDialog:
             def _build_output_startup_section(self, QGroupBox, QGridLayout, QLabel):
                 group = QGroupBox("Device")
                 layout = QGridLayout()
+                self._configure_section_layout(layout)
                 layout.addWidget(QLabel("Output channel order"), 0, 0); layout.addWidget(self.output_channel_order_combo, 0, 1, 1, 2)
                 layout.addWidget(QLabel("Device model"), 1, 0); layout.addWidget(self.device_model_combo, 1, 1, 1, 2)
                 layout.addWidget(QLabel("Device VID"), 2, 0); layout.addWidget(self.device_vid_combo, 2, 1, 1, 2)
