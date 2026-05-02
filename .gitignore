@@ -19,3 +19,6 @@ venv/
 dist/
 build/
 *.egg-info/
+
+# Local AI / Codex workflow artifacts
+.worklogs/
