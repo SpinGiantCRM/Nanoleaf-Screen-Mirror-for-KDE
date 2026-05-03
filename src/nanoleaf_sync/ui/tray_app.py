@@ -511,10 +511,10 @@ class NanoleafTrayApp:
             _log.warning("Unable to refresh tray labels: %s", exc, exc_info=True)
 
     def on_start(self):
-        start_status = self._safe_service_status()
+        start_status = NanoleafTrayApp._safe_service_status(self)
         startup_state = str(start_status.get("startup_state") or "")
         if startup_state in {"starting", "waiting_for_screen_selection", "running", "stopping"}:
-            self._safe_refresh_mode_labels()
+            NanoleafTrayApp._safe_refresh_mode_labels(self)
             return
         close_preview = getattr(self, "_close_preview_driver", None)
         if callable(close_preview):
@@ -535,11 +535,11 @@ class NanoleafTrayApp:
                 7000,
             )
 
-        status = self._safe_service_status()
+        status = NanoleafTrayApp._safe_service_status(self)
         startup_state = str(status.get("startup_state") or "")
         running = bool(running and startup_state == "running")
         self.tray_icon.setIcon(self._running_icon if running else self._idle_icon)
-        self._safe_refresh_mode_labels()
+        NanoleafTrayApp._safe_refresh_mode_labels(self)
         if startup_state == "waiting_for_screen_selection":
             self.tray_icon.showMessage(
                 "nanoleaf-kde-sync",
@@ -574,7 +574,7 @@ class NanoleafTrayApp:
 
     def _set_idle_ui_state(self) -> None:
         self.tray_icon.setIcon(self._idle_icon)
-        self._safe_refresh_mode_labels()
+        NanoleafTrayApp._safe_refresh_mode_labels(self)
 
     def _service_running(self, service=None) -> bool:
         target = service if service is not None else self.service
@@ -608,7 +608,7 @@ class NanoleafTrayApp:
             return
 
         self.tray_icon.setIcon(self._running_icon if still_running else self._idle_icon)
-        self._safe_refresh_mode_labels()
+        NanoleafTrayApp._safe_refresh_mode_labels(self)
         if was_running or still_running:
             self.tray_icon.showMessage(
                 "nanoleaf-kde-sync",
@@ -636,7 +636,7 @@ class NanoleafTrayApp:
         startup_state = str(status.get("startup_state") or "")
         effective_running = bool(running and startup_state == "running")
         self.tray_icon.setIcon(self._running_icon if effective_running else self._idle_icon)
-        self._safe_refresh_mode_labels()
+        NanoleafTrayApp._safe_refresh_mode_labels(self)
         if effective_running:
             return
         guidance = status.get("last_error_guidance") or "Run nanoleaf-kde-sync-doctor for diagnostics."
