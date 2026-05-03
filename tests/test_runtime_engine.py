@@ -245,7 +245,9 @@ def test_run_loop_fails_start_when_no_first_frame_arrives() -> None:
     assert state.startup_complete.is_set()
     assert state.startup_succeeded is False
     assert state.first_frame_seen is False
+    assert state.first_frame_processed is False
     assert state.first_frame_sent is False
+    assert state.startup_elapsed_ms > 0.0
     assert state.start_failure_reason.startswith("Start failed before first frame")
 
 
@@ -278,6 +280,8 @@ def test_run_loop_marks_startup_complete_after_first_frame_send() -> None:
     )
 
     assert state.startup_complete.is_set()
-    assert state.startup_succeeded is True
     assert state.first_frame_seen is True
+    assert state.first_frame_processed is True
+    assert state.first_frame_sent is True
+    assert state.startup_succeeded is True
     assert state.first_frame_sent is True

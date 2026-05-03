@@ -748,6 +748,7 @@ def run_loop(
                 smoothed_colors, sampled_zone_colors, pre_led_colors, final_zone_colors, processing_timings = processed
                 processing_end = time.perf_counter()
                 state.prev_smoothed_colors = smoothed_colors
+                state.first_frame_processed = True
                 state.last_frame_width = int(img_w)
                 state.last_frame_height = int(img_h)
                 state.latest_frame_rgb = frame
@@ -967,6 +968,7 @@ def run_loop(
                 state.record_success()
                 sent_any_frame = True
                 state.first_frame_sent = True
+                state.startup_elapsed_ms = max(0.0, (time.perf_counter() - startup_started_at) * 1000.0)
                 if not state.startup_complete.is_set():
                     state.start_failure_reason = ""
                     state.lifecycle_state = "running"
@@ -995,6 +997,7 @@ def run_loop(
 
         if (not sent_any_frame) and (not state.startup_complete.is_set()):
             startup_elapsed = time.perf_counter() - startup_started_at
+            state.startup_elapsed_ms = max(0.0, startup_elapsed * 1000.0)
             if startup_elapsed >= startup_frame_timeout_s and latest_capture_backend_name != "xdg-portal":
                 backend_name = latest_capture_backend_name or "unavailable"
                 backend_method = latest_capture_backend_method or "unavailable"
