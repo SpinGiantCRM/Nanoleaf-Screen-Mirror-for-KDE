@@ -55,7 +55,9 @@ class RuntimeState:
     capture_backend_ready: bool = False
     driver_ready: bool = False
     first_frame_seen: bool = False
+    first_frame_processed: bool = False
     first_frame_sent: bool = False
+    startup_elapsed_ms: float = 0.0
 
     def reset_for_start(self) -> None:
         self.prev_smoothed_colors = []
@@ -89,7 +91,9 @@ class RuntimeState:
         self.capture_backend_ready = False
         self.driver_ready = False
         self.first_frame_seen = False
+        self.first_frame_processed = False
         self.first_frame_sent = False
+        self.startup_elapsed_ms = 0.0
 
     def mark_startup(self, succeeded: bool) -> None:
         self.startup_succeeded = succeeded
@@ -179,7 +183,9 @@ class RuntimeState:
             "capture_backend_ready": bool(self.capture_backend_ready),
             "driver_ready": bool(self.driver_ready),
             "first_frame_seen": bool(self.first_frame_seen),
+            "first_frame_processed": bool(self.first_frame_processed),
             "first_frame_sent": bool(self.first_frame_sent),
+            "startup_elapsed_ms": float(self.startup_elapsed_ms or 0.0),
         }
 
 

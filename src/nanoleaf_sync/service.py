@@ -234,6 +234,7 @@ class NanoleafSyncService:
         status["startup_state"] = startup_state
         status["lifecycle_state"] = str(status.get("lifecycle_state") or lifecycle_state)
         status["start_failure_reason"] = str(status.get("start_failure_reason") or "")
+        status["backend_retest_blocked"] = lifecycle_state in {"starting", "running", "stopping"}
         status["selection_reason"] = self._selection_reason
         status["backend_unresolved_reason"] = (
             ""
