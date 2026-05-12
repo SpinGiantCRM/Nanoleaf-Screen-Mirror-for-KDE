@@ -123,7 +123,10 @@ def shutdown_backends(
     *,
     close_backends: Callable[[], None],
     clear_backends: Callable[[], None],
+    send_final_frame: Callable[[], None] | None = None,
 ) -> None:
+    if send_final_frame is not None:
+        send_final_frame()
     close_backends()
     clear_backends()
 
@@ -137,6 +140,7 @@ def run_runtime_engine(
     install_drivers: Callable[[], None],
     close_backends: Callable[[], None],
     clear_backends: Callable[[], None],
+    send_final_frame: Callable[[], None] | None = None,
 ) -> None:
     from nanoleaf_sync.runtime.engine import run_loop
 
@@ -150,18 +154,21 @@ def run_runtime_engine(
         clear_backends()
         return
 
-    run_loop(
-        config=config,
-        state=state,
-        get_capture=get_capture,
-        get_driver=get_driver,
-        install_drivers=install_drivers,
-        close_backends=close_backends,
-    )
-    shutdown_backends(
-        close_backends=close_backends,
-        clear_backends=clear_backends,
-    )
+    try:
+        run_loop(
+            config=config,
+            state=state,
+            get_capture=get_capture,
+            get_driver=get_driver,
+            install_drivers=install_drivers,
+            close_backends=close_backends,
+        )
+    finally:
+        shutdown_backends(
+            close_backends=close_backends,
+            clear_backends=clear_backends,
+            send_final_frame=send_final_frame,
+        )
 
 
 class RuntimeLifecycle:
@@ -170,11 +177,9 @@ class RuntimeLifecycle:
         *,
         state: RuntimeState,
         runner: Callable[[], None],
-        on_stop_requested: Callable[[], None] | None = None,
     ) -> None:
         self._state = state
         self._runner = runner
-        self._on_stop_requested = on_stop_requested
         self._thread: Optional[Thread] = None
         self._lock = threading.Lock()
         self._state_name = "idle"
@@ -215,21 +220,14 @@ class RuntimeLifecycle:
         return self.is_running()
 
     def stop(self, *, join_timeout: Optional[float] = None) -> bool:
-        stop_requested = False
         with self._lock:
             self._sync_state_locked()
             if self._state_name in {"starting", "running"}:
                 self._state_name = "stopping"
                 self._state.lifecycle_state = "stopping"
-                stop_requested = True
             elif self._state_name in {"idle", "error"}:
                 return True
         self._state.stop_event.set()
-        if stop_requested and self._on_stop_requested is not None:
-            try:
-                self._on_stop_requested()
-            except Exception:
-                logger.exception("runtime stop callback failed")
         if join_timeout is not None:
             self.join(timeout=join_timeout)
             return not self.is_running()

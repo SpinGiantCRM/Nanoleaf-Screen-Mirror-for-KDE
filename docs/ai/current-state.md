@@ -13,6 +13,7 @@ This file is a compact handoff for future Codex runs. It is not a promise that b
 
 ## Recently fixed
 
+- Runtime lifecycle shutdown ownership now keeps backend close/shutdown work on the runtime thread, protects runtime-loop exits with backend cleanup, and only sends the final stop black frame from the runtime shutdown path when a ready driver already exists.
 - Runtime calibration gating now treats missing/default corner anchors or an empty derived device-zone mapping as `calibration_incomplete`, reports that status in runtime snapshots/doctor output, and stops startup before normal frame streaming so incomplete calibration cannot silently send padded black/no-output frames.
 
 ## Known backlog, high level
