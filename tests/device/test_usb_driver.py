@@ -4,6 +4,7 @@ import logging
 
 import pytest
 
+from nanoleaf_sync.device.hid_transport import HIDWriteError
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
 
@@ -79,14 +80,25 @@ class FakeTransport:
         return timing
 
 
-class FailingWriteTransport(FakeTransport):
+class PreWriteFailingTransport(FakeTransport):
     def write_with_nonblocking_drain(
         self,
         request: bytes,
         *,
         max_drain_reads: int = 2,
     ) -> dict[str, int | float | bool | str | list[int] | list[float]]:
-        raise RuntimeError("write-only failed")
+        raise HIDWriteError("write failed before HID write", write_status="not_started")
+
+
+class UncertainFailingTransport(FakeTransport):
+    def write_with_nonblocking_drain(
+        self,
+        request: bytes,
+        *,
+        max_drain_reads: int = 2,
+    ) -> dict[str, int | float | bool | str | list[int] | list[float]]:
+        self.requests.append(request)
+        raise HIDWriteError("write may have reached HID device", write_status="uncertain")
 
 
 class FailingOpenTransport(FakeTransport):
@@ -371,8 +383,8 @@ def test_send_frame_with_timing_reports_hid_report_breakdown() -> None:
     assert timing["write_read_calls"] == 1
 
 
-def test_send_frame_falls_back_to_response_required_when_live_write_only_fails() -> None:
-    transport = FailingWriteTransport([
+def test_send_frame_falls_back_to_response_required_when_live_write_fails_before_write() -> None:
+    transport = PreWriteFailingTransport([
         _rsp(0x0C, b"\x00NL82K2"),
         _rsp(0x03, b"\x00\x08"),
         _rsp(0x06, b"\x00\x01"),
@@ -387,6 +399,51 @@ def test_send_frame_falls_back_to_response_required_when_live_write_only_fails()
     assert timing["live_send_policy"] == "response_required"
     assert timing["response_wait_skipped"] is False
     assert timing["write_read_calls"] == 1
+    assert "write_only_failure_reason" in timing
+    assert [req[0] for req in transport.requests].count(0x02) == 1
+
+
+def test_send_frame_does_not_fallback_after_uncertain_live_write_failure() -> None:
+    transport = UncertainFailingTransport([
+        _rsp(0x0C, b"\x00NL82K2"),
+        _rsp(0x03, b"\x00\x08"),
+        _rsp(0x06, b"\x00\x01"),
+        _rsp(0x08, b"\x00\x64"),
+        _rsp(0x02, b"\x00"),
+    ])
+    driver = NanoleafUSBDriver(ids=NanoleafUSBIds(0x37FA, 0x8202), transport=transport, configured_zone_count=8)
+    driver.initialize()
+
+    with pytest.raises(RuntimeError, match="skipped immediate fallback"):
+        driver.send_frame_with_timing([(10, 20, 30)] * 8)
+
+    assert [req[0] for req in transport.requests].count(0x02) == 1
+    assert transport.responses == [_rsp(0x02, b"\x00")]
+    assert transport.closed is True
+    assert driver._initialized is False
+
+
+def test_uncertain_live_write_failure_records_failed_timing() -> None:
+    transport = UncertainFailingTransport([
+        _rsp(0x0C, b"\x00NL82K2"),
+        _rsp(0x03, b"\x00\x08"),
+        _rsp(0x06, b"\x00\x01"),
+        _rsp(0x08, b"\x00\x64"),
+        _rsp(0x02, b"\x00"),
+    ])
+    driver = NanoleafUSBDriver(ids=NanoleafUSBIds(0x37FA, 0x8202), transport=transport, configured_zone_count=8)
+    driver.initialize()
+
+    with pytest.raises(RuntimeError, match="uncertain HID write status"):
+        driver.send_frame_with_timing([(10, 20, 30)] * 8)
+
+    timing = driver.last_send_timing
+    assert timing["send_failed"] is True
+    assert timing["failure_stage"] == "live_frame_write"
+    assert timing["write_status"] == "uncertain"
+    assert "HIDWriteError" in timing["write_failure_reason"]
+    assert timing["recovery_action"] == "closed_transport_for_reopen"
+    assert timing["live_send_policy"] == "nonblocking_drain"
 
 
 def test_send_frame_can_force_response_required_path_for_setup_preview() -> None:

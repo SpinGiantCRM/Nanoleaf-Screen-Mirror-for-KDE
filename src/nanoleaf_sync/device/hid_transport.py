@@ -9,6 +9,23 @@ from typing import Any, Optional, Sequence
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 
 
+class HIDWriteError(RuntimeError):
+    """Raised when a HID report write fails with write-progress metadata."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        write_status: str = "uncertain",
+        completed_reports: int = 0,
+        attempted_report_index: int | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.write_status = write_status
+        self.completed_reports = int(completed_reports)
+        self.attempted_report_index = attempted_report_index
+
+
 class HIDTransport:
     """HID transport wrapper around hidapi with report framing and reads."""
 
@@ -316,7 +333,15 @@ class HIDTransport:
                     previous_chunk_size - chunk_size
                 )
             write_start = time.perf_counter()
-            self._handle.write(report_buffer)
+            try:
+                self._handle.write(report_buffer)
+            except Exception as exc:
+                raise HIDWriteError(
+                    "HID report write failed; device write progress is uncertain",
+                    write_status="uncertain",
+                    completed_reports=len(per_report_write_ms),
+                    attempted_report_index=len(per_report_write_ms),
+                ) from exc
             write_end = time.perf_counter()
             per_report_write_ms.append((write_end - write_start) * 1000.0)
             previous_chunk_size = chunk_size
