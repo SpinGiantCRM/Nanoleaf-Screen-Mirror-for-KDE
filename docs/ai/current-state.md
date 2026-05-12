@@ -10,6 +10,11 @@ This file is a compact handoff for future Codex runs. It is not a promise that b
 - Keep fixes narrow and diagnostics-backed.
 - Real KDE Plasma 6 / Wayland testing with an actual Nanoleaf USB Edge Strip is still required for runtime confidence, especially for capture authorization, HID behavior, calibration output, lifecycle handling, and packaging/install flows.
 
+
+## Recently fixed
+
+- Runtime calibration gating now treats missing/default corner anchors or an empty derived device-zone mapping as `calibration_incomplete`, reports that status in runtime snapshots/doctor output, and stops startup before normal frame streaming so incomplete calibration cannot silently send padded black/no-output frames.
+
 ## Known backlog, high level
 
 The current backlog clusters around these areas:

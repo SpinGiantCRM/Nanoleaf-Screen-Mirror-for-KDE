@@ -6,6 +6,13 @@ from nanoleaf_sync.color.zone_mapper import resolve_device_zone_indices
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.anchor_calibration import derive_anchor_zone_map, validate_corner_anchors
 
+CALIBRATION_INCOMPLETE_STATUS = "calibration_incomplete"
+CALIBRATION_READY_STATUS = "ready"
+CALIBRATION_INCOMPLETE_MESSAGE = (
+    "calibration_incomplete: Corner calibration is incomplete; assign all four unique corner anchors "
+    "before starting screen mirroring."
+)
+
 
 @dataclass(frozen=True)
 class CalibrationMappingSnapshot:
@@ -18,6 +25,23 @@ class CalibrationMappingSnapshot:
     strategy: str
 
     @property
+    def calibration_status(self) -> str:
+        if self.validation_warnings or not self.device_to_source_indices:
+            return CALIBRATION_INCOMPLETE_STATUS
+        return CALIBRATION_READY_STATUS
+
+    @property
+    def calibration_incomplete(self) -> bool:
+        return self.calibration_status == CALIBRATION_INCOMPLETE_STATUS
+
+    @property
+    def status_message(self) -> str:
+        if not self.calibration_incomplete:
+            return "Calibration is complete."
+        details = " ".join(str(item) for item in self.validation_warnings if str(item).strip())
+        return f"{CALIBRATION_INCOMPLETE_MESSAGE} {details}".strip()
+
+    @property
     def anchor_validation_ok(self) -> bool:
         return not self.validation_warnings
 
@@ -25,6 +49,7 @@ class CalibrationMappingSnapshot:
     def anchor_validation_errors(self) -> tuple[str, ...]:
         # Backwards-compatible alias for older call-sites/tests.
         return self.validation_warnings
+
 
 @dataclass(frozen=True)
 class CalibrationResolverContext:
