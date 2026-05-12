@@ -5,7 +5,7 @@ import logging
 from typing import Any, Dict, List
 
 from nanoleaf_sync.capture.backend_selection import normalize_backend_preference, normalize_cached_backend
-from nanoleaf_sync.config.model import AppConfig, CalibrationConfig, LedCalibrationProfile, ZoneConfig
+from nanoleaf_sync.config.model import MAX_DEVICE_ZONE_COUNT, AppConfig, CalibrationConfig, LedCalibrationProfile, ZoneConfig
 from nanoleaf_sync.config.presets import (
     COLOR_STYLE_PRESETS,
     DISPLAY_PRESETS,
@@ -23,6 +23,10 @@ logger = logging.getLogger(__name__)
 CURRENT_CALIBRATION_SCHEMA_VERSION = 1
 
 
+class ConfigValidationError(ValueError):
+    """Raised when config contains unsafe values that must not be defaulted."""
+
+
 def sampling_quality_to_zone_stride(quality: str) -> int:
     return sampling_quality_to_zone_stride_impl(quality)
 
@@ -32,6 +36,46 @@ def _coerce_int(value: Any, default: int) -> int:
         return int(value)
     except (TypeError, ValueError):
         return int(default)
+
+
+def _format_bound(value: int) -> str:
+    return "0xffff" if value == 0xFFFF else str(value)
+
+
+def _require_int_in_range(value: Any, *, field_name: str, minimum: int, maximum: int) -> int:
+    bounds = f"{_format_bound(minimum)}..{_format_bound(maximum)}"
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ConfigValidationError(
+            f"{field_name} must be an integer in {bounds}; got {value!r}"
+        )
+    if value < minimum or value > maximum:
+        raise ConfigValidationError(
+            f"{field_name} must be an integer in {bounds}; got {value}"
+        )
+    return value
+
+
+def validate_raw_config_values(data: Dict[str, Any]) -> None:
+    for field_name in ("device_vid", "device_pid"):
+        if field_name in data:
+            _require_int_in_range(
+                data[field_name], field_name=field_name, minimum=1, maximum=0xFFFF
+            )
+    if "device_zone_count" in data:
+        _require_int_in_range(
+            data["device_zone_count"],
+            field_name="device_zone_count",
+            minimum=0,
+            maximum=MAX_DEVICE_ZONE_COUNT,
+        )
+    calibration = data.get("calibration")
+    if isinstance(calibration, dict) and "device_zone_count" in calibration:
+        _require_int_in_range(
+            calibration["device_zone_count"],
+            field_name="calibration.device_zone_count",
+            minimum=0,
+            maximum=MAX_DEVICE_ZONE_COUNT,
+        )
 
 
 def coerce_bool(value: Any, default: bool) -> bool:
@@ -122,10 +166,42 @@ def validate_config(cfg: AppConfig) -> AppConfig:
             continue
         zones.append(ZoneConfig(x=x, y=y, w=w, h=h))
 
+    device_vid = _require_int_in_range(
+        getattr(cfg, "device_vid", AppConfig.device_vid),
+        field_name="device_vid",
+        minimum=1,
+        maximum=0xFFFF,
+    )
+    device_pid = _require_int_in_range(
+        getattr(cfg, "device_pid", AppConfig.device_pid),
+        field_name="device_pid",
+        minimum=1,
+        maximum=0xFFFF,
+    )
+
     raw_calibration = cfg.calibration or CalibrationConfig()
     calibration_schema_version = max(1, _coerce_int(getattr(cfg, "calibration_schema_version", getattr(raw_calibration, "schema_version", 1)), 1))
-    raw_device_zone_count = int(getattr(raw_calibration, "device_zone_count", 0))
-    device_zone_count = raw_device_zone_count if raw_device_zone_count > 0 else (len(zones) if zones else 0)
+    raw_cfg_device_zone_count = _require_int_in_range(
+        getattr(cfg, "device_zone_count", 0),
+        field_name="device_zone_count",
+        minimum=0,
+        maximum=MAX_DEVICE_ZONE_COUNT,
+    )
+    raw_device_zone_count = _require_int_in_range(
+        getattr(raw_calibration, "device_zone_count", 0),
+        field_name="calibration.device_zone_count",
+        minimum=0,
+        maximum=MAX_DEVICE_ZONE_COUNT,
+    )
+    device_zone_count = (
+        raw_device_zone_count
+        if raw_device_zone_count > 0
+        else (
+            raw_cfg_device_zone_count
+            if raw_cfg_device_zone_count > 0
+            else (len(zones) if zones else 0)
+        )
+    )
 
     output_channel_order = normalize_enum(getattr(raw_calibration, "output_channel_order", "grb"), allowed={"rgb": "rgb", "rbg": "rbg", "grb": "grb", "gbr": "gbr", "brg": "brg", "bgr": "bgr"}, default="grb")
     calibration_model = "corner_anchored"
@@ -217,8 +293,8 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         wizard_completed=coerce_bool(getattr(cfg, "wizard_completed", False), False),
         wizard_in_progress_state=normalize_wizard_in_progress_state(getattr(cfg, "wizard_in_progress_state", "")),
         start_on_launch=coerce_bool(getattr(cfg, "start_on_launch", False), False),
-        device_vid=cfg.device_vid,
-        device_pid=cfg.device_pid,
+        device_vid=device_vid,
+        device_pid=device_pid,
         use_mock_capture=coerce_bool(getattr(cfg, "use_mock_capture", AppConfig.use_mock_capture), AppConfig.use_mock_capture),
         auto_probe_enabled=coerce_bool(getattr(cfg, "auto_probe_enabled", AppConfig.auto_probe_enabled), AppConfig.auto_probe_enabled),
         auto_probe_policy=auto_probe_policy,

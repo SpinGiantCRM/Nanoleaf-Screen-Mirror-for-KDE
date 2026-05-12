@@ -3,6 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 
+# Safety cap for manually configured physical strip zones. 512 is far above the
+# supported single Nanoleaf USB Edge Strip sizes while keeping generated HID
+# color payloads bounded if a config file is edited incorrectly.
+MAX_DEVICE_ZONE_COUNT = 512
+
+
 @dataclass
 class ZoneConfig:
     """

@@ -12,7 +12,7 @@ from dacite import Config as DaciteConfig
 from dacite import from_dict
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
-from nanoleaf_sync.config.normalize import migrate_config_dict, validate_config
+from nanoleaf_sync.config.normalize import migrate_config_dict, validate_config, validate_raw_config_values
 from nanoleaf_sync.config.serialization import dump_toml
 
 
@@ -95,6 +95,7 @@ class ConfigManager:
             self._config = AppConfig()
             return self._config
 
+        validate_raw_config_values(data)
         migrated_data = migrate_config_dict(data)
         try:
             cfg = from_dict(
