@@ -8,7 +8,7 @@ from typing import Sequence, Tuple
 import numpy as np
 
 from nanoleaf_sync.capture.interfaces import CaptureBackend
-from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.service import NanoleafSyncService
 
 
@@ -27,6 +27,21 @@ def _wait_until(
             return True
         time.sleep(step_s)
     return predicate()
+
+
+def _valid_runtime_cfg(**kwargs) -> AppConfig:
+    zone_count = int(kwargs.pop("device_zone_count", 48))
+    return AppConfig(
+        device_zone_count=zone_count,
+        calibration=CalibrationConfig(
+            device_zone_count=zone_count,
+            corner_anchor_top_left=0,
+            corner_anchor_top_right=zone_count // 4,
+            corner_anchor_bottom_right=zone_count // 2,
+            corner_anchor_bottom_left=(3 * zone_count) // 4,
+        ),
+        **kwargs,
+    )
 
 
 class FailingOnceCapture(CaptureBackend):
@@ -64,7 +79,7 @@ class FakeDriver:
 
 
 def test_service_recovers_from_single_frame_exception() -> None:
-    cfg = AppConfig(
+    cfg = _valid_runtime_cfg(
         fps=30,
         verbose=False,
         # Use real pipeline code paths but via injected capture/driver.
@@ -96,7 +111,7 @@ def test_service_recovers_from_single_frame_exception() -> None:
 
 
 def test_service_can_restart_after_stop() -> None:
-    cfg = AppConfig(
+    cfg = _valid_runtime_cfg(
         fps=30,
         verbose=False,
         use_mock_capture=False,

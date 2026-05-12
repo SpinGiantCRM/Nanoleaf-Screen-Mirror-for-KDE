@@ -31,6 +31,7 @@ from nanoleaf_sync.desktop_entry import (
 )
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
+from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping_from_config
 from nanoleaf_sync.runtime.errors import translate_runtime_error
 
 
@@ -324,6 +325,23 @@ def _check_real_device_probe(config: AppConfig) -> DoctorCheck:
             pass
 
 
+def _check_calibration_completeness(config: AppConfig) -> DoctorCheck:
+    source_zone_count = int(len(getattr(config, "zones", []) or []) or getattr(config, "device_zone_count", 0) or 0)
+    snapshot = resolve_calibration_mapping_from_config(
+        config=config,
+        source_zone_count=max(1, source_zone_count),
+        detected_device_zone_count=None,
+    )
+    if snapshot.calibration_incomplete:
+        return DoctorCheck(
+            "calibration",
+            "warn",
+            snapshot.status_message,
+            "Open Settings > Corner calibration, assign all four unique corner anchors, Save, then start mirroring again.",
+        )
+    return DoctorCheck("calibration", "pass", "Corner calibration is complete for runtime streaming.")
+
+
 def _check_mode_consistency(config: AppConfig) -> DoctorCheck:
     normalized = _normalized_backend(config)
     valid_backends = {"", AUTO_BACKEND, KWIN_DBUS_BACKEND, XDG_PORTAL_BACKEND, KMSGRAB_BACKEND}
@@ -433,6 +451,7 @@ def run_doctor(
         _check_dependencies(),
         _check_session_bus(),
         _check_mode_consistency(cfg),
+        _check_calibration_completeness(cfg),
         _check_probe_status(cfg),
         _check_hid_enumeration(cfg),
     ]

@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 
 from nanoleaf_sync.capture.interfaces import CaptureBackend
-from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.service import NanoleafSyncService, _DEFAULT_CAPTURE_HEIGHT, _DEFAULT_CAPTURE_WIDTH
 
 
@@ -69,8 +69,19 @@ class TestServiceStatusAndMode:
     def _make_service(
         self, capture_name="mock"
     ) -> tuple[NanoleafSyncService, FakeCapture, FakeDriver]:
+        zone_count = 48
         cfg = AppConfig(
-            fps=30, verbose=False, use_mock_capture=False
+            fps=30,
+            verbose=False,
+            use_mock_capture=False,
+            device_zone_count=zone_count,
+            calibration=CalibrationConfig(
+                device_zone_count=zone_count,
+                corner_anchor_top_left=0,
+                corner_anchor_top_right=zone_count // 4,
+                corner_anchor_bottom_right=zone_count // 2,
+                corner_anchor_bottom_left=(3 * zone_count) // 4,
+            ),
         )
         capture = FakeCapture(name=capture_name)
         driver = FakeDriver()

@@ -17,7 +17,12 @@ import numpy as np
 from nanoleaf_sync.runtime.zones import zone_colors_array
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.presets import analyzer_mode_for_presets, motion_profile
-from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping_from_config
+from nanoleaf_sync.runtime.calibration_resolver import (
+    CALIBRATION_INCOMPLETE_MESSAGE,
+    CALIBRATION_INCOMPLETE_STATUS,
+    CALIBRATION_READY_STATUS,
+    resolve_calibration_mapping_from_config,
+)
 from nanoleaf_sync.runtime.processing import zones_from_config
 from nanoleaf_sync.runtime.color_processing import (
     LedCalibration,
@@ -328,6 +333,11 @@ def _ensure_runtime_artifacts(
             state.cached_device_zone_indices, dtype=np.intp
         )
         state.device_zone_mapping_signature = mapping_sig
+        if snapshot.calibration_incomplete:
+            state.mark_calibration_incomplete(snapshot.status_message)
+        else:
+            state.calibration_status = CALIBRATION_READY_STATUS
+            state.calibration_status_message = ""
 
     state.latest_zone_side_counts = tuple(int(i) for i in (zone_artifacts.side_counts or (0, 0, 0, 0)))
     state.latest_edge_sampling_thickness = zone_artifacts.edge_sampling_thickness
@@ -711,6 +721,20 @@ def run_loop(
                         getattr(driver, "zone_count", None),
                     ),
                 )
+
+                if (
+                    state.calibration_status == CALIBRATION_INCOMPLETE_STATUS
+                    or len(device_zone_indices) <= 0
+                ):
+                    message = state.calibration_status_message or CALIBRATION_INCOMPLETE_MESSAGE
+                    if len(device_zone_indices) <= 0 and "empty" not in message.lower():
+                        message = f"{message} Derived device-zone mapping is empty."
+                    state.mark_calibration_incomplete(message)
+                    state.startup_elapsed_ms = max(0.0, (time.perf_counter() - startup_started_at) * 1000.0)
+                    state.mark_startup(False)
+                    state.stop_event.set()
+                    logger.warning("calibration incomplete; screen mirroring will not stream frames: %s", message)
+                    break
 
                 active_profile = (
                     getattr(config, "led_calibration_profile_sdr", None)
