@@ -14,6 +14,7 @@ CMD_GET_MODEL_NUMBER = 0x0C
 
 SUCCESS_CODE = 0
 FAILURE_CODE = 1
+MAX_TLV_PAYLOAD_LENGTH = 0xFFFF
 
 SUPPORTED_MODEL_NUMBERS = {"NL82K1", "NL82K2"}
 
@@ -28,6 +29,10 @@ class ProtocolShortReadError(ProtocolError):
 
 class ProtocolMalformedResponseError(ProtocolError):
     """Raised when TLV format is inconsistent with length or command expectations."""
+
+
+class ProtocolPayloadTooLargeError(ProtocolError):
+    """Raised when a TLV payload cannot fit in the two-byte length field."""
 
 
 class ProtocolResponseTypeError(ProtocolError):
@@ -45,6 +50,10 @@ class TLVMessage:
 
     def encode(self) -> bytes:
         length = len(self.payload)
+        if length > MAX_TLV_PAYLOAD_LENGTH:
+            raise ProtocolPayloadTooLargeError(
+                f"TLV payload too large: got {length} bytes, maximum is {MAX_TLV_PAYLOAD_LENGTH}"
+            )
         return bytes((self.msg_type & 0xFF, (length >> 8) & 0xFF, length & 0xFF)) + self.payload
 
 
