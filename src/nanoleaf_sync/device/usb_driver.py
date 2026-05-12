@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Sequence
+from typing import Any, Sequence
 
-from nanoleaf_sync.device.hid_transport import HIDTransport
+from nanoleaf_sync.device.hid_transport import HIDTransport, HIDWriteError
 from nanoleaf_sync.device.interfaces import DeviceDriver, DriverCapabilities, NanoleafUSBIds, RGBTuple
 from nanoleaf_sync.device.protocol import (
     CMD_GET_BRIGHTNESS,
@@ -60,7 +60,7 @@ class NanoleafUSBDriver(DeviceDriver):
         self._initialized = False
         self._cached_on_state: bool | None = None
         self._cached_brightness: int | None = None
-        self.last_send_timing: dict[str, float | bool | str | None] = {}
+        self.last_send_timing: dict[str, Any] = {}
 
     def _request(self, cmd: int, payload: bytes = b"") -> bytes:
         request = self._protocol.build_request(cmd, payload)
@@ -84,6 +84,65 @@ class NanoleafUSBDriver(DeviceDriver):
         raw_response = self._transport.transceive(request)
         parsed = self._protocol.parse_response(cmd, raw_response)
         return parsed, {}
+
+    @staticmethod
+    def _write_failed_before_any_bytes(exc: Exception) -> bool:
+        status = getattr(exc, "write_status", None)
+        if status in {"not_started", "before_write"}:
+            return True
+        if isinstance(exc, HIDWriteError):
+            return exc.write_status == "not_started"
+        return False
+
+    def _mark_live_frame_write_failed(
+        self,
+        *,
+        exc: Exception,
+        frame_build_ms: float,
+        request_len: int,
+        report_size: int,
+        report_count: int,
+        chunk_sizes: list[int],
+        live_send_policy: str,
+        response_wait_skipped: bool,
+    ) -> None:
+        write_status = str(getattr(exc, "write_status", "uncertain") or "uncertain")
+        self.last_send_timing = {
+            "frame_build_ms": frame_build_ms,
+            "device_write_ms": 0.0,
+            "flush_or_wait_ms": None,
+            "device_limited": False,
+            "flush_or_wait_reason": "Live HID write failed before a response wait could safely run.",
+            "reports_per_frame": int(report_count),
+            "bytes_per_report": int(report_size),
+            "total_frame_bytes": int(request_len),
+            "report_data_sizes": chunk_sizes,
+            "per_report_write_ms": [],
+            "write_blocking": True,
+            "write_retry_policy": "none",
+            "write_rate_limit_policy": "none",
+            "write_read_calls": 0,
+            "live_send_policy": live_send_policy,
+            "response_wait_skipped": response_wait_skipped,
+            "send_failed": True,
+            "failure_stage": "live_frame_write",
+            "write_status": write_status,
+            "write_failure_reason": f"{type(exc).__name__}: {exc}",
+            "recovery_action": "closed_transport_for_reopen",
+        }
+
+    def _close_after_uncertain_live_write(self, exc: Exception) -> None:
+        try:
+            self.close()
+        except Exception:
+            self._logger.exception(
+                "Failed to close HID transport after uncertain live frame write failure",
+            )
+        self._logger.warning(
+            "Live HID frame write failed with uncertain device state; closed transport before retrying future frames: %s: %s",
+            type(exc).__name__,
+            exc,
+        )
 
     def initialize(self) -> None:
         if self._initialized:
@@ -220,9 +279,27 @@ class NanoleafUSBDriver(DeviceDriver):
                     if isinstance(maybe_timing, dict):
                         transport_timing = maybe_timing
                 except Exception as exc:
-                    send_err = exc
-                    live_send_policy = "response_required"
-                    response_wait_skipped = False
+                    if self._write_failed_before_any_bytes(exc):
+                        send_err = exc
+                        live_send_policy = "response_required"
+                        response_wait_skipped = False
+                    else:
+                        frame_build_ms = (frame_build_end - frame_build_start) * 1000.0
+                        self._mark_live_frame_write_failed(
+                            exc=exc,
+                            frame_build_ms=frame_build_ms,
+                            request_len=request_len,
+                            report_size=report_size,
+                            report_count=report_count,
+                            chunk_sizes=chunk_sizes,
+                            live_send_policy=live_send_policy,
+                            response_wait_skipped=response_wait_skipped,
+                        )
+                        self._close_after_uncertain_live_write(exc)
+                        raise RuntimeError(
+                            "Live frame write failed with uncertain HID write status; "
+                            "closed transport and skipped immediate fallback to avoid duplicate frame send."
+                        ) from exc
             elif callable(write_with_timing):
                 live_send_policy = "write_only"
                 response_wait_skipped = True
@@ -233,9 +310,27 @@ class NanoleafUSBDriver(DeviceDriver):
                     transport_timing.setdefault("flush_or_wait_ms", 0.0)
                     transport_timing.setdefault("read_calls", 0)
                 except Exception as exc:
-                    send_err = exc
-                    live_send_policy = "response_required"
-                    response_wait_skipped = False
+                    if self._write_failed_before_any_bytes(exc):
+                        send_err = exc
+                        live_send_policy = "response_required"
+                        response_wait_skipped = False
+                    else:
+                        frame_build_ms = (frame_build_end - frame_build_start) * 1000.0
+                        self._mark_live_frame_write_failed(
+                            exc=exc,
+                            frame_build_ms=frame_build_ms,
+                            request_len=request_len,
+                            report_size=report_size,
+                            report_count=report_count,
+                            chunk_sizes=chunk_sizes,
+                            live_send_policy=live_send_policy,
+                            response_wait_skipped=response_wait_skipped,
+                        )
+                        self._close_after_uncertain_live_write(exc)
+                        raise RuntimeError(
+                            "Live frame write failed with uncertain HID write status; "
+                            "closed transport and skipped immediate fallback to avoid duplicate frame send."
+                        ) from exc
         if live_send_policy == "response_required":
             try:
                 _, transport_timing = self._request_with_timing(CMD_SET_ZONE_COLORS, payload)
