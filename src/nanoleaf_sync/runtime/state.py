@@ -3,16 +3,16 @@ from __future__ import annotations
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
 from nanoleaf_sync.capture.latency_probe import LatencyProbe
+from nanoleaf_sync.color._types import RGBTuple
 from nanoleaf_sync.runtime.calibration_resolver import CALIBRATION_INCOMPLETE_STATUS, CALIBRATION_READY_STATUS
 
-RGBTuple = Tuple[int, int, int]
-ZoneRect = Tuple[int, int, int, int]
-DeviceZoneMappingSignature = Tuple[Any, ...]
+ZoneRect = tuple[int, int, int, int]
+DeviceZoneMappingSignature = tuple[Any, ...]
 
 
 @dataclass
@@ -21,31 +21,31 @@ class RuntimeState:
     startup_complete: threading.Event = field(default_factory=threading.Event)
     startup_succeeded: bool = False
 
-    prev_smoothed_colors: List[RGBTuple] = field(default_factory=list)
+    prev_smoothed_colors: list[RGBTuple] = field(default_factory=list)
 
-    cached_zone_rects: Optional[List[ZoneRect]] = None
-    zone_rects_signature: Optional[Tuple[int, int, Tuple[Tuple[float, float, float, float], ...]]] = None
+    cached_zone_rects: list[ZoneRect] | None = None
+    zone_rects_signature: tuple[int, int, tuple[tuple[float, float, float, float], ...]] | None = None
 
-    cached_device_zone_indices: Optional[List[int]] = None
-    cached_device_zone_indices_np: Optional[np.ndarray] = None
-    device_zone_mapping_signature: Optional[DeviceZoneMappingSignature] = None
+    cached_device_zone_indices: list[int] | None = None
+    cached_device_zone_indices_np: np.ndarray | None = None
+    device_zone_mapping_signature: DeviceZoneMappingSignature | None = None
 
     consecutive_errors: int = 0
-    last_error: Optional[str] = None
-    last_error_kind: Optional[str] = None
-    last_error_guidance: Optional[str] = None
+    last_error: str | None = None
+    last_error_kind: str | None = None
+    last_error_guidance: str | None = None
     frames_sent: int = 0
-    last_frame_timestamp: Optional[float] = None
+    last_frame_timestamp: float | None = None
     latency_probe: LatencyProbe = field(default_factory=LatencyProbe)
     last_reinit_ts: float = 0.0
     is_reinitializing: bool = False
     last_frame_width: int = 0
     last_frame_height: int = 0
-    latest_frame_rgb: Optional[np.ndarray] = None
-    latest_zones_px: List[ZoneRect] = field(default_factory=list)
-    latest_zone_side_counts: Tuple[int, int, int, int] = (0, 0, 0, 0)
+    latest_frame_rgb: np.ndarray | None = None
+    latest_zones_px: list[ZoneRect] = field(default_factory=list)
+    latest_zone_side_counts: tuple[int, int, int, int] = (0, 0, 0, 0)
     latest_edge_sampling_thickness: float | None = None
-    latest_zone_diagnostics: List[dict[str, Any]] = field(default_factory=list)
+    latest_zone_diagnostics: list[dict[str, Any]] = field(default_factory=list)
     latest_side_variance_diagnostics: dict[str, dict[str, float | bool]] = field(default_factory=dict)
     configured_priority_mode: str = "normal"
     effective_nice_value: int | None = None
@@ -76,6 +76,7 @@ class RuntimeState:
         self.frames_sent = 0
         self.last_frame_timestamp = None
         self.latency_probe = LatencyProbe()
+        self.last_reinit_ts = 0.0
         self.is_reinitializing = False
         self.last_frame_width = 0
         self.last_frame_height = 0
@@ -135,8 +136,8 @@ class RuntimeState:
         self,
         *,
         running: bool,
-        capture_backend_name: Optional[str],
-        capture_path: Optional[str],
+        capture_backend_name: str | None,
+        capture_path: str | None,
         capture_width: int,
         capture_height: int,
         max_consecutive_errors: int,
@@ -207,8 +208,8 @@ class RuntimeState:
 
 def classify_capture_mode(
     *,
-    capture_backend_name: Optional[str],
-    capture_path: Optional[str],
+    capture_backend_name: str | None,
+    capture_path: str | None,
 ) -> str:
     if capture_backend_name == "mock":
         return "mock"

@@ -415,7 +415,7 @@ class HIDTransport:
         return timing
 
     def transceive_with_timing(
-        self, request: bytes
+        self, request: bytes, *, target_fps: int | None = None
     ) -> tuple[bytes, dict[str, int | float | list[int] | list[float] | bool | str]]:
         """Write TLV request bytes and read enough framed HID bytes for a full TLV response.
 
@@ -435,7 +435,12 @@ class HIDTransport:
             {"strip_prefix": not preferred_first, "buffer": bytearray(), "expected_len": None},
         ]
 
-        guard_window_s = max(1.0, float(self.read_timeout_ms) / 1000.0 * 4.0)
+        if target_fps and target_fps > 0:
+            frame_budget_ms = max(1000 // target_fps, 8)
+            write_timeout_ms = max(self.read_timeout_ms, frame_budget_ms * 3)
+        else:
+            write_timeout_ms = self.read_timeout_ms
+        guard_window_s = max(0.05, float(write_timeout_ms) / 1000.0 * 4.0)
         remaining_budget_s = guard_window_s
         per_read_budget_s = max(float(self.read_timeout_ms) / 1000.0, 0.001)
         read_start = time.perf_counter()

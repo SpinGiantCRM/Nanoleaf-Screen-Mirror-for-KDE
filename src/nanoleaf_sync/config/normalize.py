@@ -11,7 +11,6 @@ from nanoleaf_sync.config.presets import (
     DISPLAY_PRESETS,
     EDGE_LOCALITY_PRESETS,
     LIGHT_SPREAD_PRESETS,
-    LAYOUT_PRESETS,
     MOTION_PRESETS,
     SAMPLING_QUALITY_PRESETS,
     normalize_layout_preset,
@@ -20,6 +19,7 @@ from nanoleaf_sync.config.presets import (
 )
 
 logger = logging.getLogger(__name__)
+SCHEMA_VERSION = 1
 CURRENT_CALIBRATION_SCHEMA_VERSION = 1
 
 
@@ -115,6 +115,7 @@ def normalize_wizard_in_progress_state(raw_value: Any) -> str:
 
 def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     migrated: Dict[str, Any] = dict(data)
+    migrated.setdefault("schema_version", SCHEMA_VERSION)
     calibration_payload = migrated.get("calibration")
     calibration = dict(calibration_payload) if isinstance(calibration_payload, dict) else {}
 
@@ -123,8 +124,8 @@ def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:
         CURRENT_CALIBRATION_SCHEMA_VERSION,
     )
     calibration_schema_version = max(1, calibration_schema_version)
-    calibration["calibration_model"] = "corner_anchored"
-    migrated["calibration_model"] = "corner_anchored"
+    calibration.setdefault("calibration_model", "corner_anchored")
+    migrated.setdefault("calibration_model", calibration["calibration_model"])
     calibration["schema_version"] = calibration_schema_version
     calibration["calibration_schema_version"] = calibration_schema_version
     migrated["calibration_schema_version"] = calibration_schema_version
@@ -132,7 +133,22 @@ def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     return migrated
 
 
+_MIGRATIONS: dict[int, Any] = {
+    1: None,  # schema_version 1 is the baseline; no migration needed.
+}
+
+
 def validate_config(cfg: AppConfig) -> AppConfig:
+    version = int(getattr(cfg, "schema_version", 0))
+    if version < SCHEMA_VERSION:
+        v = version
+        while v < SCHEMA_VERSION:
+            v += 1
+            migrate_fn = _MIGRATIONS.get(v)
+            if migrate_fn:
+                cfg = migrate_fn(cfg)
+        cfg = type(cfg)(**{**cfg.__dict__, "schema_version": SCHEMA_VERSION})
+
     brightness = max(0.0, min(1.0, float(cfg.brightness)))
     smoothing = max(0.0, min(1.0, float(cfg.smoothing)))
     smoothing_speed = max(0.0, min(4.0, float(cfg.smoothing_speed)))

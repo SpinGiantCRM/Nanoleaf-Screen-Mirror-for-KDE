@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from nanoleaf_sync.color.hdr import _apply_tonemap_hable, _linear_to_srgb_encoded
 from nanoleaf_sync.runtime.srgb import srgb_u8_to_linear01
+from nanoleaf_sync.color.hdr import _linear_to_srgb_encoded
 
 _SDR_REFERENCE_NITS = 80.0
 
@@ -30,7 +30,7 @@ def apply_sdr_boost_compensation(
         return frame
 
     linear = srgb_u8_to_linear01(frame)
-    boosted = np.clip(linear * boost, 0.0, None)
-    ldr = _apply_tonemap_hable(boosted, max_nits=float(hdr_max_nits))
-    srgb = _linear_to_srgb_encoded(ldr)
+    # Undo the SDR-on-HDR brightness boost by dividing, then clamp to [0, 1].
+    compensated = np.clip(linear / boost, 0.0, 1.0)
+    srgb = _linear_to_srgb_encoded(compensated)
     return np.clip(np.rint(srgb * 255.0), 0.0, 255.0).astype(np.uint8, copy=False)

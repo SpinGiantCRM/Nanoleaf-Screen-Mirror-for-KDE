@@ -20,14 +20,7 @@ DEFAULT_SMOKE_WIDTH = 320
 DEFAULT_SMOKE_HEIGHT = 180
 
 
-def _effective_runtime_zone_count(*, configured: int, detected: int | None) -> int | None:
-    configured_count = int(configured or 0)
-    if configured_count > 0:
-        return configured_count
-    detected_count = int(detected or 0)
-    if detected_count > 0:
-        return detected_count
-    return None
+from nanoleaf_sync.tools._utils import effective_runtime_zone_count
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -94,37 +87,20 @@ def main(argv: list[str] | None = None) -> int:
         f"requested={cfg.prefer_backend} effective={effective_backend} selection_reason={selection_reason}"
     )
 
+    driver = NanoleafUSBDriver(ids=NanoleafUSBIds(vid=cfg.device_vid, pid=cfg.device_pid))
+    return_code = 0
+
     try:
         frame = capture.capture()
-    except Exception as exc:
-        translated = translate_runtime_error(exc)
-        print(f"capture failed: kind={translated.kind}")
-        print(f"capture error: {translated.summary}")
-        print(f"guidance: {translated.guidance}")
-        if translated.kind == "kwin-authorization":
-            desktop_startup = (os.environ.get("DESKTOP_STARTUP_ID") or "unset").strip() or "unset"
-            activation_token = (os.environ.get("XDG_ACTIVATION_TOKEN") or "unset").strip() or "unset"
-            print(
-                "context warning: shell-run smoke tests may lack KDE launcher policy unless launched from "
-                "an authorized desktop entry."
-            )
-            print(
-                "effective activation context: "
-                f"DESKTOP_STARTUP_ID={desktop_startup} XDG_ACTIVATION_TOKEN={activation_token}"
-            )
-        raise SystemExit(1) from exc
-    print(f"capture ok: frame shape={frame.shape}")
+        print(f"capture ok: frame shape={frame.shape}")
 
-    driver = NanoleafUSBDriver(ids=NanoleafUSBIds(vid=cfg.device_vid, pid=cfg.device_pid))
-
-    try:
         driver.initialize()
         zones = getattr(driver, "zone_count", None)
         detected_zones = getattr(driver, "reported_zone_count", zones)
         model = getattr(driver, "model_number", None)
         configured_zones = int(getattr(cfg, "device_zone_count", 0) or 0)
         calibration_zones = int(getattr(getattr(cfg, "calibration", None), "device_zone_count", 0) or 0)
-        effective_zones = _effective_runtime_zone_count(configured=configured_zones, detected=detected_zones)
+        effective_zones = effective_runtime_zone_count(configured=configured_zones, detected=detected_zones)
         print(f"device init ok: model={model} zones={zones}")
         print(
             "zone-count diagnostics: "
@@ -145,6 +121,23 @@ def main(argv: list[str] | None = None) -> int:
             print("test frame sent (low brightness).")
         else:
             print("test frame not sent (use --send-test-frame to send one frame).")
+    except Exception as exc:
+        translated = translate_runtime_error(exc)
+        print(f"capture failed: kind={translated.kind}")
+        print(f"capture error: {translated.summary}")
+        print(f"guidance: {translated.guidance}")
+        if translated.kind == "kwin-authorization":
+            desktop_startup = (os.environ.get("DESKTOP_STARTUP_ID") or "unset").strip() or "unset"
+            activation_token = (os.environ.get("XDG_ACTIVATION_TOKEN") or "unset").strip() or "unset"
+            print(
+                "context warning: shell-run smoke tests may lack KDE launcher policy unless launched from "
+                "an authorized desktop entry."
+            )
+            print(
+                "effective activation context: "
+                f"DESKTOP_STARTUP_ID={desktop_startup} XDG_ACTIVATION_TOKEN={activation_token}"
+            )
+        return_code = 1
     finally:
         try:
             driver.close()
@@ -157,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
         except Exception:
             pass
 
-    return 0
+    return return_code
 
 
 if __name__ == "__main__":  # pragma: no cover

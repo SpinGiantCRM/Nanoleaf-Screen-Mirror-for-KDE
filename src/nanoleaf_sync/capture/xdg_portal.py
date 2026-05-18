@@ -99,6 +99,8 @@ class XDGPortalCapture:
         self._empty_first_buffers = 0
         self._non_empty_first_buffers = 0
         self._last_frame_diag: dict[str, object] = {}
+        self._caps_video_info_cache: dict[str, int] = {}
+        self._caps_video_info_cache_max = 8
 
     def initialize(self) -> None:
         """Negotiate portal session and open PipeWire stream."""
@@ -145,7 +147,7 @@ class XDGPortalCapture:
                 if loop is not None:
                     loop.close()
 
-        worker = threading.Thread(target=_worker, daemon=True)
+        worker = threading.Thread(target=_worker, name="portal-negotiate", daemon=True)
         worker.start()
         worker.join()
 
@@ -711,8 +713,10 @@ class XDGPortalCapture:
         warnings: list[str] = []
         if caps is None:
             return metadata
+        caps_str: str | None = None
         try:
-            metadata["caps"] = caps.to_string()
+            caps_str = caps.to_string()
+            metadata["caps"] = caps_str
         except Exception as exc:  # noqa: BLE001
             warnings.append(str(exc))
         try:
@@ -736,12 +740,21 @@ class XDGPortalCapture:
                 except Exception as exc:  # noqa: BLE001
                     metadata["framerate"] = "unknown"
                     warnings.append(str(exc))
-                try:
-                    video_info = GstVideo.VideoInfo.new_from_caps(caps)
-                    if video_info is not None:
-                        metadata["stride"] = int(video_info.stride[0])
-                except Exception:
-                    pass
+                if caps_str is not None:
+                    cached_vi = self._caps_video_info_cache.get(caps_str)
+                    if cached_vi is not None:
+                        metadata["stride"] = int(cached_vi)
+                    else:
+                        try:
+                            video_info = GstVideo.VideoInfo.new_from_caps(caps)
+                            if video_info is not None:
+                                stride_val = int(video_info.stride[0])
+                                metadata["stride"] = stride_val
+                                self._caps_video_info_cache[caps_str] = stride_val
+                                if len(self._caps_video_info_cache) > self._caps_video_info_cache_max:
+                                    self._caps_video_info_cache.pop(next(iter(self._caps_video_info_cache)))
+                        except Exception:
+                            pass
         except Exception as exc:  # noqa: BLE001
             warnings.append(str(exc))
         if warnings:
@@ -851,7 +864,7 @@ class XDGPortalCapture:
                 except BaseException as exc:  # pragma: no cover - defensive fallback
                     error = exc
 
-            thread = threading.Thread(target=_worker, daemon=True)
+            thread = threading.Thread(target=_worker, name="portal-close-session", daemon=True)
             thread.start()
             thread.join()
             if error is not None:

@@ -2,14 +2,18 @@ from __future__ import annotations
 
 import os
 import inspect
+import logging
 from importlib import import_module
 from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
 
+from nanoleaf_sync.capture._utils import _resize_to_target
 from nanoleaf_sync.capture.kwin_dbus import KWinDBusScreenshotCapture
 from nanoleaf_sync.color.hdr import HDRMetadata, analyze_hdr_path, convert_frame_to_srgb8
+
+_log = logging.getLogger(__name__)
 
 
 class KMSGrabError(RuntimeError):
@@ -68,6 +72,11 @@ class KMSGrabCapture:
         self._resize_index_cache_limit = 8
         self._drm_capture_impl = self._resolve_drm_capture_impl()
 
+    def close(self) -> None:
+        """Release D-Bus event-loop resources held by the fallback backend."""
+        if hasattr(self._fallback, "close"):
+            self._fallback.close()
+
     @classmethod
     def _resolve_drm_capture_impl(cls):
         if cls._cached_probe_done:
@@ -87,6 +96,11 @@ class KMSGrabCapture:
             if not self._allow_fallback:
                 raise
 
+            _log.warning(
+                "kmsgrab: DRM/KMS capture failed; falling back to kwin-dbus. "
+                "If you explicitly selected kmsgrab, verify /dev/dri/card0 permissions "
+                "and that the _kmsgrab or kmsgrab Python module is installed."
+            )
             fallback_rgb = self._fallback.capture()
             self.last_capture_path = "kwin-dbus"
             return fallback_rgb
@@ -187,7 +201,13 @@ class KMSGrabCapture:
         target_h = int(self.params.height)
         target_w = int(self.params.width)
         if rgb.shape[0] != target_h or rgb.shape[1] != target_w:
-            rgb = self._resize_to_target(frame=rgb, target_height=target_h, target_width=target_w)
+            rgb = _resize_to_target(
+                frame=rgb,
+                target_height=target_h,
+                target_width=target_w,
+                index_cache=self._resize_index_cache,
+                index_cache_limit=self._resize_index_cache_limit,
+            )
 
         if (
             rgb.dtype == np.uint8
@@ -218,25 +238,13 @@ class KMSGrabCapture:
         self, *, frame: np.ndarray, target_height: int, target_width: int
     ) -> np.ndarray:
         """Resize frame to target capture dimensions if needed."""
-        if frame.shape[0] == target_height and frame.shape[1] == target_width:
-            return frame
-
-        cache_key = (
-            int(frame.shape[0]),
-            int(frame.shape[1]),
-            int(target_height),
-            int(target_width),
+        return _resize_to_target(
+            frame=frame,
+            target_height=target_height,
+            target_width=target_width,
+            index_cache=self._resize_index_cache,
+            index_cache_limit=self._resize_index_cache_limit,
         )
-        cached = self._resize_index_cache.get(cache_key)
-        if cached is None:
-            y_idx = np.linspace(0, frame.shape[0] - 1, target_height).astype(np.intp)
-            x_idx = np.linspace(0, frame.shape[1] - 1, target_width).astype(np.intp)
-            self._resize_index_cache[cache_key] = (y_idx, x_idx)
-            if len(self._resize_index_cache) > self._resize_index_cache_limit:
-                self._resize_index_cache.pop(next(iter(self._resize_index_cache)))
-        else:
-            y_idx, x_idx = cached
-        return frame[y_idx[:, None], x_idx[None, :], :]
 
 
 def reset_cached_drm_probe() -> None:

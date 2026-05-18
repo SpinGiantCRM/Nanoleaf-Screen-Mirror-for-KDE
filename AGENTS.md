@@ -1,8 +1,17 @@
 # AGENTS.md
 
-Durable repo rules for Codex contributors. Keep this file concise; put current backlog context in `docs/ai/current-state.md` and repository navigation in `docs/ai/repo-map.md`.
+This file defines durable repo rules for AI contributors. These rules apply regardless of which agent reads them.
 
-## First reads for Codex runs
+## Workflow
+
+This project uses a two-agent pipeline:
+
+1. **opencode** (current session) — research, code comprehension, diagnostics analysis. Writes task specs to `.opencode/task-spec.md`. Does NOT write code directly.
+2. **freebuff** (interactive TUI) — executes code changes from specs in `.opencode/task-spec.md`. OpenCode's `prompt-engineer` skill is used to craft token-efficient freebuff prompts.
+
+The user copy-pastes the freebuff invocation snippet from the spec into freebuff's input.
+
+## First reads
 
 1. `AGENTS.md` for stable rules.
 2. `docs/ai/current-state.md` for current backlog/order.
@@ -29,19 +38,18 @@ Always inspect the live repo before editing. Do not assume old repo state.
 
 ## Delivery discipline
 
-- Prefer the smallest concrete patch that fixes the requested issue.
-- Do not create planning-only docs when the prompt asks for an implementation/fix.
-- Only create plan docs when the user explicitly requests plan-only output.
+- opencode delivers: `.opencode/task-spec.md` with copy-paste-ready freebuff snippet, plus any research findings.
+- freebuff delivers: working code changes with passing CI commands.
+- Do not create planning-only docs when the prompt asks for implementation.
+- Do not write code directly unless the user explicitly says so (light-coding skill).
 - Do not claim an issue is fixed without tests or clearly stated verification limits.
 
 ## Validation commands
 
-Use the smallest relevant subset for the change, then expand when behavior changes:
-
 - `python -m pytest -q --timeout=60 --timeout-method=thread --durations=25`
 - `python -m pytest -q --timeout=60 --timeout-method=thread --durations=25 --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=70`
 - `ruff check src/ tests/ --select E9,F63,F7,F82`
-- `mypy src/nanoleaf_sync/tools/config_init.py src/nanoleaf_sync/tools/output_format.py --ignore-missing-imports --follow-imports=silent`
+- `mypy src/nanoleaf_sync --ignore-missing-imports --follow-imports=silent`
 - Documentation-only patches should at least run `git diff --check`.
 
 ## PR history

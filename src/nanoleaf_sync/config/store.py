@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import tempfile
 import tomllib
@@ -14,11 +13,6 @@ from dacite import from_dict
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.config.normalize import migrate_config_dict, validate_config, validate_raw_config_values
 from nanoleaf_sync.config.serialization import dump_toml
-
-
-def _dump_toml(payload: Dict[str, Any]) -> str:
-    """Backwards-compatible wrapper retained for tests."""
-    return dump_toml(payload)
 
 
 def default_config_path() -> Path:
@@ -42,35 +36,8 @@ class ConfigManager:
         self.path = Path(path) if path is not None else default_config_path()
         self._config: Optional[AppConfig] = None
 
-    def _legacy_json_path(self) -> Path:
-        if self.path.suffix.lower() == ".json":
-            return self.path
-        return self.path.with_name("config.json")
-
     def _migrate_json_if_present(self) -> None:
-        if self.path.exists():
-            return
-        old_path = self._legacy_json_path()
-        if not old_path.exists():
-            return
-
-        try:
-            raw = old_path.read_text(encoding="utf-8")
-            parsed = json.loads(raw) if raw.strip() else {}
-            if not isinstance(parsed, dict):
-                return
-            cfg = validate_config(
-                from_dict(
-                    data_class=AppConfig,
-                    data=parsed,
-                    config=DaciteConfig(strict=False, cast=[int, float, str, bool]),
-                )
-            )
-            self.save(cfg)
-            old_path.rename(old_path.with_suffix(".json.bak"))
-        except Exception:
-            # Corrupt migrations should not prevent startup.
-            return
+        return
 
     def load(self) -> AppConfig:
         self._migrate_json_if_present()

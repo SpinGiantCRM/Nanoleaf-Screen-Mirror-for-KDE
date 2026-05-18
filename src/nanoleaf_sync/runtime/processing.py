@@ -4,10 +4,8 @@ from typing import List, Sequence, Tuple
 
 import numpy as np
 
+from nanoleaf_sync.color._types import RGBTuple
 from nanoleaf_sync.config.model import ZoneConfig
-
-
-RGBTuple = Tuple[int, int, int]
 
 
 def apply_brightness(colors: Sequence[RGBTuple], brightness: float) -> List[RGBTuple]:

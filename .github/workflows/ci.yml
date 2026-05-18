@@ -40,8 +40,7 @@ jobs:
         run: ruff check src/ tests/ --select E9,F63,F7,F82
 
       - name: Type check
-        # Staged mypy adoption: this initial scope targets CLI/tooling modules first.
-        run: mypy src/nanoleaf_sync/tools/config_init.py src/nanoleaf_sync/tools/output_format.py --ignore-missing-imports --follow-imports=silent
+        run: mypy src/nanoleaf_sync --ignore-missing-imports --follow-imports=silent
 
       - name: Calibration guardrails
         if: github.event_name == 'pull_request'

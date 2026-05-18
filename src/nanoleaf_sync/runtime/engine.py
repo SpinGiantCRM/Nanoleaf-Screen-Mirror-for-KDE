@@ -66,10 +66,10 @@ from nanoleaf_sync.capture.latency_probe import (
 from nanoleaf_sync.runtime.startup import reinitialize_backends, should_reinitialize
 from nanoleaf_sync.runtime.state import (
     DeviceZoneMappingSignature,
-    RGBTuple,
     RuntimeState,
     ZoneRect,
 )
+from nanoleaf_sync.color._types import RGBTuple
 
 
 logger = logging.getLogger(__name__)
@@ -521,6 +521,7 @@ def run_loop(
     last_send_done_ts: float | None = None
     last_pacing_wait_ms: float | None = None
     last_replaced_count = 0
+    frame_seq: int = 0
 
     pending_slot = PendingFrameSlot()
     capture_worker_lock = threading.Lock()
@@ -741,6 +742,7 @@ def run_loop(
                     if str(getattr(config, "display_preset", "hdr")).strip().lower() == "sdr"
                     else getattr(config, "led_calibration_profile_hdr", None)
                 )
+                frame_seq += 1
                 processed = process_frame(
                     frame=frame,
                     prev_smoothed_colors=state.prev_smoothed_colors,
@@ -1001,9 +1003,9 @@ def run_loop(
                 sent_in_window += 1
         except Exception as e:
             state.record_error(e)
-            logger.warning("frame processing failed", exc_info=config.verbose)
+            logger.warning("frame processing failed seq=%s", frame_seq, exc_info=config.verbose)
             if config.verbose:
-                print(f"[service] frame error #{state.consecutive_errors}: {e}")
+                print(f"[service] frame error #{state.consecutive_errors} seq={frame_seq}: {e}")
 
             backoff_s = max(0.0, float(getattr(config, "reinit_backoff_ms", 500)) / 1000.0)
             now_ts = time.perf_counter()
@@ -1047,7 +1049,8 @@ def run_loop(
             sent_in_window = 0
             elapsed_ms = (processing_end - start) * 1000.0
             logger.info(
-                "service_tick fps=%s elapsed_ms=%.2f zones=%s errors=%s send_fps=%.1f capture_to_send_ms=%.2f replaced_frames=%s",
+                "service_tick seq=%s fps=%s elapsed_ms=%.2f zones=%s errors=%s send_fps=%.1f capture_to_send_ms=%.2f replaced_frames=%s",
+                frame_seq,
                 fps,
                 elapsed_ms,
                 last_sent_zone_count,

@@ -7,9 +7,9 @@ from typing import List, Sequence, Tuple
 import numpy as np
 from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
 from nanoleaf_sync.config.presets import edge_locality_profile
+from nanoleaf_sync.color._types import RGBTuple
 
 
-RGBTuple = Tuple[int, int, int]
 ZoneRect = Tuple[int, int, int, int]
 _ZoneSamplingPlan = tuple[
     np.ndarray,
@@ -25,42 +25,6 @@ _ZoneSamplingPlan = tuple[
     tuple[tuple[int, int, int, int, int, np.ndarray], ...],
 ]
 
-_M1 = np.array(
-    [
-        [0.4122214708, 0.5363325363, 0.0514459929],
-        [0.2119034982, 0.6806995451, 0.1073969566],
-        [0.0883024619, 0.2817188376, 0.6299787005],
-    ],
-    dtype=np.float32,
-)
-_M2 = np.array(
-    [
-        [0.2104542553, 0.7936177850, -0.0040720468],
-        [1.9779984951, -2.4285922050, 0.4505937099],
-        [0.0259040371, 0.7827717662, -0.8086757660],
-    ],
-    dtype=np.float32,
-)
-_M1_INV = np.array(
-    [
-        [4.0767416621, -3.3077115913, 0.2309699292],
-        [-1.2684380046, 2.6097574011, -0.3413193965],
-        [-0.0041960863, -0.7034186147, 1.7076147010],
-    ],
-    dtype=np.float32,
-)
-_M2_INV = np.array(
-    [
-        [1.0, 0.3963377774, 0.2158037573],
-        [1.0, -0.1055613458, -0.0638541728],
-        [1.0, -0.0894841775, -1.2914855480],
-    ],
-    dtype=np.float32,
-)
-_M1_T = np.ascontiguousarray(_M1.T)
-_M2_T = np.ascontiguousarray(_M2.T)
-_M1_INV_T = np.ascontiguousarray(_M1_INV.T)
-_M2_INV_T = np.ascontiguousarray(_M2_INV.T)
 
 _thread_local = threading.local()
 _AUTO_ENGINE_CACHE: dict[tuple[tuple[tuple[int, int, int, int], ...], int, int, int, str], str] = {}
@@ -123,18 +87,6 @@ def average_color(image: np.ndarray) -> RGBTuple:
     mean = img.mean(axis=(0, 1))
     r, g, b = mean.tolist()
     return int(r), int(g), int(b)
-
-
-def _linear_srgb_to_oklab(linear_rgb: np.ndarray) -> np.ndarray:
-    lms = linear_rgb @ _M1_T
-    lms_cbrt = np.cbrt(np.clip(lms, 0.0, None))
-    return lms_cbrt @ _M2_T
-
-
-def _oklab_to_linear_srgb(oklab: np.ndarray) -> np.ndarray:
-    lms_cbrt = oklab @ _M2_INV_T
-    lms = lms_cbrt * lms_cbrt * lms_cbrt
-    return lms @ _M1_INV_T
 
 
 def _get_integral_buffer(height: int, width: int) -> np.ndarray:
@@ -500,17 +452,23 @@ def _zone_means_optimized(
     by1: int,
     edge_plans: tuple[tuple[int, int, int, int, int, np.ndarray], ...],
 ) -> np.ndarray:
+    """Zone-average in linear RGB via integral image (no full-frame Oklab pass).
+
+    Zone sampling occurs before any Oklch/Oklab conversion so the per-pixel
+    cost of colour-space transforms is avoided on the full-resolution frame.
+    Per-zone Oklch mapping is deferred to the downstream color_processing
+    pipeline, which only operates on the small per-zone averaged colours.
+    """
     means = np.zeros((len(x0), 3), dtype=np.uint8)
     if not valid.any():
         return means
     linear_img = srgb_u8_to_linear01(image)
     cropped_linear = linear_img[by0:by1, bx0:bx1, :]
-    oklab = _linear_srgb_to_oklab(cropped_linear)
     crop_h, crop_w, _ = cropped_linear.shape
     integral = _get_integral_buffer(crop_h + 1, crop_w + 1)
     integral[0, :, :] = 0.0
     integral[:, 0, :] = 0.0
-    integral[1:, 1:, :] = oklab.cumsum(axis=0, dtype=np.float64).cumsum(axis=1, dtype=np.float64)
+    integral[1:, 1:, :] = cropped_linear.cumsum(axis=0, dtype=np.float64).cumsum(axis=1, dtype=np.float64)
     cx0 = x0 - bx0
     cy0 = y0 - by0
     cx1 = x1 - bx0
@@ -521,8 +479,8 @@ def _zone_means_optimized(
         - integral[cy1[valid_idx], cx0[valid_idx]]
         + integral[cy0[valid_idx], cx0[valid_idx]]
     )
-    avg_oklab = (sums / areas[valid_idx, None]).astype(np.float32, copy=False)
-    means[valid] = linear01_to_srgb_u8(_oklab_to_linear_srgb(avg_oklab))
+    avg_linear = (sums / areas[valid_idx, None]).astype(np.float32, copy=False)
+    means[valid] = linear01_to_srgb_u8(avg_linear)
     for idx, py0, py1, px0, px1, weights in edge_plans:
         patch_linear = linear_img[py0:py1, px0:px1]
         weighted_linear = np.einsum("hwc,hw->c", patch_linear, weights, dtype=np.float64)

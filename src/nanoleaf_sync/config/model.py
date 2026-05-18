@@ -59,6 +59,8 @@ class LedCalibrationProfile:
 
 @dataclass
 class AppConfig:
+    # Config schema version for future migrations.
+    schema_version: int = 1
     # Capture
     fps: int = 30
     # Auto chooses backend based on platform capabilities.
@@ -107,6 +109,8 @@ class AppConfig:
     # Serialized setup draft for crash-recovery only.
     wizard_in_progress_state: str = ""
     start_on_launch: bool = False
+    # Whether the driver should auto-turn-on the device when syncing.
+    auto_turn_on: bool = True
 
     # KDE compositor HDR controls for SDR content on HDR displays.
     compositor_hdr_mode: bool = False
@@ -176,6 +180,31 @@ class AppConfig:
     # high: best-effort attempt to set nice=-5
     # very_high_experimental: best-effort attempt to set nice=-10
     performance_priority: str = "normal"
+
+    def __post_init__(self) -> None:
+        """Sync calibration field to ensure single source of truth.
+
+        When ``calibration`` exists with default-zero values but top-level
+        fields carry user data, populate ``calibration`` from top-level fields
+        so ``effective_calibration()`` remains the canonical accessor.
+        """
+        cal = self.calibration
+        if cal.device_zone_count <= 0 and self.device_zone_count > 0:
+            cal.device_zone_count = self.device_zone_count
+        if cal.output_channel_order == "grb" and self.output_channel_order != "grb":
+            cal.output_channel_order = self.output_channel_order
+        if not cal.reverse_zones and self.reverse_zones:
+            cal.reverse_zones = self.reverse_zones
+        if cal.calibration_model == "corner_anchored" and self.calibration_model != "corner_anchored":
+            cal.calibration_model = self.calibration_model
+        if cal.corner_anchor_top_left < 0 and self.corner_anchor_top_left >= 0:
+            cal.corner_anchor_top_left = self.corner_anchor_top_left
+        if cal.corner_anchor_top_right < 0 and self.corner_anchor_top_right >= 0:
+            cal.corner_anchor_top_right = self.corner_anchor_top_right
+        if cal.corner_anchor_bottom_right < 0 and self.corner_anchor_bottom_right >= 0:
+            cal.corner_anchor_bottom_right = self.corner_anchor_bottom_right
+        if cal.corner_anchor_bottom_left < 0 and self.corner_anchor_bottom_left >= 0:
+            cal.corner_anchor_bottom_left = self.corner_anchor_bottom_left
 
     def effective_calibration(self) -> CalibrationConfig:
         """Return the canonical calibration snapshot for runtime/UI consumers."""

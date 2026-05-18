@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from typing import List, Optional, Sequence, Tuple
+import logging
+from typing import List, Optional, Sequence
 
-RGBTuple = Tuple[int, int, int]
+from nanoleaf_sync.color._types import RGBTuple
+
+_log = logging.getLogger(__name__)
 
 
 def resolve_device_zone_indices(
@@ -18,7 +21,14 @@ def resolve_device_zone_indices(
         return []
 
     if fixed_mapping:
-        return [int(fixed_mapping[i]) % src_n if i < len(fixed_mapping) else 0 for i in range(dst_n)]
+        result = [int(fixed_mapping[i]) % src_n if i < len(fixed_mapping) else 0 for i in range(dst_n)]
+        for i, orig in enumerate(fixed_mapping):
+            if i < len(fixed_mapping) and int(orig) >= src_n:
+                _log.warning(
+                    "Calibration zone %d (%s) out of range [0, %d); wrapped via modulo",
+                    i, orig, src_n,
+                )
+        return result
 
     out = [i % src_n for i in range(dst_n)]
     if reverse:

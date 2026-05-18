@@ -143,6 +143,16 @@ def _capability_cache_get_or_refresh(
     return resolved
 
 
+def has_drm_device() -> bool:
+    """Public alias for capability check: whether a DRM device is present."""
+    return _has_drm_device()
+
+
+def kmsgrab_bindings_available() -> bool:
+    """Public alias for capability check: whether kmsgrab bindings are available."""
+    return _kmsgrab_bindings_available()
+
+
 def _has_drm_device() -> bool:
     card_path = os.environ.get("NANOLEAF_DRM_CARD", "/dev/dri/card0")
     return _capability_cache_get_or_refresh("has_drm_device", lambda: Path(card_path).exists())
@@ -341,20 +351,6 @@ def run_explicit_xdg_portal_probe(*, width: int, height: int) -> dict[str, objec
         _explicit_portal_probe_lock.release()
 
 
-def _percentile(values: list[float], pct: float) -> float:
-    if not values:
-        return 0.0
-    ordered = sorted(values)
-    idx = int(round((len(ordered) - 1) * pct))
-    return float(ordered[max(0, min(len(ordered) - 1, idx))])
-
-
-def _jitter(values: list[float]) -> float:
-    if len(values) <= 1:
-        return 0.0
-    return float(max(values) - min(values))
-
-
 def _benchmark_backend(*, backend_name: str, width: int, height: int, samples: int) -> dict[str, object]:
     backend = create_capture_backend(
         width=width,
@@ -380,7 +376,6 @@ def _benchmark_backend(*, backend_name: str, width: int, height: int, samples: i
                 failed_frames += 1
                 continue
             capture_ms.append((time.monotonic() - call_start) * 1000.0)
-            convert_start = time.monotonic()
             if frame.size <= 0 or frame.nbytes <= 0:
                 empty_buffers += 1
             frame_bytes = int(frame.nbytes)
@@ -388,7 +383,7 @@ def _benchmark_backend(*, backend_name: str, width: int, height: int, samples: i
                 actual_size = f"{frame.shape[1]}x{frame.shape[0]}"
                 fmt = "RGB"
                 stride = int(frame.strides[0]) if frame.strides else None
-            conversion_ms.append((time.monotonic() - convert_start) * 1000.0)
+            conversion_ms.append(0.0)
     finally:
         close_fn = getattr(backend, "close", None)
         if callable(close_fn):
@@ -403,8 +398,8 @@ def _benchmark_backend(*, backend_name: str, width: int, height: int, samples: i
         "frame_bytes": frame_bytes,
         "stride": stride,
         "median_capture_ms": float(statistics.median(capture_ms)) if capture_ms else 0.0,
-        "p95_capture_ms": _percentile(capture_ms, 0.95),
-        "jitter_ms": _jitter(capture_ms),
+        "p95_capture_ms": float(sorted(capture_ms)[max(0, min(len(capture_ms) - 1, int(round((len(capture_ms) - 1) * 0.95))))]) if capture_ms else 0.0,
+        "jitter_ms": float(max(capture_ms) - min(capture_ms)) if len(capture_ms) > 1 else 0.0,
         "effective_fps": len(capture_ms) / elapsed_s,
         "empty_buffers": empty_buffers,
         "failed_frames": failed_frames,

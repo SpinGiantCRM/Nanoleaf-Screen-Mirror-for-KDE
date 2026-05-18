@@ -567,7 +567,8 @@ class DisplayConfiguratorDialog:
                 return CALIBRATION_MODE_PHYSICAL
 
             def _device_zone_count_max(self) -> int:
-                return MAX_WIZARD_ZONE_COUNT
+                detected = int(self._state.detected_device_zone_count or 0)
+                return max(MAX_WIZARD_ZONE_COUNT, detected + 16)
 
             def _on_device_zone_count_changed(self, *_args, refresh: bool = True) -> None:
                 previous_zone_count = self._state.effective_device_zone_count()

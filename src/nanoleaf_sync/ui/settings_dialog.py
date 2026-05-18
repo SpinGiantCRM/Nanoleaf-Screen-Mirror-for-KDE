@@ -45,7 +45,6 @@ from nanoleaf_sync.runtime.diagnostics_exports import (
     format_backend_attempt_row,
     export_zone_report,
 )
-from nanoleaf_sync.ui.zone_calibration import mapping_preview_text as _mapping_preview_text
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones
 from nanoleaf_sync.ui.led_color_calibration_dialog import LedColorCalibrationDialog
 from nanoleaf_sync.capture.factory import (
@@ -103,11 +102,6 @@ class _FallbackScrollArea:
 
 
 
-
-def mapping_preview_text(**kwargs) -> str:
-    return _mapping_preview_text(**kwargs)
-
-
 def _qt_widget(qt: dict[str, object], name: str, fallback):
     return qt.get(name, fallback)
 
@@ -156,7 +150,7 @@ class SettingsDialog:
                 self._state = CalibrationState.from_config(cfg, runtime_status)
                 self._source_zones_locked_to_device_count = (
                     not bool(self._state.source_zones_user_configured)
-                    and str(self._state.layout_preset) == "edge-weighted"
+                    and str(self._state.layout_preset) == "edge_strip"
                 )
                 self._test_step = 0
                 self._latest_latency = None
@@ -311,6 +305,7 @@ class SettingsDialog:
                     self.reverse_checkbox.stateChanged,
                     self.capture_backend_combo.currentIndexChanged,
                     self.auto_probe_policy_combo.currentIndexChanged,
+                    self.display_preset_combo.currentIndexChanged,
                 ):
                     signal.connect(self._refresh_preview_label)
                 self.zone_count_slider.valueChanged.connect(self._on_zone_count_slider_changed)
@@ -686,7 +681,10 @@ class SettingsDialog:
 
             def _refresh_numeric_labels(self):
                 if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower() != "custom":
-                    self._set_slider_value_safely(self.sdr_boost_nits_slider, int(str(self.sdr_white_reference_preset_combo.currentText()).split(" ", 1)[0]))
+                    try:
+                        self._set_slider_value_safely(self.sdr_boost_nits_slider, int(str(self.sdr_white_reference_preset_combo.currentText()).split(" ", 1)[0]))
+                    except (ValueError, IndexError):
+                        pass
                 self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} FPS"); self.sampling_quality_value.setText({"Low": "Better performance", "Balanced": "Default", "High": "Best visual fidelity"}.get(str(self.sampling_quality_combo.currentText()), "Default")); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}"); self.red_gain_value.setText(f"{self.red_gain_slider.value()/100.0:.2f}"); self.green_gain_value.setText(f"{self.green_gain_slider.value()/100.0:.2f}"); self.blue_gain_value.setText(f"{self.blue_gain_slider.value()/100.0:.2f}"); self.white_balance_value.setText(f"{self.white_balance_slider.value()/100.0:+.2f}"); self.chroma_compression_value.setText(f"{self.chroma_compression_slider.value()/100.0:.2f}"); self.neutral_luminance_gain_value.setText(f"{self.neutral_luminance_gain_slider.value()/100.0:.2f}"); self.black_luminance_cutoff_value.setText(f"{self.black_luminance_cutoff_slider.value()/10000.0:.4f}"); self.black_luminance_knee_value.setText(f"{self.black_luminance_knee_slider.value()/10000.0:.4f}")
 
             def _refresh_preview_label(self):
@@ -1088,7 +1086,8 @@ class SettingsDialog:
                 self._calibration_sender(colors)
 
             def _device_zone_count_max(self) -> int:
-                return MAX_ZONE_COUNT
+                detected = int(self._state.detected_device_zone_count or 0)
+                return max(MAX_ZONE_COUNT, detected + 16)
 
             def _on_device_zone_count_slider_changed(self, *_args) -> None:
                 previous_zone_count = self._state.effective_device_zone_count()

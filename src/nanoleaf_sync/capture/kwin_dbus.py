@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 import numpy as np
 
+from nanoleaf_sync.capture._utils import _resize_to_target
 from nanoleaf_sync.color.hdr import HDRMetadata, analyze_hdr_path, convert_frame_to_srgb8
 from nanoleaf_sync.desktop_entry import (
     QT_DESKTOP_FILE_NAME,
@@ -93,6 +94,8 @@ class KWinDBusScreenshotCapture:
         )
         self._resize_index_cache: dict[tuple[int, int, int, int], tuple[np.ndarray, np.ndarray]] = {}
         self._resize_index_cache_limit = 8
+        self._legacy_introspection_cache: dict[tuple[str, str], object] = {}
+        self._legacy_introspection_cache_max = 4
 
     def capture(self) -> np.ndarray:
         """Return an RGB frame as a numpy array or raise ``KWinDBusCaptureError``."""
@@ -187,37 +190,40 @@ class KWinDBusScreenshotCapture:
             self._loop_ready.set()
             loop.run_forever()
             loop.close()
-        except BaseException as exc:
+        except Exception as exc:
             self._loop_start_error = exc
             self._loop = None
             self._loop_ready.set()
 
     def close(self) -> None:
-        loop = self._loop
-        if loop is None:
-            self._screenshot2_bus = None
-            self._legacy_bus = None
-            return
-        if loop.is_running():
-            try:
-                future = asyncio.run_coroutine_threadsafe(
-                    self._reset_bus_connections(), loop
-                )
-                future.result(timeout=1.0)
-            except Exception:
-                pass
-            loop.call_soon_threadsafe(loop.stop)
-        else:
-            self._screenshot2_bus = None
-            self._legacy_bus = None
-        if self._loop_thread is not None:
-            self._loop_thread.join(timeout=1.0)
+        with self._loop_lock:
+            self._resize_index_cache.clear()
+            self._legacy_introspection_cache.clear()
+            loop = self._loop
+            if loop is None:
+                self._screenshot2_bus = None
+                self._legacy_bus = None
+                return
+            if loop.is_running():
+                try:
+                    future = asyncio.run_coroutine_threadsafe(
+                        self._reset_bus_connections(), loop
+                    )
+                    future.result(timeout=1.0)
+                except Exception:
+                    pass
+                loop.call_soon_threadsafe(loop.stop)
+            else:
+                self._screenshot2_bus = None
+                self._legacy_bus = None
+            if self._loop_thread is not None:
+                self._loop_thread.join(timeout=1.0)
 
-        self._loop = None
-        self._loop_thread = None
-        self._loop_ready.clear()
-        self._screenshot2_bus = None
-        self._legacy_bus = None
+            self._loop = None
+            self._loop_thread = None
+            self._loop_ready.clear()
+            self._screenshot2_bus = None
+            self._legacy_bus = None
 
     def _try_capture_via_dbus(self) -> Optional[np.ndarray]:
         reply = self._run_async(self._capture_reply_via_dbus())
@@ -303,6 +309,7 @@ class KWinDBusScreenshotCapture:
         self._screenshot2_bus = None
         self._screenshot2_introspection = None
         self._legacy_bus = None
+        self._legacy_introspection_cache.clear()
 
     async def _connect_screenshot2_bus(self):
         from dbus_next.aio import MessageBus
@@ -404,7 +411,13 @@ class KWinDBusScreenshotCapture:
 
         for bus_name, path, interface_name in self._LEGACY_API_CANDIDATES:
             try:
-                introspection = await bus.introspect(bus_name, path)
+                cache_key = (bus_name, path)
+                introspection = self._legacy_introspection_cache.get(cache_key)
+                if introspection is None:
+                    introspection = await bus.introspect(bus_name, path)
+                    self._legacy_introspection_cache[cache_key] = introspection
+                    if len(self._legacy_introspection_cache) > self._legacy_introspection_cache_max:
+                        self._legacy_introspection_cache.pop(next(iter(self._legacy_introspection_cache)))
                 proxy = bus.get_proxy_object(bus_name, path, introspection)
                 iface = proxy.get_interface(interface_name)
             except Exception as exc:
@@ -550,7 +563,11 @@ class KWinDBusScreenshotCapture:
         while read_total < expected_size:
             chunk = os.read(fd, expected_size - read_total)
             if not chunk:
-                break
+                raise KWinDBusCaptureError(
+                    "KWin ScreenShot2 pipe closed before delivering the full frame payload "
+                    f"(expected={expected_size} bytes, received={read_total} bytes, "
+                    f"stride={stride!r}, height={height!r})."
+                )
             chunk_len = len(chunk)
             view[read_total:read_total + chunk_len] = chunk
             read_total += chunk_len
@@ -787,15 +804,10 @@ class KWinDBusScreenshotCapture:
         return pixels[:, :, :3][:, :, ::-1].copy()
 
     def _resize_frame(self, *, frame: np.ndarray, width: int, height: int) -> np.ndarray:
-        src_h, src_w = frame.shape[:2]
-        cache_key = (int(src_h), int(src_w), int(height), int(width))
-        cached = self._resize_index_cache.get(cache_key)
-        if cached is None:
-            y_idx = np.linspace(0, src_h - 1, height, dtype=np.float32).astype(np.intp)
-            x_idx = np.linspace(0, src_w - 1, width, dtype=np.float32).astype(np.intp)
-            self._resize_index_cache[cache_key] = (y_idx, x_idx)
-            if len(self._resize_index_cache) > self._resize_index_cache_limit:
-                self._resize_index_cache.pop(next(iter(self._resize_index_cache)))
-        else:
-            y_idx, x_idx = cached
-        return np.ascontiguousarray(frame[y_idx[:, None], x_idx[None, :], :])
+        return _resize_to_target(
+            frame=frame,
+            target_height=height,
+            target_width=width,
+            index_cache=self._resize_index_cache,
+            index_cache_limit=self._resize_index_cache_limit,
+        )
