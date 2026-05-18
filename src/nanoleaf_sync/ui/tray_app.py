@@ -345,10 +345,8 @@ class NanoleafTrayApp:
         self.tray_icon.showMessage(
             "nanoleaf-kde-sync startup context",
             (
-                f"Qt desktop file name: {self.app.desktopFileName() or 'unset'}\n"
-                f"Desktop startup ID: {startup_id}\n"
-                f"Activation token: {activation}\n"
-                f"Log file: {self.startup_log_path}"
+                f"Qt desktop file name: {self.app.desktopFileName() or 'unset'}"
+                f"\nLog file: {self.startup_log_path}"
             ),
             self.QSystemTrayIcon.MessageIcon.Information,
             6000,
@@ -629,7 +627,7 @@ class NanoleafTrayApp:
                 running = False
             self._auto_start_bridge.result_ready.emit(running)
 
-        threading.Thread(target=worker, daemon=True).start()
+        threading.Thread(target=worker, name="auto-start-worker", daemon=True).start()
 
     def _handle_auto_start_result(self, running: bool) -> None:
         status = self.service.get_status()
@@ -890,7 +888,7 @@ class NanoleafTrayApp:
             except Exception as exc:
                 self.QTimer.singleShot(0, lambda exc=exc: self._handle_tool_error(label=label, error=exc))
 
-        threading.Thread(target=worker, daemon=True).start()
+        threading.Thread(target=worker, name="tool-runner", daemon=True).start()
 
     def _handle_tool_result(self, label: str, preview: str, rc: int) -> None:
         self.action_doctor.setEnabled(True)

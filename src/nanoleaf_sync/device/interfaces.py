@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, Sequence, Tuple, runtime_checkable
+from typing import Protocol, Sequence, runtime_checkable
 
-RGBTuple = Tuple[int, int, int]
+from nanoleaf_sync.color._types import RGBTuple
 
 
 @dataclass(frozen=True)

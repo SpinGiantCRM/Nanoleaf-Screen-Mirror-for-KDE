@@ -101,15 +101,6 @@ def _to_float01(rgb: np.ndarray) -> np.ndarray:
     return rgb.astype(np.float32, copy=False) / 255.0
 
 
-def _srgb_u8_to_linear01(rgb: np.ndarray) -> np.ndarray:
-    """Convert uint8 sRGB values to linear-light floats in [0, 1]."""
-    return srgb_u8_to_linear01(rgb)
-
-
-def _linear01_to_srgb_u8(linear: np.ndarray) -> np.ndarray:
-    """Convert linear-light floats to uint8 sRGB values."""
-    return linear01_to_srgb_u8(linear)
-
 
 def _srgb_eotf_to_linear(c: np.ndarray) -> np.ndarray:
     return srgb_eotf_to_linear01(c)

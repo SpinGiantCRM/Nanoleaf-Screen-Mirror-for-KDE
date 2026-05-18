@@ -45,14 +45,7 @@ class DoctorCheck:
     action: str = ""
 
 
-def _effective_runtime_zone_count(*, configured: int, detected: int | None) -> int | None:
-    configured_count = int(configured or 0)
-    if configured_count > 0:
-        return configured_count
-    detected_count = int(detected or 0)
-    if detected_count > 0:
-        return detected_count
-    return None
+from nanoleaf_sync.tools._utils import effective_runtime_zone_count
 
 
 def _check_python_runtime() -> DoctorCheck:
@@ -127,7 +120,7 @@ def _run_probe_sync() -> DoctorCheck:
         except BaseException as exc:  # pragma: no cover - defensive fallback
             error = exc
 
-    thread = threading.Thread(target=_worker, daemon=True)
+    thread = threading.Thread(target=_worker, name="kwin-probe", daemon=True)
     thread.start()
     thread.join()
 
@@ -278,7 +271,7 @@ def _check_real_device_probe(config: AppConfig) -> DoctorCheck:
         detected_zones = getattr(driver, "reported_zone_count", getattr(driver, "zone_count", None))
         configured_zones = int(getattr(config, "device_zone_count", 0) or 0)
         calibration_zones = int(getattr(getattr(config, "calibration", None), "device_zone_count", 0) or 0)
-        effective_zones = _effective_runtime_zone_count(configured=configured_zones, detected=detected_zones)
+        effective_zones = effective_runtime_zone_count(configured=configured_zones, detected=detected_zones)
         return DoctorCheck(
             "device-probe",
             "pass",

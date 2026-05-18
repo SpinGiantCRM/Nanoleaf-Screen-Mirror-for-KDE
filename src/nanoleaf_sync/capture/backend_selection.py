@@ -32,7 +32,3 @@ def normalize_cached_backend(value: str | None) -> str:
 
 def is_valid_probe_candidate(value: str | None) -> bool:
     return value in AUTO_PROBE_CANDIDATES
-
-
-def is_supported_real_backend(value: str | None) -> bool:
-    return value in SUPPORTED_REAL_BACKENDS

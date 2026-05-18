@@ -1,6 +1,15 @@
 # AGENTS.md
 
-This file defines durable repo rules for Codex contributors so prompts do not need to repeat the same project context.
+This file defines durable repo rules for AI contributors. These rules apply regardless of which agent reads them.
+
+## Workflow
+
+This project uses a two-agent pipeline:
+
+1. **opencode** (current session) — research, code comprehension, diagnostics analysis. Writes task specs to `.opencode/task-spec.md`. Does NOT write code directly.
+2. **freebuff** (interactive TUI) — executes code changes from specs in `.opencode/task-spec.md`. OpenCode's `prompt-engineer` skill is used to craft token-efficient freebuff prompts.
+
+The user copy-pastes the freebuff invocation snippet from the spec into freebuff's input.
 
 ## Project operating rules (stable)
 
@@ -30,9 +39,10 @@ This file defines durable repo rules for Codex contributors so prompts do not ne
 
 ## Delivery discipline
 
-- Do not create planning-only docs when the prompt asks for an implementation/fix.
-- Implement the smallest concrete step instead.
-- Only create plan docs when the user explicitly requests plan-only output.
+- opencode delivers: `.opencode/task-spec.md` with copy-paste-ready freebuff snippet, plus any research findings.
+- freebuff delivers: working code changes with passing CI commands.
+- Do not create planning-only docs when the prompt asks for implementation.
+- Do not write code directly unless the user explicitly says so (light-coding skill).
 
 ## Validation commands (CI-aligned)
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -160,8 +161,19 @@ def apply_color_style_mapping_with_diagnostics(colors: np.ndarray, *, color_styl
     return out, cap_applied
 
 
+_last_color_process_ms: float = 0.0
+
+
+def get_last_color_process_ms() -> float:
+    return _last_color_process_ms
+
+
 def apply_color_style_mapping(colors: np.ndarray, *, color_style: str) -> np.ndarray:
+    t0 = time.perf_counter()
     out, _ = apply_color_style_mapping_with_diagnostics(colors, color_style=color_style)
+    t1 = time.perf_counter()
+    global _last_color_process_ms
+    _last_color_process_ms = (t1 - t0) * 1000
     return out
 
 

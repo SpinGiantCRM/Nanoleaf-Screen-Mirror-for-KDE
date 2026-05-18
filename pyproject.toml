@@ -52,9 +52,6 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 
 [tool.coverage.run]
-omit = [
-  "src/nanoleaf_sync/ui/*",
-]
 
 [tool.ruff]
 line-length = 100
@@ -65,4 +62,4 @@ python_version = "3.11"
 ignore_missing_imports = true
 warn_redundant_casts = true
 warn_unused_ignores = true
-files = ["src/nanoleaf_sync/runtime"]
+files = ["src/nanoleaf_sync"]

@@ -12,8 +12,6 @@ from nanoleaf_sync.runtime.zones import (
     _zone_means_legacy,
     _zone_means_optimized,
     _edge_localized_weights,
-    _linear_srgb_to_oklab,
-    _oklab_to_linear_srgb,
     zone_colors_array,
 )
 from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
@@ -100,6 +98,7 @@ def test_latency_diagnostics_recommend_60_and_warn_120_over_budget() -> None:
 
 
 def _legacy_reference_zone_colors(frame: np.ndarray, zones: list[tuple[int, int, int, int]]) -> np.ndarray:
+    """Reference implementation matching the current optimized linear-RGB averaging."""
     img = frame
     h, w, _ = img.shape
     zones_arr = np.asarray(zones, dtype=np.intp)
@@ -117,9 +116,9 @@ def _legacy_reference_zone_colors(frame: np.ndarray, zones: list[tuple[int, int,
     by0 = int(np.min(y0[valid]))
     bx1 = int(np.max(x1[valid]))
     by1 = int(np.max(y1[valid]))
-    oklab = _linear_srgb_to_oklab(linear_img[by0:by1, bx0:bx1, :])
-    integral = np.zeros((oklab.shape[0] + 1, oklab.shape[1] + 1, 3), dtype=np.float64)
-    integral[1:, 1:, :] = oklab.cumsum(axis=0, dtype=np.float64).cumsum(axis=1, dtype=np.float64)
+    cropped_linear = linear_img[by0:by1, bx0:bx1, :]
+    integral = np.zeros((cropped_linear.shape[0] + 1, cropped_linear.shape[1] + 1, 3), dtype=np.float64)
+    integral[1:, 1:, :] = cropped_linear.cumsum(axis=0, dtype=np.float64).cumsum(axis=1, dtype=np.float64)
     cx0 = x0 - bx0
     cy0 = y0 - by0
     cx1 = x1 - bx0
@@ -131,8 +130,8 @@ def _legacy_reference_zone_colors(frame: np.ndarray, zones: list[tuple[int, int,
         - integral[cy1[valid_idx], cx0[valid_idx]]
         + integral[cy0[valid_idx], cx0[valid_idx]]
     )
-    avg_oklab = (sums / areas[valid_idx, None]).astype(np.float32, copy=False)
-    out[valid_idx] = linear01_to_srgb_u8(_oklab_to_linear_srgb(avg_oklab))
+    avg_linear = (sums / areas[valid_idx, None]).astype(np.float32, copy=False)
+    out[valid_idx] = linear01_to_srgb_u8(avg_linear)
     for idx in valid_idx:
         weights = _edge_localized_weights(
             zone_x0=int(x0[idx]),

@@ -36,6 +36,7 @@ class NanoleafUSBDriver(DeviceDriver):
         output_channel_order: str = "grb",
         configured_zone_count: int = 0,
         enable_live_frame_write_optimization: bool = True,
+        auto_turn_on: bool = True,
     ) -> None:
         self.ids = ids
         self.report_size = int(report_size)
@@ -46,6 +47,7 @@ class NanoleafUSBDriver(DeviceDriver):
         self._min_nonzero_brightness = max(1, min(255, int(min_nonzero_brightness)))
         self._configured_zone_count = max(0, int(configured_zone_count))
         self._enable_live_frame_write_optimization = bool(enable_live_frame_write_optimization)
+        self._auto_turn_on = bool(auto_turn_on)
         order = str(output_channel_order or "grb").strip().lower()
         if sorted(order) != ["b", "g", "r"]:
             raise ValueError(
@@ -103,6 +105,10 @@ class NanoleafUSBDriver(DeviceDriver):
                 if self._configured_zone_count > 0
                 else detected_zone_count
             )
+            # Pre-read on/off state and brightness during init so the
+            # first set_zone_colors call doesn't add extra HID round-trips.
+            self._cached_on_state = self.get_on_off_state()
+            self._cached_brightness = self.get_brightness()
             self._initialized = True
         except Exception:
             self.close()
@@ -151,12 +157,12 @@ class NanoleafUSBDriver(DeviceDriver):
 
         if self._cached_on_state is None:
             self.get_on_off_state()
-        if not self._cached_on_state:
+        if self._auto_turn_on and not self._cached_on_state:
             self.set_on_off_state(True)
 
         if self._cached_brightness is None:
             self.get_brightness()
-        if self._cached_brightness == 0:
+        if self._auto_turn_on and self._cached_brightness == 0:
             self.set_brightness(self._min_nonzero_brightness)
 
         frame_build_start = time.perf_counter()

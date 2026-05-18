@@ -81,8 +81,8 @@ def _build_auto_probe_signature(capture_width: int, capture_height: int) -> str:
     try:
         from nanoleaf_sync.capture import factory as capture_factory
 
-        has_drm_device = bool(capture_factory._has_drm_device())  # noqa: SLF001
-        kmsgrab_bindings = bool(capture_factory._kmsgrab_bindings_available())  # noqa: SLF001
+        has_drm_device = bool(capture_factory.has_drm_device())
+        kmsgrab_bindings = bool(capture_factory.kmsgrab_bindings_available())
     except Exception:
         has_drm_device = False
         kmsgrab_bindings = False
