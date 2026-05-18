@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from nanoleaf_sync.capture.interfaces import CaptureBackend
-from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.service import NanoleafSyncService
 
 
@@ -53,10 +53,19 @@ class FailingInitDriver(FakeDriver):
 
 
 def _make_cfg() -> AppConfig:
+    zone_count = 48
     return AppConfig(
         fps=30,
         verbose=False,
         use_mock_capture=False,
+        device_zone_count=zone_count,
+        calibration=CalibrationConfig(
+            device_zone_count=zone_count,
+            corner_anchor_top_left=0,
+            corner_anchor_top_right=zone_count // 4,
+            corner_anchor_bottom_right=zone_count // 2,
+            corner_anchor_bottom_left=(3 * zone_count) // 4,
+        ),
     )
 
 
@@ -179,7 +188,7 @@ def test_status_exposes_requested_vs_effective_backend_for_auto_cached_probe(mon
 
 
 def test_clear_backends_resets_cached_device_metadata() -> None:
-    svc = NanoleafSyncService(config=_make_cfg())
+    svc = NanoleafSyncService(config=AppConfig())
     svc._device_discovered = True
     svc._device_model = "Nanoleaf USB Lightstrip"
     svc._device_zone_count = 32

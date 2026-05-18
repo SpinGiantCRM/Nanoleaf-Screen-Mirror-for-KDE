@@ -245,7 +245,9 @@ def test_run_loop_fails_start_when_no_first_frame_arrives() -> None:
     assert state.startup_complete.is_set()
     assert state.startup_succeeded is False
     assert state.first_frame_seen is False
+    assert state.first_frame_processed is False
     assert state.first_frame_sent is False
+    assert state.startup_elapsed_ms > 0.0
     assert state.start_failure_reason.startswith("Start failed before first frame")
 
 
@@ -278,6 +280,80 @@ def test_run_loop_marks_startup_complete_after_first_frame_send() -> None:
     )
 
     assert state.startup_complete.is_set()
-    assert state.startup_succeeded is True
     assert state.first_frame_seen is True
+    assert state.first_frame_processed is True
     assert state.first_frame_sent is True
+    assert state.startup_succeeded is True
+    assert state.first_frame_sent is True
+
+
+def test_runtime_status_reports_calibration_incomplete_for_missing_anchors() -> None:
+    cfg = AppConfig(device_zone_count=48, calibration=CalibrationConfig(device_zone_count=48), zones=[], layout_preset="edge_strip")
+    state = RuntimeState()
+    zones_px, device_zone_indices = _ensure_runtime_artifacts(
+        state=state,
+        config=cfg,
+        img_w=160,
+        img_h=90,
+        detected_device_zone_count=48,
+    )
+
+    assert zones_px
+    assert device_zone_indices.size == 0
+    status = state.status_snapshot(
+        running=True,
+        capture_backend_name="kwin-dbus",
+        capture_path="kwin-dbus:test",
+        capture_width=160,
+        capture_height=90,
+        max_consecutive_errors=5,
+        reinit_backoff_ms=500,
+    )
+    assert status["calibration_status"] == "calibration_incomplete"
+    assert status["last_error_kind"] == "calibration_incomplete"
+    assert "calibration_incomplete" in status["calibration_status_message"]
+
+
+def test_run_loop_does_not_stream_when_calibration_incomplete() -> None:
+    class _Capture:
+        name = "kwin-dbus"
+        last_capture_path = "kwin-dbus:test"
+
+        def capture(self):
+            frame = np.zeros((24, 32, 3), dtype=np.uint8)
+            frame[:, :] = [80, 20, 10]
+            return frame
+
+    class _Driver:
+        reported_zone_count = 48
+        zone_count = 48
+
+        def __init__(self) -> None:
+            self.sent_frames = []
+
+        def send_frame(self, colors):
+            self.sent_frames.append(colors)
+            state.stop_event.set()
+
+    state = RuntimeState()
+    driver = _Driver()
+    cfg = AppConfig(device_zone_count=48, calibration=CalibrationConfig(device_zone_count=48), zones=[], layout_preset="edge_strip", fps=30)
+    run_loop(
+        config=cfg,
+        state=state,
+        get_capture=lambda: _Capture(),
+        get_driver=lambda: driver,
+        install_drivers=lambda: True,
+        close_backends=lambda: None,
+    )
+
+    assert driver.sent_frames == []
+    assert state.frames_sent == 0
+    assert state.first_frame_seen is True
+    assert state.first_frame_processed is False
+    assert state.first_frame_sent is False
+    assert state.startup_complete.is_set()
+    assert state.startup_succeeded is False
+    assert state.lifecycle_state == "calibration_incomplete"
+    assert state.last_error_kind == "calibration_incomplete"
+    assert "calibration_incomplete" in state.start_failure_reason

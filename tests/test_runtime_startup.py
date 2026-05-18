@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 import time
 
-from nanoleaf_sync.runtime.startup import reinitialize_backends
+from nanoleaf_sync.runtime.startup import reinitialize_backends, run_runtime_engine
 from nanoleaf_sync.runtime.state import RuntimeState
 from nanoleaf_sync.runtime.zone_derivation import effective_zone_count
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
@@ -128,3 +128,40 @@ def test_runtime_lifecycle_stop_from_starting_state_cleans_up_to_idle() -> None:
     allow_exit.set()
     lifecycle.join(timeout=1.0)
     assert lifecycle.startup_state() == "idle"
+
+
+def test_run_runtime_engine_shutdowns_backends_when_run_loop_raises(monkeypatch) -> None:
+    state = RuntimeState()
+    calls: list[str] = []
+
+    def _install_drivers() -> None:
+        calls.append("install")
+
+    def _run_loop(**_kwargs) -> None:
+        calls.append("run_loop")
+        raise RuntimeError("synthetic loop failure")
+
+    def _close_backends() -> None:
+        calls.append("close")
+
+    def _clear_backends() -> None:
+        calls.append("clear")
+
+    monkeypatch.setattr("nanoleaf_sync.runtime.engine.run_loop", _run_loop)
+
+    try:
+        run_runtime_engine(
+            config=AppConfig(),
+            state=state,
+            get_capture=lambda: object(),
+            get_driver=lambda: object(),
+            install_drivers=_install_drivers,
+            close_backends=_close_backends,
+            clear_backends=_clear_backends,
+        )
+    except RuntimeError as exc:
+        assert str(exc) == "synthetic loop failure"
+    else:
+        raise AssertionError("run_runtime_engine should re-raise unexpected run_loop failures")
+
+    assert calls == ["install", "run_loop", "close", "clear"]

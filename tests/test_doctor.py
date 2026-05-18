@@ -235,3 +235,13 @@ def test_device_probe_reports_zone_count_diagnostics(monkeypatch) -> None:
     assert check.status == "pass"
     assert "detected=48" in check.message
     assert "effective_runtime=48" in check.message
+
+
+def test_doctor_reports_calibration_incomplete_for_default_anchors() -> None:
+    cfg = AppConfig(device_zone_count=48)
+    cfg.calibration.device_zone_count = 48
+    check = doctor._check_calibration_completeness(cfg)
+    assert check.name == "calibration"
+    assert check.status == "warn"
+    assert "calibration_incomplete" in check.message
+    assert "assign all four" in check.action.lower()

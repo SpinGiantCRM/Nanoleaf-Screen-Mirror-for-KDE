@@ -1220,7 +1220,9 @@ class SettingsDialog:
                 running = bool(self._runtime_status.get("running"))
                 if running:
                     return True
-                blocked_states = {"starting", "running", "stopping", "failed", "error", "waiting_for_screen_selection"}
+                if bool(self._runtime_status.get("backend_retest_blocked")):
+                    return True
+                blocked_states = {"starting", "running", "stopping", "waiting_for_screen_selection"}
                 return startup_state in blocked_states or lifecycle_state in blocked_states
 
             def _run_fresh_backend_probe(self) -> None:

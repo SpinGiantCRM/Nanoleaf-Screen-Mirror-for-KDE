@@ -9,6 +9,7 @@ import numpy as np
 
 from nanoleaf_sync.capture.latency_probe import LatencyProbe
 from nanoleaf_sync.color._types import RGBTuple
+from nanoleaf_sync.runtime.calibration_resolver import CALIBRATION_INCOMPLETE_STATUS, CALIBRATION_READY_STATUS
 
 ZoneRect = tuple[int, int, int, int]
 DeviceZoneMappingSignature = tuple[Any, ...]
@@ -55,7 +56,11 @@ class RuntimeState:
     capture_backend_ready: bool = False
     driver_ready: bool = False
     first_frame_seen: bool = False
+    first_frame_processed: bool = False
     first_frame_sent: bool = False
+    startup_elapsed_ms: float = 0.0
+    calibration_status: str = CALIBRATION_READY_STATUS
+    calibration_status_message: str = ""
 
     def reset_for_start(self) -> None:
         self.prev_smoothed_colors = []
@@ -90,7 +95,20 @@ class RuntimeState:
         self.capture_backend_ready = False
         self.driver_ready = False
         self.first_frame_seen = False
+        self.first_frame_processed = False
         self.first_frame_sent = False
+        self.startup_elapsed_ms = 0.0
+        self.calibration_status = CALIBRATION_READY_STATUS
+        self.calibration_status_message = ""
+
+    def mark_calibration_incomplete(self, message: str) -> None:
+        self.calibration_status = CALIBRATION_INCOMPLETE_STATUS
+        self.calibration_status_message = str(message or "calibration_incomplete")
+        self.last_error = self.calibration_status_message
+        self.last_error_kind = CALIBRATION_INCOMPLETE_STATUS
+        self.last_error_guidance = "Open Settings > Corner calibration and assign all four corners, then start mirroring again."
+        self.start_failure_reason = self.calibration_status_message
+        self.lifecycle_state = CALIBRATION_INCOMPLETE_STATUS
 
     def mark_startup(self, succeeded: bool) -> None:
         self.startup_succeeded = succeeded
@@ -180,7 +198,11 @@ class RuntimeState:
             "capture_backend_ready": bool(self.capture_backend_ready),
             "driver_ready": bool(self.driver_ready),
             "first_frame_seen": bool(self.first_frame_seen),
+            "first_frame_processed": bool(self.first_frame_processed),
             "first_frame_sent": bool(self.first_frame_sent),
+            "startup_elapsed_ms": float(self.startup_elapsed_ms or 0.0),
+            "calibration_status": str(self.calibration_status or CALIBRATION_READY_STATUS),
+            "calibration_status_message": str(self.calibration_status_message or ""),
         }
 
 

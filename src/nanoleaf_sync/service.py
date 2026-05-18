@@ -161,7 +161,6 @@ class NanoleafSyncService:
         self._lifecycle = RuntimeLifecycle(
             state=self._runtime,
             runner=self._run_runtime,
-            on_stop_requested=self._interrupt_runtime_for_stop,
         )
 
         self._capture_width, self._capture_height = _resolve_capture_dims(self.config)
@@ -234,6 +233,7 @@ class NanoleafSyncService:
         status["startup_state"] = startup_state
         status["lifecycle_state"] = str(status.get("lifecycle_state") or lifecycle_state)
         status["start_failure_reason"] = str(status.get("start_failure_reason") or "")
+        status["backend_retest_blocked"] = lifecycle_state in {"starting", "running", "stopping"}
         status["selection_reason"] = self._selection_reason
         status["backend_unresolved_reason"] = (
             ""
@@ -448,6 +448,8 @@ class NanoleafSyncService:
             self._device_zone_count = None
 
     def _send_stop_black_frame(self) -> None:
+        if not self._runtime.driver_ready:
+            return
         driver = self._driver
         if driver is None:
             return
@@ -462,10 +464,6 @@ class NanoleafSyncService:
             driver.send_frame([(0, 0, 0)] * zone_count)
         except Exception:
             logger.debug("Unable to send final stop frame.", exc_info=True)
-
-    def _interrupt_runtime_for_stop(self) -> None:
-        self._send_stop_black_frame()
-        self._close_backends()
 
     def _close_backends(self) -> None:
         capture = self._capture
@@ -604,6 +602,7 @@ class NanoleafSyncService:
             install_drivers=self._install_drivers,
             close_backends=self._close_backends,
             clear_backends=self._clear_backends,
+            send_final_frame=self._send_stop_black_frame,
         )
 
     def install_signal_handlers(self) -> None:

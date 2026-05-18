@@ -13,6 +13,7 @@ from nanoleaf_sync.device.protocol import (
     NanoleafTLVProtocol,
     ProtocolCommandError,
     ProtocolMalformedResponseError,
+    ProtocolPayloadTooLargeError,
     ProtocolResponseTypeError,
     ProtocolShortReadError,
 )
@@ -34,6 +35,11 @@ def _response(req_type: int, payload: bytes) -> bytes:
 def test_build_request_encodes_tlv() -> None:
     req = NanoleafTLVProtocol.build_request(CMD_SET_ZONE_COLORS, b"\x01\x02\x03")
     assert req == b"\x02\x00\x03\x01\x02\x03"
+
+
+def test_build_request_rejects_payload_that_cannot_fit_two_byte_length() -> None:
+    with pytest.raises(ProtocolPayloadTooLargeError, match="TLV payload too large"):
+        NanoleafTLVProtocol.build_request(CMD_SET_ZONE_COLORS, b"\x00" * 65536)
 
 
 def test_parse_response_returns_payload_without_status() -> None:

@@ -21,3 +21,21 @@ def test_pipeline_source_zone_derivation_ignores_reported_count_when_manual_conf
     cfg = AppConfig(device_zone_count=48, calibration=CalibrationConfig(device_zone_count=48))
     artifacts = derive_source_zone_artifacts(config=cfg, detected_device_zone_count=54, frame_width=1920, frame_height=1080)
     assert len(artifacts.zones) == 48
+
+
+def test_default_corner_anchors_report_calibration_incomplete() -> None:
+    cfg = AppConfig(device_zone_count=48, calibration=CalibrationConfig(device_zone_count=48))
+    snap = resolve_calibration_mapping_from_config(config=cfg, source_zone_count=48, detected_device_zone_count=48)
+    assert snap.calibration_status == "calibration_incomplete"
+    assert snap.calibration_incomplete is True
+    assert snap.device_to_source_indices == []
+    assert "calibration_incomplete" in snap.status_message
+    assert "Missing corner anchors" in snap.status_message
+
+
+def test_empty_derived_mapping_is_calibration_incomplete() -> None:
+    cfg = AppConfig(device_zone_count=48, calibration=CalibrationConfig(device_zone_count=48))
+    snap = resolve_calibration_mapping_from_config(config=cfg, source_zone_count=48, detected_device_zone_count=54)
+    assert snap.device_to_source_indices == []
+    assert snap.calibration_incomplete is True
+    assert snap.calibration_status == "calibration_incomplete"

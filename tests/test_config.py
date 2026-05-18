@@ -1,5 +1,8 @@
-from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
-from nanoleaf_sync.config.normalize import validate_config
+import pytest
+
+from nanoleaf_sync.config.model import MAX_DEVICE_ZONE_COUNT, AppConfig, CalibrationConfig
+from nanoleaf_sync.config.normalize import ConfigValidationError, validate_config
+from nanoleaf_sync.config.store import ConfigManager
 from nanoleaf_sync.config.serialization import dump_toml
 
 
@@ -55,3 +58,119 @@ def test_validate_config_normalizes_zone_sampling_engine() -> None:
     assert cfg.zone_sampling_engine == "legacy"
     fallback = validate_config(AppConfig(zone_sampling_engine="turbo"))
     assert fallback.zone_sampling_engine == "auto"
+
+
+def test_validate_config_accepts_hex_range_usb_ids_from_toml(tmp_path) -> None:
+    path = tmp_path / "config.toml"
+    path.write_text("device_vid = 0x37fa\ndevice_pid = 0x8202\n", encoding="utf-8")
+
+    cfg = ConfigManager(path=path).load()
+
+    assert cfg.device_vid == 0x37FA
+    assert cfg.device_pid == 0x8202
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [
+        ("device_vid", 0),
+        ("device_vid", -1),
+        ("device_vid", 0x10000),
+        ("device_pid", 0),
+        ("device_pid", -1),
+        ("device_pid", 0x10000),
+    ],
+)
+def test_validate_config_rejects_usb_id_out_of_range(field_name: str, value: int) -> None:
+    cfg = AppConfig()
+    setattr(cfg, field_name, value)
+
+    with pytest.raises(ConfigValidationError, match=field_name):
+        validate_config(cfg)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [
+        ("device_vid", 1.5),
+        ("device_pid", "0x8202"),
+        ("device_pid", True),
+    ],
+)
+def test_validate_config_rejects_non_integer_usb_ids(field_name: str, value: object) -> None:
+    cfg = AppConfig()
+    setattr(cfg, field_name, value)
+
+    with pytest.raises(ConfigValidationError, match=field_name):
+        validate_config(cfg)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "toml_value"),
+    [
+        ("device_vid", '"0x37fa"'),
+        ("device_pid", "1.5"),
+    ],
+)
+def test_config_load_rejects_non_integer_usb_ids(
+    field_name: str, toml_value: str, tmp_path
+) -> None:
+    path = tmp_path / "config.toml"
+    path.write_text(f"{field_name} = {toml_value}\n", encoding="utf-8")
+
+    with pytest.raises(ConfigValidationError, match=field_name):
+        ConfigManager(path=path).load()
+
+
+def test_validate_config_accepts_valid_device_zone_count_bound() -> None:
+    cfg = validate_config(
+        AppConfig(
+            device_zone_count=MAX_DEVICE_ZONE_COUNT,
+            calibration=CalibrationConfig(device_zone_count=MAX_DEVICE_ZONE_COUNT),
+        )
+    )
+
+    assert cfg.device_zone_count == MAX_DEVICE_ZONE_COUNT
+    assert cfg.calibration.device_zone_count == MAX_DEVICE_ZONE_COUNT
+
+
+@pytest.mark.parametrize(
+    ("field_name", "cfg"),
+    [
+        ("device_zone_count", AppConfig(device_zone_count=-1)),
+        (
+            "calibration.device_zone_count",
+            AppConfig(calibration=CalibrationConfig(device_zone_count=-1)),
+        ),
+    ],
+)
+def test_validate_config_rejects_too_small_device_zone_count(
+    field_name: str, cfg: AppConfig
+) -> None:
+    with pytest.raises(ConfigValidationError, match=field_name):
+        validate_config(cfg)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "cfg"),
+    [
+        ("device_zone_count", AppConfig(device_zone_count=MAX_DEVICE_ZONE_COUNT + 1)),
+        (
+            "calibration.device_zone_count",
+            AppConfig(calibration=CalibrationConfig(device_zone_count=MAX_DEVICE_ZONE_COUNT + 1)),
+        ),
+    ],
+)
+def test_validate_config_rejects_too_large_device_zone_count(
+    field_name: str, cfg: AppConfig
+) -> None:
+    with pytest.raises(ConfigValidationError, match=field_name):
+        validate_config(cfg)
+
+
+def test_config_load_rejects_invalid_zone_count_without_defaulting(tmp_path) -> None:
+    path = tmp_path / "config.toml"
+    path.write_text("device_zone_count = 999999\n", encoding="utf-8")
+
+    with pytest.raises(ConfigValidationError, match="device_zone_count"):
+        ConfigManager(path=path).load()
