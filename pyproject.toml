@@ -62,4 +62,5 @@ python_version = "3.11"
 ignore_missing_imports = true
 warn_redundant_casts = true
 warn_unused_ignores = true
-files = ["src/nanoleaf_sync/tools/config_init.py", "src/nanoleaf_sync/tools/output_format.py"]
+exclude = ["src/nanoleaf_sync/ui/"]
+files = ["src/nanoleaf_sync"]
