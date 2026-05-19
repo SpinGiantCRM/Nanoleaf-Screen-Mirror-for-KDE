@@ -655,7 +655,7 @@ class NanoleafTrayApp:
         effective_running = bool(running and startup_state == "running")
         self.tray_icon.setIcon(self._running_icon if effective_running else self._idle_icon)
         NanoleafTrayApp._safe_refresh_mode_labels(self)
-        if effective_running:
+        if startup_state in {"starting", "running"}:
             return
         guidance = (
             status.get("last_error_guidance") or "Run nanoleaf-kde-sync-doctor for diagnostics."
