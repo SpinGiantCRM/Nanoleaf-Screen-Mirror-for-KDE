@@ -4,7 +4,11 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog
 
 
-def test_display_configurator_requires_qt_runtime() -> None:
+def test_display_configurator_requires_qt_runtime(monkeypatch) -> None:
+    def _raise():
+        raise RuntimeError("PyQt6 is required for the tray UI.")
+
+    monkeypatch.setattr("nanoleaf_sync.ui.display_configurator.load_qt", _raise)
     with pytest.raises(RuntimeError):
         DisplayConfiguratorDialog(None, AppConfig(), calibration_sender=None, runtime_status={})
 
