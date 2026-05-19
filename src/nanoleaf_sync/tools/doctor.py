@@ -46,7 +46,7 @@ class DoctorCheck:
     action: str = ""
 
 
-from nanoleaf_sync.tools._utils import effective_runtime_zone_count
+from nanoleaf_sync.capture._utils import effective_runtime_zone_count
 
 
 def _check_python_runtime() -> DoctorCheck:

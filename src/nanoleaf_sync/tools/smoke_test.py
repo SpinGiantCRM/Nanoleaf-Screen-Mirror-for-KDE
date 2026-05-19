@@ -20,7 +20,7 @@ DEFAULT_SMOKE_WIDTH = 320
 DEFAULT_SMOKE_HEIGHT = 180
 
 
-from nanoleaf_sync.tools._utils import effective_runtime_zone_count
+from nanoleaf_sync.capture._utils import effective_runtime_zone_count
 
 
 def main(argv: list[str] | None = None) -> int:

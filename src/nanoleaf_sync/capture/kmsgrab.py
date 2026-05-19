@@ -10,14 +10,12 @@ from typing import Optional
 import numpy as np
 
 from nanoleaf_sync.capture._utils import _resize_to_target
+from nanoleaf_sync.capture._drm_zone_sampler import DRMZoneSampler
+from nanoleaf_sync.capture.errors import KMSGrabError
 from nanoleaf_sync.capture.kwin_dbus import KWinDBusScreenshotCapture
 from nanoleaf_sync.color.hdr import HDRMetadata, analyze_hdr_path, convert_frame_to_srgb8
 
 _log = logging.getLogger(__name__)
-
-
-class KMSGrabError(RuntimeError):
-    """Raised when DRM/KMS capture fails."""
 
 
 @dataclass(frozen=True)
@@ -71,9 +69,33 @@ class KMSGrabCapture:
         self._resize_index_cache: dict[tuple[int, int, int, int], tuple[np.ndarray, np.ndarray]] = {}
         self._resize_index_cache_limit = 8
         self._drm_capture_impl = self._resolve_drm_capture_impl()
+        self._drm_zone_sampler: DRMZoneSampler | None = None
+        if self._drm_capture_impl is None:
+            try:
+                self._drm_zone_sampler = DRMZoneSampler(
+                    card_path=self.params.card_path,
+                )
+                _log.debug(
+                    "kmsgrab: DRMZoneSampler initialised on %s (%dx%d)",
+                    self.params.card_path,
+                    self._drm_zone_sampler.width,
+                    self._drm_zone_sampler.height,
+                )
+            except KMSGrabError:
+                _log.debug(
+                    "kmsgrab: DRMZoneSampler unavailable on %s; "
+                    "zone-patch capture disabled",
+                    self.params.card_path,
+                )
 
     def close(self) -> None:
-        """Release D-Bus event-loop resources held by the fallback backend."""
+        """Release D-Bus event-loop resources and DRM zone sampler."""
+        if self._drm_zone_sampler is not None:
+            try:
+                self._drm_zone_sampler.close()
+            except Exception:
+                pass
+            self._drm_zone_sampler = None
         if hasattr(self._fallback, "close"):
             self._fallback.close()
 
@@ -85,7 +107,28 @@ class KMSGrabCapture:
         cls._cached_probe_done = True
         return cls._cached_drm_capture_impl
 
-    def capture(self) -> np.ndarray:
+    def capture(
+        self,
+        zone_centers: list[tuple[int, int]] | None = None,
+    ) -> np.ndarray:
+        if (
+            self._drm_zone_sampler is not None
+            and zone_centers is not None
+            and len(zone_centers) > 0
+        ):
+            try:
+                patches = self._drm_zone_sampler.capture_zone_patches(
+                    zone_centers,
+                )
+                self.last_capture_path = "drm-zone-patches"
+                return patches
+            except KMSGrabError:
+                if not self._allow_fallback:
+                    raise
+                _log.warning(
+                    "kmsgrab: DRM zone-patch capture failed; "
+                    "falling back to full-frame capture"
+                )
         try:
             if self._drm_capture_impl is None:
                 raise KMSGrabError("DRM/KMS capture bindings are unavailable.")

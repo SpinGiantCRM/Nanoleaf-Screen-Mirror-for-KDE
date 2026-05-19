@@ -8,3 +8,7 @@ class CaptureBackendInitializationError(RuntimeError):
         self.backend = backend
         self.reason = reason
         super().__init__(f"Capture backend '{backend}' initialization failed: {reason}")
+
+
+class KMSGrabError(RuntimeError):
+    """Raised when DRM/KMS capture fails."""

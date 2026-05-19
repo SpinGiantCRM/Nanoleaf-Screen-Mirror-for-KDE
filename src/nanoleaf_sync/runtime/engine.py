@@ -33,8 +33,16 @@ from nanoleaf_sync.runtime.color_processing import (
 from nanoleaf_sync.runtime.zone_derivation import derive_source_zone_artifacts
 from nanoleaf_sync.runtime.compositor import (
     apply_sdr_boost_compensation,
+    apply_zone_sdr_boost,
     effective_sdr_boost,
 )
+from nanoleaf_sync.runtime.ring_buf import (
+    CapturePayload,
+    ProcessedPayload,
+    SPSCRingBuffer,
+)
+from nanoleaf_sync.runtime.color_processing import init_gamut_adaptation
+from nanoleaf_sync.runtime.fps_governor import FPSGovernor
 from nanoleaf_sync.capture.latency_probe import (
     FrameTimingSample,
     STAGE_CAPTURE_WAIT,
@@ -499,7 +507,7 @@ def process_frame(
     return out_list
 
 
-def run_loop(
+def _run_loop_legacy(
     *,
     config: AppConfig,
     state: RuntimeState,
@@ -508,7 +516,10 @@ def run_loop(
     install_drivers,
     close_backends,
 ) -> None:
+    init_gamut_adaptation(str(getattr(config, "display_gamut", "auto")))
     fps = max(1, int(config.fps))
+    governor = FPSGovernor(initial_fps=fps)
+    state.target_fps = governor.target_fps
     interval_s = 1.0 / fps
 
     next_deadline = time.perf_counter()
@@ -685,9 +696,9 @@ def run_loop(
                             STAGE_ACTUAL_WORK: None,
                             STAGE_LOOP_GAP: None,
                         },
-                        target_fps=float(fps),
-                        fps_cap=float(fps),
-                        fps_cap_reason="UI FPS control cap",
+                        target_fps=float(governor.target_fps),
+                        fps_cap=float(governor.target_fps),
+                        fps_cap_reason="FPS governor dynamic cap",
                         dropped_or_skipped_frames_delta=0,
                         counters_delta={
                             "no_pending_frame_ticks": no_pending_frame_ticks,
@@ -947,9 +958,9 @@ def run_loop(
                             STAGE_INFERRED_UNATTRIBUTED_GAP: inferred_unattributed_gap_ms,
                             "end_to_end_live_ms": None,
                         },
-                        target_fps=float(fps),
-                        fps_cap=float(fps),
-                        fps_cap_reason="UI FPS control cap",
+                        target_fps=float(governor.target_fps),
+                        fps_cap=float(governor.target_fps),
+                        fps_cap_reason="FPS governor dynamic cap",
                         dropped_or_skipped_frames_delta=dropped_delta,
                         counters_delta={
                             "no_pending_frame_ticks": no_pending_frame_ticks,
@@ -1001,6 +1012,26 @@ def run_loop(
                     state.mark_startup(True)
                 last_sent_zone_count = len(smoothed_colors)
                 sent_in_window += 1
+
+                # ---- adaptive FPS governor ------------------------------------
+                previous_target = governor.target_fps
+                governor.record_frame(actual_work_ms)
+                state.target_fps = governor.target_fps
+                if governor.target_fps != previous_target:
+                    direction = "up" if governor.target_fps > previous_target else "down"
+                    logger.info(
+                        "FPS governor: stepped %s %d → %d (p95_latency_ms=%.2f)",
+                        direction,
+                        previous_target,
+                        governor.target_fps,
+                        governor.get_metrics()["p95_latency_ms"],
+                    )
+                    if config.verbose:
+                        print(
+                            f"[service] FPS governor: stepped {direction} "
+                            f"{previous_target} → {governor.target_fps} "
+                            f"(p95_latency_ms={governor.get_metrics()['p95_latency_ms']:.2f})"
+                        )
         except Exception as e:
             state.record_error(e)
             logger.warning("frame processing failed seq=%s", frame_seq, exc_info=config.verbose)
@@ -1039,7 +1070,16 @@ def run_loop(
                 state.mark_startup(False)
                 break
 
-        next_deadline += interval_s
+        # ---- adaptive pacing (governor-driven) -------------------------
+        budget_ms = 1000.0 / max(1, governor.target_fps)
+        pacing_wait_s = max(0.0, budget_ms / 1000.0 - (time.perf_counter() - send_done))
+        if pacing_wait_s > 0.0:
+            last_pacing_wait_ms = pacing_wait_s * 1000.0
+            time.sleep(pacing_wait_s)
+        else:
+            last_pacing_wait_ms = None
+        next_deadline = time.perf_counter() + budget_ms / 1000.0
+
         now = time.perf_counter()
         if now - last_log > log_interval_s:
             window_s = max(0.001, now - last_log)
@@ -1051,7 +1091,7 @@ def run_loop(
             logger.info(
                 "service_tick seq=%s fps=%s elapsed_ms=%.2f zones=%s errors=%s send_fps=%.1f capture_to_send_ms=%.2f replaced_frames=%s",
                 frame_seq,
-                fps,
+                governor.target_fps,
                 elapsed_ms,
                 last_sent_zone_count,
                 state.consecutive_errors,
@@ -1061,23 +1101,907 @@ def run_loop(
             )
             if config.verbose:
                 print(
-                    f"[service] tick fps={fps} elapsed_ms={elapsed_ms:.2f} zones={last_sent_zone_count} send_fps={send_fps:.1f} capture_to_send_ms={ewma_capture_to_send_ms:.2f} replaced_frames={replaced_frames}"
+                    f"[service] tick fps={governor.target_fps} elapsed_ms={elapsed_ms:.2f} zones={last_sent_zone_count} send_fps={send_fps:.1f} capture_to_send_ms={ewma_capture_to_send_ms:.2f} replaced_frames={replaced_frames}"
                 )
 
-        if now - next_deadline > interval_s:
-            # Drop accumulated lag to keep output responsive under overload.
-            next_deadline = now
-            last_pacing_wait_ms = None
-        elif now < next_deadline:
-            pacing_wait_s = next_deadline - now
-            last_pacing_wait_ms = pacing_wait_s * 1000.0
-            time.sleep(pacing_wait_s)
-        else:
-            last_pacing_wait_ms = None
-
-    capture_thread.join(timeout=1.0)
+        capture_thread.join(timeout=1.0)
     if capture_thread.is_alive():
         logger.warning(
             "capture worker thread did not exit within shutdown timeout; "
             "it may still be blocked in capture backend IO"
+        )
+
+
+def _run_loop_pipeline(
+    *,
+    config: AppConfig,
+    state: RuntimeState,
+    get_capture,
+    get_driver,
+    install_drivers,
+    close_backends,
+) -> None:
+    init_gamut_adaptation(str(getattr(config, "display_gamut", "auto")))
+    fps = max(1, int(config.fps))
+    governor = FPSGovernor(initial_fps=fps)
+    state.target_fps = governor.target_fps
+    gov_lock = threading.Lock()
+    interval_s = 1.0 / fps
+    log_interval_s = float(getattr(config, "status_log_interval_s", 5.0))
+    error_limit = max(1, int(getattr(config, "max_consecutive_errors", 5)))
+    startup_frame_timeout_s = max(0.1, float(getattr(config, "startup_frame_timeout_s", 1.5)))
+    startup_started_at = time.perf_counter()
+
+    # ---- ring buffers ---------------------------------------------------
+    capture_buf: SPSCRingBuffer[CapturePayload] = SPSCRingBuffer(capacity=2)
+    process_buf: SPSCRingBuffer[ProcessedPayload] = SPSCRingBuffer(capacity=2)
+
+    # ---- shared cross-thread metrics (lock-protected) -------------------
+    metrics_lock = threading.Lock()
+    latest_capture_backend_name = "unavailable"
+    latest_capture_backend_method = ""
+    capture_call_ms_latest: float | None = None
+    capture_worker_loop_gap_ms_latest: float | None = None
+    capture_success_interval_ms_latest: float | None = None
+    last_capture_completed_ts: float | None = None
+    last_capture_success_ts: float | None = None
+    capture_worker_active = False
+    capture_worker_error_count = 0
+    capture_worker_failures = 0
+    process_worker_error_count = 0
+    no_pending_frame_events = 0
+    no_pending_started_at = time.perf_counter()
+    last_sent_zone_count = 0
+    ewma_capture_to_send_ms = 0.0
+    frame_seq: int = 0
+
+    # ---- capture worker -------------------------------------------------
+    def _capture_worker() -> None:
+        nonlocal capture_worker_active, capture_call_ms_latest
+        nonlocal capture_worker_loop_gap_ms_latest, capture_success_interval_ms_latest
+        nonlocal last_capture_completed_ts, last_capture_success_ts
+        nonlocal latest_capture_backend_name, latest_capture_backend_method
+        nonlocal capture_worker_error_count, capture_worker_failures
+        nonlocal no_pending_frame_events
+        nonlocal process_worker_error_count
+
+        with metrics_lock:
+            capture_worker_active = True
+        while not state.stop_event.is_set():
+            try:
+                if state.is_reinitializing:
+                    time.sleep(0.001)
+                    continue
+                cap = get_capture()
+                if cap is None:
+                    time.sleep(0.001)
+                    continue
+                backend_name = str(getattr(cap, "name", "unknown"))
+                backend_method = str(getattr(cap, "last_capture_path", "") or "")
+                capture_start = time.perf_counter()
+                frame = cap.capture()
+                capture_end = time.perf_counter()
+                call_ms = (capture_end - capture_start) * 1000.0
+                with metrics_lock:
+                    latest_capture_backend_name = backend_name
+                    latest_capture_backend_method = backend_method
+                    capture_call_ms_latest = call_ms
+                    if last_capture_completed_ts is not None:
+                        capture_worker_loop_gap_ms_latest = (
+                            (capture_end - last_capture_completed_ts) * 1000.0
+                        )
+                    last_capture_completed_ts = capture_end
+                if frame is None:
+                    continue
+                with metrics_lock:
+                    if last_capture_success_ts is not None:
+                        capture_success_interval_ms_latest = (
+                            (capture_end - last_capture_success_ts) * 1000.0
+                        )
+                    last_capture_success_ts = capture_end
+                if not capture_buf.try_push(
+                    CapturePayload(frame=frame, captured_at=capture_end)
+                ):
+                    logger.debug(
+                        "capture worker: ring buffer full; dropping frame"
+                    )
+                    with metrics_lock:
+                        no_pending_frame_events += 1
+                with metrics_lock:
+                    capture_worker_failures = 0
+            except Exception as exc:
+                with metrics_lock:
+                    capture_worker_failures += 1
+                    capture_worker_error_count += 1
+                logger.debug("capture worker error: %s", exc)
+                time.sleep(0.005)
+        with metrics_lock:
+            capture_worker_active = False
+
+    # ---- process worker -------------------------------------------------
+    process_worker_error: Exception | None = None
+
+    def _process_worker() -> None:
+        nonlocal process_worker_error, process_worker_error_count, frame_seq
+        while not state.stop_event.is_set():
+            try:
+                if state.is_reinitializing:
+                    time.sleep(0.001)
+                    continue
+                payload = capture_buf.pop(timeout=0.01)
+                if payload is None:
+                    continue
+
+                frame = payload.frame
+                captured_at = payload.captured_at
+                state.first_frame_seen = True
+                img_h, img_w, _ = frame.shape
+
+                driver = get_driver()
+                if driver is None:
+                    continue
+
+                zones_px, device_zone_indices = _ensure_runtime_artifacts(
+                    state=state,
+                    config=config,
+                    img_w=img_w,
+                    img_h=img_h,
+                    detected_device_zone_count=getattr(
+                        driver,
+                        "reported_zone_count",
+                        getattr(driver, "zone_count", None),
+                    ),
+                )
+
+                if (
+                    state.calibration_status == CALIBRATION_INCOMPLETE_STATUS
+                    or len(device_zone_indices) <= 0
+                ):
+                    message = (
+                        state.calibration_status_message
+                        or CALIBRATION_INCOMPLETE_MESSAGE
+                    )
+                    if len(device_zone_indices) <= 0 and "empty" not in message.lower():
+                        message = (
+                            f"{message} Derived device-zone mapping is empty."
+                        )
+                    state.mark_calibration_incomplete(message)
+                    state.startup_elapsed_ms = max(
+                        0.0,
+                        (time.perf_counter() - startup_started_at) * 1000.0,
+                    )
+                    state.mark_startup(False)
+                    state.stop_event.set()
+                    logger.warning(
+                        "calibration incomplete; screen mirroring will not "
+                        "stream frames: %s",
+                        message,
+                    )
+                    break
+
+                active_profile = (
+                    getattr(config, "led_calibration_profile_sdr", None)
+                    if str(getattr(config, "display_preset", "hdr")).strip().lower()
+                    == "sdr"
+                    else getattr(config, "led_calibration_profile_hdr", None)
+                )
+                with metrics_lock:
+                    frame_seq += 1
+
+                compositor_hdr = bool(
+                    getattr(config, "compositor_hdr_mode", False)
+                )
+                sdr_boost = float(getattr(config, "sdr_boost_nits", 80.0))
+                hdr_max = float(getattr(config, "hdr_max_nits", 1000.0))
+
+                processed = process_frame(
+                    frame=frame,
+                    prev_smoothed_colors=state.prev_smoothed_colors,
+                    zones_px=zones_px,
+                    device_zone_indices=device_zone_indices,
+                    brightness=config.brightness,
+                    smoothing=config.smoothing,
+                    smoothing_speed=config.smoothing_speed,
+                    zone_sampling_stride=config.zone_sampling_stride,
+                    zone_sampling_engine=getattr(
+                        config, "zone_sampling_engine", "auto"
+                    ),
+                    led_gamma=float(
+                        getattr(active_profile, "led_gamma", config.led_gamma)
+                    ),
+                    motion_preset=getattr(config, "motion_preset", "responsive"),
+                    light_spread=getattr(config, "light_spread", "balanced"),
+                    red_gain=float(
+                        getattr(
+                            active_profile,
+                            "red_gain",
+                            getattr(config, "red_gain", 1.0),
+                        )
+                    ),
+                    green_gain=float(
+                        getattr(
+                            active_profile,
+                            "green_gain",
+                            getattr(config, "green_gain", 1.0),
+                        )
+                    ),
+                    blue_gain=float(
+                        getattr(
+                            active_profile,
+                            "blue_gain",
+                            getattr(config, "blue_gain", 1.0),
+                        )
+                    ),
+                    white_balance_temperature=float(
+                        getattr(
+                            active_profile,
+                            "white_balance_temperature",
+                            getattr(
+                                config, "white_balance_temperature", 0.0
+                            ),
+                        )
+                    ),
+                    chroma_compression=float(
+                        getattr(
+                            active_profile,
+                            "chroma_compression",
+                            getattr(config, "chroma_compression", 0.0),
+                        )
+                    ),
+                    neutral_luminance_gain=float(
+                        getattr(
+                            active_profile,
+                            "neutral_luminance_gain",
+                            getattr(
+                                config, "neutral_luminance_gain", 1.0
+                            ),
+                        )
+                    ),
+                    black_luminance_cutoff=float(
+                        getattr(
+                            active_profile,
+                            "black_luminance_cutoff",
+                            getattr(
+                                config, "black_luminance_cutoff", 0.0032
+                            ),
+                        )
+                    ),
+                    black_luminance_knee=float(
+                        getattr(
+                            active_profile,
+                            "black_luminance_knee",
+                            getattr(
+                                config, "black_luminance_knee", 0.0024
+                            ),
+                        )
+                    ),
+                    color_style=getattr(config, "color_style", "natural"),
+                    edge_locality=getattr(config, "edge_locality", "balanced"),
+                    compositor_hdr_mode=False,
+                    sdr_boost_nits=sdr_boost,
+                    hdr_max_nits=hdr_max,
+                    return_diagnostics=True,
+                )
+                (
+                    smoothed_colors,
+                    sampled_zone_colors,
+                    pre_led_colors,
+                    final_zone_colors,
+                    processing_timings,
+                ) = processed
+
+                # ---- zone-level SDR boost (instead of full-frame) --------
+                if compositor_hdr:
+                    boost = effective_sdr_boost(sdr_boost_nits=sdr_boost)
+                    if abs(boost - 1.0) > 1e-6:
+                        smoothed_arr = np.asarray(
+                            smoothed_colors, dtype=np.uint8
+                        )
+                        smoothed_arr = apply_zone_sdr_boost(
+                            smoothed_arr,
+                            sdr_boost_nits=sdr_boost,
+                            hdr_max_nits=hdr_max,
+                        )
+                        smoothed_colors = [
+                            tuple(int(c) for c in row)
+                            for row in smoothed_arr.tolist()
+                        ]
+
+                # Atomic prev_smoothed_colors swap
+                state.prev_smoothed_colors = smoothed_colors
+                state.first_frame_processed = True
+                state.last_frame_width = int(img_w)
+                state.last_frame_height = int(img_h)
+                state.latest_frame_rgb = frame
+                state.latest_zones_px = list(zones_px)
+
+                # Build zone diagnostics
+                zone_diagnostics: list[dict[str, object]] = []
+                for zone_index, rect in enumerate(zones_px):
+                    sampled_rgb = tuple(
+                        int(c) for c in sampled_zone_colors[zone_index].tolist()
+                    )
+                    mapped_led_index = None
+                    for led_idx, src_idx in enumerate(
+                        device_zone_indices.tolist()
+                    ):
+                        if int(src_idx) == int(zone_index):
+                            mapped_led_index = led_idx
+                            break
+                    if mapped_led_index is None:
+                        pre_led_rgb = sampled_rgb
+                        final_rgb = sampled_rgb
+                    else:
+                        pre_led_rgb = tuple(
+                            int(c)
+                            for c in pre_led_colors[mapped_led_index].tolist()
+                        )
+                        final_rgb = tuple(
+                            int(c)
+                            for c in final_zone_colors[mapped_led_index].tolist()
+                        )
+                    top, right, bottom, left = state.latest_zone_side_counts
+                    if zone_index < top:
+                        side = "top"
+                    elif zone_index < top + right:
+                        side = "right"
+                    elif zone_index < top + right + bottom:
+                        side = "bottom"
+                    elif zone_index < top + right + bottom + left:
+                        side = "left"
+                    else:
+                        side = "unknown"
+                    zone_diagnostics.append(
+                        {
+                            "zone_index": zone_index,
+                            "side": side,
+                            "pixel_rect": rect,
+                            "sampled_rgb": sampled_rgb,
+                            "output_rgb_before_led_calibration": pre_led_rgb,
+                            "final_output_rgb": final_rgb,
+                            "mapped_physical_led_index": mapped_led_index,
+                            "input_luminance": color_pipeline_diagnostics(
+                                input_rgb=sampled_rgb,
+                                output_rgb=sampled_rgb,
+                                color_style=str(
+                                    getattr(config, "color_style", "reference")
+                                ),
+                            )["sampled_luminance"],
+                            **color_pipeline_diagnostics(
+                                input_rgb=sampled_rgb,
+                                output_rgb=final_rgb,
+                                color_style=str(
+                                    getattr(config, "color_style", "reference")
+                                ),
+                            ),
+                            "led_calibration_applied": pre_led_rgb != final_rgb,
+                        }
+                    )
+                side_var = _side_variance_diagnostics(
+                    sampled=sampled_zone_colors,
+                    final=final_zone_colors,
+                    side_counts=state.latest_zone_side_counts,
+                )
+                for row in zone_diagnostics:
+                    row["side_variance"] = side_var.get(
+                        str(row.get("side")), {}
+                    )
+                    row["processing_flattened_side"] = bool(
+                        row["side_variance"].get("processing_flattened", False)
+                    )
+                state.latest_zone_diagnostics = zone_diagnostics
+                state.latest_side_variance_diagnostics = side_var
+
+                process_buf.push(
+                    ProcessedPayload(
+                        smoothed_colors=smoothed_colors,
+                        captured_at=captured_at,
+                        frame=frame,
+                        zones_px=list(zones_px),
+                        device_zone_indices=device_zone_indices,
+                        sampled_zone_colors=sampled_zone_colors,
+                        pre_led_colors=pre_led_colors,
+                        final_zone_colors=final_zone_colors,
+                        processing_timings=processing_timings,
+                        zone_diagnostics=zone_diagnostics,
+                        side_var=side_var,
+                    ),
+                    timeout=0.01,
+                )
+                process_worker_error = None
+                with metrics_lock:
+                    process_worker_error_count = 0
+            except Exception as exc:
+                process_worker_error = exc
+                with metrics_lock:
+                    process_worker_error_count += 1
+                state.record_error(exc)
+                logger.debug("process worker error: %s", exc)
+                time.sleep(0.001)
+
+    # ---- HID writer -----------------------------------------------------
+    def _hid_writer() -> None:
+        nonlocal last_sent_zone_count, ewma_capture_to_send_ms, frame_seq, governor
+        sent_any_frame = False
+        sent_in_window = 0
+        last_log = time.perf_counter()
+        last_send_done_ts: float | None = None
+
+        while not state.stop_event.is_set():
+            try:
+                if state.is_reinitializing:
+                    time.sleep(0.001)
+                    continue
+                payload = process_buf.pop(timeout=0.01)
+                now = time.perf_counter()
+
+                if payload is None:
+                    # idle tick: update latency probe with idle stages only
+                    with metrics_lock:
+                        cap_active = bool(capture_worker_active)
+                        no_pending_events = no_pending_frame_events
+                    state.latency_probe.add_stage_sample(
+                        FrameTimingSample(
+                            stage_ms={
+                                STAGE_CAPTURE_CALL: capture_call_ms_latest,
+                                STAGE_RUNTIME_CAPTURE_CALL: capture_call_ms_latest,
+                                STAGE_CAPTURE_WORKER_LOOP_GAP: capture_worker_loop_gap_ms_latest,
+                                STAGE_CAPTURE_SUCCESS_INTERVAL: capture_success_interval_ms_latest,
+                                STAGE_FRAME_HANDOFF_WAIT: None,
+                                STAGE_FRAME_AVAILABLE_WAIT: 10.0,
+                                STAGE_IDLE_WAIT: 10.0,  # poll interval
+                                STAGE_RUNTIME_IDLE_WAIT: 10.0,
+                                STAGE_FRAME_PROCESSING: None,
+                                STAGE_ACTUAL_WORK: None,
+                                STAGE_LOOP_GAP: None,
+                            },
+                            target_fps=float(governor.target_fps),
+                            fps_cap=float(governor.target_fps),
+                            fps_cap_reason="FPS governor dynamic cap",
+                            dropped_or_skipped_frames_delta=0,
+                            counters_delta={},
+                            flags={"capture_worker_active": cap_active},
+                            labels={
+                                "latest_capture_backend_name": latest_capture_backend_name,
+                                "capture_backend_method": latest_capture_backend_method,
+                                "no_pending_frame_rate_per_second": f"{(no_pending_events / max(0.001, time.perf_counter() - no_pending_started_at)):.2f}",
+                            },
+                        )
+                    )
+                    continue
+
+                driver = get_driver()
+                if driver is None:
+                    continue
+
+                # HID write
+                hid_write_start = time.perf_counter()
+                hid_frame_build_ms: float | None = None
+                hid_device_write_ms: float | None = None
+                hid_flush_or_wait_ms: float | None = None
+                hid_flush_or_wait_reason = (
+                    "Not instrumented by current driver path."
+                )
+                hid_frame_build_reason = (
+                    "Frame-build timing not separated from send_frame() "
+                    "in driver path."
+                )
+                hid_device_limited_label = "unknown"
+                hid_reports_per_frame = "unavailable"
+                hid_bytes_per_report = "unavailable"
+                hid_total_frame_bytes = "unavailable"
+                hid_report_data_sizes = "unavailable"
+                hid_per_report_write_ms = "unavailable"
+                hid_write_blocking = "unknown"
+                hid_write_retry_policy = "unknown"
+                hid_write_rate_limit_policy = "unknown"
+                hid_write_read_calls = "unavailable"
+                hid_live_send_policy = "response_required"
+                hid_response_wait_skipped = "no"
+
+                send_with_timing = getattr(
+                    driver, "send_frame_with_timing", None
+                )
+                if callable(send_with_timing):
+                    timing = send_with_timing(payload.smoothed_colors)
+                    hid_frame_build_ms = (
+                        float(timing.get("frame_build_ms"))
+                        if isinstance(timing, dict)
+                        and timing.get("frame_build_ms") is not None
+                        else None
+                    )
+                    hid_device_write_ms = (
+                        float(timing.get("device_write_ms"))
+                        if isinstance(timing, dict)
+                        and timing.get("device_write_ms") is not None
+                        else None
+                    )
+                    hid_flush_or_wait_ms = (
+                        float(timing.get("flush_or_wait_ms"))
+                        if isinstance(timing, dict)
+                        and timing.get("flush_or_wait_ms") is not None
+                        else None
+                    )
+                    hid_flush_or_wait_reason = str(
+                        timing.get(
+                            "flush_or_wait_reason", hid_flush_or_wait_reason
+                        )
+                    )
+                    hid_frame_build_reason = (
+                        "Measured inside driver send path."
+                    )
+                    hid_device_limited_label = (
+                        "yes"
+                        if bool(timing.get("device_limited", False))
+                        else "no"
+                    )
+                    hid_reports_per_frame = str(
+                        timing.get("reports_per_frame", "unavailable")
+                    )
+                    hid_bytes_per_report = str(
+                        timing.get("bytes_per_report", "unavailable")
+                    )
+                    hid_total_frame_bytes = str(
+                        timing.get("total_frame_bytes", "unavailable")
+                    )
+                    report_data_sizes = timing.get("report_data_sizes")
+                    hid_report_data_sizes = (
+                        ",".join(str(int(v)) for v in report_data_sizes)
+                        if isinstance(report_data_sizes, list)
+                        else "unavailable"
+                    )
+                    per_report_write_ms = timing.get("per_report_write_ms")
+                    hid_per_report_write_ms = (
+                        ",".join(
+                            f"{float(v):.3f}" for v in per_report_write_ms
+                        )
+                        if isinstance(per_report_write_ms, list)
+                        else "unavailable"
+                    )
+                    hid_write_blocking = (
+                        "yes"
+                        if bool(timing.get("write_blocking", True))
+                        else "no"
+                    )
+                    hid_write_retry_policy = str(
+                        timing.get("write_retry_policy", "none")
+                    )
+                    hid_write_rate_limit_policy = str(
+                        timing.get("write_rate_limit_policy", "none")
+                    )
+                    hid_write_read_calls = str(
+                        timing.get("write_read_calls", "unavailable")
+                    )
+                    hid_live_send_policy = str(
+                        timing.get(
+                            "live_send_policy", "response_required"
+                        )
+                    )
+                    hid_response_wait_skipped = (
+                        "yes"
+                        if bool(
+                            timing.get("response_wait_skipped", False)
+                        )
+                        else "no"
+                    )
+                else:
+                    driver.send_frame(payload.smoothed_colors)
+
+                send_done = time.perf_counter()
+                hid_write_ms = (send_done - hid_write_start) * 1000.0
+                if hid_device_write_ms is None:
+                    hid_device_write_ms = hid_write_ms
+
+                frame_processing_ms = (
+                    payload.processing_timings.frame_convert_ms or 0.0
+                ) + (
+                    payload.processing_timings.zone_sampling_ms or 0.0
+                ) + (
+                    payload.processing_timings.colour_processing_ms or 0.0
+                ) + (
+                    payload.processing_timings.smoothing_ms or 0.0
+                ) + (
+                    payload.processing_timings.led_calibration_ms or 0.0
+                ) + (
+                    payload.processing_timings.output_prepare_ms or 0.0
+                )
+                actual_work_ms = (send_done - now) * 1000.0
+                loop_gap_ms = (
+                    (send_done - last_send_done_ts) * 1000.0
+                    if last_send_done_ts is not None
+                    else None
+                )
+                inferred_unattributed_gap_ms = (
+                    max(0.0, loop_gap_ms - actual_work_ms)
+                    if loop_gap_ms is not None
+                    else None
+                )
+                last_send_done_ts = send_done
+
+                with metrics_lock:
+                    cap_active = bool(capture_worker_active)
+                    cap_error_now = int(capture_worker_error_count)
+
+                pending_frame_age_ms = max(
+                    0.0,
+                    (time.perf_counter() - payload.captured_at) * 1000.0,
+                )
+                capture_to_send_ms = (
+                    send_done - payload.captured_at
+                ) * 1000.0
+                ewma_capture_to_send_ms = (
+                    (0.9 * ewma_capture_to_send_ms)
+                    + (0.1 * capture_to_send_ms)
+                    if ewma_capture_to_send_ms > 0.0
+                    else capture_to_send_ms
+                )
+
+                with metrics_lock:
+                    no_pending_events = no_pending_frame_events
+                dropped_delta = capture_buf.dropped_count()
+                capture_buf.reset_dropped()
+
+                state.latency_probe.add_stage_sample(
+                    FrameTimingSample(
+                        stage_ms={
+                            STAGE_CAPTURE_CALL: capture_call_ms_latest,
+                            STAGE_RUNTIME_CAPTURE_CALL: capture_call_ms_latest,
+                            STAGE_CAPTURE_WORKER_LOOP_GAP: capture_worker_loop_gap_ms_latest,
+                            STAGE_CAPTURE_SUCCESS_INTERVAL: capture_success_interval_ms_latest,
+                            STAGE_FRAME_HANDOFF_WAIT: None,
+                            STAGE_FRAME_AVAILABLE_WAIT: None,
+                            STAGE_PENDING_FRAME_AGE: pending_frame_age_ms,
+                            STAGE_IDLE_WAIT: None,
+                            STAGE_RUNTIME_IDLE_WAIT: None,
+                            STAGE_FRAME_PROCESSING: frame_processing_ms,
+                            STAGE_FRAME_CONVERT: payload.processing_timings.frame_convert_ms,
+                            STAGE_ZONE_SAMPLING: payload.processing_timings.zone_sampling_ms,
+                            STAGE_COLOUR_PROCESSING: payload.processing_timings.colour_processing_ms,
+                            STAGE_SMOOTHING: payload.processing_timings.smoothing_ms,
+                            STAGE_LED_CALIBRATION: payload.processing_timings.led_calibration_ms,
+                            STAGE_OUTPUT_PREPARE: payload.processing_timings.output_prepare_ms,
+                            STAGE_ACTUAL_WORK: actual_work_ms,
+                            STAGE_HID_WRITE: hid_write_ms,
+                            STAGE_HID_FRAME_BUILD: hid_frame_build_ms,
+                            STAGE_HID_DEVICE_WRITE: hid_device_write_ms,
+                            STAGE_HID_FLUSH_OR_WAIT: hid_flush_or_wait_ms,
+                            STAGE_LOOP_GAP: loop_gap_ms,
+                            STAGE_INFERRED_UNATTRIBUTED_GAP: inferred_unattributed_gap_ms,
+                            "end_to_end_live_ms": None,
+                        },
+                        target_fps=float(governor.target_fps),
+                        fps_cap=float(governor.target_fps),
+                        fps_cap_reason="FPS governor dynamic cap",
+                        dropped_or_skipped_frames_delta=dropped_delta,
+                        counters_delta={
+                            "capture_worker_error_count": max(
+                                0, cap_error_now
+                            ),
+                        },
+                        flags={"capture_worker_active": cap_active},
+                        labels={
+                            "latest_capture_backend_name": latest_capture_backend_name,
+                            "capture_backend_method": latest_capture_backend_method,
+                            "no_pending_frame_rate_per_second": f"{(no_pending_events / max(0.001, time.perf_counter() - no_pending_started_at)):.2f}",
+                            "hid_flush_or_wait_reason": hid_flush_or_wait_reason,
+                            "hid_frame_build_reason": hid_frame_build_reason,
+                            "hid_device_write_limited": hid_device_limited_label,
+                            "hid_reports_per_frame": hid_reports_per_frame,
+                            "hid_bytes_per_report": hid_bytes_per_report,
+                            "hid_total_frame_bytes": hid_total_frame_bytes,
+                            "hid_report_data_sizes": hid_report_data_sizes,
+                            "hid_per_report_write_ms": hid_per_report_write_ms,
+                            "hid_write_blocking": hid_write_blocking,
+                            "hid_write_retry_policy": hid_write_retry_policy,
+                            "hid_write_rate_limit_policy": hid_write_rate_limit_policy,
+                            "hid_write_read_calls": hid_write_read_calls,
+                            "hid_live_send_policy": hid_live_send_policy,
+                            "hid_response_wait_skipped": hid_response_wait_skipped,
+                        },
+                    )
+                )
+
+                state.record_success()
+                sent_any_frame = True
+                state.first_frame_sent = True
+                state.startup_elapsed_ms = max(
+                    0.0,
+                    (time.perf_counter() - startup_started_at) * 1000.0,
+                )
+                if not state.startup_complete.is_set():
+                    state.start_failure_reason = ""
+                    state.lifecycle_state = "running"
+                    state.mark_startup(True)
+                last_sent_zone_count = len(payload.smoothed_colors)
+                sent_in_window += 1
+
+                # ---- adaptive FPS governor -----------------------------
+                previous_target = governor.target_fps
+                governor.record_frame(actual_work_ms)
+                with gov_lock:
+                    state.target_fps = governor.target_fps
+                if governor.target_fps != previous_target:
+                    direction = "up" if governor.target_fps > previous_target else "down"
+                    logger.info(
+                        "FPS governor: stepped %s %d → %d (p95_latency_ms=%.2f)",
+                        direction,
+                        previous_target,
+                        governor.target_fps,
+                        governor.get_metrics()["p95_latency_ms"],
+                    )
+                    if config.verbose:
+                        print(
+                            f"[service] FPS governor: stepped {direction} "
+                            f"{previous_target} → {governor.target_fps} "
+                            f"(p95_latency_ms={governor.get_metrics()['p95_latency_ms']:.2f})"
+                        )
+
+                # ---- adaptive pacing -----------------------------------
+                budget_ms = 1000.0 / max(1, governor.target_fps)
+                pacing_wait_s = max(0.0, budget_ms / 1000.0 - actual_work_ms)
+                if pacing_wait_s > 0.0:
+                    time.sleep(pacing_wait_s)
+
+                # Periodic status log
+                if now - last_log > log_interval_s:
+                    window_s = max(0.001, now - last_log)
+                    send_fps_val = sent_in_window / window_s
+                    dropped_total = capture_buf.dropped_count()
+                    last_log = now
+                    sent_in_window = 0
+                    logger.info(
+                        "service_tick seq=%s fps=%s elapsed_ms=%.2f "
+                        "zones=%s errors=%s send_fps=%.1f "
+                        "capture_to_send_ms=%.2f dropped_frames=%s",
+                        frame_seq,
+                        governor.target_fps,
+                        actual_work_ms,
+                        last_sent_zone_count,
+                        state.consecutive_errors,
+                        send_fps_val,
+                        ewma_capture_to_send_ms,
+                        dropped_total,
+                    )
+                    if config.verbose:
+                        print(
+                            f"[service] tick fps={governor.target_fps} "
+                            f"elapsed_ms={actual_work_ms:.2f} "
+                            f"zones={last_sent_zone_count} "
+                            f"send_fps={send_fps_val:.1f} "
+                            f"capture_to_send_ms={ewma_capture_to_send_ms:.2f} "
+                            f"dropped_frames={dropped_total}"
+                        )
+            except Exception as exc:
+                state.record_error(exc)
+                logger.debug("HID writer error: %s", exc)
+
+    # ---- start threads --------------------------------------------------
+    threads = [
+        threading.Thread(
+            target=_capture_worker, name="capture-worker", daemon=True
+        ),
+        threading.Thread(
+            target=_process_worker, name="process-worker", daemon=True
+        ),
+        threading.Thread(
+            target=_hid_writer, name="hid-writer", daemon=True
+        ),
+    ]
+    for t in threads:
+        t.start()
+
+    # ---- supervisory loop ------------------------------------------------
+    last_log = time.perf_counter()
+    last_reinit_check = time.perf_counter()
+    while not state.stop_event.is_set():
+        time.sleep(0.05)
+        now = time.perf_counter()
+
+        # Startup timeout
+        if (
+            not state.first_frame_sent
+            and not state.startup_complete.is_set()
+        ):
+            startup_elapsed = now - startup_started_at
+            state.startup_elapsed_ms = max(0.0, startup_elapsed * 1000.0)
+            if (
+                startup_elapsed >= startup_frame_timeout_s
+                and latest_capture_backend_name != "xdg-portal"
+            ):
+                backend = latest_capture_backend_name or "unavailable"
+                method = latest_capture_backend_method or "unavailable"
+                reason = (
+                    "Start failed before first frame: capture backend "
+                    f"produced no frame within {startup_frame_timeout_s:.1f}s "
+                    f"(backend={backend}, method={method})."
+                )
+                state.last_error = reason
+                state.last_error_kind = "capture-timeout"
+                state.last_error_guidance = (
+                    "Check capture backend readiness and retry."
+                )
+                state.start_failure_reason = reason
+                state.lifecycle_state = "failed"
+                state.mark_startup(False)
+                state.stop_event.set()
+                break
+
+        # Reinitialization check
+        if now - last_reinit_check > 0.5:
+            last_reinit_check = now
+            with metrics_lock:
+                worker_fails = capture_worker_failures
+                proc_fails = process_worker_error_count
+            if worker_fails >= error_limit or proc_fails >= error_limit:
+                logger.warning(
+                    "worker failures: capture=%d process=%d (limit=%d); "
+                    "triggering reinitialization",
+                    worker_fails,
+                    proc_fails,
+                    error_limit,
+                )
+                backoff_s = max(
+                    0.0,
+                    float(getattr(config, "reinit_backoff_ms", 500)) / 1000.0,
+                )
+                if should_reinitialize(
+                    state=state,
+                    error_limit=error_limit,
+                    backoff_s=backoff_s,
+                    now_ts=now,
+                ):
+                    reinitialize_backends(
+                        install_drivers=install_drivers,
+                        close_backends=close_backends,
+                        state=state,
+                    )
+                    with metrics_lock:
+                        capture_worker_failures = 0
+                        capture_worker_error_count = 0
+                        process_worker_error_count = 0
+                    state.consecutive_errors = 0
+
+    # ---- shutdown -------------------------------------------------------
+    for t in threads:
+        t.join(timeout=1.0)
+        if t.is_alive():
+            logger.warning(
+                "%s thread did not exit within shutdown timeout; "
+                "it may still be blocked in IO",
+                t.name,
+            )
+
+
+def run_loop(
+    *,
+    config: AppConfig,
+    state: RuntimeState,
+    get_capture,
+    get_driver,
+    install_drivers,
+    close_backends,
+    use_legacy_pipeline: bool = False,
+) -> None:
+    """Entry point for the mirroring runtime loop.
+
+    Dispatches to either the legacy single-threaded path or the 3-stage
+    pipeline (default) based on *use_legacy_pipeline*.
+    """
+    if use_legacy_pipeline:
+        _run_loop_legacy(
+            config=config,
+            state=state,
+            get_capture=get_capture,
+            get_driver=get_driver,
+            install_drivers=install_drivers,
+            close_backends=close_backends,
+        )
+    else:
+        _run_loop_pipeline(
+            config=config,
+            state=state,
+            get_capture=get_capture,
+            get_driver=get_driver,
+            install_drivers=install_drivers,
+            close_backends=close_backends,
         )

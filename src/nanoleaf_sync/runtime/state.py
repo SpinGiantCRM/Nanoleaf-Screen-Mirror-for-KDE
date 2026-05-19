@@ -61,6 +61,7 @@ class RuntimeState:
     startup_elapsed_ms: float = 0.0
     calibration_status: str = CALIBRATION_READY_STATUS
     calibration_status_message: str = ""
+    target_fps: int = 60
 
     def reset_for_start(self) -> None:
         self.prev_smoothed_colors = []
@@ -100,6 +101,7 @@ class RuntimeState:
         self.startup_elapsed_ms = 0.0
         self.calibration_status = CALIBRATION_READY_STATUS
         self.calibration_status_message = ""
+        self.target_fps = 60
 
     def mark_calibration_incomplete(self, message: str) -> None:
         self.calibration_status = CALIBRATION_INCOMPLETE_STATUS

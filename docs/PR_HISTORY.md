@@ -315,4 +315,5 @@ When exact PR titles are unavailable, entries explicitly avoid inference.
 - #314 — regression fix — Stop action preserves tray app lifecycle — lesson: good recovery; protect lifecycle invariants.
 - #315 — focused implementation — save UX + diagnostics formatting fix — lesson: good; small fixes with tests are preferred.
 - #316 — focused implementation — advanced settings separation delivered — lesson: good; implement requested UI with targeted tests.
-- #317 — docs/planning deferral — menu revamp planning doc only — lesson: bad example; avoid plan-only deferrals unless requested.
+- #317 — docs/planning deferral — menu revamp planning doc only
+- #333 — DRM zone sampler, pipeline restructure, ICC profile, FPS governor, cleanup (5-phase audit implementation) — lesson: bad example; avoid plan-only deferrals unless requested.

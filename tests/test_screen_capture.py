@@ -4,7 +4,8 @@ import builtins
 
 from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
 from nanoleaf_sync.capture.factory import create_capture_backend
-from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture, KMSGrabError
+from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture
+from nanoleaf_sync.capture.errors import KMSGrabError
 
 
 def test_capture_factory_mock_is_reusable(monkeypatch) -> None:
@@ -111,6 +112,7 @@ def test_capture_factory_auto_falls_back_to_kwin_when_kmsgrab_is_unavailable(
     monkeypatch.setattr(
         "nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: False
     )
+    monkeypatch.setenv("NANOLEAF_DISABLE_CAPTURE_PROBE", "1")
     backend = create_capture_backend(
         width=6,
         height=4,

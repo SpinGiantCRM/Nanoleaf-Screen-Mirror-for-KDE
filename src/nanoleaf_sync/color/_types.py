@@ -3,3 +3,4 @@
 from __future__ import annotations
 
 RGBTuple = tuple[int, int, int]
+RGBByte = tuple[int, int, int]

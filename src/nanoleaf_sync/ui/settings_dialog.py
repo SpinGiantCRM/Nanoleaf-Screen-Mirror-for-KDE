@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import logging
 from typing import Callable
 
 import numpy as np
+
+_log = logging.getLogger(__name__)
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig, LedCalibrationProfile
 from nanoleaf_sync.ui.calibration_state import (
@@ -76,9 +79,11 @@ SETTINGS_VIEW_ADVANCED = "advanced"
 
 class _FallbackLayout:
     def addWidget(self, *_args, **_kwargs) -> None:
+        _log.warning("Qt QVBoxLayout unavailable; settings UI degraded.")
         return None
 
     def addLayout(self, *_args, **_kwargs) -> None:
+        _log.warning("Qt QVBoxLayout unavailable; settings UI degraded.")
         return None
 
     def addStretch(self, *_args, **_kwargs) -> None:
@@ -87,6 +92,7 @@ class _FallbackLayout:
 
 class _FallbackWidget:
     def __init__(self, *_args, **_kwargs) -> None:
+        _log.warning("Qt QWidget/QGroupBox unavailable; settings UI degraded.")
         return None
 
     def setLayout(self, *_args, **_kwargs) -> None:
@@ -95,6 +101,7 @@ class _FallbackWidget:
 
 class _FallbackScrollArea:
     def setWidgetResizable(self, *_args, **_kwargs) -> None:
+        _log.warning("Qt QScrollArea unavailable; settings UI degraded.")
         return None
 
     def setWidget(self, *_args, **_kwargs) -> None:
@@ -150,7 +157,7 @@ class SettingsDialog:
                 self._state = CalibrationState.from_config(cfg, runtime_status)
                 self._source_zones_locked_to_device_count = (
                     not bool(self._state.source_zones_user_configured)
-                    and str(self._state.layout_preset) == "edge_strip"
+                    and str(self._state.layout_preset) == "edge-weighted"
                 )
                 self._test_step = 0
                 self._latest_latency = None
@@ -178,6 +185,10 @@ class SettingsDialog:
                 self.edge_locality_combo = QComboBox(); self.edge_locality_combo.addItems(labels(EDGE_LOCALITY_LABELS)); self.edge_locality_combo.setCurrentIndex(max(0, self.edge_locality_combo.findText(label_for_value(EDGE_LOCALITY_LABELS, str(getattr(cfg, "edge_locality", "tight")), default="Tight"))))
                 self.light_spread_combo = QComboBox(); self.light_spread_combo.addItems(labels(LIGHT_SPREAD_LABELS)); self.light_spread_combo.setCurrentIndex(max(0, self.light_spread_combo.findText(label_for_value(LIGHT_SPREAD_LABELS, str(getattr(cfg, "light_spread", "balanced")), default="Balanced"))))
                 self.start_on_launch_checkbox = QCheckBox("Start mirroring automatically when tray app opens"); self.start_on_launch_checkbox.setChecked(bool(getattr(cfg, "start_on_launch", False)))
+                self.display_gamut_combo = QComboBox(); self.display_gamut_combo.addItems(["Auto", "sRGB", "DCI-P3", "BT.2020", "Custom"])
+                gamut_text = str(getattr(cfg, "display_gamut", "auto")).strip().lower()
+                gamut_map = {"auto": "Auto", "srgb": "sRGB", "dci-p3": "DCI-P3", "bt.2020": "BT.2020", "bt2020": "BT.2020", "custom": "Custom"}
+                self.display_gamut_combo.setCurrentIndex(max(0, self.display_gamut_combo.findText(gamut_map.get(gamut_text, "Auto"))))
 
                 self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_count_slider.setRange(1, MAX_ZONE_COUNT); self.zone_count_slider.setValue(self._state.zone_count)
                 self.simple_calibration_widget = SimpleCalibrationWidget(qt=qt, title="Corner calibration")
@@ -562,6 +573,8 @@ class SettingsDialog:
                 layout.addWidget(self.edge_locality_combo, 4, 1, 1, 2)
                 layout.addWidget(QLabel("Light spread"), 5, 0)
                 layout.addWidget(self.light_spread_combo, 5, 1, 1, 2)
+                layout.addWidget(QLabel("Display gamut"), 6, 0)
+                layout.addWidget(self.display_gamut_combo, 6, 1, 1, 2)
                 hdr_advanced = QGroupBox("HDR advanced controls")
                 hdr_advanced.setCheckable(True)
                 hdr_advanced.setChecked(False)
@@ -586,7 +599,7 @@ class SettingsDialog:
                 advanced_layout.addWidget(self.hdr_max_nits_slider, 9, 1)
                 advanced_layout.addWidget(self.hdr_max_nits_value, 9, 2)
                 hdr_advanced.setLayout(advanced_layout)
-                layout.addWidget(hdr_advanced, 6, 0, 1, 3)
+                layout.addWidget(hdr_advanced, 7, 0, 1, 3)
                 led_cal = QGroupBox("LED colour calibration")
                 led_layout = QGridLayout()
                 self._configure_section_layout(led_layout)
@@ -605,8 +618,8 @@ class SettingsDialog:
                 led_layout.addWidget(self._help_text_label(QLabel, "Reference: Most accurate. Preserves greys as neutral light, avoids saturation boost, turns off only for black/near-black."), 10, 0, 1, 3)
                 led_layout.addWidget(self._help_text_label(QLabel, "Ambient: Recommended glow. Similar to Reference, with slightly stronger neutral brightness and smoother ambience."), 11, 0, 1, 3)
                 led_cal.setLayout(led_layout)
-                layout.addWidget(led_cal, 7, 0, 1, 3)
-                layout.addWidget(self.display_configurator_button, 8, 0, 1, 3)
+                layout.addWidget(led_cal, 8, 0, 1, 3)
+                layout.addWidget(self.display_configurator_button, 9, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -665,7 +678,7 @@ class SettingsDialog:
             def wants_display_configurator(self) -> bool: return bool(self._open_display_configurator)
 
             def _pull_state(self):
-                self._state.zone_count = int(self.zone_count_slider.value()); self._state.layout_preset = "edge_strip"; self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value())
+                self._state.zone_count = int(self.zone_count_slider.value()); self._state.layout_preset = "edge-weighted"; self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value())
                 self._state.calibration_model = "corner_anchored"
 
             def _set_slider_value_safely(self, slider, value: int) -> None:
@@ -1455,8 +1468,14 @@ class SettingsDialog:
                     vid_value = 0x37FA
                     pid_value = 0x8201
                 else:
-                    vid_value = int(str(self.device_vid_combo.currentText()), 0)
-                    pid_value = int(str(self.device_pid_combo.currentText()), 0)
+                    try:
+                        vid_value = int(str(self.device_vid_combo.currentText()), 0)
+                    except (ValueError, TypeError):
+                        vid_value = 0x37FA
+                    try:
+                        pid_value = int(str(self.device_pid_combo.currentText()), 0)
+                    except (ValueError, TypeError):
+                        pid_value = 0x8202
                 new_zones = make_edge_weighted_zones(self._state.zone_count, edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"))
                 calibration_schema_version = int(getattr(cfg, "calibration_schema_version", 1) or 1)
                 calibration_payload = CalibrationConfig(
@@ -1506,7 +1525,7 @@ class SettingsDialog:
                         if str(self.display_preset_combo.currentText()).strip().lower() != "sdr"
                         else getattr(cfg, "led_calibration_profile_hdr", LedCalibrationProfile())
                     ),
-                    zones=new_zones, layout_preset="edge_strip", edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"), light_spread=value_for_label(LIGHT_SPREAD_LABELS, str(self.light_spread_combo.currentText()), default="balanced"), motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"), color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"), display_preset=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="hdr"),
+                    zones=new_zones, layout_preset="edge-weighted", edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"), light_spread=value_for_label(LIGHT_SPREAD_LABELS, str(self.light_spread_combo.currentText()), default="balanced"), motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"), color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"), display_preset=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="hdr"),
                     start_on_launch=bool(self.start_on_launch_checkbox.isChecked()), device_zone_count=self._state.device_zone_count,
                     output_channel_order=str(self.output_channel_order_combo.currentText()), reverse_zones=self._state.reverse_zones,
                     corner_anchor_top_left=int(self._state.corner_anchor_top_left),
@@ -1519,7 +1538,7 @@ class SettingsDialog:
                     latency_last_trigger=(self._latest_latency.triggered_by if self._latest_latency else getattr(cfg, "latency_last_trigger", "")),
                     latency_last_timestamp=(self._latest_latency.recorded_at_utc if self._latest_latency else getattr(cfg, "latency_last_timestamp", "")),
                     hdr_transfer=str(self.hdr_transfer_combo.currentText()), hdr_primaries=str(self.hdr_primaries_combo.currentText()), hdr_max_nits=float(self.hdr_max_nits_slider.value()),
-                    compositor_hdr_mode=bool(self.compositor_hdr_mode_checkbox.isChecked()), sdr_boost_nits=float(self.sdr_boost_nits_slider.value()),
+                    compositor_hdr_mode=bool(self.compositor_hdr_mode_checkbox.isChecked()), sdr_boost_nits=float(self.sdr_boost_nits_slider.value()), display_gamut=str(self.display_gamut_combo.currentText()).strip().lower(),
                     sdr_white_reference_preset=("custom" if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower() == "custom" else str(self.sdr_boost_nits_slider.value())),
                     device_vid=int(vid_value), device_pid=int(pid_value),
                     calibration_schema_version=calibration_schema_version,

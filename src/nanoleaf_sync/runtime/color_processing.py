@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -7,6 +8,55 @@ from typing import Any
 import numpy as np
 
 from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
+
+_log = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Gamut adaptation (display → sRGB)
+# ---------------------------------------------------------------------------
+
+_GAMUT_ADAPTATION_MATRIX: np.ndarray | None = None
+_GAMUT_ADAPTATION_MATRIX_T: np.ndarray | None = None
+
+
+def init_gamut_adaptation(display_gamut: str) -> None:
+    """Initialise the gamut adaptation matrix from display primaries → sRGB.
+
+    Called once at pipeline start with the config ``display_gamut`` value.
+    When ``display_gamut`` is ``"auto"``, auto-detection is attempted via
+    colord / EDID.  When the gamut is already sRGB (or detection fails),
+    the adaptation is an identity (``None`` internally).
+    """
+    global _GAMUT_ADAPTATION_MATRIX, _GAMUT_ADAPTATION_MATRIX_T
+
+    from nanoleaf_sync.color.primaries import (
+        CHROMATICITIES_SRGB,
+        build_adaptation_matrix,
+        get_display_primaries,
+    )
+
+    gamut = str(display_gamut or "auto").strip().lower()
+
+    src = get_display_primaries() if gamut == "auto" else None
+    if src is None and gamut != "auto":
+        from nanoleaf_sync.color.primaries import get_primaries_for_gamut
+        src = get_primaries_for_gamut(gamut)
+
+    if src is None:
+        if gamut == "custom":
+            _log.warning("Gamut adaptation: 'custom' display gamut selected but user chromaticities are not yet supported; using identity (sRGB)")
+        else:
+            _log.debug("Gamut adaptation: no display primaries detected; using identity (sRGB)")
+        _GAMUT_ADAPTATION_MATRIX = None
+        _GAMUT_ADAPTATION_MATRIX_T = None
+        return
+
+    _GAMUT_ADAPTATION_MATRIX = build_adaptation_matrix(src, CHROMATICITIES_SRGB)
+    _GAMUT_ADAPTATION_MATRIX_T = np.ascontiguousarray(_GAMUT_ADAPTATION_MATRIX.T)
+    _log.debug(
+        "Gamut adaptation: display primaries r=(%.3f,%.3f) g=(%.3f,%.3f) b=(%.3f,%.3f)",
+        src.rx, src.ry, src.gx, src.gy, src.bx, src.by,
+    )
 
 _M1 = np.array(
     [
@@ -121,6 +171,12 @@ def apply_color_style_mapping_with_diagnostics(colors: np.ndarray, *, color_styl
     style = STYLE_PROFILES.get(str(color_style).strip().lower(), STYLE_PROFILES["ambient"])
     rgb = np.clip(np.rint(colors), 0.0, 255.0).astype(np.uint8, copy=False)
     linear = srgb_u8_to_linear01(rgb)
+
+    # Apply display-gamut → sRGB adaptation in linear space.
+    if _GAMUT_ADAPTATION_MATRIX_T is not None:
+        linear = np.clip(linear @ _GAMUT_ADAPTATION_MATRIX_T, 0.0, 1.0)
+        rgb = linear01_to_srgb_u8(linear)
+
     y = np.clip(
         (0.2126 * linear[..., 0]) + (0.7152 * linear[..., 1]) + (0.0722 * linear[..., 2]),
         0.0,
@@ -224,7 +280,7 @@ def color_pipeline_diagnostics(
     output_rgb: Any,
     chroma_cap_applied: bool = False,
     color_style: str = "reference",
-) -> dict[str, float | bool | tuple[int, int, int]]:
+) -> dict[str, float | bool | str | tuple[int, ...]]:
     in_rgb = np.clip(np.rint(np.asarray(input_rgb, dtype=np.float32)), 0.0, 255.0).astype(np.uint8)
     out_rgb = np.clip(np.rint(np.asarray(output_rgb, dtype=np.float32)), 0.0, 255.0).astype(np.uint8)
     style = STYLE_PROFILES.get(str(color_style).strip().lower(), STYLE_PROFILES["ambient"])

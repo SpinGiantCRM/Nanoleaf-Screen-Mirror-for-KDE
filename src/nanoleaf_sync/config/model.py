@@ -144,6 +144,14 @@ class AppConfig:
     hdr_transfer: str = "srgb"
     hdr_primaries: str = "bt709"
 
+    # Display gamut / ICC profile support.
+    # - auto: detect from colord or EDID; fall back to sRGB
+    # - srgb: force sRGB primaries
+    # - dci-p3: DCI-P3 primaries
+    # - bt.2020: BT.2020 primaries
+    # - custom: user-provided chromaticities (not yet wired)
+    display_gamut: str = "auto"
+
     # Device zone calibration (mapping sampled screen zones to physical strip zones)
     calibration_schema_version: int = 1
     # Canonical, migration-safe calibration payload.
@@ -180,6 +188,9 @@ class AppConfig:
     # high: best-effort attempt to set nice=-5
     # very_high_experimental: best-effort attempt to set nice=-10
     performance_priority: str = "normal"
+    # Pipeline: use the legacy single-threaded path instead of the 3-stage pipeline.
+    # The 3-stage pipeline (capture → process → HID) is the default.
+    use_legacy_pipeline: bool = False
 
     def __post_init__(self) -> None:
         """Sync calibration field to ensure single source of truth.
@@ -228,3 +239,11 @@ class AppConfig:
             corner_anchor_bottom_right=int(getattr(calibration, "corner_anchor_bottom_right", -1)),
             corner_anchor_bottom_left=int(getattr(calibration, "corner_anchor_bottom_left", -1)),
         )
+
+
+# Display gamut named constants (match values persisted in config).
+GAMUT_AUTO: str = "auto"
+GAMUT_SRGB: str = "srgb"
+GAMUT_DCIP3: str = "dci-p3"
+GAMUT_BT2020: str = "bt.2020"
+GAMUT_CUSTOM: str = "custom"

@@ -16,9 +16,7 @@ from typing import Any, Literal, Optional
 import numpy as np
 from nanoleaf_sync.runtime.srgb import (
     linear01_to_srgb_encoded,
-    linear01_to_srgb_u8,
     srgb_eotf_to_linear01,
-    srgb_u8_to_linear01,
 )
 
 
@@ -100,10 +98,6 @@ def _to_float01(rgb: np.ndarray) -> np.ndarray:
     # Fallback: interpret as 8-bit.
     return rgb.astype(np.float32, copy=False) / 255.0
 
-
-
-def _srgb_eotf_to_linear(c: np.ndarray) -> np.ndarray:
-    return srgb_eotf_to_linear01(c)
 
 
 def _pq_eotf_to_linear(c: np.ndarray) -> np.ndarray:
@@ -254,7 +248,7 @@ def convert_frame_to_srgb8(
     # Step 1: EOTF (encoded -> linear light)
     transfer = str(path["input_transfer"])
     if transfer == "srgb":
-        linear = _srgb_eotf_to_linear(enc)
+        linear = srgb_eotf_to_linear01(enc)
     elif transfer == "pq":
         linear = _pq_eotf_to_linear(enc)
     elif transfer == "hlg":
@@ -263,7 +257,7 @@ def convert_frame_to_srgb8(
         linear = enc
     else:
         # Unknown: assume sRGB to preserve decent behavior.
-        linear = _srgb_eotf_to_linear(enc)
+        linear = srgb_eotf_to_linear01(enc)
 
     # Step 2: Gamut / primaries conversion (linear primaries -> linear sRGB)
     primaries = str(path["input_primaries"])

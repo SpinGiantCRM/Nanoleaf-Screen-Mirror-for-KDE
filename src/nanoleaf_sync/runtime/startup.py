@@ -162,6 +162,7 @@ def run_runtime_engine(
             get_driver=get_driver,
             install_drivers=install_drivers,
             close_backends=close_backends,
+            use_legacy_pipeline=bool(getattr(config, "use_legacy_pipeline", False)),
         )
     finally:
         shutdown_backends(

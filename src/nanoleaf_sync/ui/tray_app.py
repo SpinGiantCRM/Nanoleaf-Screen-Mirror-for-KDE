@@ -342,15 +342,6 @@ class NanoleafTrayApp:
             self.QSystemTrayIcon.isSystemTrayAvailable(),
             self.tray_icon.isVisible(),
         )
-        self.tray_icon.showMessage(
-            "nanoleaf-kde-sync startup context",
-            (
-                f"Qt desktop file name: {self.app.desktopFileName() or 'unset'}"
-                f"\nLog file: {self.startup_log_path}"
-            ),
-            self.QSystemTrayIcon.MessageIcon.Information,
-            6000,
-        )
 
     def _should_show_startup_launch_diagnostic(self) -> bool:
         env_value = str(os.environ.get("NANOLEAF_SHOW_STARTUP_DIAGNOSTIC", "") or "").strip().lower()
