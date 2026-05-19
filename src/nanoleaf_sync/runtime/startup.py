@@ -54,6 +54,9 @@ def reset_startup(state: RuntimeState) -> None:
     state.stop_event.clear()
     state.startup_complete.clear()
     state.startup_succeeded = False
+    state.last_error = None
+    state.last_error_kind = None
+    state.last_error_guidance = None
     state.lifecycle_state = "starting"
     state.start_failure_reason = ""
 
