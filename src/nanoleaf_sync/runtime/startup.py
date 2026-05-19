@@ -164,6 +164,16 @@ def run_runtime_engine(
             close_backends=close_backends,
             use_legacy_pipeline=bool(getattr(config, "use_legacy_pipeline", False)),
         )
+    except Exception as e:
+        translated = translate_runtime_error(e)
+        state.last_error = translated.summary
+        state.last_error_kind = translated.kind
+        state.last_error_guidance = translated.guidance
+        state.start_failure_reason = translated.summary
+        state.lifecycle_state = "failed"
+        state.mark_startup(False)
+        state.stop_event.set()
+        logger.exception("runtime engine crashed")
     finally:
         shutdown_backends(
             close_backends=close_backends,

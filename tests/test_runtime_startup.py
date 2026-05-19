@@ -149,19 +149,19 @@ def test_run_runtime_engine_shutdowns_backends_when_run_loop_raises(monkeypatch)
 
     monkeypatch.setattr("nanoleaf_sync.runtime.engine.run_loop", _run_loop)
 
-    try:
-        run_runtime_engine(
-            config=AppConfig(),
-            state=state,
-            get_capture=lambda: object(),
-            get_driver=lambda: object(),
-            install_drivers=_install_drivers,
-            close_backends=_close_backends,
-            clear_backends=_clear_backends,
-        )
-    except RuntimeError as exc:
-        assert str(exc) == "synthetic loop failure"
-    else:
-        raise AssertionError("run_runtime_engine should re-raise unexpected run_loop failures")
+    run_runtime_engine(
+        config=AppConfig(),
+        state=state,
+        get_capture=lambda: object(),
+        get_driver=lambda: object(),
+        install_drivers=_install_drivers,
+        close_backends=_close_backends,
+        clear_backends=_clear_backends,
+    )
 
     assert calls == ["install", "run_loop", "close", "clear"]
+    assert state.last_error == "synthetic loop failure"
+    assert state.last_error_kind == "runtime"
+    assert state.startup_complete.is_set()
+    assert not state.startup_succeeded
+    assert state.lifecycle_state == "failed"
