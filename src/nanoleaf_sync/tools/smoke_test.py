@@ -44,11 +44,10 @@ def main(argv: list[str] | None = None) -> int:
         f"signature={cfg.auto_probe_signature or 'none'} "
         f"timestamp={cfg.auto_probe_timestamp or 'none'}"
     )
-    effective_probe_enabled, effective_probe_reason = auto_probe_effective_state(cfg.auto_probe_enabled)
-    print(
-        "probe effective: "
-        f"enabled={effective_probe_enabled} reason={effective_probe_reason}"
+    effective_probe_enabled, effective_probe_reason = auto_probe_effective_state(
+        cfg.auto_probe_enabled
     )
+    print(f"probe effective: enabled={effective_probe_enabled} reason={effective_probe_reason}")
     width, height = resolve_capture_dims(cfg)
     if width <= 0 or height <= 0:
         width, height = DEFAULT_SMOKE_WIDTH, DEFAULT_SMOKE_HEIGHT
@@ -99,8 +98,12 @@ def main(argv: list[str] | None = None) -> int:
         detected_zones = getattr(driver, "reported_zone_count", zones)
         model = getattr(driver, "model_number", None)
         configured_zones = int(getattr(cfg, "device_zone_count", 0) or 0)
-        calibration_zones = int(getattr(getattr(cfg, "calibration", None), "device_zone_count", 0) or 0)
-        effective_zones = effective_runtime_zone_count(configured=configured_zones, detected=detected_zones)
+        calibration_zones = int(
+            getattr(getattr(cfg, "calibration", None), "device_zone_count", 0) or 0
+        )
+        effective_zones = effective_runtime_zone_count(
+            configured=configured_zones, detected=detected_zones
+        )
         print(f"device init ok: model={model} zones={zones}")
         print(
             "zone-count diagnostics: "
@@ -128,7 +131,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"guidance: {translated.guidance}")
         if translated.kind == "kwin-authorization":
             desktop_startup = (os.environ.get("DESKTOP_STARTUP_ID") or "unset").strip() or "unset"
-            activation_token = (os.environ.get("XDG_ACTIVATION_TOKEN") or "unset").strip() or "unset"
+            activation_token = (
+                os.environ.get("XDG_ACTIVATION_TOKEN") or "unset"
+            ).strip() or "unset"
             print(
                 "context warning: shell-run smoke tests may lack KDE launcher policy unless launched from "
                 "an authorized desktop entry."

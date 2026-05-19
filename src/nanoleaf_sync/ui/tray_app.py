@@ -54,7 +54,9 @@ def first_run_message(mode: str) -> str:
 
 def _read_app_version() -> str:
     try:
-        return (Path(__file__).resolve().parents[3] / "VERSION").read_text(encoding="utf-8").strip() or "unknown"
+        return (Path(__file__).resolve().parents[3] / "VERSION").read_text(
+            encoding="utf-8"
+        ).strip() or "unknown"
     except Exception:
         return "unknown"
 
@@ -64,7 +66,10 @@ def _configure_startup_logging() -> Path:
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / "tray-startup.log"
     root = logging.getLogger()
-    if any(isinstance(h, RotatingFileHandler) and getattr(h, "baseFilename", None) == str(log_path) for h in root.handlers):
+    if any(
+        isinstance(h, RotatingFileHandler) and getattr(h, "baseFilename", None) == str(log_path)
+        for h in root.handlers
+    ):
         return log_path
 
     handler = RotatingFileHandler(log_path, maxBytes=512_000, backupCount=3, encoding="utf-8")
@@ -180,9 +185,7 @@ class NanoleafTrayApp:
             self.config = self.cfg_mgr.load()
             self.service = NanoleafSyncService(config=self.config)
         except Exception as exc:
-            self._startup_warning = (
-                f"Failed to load config/service: {exc}. Using safe defaults; open Settings and save to repair your config."
-            )
+            self._startup_warning = f"Failed to load config/service: {exc}. Using safe defaults; open Settings and save to repair your config."
             self._config_created = False
             self.config = mode_config("diagnostic")
             self.service = NanoleafSyncService(config=self.config)
@@ -288,15 +291,17 @@ class NanoleafTrayApp:
                     5000,
                 )
 
-    def _build_calibration_preview_diagnostics(self, *, frame_color_count: int, driver=None) -> dict[str, int]:
+    def _build_calibration_preview_diagnostics(
+        self, *, frame_color_count: int, driver=None
+    ) -> dict[str, int]:
         status = self.service.get_status()
         detected_zone_count = int(
-            status.get("detected_device_zone_count")
-            or status.get("device_zone_count")
-            or 0
+            status.get("detected_device_zone_count") or status.get("device_zone_count") or 0
         )
         top_level_zone_count = int(getattr(self.config, "device_zone_count", 0) or 0)
-        nested_zone_count = int(getattr(getattr(self.config, "calibration", None), "device_zone_count", 0) or 0)
+        nested_zone_count = int(
+            getattr(getattr(self.config, "calibration", None), "device_zone_count", 0) or 0
+        )
         driver_instance = driver if driver is not None else getattr(self, "_preview_driver", None)
         driver_configured = int(getattr(driver_instance, "_configured_zone_count", 0) or 0)
         driver_effective = int(getattr(driver_instance, "zone_count", 0) or 0)
@@ -344,9 +349,15 @@ class NanoleafTrayApp:
         )
 
     def _should_show_startup_launch_diagnostic(self) -> bool:
-        env_value = str(os.environ.get("NANOLEAF_SHOW_STARTUP_DIAGNOSTIC", "") or "").strip().lower()
+        env_value = (
+            str(os.environ.get("NANOLEAF_SHOW_STARTUP_DIAGNOSTIC", "") or "").strip().lower()
+        )
         env_enabled = env_value in {"1", "true", "yes", "on", "debug", "verbose"}
-        return bool(self._startup_warning) or bool(getattr(self.config, "verbose", False)) or env_enabled
+        return (
+            bool(self._startup_warning)
+            or bool(getattr(self.config, "verbose", False))
+            or env_enabled
+        )
 
     def _load_tray_icons(self):
         themed_idle = self.QIcon.fromTheme("nanoleaf-kde-sync")
@@ -361,8 +372,20 @@ class NanoleafTrayApp:
         fallback_icon = self.QIcon()
         selected_path = "none"
         for candidate in (
-            Path(__file__).resolve().parents[3] / "assets" / "icons" / "hicolor" / "scalable" / "apps" / "nanoleaf-kde-sync.svg",
-            Path(sys.prefix) / "share" / "icons" / "hicolor" / "scalable" / "apps" / "nanoleaf-kde-sync.svg",
+            Path(__file__).resolve().parents[3]
+            / "assets"
+            / "icons"
+            / "hicolor"
+            / "scalable"
+            / "apps"
+            / "nanoleaf-kde-sync.svg",
+            Path(sys.prefix)
+            / "share"
+            / "icons"
+            / "hicolor"
+            / "scalable"
+            / "apps"
+            / "nanoleaf-kde-sync.svg",
         ):
             if candidate.exists():
                 fallback_icon = self.QIcon(str(candidate))
@@ -405,7 +428,9 @@ class NanoleafTrayApp:
         self.action_troubleshooting_guide = self.QAction("Open Troubleshooting Guide", menu)
         self.action_enable_autostart = self.QAction("Enable autostart", menu)
         self.action_disable_autostart = self.QAction("Disable autostart", menu)
-        self.action_reset_probe_cache = self.QAction("Reset Auto-Probe Cache (force fresh selection)", menu)
+        self.action_reset_probe_cache = self.QAction(
+            "Reset Auto-Probe Cache (force fresh selection)", menu
+        )
         self.action_launch_diagnostics = self.QAction("Show launch diagnostics", menu)
         self.action_doctor = self.QAction("Run Doctor", menu)
         self.action_smoke = self.QAction("Run Smoke Test", menu)
@@ -466,7 +491,9 @@ class NanoleafTrayApp:
             device_discovered=bool(status.get("device_discovered")),
             device_model=str(status.get("device_model") or ""),
         )
-        effective_backend = status.get("effective_capture_backend") or ("not-started" if not running else "unresolved")
+        effective_backend = status.get("effective_capture_backend") or (
+            "not-started" if not running else "unresolved"
+        )
         selected_backend = status.get("selected_capture_backend") or "unresolved"
         unresolved_reason = status.get("backend_unresolved_reason") or ""
         self.tray_icon.setToolTip(
@@ -538,7 +565,9 @@ class NanoleafTrayApp:
             )
             return
         if not running:
-            guidance = status.get("last_error_guidance") or "Run nanoleaf-kde-sync-doctor for diagnostics."
+            guidance = (
+                status.get("last_error_guidance") or "Run nanoleaf-kde-sync-doctor for diagnostics."
+            )
             error_text = self.service.last_error or "unknown error"
             self.tray_icon.showMessage(
                 "nanoleaf-kde-sync",
@@ -628,7 +657,9 @@ class NanoleafTrayApp:
         NanoleafTrayApp._safe_refresh_mode_labels(self)
         if effective_running:
             return
-        guidance = status.get("last_error_guidance") or "Run nanoleaf-kde-sync-doctor for diagnostics."
+        guidance = (
+            status.get("last_error_guidance") or "Run nanoleaf-kde-sync-doctor for diagnostics."
+        )
         self.tray_icon.showMessage(
             "nanoleaf-kde-sync",
             f"Auto-start failed: {self.service.last_error or 'unknown error'}\n{guidance}",
@@ -670,9 +701,15 @@ class NanoleafTrayApp:
             self.on_start()
         message = "Display setup saved."
         if was_first_run:
-            mode = "diagnostic" if bool(getattr(self.config, "use_mock_capture", False)) else "full-real"
+            mode = (
+                "diagnostic"
+                if bool(getattr(self.config, "use_mock_capture", False))
+                else "full-real"
+            )
             message = f"{message}\n\n{first_run_message(mode)}"
-        self.tray_icon.showMessage("nanoleaf-kde-sync", message, self.QSystemTrayIcon.MessageIcon.Information, 6000)
+        self.tray_icon.showMessage(
+            "nanoleaf-kde-sync", message, self.QSystemTrayIcon.MessageIcon.Information, 6000
+        )
 
     def on_settings(self, *, initial_section: str | None = None, view_mode: str = "standard"):
         def _apply_settings_dialog_config(new_cfg) -> None:
@@ -695,7 +732,9 @@ class NanoleafTrayApp:
             on_apply=_apply_settings_dialog_config,
             view_mode=view_mode,
         )
-        was_running = self.service.is_running() or bool(getattr(self, "_preview_paused_service", False))
+        was_running = self.service.is_running() or bool(
+            getattr(self, "_preview_paused_service", False)
+        )
         accepted = dlg.exec() == self.QDialog.DialogCode.Accepted
         close_preview = getattr(self, "_close_preview_driver", None)
         if callable(close_preview):
@@ -711,7 +750,6 @@ class NanoleafTrayApp:
             self.on_display_configurator(was_running_intent=was_running)
             return
         _apply_settings_dialog_config(dlg.updated_config())
-
 
     def on_troubleshooting(self) -> None:
         self.on_settings(initial_section="Diagnostics", view_mode="advanced")
@@ -736,7 +774,9 @@ class NanoleafTrayApp:
                 )
                 return
             except Exception as exc:
-                _log.warning("Unable to open troubleshooting guide with xdg-open: %s", exc, exc_info=True)
+                _log.warning(
+                    "Unable to open troubleshooting guide with xdg-open: %s", exc, exc_info=True
+                )
 
         self.QMessageBox.information(
             None,
@@ -754,7 +794,11 @@ class NanoleafTrayApp:
         status = self.service.get_status()
         running = bool(status.get("running"))
         connected = bool(status.get("device_discovered"))
-        connection_text = "Connected" if connected else ("Searching / not connected" if running else "Not started")
+        connection_text = (
+            "Connected"
+            if connected
+            else ("Searching / not connected" if running else "Not started")
+        )
         last_error = status.get("last_error")
         summary = "\n".join(
             [
@@ -799,7 +843,9 @@ class NanoleafTrayApp:
         )
 
     def on_doctor(self):
-        self._run_command_async(label="doctor", argv=[sys.executable, "-m", "nanoleaf_sync.tools.doctor"])
+        self._run_command_async(
+            label="doctor", argv=[sys.executable, "-m", "nanoleaf_sync.tools.doctor"]
+        )
 
     def on_enable_autostart(self) -> None:
         try:
@@ -821,8 +867,14 @@ class NanoleafTrayApp:
     def on_disable_autostart(self) -> None:
         try:
             removed = disable_autostart()
-            text = f"Autostart disabled.\nRemoved: {user_autostart_path()}" if removed else f"Autostart already disabled.\nPath: {user_autostart_path()}"
-            self.tray_icon.showMessage("nanoleaf-kde-sync", text, self.QSystemTrayIcon.MessageIcon.Information, 6000)
+            text = (
+                f"Autostart disabled.\nRemoved: {user_autostart_path()}"
+                if removed
+                else f"Autostart already disabled.\nPath: {user_autostart_path()}"
+            )
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync", text, self.QSystemTrayIcon.MessageIcon.Information, 6000
+            )
         except Exception as exc:
             self.tray_icon.showMessage(
                 "nanoleaf-kde-sync",
@@ -832,7 +884,9 @@ class NanoleafTrayApp:
             )
 
     def on_smoke_test(self):
-        self._run_command_async(label="smoke test", argv=[sys.executable, "-m", "nanoleaf_sync.tools.smoke_test"])
+        self._run_command_async(
+            label="smoke test", argv=[sys.executable, "-m", "nanoleaf_sync.tools.smoke_test"]
+        )
 
     def on_reset_probe_cache(self) -> None:
         try:
@@ -874,10 +928,16 @@ class NanoleafTrayApp:
         def worker() -> None:
             try:
                 result = subprocess.run(argv, capture_output=True, text=True, check=False)
-                preview, rc = summarize_command_output(result.stdout, result.stderr, result.returncode)
-                self.QTimer.singleShot(0, lambda: self._handle_tool_result(label=label, preview=preview, rc=rc))
+                preview, rc = summarize_command_output(
+                    result.stdout, result.stderr, result.returncode
+                )
+                self.QTimer.singleShot(
+                    0, lambda: self._handle_tool_result(label=label, preview=preview, rc=rc)
+                )
             except Exception as exc:
-                self.QTimer.singleShot(0, lambda exc=exc: self._handle_tool_error(label=label, error=exc))
+                self.QTimer.singleShot(
+                    0, lambda exc=exc: self._handle_tool_error(label=label, error=exc)
+                )
 
         threading.Thread(target=worker, name="tool-runner", daemon=True).start()
 
@@ -888,14 +948,21 @@ class NanoleafTrayApp:
         self.tray_icon.showMessage(
             f"nanoleaf-kde-sync {label}",
             f"{'Completed successfully' if is_ok else f'Finished with exit code {rc}'}.\n{preview}",
-            self.QSystemTrayIcon.MessageIcon.Information if is_ok else self.QSystemTrayIcon.MessageIcon.Warning,
+            self.QSystemTrayIcon.MessageIcon.Information
+            if is_ok
+            else self.QSystemTrayIcon.MessageIcon.Warning,
             10000,
         )
 
     def _handle_tool_error(self, label: str, error: Exception) -> None:
         self.action_doctor.setEnabled(True)
         self.action_smoke.setEnabled(True)
-        self.tray_icon.showMessage(f"nanoleaf-kde-sync {label}", f"Failed to launch: {error}", self.QSystemTrayIcon.MessageIcon.Warning, 8000)
+        self.tray_icon.showMessage(
+            f"nanoleaf-kde-sync {label}",
+            f"Failed to launch: {error}",
+            self.QSystemTrayIcon.MessageIcon.Warning,
+            8000,
+        )
 
     def _poll_shutdown_completion(self) -> None:
         if not self._shutdown_in_progress:
@@ -907,7 +974,9 @@ class NanoleafTrayApp:
             _log.warning("Service still running at quit timeout; forcing app exit")
             self._finalize_quit()
             return
-        self.QTimer.singleShot(int(self._shutdown_poll_interval_s * 1000), self._poll_shutdown_completion)
+        self.QTimer.singleShot(
+            int(self._shutdown_poll_interval_s * 1000), self._poll_shutdown_completion
+        )
 
     def _finalize_quit(self) -> None:
         if self._quit_finalized:
@@ -943,7 +1012,11 @@ class NanoleafTrayApp:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="nanoleaf-kde-sync tray entry point")
-    parser.add_argument("--self-check", action="store_true", help="run non-interactive startup/import checks and exit")
+    parser.add_argument(
+        "--self-check",
+        action="store_true",
+        help="run non-interactive startup/import checks and exit",
+    )
     parser.add_argument(
         "--reset-probe-cache",
         action="store_true",

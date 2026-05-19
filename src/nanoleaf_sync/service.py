@@ -65,6 +65,7 @@ __all__ = (
     "_resolve_capture_dims",
 )
 
+
 def _detect_primary_screen_dims(*, qt_widgets_module=None) -> Optional[Tuple[int, int]]:
     return detect_primary_screen_dims(qt_widgets_module=qt_widgets_module)
 
@@ -202,14 +203,14 @@ class NanoleafSyncService:
         calibration_device_zone_count = int(
             getattr(getattr(self.config, "calibration", None), "device_zone_count", 0) or 0
         )
-        effective_runtime_zone_count = configured_device_zone_count if configured_device_zone_count > 0 else None
+        effective_runtime_zone_count = (
+            configured_device_zone_count if configured_device_zone_count > 0 else None
+        )
         capture_backend_name = (
             getattr(self._capture, "name", None) if self._capture is not None else None
         )
         capture_path = (
-            getattr(self._capture, "last_capture_path", None)
-            if self._capture is not None
-            else None
+            getattr(self._capture, "last_capture_path", None) if self._capture is not None else None
         )
 
         status = self._runtime.status_snapshot(
@@ -222,12 +223,20 @@ class NanoleafSyncService:
             reinit_backoff_ms=self.config.reinit_backoff_ms,
         )
         status["requested_capture_backend"] = self.config.prefer_backend
-        status["selected_capture_backend"] = self._effective_capture_backend or self.config.auto_selected_backend or ""
-        status["effective_capture_backend"] = self._effective_capture_backend or capture_backend_name
+        status["selected_capture_backend"] = (
+            self._effective_capture_backend or self.config.auto_selected_backend or ""
+        )
+        status["effective_capture_backend"] = (
+            self._effective_capture_backend or capture_backend_name
+        )
         lifecycle_state = self._lifecycle.startup_state()
         startup_state = lifecycle_state
         if lifecycle_state in {"starting", "running"}:
-            backend_hint = str(status.get("effective_capture_backend") or status.get("selected_capture_backend") or "")
+            backend_hint = str(
+                status.get("effective_capture_backend")
+                or status.get("selected_capture_backend")
+                or ""
+            )
             if backend_hint == "xdg-portal" and int(status.get("frames_sent") or 0) <= 0:
                 startup_state = "waiting_for_screen_selection"
         status["startup_state"] = startup_state
@@ -256,7 +265,11 @@ class NanoleafSyncService:
         measurement = status.get("latency_measurement")
         if isinstance(measurement, dict):
             labels = measurement.setdefault("labels", {})
-            selected_backend = str(status.get("selected_capture_backend") or status.get("effective_capture_backend") or "")
+            selected_backend = str(
+                status.get("selected_capture_backend")
+                or status.get("effective_capture_backend")
+                or ""
+            )
             for row in status["backend_probe_attempts"]:
                 if str(row.get("backend", "")) != selected_backend:
                     continue
@@ -274,7 +287,9 @@ class NanoleafSyncService:
         status["effective_runtime_zone_count"] = effective_runtime_zone_count
         status["calibration_device_zone_count"] = calibration_device_zone_count
         status["source_zone_count"] = len(self._runtime.latest_zones_px)
-        status["source_zone_side_counts"] = tuple(int(i) for i in self._runtime.latest_zone_side_counts)
+        status["source_zone_side_counts"] = tuple(
+            int(i) for i in self._runtime.latest_zone_side_counts
+        )
         status["zone_sampling_stride"] = int(getattr(self.config, "zone_sampling_stride", 1))
         status["zone_sampling_engine"] = str(getattr(self.config, "zone_sampling_engine", "auto"))
         status["edge_locality"] = str(getattr(self.config, "edge_locality", "balanced"))
@@ -292,7 +307,9 @@ class NanoleafSyncService:
         if detected_display is not None:
             status["kde_display_width"] = int(detected_display[0])
             status["kde_display_height"] = int(detected_display[1])
-        capture_hdr = getattr(self._capture, "last_hdr_diagnostics", {}) if self._capture is not None else {}
+        capture_hdr = (
+            getattr(self._capture, "last_hdr_diagnostics", {}) if self._capture is not None else {}
+        )
         tone_mapping_applied = bool(capture_hdr.get("tone_mapping_applied", False))
         metadata_source = str(capture_hdr.get("metadata_source", "unknown"))
         status["hdr_colour_path"] = {
@@ -300,20 +317,35 @@ class NanoleafSyncService:
             "compositor_hdr_mode": bool(getattr(self.config, "compositor_hdr_mode", False)),
             "sdr_boost_nits": float(getattr(self.config, "sdr_boost_nits", 80.0)),
             "effective_sdr_boost_scalar": float(
-                effective_sdr_boost(sdr_boost_nits=float(getattr(self.config, "sdr_boost_nits", 80.0)))
+                effective_sdr_boost(
+                    sdr_boost_nits=float(getattr(self.config, "sdr_boost_nits", 80.0))
+                )
             ),
-            "hdr_max_nits": float(capture_hdr.get("hdr_max_nits", getattr(self.config, "hdr_max_nits", 1000.0))),
-            "hdr_transfer": str(capture_hdr.get("input_transfer", getattr(self.config, "hdr_transfer", "srgb"))),
-            "hdr_primaries": str(capture_hdr.get("input_primaries", getattr(self.config, "hdr_primaries", "bt709"))),
+            "hdr_max_nits": float(
+                capture_hdr.get("hdr_max_nits", getattr(self.config, "hdr_max_nits", 1000.0))
+            ),
+            "hdr_transfer": str(
+                capture_hdr.get("input_transfer", getattr(self.config, "hdr_transfer", "srgb"))
+            ),
+            "hdr_primaries": str(
+                capture_hdr.get("input_primaries", getattr(self.config, "hdr_primaries", "bt709"))
+            ),
             "capture_metadata_source": metadata_source,
             "tone_mapping_applied": tone_mapping_applied,
             "sdr_compensation_applied": bool(getattr(self.config, "compositor_hdr_mode", False))
-            and abs(effective_sdr_boost(sdr_boost_nits=float(getattr(self.config, "sdr_boost_nits", 80.0))) - 1.0) > 1e-6,
+            and abs(
+                effective_sdr_boost(
+                    sdr_boost_nits=float(getattr(self.config, "sdr_boost_nits", 80.0))
+                )
+                - 1.0
+            )
+            > 1e-6,
             "assumption": str(capture_hdr.get("assumption", "unknown")),
             "warnings": [
                 "HDR preset active but capture metadata unavailable; using user preset assumptions."
             ]
-            if str(getattr(self.config, "display_preset", "hdr")).strip().lower() == "hdr" and metadata_source == "unknown"
+            if str(getattr(self.config, "display_preset", "hdr")).strip().lower() == "hdr"
+            and metadata_source == "unknown"
             else [],
         }
         return status
@@ -324,7 +356,10 @@ class NanoleafSyncService:
         from nanoleaf_sync.runtime.zone_derivation import derive_source_zone_artifacts
 
         if self.is_running():
-            return {"ok": False, "message": "Mirroring is already running; stop mirroring before one-shot diagnostic capture."}
+            return {
+                "ok": False,
+                "message": "Mirroring is already running; stop mirroring before one-shot diagnostic capture.",
+            }
         capture = self._capture
         created_capture = False
         try:
@@ -336,20 +371,29 @@ class NanoleafSyncService:
                         width=int(self._capture_width),
                         height=int(self._capture_height),
                         use_mock_capture=bool(getattr(self.config, "use_mock_capture", False)),
-                        prefer_backend=normalize_capture_backend(self.config.prefer_backend, default="auto"),
+                        prefer_backend=normalize_capture_backend(
+                            self.config.prefer_backend, default="auto"
+                        ),
                         hdr_transfer=self.config.hdr_transfer,
                         hdr_primaries=self.config.hdr_primaries,
                         hdr_max_nits=self.config.hdr_max_nits,
                         auto_probe_enabled=getattr(self.config, "auto_probe_enabled", None),
-                        cached_probe_winner=self._cached_probe_winner or self.config.auto_selected_backend,
+                        cached_probe_winner=self._cached_probe_winner
+                        or self.config.auto_selected_backend,
                     )
                     created_capture = True
                 init = getattr(capture, "initialize", None)
                 if callable(init) and not init():
-                    return {"ok": False, "message": "Capture backend failed to initialize for one-shot diagnostics."}
+                    return {
+                        "ok": False,
+                        "message": "Capture backend failed to initialize for one-shot diagnostics.",
+                    }
             frame = capture.capture()
             if frame is None:
-                return {"ok": False, "message": "Capture backend returned no frame for one-shot diagnostics."}
+                return {
+                    "ok": False,
+                    "message": "Capture backend returned no frame for one-shot diagnostics.",
+                }
             img_h, img_w, _ = frame.shape
             artifacts = derive_source_zone_artifacts(
                 config=self.config,
@@ -383,7 +427,9 @@ class NanoleafSyncService:
             self._runtime.last_frame_width = int(img_w)
             self._runtime.last_frame_height = int(img_h)
             self._runtime.latest_zones_px = list(zones_px)
-            self._runtime.latest_zone_side_counts = tuple(int(i) for i in (artifacts.side_counts or (0, 0, 0, 0)))
+            self._runtime.latest_zone_side_counts = tuple(
+                int(i) for i in (artifacts.side_counts or (0, 0, 0, 0))
+            )
             self._runtime.latest_edge_sampling_thickness = artifacts.edge_sampling_thickness
             rows: list[dict[str, object]] = []
             for zone_index, rect in enumerate(zones_px):
@@ -413,7 +459,10 @@ class NanoleafSyncService:
                     }
                 )
             self._runtime.latest_zone_diagnostics = rows
-            return {"ok": True, "message": f"Captured one diagnostic frame ({img_w}x{img_h}) with {len(rows)} zones."}
+            return {
+                "ok": True,
+                "message": f"Captured one diagnostic frame ({img_w}x{img_h}) with {len(rows)} zones.",
+            }
         except Exception as exc:
             return {"ok": False, "message": f"One-shot diagnostic capture failed: {exc}"}
         finally:
@@ -425,7 +474,9 @@ class NanoleafSyncService:
                 except Exception:
                     pass
 
-    def _make_device_driver(self, *, enable_live_frame_write_optimization: bool = True) -> DeviceDriver:
+    def _make_device_driver(
+        self, *, enable_live_frame_write_optimization: bool = True
+    ) -> DeviceDriver:
         ids = NanoleafUSBIds(vid=self.config.device_vid, pid=self.config.device_pid)
         if int(ids.vid) == 0 or int(ids.pid) == 0:
             raise ValueError(
@@ -515,7 +566,9 @@ class NanoleafSyncService:
                         signature_changed = signature != str(
                             getattr(self.config, "auto_probe_signature", "") or ""
                         )
-                        should_probe = signature_changed or not _is_valid_auto_probe_winner(cached_winner)
+                        should_probe = signature_changed or not _is_valid_auto_probe_winner(
+                            cached_winner
+                        )
 
                 selected_cache = None if should_probe else cached_winner
                 self._capture = create_capture_backend(
@@ -541,8 +594,12 @@ class NanoleafSyncService:
                     winner = getattr(self._capture, "name", None)
                     if _is_valid_auto_probe_winner(winner):
                         self._cached_probe_winner = winner
-                        previous_winner = str(getattr(self.config, "auto_selected_backend", "") or "")
-                        previous_signature = str(getattr(self.config, "auto_probe_signature", "") or "")
+                        previous_winner = str(
+                            getattr(self.config, "auto_selected_backend", "") or ""
+                        )
+                        previous_signature = str(
+                            getattr(self.config, "auto_probe_signature", "") or ""
+                        )
                         needs_write = (
                             should_probe
                             or previous_winner != winner
@@ -558,7 +615,10 @@ class NanoleafSyncService:
                                 updated_config,
                                 auto_probe_timestamp=datetime.now(timezone.utc).isoformat(),
                             )
-                            if self._capture_backend_override is None and self._driver_override is None:
+                            if (
+                                self._capture_backend_override is None
+                                and self._driver_override is None
+                            ):
                                 try:
                                     ConfigManager().save(updated_config)
                                 except Exception as exc:

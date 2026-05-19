@@ -34,9 +34,9 @@ _IOC_SIZEBITS = 14
 _IOC_DIRBITS = 2
 
 _IOC_NRSHIFT = 0
-_IOC_TYPESHIFT = _IOC_NRSHIFT + _IOC_NRBITS      #  8
-_IOC_SIZESHIFT = _IOC_TYPESHIFT + _IOC_TYPEBITS   # 16
-_IOC_DIRSHIFT = _IOC_SIZESHIFT + _IOC_SIZEBITS    # 30
+_IOC_TYPESHIFT = _IOC_NRSHIFT + _IOC_NRBITS  #  8
+_IOC_SIZESHIFT = _IOC_TYPESHIFT + _IOC_TYPEBITS  # 16
+_IOC_DIRSHIFT = _IOC_SIZESHIFT + _IOC_SIZEBITS  # 30
 
 _IOC_NONE = 0
 _IOC_WRITE = 1
@@ -57,87 +57,87 @@ def _IOC(direction: int, ioc_type: int, nr: int, size: int) -> int:
 # DRM ioctl type byte & ctypes structure definitions
 # ---------------------------------------------------------------------------
 
-_DRM_TYPE = ord("d")   # 0x64
+_DRM_TYPE = ord("d")  # 0x64
 
 
 class _DrmModeCardRes(ctypes.Structure):
     _fields_ = [
-        ("fb_id_ptr",        ctypes.c_uint64),
-        ("crtc_id_ptr",      ctypes.c_uint64),
+        ("fb_id_ptr", ctypes.c_uint64),
+        ("crtc_id_ptr", ctypes.c_uint64),
         ("connector_id_ptr", ctypes.c_uint64),
-        ("encoder_id_ptr",   ctypes.c_uint64),
-        ("count_fbs",        ctypes.c_uint32),
-        ("count_crtcs",      ctypes.c_uint32),
+        ("encoder_id_ptr", ctypes.c_uint64),
+        ("count_fbs", ctypes.c_uint32),
+        ("count_crtcs", ctypes.c_uint32),
         ("count_connectors", ctypes.c_uint32),
-        ("count_encoders",   ctypes.c_uint32),
-        ("min_width",        ctypes.c_uint32),
-        ("max_width",        ctypes.c_uint32),
-        ("min_height",       ctypes.c_uint32),
-        ("max_height",       ctypes.c_uint32),
+        ("count_encoders", ctypes.c_uint32),
+        ("min_width", ctypes.c_uint32),
+        ("max_width", ctypes.c_uint32),
+        ("min_height", ctypes.c_uint32),
+        ("max_height", ctypes.c_uint32),
     ]
 
 
 class _DrmModeModeInfo(ctypes.Structure):
     _fields_ = [
-        ("clock",       ctypes.c_uint32),
-        ("hdisplay",    ctypes.c_uint16),
+        ("clock", ctypes.c_uint32),
+        ("hdisplay", ctypes.c_uint16),
         ("hsync_start", ctypes.c_uint16),
-        ("hsync_end",   ctypes.c_uint16),
-        ("htotal",      ctypes.c_uint16),
-        ("hskew",       ctypes.c_uint16),
-        ("vdisplay",    ctypes.c_uint16),
+        ("hsync_end", ctypes.c_uint16),
+        ("htotal", ctypes.c_uint16),
+        ("hskew", ctypes.c_uint16),
+        ("vdisplay", ctypes.c_uint16),
         ("vsync_start", ctypes.c_uint16),
-        ("vsync_end",   ctypes.c_uint16),
-        ("vtotal",      ctypes.c_uint16),
-        ("vscan",       ctypes.c_uint16),
-        ("vrefresh",    ctypes.c_uint32),
-        ("flags",       ctypes.c_uint32),
-        ("type",        ctypes.c_uint32),
-        ("name",        ctypes.c_char * 32),
+        ("vsync_end", ctypes.c_uint16),
+        ("vtotal", ctypes.c_uint16),
+        ("vscan", ctypes.c_uint16),
+        ("vrefresh", ctypes.c_uint32),
+        ("flags", ctypes.c_uint32),
+        ("type", ctypes.c_uint32),
+        ("name", ctypes.c_char * 32),
     ]
 
 
 class _DrmModeCrtc(ctypes.Structure):
     _fields_ = [
         ("set_connectors_ptr", ctypes.c_uint64),
-        ("count_connectors",   ctypes.c_uint32),
-        ("crtc_id",            ctypes.c_uint32),
-        ("fb_id",              ctypes.c_uint32),
-        ("x",                  ctypes.c_uint32),
-        ("y",                  ctypes.c_uint32),
-        ("gamma_size",         ctypes.c_uint32),
-        ("mode_valid",         ctypes.c_uint32),
-        ("mode",               _DrmModeModeInfo),
+        ("count_connectors", ctypes.c_uint32),
+        ("crtc_id", ctypes.c_uint32),
+        ("fb_id", ctypes.c_uint32),
+        ("x", ctypes.c_uint32),
+        ("y", ctypes.c_uint32),
+        ("gamma_size", ctypes.c_uint32),
+        ("mode_valid", ctypes.c_uint32),
+        ("mode", _DrmModeModeInfo),
     ]
 
 
 class _DrmModeGetConnector(ctypes.Structure):
     _fields_ = [
-        ("encoders_ptr",      ctypes.c_uint64),
-        ("modes_ptr",         ctypes.c_uint64),
-        ("props_ptr",         ctypes.c_uint64),
-        ("prop_values_ptr",   ctypes.c_uint64),
-        ("count_modes",       ctypes.c_uint32),
-        ("count_props",       ctypes.c_uint32),
-        ("count_encoders",    ctypes.c_uint32),
-        ("encoder_id",        ctypes.c_uint32),
-        ("connector_id",      ctypes.c_uint32),
-        ("connector_type",    ctypes.c_uint32),
+        ("encoders_ptr", ctypes.c_uint64),
+        ("modes_ptr", ctypes.c_uint64),
+        ("props_ptr", ctypes.c_uint64),
+        ("prop_values_ptr", ctypes.c_uint64),
+        ("count_modes", ctypes.c_uint32),
+        ("count_props", ctypes.c_uint32),
+        ("count_encoders", ctypes.c_uint32),
+        ("encoder_id", ctypes.c_uint32),
+        ("connector_id", ctypes.c_uint32),
+        ("connector_type", ctypes.c_uint32),
         ("connector_type_id", ctypes.c_uint32),
-        ("connection",        ctypes.c_uint32),
-        ("mm_width",          ctypes.c_uint32),
-        ("mm_height",         ctypes.c_uint32),
-        ("subpixel",          ctypes.c_uint32),
-        ("pad",               ctypes.c_uint32),
+        ("connection", ctypes.c_uint32),
+        ("mm_width", ctypes.c_uint32),
+        ("mm_height", ctypes.c_uint32),
+        ("subpixel", ctypes.c_uint32),
+        ("pad", ctypes.c_uint32),
     ]
 
 
 class _DrmModeGetEncoder(ctypes.Structure):
     _fields_ = [
-        ("encoder_id",      ctypes.c_uint32),
-        ("encoder_type",    ctypes.c_uint32),
-        ("crtc_id",         ctypes.c_uint32),
-        ("possible_crtcs",  ctypes.c_uint32),
+        ("encoder_id", ctypes.c_uint32),
+        ("encoder_type", ctypes.c_uint32),
+        ("crtc_id", ctypes.c_uint32),
+        ("possible_crtcs", ctypes.c_uint32),
         ("possible_clones", ctypes.c_uint32),
     ]
 
@@ -146,22 +146,22 @@ class _DrmModeFbCmd2(ctypes.Structure):
     """``drm_mode_fb_cmd2`` — extended FB info including fourcc & modifiers."""
 
     _fields_ = [
-        ("fb_id",        ctypes.c_uint32),
-        ("width",        ctypes.c_uint32),
-        ("height",       ctypes.c_uint32),
-        ("pixel_format", ctypes.c_uint32),   # fourcc code
-        ("flags",        ctypes.c_uint32),
-        ("handles",      ctypes.c_uint32 * 4),
-        ("pitches",      ctypes.c_uint32 * 4),
-        ("offsets",      ctypes.c_uint32 * 4),
-        ("modifier",     ctypes.c_uint64 * 4),
+        ("fb_id", ctypes.c_uint32),
+        ("width", ctypes.c_uint32),
+        ("height", ctypes.c_uint32),
+        ("pixel_format", ctypes.c_uint32),  # fourcc code
+        ("flags", ctypes.c_uint32),
+        ("handles", ctypes.c_uint32 * 4),
+        ("pitches", ctypes.c_uint32 * 4),
+        ("offsets", ctypes.c_uint32 * 4),
+        ("modifier", ctypes.c_uint64 * 4),
     ]
 
 
 class _DrmModeMapDumb(ctypes.Structure):
     _fields_ = [
         ("handle", ctypes.c_uint32),
-        ("pad",    ctypes.c_uint32),
+        ("pad", ctypes.c_uint32),
         ("offset", ctypes.c_uint64),
     ]
 
@@ -248,9 +248,7 @@ class DRMZoneSampler:
             self._init()
         except Exception as exc:
             self.close()
-            raise KMSGrabError(
-                f"DRMZoneSampler init failed for {self._card_path}: {exc}"
-            ) from exc
+            raise KMSGrabError(f"DRMZoneSampler init failed for {self._card_path}: {exc}") from exc
 
     # ------------------------------------------------------------------
     # Initialisation helpers
@@ -273,9 +271,7 @@ class DRMZoneSampler:
         try:
             fcntl.ioctl(self._fd, DRM_IOCTL_MODE_GETRESOURCES, res1)
         except OSError as exc:
-            raise KMSGrabError(
-                f"DRM_IOCTL_MODE_GETRESOURCES failed on {self._card_path}"
-            ) from exc
+            raise KMSGrabError(f"DRM_IOCTL_MODE_GETRESOURCES failed on {self._card_path}") from exc
 
         count_crtcs = int(res1.count_crtcs)
         count_connectors = int(res1.count_connectors)
@@ -291,9 +287,7 @@ class DRMZoneSampler:
         # real user-space addresses pointing into the same buffer, otherwise
         # the kernel treats them as NULL and will not populate the arrays.
         struct_sz = ctypes.sizeof(_DrmModeCardRes)
-        total_sz = struct_sz + (
-            count_fbs + count_crtcs + count_connectors + count_encoders
-        ) * 4
+        total_sz = struct_sz + (count_fbs + count_crtcs + count_connectors + count_encoders) * 4
         _buf = (ctypes.c_uint8 * total_sz)()
         ctypes.memmove(_buf, ctypes.addressof(res1), struct_sz)
 
@@ -313,8 +307,7 @@ class DRMZoneSampler:
             fcntl.ioctl(self._fd, DRM_IOCTL_MODE_GETRESOURCES, _buf)
         except OSError as exc:
             raise KMSGrabError(
-                f"DRM_IOCTL_MODE_GETRESOURCES (phase 2) failed on "
-                f"{self._card_path}"
+                f"DRM_IOCTL_MODE_GETRESOURCES (phase 2) failed on {self._card_path}"
             ) from exc
 
         # 2. Walk CRTCs to find an active CRTC with a framebuffer
@@ -332,9 +325,7 @@ class DRMZoneSampler:
         try:
             fcntl.ioctl(self._fd, DRM_IOCTL_MODE_GETCRTC, crtc)
         except OSError as exc:
-            raise KMSGrabError(
-                f"DRM_IOCTL_MODE_GETCRTC failed for CRTC {crtc_id}"
-            ) from exc
+            raise KMSGrabError(f"DRM_IOCTL_MODE_GETCRTC failed for CRTC {crtc_id}") from exc
 
         fb_id = crtc.fb_id
         if fb_id == 0:
@@ -343,9 +334,7 @@ class DRMZoneSampler:
         self._width = int(crtc.mode.hdisplay)
         self._height = int(crtc.mode.vdisplay)
         if self._width <= 0 or self._height <= 0:
-            raise KMSGrabError(
-                f"invalid CRTC mode dimensions: {self._width}x{self._height}"
-            )
+            raise KMSGrabError(f"invalid CRTC mode dimensions: {self._width}x{self._height}")
 
         # 4. Get framebuffer metadata (fourcc, pitch, handle)
         fb2 = _DrmModeFbCmd2()
@@ -353,9 +342,7 @@ class DRMZoneSampler:
         try:
             fcntl.ioctl(self._fd, DRM_IOCTL_MODE_GETFB2, fb2)
         except OSError:
-            raise KMSGrabError(
-                f"DRM_IOCTL_MODE_GETFB2 failed for FB {fb_id}"
-            )
+            raise KMSGrabError(f"DRM_IOCTL_MODE_GETFB2 failed for FB {fb_id}")
 
         self._fourcc = int(fb2.pixel_format)
         self._pitch_bytes = int(fb2.pitches[0])
@@ -364,11 +351,13 @@ class DRMZoneSampler:
 
         # 5. Validate pixel format
         if self._fourcc not in (
-            _FOURCC_XR24, _FOURCC_AR24, _FOURCC_XB24, _FOURCC_AB24,
+            _FOURCC_XR24,
+            _FOURCC_AR24,
+            _FOURCC_XB24,
+            _FOURCC_AB24,
         ):
             raise KMSGrabError(
-                f"unsupported DRM fourcc 0x{self._fourcc:08X}; "
-                f"expected XR24/AR24/XB24/AB24"
+                f"unsupported DRM fourcc 0x{self._fourcc:08X}; expected XR24/AR24/XB24/AB24"
             )
 
         # Byte order for R/G/B extraction:
@@ -385,13 +374,9 @@ class DRMZoneSampler:
         try:
             fcntl.ioctl(self._fd, DRM_IOCTL_MODE_MAP_DUMB, _map_dumb)
         except OSError as exc:
-            raise KMSGrabError(
-                f"DRM_IOCTL_MODE_MAP_DUMB failed for handle {handle}"
-            ) from exc
+            raise KMSGrabError(f"DRM_IOCTL_MODE_MAP_DUMB failed for handle {handle}") from exc
 
-        self._mapped_size = (
-            int(self._height) * int(self._pitch_bytes) + int(buff_offset)
-        )
+        self._mapped_size = int(self._height) * int(self._pitch_bytes) + int(buff_offset)
         PROT_READ = 0x01
         MAP_SHARED = 0x01
         MAP_FAILED_VALUE = ctypes.c_void_p(-1).value or -1
@@ -479,8 +464,7 @@ class DRMZoneSampler:
 
         # Fallback: return first CRTC (will likely have a valid fb)
         _log.debug(
-            "DRMZoneSampler: no connected CRTC found via connectors; "
-            "using first CRTC %d",
+            "DRMZoneSampler: no connected CRTC found via connectors; using first CRTC %d",
             crtc_ids[0],
         )
         return crtc_ids[0]
@@ -489,9 +473,7 @@ class DRMZoneSampler:
     # Public API
     # ------------------------------------------------------------------
 
-    def capture_zone_patches(
-        self, centers: List[Tuple[int, int]]
-    ) -> np.ndarray:
+    def capture_zone_patches(self, centers: List[Tuple[int, int]]) -> np.ndarray:
         """Return an ``(N, 3) uint8`` array of zone-average colours.
 
         Each zone is sampled from a 5×5 pixel patch centred on the given
@@ -563,11 +545,7 @@ class DRMZoneSampler:
 
     def close(self) -> None:
         """Release mmap and close the DRM file descriptor."""
-        if (
-            self._mapped_ptr is not None
-            and self._mapped_ptr != 0
-            and self._mapped_size > 0
-        ):
+        if self._mapped_ptr is not None and self._mapped_ptr != 0 and self._mapped_size > 0:
             libc = self._libc
             if libc is None:
                 libc = ctypes.CDLL("libc.so.6")

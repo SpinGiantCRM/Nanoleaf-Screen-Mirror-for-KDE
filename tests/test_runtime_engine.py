@@ -3,7 +3,12 @@ import threading
 import time
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
-from nanoleaf_sync.runtime.engine import _ensure_runtime_artifacts, _mapping_signature, process_frame, run_loop
+from nanoleaf_sync.runtime.engine import (
+    _ensure_runtime_artifacts,
+    _mapping_signature,
+    process_frame,
+    run_loop,
+)
 from nanoleaf_sync.runtime.state import RuntimeState
 from nanoleaf_sync.ui.zone_presets import edge_side_counts
 
@@ -21,7 +26,7 @@ def _cfg_with_valid_calibration(zone_count: int = 48, **kwargs) -> AppConfig:
 
 
 def test_mapping_signature_tracks_reverse_and_model() -> None:
-    cfg = _cfg_with_valid_calibration(10, calibration_model='corner_anchored', reverse_zones=True)
+    cfg = _cfg_with_valid_calibration(10, calibration_model="corner_anchored", reverse_zones=True)
     sig = _mapping_signature(source_zone_count=10, config=cfg, detected_device_zone_count=10)
     assert sig[0] == 10
     assert isinstance(sig[3], bool)
@@ -33,8 +38,17 @@ def test_no_global_zone_offset_reintroduced() -> None:
     frame[:6, :, :] = [255, 0, 0]
     cfg = _cfg_with_valid_calibration(48, zones=[], layout_preset="edge_strip")
     state = RuntimeState()
-    zones_px, device_zone_indices = _ensure_runtime_artifacts(state=state, config=cfg, img_w=160, img_h=90, detected_device_zone_count=48)
-    colors = process_frame(frame=frame, prev_smoothed_colors=[], zones_px=zones_px, device_zone_indices=device_zone_indices, brightness=1.0, smoothing=1.0)
+    zones_px, device_zone_indices = _ensure_runtime_artifacts(
+        state=state, config=cfg, img_w=160, img_h=90, detected_device_zone_count=48
+    )
+    colors = process_frame(
+        frame=frame,
+        prev_smoothed_colors=[],
+        zones_px=zones_px,
+        device_zone_indices=device_zone_indices,
+        brightness=1.0,
+        smoothing=1.0,
+    )
     top, right, bottom, _left = edge_side_counts(zone_count=48, width=160, height=90)
     assert sum(1 for c in colors[:top] if c[0] > 120) >= max(1, top - 2)
     assert sum(1 for c in colors[top + right : top + right + bottom] if c[0] > 90) <= 1
@@ -44,10 +58,22 @@ def test_tight_locality_keeps_bottom_left_signal_local() -> None:
     frame = np.zeros((90, 160, 3), dtype=np.uint8)
     frame[-8:, :8, :] = [0, 255, 0]
 
-    cfg = _cfg_with_valid_calibration(48, zones=[], layout_preset="edge_strip", edge_locality="tight")
+    cfg = _cfg_with_valid_calibration(
+        48, zones=[], layout_preset="edge_strip", edge_locality="tight"
+    )
     state = RuntimeState()
-    zones_px, device_zone_indices = _ensure_runtime_artifacts(state=state, config=cfg, img_w=160, img_h=90, detected_device_zone_count=48)
-    colors = process_frame(frame=frame, prev_smoothed_colors=[], zones_px=zones_px, device_zone_indices=device_zone_indices, brightness=1.0, smoothing=1.0, edge_locality="tight")
+    zones_px, device_zone_indices = _ensure_runtime_artifacts(
+        state=state, config=cfg, img_w=160, img_h=90, detected_device_zone_count=48
+    )
+    colors = process_frame(
+        frame=frame,
+        prev_smoothed_colors=[],
+        zones_px=zones_px,
+        device_zone_indices=device_zone_indices,
+        brightness=1.0,
+        smoothing=1.0,
+        edge_locality="tight",
+    )
 
     top_n, right_n, bottom_n, left_n = edge_side_counts(zone_count=48, width=160, height=90)
     bottom = colors[top_n + right_n : top_n + right_n + bottom_n]
@@ -62,10 +88,28 @@ def test_wide_locality_is_broader_than_tight_but_not_global() -> None:
     frame[-8:, :8, :] = [0, 255, 0]
     cfg = _cfg_with_valid_calibration(48, zones=[], layout_preset="edge_strip")
     state = RuntimeState()
-    zones_px, device_zone_indices = _ensure_runtime_artifacts(state=state, config=cfg, img_w=160, img_h=90, detected_device_zone_count=48)
+    zones_px, device_zone_indices = _ensure_runtime_artifacts(
+        state=state, config=cfg, img_w=160, img_h=90, detected_device_zone_count=48
+    )
 
-    tight = process_frame(frame=frame, prev_smoothed_colors=[], zones_px=zones_px, device_zone_indices=device_zone_indices, brightness=1.0, smoothing=1.0, edge_locality="tight")
-    wide = process_frame(frame=frame, prev_smoothed_colors=[], zones_px=zones_px, device_zone_indices=device_zone_indices, brightness=1.0, smoothing=1.0, edge_locality="wide")
+    tight = process_frame(
+        frame=frame,
+        prev_smoothed_colors=[],
+        zones_px=zones_px,
+        device_zone_indices=device_zone_indices,
+        brightness=1.0,
+        smoothing=1.0,
+        edge_locality="tight",
+    )
+    wide = process_frame(
+        frame=frame,
+        prev_smoothed_colors=[],
+        zones_px=zones_px,
+        device_zone_indices=device_zone_indices,
+        brightness=1.0,
+        smoothing=1.0,
+        edge_locality="wide",
+    )
 
     top_n, right_n, bottom_n, _left_n = edge_side_counts(zone_count=48, width=160, height=90)
     tight_bottom = tight[top_n + right_n : top_n + right_n + bottom_n]
@@ -80,20 +124,38 @@ def test_wide_locality_is_broader_than_tight_but_not_global() -> None:
 def test_sampling_quality_does_not_change_layout_geometry() -> None:
     cfg = _cfg_with_valid_calibration(48, zones=[], layout_preset="edge_strip")
     state = RuntimeState()
-    zones_px_a, _ = _ensure_runtime_artifacts(state=state, config=cfg, img_w=160, img_h=90, detected_device_zone_count=48)
-    cfg2 = _cfg_with_valid_calibration(48, zones=[], layout_preset="edge_strip", sampling_quality="low")
+    zones_px_a, _ = _ensure_runtime_artifacts(
+        state=state, config=cfg, img_w=160, img_h=90, detected_device_zone_count=48
+    )
+    cfg2 = _cfg_with_valid_calibration(
+        48, zones=[], layout_preset="edge_strip", sampling_quality="low"
+    )
     state2 = RuntimeState()
-    zones_px_b, _ = _ensure_runtime_artifacts(state=state2, config=cfg2, img_w=160, img_h=90, detected_device_zone_count=48)
+    zones_px_b, _ = _ensure_runtime_artifacts(
+        state=state2, config=cfg2, img_w=160, img_h=90, detected_device_zone_count=48
+    )
     assert zones_px_a == zones_px_b
 
 
 def test_motion_preset_does_not_break_spatial_locality() -> None:
     frame = np.zeros((90, 160, 3), dtype=np.uint8)
     frame[:8, -8:, :] = [255, 0, 0]
-    cfg = _cfg_with_valid_calibration(48, zones=[], layout_preset="edge_strip", motion_preset="dynamic")
+    cfg = _cfg_with_valid_calibration(
+        48, zones=[], layout_preset="edge_strip", motion_preset="dynamic"
+    )
     state = RuntimeState()
-    zones_px, device_zone_indices = _ensure_runtime_artifacts(state=state, config=cfg, img_w=160, img_h=90, detected_device_zone_count=48)
-    colors = process_frame(frame=frame, prev_smoothed_colors=[], zones_px=zones_px, device_zone_indices=device_zone_indices, brightness=1.0, smoothing=1.0, motion_preset="dynamic")
+    zones_px, device_zone_indices = _ensure_runtime_artifacts(
+        state=state, config=cfg, img_w=160, img_h=90, detected_device_zone_count=48
+    )
+    colors = process_frame(
+        frame=frame,
+        prev_smoothed_colors=[],
+        zones_px=zones_px,
+        device_zone_indices=device_zone_indices,
+        brightness=1.0,
+        smoothing=1.0,
+        motion_preset="dynamic",
+    )
     top_n, right_n, bottom_n, _left_n = edge_side_counts(zone_count=48, width=160, height=90)
     top = colors[:top_n]
     bottom = colors[top_n + right_n : top_n + right_n + bottom_n]
@@ -140,7 +202,9 @@ def test_run_loop_waits_when_no_pending_frame_available() -> None:
 
     state = RuntimeState()
     cfg = _cfg_with_valid_calibration(48, fps=120)
-    stopper = threading.Thread(target=lambda: (time.sleep(0.06), state.stop_event.set()), daemon=True)
+    stopper = threading.Thread(
+        target=lambda: (time.sleep(0.06), state.stop_event.set()), daemon=True
+    )
     stopper.start()
     run_loop(
         config=cfg,
@@ -196,7 +260,9 @@ def test_run_loop_records_live_send_policy_without_response_wait_penalty() -> No
 
     state = RuntimeState()
     cfg = _cfg_with_valid_calibration(48, fps=60)
-    stopper = threading.Thread(target=lambda: (time.sleep(0.08), state.stop_event.set()), daemon=True)
+    stopper = threading.Thread(
+        target=lambda: (time.sleep(0.08), state.stop_event.set()), daemon=True
+    )
     stopper.start()
     run_loop(
         config=cfg,
@@ -288,7 +354,12 @@ def test_run_loop_marks_startup_complete_after_first_frame_send() -> None:
 
 
 def test_runtime_status_reports_calibration_incomplete_for_missing_anchors() -> None:
-    cfg = AppConfig(device_zone_count=48, calibration=CalibrationConfig(device_zone_count=48), zones=[], layout_preset="edge_strip")
+    cfg = AppConfig(
+        device_zone_count=48,
+        calibration=CalibrationConfig(device_zone_count=48),
+        zones=[],
+        layout_preset="edge_strip",
+    )
     state = RuntimeState()
     zones_px, device_zone_indices = _ensure_runtime_artifacts(
         state=state,
@@ -337,7 +408,13 @@ def test_run_loop_does_not_stream_when_calibration_incomplete() -> None:
 
     state = RuntimeState()
     driver = _Driver()
-    cfg = AppConfig(device_zone_count=48, calibration=CalibrationConfig(device_zone_count=48), zones=[], layout_preset="edge_strip", fps=30)
+    cfg = AppConfig(
+        device_zone_count=48,
+        calibration=CalibrationConfig(device_zone_count=48),
+        zones=[],
+        layout_preset="edge_strip",
+        fps=30,
+    )
     run_loop(
         config=cfg,
         state=state,

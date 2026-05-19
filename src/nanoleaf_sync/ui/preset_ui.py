@@ -24,9 +24,7 @@ from nanoleaf_sync.config.presets import (
     SAMPLING_QUALITY_LOW,
 )
 
-LAYOUT_PRESET_LABELS: tuple[tuple[str, str], ...] = (
-    ("Edge strip", LAYOUT_PRESET_EDGE_STRIP),
-)
+LAYOUT_PRESET_LABELS: tuple[tuple[str, str], ...] = (("Edge strip", LAYOUT_PRESET_EDGE_STRIP),)
 EDGE_LOCALITY_LABELS: tuple[tuple[str, str], ...] = (
     ("Tight", EDGE_LOCALITY_TIGHT),
     ("Balanced", EDGE_LOCALITY_BALANCED),

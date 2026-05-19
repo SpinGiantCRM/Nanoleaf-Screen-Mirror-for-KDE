@@ -50,7 +50,9 @@ def _tray_shell(service) -> SimpleNamespace:
         tray_icon=fake_icon,
         _idle_icon="idle",
         _running_icon="running",
-        action_start=SimpleNamespace(setEnabled=lambda *_args, **_kwargs: None, setText=lambda *_args, **_kwargs: None),
+        action_start=SimpleNamespace(
+            setEnabled=lambda *_args, **_kwargs: None, setText=lambda *_args, **_kwargs: None
+        ),
         action_status=SimpleNamespace(setText=lambda *_args, **_kwargs: None),
         _refresh_mode_labels=lambda: None,
         QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Warning=1)),
@@ -116,12 +118,16 @@ def test_on_start_is_idempotent_while_waiting_for_screen_selection() -> None:
 def test_run_opens_display_configurator_without_delayed_balloon_when_wizard_incomplete() -> None:
     opened = {"count": 0}
     app = SimpleNamespace(exec=lambda: 123)
-    fake_tray_icon = SimpleNamespace(showMessage=lambda *_args, **_kwargs: opened.setdefault("balloon", True))
+    fake_tray_icon = SimpleNamespace(
+        showMessage=lambda *_args, **_kwargs: opened.setdefault("balloon", True)
+    )
     fake = SimpleNamespace(
         config=AppConfig(wizard_completed=False),
         tray_icon=fake_tray_icon,
         QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Information=1)),
-        QTimer=SimpleNamespace(singleShot=lambda *_args, **_kwargs: opened.setdefault("delayed", True)),
+        QTimer=SimpleNamespace(
+            singleShot=lambda *_args, **_kwargs: opened.setdefault("delayed", True)
+        ),
         on_display_configurator=lambda: opened.__setitem__("count", opened["count"] + 1),
         app=app,
     )

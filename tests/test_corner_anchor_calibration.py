@@ -13,6 +13,8 @@ def test_corner_anchor_calibration_mapping_uses_assignments() -> None:
             calibration_model="corner_anchored",
         )
     )
-    snap = resolve_calibration_mapping_from_config(config=cfg, source_zone_count=8, detected_device_zone_count=8)
+    snap = resolve_calibration_mapping_from_config(
+        config=cfg, source_zone_count=8, detected_device_zone_count=8
+    )
     assert len(snap.device_to_source_indices) == 8
     assert snap.anchor_validation_ok

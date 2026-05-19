@@ -7,7 +7,12 @@ import pytest
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.tools import doctor
-from nanoleaf_sync.tools.doctor import DoctorCheck, _check_mode_consistency, format_report, run_doctor
+from nanoleaf_sync.tools.doctor import (
+    DoctorCheck,
+    _check_mode_consistency,
+    format_report,
+    run_doctor,
+)
 
 
 def test_mode_consistency_kmsgrab_is_supported() -> None:
@@ -45,21 +50,37 @@ def _patch_config_loader(monkeypatch, cfg: AppConfig) -> None:
 
 def test_run_doctor_real_device_requested_hid_unavailable(monkeypatch) -> None:
     _patch_config_loader(monkeypatch, AppConfig(device_vid=0x37FA, device_pid=0x8201))
-    monkeypatch.setattr(doctor, "_check_python_runtime", lambda: DoctorCheck("python", "pass", "ok"))
-    monkeypatch.setattr(doctor, "_check_dependencies", lambda: DoctorCheck("dependencies", "pass", "ok"))
-    monkeypatch.setattr(doctor, "_check_session_bus", lambda: DoctorCheck("session-bus", "pass", "ok"))
+    monkeypatch.setattr(
+        doctor, "_check_python_runtime", lambda: DoctorCheck("python", "pass", "ok")
+    )
+    monkeypatch.setattr(
+        doctor, "_check_dependencies", lambda: DoctorCheck("dependencies", "pass", "ok")
+    )
+    monkeypatch.setattr(
+        doctor, "_check_session_bus", lambda: DoctorCheck("session-bus", "pass", "ok")
+    )
 
     async def _probe_pass() -> DoctorCheck:
         return DoctorCheck("kwin-screenshot2", "pass", "ok")
 
     monkeypatch.setattr(doctor, "_probe_kwin_screenshot2", _probe_pass)
-    monkeypatch.setattr(doctor, "_check_desktop_authorization", lambda: DoctorCheck("desktop-authorization", "pass", "ok"))
-    monkeypatch.setattr(doctor, "_check_real_device_probe", lambda cfg: DoctorCheck("device-probe", "warn", "probe skipped"))
+    monkeypatch.setattr(
+        doctor,
+        "_check_desktop_authorization",
+        lambda: DoctorCheck("desktop-authorization", "pass", "ok"),
+    )
+    monkeypatch.setattr(
+        doctor,
+        "_check_real_device_probe",
+        lambda cfg: DoctorCheck("device-probe", "warn", "probe skipped"),
+    )
 
     def _raise_hid_unavailable(*_args, **_kwargs):
         raise RuntimeError("hid backend unavailable")
 
-    monkeypatch.setitem(doctor.sys.modules, "hid", SimpleNamespace(enumerate=_raise_hid_unavailable))
+    monkeypatch.setitem(
+        doctor.sys.modules, "hid", SimpleNamespace(enumerate=_raise_hid_unavailable)
+    )
 
     checks = run_doctor(include_device_probe=True)
     hid_check = next(check for check in checks if check.name == "hid-device")
@@ -82,28 +103,61 @@ def test_run_probe_sync_works_inside_running_loop(monkeypatch) -> None:
 
 def test_run_doctor_with_capture_probe(monkeypatch) -> None:
     _patch_config_loader(monkeypatch, AppConfig(device_vid=0x37FA, device_pid=0x8201))
-    monkeypatch.setattr(doctor, "_check_python_runtime", lambda: DoctorCheck("python", "pass", "ok"))
-    monkeypatch.setattr(doctor, "_check_dependencies", lambda: DoctorCheck("dependencies", "pass", "ok"))
-    monkeypatch.setattr(doctor, "_check_session_bus", lambda: DoctorCheck("session-bus", "pass", "ok"))
-    monkeypatch.setattr(doctor, "_run_probe_sync", lambda: DoctorCheck("kwin-screenshot2", "pass", "ok"))
-    monkeypatch.setattr(doctor, "_check_desktop_authorization", lambda: DoctorCheck("desktop-authorization", "pass", "ok"))
-    monkeypatch.setattr(doctor, "_check_hid_enumeration", lambda cfg: DoctorCheck("hid-device", "pass", "ok"))
-    monkeypatch.setattr(doctor, "_check_real_capture_probe", lambda cfg: DoctorCheck("capture-probe", "fail", "boom"))
+    monkeypatch.setattr(
+        doctor, "_check_python_runtime", lambda: DoctorCheck("python", "pass", "ok")
+    )
+    monkeypatch.setattr(
+        doctor, "_check_dependencies", lambda: DoctorCheck("dependencies", "pass", "ok")
+    )
+    monkeypatch.setattr(
+        doctor, "_check_session_bus", lambda: DoctorCheck("session-bus", "pass", "ok")
+    )
+    monkeypatch.setattr(
+        doctor, "_run_probe_sync", lambda: DoctorCheck("kwin-screenshot2", "pass", "ok")
+    )
+    monkeypatch.setattr(
+        doctor,
+        "_check_desktop_authorization",
+        lambda: DoctorCheck("desktop-authorization", "pass", "ok"),
+    )
+    monkeypatch.setattr(
+        doctor, "_check_hid_enumeration", lambda cfg: DoctorCheck("hid-device", "pass", "ok")
+    )
+    monkeypatch.setattr(
+        doctor,
+        "_check_real_capture_probe",
+        lambda cfg: DoctorCheck("capture-probe", "fail", "boom"),
+    )
 
     checks = run_doctor(include_capture_probe=True)
     capture_check = next(check for check in checks if check.name == "capture-probe")
     assert capture_check.status == "fail"
 
+
 def test_run_doctor_skips_kwin_probe_for_portal_backend(monkeypatch) -> None:
     _patch_config_loader(
         monkeypatch,
-        AppConfig(device_vid=0x37FA, device_pid=0x8201, use_mock_capture=False, prefer_backend="portal"),
+        AppConfig(
+            device_vid=0x37FA, device_pid=0x8201, use_mock_capture=False, prefer_backend="portal"
+        ),
     )
-    monkeypatch.setattr(doctor, "_check_python_runtime", lambda: DoctorCheck("python", "pass", "ok"))
-    monkeypatch.setattr(doctor, "_check_dependencies", lambda: DoctorCheck("dependencies", "pass", "ok"))
-    monkeypatch.setattr(doctor, "_check_session_bus", lambda: DoctorCheck("session-bus", "pass", "ok"))
-    monkeypatch.setattr(doctor, "_check_hid_enumeration", lambda cfg: DoctorCheck("hid-device", "pass", "ok"))
-    monkeypatch.setattr(doctor, "_run_probe_sync", lambda: (_ for _ in ()).throw(AssertionError("kwin probe should be skipped")))
+    monkeypatch.setattr(
+        doctor, "_check_python_runtime", lambda: DoctorCheck("python", "pass", "ok")
+    )
+    monkeypatch.setattr(
+        doctor, "_check_dependencies", lambda: DoctorCheck("dependencies", "pass", "ok")
+    )
+    monkeypatch.setattr(
+        doctor, "_check_session_bus", lambda: DoctorCheck("session-bus", "pass", "ok")
+    )
+    monkeypatch.setattr(
+        doctor, "_check_hid_enumeration", lambda cfg: DoctorCheck("hid-device", "pass", "ok")
+    )
+    monkeypatch.setattr(
+        doctor,
+        "_run_probe_sync",
+        lambda: (_ for _ in ()).throw(AssertionError("kwin probe should be skipped")),
+    )
 
     checks = run_doctor()
     desktop_auth = next(check for check in checks if check.name == "desktop-authorization")
@@ -114,7 +168,9 @@ def test_run_doctor_skips_kwin_probe_for_portal_backend(monkeypatch) -> None:
     assert "Selection reason=explicit" in probe_status.message
 
 
-def test_desktop_authorization_warns_when_only_installed_entry_exists(monkeypatch, tmp_path: Path) -> None:
+def test_desktop_authorization_warns_when_only_installed_entry_exists(
+    monkeypatch, tmp_path: Path
+) -> None:
     autostart = tmp_path / "home-autostart.desktop"
     installed = tmp_path / "usr" / "share" / "applications" / "nanoleaf-kde-sync.desktop"
     installed.parent.mkdir(parents=True, exist_ok=True)
@@ -137,7 +193,9 @@ def test_desktop_authorization_warns_when_only_installed_entry_exists(monkeypatc
     assert "autostart is disabled" in result.message.lower()
 
 
-def test_doctor_help_lists_documented_capture_and_device_flags(capsys: pytest.CaptureFixture[str]) -> None:
+def test_doctor_help_lists_documented_capture_and_device_flags(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     with pytest.raises(SystemExit) as excinfo:
         doctor.main(["--help"])
     assert excinfo.value.code == 0
@@ -182,7 +240,7 @@ def test_hid_enumeration_reports_interface_details(monkeypatch) -> None:
                 "product_string": "",
                 "serial_number": "",
             }
-        ]
+        ],
     )
     monkeypatch.setitem(doctor.sys.modules, "hid", fake_hid)
     check = doctor._check_hid_enumeration(AppConfig(device_vid=0x37FA, device_pid=0x8202))

@@ -138,7 +138,6 @@ class PendingFrameSlot:
                 timeout=max(0.0, float(timeout)),
             )
 
-
     def has_pending(self) -> bool:
         with self._lock:
             return self._pending is not None
@@ -246,6 +245,8 @@ def _adaptive_one_euro_blend(
         deadband_active=bool(tiny_mask.any()),
     )
     return blended, diagnostics
+
+
 def _zones_signature(
     *,
     zones,
@@ -271,7 +272,11 @@ def _mapping_signature(
     calibration = config.effective_calibration()
     return (
         int(source_zone_count),
-        int(getattr(calibration, "device_zone_count", 0) or getattr(config, "device_zone_count", 0) or 0),
+        int(
+            getattr(calibration, "device_zone_count", 0)
+            or getattr(config, "device_zone_count", 0)
+            or 0
+        ),
         int(detected_device_zone_count or 0),
         bool(getattr(calibration, "reverse_zones", False)),
         str(getattr(config, "calibration_model", "corner_anchored")),
@@ -301,7 +306,9 @@ def _ensure_runtime_artifacts(
     uses_derived_zones = not bool(config.zones)
     zone_sig = _zones_signature(
         zones=effective_zones,
-        layout_preset=(str(getattr(config, "layout_preset", "edge_strip")) if uses_derived_zones else ""),
+        layout_preset=(
+            str(getattr(config, "layout_preset", "edge_strip")) if uses_derived_zones else ""
+        ),
         img_w=img_w,
         img_h=img_h,
     )
@@ -311,7 +318,9 @@ def _ensure_runtime_artifacts(
         logger.info(
             "zone-derivation: %s",
             zone_artifacts.diagnostics_text(
-                source_mode="user-configured" if bool(getattr(config, "zones", [])) else "auto-derived",
+                source_mode="user-configured"
+                if bool(getattr(config, "zones", []))
+                else "auto-derived",
                 device_zone_count=int(getattr(config, "device_zone_count", 0) or 0),
             ),
         )
@@ -347,11 +356,11 @@ def _ensure_runtime_artifacts(
             state.calibration_status = CALIBRATION_READY_STATUS
             state.calibration_status_message = ""
 
-    state.latest_zone_side_counts = tuple(int(i) for i in (zone_artifacts.side_counts or (0, 0, 0, 0)))
+    state.latest_zone_side_counts = tuple(
+        int(i) for i in (zone_artifacts.side_counts or (0, 0, 0, 0))
+    )
     state.latest_edge_sampling_thickness = zone_artifacts.edge_sampling_thickness
     return zones_px, state.cached_device_zone_indices_np
-
-
 
 
 def _apply_neighbor_blend(mapped: np.ndarray, *, spread_mode: str) -> np.ndarray:
@@ -364,7 +373,9 @@ def _apply_neighbor_blend(mapped: np.ndarray, *, spread_mode: str) -> np.ndarray
     return ((1.0 - (2.0 * weight)) * mapped) + (weight * prev) + (weight * nxt)
 
 
-def _side_variance_diagnostics(*, sampled: np.ndarray, final: np.ndarray, side_counts: tuple[int, int, int, int]) -> dict[str, dict[str, float | bool]]:
+def _side_variance_diagnostics(
+    *, sampled: np.ndarray, final: np.ndarray, side_counts: tuple[int, int, int, int]
+) -> dict[str, dict[str, float | bool]]:
     out: dict[str, dict[str, float | bool]] = {}
     names = ("top", "right", "bottom", "left")
     start = 0
@@ -375,9 +386,15 @@ def _side_variance_diagnostics(*, sampled: np.ndarray, final: np.ndarray, side_c
         sampled_var = float(np.var(s.astype(np.float32))) if s.size else 0.0
         final_var = float(np.var(f.astype(np.float32))) if f.size else 0.0
         flattened = sampled_var > 120.0 and final_var < max(40.0, sampled_var * 0.25)
-        out[name] = {"sampled_variance": sampled_var, "final_variance": final_var, "processing_flattened": flattened}
+        out[name] = {
+            "sampled_variance": sampled_var,
+            "final_variance": final_var,
+            "processing_flattened": flattened,
+        }
         start = end
     return out
+
+
 def process_frame(
     *,
     frame,
@@ -406,7 +423,10 @@ def process_frame(
     sdr_boost_nits: float = 80.0,
     hdr_max_nits: float = 1000.0,
     return_diagnostics: bool = False,
-) -> list[RGBTuple] | tuple[list[RGBTuple], np.ndarray, np.ndarray, np.ndarray, FrameProcessingTimings]:
+) -> (
+    list[RGBTuple]
+    | tuple[list[RGBTuple], np.ndarray, np.ndarray, np.ndarray, FrameProcessingTimings]
+):
     """
     Hot-path frame processing pipeline:
     capture frame -> zone colors -> map -> brightness/smoothing -> send-ready colors.
@@ -447,7 +467,9 @@ def process_frame(
         zone_indices = np.asarray(device_zone_indices, dtype=np.intp)
 
     mapped = raw_colors[zone_indices].astype(np.float32, copy=False)
-    mapped = apply_color_style_mapping(mapped, color_style=color_style).astype(np.float32, copy=False)
+    mapped = apply_color_style_mapping(mapped, color_style=color_style).astype(
+        np.float32, copy=False
+    )
     colour_processing_done = time.perf_counter()
     mapped = _apply_neighbor_blend(mapped, spread_mode=light_spread).astype(np.float32, copy=False)
 
@@ -503,7 +525,13 @@ def process_frame(
             led_calibration_ms=(led_calibration_done - smoothing_done) * 1000.0,
             output_prepare_ms=(output_prepare_done - led_calibration_done) * 1000.0,
         )
-        return out_list, raw_colors.astype(np.uint8, copy=False), pre_led_calibration.astype(np.uint8, copy=False), out, timings
+        return (
+            out_list,
+            raw_colors.astype(np.uint8, copy=False),
+            pre_led_calibration.astype(np.uint8, copy=False),
+            out,
+            timings,
+        )
     return out_list
 
 
@@ -557,7 +585,10 @@ def _run_loop_legacy(
     def _capture_worker() -> None:
         nonlocal capture_worker_error, capture_worker_failures, capture_worker_error_count
         nonlocal capture_worker_active, capture_call_ms_latest, capture_worker_loop_gap_ms_latest
-        nonlocal capture_success_interval_ms_latest, last_capture_completed_ts, last_capture_success_ts
+        nonlocal \
+            capture_success_interval_ms_latest, \
+            last_capture_completed_ts, \
+            last_capture_success_ts
         nonlocal latest_capture_backend_name, latest_capture_backend_method
         with capture_worker_lock:
             capture_worker_active = True
@@ -582,13 +613,17 @@ def _run_loop_legacy(
                 with capture_worker_lock:
                     capture_call_ms_latest = call_ms
                     if last_capture_completed_ts is not None:
-                        capture_worker_loop_gap_ms_latest = (capture_end - last_capture_completed_ts) * 1000.0
+                        capture_worker_loop_gap_ms_latest = (
+                            capture_end - last_capture_completed_ts
+                        ) * 1000.0
                     last_capture_completed_ts = capture_end
                 if frame is None:
                     continue
                 with capture_worker_lock:
                     if last_capture_success_ts is not None:
-                        capture_success_interval_ms_latest = (capture_end - last_capture_success_ts) * 1000.0
+                        capture_success_interval_ms_latest = (
+                            capture_end - last_capture_success_ts
+                        ) * 1000.0
                     last_capture_success_ts = capture_end
                 pending_slot.put_latest(frame=frame, captured_at=capture_end)
                 with capture_worker_lock:
@@ -672,7 +707,9 @@ def _run_loop_legacy(
                         frame = pending.frame
                         captured_at = pending.captured_at
                         state.first_frame_seen = True
-                        pending_frame_age_ms = max(0.0, (time.perf_counter() - captured_at) * 1000.0)
+                        pending_frame_age_ms = max(
+                            0.0, (time.perf_counter() - captured_at) * 1000.0
+                        )
 
             if skip_tick:
                 with capture_worker_lock:
@@ -703,10 +740,14 @@ def _run_loop_legacy(
                         counters_delta={
                             "no_pending_frame_ticks": no_pending_frame_ticks,
                             "capture_errors_retries": max(
-                                0, capture_worker_error_count_now - last_reported_capture_worker_error_count
+                                0,
+                                capture_worker_error_count_now
+                                - last_reported_capture_worker_error_count,
                             ),
                             "capture_worker_error_count": max(
-                                0, capture_worker_error_count_now - last_reported_capture_worker_error_count
+                                0,
+                                capture_worker_error_count_now
+                                - last_reported_capture_worker_error_count,
                             ),
                         },
                         flags={"capture_worker_active": capture_worker_active_now},
@@ -742,10 +783,15 @@ def _run_loop_legacy(
                     if len(device_zone_indices) <= 0 and "empty" not in message.lower():
                         message = f"{message} Derived device-zone mapping is empty."
                     state.mark_calibration_incomplete(message)
-                    state.startup_elapsed_ms = max(0.0, (time.perf_counter() - startup_started_at) * 1000.0)
+                    state.startup_elapsed_ms = max(
+                        0.0, (time.perf_counter() - startup_started_at) * 1000.0
+                    )
                     state.mark_startup(False)
                     state.stop_event.set()
-                    logger.warning("calibration incomplete; screen mirroring will not stream frames: %s", message)
+                    logger.warning(
+                        "calibration incomplete; screen mirroring will not stream frames: %s",
+                        message,
+                    )
                     break
 
                 active_profile = (
@@ -767,14 +813,50 @@ def _run_loop_legacy(
                     led_gamma=float(getattr(active_profile, "led_gamma", config.led_gamma)),
                     motion_preset=getattr(config, "motion_preset", "responsive"),
                     light_spread=getattr(config, "light_spread", "balanced"),
-                    red_gain=float(getattr(active_profile, "red_gain", getattr(config, "red_gain", 1.0))),
-                    green_gain=float(getattr(active_profile, "green_gain", getattr(config, "green_gain", 1.0))),
-                    blue_gain=float(getattr(active_profile, "blue_gain", getattr(config, "blue_gain", 1.0))),
-                    white_balance_temperature=float(getattr(active_profile, "white_balance_temperature", getattr(config, "white_balance_temperature", 0.0))),
-                    chroma_compression=float(getattr(active_profile, "chroma_compression", getattr(config, "chroma_compression", 0.0))),
-                    neutral_luminance_gain=float(getattr(active_profile, "neutral_luminance_gain", getattr(config, "neutral_luminance_gain", 1.0))),
-                    black_luminance_cutoff=float(getattr(active_profile, "black_luminance_cutoff", getattr(config, "black_luminance_cutoff", 0.0032))),
-                    black_luminance_knee=float(getattr(active_profile, "black_luminance_knee", getattr(config, "black_luminance_knee", 0.0024))),
+                    red_gain=float(
+                        getattr(active_profile, "red_gain", getattr(config, "red_gain", 1.0))
+                    ),
+                    green_gain=float(
+                        getattr(active_profile, "green_gain", getattr(config, "green_gain", 1.0))
+                    ),
+                    blue_gain=float(
+                        getattr(active_profile, "blue_gain", getattr(config, "blue_gain", 1.0))
+                    ),
+                    white_balance_temperature=float(
+                        getattr(
+                            active_profile,
+                            "white_balance_temperature",
+                            getattr(config, "white_balance_temperature", 0.0),
+                        )
+                    ),
+                    chroma_compression=float(
+                        getattr(
+                            active_profile,
+                            "chroma_compression",
+                            getattr(config, "chroma_compression", 0.0),
+                        )
+                    ),
+                    neutral_luminance_gain=float(
+                        getattr(
+                            active_profile,
+                            "neutral_luminance_gain",
+                            getattr(config, "neutral_luminance_gain", 1.0),
+                        )
+                    ),
+                    black_luminance_cutoff=float(
+                        getattr(
+                            active_profile,
+                            "black_luminance_cutoff",
+                            getattr(config, "black_luminance_cutoff", 0.0032),
+                        )
+                    ),
+                    black_luminance_knee=float(
+                        getattr(
+                            active_profile,
+                            "black_luminance_knee",
+                            getattr(config, "black_luminance_knee", 0.0024),
+                        )
+                    ),
                     color_style=getattr(config, "color_style", "natural"),
                     edge_locality=getattr(config, "edge_locality", "balanced"),
                     compositor_hdr_mode=getattr(config, "compositor_hdr_mode", False),
@@ -782,7 +864,13 @@ def _run_loop_legacy(
                     hdr_max_nits=getattr(config, "hdr_max_nits", 1000.0),
                     return_diagnostics=True,
                 )
-                smoothed_colors, sampled_zone_colors, pre_led_colors, final_zone_colors, processing_timings = processed
+                (
+                    smoothed_colors,
+                    sampled_zone_colors,
+                    pre_led_colors,
+                    final_zone_colors,
+                    processing_timings,
+                ) = processed
                 processing_end = time.perf_counter()
                 state.prev_smoothed_colors = smoothed_colors
                 state.first_frame_processed = True
@@ -802,8 +890,12 @@ def _run_loop_legacy(
                         pre_led_rgb = sampled_rgb
                         final_rgb = sampled_rgb
                     else:
-                        pre_led_rgb = tuple(int(c) for c in pre_led_colors[mapped_led_index].tolist())
-                        final_rgb = tuple(int(c) for c in final_zone_colors[mapped_led_index].tolist())
+                        pre_led_rgb = tuple(
+                            int(c) for c in pre_led_colors[mapped_led_index].tolist()
+                        )
+                        final_rgb = tuple(
+                            int(c) for c in final_zone_colors[mapped_led_index].tolist()
+                        )
                     top, right, bottom, left = state.latest_zone_side_counts
                     if zone_index < top:
                         side = "top"
@@ -824,7 +916,11 @@ def _run_loop_legacy(
                             "output_rgb_before_led_calibration": pre_led_rgb,
                             "final_output_rgb": final_rgb,
                             "mapped_physical_led_index": mapped_led_index,
-                            "input_luminance": color_pipeline_diagnostics(input_rgb=sampled_rgb, output_rgb=sampled_rgb, color_style=str(getattr(config, "color_style", "reference")))["sampled_luminance"],
+                            "input_luminance": color_pipeline_diagnostics(
+                                input_rgb=sampled_rgb,
+                                output_rgb=sampled_rgb,
+                                color_style=str(getattr(config, "color_style", "reference")),
+                            )["sampled_luminance"],
                             **color_pipeline_diagnostics(
                                 input_rgb=sampled_rgb,
                                 output_rgb=final_rgb,
@@ -840,7 +936,9 @@ def _run_loop_legacy(
                 )
                 for row in zone_diagnostics:
                     row["side_variance"] = side_var.get(str(row.get("side")), {})
-                    row["processing_flattened_side"] = bool(row["side_variance"].get("processing_flattened", False))
+                    row["processing_flattened_side"] = bool(
+                        row["side_variance"].get("processing_flattened", False)
+                    )
                 state.latest_zone_diagnostics = zone_diagnostics
                 state.latest_side_variance_diagnostics = side_var
                 hid_write_start = time.perf_counter()
@@ -848,7 +946,9 @@ def _run_loop_legacy(
                 hid_device_write_ms: float | None = None
                 hid_flush_or_wait_ms: float | None = None
                 hid_flush_or_wait_reason = "Not instrumented by current driver path."
-                hid_frame_build_reason = "Frame-build timing not separated from send_frame() in driver path."
+                hid_frame_build_reason = (
+                    "Frame-build timing not separated from send_frame() in driver path."
+                )
                 hid_device_limited_label = "unknown"
                 hid_reports_per_frame = "unavailable"
                 hid_bytes_per_report = "unavailable"
@@ -906,7 +1006,9 @@ def _run_loop_legacy(
                     hid_write_rate_limit_policy = str(timing.get("write_rate_limit_policy", "none"))
                     hid_write_read_calls = str(timing.get("write_read_calls", "unavailable"))
                     hid_live_send_policy = str(timing.get("live_send_policy", "response_required"))
-                    hid_response_wait_skipped = "yes" if bool(timing.get("response_wait_skipped", False)) else "no"
+                    hid_response_wait_skipped = (
+                        "yes" if bool(timing.get("response_wait_skipped", False)) else "no"
+                    )
                 else:
                     driver.send_frame(smoothed_colors)
                 send_done = time.perf_counter()
@@ -915,11 +1017,13 @@ def _run_loop_legacy(
                     hid_device_write_ms = hid_write_ms
                 frame_processing_ms = (processing_end - start) * 1000.0
                 actual_work_ms = (send_done - start) * 1000.0
-                loop_gap_ms = ((send_done - last_send_done_ts) * 1000.0) if last_send_done_ts is not None else None
-                inferred_unattributed_gap_ms = (
-                    max(0.0, loop_gap_ms - actual_work_ms)
-                    if loop_gap_ms is not None
+                loop_gap_ms = (
+                    ((send_done - last_send_done_ts) * 1000.0)
+                    if last_send_done_ts is not None
                     else None
+                )
+                inferred_unattributed_gap_ms = (
+                    max(0.0, loop_gap_ms - actual_work_ms) if loop_gap_ms is not None else None
                 )
                 last_send_done_ts = send_done
                 with capture_worker_lock:
@@ -965,10 +1069,14 @@ def _run_loop_legacy(
                         counters_delta={
                             "no_pending_frame_ticks": no_pending_frame_ticks,
                             "capture_errors_retries": max(
-                                0, capture_worker_error_count_now - last_reported_capture_worker_error_count
+                                0,
+                                capture_worker_error_count_now
+                                - last_reported_capture_worker_error_count,
                             ),
                             "capture_worker_error_count": max(
-                                0, capture_worker_error_count_now - last_reported_capture_worker_error_count
+                                0,
+                                capture_worker_error_count_now
+                                - last_reported_capture_worker_error_count,
                             ),
                         },
                         flags={"capture_worker_active": capture_worker_active_now},
@@ -1005,7 +1113,9 @@ def _run_loop_legacy(
                 state.record_success()
                 sent_any_frame = True
                 state.first_frame_sent = True
-                state.startup_elapsed_ms = max(0.0, (time.perf_counter() - startup_started_at) * 1000.0)
+                state.startup_elapsed_ms = max(
+                    0.0, (time.perf_counter() - startup_started_at) * 1000.0
+                )
                 if not state.startup_complete.is_set():
                     state.start_failure_reason = ""
                     state.lifecycle_state = "running"
@@ -1055,7 +1165,10 @@ def _run_loop_legacy(
         if (not sent_any_frame) and (not state.startup_complete.is_set()):
             startup_elapsed = time.perf_counter() - startup_started_at
             state.startup_elapsed_ms = max(0.0, startup_elapsed * 1000.0)
-            if startup_elapsed >= startup_frame_timeout_s and latest_capture_backend_name != "xdg-portal":
+            if (
+                startup_elapsed >= startup_frame_timeout_s
+                and latest_capture_backend_name != "xdg-portal"
+            ):
                 backend_name = latest_capture_backend_name or "unavailable"
                 backend_method = latest_capture_backend_method or "unavailable"
                 reason = (
@@ -1188,23 +1301,19 @@ def _run_loop_pipeline(
                     capture_call_ms_latest = call_ms
                     if last_capture_completed_ts is not None:
                         capture_worker_loop_gap_ms_latest = (
-                            (capture_end - last_capture_completed_ts) * 1000.0
-                        )
+                            capture_end - last_capture_completed_ts
+                        ) * 1000.0
                     last_capture_completed_ts = capture_end
                 if frame is None:
                     continue
                 with metrics_lock:
                     if last_capture_success_ts is not None:
                         capture_success_interval_ms_latest = (
-                            (capture_end - last_capture_success_ts) * 1000.0
-                        )
+                            capture_end - last_capture_success_ts
+                        ) * 1000.0
                     last_capture_success_ts = capture_end
-                if not capture_buf.try_push(
-                    CapturePayload(frame=frame, captured_at=capture_end)
-                ):
-                    logger.debug(
-                        "capture worker: ring buffer full; dropping frame"
-                    )
+                if not capture_buf.try_push(CapturePayload(frame=frame, captured_at=capture_end)):
+                    logger.debug("capture worker: ring buffer full; dropping frame")
                     with metrics_lock:
                         no_pending_frame_events += 1
                 with metrics_lock:
@@ -1257,14 +1366,9 @@ def _run_loop_pipeline(
                     state.calibration_status == CALIBRATION_INCOMPLETE_STATUS
                     or len(device_zone_indices) <= 0
                 ):
-                    message = (
-                        state.calibration_status_message
-                        or CALIBRATION_INCOMPLETE_MESSAGE
-                    )
+                    message = state.calibration_status_message or CALIBRATION_INCOMPLETE_MESSAGE
                     if len(device_zone_indices) <= 0 and "empty" not in message.lower():
-                        message = (
-                            f"{message} Derived device-zone mapping is empty."
-                        )
+                        message = f"{message} Derived device-zone mapping is empty."
                     state.mark_calibration_incomplete(message)
                     state.startup_elapsed_ms = max(
                         0.0,
@@ -1273,24 +1377,20 @@ def _run_loop_pipeline(
                     state.mark_startup(False)
                     state.stop_event.set()
                     logger.warning(
-                        "calibration incomplete; screen mirroring will not "
-                        "stream frames: %s",
+                        "calibration incomplete; screen mirroring will not stream frames: %s",
                         message,
                     )
                     break
 
                 active_profile = (
                     getattr(config, "led_calibration_profile_sdr", None)
-                    if str(getattr(config, "display_preset", "hdr")).strip().lower()
-                    == "sdr"
+                    if str(getattr(config, "display_preset", "hdr")).strip().lower() == "sdr"
                     else getattr(config, "led_calibration_profile_hdr", None)
                 )
                 with metrics_lock:
                     frame_seq += 1
 
-                compositor_hdr = bool(
-                    getattr(config, "compositor_hdr_mode", False)
-                )
+                compositor_hdr = bool(getattr(config, "compositor_hdr_mode", False))
                 sdr_boost = float(getattr(config, "sdr_boost_nits", 80.0))
                 hdr_max = float(getattr(config, "hdr_max_nits", 1000.0))
 
@@ -1303,12 +1403,8 @@ def _run_loop_pipeline(
                     smoothing=config.smoothing,
                     smoothing_speed=config.smoothing_speed,
                     zone_sampling_stride=config.zone_sampling_stride,
-                    zone_sampling_engine=getattr(
-                        config, "zone_sampling_engine", "auto"
-                    ),
-                    led_gamma=float(
-                        getattr(active_profile, "led_gamma", config.led_gamma)
-                    ),
+                    zone_sampling_engine=getattr(config, "zone_sampling_engine", "auto"),
+                    led_gamma=float(getattr(active_profile, "led_gamma", config.led_gamma)),
                     motion_preset=getattr(config, "motion_preset", "responsive"),
                     light_spread=getattr(config, "light_spread", "balanced"),
                     red_gain=float(
@@ -1336,9 +1432,7 @@ def _run_loop_pipeline(
                         getattr(
                             active_profile,
                             "white_balance_temperature",
-                            getattr(
-                                config, "white_balance_temperature", 0.0
-                            ),
+                            getattr(config, "white_balance_temperature", 0.0),
                         )
                     ),
                     chroma_compression=float(
@@ -1352,27 +1446,21 @@ def _run_loop_pipeline(
                         getattr(
                             active_profile,
                             "neutral_luminance_gain",
-                            getattr(
-                                config, "neutral_luminance_gain", 1.0
-                            ),
+                            getattr(config, "neutral_luminance_gain", 1.0),
                         )
                     ),
                     black_luminance_cutoff=float(
                         getattr(
                             active_profile,
                             "black_luminance_cutoff",
-                            getattr(
-                                config, "black_luminance_cutoff", 0.0032
-                            ),
+                            getattr(config, "black_luminance_cutoff", 0.0032),
                         )
                     ),
                     black_luminance_knee=float(
                         getattr(
                             active_profile,
                             "black_luminance_knee",
-                            getattr(
-                                config, "black_luminance_knee", 0.0024
-                            ),
+                            getattr(config, "black_luminance_knee", 0.0024),
                         )
                     ),
                     color_style=getattr(config, "color_style", "natural"),
@@ -1394,17 +1482,14 @@ def _run_loop_pipeline(
                 if compositor_hdr:
                     boost = effective_sdr_boost(sdr_boost_nits=sdr_boost)
                     if abs(boost - 1.0) > 1e-6:
-                        smoothed_arr = np.asarray(
-                            smoothed_colors, dtype=np.uint8
-                        )
+                        smoothed_arr = np.asarray(smoothed_colors, dtype=np.uint8)
                         smoothed_arr = apply_zone_sdr_boost(
                             smoothed_arr,
                             sdr_boost_nits=sdr_boost,
                             hdr_max_nits=hdr_max,
                         )
                         smoothed_colors = [
-                            tuple(int(c) for c in row)
-                            for row in smoothed_arr.tolist()
+                            tuple(int(c) for c in row) for row in smoothed_arr.tolist()
                         ]
 
                 # Atomic prev_smoothed_colors swap
@@ -1418,13 +1503,9 @@ def _run_loop_pipeline(
                 # Build zone diagnostics
                 zone_diagnostics: list[dict[str, object]] = []
                 for zone_index, rect in enumerate(zones_px):
-                    sampled_rgb = tuple(
-                        int(c) for c in sampled_zone_colors[zone_index].tolist()
-                    )
+                    sampled_rgb = tuple(int(c) for c in sampled_zone_colors[zone_index].tolist())
                     mapped_led_index = None
-                    for led_idx, src_idx in enumerate(
-                        device_zone_indices.tolist()
-                    ):
+                    for led_idx, src_idx in enumerate(device_zone_indices.tolist()):
                         if int(src_idx) == int(zone_index):
                             mapped_led_index = led_idx
                             break
@@ -1433,12 +1514,10 @@ def _run_loop_pipeline(
                         final_rgb = sampled_rgb
                     else:
                         pre_led_rgb = tuple(
-                            int(c)
-                            for c in pre_led_colors[mapped_led_index].tolist()
+                            int(c) for c in pre_led_colors[mapped_led_index].tolist()
                         )
                         final_rgb = tuple(
-                            int(c)
-                            for c in final_zone_colors[mapped_led_index].tolist()
+                            int(c) for c in final_zone_colors[mapped_led_index].tolist()
                         )
                     top, right, bottom, left = state.latest_zone_side_counts
                     if zone_index < top:
@@ -1463,16 +1542,12 @@ def _run_loop_pipeline(
                             "input_luminance": color_pipeline_diagnostics(
                                 input_rgb=sampled_rgb,
                                 output_rgb=sampled_rgb,
-                                color_style=str(
-                                    getattr(config, "color_style", "reference")
-                                ),
+                                color_style=str(getattr(config, "color_style", "reference")),
                             )["sampled_luminance"],
                             **color_pipeline_diagnostics(
                                 input_rgb=sampled_rgb,
                                 output_rgb=final_rgb,
-                                color_style=str(
-                                    getattr(config, "color_style", "reference")
-                                ),
+                                color_style=str(getattr(config, "color_style", "reference")),
                             ),
                             "led_calibration_applied": pre_led_rgb != final_rgb,
                         }
@@ -1483,9 +1558,7 @@ def _run_loop_pipeline(
                     side_counts=state.latest_zone_side_counts,
                 )
                 for row in zone_diagnostics:
-                    row["side_variance"] = side_var.get(
-                        str(row.get("side")), {}
-                    )
+                    row["side_variance"] = side_var.get(str(row.get("side")), {})
                     row["processing_flattened_side"] = bool(
                         row["side_variance"].get("processing_flattened", False)
                     )
@@ -1579,12 +1652,9 @@ def _run_loop_pipeline(
                 hid_frame_build_ms: float | None = None
                 hid_device_write_ms: float | None = None
                 hid_flush_or_wait_ms: float | None = None
-                hid_flush_or_wait_reason = (
-                    "Not instrumented by current driver path."
-                )
+                hid_flush_or_wait_reason = "Not instrumented by current driver path."
                 hid_frame_build_reason = (
-                    "Frame-build timing not separated from send_frame() "
-                    "in driver path."
+                    "Frame-build timing not separated from send_frame() in driver path."
                 )
                 hid_device_limited_label = "unknown"
                 hid_reports_per_frame = "unavailable"
@@ -1599,51 +1669,34 @@ def _run_loop_pipeline(
                 hid_live_send_policy = "response_required"
                 hid_response_wait_skipped = "no"
 
-                send_with_timing = getattr(
-                    driver, "send_frame_with_timing", None
-                )
+                send_with_timing = getattr(driver, "send_frame_with_timing", None)
                 if callable(send_with_timing):
                     timing = send_with_timing(payload.smoothed_colors)
                     hid_frame_build_ms = (
                         float(timing.get("frame_build_ms"))
-                        if isinstance(timing, dict)
-                        and timing.get("frame_build_ms") is not None
+                        if isinstance(timing, dict) and timing.get("frame_build_ms") is not None
                         else None
                     )
                     hid_device_write_ms = (
                         float(timing.get("device_write_ms"))
-                        if isinstance(timing, dict)
-                        and timing.get("device_write_ms") is not None
+                        if isinstance(timing, dict) and timing.get("device_write_ms") is not None
                         else None
                     )
                     hid_flush_or_wait_ms = (
                         float(timing.get("flush_or_wait_ms"))
-                        if isinstance(timing, dict)
-                        and timing.get("flush_or_wait_ms") is not None
+                        if isinstance(timing, dict) and timing.get("flush_or_wait_ms") is not None
                         else None
                     )
                     hid_flush_or_wait_reason = str(
-                        timing.get(
-                            "flush_or_wait_reason", hid_flush_or_wait_reason
-                        )
+                        timing.get("flush_or_wait_reason", hid_flush_or_wait_reason)
                     )
-                    hid_frame_build_reason = (
-                        "Measured inside driver send path."
-                    )
+                    hid_frame_build_reason = "Measured inside driver send path."
                     hid_device_limited_label = (
-                        "yes"
-                        if bool(timing.get("device_limited", False))
-                        else "no"
+                        "yes" if bool(timing.get("device_limited", False)) else "no"
                     )
-                    hid_reports_per_frame = str(
-                        timing.get("reports_per_frame", "unavailable")
-                    )
-                    hid_bytes_per_report = str(
-                        timing.get("bytes_per_report", "unavailable")
-                    )
-                    hid_total_frame_bytes = str(
-                        timing.get("total_frame_bytes", "unavailable")
-                    )
+                    hid_reports_per_frame = str(timing.get("reports_per_frame", "unavailable"))
+                    hid_bytes_per_report = str(timing.get("bytes_per_report", "unavailable"))
+                    hid_total_frame_bytes = str(timing.get("total_frame_bytes", "unavailable"))
                     report_data_sizes = timing.get("report_data_sizes")
                     hid_report_data_sizes = (
                         ",".join(str(int(v)) for v in report_data_sizes)
@@ -1652,37 +1705,17 @@ def _run_loop_pipeline(
                     )
                     per_report_write_ms = timing.get("per_report_write_ms")
                     hid_per_report_write_ms = (
-                        ",".join(
-                            f"{float(v):.3f}" for v in per_report_write_ms
-                        )
+                        ",".join(f"{float(v):.3f}" for v in per_report_write_ms)
                         if isinstance(per_report_write_ms, list)
                         else "unavailable"
                     )
-                    hid_write_blocking = (
-                        "yes"
-                        if bool(timing.get("write_blocking", True))
-                        else "no"
-                    )
-                    hid_write_retry_policy = str(
-                        timing.get("write_retry_policy", "none")
-                    )
-                    hid_write_rate_limit_policy = str(
-                        timing.get("write_rate_limit_policy", "none")
-                    )
-                    hid_write_read_calls = str(
-                        timing.get("write_read_calls", "unavailable")
-                    )
-                    hid_live_send_policy = str(
-                        timing.get(
-                            "live_send_policy", "response_required"
-                        )
-                    )
+                    hid_write_blocking = "yes" if bool(timing.get("write_blocking", True)) else "no"
+                    hid_write_retry_policy = str(timing.get("write_retry_policy", "none"))
+                    hid_write_rate_limit_policy = str(timing.get("write_rate_limit_policy", "none"))
+                    hid_write_read_calls = str(timing.get("write_read_calls", "unavailable"))
+                    hid_live_send_policy = str(timing.get("live_send_policy", "response_required"))
                     hid_response_wait_skipped = (
-                        "yes"
-                        if bool(
-                            timing.get("response_wait_skipped", False)
-                        )
-                        else "no"
+                        "yes" if bool(timing.get("response_wait_skipped", False)) else "no"
                     )
                 else:
                     driver.send_frame(payload.smoothed_colors)
@@ -1693,17 +1726,12 @@ def _run_loop_pipeline(
                     hid_device_write_ms = hid_write_ms
 
                 frame_processing_ms = (
-                    payload.processing_timings.frame_convert_ms or 0.0
-                ) + (
-                    payload.processing_timings.zone_sampling_ms or 0.0
-                ) + (
-                    payload.processing_timings.colour_processing_ms or 0.0
-                ) + (
-                    payload.processing_timings.smoothing_ms or 0.0
-                ) + (
-                    payload.processing_timings.led_calibration_ms or 0.0
-                ) + (
-                    payload.processing_timings.output_prepare_ms or 0.0
+                    (payload.processing_timings.frame_convert_ms or 0.0)
+                    + (payload.processing_timings.zone_sampling_ms or 0.0)
+                    + (payload.processing_timings.colour_processing_ms or 0.0)
+                    + (payload.processing_timings.smoothing_ms or 0.0)
+                    + (payload.processing_timings.led_calibration_ms or 0.0)
+                    + (payload.processing_timings.output_prepare_ms or 0.0)
                 )
                 actual_work_ms = (send_done - now) * 1000.0
                 loop_gap_ms = (
@@ -1712,9 +1740,7 @@ def _run_loop_pipeline(
                     else None
                 )
                 inferred_unattributed_gap_ms = (
-                    max(0.0, loop_gap_ms - actual_work_ms)
-                    if loop_gap_ms is not None
-                    else None
+                    max(0.0, loop_gap_ms - actual_work_ms) if loop_gap_ms is not None else None
                 )
                 last_send_done_ts = send_done
 
@@ -1726,12 +1752,9 @@ def _run_loop_pipeline(
                     0.0,
                     (time.perf_counter() - payload.captured_at) * 1000.0,
                 )
-                capture_to_send_ms = (
-                    send_done - payload.captured_at
-                ) * 1000.0
+                capture_to_send_ms = (send_done - payload.captured_at) * 1000.0
                 ewma_capture_to_send_ms = (
-                    (0.9 * ewma_capture_to_send_ms)
-                    + (0.1 * capture_to_send_ms)
+                    (0.9 * ewma_capture_to_send_ms) + (0.1 * capture_to_send_ms)
                     if ewma_capture_to_send_ms > 0.0
                     else capture_to_send_ms
                 )
@@ -1774,9 +1797,7 @@ def _run_loop_pipeline(
                         fps_cap_reason="FPS governor dynamic cap",
                         dropped_or_skipped_frames_delta=dropped_delta,
                         counters_delta={
-                            "capture_worker_error_count": max(
-                                0, cap_error_now
-                            ),
+                            "capture_worker_error_count": max(0, cap_error_now),
                         },
                         flags={"capture_worker_active": cap_active},
                         labels={
@@ -1877,15 +1898,9 @@ def _run_loop_pipeline(
 
     # ---- start threads --------------------------------------------------
     threads = [
-        threading.Thread(
-            target=_capture_worker, name="capture-worker", daemon=True
-        ),
-        threading.Thread(
-            target=_process_worker, name="process-worker", daemon=True
-        ),
-        threading.Thread(
-            target=_hid_writer, name="hid-writer", daemon=True
-        ),
+        threading.Thread(target=_capture_worker, name="capture-worker", daemon=True),
+        threading.Thread(target=_process_worker, name="process-worker", daemon=True),
+        threading.Thread(target=_hid_writer, name="hid-writer", daemon=True),
     ]
     for t in threads:
         t.start()
@@ -1898,10 +1913,7 @@ def _run_loop_pipeline(
         now = time.perf_counter()
 
         # Startup timeout
-        if (
-            not state.first_frame_sent
-            and not state.startup_complete.is_set()
-        ):
+        if not state.first_frame_sent and not state.startup_complete.is_set():
             startup_elapsed = now - startup_started_at
             state.startup_elapsed_ms = max(0.0, startup_elapsed * 1000.0)
             if (
@@ -1917,9 +1929,7 @@ def _run_loop_pipeline(
                 )
                 state.last_error = reason
                 state.last_error_kind = "capture-timeout"
-                state.last_error_guidance = (
-                    "Check capture backend readiness and retry."
-                )
+                state.last_error_guidance = "Check capture backend readiness and retry."
                 state.start_failure_reason = reason
                 state.lifecycle_state = "failed"
                 state.mark_startup(False)
@@ -1966,8 +1976,7 @@ def _run_loop_pipeline(
         t.join(timeout=1.0)
         if t.is_alive():
             logger.warning(
-                "%s thread did not exit within shutdown timeout; "
-                "it may still be blocked in IO",
+                "%s thread did not exit within shutdown timeout; it may still be blocked in IO",
                 t.name,
             )
 

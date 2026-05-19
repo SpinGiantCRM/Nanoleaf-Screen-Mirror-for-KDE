@@ -126,10 +126,7 @@ def mapping_preview_text(
             f"\nCorner anchor validation: {'; '.join(snapshot.anchor_validation_errors)}"
         )
     else:
-        notes = (
-            "\nCorner anchors drive mapping for this calibration mode."
-            f"\n{summary}"
-        )
+        notes = f"\nCorner anchors drive mapping for this calibration mode.\n{summary}"
     return (
         f"Calibration model: {model} | source zones: {zone_count} | strip zones: {device_zone_count}\n"
         f"{detail_line}{notes}\n"
@@ -137,8 +134,12 @@ def mapping_preview_text(
     )
 
 
-def mapping_preview_visual(*, show_limit: int = 12, resolved_mapping: CalibrationMappingSnapshot | None = None, **kwargs) -> str:
-    indices = resolved_mapping.device_to_source_indices if resolved_mapping else mapping_indices(**kwargs)
+def mapping_preview_visual(
+    *, show_limit: int = 12, resolved_mapping: CalibrationMappingSnapshot | None = None, **kwargs
+) -> str:
+    indices = (
+        resolved_mapping.device_to_source_indices if resolved_mapping else mapping_indices(**kwargs)
+    )
     if not indices:
         return "No mapping available."
     limit = max(1, int(show_limit))

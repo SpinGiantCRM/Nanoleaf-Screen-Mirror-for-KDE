@@ -77,6 +77,7 @@ SETTINGS_SECTIONS: tuple[str, ...] = (
 SETTINGS_VIEW_STANDARD = "standard"
 SETTINGS_VIEW_ADVANCED = "advanced"
 
+
 class _FallbackLayout:
     def addWidget(self, *_args, **_kwargs) -> None:
         _log.warning("Qt QVBoxLayout unavailable; settings UI degraded.")
@@ -106,7 +107,6 @@ class _FallbackScrollArea:
 
     def setWidget(self, *_args, **_kwargs) -> None:
         return None
-
 
 
 def _qt_widget(qt: dict[str, object], name: str, fallback):
@@ -144,7 +144,11 @@ class SettingsDialog:
         class _Dialog(QDialog):
             def __init__(self):
                 super().__init__(parent)
-                window_title = "nanoleaf-kde-sync Settings" if view_mode != SETTINGS_VIEW_ADVANCED else "nanoleaf-kde-sync Advanced / Troubleshooting"
+                window_title = (
+                    "nanoleaf-kde-sync Settings"
+                    if view_mode != SETTINGS_VIEW_ADVANCED
+                    else "nanoleaf-kde-sync Advanced / Troubleshooting"
+                )
                 self.setWindowTitle(window_title)
                 resize = getattr(self, "resize", None)
                 if callable(resize):
@@ -165,78 +169,239 @@ class SettingsDialog:
                 self._settings_scroll = None
                 self._view_mode = str(view_mode or SETTINGS_VIEW_STANDARD).strip().lower()
 
-                self.brightness_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.brightness_slider.setRange(0, 100); self.brightness_slider.setValue(int(round(cfg.brightness * 100)))
-                self.smoothing_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.smoothing_slider.setRange(0, 100); self.smoothing_slider.setValue(int(round(cfg.smoothing * 100)))
-                self.smoothing_speed_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.smoothing_speed_slider.setRange(0, 400); self.smoothing_speed_slider.setValue(int(round(getattr(cfg, "smoothing_speed", 0.75) * 100)))
-                self.fps_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.fps_slider.setRange(FPS_MIN, FPS_MAX); self.fps_slider.setValue(int(cfg.fps))
-                self.display_preset_combo = QComboBox(); self.display_preset_combo.addItems(labels(DISPLAY_PRESET_LABELS)); self.display_preset_combo.setCurrentIndex(max(0, self.display_preset_combo.findText(label_for_value(DISPLAY_PRESET_LABELS, str(getattr(cfg, "display_preset", "hdr")), default="HDR"))))
-                self.compositor_hdr_mode_checkbox = QCheckBox("Compositor HDR mode (KDE Plasma SDR-on-HDR)")
-                self.compositor_hdr_mode_checkbox.setChecked(bool(getattr(cfg, "compositor_hdr_mode", False)))
-                self.sdr_boost_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.sdr_boost_nits_slider.setRange(SDR_BOOST_NITS_MIN, SDR_BOOST_NITS_MAX); self.sdr_boost_nits_slider.setValue(int(getattr(cfg, "sdr_boost_nits", 80.0)))
+                self.brightness_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.brightness_slider.setRange(0, 100)
+                self.brightness_slider.setValue(int(round(cfg.brightness * 100)))
+                self.smoothing_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.smoothing_slider.setRange(0, 100)
+                self.smoothing_slider.setValue(int(round(cfg.smoothing * 100)))
+                self.smoothing_speed_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.smoothing_speed_slider.setRange(0, 400)
+                self.smoothing_speed_slider.setValue(
+                    int(round(getattr(cfg, "smoothing_speed", 0.75) * 100))
+                )
+                self.fps_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.fps_slider.setRange(FPS_MIN, FPS_MAX)
+                self.fps_slider.setValue(int(cfg.fps))
+                self.display_preset_combo = QComboBox()
+                self.display_preset_combo.addItems(labels(DISPLAY_PRESET_LABELS))
+                self.display_preset_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.display_preset_combo.findText(
+                            label_for_value(
+                                DISPLAY_PRESET_LABELS,
+                                str(getattr(cfg, "display_preset", "hdr")),
+                                default="HDR",
+                            )
+                        ),
+                    )
+                )
+                self.compositor_hdr_mode_checkbox = QCheckBox(
+                    "Compositor HDR mode (KDE Plasma SDR-on-HDR)"
+                )
+                self.compositor_hdr_mode_checkbox.setChecked(
+                    bool(getattr(cfg, "compositor_hdr_mode", False))
+                )
+                self.sdr_boost_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.sdr_boost_nits_slider.setRange(SDR_BOOST_NITS_MIN, SDR_BOOST_NITS_MAX)
+                self.sdr_boost_nits_slider.setValue(int(getattr(cfg, "sdr_boost_nits", 80.0)))
                 self.sdr_boost_nits_value = QLabel("")
-                self.sdr_white_reference_preset_combo = QComboBox(); self.sdr_white_reference_preset_combo.addItems(["80 nits", "120 nits", "160 nits", "203 nits", "Custom"])
+                self.sdr_white_reference_preset_combo = QComboBox()
+                self.sdr_white_reference_preset_combo.addItems(
+                    ["80 nits", "120 nits", "160 nits", "203 nits", "Custom"]
+                )
                 self.detect_sdr_white_button = QPushButton("Detect KDE SDR white reference")
                 self.use_detected_sdr_white_button = QPushButton("Use detected value")
                 self.detected_sdr_white_label = QLabel("Detected value: unavailable")
                 preset_value = str(getattr(cfg, "sdr_white_reference_preset", "80")).strip().lower()
-                self.sdr_white_reference_preset_combo.setCurrentIndex({"80": 0, "120": 1, "160": 2, "203": 3, "custom": 4}.get(preset_value, 4))
-                self.motion_preset_combo = QComboBox(); self.motion_preset_combo.addItems(labels(MOTION_PRESET_LABELS)); self.motion_preset_combo.setCurrentIndex(max(0, self.motion_preset_combo.findText(label_for_value(MOTION_PRESET_LABELS, str(getattr(cfg, "motion_preset", "responsive")), default="Responsive"))))
-                self.color_style_combo = QComboBox(); self.color_style_combo.addItems(labels(COLOR_STYLE_LABELS)); self.color_style_combo.setCurrentIndex(max(0, self.color_style_combo.findText(label_for_value(COLOR_STYLE_LABELS, str(getattr(cfg, "color_style", "ambient")), default="Ambient (recommended)"))))
-                self.edge_locality_combo = QComboBox(); self.edge_locality_combo.addItems(labels(EDGE_LOCALITY_LABELS)); self.edge_locality_combo.setCurrentIndex(max(0, self.edge_locality_combo.findText(label_for_value(EDGE_LOCALITY_LABELS, str(getattr(cfg, "edge_locality", "tight")), default="Tight"))))
-                self.light_spread_combo = QComboBox(); self.light_spread_combo.addItems(labels(LIGHT_SPREAD_LABELS)); self.light_spread_combo.setCurrentIndex(max(0, self.light_spread_combo.findText(label_for_value(LIGHT_SPREAD_LABELS, str(getattr(cfg, "light_spread", "balanced")), default="Balanced"))))
-                self.start_on_launch_checkbox = QCheckBox("Start mirroring automatically when tray app opens"); self.start_on_launch_checkbox.setChecked(bool(getattr(cfg, "start_on_launch", False)))
-                self.display_gamut_combo = QComboBox(); self.display_gamut_combo.addItems(["Auto", "sRGB", "DCI-P3", "BT.2020", "Custom"])
+                self.sdr_white_reference_preset_combo.setCurrentIndex(
+                    {"80": 0, "120": 1, "160": 2, "203": 3, "custom": 4}.get(preset_value, 4)
+                )
+                self.motion_preset_combo = QComboBox()
+                self.motion_preset_combo.addItems(labels(MOTION_PRESET_LABELS))
+                self.motion_preset_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.motion_preset_combo.findText(
+                            label_for_value(
+                                MOTION_PRESET_LABELS,
+                                str(getattr(cfg, "motion_preset", "responsive")),
+                                default="Responsive",
+                            )
+                        ),
+                    )
+                )
+                self.color_style_combo = QComboBox()
+                self.color_style_combo.addItems(labels(COLOR_STYLE_LABELS))
+                self.color_style_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.color_style_combo.findText(
+                            label_for_value(
+                                COLOR_STYLE_LABELS,
+                                str(getattr(cfg, "color_style", "ambient")),
+                                default="Ambient (recommended)",
+                            )
+                        ),
+                    )
+                )
+                self.edge_locality_combo = QComboBox()
+                self.edge_locality_combo.addItems(labels(EDGE_LOCALITY_LABELS))
+                self.edge_locality_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.edge_locality_combo.findText(
+                            label_for_value(
+                                EDGE_LOCALITY_LABELS,
+                                str(getattr(cfg, "edge_locality", "tight")),
+                                default="Tight",
+                            )
+                        ),
+                    )
+                )
+                self.light_spread_combo = QComboBox()
+                self.light_spread_combo.addItems(labels(LIGHT_SPREAD_LABELS))
+                self.light_spread_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.light_spread_combo.findText(
+                            label_for_value(
+                                LIGHT_SPREAD_LABELS,
+                                str(getattr(cfg, "light_spread", "balanced")),
+                                default="Balanced",
+                            )
+                        ),
+                    )
+                )
+                self.start_on_launch_checkbox = QCheckBox(
+                    "Start mirroring automatically when tray app opens"
+                )
+                self.start_on_launch_checkbox.setChecked(
+                    bool(getattr(cfg, "start_on_launch", False))
+                )
+                self.display_gamut_combo = QComboBox()
+                self.display_gamut_combo.addItems(["Auto", "sRGB", "DCI-P3", "BT.2020", "Custom"])
                 gamut_text = str(getattr(cfg, "display_gamut", "auto")).strip().lower()
-                gamut_map = {"auto": "Auto", "srgb": "sRGB", "dci-p3": "DCI-P3", "bt.2020": "BT.2020", "bt2020": "BT.2020", "custom": "Custom"}
-                self.display_gamut_combo.setCurrentIndex(max(0, self.display_gamut_combo.findText(gamut_map.get(gamut_text, "Auto"))))
+                gamut_map = {
+                    "auto": "Auto",
+                    "srgb": "sRGB",
+                    "dci-p3": "DCI-P3",
+                    "bt.2020": "BT.2020",
+                    "bt2020": "BT.2020",
+                    "custom": "Custom",
+                }
+                self.display_gamut_combo.setCurrentIndex(
+                    max(0, self.display_gamut_combo.findText(gamut_map.get(gamut_text, "Auto")))
+                )
 
-                self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.zone_count_slider.setRange(1, MAX_ZONE_COUNT); self.zone_count_slider.setValue(self._state.zone_count)
-                self.simple_calibration_widget = SimpleCalibrationWidget(qt=qt, title="Corner calibration")
-                self.reverse_checkbox = self.simple_calibration_widget.reverse_orientation_checkbox; self.reverse_checkbox.setChecked(self._state.reverse_zones)
-                self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.device_zone_count_slider.setRange(1, self._device_zone_count_max()); self.device_zone_count_slider.setValue(self._state.device_zone_count)
+                self.zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.zone_count_slider.setRange(1, MAX_ZONE_COUNT)
+                self.zone_count_slider.setValue(self._state.zone_count)
+                self.simple_calibration_widget = SimpleCalibrationWidget(
+                    qt=qt, title="Corner calibration"
+                )
+                self.reverse_checkbox = self.simple_calibration_widget.reverse_orientation_checkbox
+                self.reverse_checkbox.setChecked(self._state.reverse_zones)
+                self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.device_zone_count_slider.setRange(1, self._device_zone_count_max())
+                self.device_zone_count_slider.setValue(self._state.device_zone_count)
                 self.device_zone_count_status_label = QLabel("")
                 self.strip_count_warning_label = QLabel("")
                 self.use_detected_count_button = QPushButton("Use reported count")
                 self.keep_configured_count_button = QPushButton("Keep manual count")
                 self.reset_recalibrate_button = QPushButton("Reset anchors and recalibrate")
                 self.assign_top_left_button = self.simple_calibration_widget.assign_top_left_button
-                self.assign_top_right_button = self.simple_calibration_widget.assign_top_right_button
-                self.assign_bottom_right_button = self.simple_calibration_widget.assign_bottom_right_button
-                self.assign_bottom_left_button = self.simple_calibration_widget.assign_bottom_left_button
+                self.assign_top_right_button = (
+                    self.simple_calibration_widget.assign_top_right_button
+                )
+                self.assign_bottom_right_button = (
+                    self.simple_calibration_widget.assign_bottom_right_button
+                )
+                self.assign_bottom_left_button = (
+                    self.simple_calibration_widget.assign_bottom_left_button
+                )
                 self.reset_anchor_button = self.simple_calibration_widget.reset_anchors_button
                 self.current_zone_label = self.simple_calibration_widget.current_zone_label
                 self.test_step_index_label = self.simple_calibration_widget.step_index_label
 
-                self.test_step_button = self.simple_calibration_widget.next_zone_button ; self.test_prev_button = self.simple_calibration_widget.prev_zone_button
+                self.test_step_button = self.simple_calibration_widget.next_zone_button
+                self.test_prev_button = self.simple_calibration_widget.prev_zone_button
                 self._live_preview_timer = QTimer(self)
                 live_single_shot = getattr(self._live_preview_timer, "setSingleShot", None)
                 if callable(live_single_shot):
                     live_single_shot(True)
                 self._live_preview_timer.timeout.connect(self._flush_live_preview)
 
-                self.output_channel_order_combo = QComboBox(); self.output_channel_order_combo.addItems(["grb", "rgb", "rbg", "gbr", "brg", "bgr"]); self.output_channel_order_combo.setCurrentIndex(max(0, self.output_channel_order_combo.findText(str(getattr(cfg, "output_channel_order", "grb")))))
+                self.output_channel_order_combo = QComboBox()
+                self.output_channel_order_combo.addItems(["grb", "rgb", "rbg", "gbr", "brg", "bgr"])
+                self.output_channel_order_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.output_channel_order_combo.findText(
+                            str(getattr(cfg, "output_channel_order", "grb"))
+                        ),
+                    )
+                )
                 self.device_model_combo = QComboBox()
-                self.device_model_combo.addItems(["NL82K2 Lightstrip (PID 0x8202)", "NL82K1 Dock (PID 0x8201)", "Custom VID/PID"])
-                self.device_vid_combo = QComboBox(); self.device_vid_combo.addItems(["0x37FA"])
-                self.device_pid_combo = QComboBox(); self.device_pid_combo.addItems(["0x8202", "0x8201"])
+                self.device_model_combo.addItems(
+                    ["NL82K2 Lightstrip (PID 0x8202)", "NL82K1 Dock (PID 0x8201)", "Custom VID/PID"]
+                )
+                self.device_vid_combo = QComboBox()
+                self.device_vid_combo.addItems(["0x37FA"])
+                self.device_pid_combo = QComboBox()
+                self.device_pid_combo.addItems(["0x8202", "0x8201"])
                 vid_hex = f"0x{int(getattr(cfg, 'device_vid', 0x37FA)):04X}"
                 pid_hex = f"0x{int(getattr(cfg, 'device_pid', 0x8202)):04X}"
                 if self.device_vid_combo.findText(vid_hex) < 0:
                     self.device_vid_combo.addItems([vid_hex])
                 if self.device_pid_combo.findText(pid_hex) < 0:
                     self.device_pid_combo.addItems([pid_hex])
-                self.device_vid_combo.setCurrentIndex(max(0, self.device_vid_combo.findText(vid_hex)))
-                self.device_pid_combo.setCurrentIndex(max(0, self.device_pid_combo.findText(pid_hex)))
+                self.device_vid_combo.setCurrentIndex(
+                    max(0, self.device_vid_combo.findText(vid_hex))
+                )
+                self.device_pid_combo.setCurrentIndex(
+                    max(0, self.device_pid_combo.findText(pid_hex))
+                )
                 if pid_hex == "0x8201":
                     self.device_model_combo.setCurrentIndex(1)
                 elif pid_hex == "0x8202":
                     self.device_model_combo.setCurrentIndex(0)
                 else:
                     self.device_model_combo.setCurrentIndex(2)
-                self.capture_backend_combo = QComboBox(); self.capture_backend_combo.addItems(["auto", "kwin-dbus", "kmsgrab", "xdg-portal"]); self.capture_backend_combo.setCurrentIndex(max(0, self.capture_backend_combo.findText(str(getattr(cfg, "prefer_backend", "kwin-dbus")))))
-                self.auto_probe_policy_combo = QComboBox(); self.auto_probe_policy_combo.addItems(["on-change", "first-run", "each-boot"]); self.auto_probe_policy_combo.setCurrentIndex(max(0, self.auto_probe_policy_combo.findText(str(getattr(cfg, "auto_probe_policy", "on-change")))))
+                self.capture_backend_combo = QComboBox()
+                self.capture_backend_combo.addItems(["auto", "kwin-dbus", "kmsgrab", "xdg-portal"])
+                self.capture_backend_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.capture_backend_combo.findText(
+                            str(getattr(cfg, "prefer_backend", "kwin-dbus"))
+                        ),
+                    )
+                )
+                self.auto_probe_policy_combo = QComboBox()
+                self.auto_probe_policy_combo.addItems(["on-change", "first-run", "each-boot"])
+                self.auto_probe_policy_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.auto_probe_policy_combo.findText(
+                            str(getattr(cfg, "auto_probe_policy", "on-change"))
+                        ),
+                    )
+                )
 
-                self.auto_latency_policy_combo = QComboBox(); self.auto_latency_policy_combo.addItems(["manual", "on-open", "on-open-once-per-backend"]); self.auto_latency_policy_combo.setCurrentIndex(max(0, self.auto_latency_policy_combo.findText(str(getattr(cfg, "auto_latency_policy", "manual")))))
+                self.auto_latency_policy_combo = QComboBox()
+                self.auto_latency_policy_combo.addItems(
+                    ["manual", "on-open", "on-open-once-per-backend"]
+                )
+                self.auto_latency_policy_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.auto_latency_policy_combo.findText(
+                            str(getattr(cfg, "auto_latency_policy", "manual"))
+                        ),
+                    )
+                )
                 self.run_latency_button = QPushButton("Measure active backend latency")
                 self.retest_backends_button = QPushButton("Re-test backends (fresh probe)")
                 self.test_xdg_portal_button = QPushButton("Test xdg-portal")
@@ -244,26 +409,102 @@ class SettingsDialog:
                 self.latency_label = QLabel(latency_result_summary(None))
                 self.xdg_hint_label = QLabel("")
 
-                self.hdr_transfer_combo = QComboBox(); self.hdr_transfer_combo.addItems(["srgb", "pq"]); self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))))
-                self.hdr_primaries_combo = QComboBox(); self.hdr_primaries_combo.addItems(["bt709", "bt2020"]); self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText(str(getattr(cfg, "hdr_primaries", "bt709")))))
-                self.hdr_max_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.hdr_max_nits_slider.setRange(HDR_MAX_NITS_MIN, HDR_MAX_NITS_MAX); self.hdr_max_nits_slider.setValue(int(getattr(cfg, "hdr_max_nits", 1000.0)))
-                self.sampling_quality_combo = QComboBox(); self.sampling_quality_combo.addItems(labels(SAMPLING_QUALITY_LABELS)); self.sampling_quality_combo.setCurrentIndex(max(0, self.sampling_quality_combo.findText(label_for_value(SAMPLING_QUALITY_LABELS, str(getattr(cfg, "sampling_quality", "high")), default="High"))))
-                self.performance_priority_combo = QComboBox(); self.performance_priority_combo.addItems(labels(PERFORMANCE_PRIORITY_LABELS)); self.performance_priority_combo.setCurrentIndex(max(0, self.performance_priority_combo.findText(label_for_value(PERFORMANCE_PRIORITY_LABELS, str(getattr(cfg, "performance_priority", "normal")), default="Normal"))))
-                self.led_gamma_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.led_gamma_slider.setRange(100, 400); self.led_gamma_slider.setValue(int(round(getattr(cfg, "led_gamma", 1.0) * 100)))
-                self.red_gain_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.red_gain_slider.setRange(50, 150); self.red_gain_slider.setValue(int(round(getattr(cfg, "red_gain", 1.0) * 100)))
-                self.green_gain_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.green_gain_slider.setRange(50, 150); self.green_gain_slider.setValue(int(round(getattr(cfg, "green_gain", 1.0) * 100)))
-                self.blue_gain_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.blue_gain_slider.setRange(50, 150); self.blue_gain_slider.setValue(int(round(getattr(cfg, "blue_gain", 1.0) * 100)))
-                self.white_balance_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.white_balance_slider.setRange(-100, 100); self.white_balance_slider.setValue(int(round(getattr(cfg, "white_balance_temperature", 0.0) * 100)))
-                self.chroma_compression_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.chroma_compression_slider.setRange(0, 60); self.chroma_compression_slider.setValue(int(round(getattr(cfg, "chroma_compression", 0.0) * 100)))
-                self.neutral_luminance_gain_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.neutral_luminance_gain_slider.setRange(70, 150); self.neutral_luminance_gain_slider.setValue(int(round(getattr(cfg, "neutral_luminance_gain", 1.0) * 100)))
-                self.black_luminance_cutoff_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.black_luminance_cutoff_slider.setRange(0, 300); self.black_luminance_cutoff_slider.setValue(int(round(getattr(cfg, "black_luminance_cutoff", 0.0032) * 10000)))
-                self.black_luminance_knee_slider = QSlider(qt["Qt"].Orientation.Horizontal); self.black_luminance_knee_slider.setRange(5, 300); self.black_luminance_knee_slider.setValue(int(round(getattr(cfg, "black_luminance_knee", 0.0024) * 10000)))
+                self.hdr_transfer_combo = QComboBox()
+                self.hdr_transfer_combo.addItems(["srgb", "pq"])
+                self.hdr_transfer_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb"))),
+                    )
+                )
+                self.hdr_primaries_combo = QComboBox()
+                self.hdr_primaries_combo.addItems(["bt709", "bt2020"])
+                self.hdr_primaries_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.hdr_primaries_combo.findText(
+                            str(getattr(cfg, "hdr_primaries", "bt709"))
+                        ),
+                    )
+                )
+                self.hdr_max_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.hdr_max_nits_slider.setRange(HDR_MAX_NITS_MIN, HDR_MAX_NITS_MAX)
+                self.hdr_max_nits_slider.setValue(int(getattr(cfg, "hdr_max_nits", 1000.0)))
+                self.sampling_quality_combo = QComboBox()
+                self.sampling_quality_combo.addItems(labels(SAMPLING_QUALITY_LABELS))
+                self.sampling_quality_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.sampling_quality_combo.findText(
+                            label_for_value(
+                                SAMPLING_QUALITY_LABELS,
+                                str(getattr(cfg, "sampling_quality", "high")),
+                                default="High",
+                            )
+                        ),
+                    )
+                )
+                self.performance_priority_combo = QComboBox()
+                self.performance_priority_combo.addItems(labels(PERFORMANCE_PRIORITY_LABELS))
+                self.performance_priority_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.performance_priority_combo.findText(
+                            label_for_value(
+                                PERFORMANCE_PRIORITY_LABELS,
+                                str(getattr(cfg, "performance_priority", "normal")),
+                                default="Normal",
+                            )
+                        ),
+                    )
+                )
+                self.led_gamma_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.led_gamma_slider.setRange(100, 400)
+                self.led_gamma_slider.setValue(int(round(getattr(cfg, "led_gamma", 1.0) * 100)))
+                self.red_gain_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.red_gain_slider.setRange(50, 150)
+                self.red_gain_slider.setValue(int(round(getattr(cfg, "red_gain", 1.0) * 100)))
+                self.green_gain_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.green_gain_slider.setRange(50, 150)
+                self.green_gain_slider.setValue(int(round(getattr(cfg, "green_gain", 1.0) * 100)))
+                self.blue_gain_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.blue_gain_slider.setRange(50, 150)
+                self.blue_gain_slider.setValue(int(round(getattr(cfg, "blue_gain", 1.0) * 100)))
+                self.white_balance_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.white_balance_slider.setRange(-100, 100)
+                self.white_balance_slider.setValue(
+                    int(round(getattr(cfg, "white_balance_temperature", 0.0) * 100))
+                )
+                self.chroma_compression_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.chroma_compression_slider.setRange(0, 60)
+                self.chroma_compression_slider.setValue(
+                    int(round(getattr(cfg, "chroma_compression", 0.0) * 100))
+                )
+                self.neutral_luminance_gain_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.neutral_luminance_gain_slider.setRange(70, 150)
+                self.neutral_luminance_gain_slider.setValue(
+                    int(round(getattr(cfg, "neutral_luminance_gain", 1.0) * 100))
+                )
+                self.black_luminance_cutoff_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.black_luminance_cutoff_slider.setRange(0, 300)
+                self.black_luminance_cutoff_slider.setValue(
+                    int(round(getattr(cfg, "black_luminance_cutoff", 0.0032) * 10000))
+                )
+                self.black_luminance_knee_slider = QSlider(qt["Qt"].Orientation.Horizontal)
+                self.black_luminance_knee_slider.setRange(5, 300)
+                self.black_luminance_knee_slider.setValue(
+                    int(round(getattr(cfg, "black_luminance_knee", 0.0024) * 10000))
+                )
                 self.reset_led_calibration_button = QPushButton("Reset calibration")
                 self.reference_test_colours_button = QPushButton("Reference test colours")
                 self.guided_led_calibration_button = QPushButton("Calibrate LED colour")
-                self.save_led_calibration_profile_button = QPushButton("Save active calibration profile")
-                self.display_configurator_button = QPushButton("Re-run Display Setup"); self.display_configurator_button.clicked.connect(self._open_configurator)
-                self.open_calibration_tool_button = QPushButton("Open calibration tool"); self.open_calibration_tool_button.clicked.connect(self._open_configurator)
+                self.save_led_calibration_profile_button = QPushButton(
+                    "Save active calibration profile"
+                )
+                self.display_configurator_button = QPushButton("Re-run Display Setup")
+                self.display_configurator_button.clicked.connect(self._open_configurator)
+                self.open_calibration_tool_button = QPushButton("Open calibration tool")
+                self.open_calibration_tool_button.clicked.connect(self._open_configurator)
                 self._apply_tooltips()
 
                 self.backend_info_label = QLabel("")
@@ -271,12 +512,20 @@ class SettingsDialog:
                 self.hdr_colour_path_label = QLabel("")
                 self.edge_locality_diagnostic_button = QPushButton("Run edge locality test")
                 self.edge_locality_diagnostic_label = QLabel("")
-                self.color_accuracy_diagnostic_button = QPushButton("Run colour accuracy diagnostic")
+                self.color_accuracy_diagnostic_button = QPushButton(
+                    "Run colour accuracy diagnostic"
+                )
                 self.color_accuracy_diagnostic_label = QLabel("")
                 self.run_self_check_button = QPushButton("Run self-check")
-                self.capture_one_diagnostic_frame_button = QPushButton("Capture one diagnostic frame")
-                self.export_live_sampling_overlay_button = QPushButton("Export live sampling overlay")
-                self.export_synthetic_sampling_overlay_button = QPushButton("Export synthetic sampling test overlay")
+                self.capture_one_diagnostic_frame_button = QPushButton(
+                    "Capture one diagnostic frame"
+                )
+                self.export_live_sampling_overlay_button = QPushButton(
+                    "Export live sampling overlay"
+                )
+                self.export_synthetic_sampling_overlay_button = QPushButton(
+                    "Export synthetic sampling test overlay"
+                )
                 self.export_zone_report_button = QPushButton("Export per-zone colour report")
                 self.export_latency_report_button = QPushButton("Export live latency breakdown")
                 self.self_check_label = QLabel("")
@@ -286,8 +535,27 @@ class SettingsDialog:
                 self.recovery_tools_hint_label = QLabel(
                     "Use tray Advanced / Troubleshooting for Run Doctor, Run Smoke Test, launch diagnostics, and probe cache reset."
                 )
-                self.preview_label = self.simple_calibration_widget.preview_text_label; self.preview_visual_label = self.simple_calibration_widget.preview_visual_label; self.test_label = QLabel("")
-                self.brightness_value = QLabel(""); self.smoothing_value = QLabel(""); self.fps_value = QLabel(""); self.zone_count_value = QLabel(""); self.device_zone_count_value = QLabel(""); self.hdr_max_nits_value = QLabel(""); self.sdr_boost_nits_value = QLabel(""); self.sampling_quality_value = QLabel(""); self.smoothing_speed_value = QLabel(""); self.led_gamma_value = QLabel(""); self.red_gain_value = QLabel(""); self.green_gain_value = QLabel(""); self.blue_gain_value = QLabel(""); self.white_balance_value = QLabel(""); self.chroma_compression_value = QLabel(""); self.neutral_luminance_gain_value = QLabel(""); self.black_luminance_cutoff_value = QLabel(""); self.black_luminance_knee_value = QLabel("")
+                self.preview_label = self.simple_calibration_widget.preview_text_label
+                self.preview_visual_label = self.simple_calibration_widget.preview_visual_label
+                self.test_label = QLabel("")
+                self.brightness_value = QLabel("")
+                self.smoothing_value = QLabel("")
+                self.fps_value = QLabel("")
+                self.zone_count_value = QLabel("")
+                self.device_zone_count_value = QLabel("")
+                self.hdr_max_nits_value = QLabel("")
+                self.sdr_boost_nits_value = QLabel("")
+                self.sampling_quality_value = QLabel("")
+                self.smoothing_speed_value = QLabel("")
+                self.led_gamma_value = QLabel("")
+                self.red_gain_value = QLabel("")
+                self.green_gain_value = QLabel("")
+                self.blue_gain_value = QLabel("")
+                self.white_balance_value = QLabel("")
+                self.chroma_compression_value = QLabel("")
+                self.neutral_luminance_gain_value = QLabel("")
+                self.black_luminance_cutoff_value = QLabel("")
+                self.black_luminance_knee_value = QLabel("")
                 for label in (
                     self.brightness_value,
                     self.smoothing_value,
@@ -320,7 +588,9 @@ class SettingsDialog:
                 ):
                     signal.connect(self._refresh_preview_label)
                 self.zone_count_slider.valueChanged.connect(self._on_zone_count_slider_changed)
-                self.device_zone_count_slider.valueChanged.connect(self._on_device_zone_count_slider_changed)
+                self.device_zone_count_slider.valueChanged.connect(
+                    self._on_device_zone_count_slider_changed
+                )
                 self._on_device_zone_count_slider_changed()
                 self.simple_calibration_widget.bind_callbacks(
                     on_prev_zone=self._prev_test_zone,
@@ -339,28 +609,52 @@ class SettingsDialog:
                 self._update_backend_probe_button_state()
                 self.test_xdg_portal_button.clicked.connect(self._run_xdg_portal_test)
                 self.benchmark_xdg_portal_button.clicked.connect(self._run_xdg_portal_benchmark)
-                self.edge_locality_diagnostic_button.clicked.connect(self._run_edge_locality_diagnostic)
-                self.color_accuracy_diagnostic_button.clicked.connect(self._run_color_accuracy_diagnostic)
+                self.edge_locality_diagnostic_button.clicked.connect(
+                    self._run_edge_locality_diagnostic
+                )
+                self.color_accuracy_diagnostic_button.clicked.connect(
+                    self._run_color_accuracy_diagnostic
+                )
                 self.run_self_check_button.clicked.connect(self._run_self_check)
-                self.capture_one_diagnostic_frame_button.clicked.connect(self._capture_one_diagnostic_frame)
-                self.export_live_sampling_overlay_button.clicked.connect(self._export_live_sampling_overlay)
-                self.export_synthetic_sampling_overlay_button.clicked.connect(self._export_synthetic_sampling_overlay)
+                self.capture_one_diagnostic_frame_button.clicked.connect(
+                    self._capture_one_diagnostic_frame
+                )
+                self.export_live_sampling_overlay_button.clicked.connect(
+                    self._export_live_sampling_overlay
+                )
+                self.export_synthetic_sampling_overlay_button.clicked.connect(
+                    self._export_synthetic_sampling_overlay
+                )
                 self.export_zone_report_button.clicked.connect(self._export_zone_report)
                 self.export_latency_report_button.clicked.connect(self._export_latency_report)
                 self.use_detected_count_button.clicked.connect(self._use_detected_strip_count)
                 self.keep_configured_count_button.clicked.connect(self._keep_configured_strip_count)
                 self.reset_recalibrate_button.clicked.connect(self._reset_anchors)
-                self.device_model_combo.currentIndexChanged.connect(self._sync_device_model_selection)
+                self.device_model_combo.currentIndexChanged.connect(
+                    self._sync_device_model_selection
+                )
                 self.sdr_boost_nits_slider.valueChanged.connect(self._on_sdr_white_slider_changed)
-                self.sdr_white_reference_preset_combo.currentIndexChanged.connect(self._on_sdr_white_preset_changed)
+                self.sdr_white_reference_preset_combo.currentIndexChanged.connect(
+                    self._on_sdr_white_preset_changed
+                )
                 self.detect_sdr_white_button.clicked.connect(self._detect_kde_sdr_white_reference)
-                self.use_detected_sdr_white_button.clicked.connect(self._use_detected_sdr_white_reference)
+                self.use_detected_sdr_white_button.clicked.connect(
+                    self._use_detected_sdr_white_reference
+                )
                 self.reset_led_calibration_button.clicked.connect(self._reset_led_calibration)
-                self.reference_test_colours_button.clicked.connect(self._send_reference_test_colours)
-                self.guided_led_calibration_button.clicked.connect(self._open_guided_led_calibration)
-                self.save_led_calibration_profile_button.clicked.connect(self._save_active_led_calibration_profile)
+                self.reference_test_colours_button.clicked.connect(
+                    self._send_reference_test_colours
+                )
+                self.guided_led_calibration_button.clicked.connect(
+                    self._open_guided_led_calibration
+                )
+                self.save_led_calibration_profile_button.clicked.connect(
+                    self._save_active_led_calibration_profile
+                )
 
-                buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Close)
+                buttons = QDialogButtonBox(
+                    QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Close
+                )
                 buttons.accepted.connect(self._apply_settings)
                 buttons.rejected.connect(self.reject)
 
@@ -373,8 +667,12 @@ class SettingsDialog:
 
                 display_section = self._build_display_section(QGroupBox, QGridLayout, QLabel)
                 runtime_section = self._build_runtime_section(QGroupBox, QGridLayout, QLabel)
-                zone_mapping_section = self._build_zone_mapping_section(QGroupBox, QGridLayout, QLabel)
-                calibration_section = self._build_calibration_testing_section(QGroupBox, QGridLayout, QLabel)
+                zone_mapping_section = self._build_zone_mapping_section(
+                    QGroupBox, QGridLayout, QLabel
+                )
+                calibration_section = self._build_calibration_testing_section(
+                    QGroupBox, QGridLayout, QLabel
+                )
                 output_section = self._build_output_startup_section(QGroupBox, QGridLayout, QLabel)
                 diagnostics_section = self._build_backend_section(QGroupBox, QGridLayout, QLabel)
 
@@ -403,24 +701,39 @@ class SettingsDialog:
                 self.setLayout(root)
 
                 self._sync_device_model_selection()
-                self._refresh_numeric_labels(); self._refresh_preview_label()
+                self._refresh_numeric_labels()
+                self._refresh_preview_label()
                 self._update_latency_label_for_latest_probe_result()
                 self._maybe_auto_run_latency_check()
                 if initial_section:
                     self.focus_section(initial_section)
 
             def _apply_tooltips(self) -> None:
-                self.brightness_slider.setToolTip("Overall output intensity. Lower values reduce LED brightness.")
+                self.brightness_slider.setToolTip(
+                    "Overall output intensity. Lower values reduce LED brightness."
+                )
                 self.smoothing_slider.setToolTip("Blends frame-to-frame colors to reduce flicker.")
-                self.smoothing_speed_slider.setToolTip("Motion response gain for smoothing. Lower values react slower (more smoothing); 0 keeps the strongest smoothing.")
+                self.smoothing_speed_slider.setToolTip(
+                    "Motion response gain for smoothing. Lower values react slower (more smoothing); 0 keeps the strongest smoothing."
+                )
                 self.fps_slider.setToolTip(
                     "This is the target update rate. Actual output FPS may be lower if capture, processing, or HID output cannot keep up."
                 )
-                self.sampling_quality_combo.setToolTip("Low = better performance, Balanced = default, High = best visual fidelity.")
-                self.performance_priority_combo.setToolTip("High priority may improve scheduling consistency. It may fail without permission. Very high is experimental.")
-                self.led_gamma_slider.setToolTip("Gamma correction for LED response. 1.00 keeps output linear.")
-                self.zone_count_slider.setToolTip("Number of screen sampling zones sampled from the display.")
-                self.reverse_checkbox.setToolTip("Flip strip direction if the mapping appears mirrored.")
+                self.sampling_quality_combo.setToolTip(
+                    "Low = better performance, Balanced = default, High = best visual fidelity."
+                )
+                self.performance_priority_combo.setToolTip(
+                    "High priority may improve scheduling consistency. It may fail without permission. Very high is experimental."
+                )
+                self.led_gamma_slider.setToolTip(
+                    "Gamma correction for LED response. 1.00 keeps output linear."
+                )
+                self.zone_count_slider.setToolTip(
+                    "Number of screen sampling zones sampled from the display."
+                )
+                self.reverse_checkbox.setToolTip(
+                    "Flip strip direction if the mapping appears mirrored."
+                )
                 self.display_preset_combo.setToolTip("Select SDR, HDR, or Auto display behavior.")
                 self.motion_preset_combo.setToolTip(
                     "Calm: smoother fades for video and desktop. "
@@ -433,25 +746,57 @@ class SettingsDialog:
                     "Vivid: Richer colour response.\n"
                     "Punchy: Strong stylised colour effect."
                 )
-                self.edge_locality_combo.setToolTip("Tight: most accurate/least bleed. Balanced: softer ambient look. Wide: cinematic blend.")
-                self.light_spread_combo.setToolTip("Neighbour blending only. Precise = least spread, Balanced = default, Soft = cinematic.")
-                self.hdr_max_nits_slider.setToolTip("Reference display peak brightness for HDR tone mapping.")
-                self.capture_backend_combo.setToolTip("Select auto or force a specific capture backend.")
+                self.edge_locality_combo.setToolTip(
+                    "Tight: most accurate/least bleed. Balanced: softer ambient look. Wide: cinematic blend."
+                )
+                self.light_spread_combo.setToolTip(
+                    "Neighbour blending only. Precise = least spread, Balanced = default, Soft = cinematic."
+                )
+                self.hdr_max_nits_slider.setToolTip(
+                    "Reference display peak brightness for HDR tone mapping."
+                )
+                self.capture_backend_combo.setToolTip(
+                    "Select auto or force a specific capture backend."
+                )
                 self.device_model_combo.setToolTip("Select your Nanoleaf USB hardware model.")
                 self.device_vid_combo.setToolTip("USB vendor ID used to locate your hardware.")
                 self.device_pid_combo.setToolTip("USB product ID used to locate your hardware.")
-                self.auto_probe_policy_combo.setToolTip("Choose when auto-backend probing should run.")
-                self.auto_latency_policy_combo.setToolTip("Automatically run latency checks on selected lifecycle events.")
-                self.device_zone_count_slider.setToolTip("Configured strip zone count used for device mapping.")
-                self.output_channel_order_combo.setToolTip("Set RGB byte order expected by your strip controller.")
-                self.start_on_launch_checkbox.setToolTip("Start syncing automatically right after tray launch.")
-                self.compositor_hdr_mode_checkbox.setToolTip("Enable compensation when KDE Plasma is running SDR content on HDR.")
-                self.sdr_boost_nits_slider.setToolTip("Plasma SDR white reference in nits when compositor HDR mode is enabled.")
-                self.sdr_white_reference_preset_combo.setToolTip("Preset SDR white reference levels (80/120/160/203 nits or custom).")
-                self.chroma_compression_slider.setToolTip("Chroma compression: reduces LED oversaturation.")
-                self.neutral_luminance_gain_slider.setToolTip("Neutral luminance: controls how bright grey/white screen areas appear on the LEDs.")
-                self.black_luminance_cutoff_slider.setToolTip("Black cutoff: controls when near-black screen areas turn the LEDs off.")
-                self.white_balance_slider.setToolTip("White balance: adjusts LED tint warmer/cooler.")
+                self.auto_probe_policy_combo.setToolTip(
+                    "Choose when auto-backend probing should run."
+                )
+                self.auto_latency_policy_combo.setToolTip(
+                    "Automatically run latency checks on selected lifecycle events."
+                )
+                self.device_zone_count_slider.setToolTip(
+                    "Configured strip zone count used for device mapping."
+                )
+                self.output_channel_order_combo.setToolTip(
+                    "Set RGB byte order expected by your strip controller."
+                )
+                self.start_on_launch_checkbox.setToolTip(
+                    "Start syncing automatically right after tray launch."
+                )
+                self.compositor_hdr_mode_checkbox.setToolTip(
+                    "Enable compensation when KDE Plasma is running SDR content on HDR."
+                )
+                self.sdr_boost_nits_slider.setToolTip(
+                    "Plasma SDR white reference in nits when compositor HDR mode is enabled."
+                )
+                self.sdr_white_reference_preset_combo.setToolTip(
+                    "Preset SDR white reference levels (80/120/160/203 nits or custom)."
+                )
+                self.chroma_compression_slider.setToolTip(
+                    "Chroma compression: reduces LED oversaturation."
+                )
+                self.neutral_luminance_gain_slider.setToolTip(
+                    "Neutral luminance: controls how bright grey/white screen areas appear on the LEDs."
+                )
+                self.black_luminance_cutoff_slider.setToolTip(
+                    "Black cutoff: controls when near-black screen areas turn the LEDs off."
+                )
+                self.white_balance_slider.setToolTip(
+                    "White balance: adjusts LED tint warmer/cooler."
+                )
 
             def _configure_section_layout(self, layout) -> None:
                 set_margins = getattr(layout, "setContentsMargins", None)
@@ -487,7 +832,9 @@ class SettingsDialog:
             def _configure_value_label(self, label) -> None:
                 set_alignment = getattr(label, "setAlignment", None)
                 if callable(set_alignment):
-                    set_alignment(qt["Qt"].AlignmentFlag.AlignRight | qt["Qt"].AlignmentFlag.AlignVCenter)
+                    set_alignment(
+                        qt["Qt"].AlignmentFlag.AlignRight | qt["Qt"].AlignmentFlag.AlignVCenter
+                    )
                 set_min_width = getattr(label, "setMinimumWidth", None)
                 if callable(set_min_width):
                     set_min_width(86)
@@ -568,7 +915,16 @@ class SettingsDialog:
                 layout.addWidget(self.motion_preset_combo, 1, 1, 1, 2)
                 layout.addWidget(QLabel("Color style"), 2, 0)
                 layout.addWidget(self.color_style_combo, 2, 1, 1, 2)
-                layout.addWidget(self._help_text_label(QLabel, "Grey and white screen areas create neutral ambient light. Black areas turn the LEDs off."), 3, 0, 1, 3)
+                layout.addWidget(
+                    self._help_text_label(
+                        QLabel,
+                        "Grey and white screen areas create neutral ambient light. Black areas turn the LEDs off.",
+                    ),
+                    3,
+                    0,
+                    1,
+                    3,
+                )
                 layout.addWidget(QLabel("Edge locality"), 4, 0)
                 layout.addWidget(self.edge_locality_combo, 4, 1, 1, 2)
                 layout.addWidget(QLabel("Light spread"), 5, 0)
@@ -586,11 +942,29 @@ class SettingsDialog:
                 advanced_layout.addWidget(QLabel("SDR white reference"), 2, 0)
                 advanced_layout.addWidget(self.sdr_boost_nits_slider, 2, 1)
                 advanced_layout.addWidget(self.sdr_boost_nits_value, 2, 2)
-                advanced_layout.addWidget(self._help_text_label(QLabel, "SDR white reference controls how bright SDR/desktop content appears when HDR is enabled."), 3, 0, 1, 3)
+                advanced_layout.addWidget(
+                    self._help_text_label(
+                        QLabel,
+                        "SDR white reference controls how bright SDR/desktop content appears when HDR is enabled.",
+                    ),
+                    3,
+                    0,
+                    1,
+                    3,
+                )
                 advanced_layout.addWidget(self.detect_sdr_white_button, 4, 0, 1, 2)
                 advanced_layout.addWidget(self.use_detected_sdr_white_button, 4, 2)
                 advanced_layout.addWidget(self.detected_sdr_white_label, 5, 0, 1, 3)
-                advanced_layout.addWidget(self._help_text_label(QLabel, "KDE guidance: 203 nits is a useful PQ reference. 160/120 can be more comfortable. 80 nits is nominal SDR and may look dim."), 6, 0, 1, 3)
+                advanced_layout.addWidget(
+                    self._help_text_label(
+                        QLabel,
+                        "KDE guidance: 203 nits is a useful PQ reference. 160/120 can be more comfortable. 80 nits is nominal SDR and may look dim.",
+                    ),
+                    6,
+                    0,
+                    1,
+                    3,
+                )
                 advanced_layout.addWidget(QLabel("HDR transfer"), 7, 0)
                 advanced_layout.addWidget(self.hdr_transfer_combo, 7, 1, 1, 2)
                 advanced_layout.addWidget(QLabel("HDR primaries"), 8, 0)
@@ -603,20 +977,54 @@ class SettingsDialog:
                 led_cal = QGroupBox("LED colour calibration")
                 led_layout = QGridLayout()
                 self._configure_section_layout(led_layout)
-                led_layout.addWidget(QLabel("Red gain"), 0, 0); led_layout.addWidget(self.red_gain_slider, 0, 1); led_layout.addWidget(self.red_gain_value, 0, 2)
-                led_layout.addWidget(QLabel("Green gain"), 1, 0); led_layout.addWidget(self.green_gain_slider, 1, 1); led_layout.addWidget(self.green_gain_value, 1, 2)
-                led_layout.addWidget(QLabel("Blue gain"), 2, 0); led_layout.addWidget(self.blue_gain_slider, 2, 1); led_layout.addWidget(self.blue_gain_value, 2, 2)
-                led_layout.addWidget(QLabel("White balance"), 3, 0); led_layout.addWidget(self.white_balance_slider, 3, 1); led_layout.addWidget(self.white_balance_value, 3, 2)
-                led_layout.addWidget(QLabel("Chroma compression"), 4, 0); led_layout.addWidget(self.chroma_compression_slider, 4, 1); led_layout.addWidget(self.chroma_compression_value, 4, 2)
-                led_layout.addWidget(QLabel("Neutral luminance gain"), 5, 0); led_layout.addWidget(self.neutral_luminance_gain_slider, 5, 1); led_layout.addWidget(self.neutral_luminance_gain_value, 5, 2)
-                led_layout.addWidget(QLabel("Black cutoff"), 6, 0); led_layout.addWidget(self.black_luminance_cutoff_slider, 6, 1); led_layout.addWidget(self.black_luminance_cutoff_value, 6, 2)
-                led_layout.addWidget(QLabel("Black knee"), 7, 0); led_layout.addWidget(self.black_luminance_knee_slider, 7, 1); led_layout.addWidget(self.black_luminance_knee_value, 7, 2)
+                led_layout.addWidget(QLabel("Red gain"), 0, 0)
+                led_layout.addWidget(self.red_gain_slider, 0, 1)
+                led_layout.addWidget(self.red_gain_value, 0, 2)
+                led_layout.addWidget(QLabel("Green gain"), 1, 0)
+                led_layout.addWidget(self.green_gain_slider, 1, 1)
+                led_layout.addWidget(self.green_gain_value, 1, 2)
+                led_layout.addWidget(QLabel("Blue gain"), 2, 0)
+                led_layout.addWidget(self.blue_gain_slider, 2, 1)
+                led_layout.addWidget(self.blue_gain_value, 2, 2)
+                led_layout.addWidget(QLabel("White balance"), 3, 0)
+                led_layout.addWidget(self.white_balance_slider, 3, 1)
+                led_layout.addWidget(self.white_balance_value, 3, 2)
+                led_layout.addWidget(QLabel("Chroma compression"), 4, 0)
+                led_layout.addWidget(self.chroma_compression_slider, 4, 1)
+                led_layout.addWidget(self.chroma_compression_value, 4, 2)
+                led_layout.addWidget(QLabel("Neutral luminance gain"), 5, 0)
+                led_layout.addWidget(self.neutral_luminance_gain_slider, 5, 1)
+                led_layout.addWidget(self.neutral_luminance_gain_value, 5, 2)
+                led_layout.addWidget(QLabel("Black cutoff"), 6, 0)
+                led_layout.addWidget(self.black_luminance_cutoff_slider, 6, 1)
+                led_layout.addWidget(self.black_luminance_cutoff_value, 6, 2)
+                led_layout.addWidget(QLabel("Black knee"), 7, 0)
+                led_layout.addWidget(self.black_luminance_knee_slider, 7, 1)
+                led_layout.addWidget(self.black_luminance_knee_value, 7, 2)
                 led_layout.addWidget(self.reset_led_calibration_button, 8, 0, 1, 1)
                 led_layout.addWidget(self.reference_test_colours_button, 8, 1, 1, 1)
                 led_layout.addWidget(self.guided_led_calibration_button, 8, 2, 1, 1)
                 led_layout.addWidget(self.save_led_calibration_profile_button, 9, 0, 1, 3)
-                led_layout.addWidget(self._help_text_label(QLabel, "Reference: Most accurate. Preserves greys as neutral light, avoids saturation boost, turns off only for black/near-black."), 10, 0, 1, 3)
-                led_layout.addWidget(self._help_text_label(QLabel, "Ambient: Recommended glow. Similar to Reference, with slightly stronger neutral brightness and smoother ambience."), 11, 0, 1, 3)
+                led_layout.addWidget(
+                    self._help_text_label(
+                        QLabel,
+                        "Reference: Most accurate. Preserves greys as neutral light, avoids saturation boost, turns off only for black/near-black.",
+                    ),
+                    10,
+                    0,
+                    1,
+                    3,
+                )
+                led_layout.addWidget(
+                    self._help_text_label(
+                        QLabel,
+                        "Ambient: Recommended glow. Similar to Reference, with slightly stronger neutral brightness and smoother ambience.",
+                    ),
+                    11,
+                    0,
+                    1,
+                    3,
+                )
                 led_cal.setLayout(led_layout)
                 layout.addWidget(led_cal, 8, 0, 1, 3)
                 layout.addWidget(self.display_configurator_button, 9, 0, 1, 3)
@@ -627,14 +1035,28 @@ class SettingsDialog:
                 group = QGroupBox("Performance")
                 layout = QGridLayout()
                 self._configure_section_layout(layout)
-                layout.addWidget(QLabel("Brightness"), 0, 0); layout.addWidget(self.brightness_slider, 0, 1); layout.addWidget(self.brightness_value, 0, 2)
-                layout.addWidget(QLabel("Smoothing"), 1, 0); layout.addWidget(self.smoothing_slider, 1, 1); layout.addWidget(self.smoothing_value, 1, 2)
-                layout.addWidget(QLabel("Smoothing speed"), 2, 0); layout.addWidget(self.smoothing_speed_slider, 2, 1); layout.addWidget(self.smoothing_speed_value, 2, 2)
-                layout.addWidget(QLabel("Target capture/output FPS"), 3, 0); layout.addWidget(self.fps_slider, 3, 1); layout.addWidget(self.fps_value, 3, 2)
-                layout.addWidget(QLabel("Quality"), 4, 0); layout.addWidget(self.sampling_quality_combo, 4, 1); layout.addWidget(self.sampling_quality_value, 4, 2)
-                layout.addWidget(QLabel("Performance priority"), 5, 0); layout.addWidget(self.performance_priority_combo, 5, 1, 1, 2)
-                layout.addWidget(QLabel("Vibrancy (LED gamma)"), 6, 0); layout.addWidget(self.led_gamma_slider, 6, 1); layout.addWidget(self.led_gamma_value, 6, 2)
-                layout.addWidget(QLabel("Capture backend"), 7, 0); layout.addWidget(self.capture_backend_combo, 7, 1, 1, 2)
+                layout.addWidget(QLabel("Brightness"), 0, 0)
+                layout.addWidget(self.brightness_slider, 0, 1)
+                layout.addWidget(self.brightness_value, 0, 2)
+                layout.addWidget(QLabel("Smoothing"), 1, 0)
+                layout.addWidget(self.smoothing_slider, 1, 1)
+                layout.addWidget(self.smoothing_value, 1, 2)
+                layout.addWidget(QLabel("Smoothing speed"), 2, 0)
+                layout.addWidget(self.smoothing_speed_slider, 2, 1)
+                layout.addWidget(self.smoothing_speed_value, 2, 2)
+                layout.addWidget(QLabel("Target capture/output FPS"), 3, 0)
+                layout.addWidget(self.fps_slider, 3, 1)
+                layout.addWidget(self.fps_value, 3, 2)
+                layout.addWidget(QLabel("Quality"), 4, 0)
+                layout.addWidget(self.sampling_quality_combo, 4, 1)
+                layout.addWidget(self.sampling_quality_value, 4, 2)
+                layout.addWidget(QLabel("Performance priority"), 5, 0)
+                layout.addWidget(self.performance_priority_combo, 5, 1, 1, 2)
+                layout.addWidget(QLabel("Vibrancy (LED gamma)"), 6, 0)
+                layout.addWidget(self.led_gamma_slider, 6, 1)
+                layout.addWidget(self.led_gamma_value, 6, 2)
+                layout.addWidget(QLabel("Capture backend"), 7, 0)
+                layout.addWidget(self.capture_backend_combo, 7, 1, 1, 2)
                 group.setLayout(layout)
                 return group
 
@@ -642,8 +1064,12 @@ class SettingsDialog:
                 group = QGroupBox("Edge Mapping")
                 layout = QGridLayout()
                 self._configure_section_layout(layout)
-                layout.addWidget(QLabel("Screen sampling zone count"), 0, 0); layout.addWidget(self.zone_count_slider, 0, 1); layout.addWidget(self.zone_count_value, 0, 2)
-                layout.addWidget(QLabel("Strip LED zone count"), 4, 0); layout.addWidget(self.device_zone_count_slider, 4, 1); layout.addWidget(self.device_zone_count_value, 4, 2)
+                layout.addWidget(QLabel("Screen sampling zone count"), 0, 0)
+                layout.addWidget(self.zone_count_slider, 0, 1)
+                layout.addWidget(self.zone_count_value, 0, 2)
+                layout.addWidget(QLabel("Strip LED zone count"), 4, 0)
+                layout.addWidget(self.device_zone_count_slider, 4, 1)
+                layout.addWidget(self.device_zone_count_value, 4, 2)
                 layout.addWidget(self.device_zone_count_status_label, 5, 0, 1, 3)
                 layout.addWidget(self.strip_count_warning_label, 6, 0, 1, 3)
                 layout.addWidget(self.use_detected_count_button, 7, 0)
@@ -656,7 +1082,15 @@ class SettingsDialog:
                 group = QGroupBox("Calibration")
                 layout = QGridLayout()
                 self._configure_section_layout(layout)
-                layout.addWidget(self._help_text_label(QLabel, "Use corner calibration to map the strip to your display corners."), 0, 0, 1, 3)
+                layout.addWidget(
+                    self._help_text_label(
+                        QLabel, "Use corner calibration to map the strip to your display corners."
+                    ),
+                    0,
+                    0,
+                    1,
+                    3,
+                )
                 layout.addWidget(self.open_calibration_tool_button, 1, 0, 1, 3)
                 layout.addWidget(self.test_label, 2, 0, 1, 3)
                 group.setLayout(layout)
@@ -666,19 +1100,30 @@ class SettingsDialog:
                 group = QGroupBox("Device")
                 layout = QGridLayout()
                 self._configure_section_layout(layout)
-                layout.addWidget(QLabel("Output channel order"), 0, 0); layout.addWidget(self.output_channel_order_combo, 0, 1, 1, 2)
-                layout.addWidget(QLabel("Device model"), 1, 0); layout.addWidget(self.device_model_combo, 1, 1, 1, 2)
-                layout.addWidget(QLabel("Device VID"), 2, 0); layout.addWidget(self.device_vid_combo, 2, 1, 1, 2)
-                layout.addWidget(QLabel("Device PID"), 3, 0); layout.addWidget(self.device_pid_combo, 3, 1, 1, 2)
+                layout.addWidget(QLabel("Output channel order"), 0, 0)
+                layout.addWidget(self.output_channel_order_combo, 0, 1, 1, 2)
+                layout.addWidget(QLabel("Device model"), 1, 0)
+                layout.addWidget(self.device_model_combo, 1, 1, 1, 2)
+                layout.addWidget(QLabel("Device VID"), 2, 0)
+                layout.addWidget(self.device_vid_combo, 2, 1, 1, 2)
+                layout.addWidget(QLabel("Device PID"), 3, 0)
+                layout.addWidget(self.device_pid_combo, 3, 1, 1, 2)
                 layout.addWidget(self.start_on_launch_checkbox, 4, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
-            def _open_configurator(self): self._open_display_configurator = True; self.accept()
-            def wants_display_configurator(self) -> bool: return bool(self._open_display_configurator)
+            def _open_configurator(self):
+                self._open_display_configurator = True
+                self.accept()
+
+            def wants_display_configurator(self) -> bool:
+                return bool(self._open_display_configurator)
 
             def _pull_state(self):
-                self._state.zone_count = int(self.zone_count_slider.value()); self._state.layout_preset = "edge-weighted"; self._state.reverse_zones = bool(self.reverse_checkbox.isChecked()); self._state.device_zone_count = int(self.device_zone_count_slider.value())
+                self._state.zone_count = int(self.zone_count_slider.value())
+                self._state.layout_preset = "edge-weighted"
+                self._state.reverse_zones = bool(self.reverse_checkbox.isChecked())
+                self._state.device_zone_count = int(self.device_zone_count_slider.value())
                 self._state.calibration_model = "corner_anchored"
 
             def _set_slider_value_safely(self, slider, value: int) -> None:
@@ -693,15 +1138,60 @@ class SettingsDialog:
                     block_signals(previous)
 
             def _refresh_numeric_labels(self):
-                if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower() != "custom":
+                if (
+                    str(self.sdr_white_reference_preset_combo.currentText()).strip().lower()
+                    != "custom"
+                ):
                     try:
-                        self._set_slider_value_safely(self.sdr_boost_nits_slider, int(str(self.sdr_white_reference_preset_combo.currentText()).split(" ", 1)[0]))
+                        self._set_slider_value_safely(
+                            self.sdr_boost_nits_slider,
+                            int(
+                                str(self.sdr_white_reference_preset_combo.currentText()).split(
+                                    " ", 1
+                                )[0]
+                            ),
+                        )
                     except (ValueError, IndexError):
                         pass
-                self.brightness_value.setText(f"{self.brightness_slider.value()}%"); self.smoothing_value.setText(f"{self.smoothing_slider.value()}%"); self.smoothing_speed_value.setText(f"{self.smoothing_speed_slider.value() / 100.0:.2f}"); self.fps_value.setText(f"{self.fps_slider.value()} FPS"); self.sampling_quality_value.setText({"Low": "Better performance", "Balanced": "Default", "High": "Best visual fidelity"}.get(str(self.sampling_quality_combo.currentText()), "Default")); self.zone_count_value.setText(str(self.zone_count_slider.value())); self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits"); self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits"); self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}"); self.red_gain_value.setText(f"{self.red_gain_slider.value()/100.0:.2f}"); self.green_gain_value.setText(f"{self.green_gain_slider.value()/100.0:.2f}"); self.blue_gain_value.setText(f"{self.blue_gain_slider.value()/100.0:.2f}"); self.white_balance_value.setText(f"{self.white_balance_slider.value()/100.0:+.2f}"); self.chroma_compression_value.setText(f"{self.chroma_compression_slider.value()/100.0:.2f}"); self.neutral_luminance_gain_value.setText(f"{self.neutral_luminance_gain_slider.value()/100.0:.2f}"); self.black_luminance_cutoff_value.setText(f"{self.black_luminance_cutoff_slider.value()/10000.0:.4f}"); self.black_luminance_knee_value.setText(f"{self.black_luminance_knee_slider.value()/10000.0:.4f}")
+                self.brightness_value.setText(f"{self.brightness_slider.value()}%")
+                self.smoothing_value.setText(f"{self.smoothing_slider.value()}%")
+                self.smoothing_speed_value.setText(
+                    f"{self.smoothing_speed_slider.value() / 100.0:.2f}"
+                )
+                self.fps_value.setText(f"{self.fps_slider.value()} FPS")
+                self.sampling_quality_value.setText(
+                    {
+                        "Low": "Better performance",
+                        "Balanced": "Default",
+                        "High": "Best visual fidelity",
+                    }.get(str(self.sampling_quality_combo.currentText()), "Default")
+                )
+                self.zone_count_value.setText(str(self.zone_count_slider.value()))
+                self.hdr_max_nits_value.setText(f"{self.hdr_max_nits_slider.value()} nits")
+                self.sdr_boost_nits_value.setText(f"{self.sdr_boost_nits_slider.value()} nits")
+                self.led_gamma_value.setText(f"{self.led_gamma_slider.value() / 100.0:.2f}")
+                self.red_gain_value.setText(f"{self.red_gain_slider.value() / 100.0:.2f}")
+                self.green_gain_value.setText(f"{self.green_gain_slider.value() / 100.0:.2f}")
+                self.blue_gain_value.setText(f"{self.blue_gain_slider.value() / 100.0:.2f}")
+                self.white_balance_value.setText(
+                    f"{self.white_balance_slider.value() / 100.0:+.2f}"
+                )
+                self.chroma_compression_value.setText(
+                    f"{self.chroma_compression_slider.value() / 100.0:.2f}"
+                )
+                self.neutral_luminance_gain_value.setText(
+                    f"{self.neutral_luminance_gain_slider.value() / 100.0:.2f}"
+                )
+                self.black_luminance_cutoff_value.setText(
+                    f"{self.black_luminance_cutoff_slider.value() / 10000.0:.4f}"
+                )
+                self.black_luminance_knee_value.setText(
+                    f"{self.black_luminance_knee_slider.value() / 10000.0:.4f}"
+                )
 
             def _refresh_preview_label(self):
-                self._refresh_numeric_labels(); self._pull_state()
+                self._refresh_numeric_labels()
+                self._pull_state()
                 pending_cfg = replace(
                     cfg,
                     prefer_backend=str(self.capture_backend_combo.currentText()),
@@ -730,7 +1220,9 @@ class SettingsDialog:
                     int(self._state.corner_anchor_bottom_left),
                 )
                 if detected > 0 and configured != detected:
-                    warnings.append("Device-reported count differs from configured count. The configured manual value is used.")
+                    warnings.append(
+                        "Device-reported count differs from configured count. The configured manual value is used."
+                    )
                 if source != configured:
                     warnings.append("Changing strip count invalidates calibration.")
                 if anchor_max >= configured:
@@ -757,8 +1249,14 @@ class SettingsDialog:
                     )
                     if int(value) >= 0
                 )
-                validation_status = "Complete" if assigned_count == 4 and not warnings else ("Missing corners" if assigned_count < 4 else "Out of range")
-                self.simple_calibration_widget.validation_label.setText(f"Calibration: {validation_status}")
+                validation_status = (
+                    "Complete"
+                    if assigned_count == 4 and not warnings
+                    else ("Missing corners" if assigned_count < 4 else "Out of range")
+                )
+                self.simple_calibration_widget.validation_label.setText(
+                    f"Calibration: {validation_status}"
+                )
                 self.simple_calibration_widget.direction_label.setText(
                     f"Direction: {'Reversed' if self._state.reverse_zones else 'Normal'}"
                 )
@@ -782,7 +1280,9 @@ class SettingsDialog:
                             f"Raw device→source mapping: {self._state.mapping_preview_text()}",
                             (
                                 "Live diagnostics unavailable.\nStart mirroring to measure live output FPS."
-                                if not isinstance(self._runtime_status.get("_latest_frame_rgb"), np.ndarray)
+                                if not isinstance(
+                                    self._runtime_status.get("_latest_frame_rgb"), np.ndarray
+                                )
                                 else "Live diagnostics available from latest captured frame."
                             ),
                             *diagnostics_text_lines(status=preview_status, cfg=pending_cfg),
@@ -794,20 +1294,47 @@ class SettingsDialog:
                     hdr_path = {
                         "hdr_transfer": str(self.hdr_transfer_combo.currentText()),
                         "hdr_primaries": str(self.hdr_primaries_combo.currentText()),
-                        "effective_sdr_boost_scalar": float(effective_sdr_boost(sdr_boost_nits=float(self.sdr_boost_nits_slider.value()))),
+                        "effective_sdr_boost_scalar": float(
+                            effective_sdr_boost(
+                                sdr_boost_nits=float(self.sdr_boost_nits_slider.value())
+                            )
+                        ),
                         "tone_mapping_applied": False,
                         "capture_metadata_source": "unknown",
                         "assumption": "No backend metadata available; using user preset.",
                     }
                 samples = [(64, 64, 64), (128, 128, 128), (255, 255, 255), (128, 110, 110)]
-                style = value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient")
+                style = value_for_label(
+                    COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"
+                )
                 ratios = []
                 neutral_ok = True
                 for rgb in samples:
-                    styled, cap = apply_color_style_mapping_with_diagnostics(np.asarray([rgb], dtype=np.float32), color_style=style)
-                    led = apply_led_calibration(styled.astype(np.float32, copy=False), LedCalibration(red_gain=self.red_gain_slider.value()/100.0, green_gain=self.green_gain_slider.value()/100.0, blue_gain=self.blue_gain_slider.value()/100.0, led_gamma=self.led_gamma_slider.value()/100.0, white_balance_temperature=self.white_balance_slider.value()/100.0, chroma_compression=self.chroma_compression_slider.value()/100.0, neutral_luminance_gain=self.neutral_luminance_gain_slider.value()/100.0, black_luminance_cutoff=self.black_luminance_cutoff_slider.value()/10000.0, black_luminance_knee=self.black_luminance_knee_slider.value()/10000.0))
+                    styled, cap = apply_color_style_mapping_with_diagnostics(
+                        np.asarray([rgb], dtype=np.float32), color_style=style
+                    )
+                    led = apply_led_calibration(
+                        styled.astype(np.float32, copy=False),
+                        LedCalibration(
+                            red_gain=self.red_gain_slider.value() / 100.0,
+                            green_gain=self.green_gain_slider.value() / 100.0,
+                            blue_gain=self.blue_gain_slider.value() / 100.0,
+                            led_gamma=self.led_gamma_slider.value() / 100.0,
+                            white_balance_temperature=self.white_balance_slider.value() / 100.0,
+                            chroma_compression=self.chroma_compression_slider.value() / 100.0,
+                            neutral_luminance_gain=self.neutral_luminance_gain_slider.value()
+                            / 100.0,
+                            black_luminance_cutoff=self.black_luminance_cutoff_slider.value()
+                            / 10000.0,
+                            black_luminance_knee=self.black_luminance_knee_slider.value() / 10000.0,
+                        ),
+                    )
                     out = np.clip(np.rint(led[0]), 0.0, 255.0).astype(np.uint8)
-                    diag = color_pipeline_diagnostics(input_rgb=rgb, output_rgb=tuple(int(v) for v in out.tolist()), chroma_cap_applied=bool(cap[0]))
+                    diag = color_pipeline_diagnostics(
+                        input_rgb=rgb,
+                        output_rgb=tuple(int(v) for v in out.tolist()),
+                        chroma_cap_applied=bool(cap[0]),
+                    )
                     ratios.append(float(diag["chroma_ratio"]))
                     neutral_ok = neutral_ok and bool(diag["neutral_grey_preserved"])
                 self.hdr_colour_path_label.setText(
@@ -832,7 +1359,10 @@ class SettingsDialog:
                 pending_cfg = self.updated_config()
                 frame = self._runtime_status.get("_latest_frame_rgb")
                 zones = self._runtime_status.get("_latest_zones_px") or []
-                side_counts = tuple(int(i) for i in (self._runtime_status.get("_latest_zone_side_counts") or (0, 0, 0, 0)))
+                side_counts = tuple(
+                    int(i)
+                    for i in (self._runtime_status.get("_latest_zone_side_counts") or (0, 0, 0, 0))
+                )
                 try:
                     out = export_sampling_overlay(
                         frame=frame if isinstance(frame, np.ndarray) else None,
@@ -849,7 +1379,10 @@ class SettingsDialog:
             def _export_synthetic_sampling_overlay(self) -> None:
                 pending_cfg = self.updated_config()
                 zones = self._runtime_status.get("_latest_zones_px") or []
-                side_counts = tuple(int(i) for i in (self._runtime_status.get("_latest_zone_side_counts") or (0, 0, 0, 0)))
+                side_counts = tuple(
+                    int(i)
+                    for i in (self._runtime_status.get("_latest_zone_side_counts") or (0, 0, 0, 0))
+                )
                 out = export_sampling_overlay(
                     frame=None,
                     zones=zones,
@@ -896,16 +1429,25 @@ class SettingsDialog:
                     pid_text = "0x8201"
                 else:
                     return
-                self.device_vid_combo.setCurrentIndex(max(0, self.device_vid_combo.findText(vid_text)))
-                self.device_pid_combo.setCurrentIndex(max(0, self.device_pid_combo.findText(pid_text)))
+                self.device_vid_combo.setCurrentIndex(
+                    max(0, self.device_vid_combo.findText(vid_text))
+                )
+                self.device_pid_combo.setCurrentIndex(
+                    max(0, self.device_pid_combo.findText(pid_text))
+                )
 
             def _on_sdr_white_slider_changed(self, *_args) -> None:
-                if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower() != "custom":
+                if (
+                    str(self.sdr_white_reference_preset_combo.currentText()).strip().lower()
+                    != "custom"
+                ):
                     self.sdr_white_reference_preset_combo.setCurrentIndex(4)
                 self._refresh_preview_label()
 
             def _on_sdr_white_preset_changed(self, *_args) -> None:
-                preset_text = str(self.sdr_white_reference_preset_combo.currentText()).strip().lower()
+                preset_text = (
+                    str(self.sdr_white_reference_preset_combo.currentText()).strip().lower()
+                )
                 if preset_text != "custom":
                     self._set_slider_value_safely(
                         self.sdr_boost_nits_slider,
@@ -916,7 +1458,9 @@ class SettingsDialog:
             def _detect_kde_sdr_white_reference(self) -> None:
                 detected = self._runtime_status.get("detected_kde_sdr_white_nits")
                 if detected is None:
-                    detected = 203.0 if bool(self.compositor_hdr_mode_checkbox.isChecked()) else 80.0
+                    detected = (
+                        203.0 if bool(self.compositor_hdr_mode_checkbox.isChecked()) else 80.0
+                    )
                 self._runtime_status["detected_kde_sdr_white_nits"] = float(detected)
                 self.detected_sdr_white_label.setText(
                     f"Detected value: {float(detected):.0f} nits (not applied)"
@@ -951,28 +1495,52 @@ class SettingsDialog:
 
             def _guided_helper_adjust(self, label: str) -> None:
                 if label == "Too blue":
-                    self._set_slider_value_safely(self.blue_gain_slider, self.blue_gain_slider.value() - 1)
-                    self._set_slider_value_safely(self.red_gain_slider, self.red_gain_slider.value() + 1)
+                    self._set_slider_value_safely(
+                        self.blue_gain_slider, self.blue_gain_slider.value() - 1
+                    )
+                    self._set_slider_value_safely(
+                        self.red_gain_slider, self.red_gain_slider.value() + 1
+                    )
                 elif label == "Too green":
-                    self._set_slider_value_safely(self.green_gain_slider, self.green_gain_slider.value() - 1)
-                    self._set_slider_value_safely(self.red_gain_slider, self.red_gain_slider.value() + 1)
-                    self._set_slider_value_safely(self.blue_gain_slider, self.blue_gain_slider.value() + 1)
+                    self._set_slider_value_safely(
+                        self.green_gain_slider, self.green_gain_slider.value() - 1
+                    )
+                    self._set_slider_value_safely(
+                        self.red_gain_slider, self.red_gain_slider.value() + 1
+                    )
+                    self._set_slider_value_safely(
+                        self.blue_gain_slider, self.blue_gain_slider.value() + 1
+                    )
                 elif label == "Too red/pink":
-                    self._set_slider_value_safely(self.red_gain_slider, self.red_gain_slider.value() - 1)
-                    self._set_slider_value_safely(self.blue_gain_slider, self.blue_gain_slider.value() + 1)
+                    self._set_slider_value_safely(
+                        self.red_gain_slider, self.red_gain_slider.value() - 1
+                    )
+                    self._set_slider_value_safely(
+                        self.blue_gain_slider, self.blue_gain_slider.value() + 1
+                    )
                 elif label == "Too yellow/warm":
-                    self._set_slider_value_safely(self.red_gain_slider, self.red_gain_slider.value() - 1)
-                    self._set_slider_value_safely(self.green_gain_slider, self.green_gain_slider.value() - 1)
-                    self._set_slider_value_safely(self.blue_gain_slider, self.blue_gain_slider.value() + 1)
+                    self._set_slider_value_safely(
+                        self.red_gain_slider, self.red_gain_slider.value() - 1
+                    )
+                    self._set_slider_value_safely(
+                        self.green_gain_slider, self.green_gain_slider.value() - 1
+                    )
+                    self._set_slider_value_safely(
+                        self.blue_gain_slider, self.blue_gain_slider.value() + 1
+                    )
                 elif label == "Looks neutral":
-                    self.color_accuracy_diagnostic_label.setText("Looks neutral: keeping current preview values.")
+                    self.color_accuracy_diagnostic_label.setText(
+                        "Looks neutral: keeping current preview values."
+                    )
                 self._refresh_preview_label()
                 self._send_guided_calibration_pattern()
 
             def _save_active_led_calibration_profile(self) -> None:
                 style = str(self.display_preset_combo.currentText()).strip().lower()
                 target = "SDR" if style == "sdr" else "HDR"
-                self.color_accuracy_diagnostic_label.setText(f"Saved active LED calibration profile for {target}.")
+                self.color_accuracy_diagnostic_label.setText(
+                    f"Saved active LED calibration profile for {target}."
+                )
                 self._send_guided_calibration_pattern()
 
             def _open_guided_led_calibration(self) -> None:
@@ -1031,7 +1599,10 @@ class SettingsDialog:
                     black_luminance_knee=self.black_luminance_knee_slider.value() / 10000.0,
                 )
                 calibrated = apply_led_calibration(np.asarray(base, dtype=np.float32), calibration)
-                colors = [tuple(int(v) for v in row.tolist()) for row in np.clip(np.rint(calibrated), 0, 255).astype(np.uint8)]
+                colors = [
+                    tuple(int(v) for v in row.tolist())
+                    for row in np.clip(np.rint(calibrated), 0, 255).astype(np.uint8)
+                ]
                 device_zones = max(1, int(self.device_zone_count_slider.value()))
                 if step == 6:
                     marker = max(0, int(self._runtime_status.get("_guided_locality_marker", 0)))
@@ -1044,11 +1615,19 @@ class SettingsDialog:
 
             def _send_reference_test_colours(self) -> None:
                 if self._calibration_sender is None:
-                    self.color_accuracy_diagnostic_label.setText("Reference test colours unavailable while mirroring sender is not active.")
+                    self.color_accuracy_diagnostic_label.setText(
+                        "Reference test colours unavailable while mirroring sender is not active."
+                    )
                     return
                 pattern = [
-                    (255, 255, 255), (255, 0, 0), (0, 255, 0), (0, 0, 255),
-                    (0, 255, 255), (255, 0, 255), (255, 255, 0), (128, 128, 128),
+                    (255, 255, 255),
+                    (255, 0, 0),
+                    (0, 255, 0),
+                    (0, 0, 255),
+                    (0, 255, 255),
+                    (255, 0, 255),
+                    (255, 255, 0),
+                    (128, 128, 128),
                 ]
                 self._calibration_sender(pattern)
                 self.color_accuracy_diagnostic_label.setText("Reference test colours sent.")
@@ -1063,23 +1642,37 @@ class SettingsDialog:
                     self._state.corner_anchor_bottom_right = current_zone
                 elif corner == "bottom_left":
                     self._state.corner_anchor_bottom_left = current_zone
-                self._refresh_preview_label(); self._schedule_live_preview()
+                self._refresh_preview_label()
+                self._schedule_live_preview()
 
             def _reset_anchors(self):
                 self._state.corner_anchor_top_left = -1
                 self._state.corner_anchor_top_right = -1
                 self._state.corner_anchor_bottom_right = -1
                 self._state.corner_anchor_bottom_left = -1
-                self._refresh_preview_label(); self._schedule_live_preview()
+                self._refresh_preview_label()
+                self._schedule_live_preview()
 
             def _current_calibration_step(self):
                 self._test_step %= self._test_cycle_length()
                 return self._state.step_for_mode(CALIBRATION_MODE_PHYSICAL, self._test_step)
 
-            def _test_cycle_length(self): return self._state.cycle_length(CALIBRATION_MODE_PHYSICAL)
-            def _step_test_zone(self): self._test_step = (self._test_step + 1) % self._test_cycle_length(); self._refresh_preview_label(); self._send_test_pattern()
-            def _prev_test_zone(self): self._test_step = (self._test_step - 1) % self._test_cycle_length(); self._refresh_preview_label(); self._send_test_pattern()
-            def _on_calibration_controls_changed(self): self._refresh_preview_label(); self._schedule_live_preview()
+            def _test_cycle_length(self):
+                return self._state.cycle_length(CALIBRATION_MODE_PHYSICAL)
+
+            def _step_test_zone(self):
+                self._test_step = (self._test_step + 1) % self._test_cycle_length()
+                self._refresh_preview_label()
+                self._send_test_pattern()
+
+            def _prev_test_zone(self):
+                self._test_step = (self._test_step - 1) % self._test_cycle_length()
+                self._refresh_preview_label()
+                self._send_test_pattern()
+
+            def _on_calibration_controls_changed(self):
+                self._refresh_preview_label()
+                self._schedule_live_preview()
 
             def _schedule_live_preview(self):
                 if self._calibration_sender is None:
@@ -1091,11 +1684,17 @@ class SettingsDialog:
                 self._send_test_pattern()
 
             def _send_test_pattern(self):
-                if self._calibration_sender is None: return
+                if self._calibration_sender is None:
+                    return
                 self._pull_state()
                 # Normalize self._test_step before generating the frame.
                 self._current_calibration_step()
-                colors = self._state.frame_for_step(mode=CALIBRATION_MODE_PHYSICAL, step=self._test_step, brightness=1.0, all_off_except_active=True)
+                colors = self._state.frame_for_step(
+                    mode=CALIBRATION_MODE_PHYSICAL,
+                    step=self._test_step,
+                    brightness=1.0,
+                    all_off_except_active=True,
+                )
                 self._calibration_sender(colors)
 
             def _device_zone_count_max(self) -> int:
@@ -1133,22 +1732,68 @@ class SettingsDialog:
                 self._pull_state()
                 result = run_edge_locality_test(
                     zone_count=max(1, int(self._state.zone_count)),
-                    edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"),
-                    sampling_quality=value_for_label(SAMPLING_QUALITY_LABELS, str(self.sampling_quality_combo.currentText()), default="high"),
-                    motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"),
-                    color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"),
+                    edge_locality=value_for_label(
+                        EDGE_LOCALITY_LABELS,
+                        str(self.edge_locality_combo.currentText()),
+                        default="tight",
+                    ),
+                    sampling_quality=value_for_label(
+                        SAMPLING_QUALITY_LABELS,
+                        str(self.sampling_quality_combo.currentText()),
+                        default="high",
+                    ),
+                    motion_preset=value_for_label(
+                        MOTION_PRESET_LABELS,
+                        str(self.motion_preset_combo.currentText()),
+                        default="responsive",
+                    ),
+                    color_style=value_for_label(
+                        COLOR_STYLE_LABELS,
+                        str(self.color_style_combo.currentText()),
+                        default="ambient",
+                    ),
                 )
                 self.edge_locality_diagnostic_label.setText(result.summary)
 
             def _run_color_accuracy_diagnostic(self) -> None:
-                style = value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient")
+                style = value_for_label(
+                    COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"
+                )
                 result = run_color_accuracy_diagnostic(
                     mapper=lambda rgb: (
                         lambda styled_cap: (
-                            np.clip(np.rint(apply_led_calibration(styled_cap[0].astype(np.float32), LedCalibration(red_gain=self.red_gain_slider.value()/100.0, green_gain=self.green_gain_slider.value()/100.0, blue_gain=self.blue_gain_slider.value()/100.0, led_gamma=self.led_gamma_slider.value()/100.0, white_balance_temperature=self.white_balance_slider.value()/100.0, chroma_compression=self.chroma_compression_slider.value()/100.0, neutral_luminance_gain=self.neutral_luminance_gain_slider.value()/100.0, black_luminance_cutoff=self.black_luminance_cutoff_slider.value()/10000.0, black_luminance_knee=self.black_luminance_knee_slider.value()/10000.0))[0]),0.0,255.0).astype(np.uint8),
+                            np.clip(
+                                np.rint(
+                                    apply_led_calibration(
+                                        styled_cap[0].astype(np.float32),
+                                        LedCalibration(
+                                            red_gain=self.red_gain_slider.value() / 100.0,
+                                            green_gain=self.green_gain_slider.value() / 100.0,
+                                            blue_gain=self.blue_gain_slider.value() / 100.0,
+                                            led_gamma=self.led_gamma_slider.value() / 100.0,
+                                            white_balance_temperature=self.white_balance_slider.value()
+                                            / 100.0,
+                                            chroma_compression=self.chroma_compression_slider.value()
+                                            / 100.0,
+                                            neutral_luminance_gain=self.neutral_luminance_gain_slider.value()
+                                            / 100.0,
+                                            black_luminance_cutoff=self.black_luminance_cutoff_slider.value()
+                                            / 10000.0,
+                                            black_luminance_knee=self.black_luminance_knee_slider.value()
+                                            / 10000.0,
+                                        ),
+                                    )[0]
+                                ),
+                                0.0,
+                                255.0,
+                            ).astype(np.uint8),
                             bool(styled_cap[1][0]),
                         )
-                    )(apply_color_style_mapping_with_diagnostics(np.asarray([rgb], dtype=np.float32), color_style=style)),
+                    )(
+                        apply_color_style_mapping_with_diagnostics(
+                            np.asarray([rgb], dtype=np.float32), color_style=style
+                        )
+                    ),
                     color_style=style,
                 )
                 self.color_accuracy_diagnostic_label.setText(result.summary)
@@ -1167,10 +1812,14 @@ class SettingsDialog:
 
             def _capture_one_diagnostic_frame(self) -> None:
                 if self._diagnostic_capture is None:
-                    self.sampling_export_label.setText("Diagnostic capture is unavailable in this context.")
+                    self.sampling_export_label.setText(
+                        "Diagnostic capture is unavailable in this context."
+                    )
                     return
                 result = dict(self._diagnostic_capture() or {})
-                self.sampling_export_label.setText(str(result.get("message") or "Diagnostic capture completed."))
+                self.sampling_export_label.setText(
+                    str(result.get("message") or "Diagnostic capture completed.")
+                )
 
             def _on_zone_count_slider_changed(self, *_args) -> None:
                 self._source_zones_locked_to_device_count = False
@@ -1190,7 +1839,9 @@ class SettingsDialog:
             def _run_latency_probe_manual(self):
                 info = backend_selection_info(self._runtime_status, cfg)
                 measured = self._measured_latency_from_runtime(triggered_by="manual")
-                probe_details = self._backend_probe_breakdown_text(selected_backend=self._active_backend())
+                probe_details = self._backend_probe_breakdown_text(
+                    selected_backend=self._active_backend()
+                )
                 if measured is not None:
                     self._latest_latency = build_latency_result(
                         requested_policy=info.requested_policy,
@@ -1223,13 +1874,17 @@ class SettingsDialog:
                 blocked = self._backend_probe_blocked_by_runtime_state()
                 self.retest_backends_button.setEnabled(not blocked)
                 if blocked:
-                    self.retest_backends_button.setToolTip("Stop mirroring before re-testing backends.")
+                    self.retest_backends_button.setToolTip(
+                        "Stop mirroring before re-testing backends."
+                    )
                 else:
                     self.retest_backends_button.setToolTip("")
 
             def _backend_probe_blocked_by_runtime_state(self) -> bool:
                 startup_state = str(self._runtime_status.get("startup_state") or "").strip().lower()
-                lifecycle_state = str(self._runtime_status.get("lifecycle_state") or "").strip().lower()
+                lifecycle_state = (
+                    str(self._runtime_status.get("lifecycle_state") or "").strip().lower()
+                )
                 running = bool(self._runtime_status.get("running"))
                 if running:
                     return True
@@ -1248,7 +1903,11 @@ class SettingsDialog:
                 result = run_fresh_backend_probe(width=width, height=height)
                 self._runtime_status["backend_probe_attempts"] = list(result.get("attempts") or [])
                 selected = str(result.get("selected_backend") or "none")
-                self.latency_label.setText(self._backend_probe_breakdown_text(selected_backend=selected, result_origin="manual"))
+                self.latency_label.setText(
+                    self._backend_probe_breakdown_text(
+                        selected_backend=selected, result_origin="manual"
+                    )
+                )
 
             def _run_xdg_portal_test(self) -> None:
                 self.latency_label.setText(
@@ -1274,7 +1933,7 @@ class SettingsDialog:
                         self.xdg_hint_label.setText(
                             "Troubleshooting hints (run manually):\n"
                             "systemctl --user status xdg-desktop-portal xdg-desktop-portal-kde pipewire wireplumber\n"
-                            "journalctl --user -u xdg-desktop-portal -u xdg-desktop-portal-kde -u pipewire -u wireplumber --since \"10 minutes ago\" --no-pager\n"
+                            'journalctl --user -u xdg-desktop-portal -u xdg-desktop-portal-kde -u pipewire -u wireplumber --since "10 minutes ago" --no-pager\n'
                             f"Details: expected_bytes={details.get('expected_bytes')} received_bytes={details.get('received_bytes')} "
                             f"caps={details.get('caps')} size={details.get('width')}x{details.get('height')} "
                             f"timeout_s={details.get('first_frame_timeout_s')} empty_buffers={details.get('empty_buffer_count')}"
@@ -1320,10 +1979,16 @@ class SettingsDialog:
                 )
 
             def _maybe_auto_run_latency_check(self):
-                if should_auto_run_latency_probe(policy=str(self.auto_latency_policy_combo.currentText()), last_result=self._latest_latency, active_backend=self._active_backend()):
+                if should_auto_run_latency_probe(
+                    policy=str(self.auto_latency_policy_combo.currentText()),
+                    last_result=self._latest_latency,
+                    active_backend=self._active_backend(),
+                ):
                     info = backend_selection_info(self._runtime_status, cfg)
                     measured = self._measured_latency_from_runtime(triggered_by="auto")
-                    probe_details = self._backend_probe_breakdown_text(selected_backend=self._active_backend())
+                    probe_details = self._backend_probe_breakdown_text(
+                        selected_backend=self._active_backend()
+                    )
                     if measured is not None:
                         self._latest_latency = build_latency_result(
                             requested_policy=info.requested_policy,
@@ -1362,17 +2027,29 @@ class SettingsDialog:
                     or self._active_backend()
                     or "none"
                 )
-                self.latency_label.setText(self._backend_probe_breakdown_text(selected_backend=selected, result_origin="auto"))
+                self.latency_label.setText(
+                    self._backend_probe_breakdown_text(
+                        selected_backend=selected, result_origin="auto"
+                    )
+                )
 
-            def _measured_latency_from_runtime(self, *, triggered_by: str) -> dict[str, object] | None:
+            def _measured_latency_from_runtime(
+                self, *, triggered_by: str
+            ) -> dict[str, object] | None:
                 measurement = self._runtime_status.get("latency_measurement")
                 if not isinstance(measurement, dict):
                     return None
                 stages = measurement.get("stages")
                 if not isinstance(stages, dict):
                     return None
-                total_row = stages.get("actual_work_ms") if isinstance(stages.get("actual_work_ms"), dict) else {}
-                gap_row = stages.get("loop_gap_ms") if isinstance(stages.get("loop_gap_ms"), dict) else {}
+                total_row = (
+                    stages.get("actual_work_ms")
+                    if isinstance(stages.get("actual_work_ms"), dict)
+                    else {}
+                )
+                gap_row = (
+                    stages.get("loop_gap_ms") if isinstance(stages.get("loop_gap_ms"), dict) else {}
+                )
                 sample_count = int(total_row.get("sample_count") or 0)
                 if sample_count <= 0:
                     return None
@@ -1396,7 +2073,9 @@ class SettingsDialog:
                     ),
                 }
 
-            def _backend_probe_breakdown_text(self, *, selected_backend: str, result_origin: str | None = None) -> str:
+            def _backend_probe_breakdown_text(
+                self, *, selected_backend: str, result_origin: str | None = None
+            ) -> str:
                 rows = self._runtime_status.get("backend_probe_attempts")
                 if not isinstance(rows, list) or not rows:
                     return (
@@ -1411,8 +2090,16 @@ class SettingsDialog:
                     if not isinstance(item, dict):
                         continue
                     status = str(item.get("status") or "skipped")
-                    mode = str(item.get("mode") or ("failed" if status == "failed" else "fresh-probe"))
-                    has_auto_rows = has_auto_rows or mode in {"cached", "fresh-probe", "failed", "skipped-interactive", "unavailable"}
+                    mode = str(
+                        item.get("mode") or ("failed" if status == "failed" else "fresh-probe")
+                    )
+                    has_auto_rows = has_auto_rows or mode in {
+                        "cached",
+                        "fresh-probe",
+                        "failed",
+                        "skipped-interactive",
+                        "unavailable",
+                    }
                     sample_count = int(item.get("sample_count") or 0)
                     if status == "tested" and sample_count > 0:
                         measured_rows += 1
@@ -1423,7 +2110,11 @@ class SettingsDialog:
                 if result_origin == "manual":
                     header = "Last manual probe result."
                 elif result_origin == "auto":
-                    header = "Last auto-run probe result." if has_auto_rows else "Last auto-run probe result: waiting for first result."
+                    header = (
+                        "Last auto-run probe result."
+                        if has_auto_rows
+                        else "Last auto-run probe result: waiting for first result."
+                    )
                 else:
                     header = "Last probe result."
                 if cached_backend and result_origin != "manual":
@@ -1434,7 +2125,9 @@ class SettingsDialog:
                 if measured_rows <= 0:
                     formatted.insert(0, "No measured candidate timings yet in this session.")
                 elif measured_rows < 2:
-                    formatted.insert(0, "Measured fewer than two candidates; backend choice may be tentative.")
+                    formatted.insert(
+                        0, "Measured fewer than two candidates; backend choice may be tentative."
+                    )
                 else:
                     formatted.insert(0, f"Best measured backend: {selected_backend}.")
                 return f"{header}\n{selected_line}\nCandidate backends:\n" + "\n".join(formatted)
@@ -1476,7 +2169,14 @@ class SettingsDialog:
                         pid_value = int(str(self.device_pid_combo.currentText()), 0)
                     except (ValueError, TypeError):
                         pid_value = 0x8202
-                new_zones = make_edge_weighted_zones(self._state.zone_count, edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"))
+                new_zones = make_edge_weighted_zones(
+                    self._state.zone_count,
+                    edge_locality=value_for_label(
+                        EDGE_LOCALITY_LABELS,
+                        str(self.edge_locality_combo.currentText()),
+                        default="tight",
+                    ),
+                )
                 calibration_schema_version = int(getattr(cfg, "calibration_schema_version", 1) or 1)
                 calibration_payload = CalibrationConfig(
                     schema_version=calibration_schema_version,
@@ -1492,9 +2192,25 @@ class SettingsDialog:
                 )
                 return replace(
                     cfg,
-                    fps=int(self.fps_slider.value()), sampling_quality=str(self.sampling_quality_combo.currentText()).lower(), performance_priority=value_for_label(PERFORMANCE_PRIORITY_LABELS, str(self.performance_priority_combo.currentText()), default="normal"), brightness=self.brightness_slider.value() / 100.0,
-                    smoothing=self.smoothing_slider.value() / 100.0, smoothing_speed=self.smoothing_speed_slider.value() / 100.0, led_gamma=self.led_gamma_slider.value() / 100.0,
-                    red_gain=self.red_gain_slider.value() / 100.0, green_gain=self.green_gain_slider.value() / 100.0, blue_gain=self.blue_gain_slider.value() / 100.0, white_balance_temperature=self.white_balance_slider.value() / 100.0, chroma_compression=self.chroma_compression_slider.value() / 100.0, neutral_luminance_gain=self.neutral_luminance_gain_slider.value() / 100.0, black_luminance_cutoff=self.black_luminance_cutoff_slider.value() / 10000.0, black_luminance_knee=self.black_luminance_knee_slider.value() / 10000.0,
+                    fps=int(self.fps_slider.value()),
+                    sampling_quality=str(self.sampling_quality_combo.currentText()).lower(),
+                    performance_priority=value_for_label(
+                        PERFORMANCE_PRIORITY_LABELS,
+                        str(self.performance_priority_combo.currentText()),
+                        default="normal",
+                    ),
+                    brightness=self.brightness_slider.value() / 100.0,
+                    smoothing=self.smoothing_slider.value() / 100.0,
+                    smoothing_speed=self.smoothing_speed_slider.value() / 100.0,
+                    led_gamma=self.led_gamma_slider.value() / 100.0,
+                    red_gain=self.red_gain_slider.value() / 100.0,
+                    green_gain=self.green_gain_slider.value() / 100.0,
+                    blue_gain=self.blue_gain_slider.value() / 100.0,
+                    white_balance_temperature=self.white_balance_slider.value() / 100.0,
+                    chroma_compression=self.chroma_compression_slider.value() / 100.0,
+                    neutral_luminance_gain=self.neutral_luminance_gain_slider.value() / 100.0,
+                    black_luminance_cutoff=self.black_luminance_cutoff_slider.value() / 10000.0,
+                    black_luminance_knee=self.black_luminance_knee_slider.value() / 10000.0,
                     led_calibration_profile_sdr=(
                         LedCalibrationProfile(
                             red_gain=self.red_gain_slider.value() / 100.0,
@@ -1503,8 +2219,10 @@ class SettingsDialog:
                             led_gamma=self.led_gamma_slider.value() / 100.0,
                             white_balance_temperature=self.white_balance_slider.value() / 100.0,
                             chroma_compression=self.chroma_compression_slider.value() / 100.0,
-                            neutral_luminance_gain=self.neutral_luminance_gain_slider.value() / 100.0,
-                            black_luminance_cutoff=self.black_luminance_cutoff_slider.value() / 10000.0,
+                            neutral_luminance_gain=self.neutral_luminance_gain_slider.value()
+                            / 100.0,
+                            black_luminance_cutoff=self.black_luminance_cutoff_slider.value()
+                            / 10000.0,
                             black_luminance_knee=self.black_luminance_knee_slider.value() / 10000.0,
                         )
                         if str(self.display_preset_combo.currentText()).strip().lower() == "sdr"
@@ -1518,29 +2236,88 @@ class SettingsDialog:
                             led_gamma=self.led_gamma_slider.value() / 100.0,
                             white_balance_temperature=self.white_balance_slider.value() / 100.0,
                             chroma_compression=self.chroma_compression_slider.value() / 100.0,
-                            neutral_luminance_gain=self.neutral_luminance_gain_slider.value() / 100.0,
-                            black_luminance_cutoff=self.black_luminance_cutoff_slider.value() / 10000.0,
+                            neutral_luminance_gain=self.neutral_luminance_gain_slider.value()
+                            / 100.0,
+                            black_luminance_cutoff=self.black_luminance_cutoff_slider.value()
+                            / 10000.0,
                             black_luminance_knee=self.black_luminance_knee_slider.value() / 10000.0,
                         )
                         if str(self.display_preset_combo.currentText()).strip().lower() != "sdr"
                         else getattr(cfg, "led_calibration_profile_hdr", LedCalibrationProfile())
                     ),
-                    zones=new_zones, layout_preset="edge-weighted", edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"), light_spread=value_for_label(LIGHT_SPREAD_LABELS, str(self.light_spread_combo.currentText()), default="balanced"), motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"), color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"), display_preset=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="hdr"),
-                    start_on_launch=bool(self.start_on_launch_checkbox.isChecked()), device_zone_count=self._state.device_zone_count,
-                    output_channel_order=str(self.output_channel_order_combo.currentText()), reverse_zones=self._state.reverse_zones,
+                    zones=new_zones,
+                    layout_preset="edge-weighted",
+                    edge_locality=value_for_label(
+                        EDGE_LOCALITY_LABELS,
+                        str(self.edge_locality_combo.currentText()),
+                        default="tight",
+                    ),
+                    light_spread=value_for_label(
+                        LIGHT_SPREAD_LABELS,
+                        str(self.light_spread_combo.currentText()),
+                        default="balanced",
+                    ),
+                    motion_preset=value_for_label(
+                        MOTION_PRESET_LABELS,
+                        str(self.motion_preset_combo.currentText()),
+                        default="responsive",
+                    ),
+                    color_style=value_for_label(
+                        COLOR_STYLE_LABELS,
+                        str(self.color_style_combo.currentText()),
+                        default="ambient",
+                    ),
+                    display_preset=value_for_label(
+                        DISPLAY_PRESET_LABELS,
+                        str(self.display_preset_combo.currentText()),
+                        default="hdr",
+                    ),
+                    start_on_launch=bool(self.start_on_launch_checkbox.isChecked()),
+                    device_zone_count=self._state.device_zone_count,
+                    output_channel_order=str(self.output_channel_order_combo.currentText()),
+                    reverse_zones=self._state.reverse_zones,
                     corner_anchor_top_left=int(self._state.corner_anchor_top_left),
                     corner_anchor_top_right=int(self._state.corner_anchor_top_right),
                     corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
                     corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
-                    use_mock_capture=bool(getattr(cfg, "use_mock_capture", False)), prefer_backend=str(self.capture_backend_combo.currentText()), auto_probe_policy=str(self.auto_probe_policy_combo.currentText()), auto_latency_policy=str(self.auto_latency_policy_combo.currentText()),
-                    latency_last_backend=(self._latest_latency.selected_backend if self._latest_latency else getattr(cfg, "latency_last_backend", "")),
-                    latency_last_value_ms=(self._latest_latency.measured_latency_ms if self._latest_latency else float(getattr(cfg, "latency_last_value_ms", 0.0))),
-                    latency_last_trigger=(self._latest_latency.triggered_by if self._latest_latency else getattr(cfg, "latency_last_trigger", "")),
-                    latency_last_timestamp=(self._latest_latency.recorded_at_utc if self._latest_latency else getattr(cfg, "latency_last_timestamp", "")),
-                    hdr_transfer=str(self.hdr_transfer_combo.currentText()), hdr_primaries=str(self.hdr_primaries_combo.currentText()), hdr_max_nits=float(self.hdr_max_nits_slider.value()),
-                    compositor_hdr_mode=bool(self.compositor_hdr_mode_checkbox.isChecked()), sdr_boost_nits=float(self.sdr_boost_nits_slider.value()), display_gamut=str(self.display_gamut_combo.currentText()).strip().lower(),
-                    sdr_white_reference_preset=("custom" if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower() == "custom" else str(self.sdr_boost_nits_slider.value())),
-                    device_vid=int(vid_value), device_pid=int(pid_value),
+                    use_mock_capture=bool(getattr(cfg, "use_mock_capture", False)),
+                    prefer_backend=str(self.capture_backend_combo.currentText()),
+                    auto_probe_policy=str(self.auto_probe_policy_combo.currentText()),
+                    auto_latency_policy=str(self.auto_latency_policy_combo.currentText()),
+                    latency_last_backend=(
+                        self._latest_latency.selected_backend
+                        if self._latest_latency
+                        else getattr(cfg, "latency_last_backend", "")
+                    ),
+                    latency_last_value_ms=(
+                        self._latest_latency.measured_latency_ms
+                        if self._latest_latency
+                        else float(getattr(cfg, "latency_last_value_ms", 0.0))
+                    ),
+                    latency_last_trigger=(
+                        self._latest_latency.triggered_by
+                        if self._latest_latency
+                        else getattr(cfg, "latency_last_trigger", "")
+                    ),
+                    latency_last_timestamp=(
+                        self._latest_latency.recorded_at_utc
+                        if self._latest_latency
+                        else getattr(cfg, "latency_last_timestamp", "")
+                    ),
+                    hdr_transfer=str(self.hdr_transfer_combo.currentText()),
+                    hdr_primaries=str(self.hdr_primaries_combo.currentText()),
+                    hdr_max_nits=float(self.hdr_max_nits_slider.value()),
+                    compositor_hdr_mode=bool(self.compositor_hdr_mode_checkbox.isChecked()),
+                    sdr_boost_nits=float(self.sdr_boost_nits_slider.value()),
+                    display_gamut=str(self.display_gamut_combo.currentText()).strip().lower(),
+                    sdr_white_reference_preset=(
+                        "custom"
+                        if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower()
+                        == "custom"
+                        else str(self.sdr_boost_nits_slider.value())
+                    ),
+                    device_vid=int(vid_value),
+                    device_pid=int(pid_value),
                     calibration_schema_version=calibration_schema_version,
                     calibration_model="corner_anchored",
                     calibration=calibration_payload,
@@ -1548,7 +2325,14 @@ class SettingsDialog:
 
         self._dialog = _Dialog()
 
-    def exec(self) -> int: return self._dialog.exec()
-    def updated_config(self) -> AppConfig: return self._dialog.updated_config()
-    def wants_display_configurator(self) -> bool: return bool(self._dialog.wants_display_configurator())
-    def focus_section(self, section_name: str) -> bool: return bool(self._dialog.focus_section(section_name))
+    def exec(self) -> int:
+        return self._dialog.exec()
+
+    def updated_config(self) -> AppConfig:
+        return self._dialog.updated_config()
+
+    def wants_display_configurator(self) -> bool:
+        return bool(self._dialog.wants_display_configurator())
+
+    def focus_section(self, section_name: str) -> bool:
+        return bool(self._dialog.focus_section(section_name))

@@ -47,7 +47,9 @@ def _dump_toml_fallback(payload: dict[str, Any]) -> str:
             scalar_items.append((key, value))
 
         for key, value in scalar_items:
-            rendered = toml_render_list(value) if isinstance(value, list) else toml_render_scalar(value)
+            rendered = (
+                toml_render_list(value) if isinstance(value, list) else toml_render_scalar(value)
+            )
             lines.append(f"{key} = {rendered}")
 
         for key, value in nested_items:

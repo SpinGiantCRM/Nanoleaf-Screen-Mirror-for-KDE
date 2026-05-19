@@ -113,7 +113,9 @@ def _upsert_desktop_key(text: str, key: str, value: str) -> str:
     lines = text.splitlines()
     replacement = f"{key}={value}"
 
-    section_start = next((idx for idx, line in enumerate(lines) if line.strip() == _DESKTOP_ENTRY_HEADER), None)
+    section_start = next(
+        (idx for idx, line in enumerate(lines) if line.strip() == _DESKTOP_ENTRY_HEADER), None
+    )
     if section_start is None:
         if lines and lines[-1].strip():
             lines.append("")

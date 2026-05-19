@@ -23,20 +23,32 @@ def test_settings_dialog_source_uses_preset_ui_labels() -> None:
     assert "Diagnostics Actions" in text
     assert "Quality Diagnostics" in text
     assert "Recovery Tools" in text
-    assert "SDR white reference controls how bright SDR/desktop content appears when HDR is enabled." in text
-    assert 'window_title = "nanoleaf-kde-sync Settings" if view_mode != SETTINGS_VIEW_ADVANCED else "nanoleaf-kde-sync Advanced / Troubleshooting"' in text
+    assert (
+        "SDR white reference controls how bright SDR/desktop content appears when HDR is enabled."
+        in text
+    )
+    assert (
+        'window_title = "nanoleaf-kde-sync Settings" if view_mode != SETTINGS_VIEW_ADVANCED else "nanoleaf-kde-sync Advanced / Troubleshooting"'
+        in text
+    )
     assert "if self._view_mode == SETTINGS_VIEW_ADVANCED:" in text
 
 
 def test_settings_primary_sections_do_not_expose_raw_mapping_text() -> None:
     text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
     assert "self.preview_label.setText(" in text
-    assert "self._state.mapping_preview_text()" not in text.split("self.preview_label.setText(", 1)[1].split(")", 1)[0]
+    assert (
+        "self._state.mapping_preview_text()"
+        not in text.split("self.preview_label.setText(", 1)[1].split(")", 1)[0]
+    )
 
 
 def test_strip_count_mismatch_warning_text_present() -> None:
     text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
-    assert "Device-reported count differs from configured count. The configured manual value is used." in text
+    assert (
+        "Device-reported count differs from configured count. The configured manual value is used."
+        in text
+    )
     assert "Changing strip count invalidates calibration." in text
     assert "Current anchors were assigned for a different strip length." in text
     assert "Use reported count" in text
@@ -57,10 +69,16 @@ def test_fps_slider_label_value_and_tooltip_text() -> None:
     text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
     assert "Target capture/output FPS" in text
     assert 'self.fps_value.setText(f"{self.fps_slider.value()} FPS")' in text
-    assert "This is the target update rate. Actual output FPS may be lower if capture, processing, or HID output cannot keep up." in text
-    assert 'self.fps_slider.setRange(FPS_MIN, FPS_MAX)' in text
+    assert (
+        "This is the target update rate. Actual output FPS may be lower if capture, processing, or HID output cannot keep up."
+        in text
+    )
+    assert "self.fps_slider.setRange(FPS_MIN, FPS_MAX)" in text
     assert "FPS_MAX = 120" in text
-    assert 'layout.addWidget(QLabel("Capture backend"), 7, 0); layout.addWidget(self.capture_backend_combo, 7, 1, 1, 2)' in text
+    assert (
+        'layout.addWidget(QLabel("Capture backend"), 7, 0); layout.addWidget(self.capture_backend_combo, 7, 1, 1, 2)'
+        in text
+    )
 
 
 def test_slider_readouts_bind_live_value_updates() -> None:
@@ -86,18 +104,29 @@ def test_guided_led_calibration_controls_present() -> None:
     text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
     assert "Calibrate LED colour" in text
     assert "Black cutoff" in text
-    assert "Neutral luminance: controls how bright grey/white screen areas appear on the LEDs." in text
-    assert "Reference mode is used for calibration because it avoids saturation boost." in open(
-        "src/nanoleaf_sync/ui/led_color_calibration_dialog.py", "r", encoding="utf-8"
-    ).read()
+    assert (
+        "Neutral luminance: controls how bright grey/white screen areas appear on the LEDs." in text
+    )
+    assert (
+        "Reference mode is used for calibration because it avoids saturation boost."
+        in open(
+            "src/nanoleaf_sync/ui/led_color_calibration_dialog.py", "r", encoding="utf-8"
+        ).read()
+    )
 
 
 def test_performance_priority_dropdown_present_and_persisted() -> None:
     text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
     assert "Performance priority" in text
     assert "performance_priority_combo" in text
-    assert "Very high experimental" in open("src/nanoleaf_sync/ui/preset_ui.py", "r", encoding="utf-8").read()
-    assert "High priority may improve scheduling consistency. It may fail without permission. Very high is experimental." in text
+    assert (
+        "Very high experimental"
+        in open("src/nanoleaf_sync/ui/preset_ui.py", "r", encoding="utf-8").read()
+    )
+    assert (
+        "High priority may improve scheduling consistency. It may fail without permission. Very high is experimental."
+        in text
+    )
     assert "performance_priority=value_for_label(PERFORMANCE_PRIORITY_LABELS" in text
 
 

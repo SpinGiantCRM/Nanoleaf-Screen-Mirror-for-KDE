@@ -62,13 +62,13 @@ class _AlwaysFailOpenHandle(_PathAwareHandle):
 
 def test_transceive_round_trip_with_report_id_prefix() -> None:
     # response TLV: type=0x83, len=3, payload=00 00 0A
-    fake = FakeHIDHandle([b"\x00\x83\x00\x03\x00\x00\x0A" + b"\x00" * 58])
+    fake = FakeHIDHandle([b"\x00\x83\x00\x03\x00\x00\x0a" + b"\x00" * 58])
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
     transport._handle = fake
 
     response = transport.transceive(b"\x03\x00\x00")
 
-    assert response == b"\x83\x00\x03\x00\x00\x0A"
+    assert response == b"\x83\x00\x03\x00\x00\x0a"
     assert fake.writes
     assert fake.writes[0][0] == 0
     assert fake.writes[0][1:4] == b"\x03\x00\x00"
@@ -93,35 +93,39 @@ def test_write_with_timing_reports_multi_report_metadata() -> None:
 
 
 def test_transceive_multi_read_accumulates_full_tlv() -> None:
-    fake = FakeHIDHandle([
-        b"\x00\x8C\x00\x07\x00NL",
-        b"\x00" + b"82K2" + b"\x00" * 59,
-    ])
+    fake = FakeHIDHandle(
+        [
+            b"\x00\x8c\x00\x07\x00NL",
+            b"\x00" + b"82K2" + b"\x00" * 59,
+        ]
+    )
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
     transport._handle = fake
 
-    response = transport.transceive(b"\x0C\x00\x00")
+    response = transport.transceive(b"\x0c\x00\x00")
 
-    assert response == b"\x8C\x00\x07\x00NL82K2"
+    assert response == b"\x8c\x00\x07\x00NL82K2"
 
 
 def test_transceive_allows_empty_read_between_response_chunks() -> None:
-    fake = FakeHIDHandle([
-        b"\x00\x8C\x00\x07\x00NL",
-        b"",
-        b"\x00" + b"82K2" + b"\x00" * 59,
-    ])
+    fake = FakeHIDHandle(
+        [
+            b"\x00\x8c\x00\x07\x00NL",
+            b"",
+            b"\x00" + b"82K2" + b"\x00" * 59,
+        ]
+    )
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
     transport._handle = fake
 
-    response = transport.transceive(b"\x0C\x00\x00")
+    response = transport.transceive(b"\x0c\x00\x00")
 
-    assert response == b"\x8C\x00\x07\x00NL82K2"
+    assert response == b"\x8c\x00\x07\x00NL82K2"
 
 
 def test_transceive_accepts_no_report_id_prefix_when_enabled_by_default() -> None:
     # Device replies with no report-id prefix (64-byte packet starts with TLV type directly).
-    fake = FakeHIDHandle([b"\x83\x00\x03\x00\x00\x0A" + b"\x00" * 58])
+    fake = FakeHIDHandle([b"\x83\x00\x03\x00\x00\x0a" + b"\x00" * 58])
     transport = HIDTransport(
         ids=NanoleafUSBIds(0x37FA, 0x8202),
         report_size=64,
@@ -131,12 +135,12 @@ def test_transceive_accepts_no_report_id_prefix_when_enabled_by_default() -> Non
 
     response = transport.transceive(b"\x03\x00\x00")
 
-    assert response == b"\x83\x00\x03\x00\x00\x0A"
+    assert response == b"\x83\x00\x03\x00\x00\x0a"
 
 
 def test_transceive_accepts_prefixed_reply_when_prefix_disabled() -> None:
     # Compatibility fallback: read framing may still include a report-id byte.
-    fake = FakeHIDHandle([b"\x00\x83\x00\x03\x00\x00\x0A" + b"\x00" * 58])
+    fake = FakeHIDHandle([b"\x00\x83\x00\x03\x00\x00\x0a" + b"\x00" * 58])
     transport = HIDTransport(
         ids=NanoleafUSBIds(0x37FA, 0x8202),
         report_size=64,
@@ -146,17 +150,17 @@ def test_transceive_accepts_prefixed_reply_when_prefix_disabled() -> None:
 
     response = transport.transceive(b"\x03\x00\x00")
 
-    assert response == b"\x83\x00\x03\x00\x00\x0A"
+    assert response == b"\x83\x00\x03\x00\x00\x0a"
 
 
 def test_transceive_with_timing_includes_write_and_wait_components() -> None:
-    fake = FakeHIDHandle([b"\x00\x83\x00\x03\x00\x00\x0A" + b"\x00" * 58])
+    fake = FakeHIDHandle([b"\x00\x83\x00\x03\x00\x00\x0a" + b"\x00" * 58])
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
     transport._handle = fake
 
     response, timing = transport.transceive_with_timing(b"\x03\x00\x00")
 
-    assert response == b"\x83\x00\x03\x00\x00\x0A"
+    assert response == b"\x83\x00\x03\x00\x00\x0a"
     assert timing["report_count"] == 1
     assert timing["total_frame_bytes"] == 3
     assert len(timing["per_report_write_ms"]) == 1
@@ -165,7 +169,7 @@ def test_transceive_with_timing_includes_write_and_wait_components() -> None:
 
 
 def test_write_with_nonblocking_drain_does_not_wait_for_response() -> None:
-    fake = FakeHIDHandle([b"\x00\x83\x00\x03\x00\x00\x0A" + b"\x00" * 58, b""])
+    fake = FakeHIDHandle([b"\x00\x83\x00\x03\x00\x00\x0a" + b"\x00" * 58, b""])
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
     transport._handle = fake
 
@@ -190,7 +194,7 @@ def test_transceive_raises_on_malformed_continuous_data() -> None:
     class _InfiniteMalformedHandle(FakeHIDHandle):
         def __init__(self) -> None:
             super().__init__(reads=[])
-            self._chunk = b"\x00\x99\x00\x01\xFF" + b"\x00" * 59
+            self._chunk = b"\x00\x99\x00\x01\xff" + b"\x00" * 59
 
         def read(self, _size: int, _timeout_ms: int):
             return list(self._chunk)
@@ -251,7 +255,9 @@ def test_open_resolves_linux_usb_interface_path_to_hidraw(monkeypatch, tmp_path)
 
     handle = _PathAwareHandle(fail_paths={usb_interface.encode("utf-8")})
     fake_hid = types.SimpleNamespace(
-        enumerate=lambda _vid, _pid: [{"path": usb_interface.encode("utf-8"), "interface_number": 0}],
+        enumerate=lambda _vid, _pid: [
+            {"path": usb_interface.encode("utf-8"), "interface_number": 0}
+        ],
         device=lambda: handle,
     )
     monkeypatch.setitem(sys.modules, "hid", fake_hid)
@@ -287,7 +293,9 @@ def test_open_uses_linux_sysfs_hidraw_mapping_when_enumeration_path_not_openable
 
     handle = _PathAwareHandle(fail_paths={usb_interface.encode("utf-8")})
     fake_hid = types.SimpleNamespace(
-        enumerate=lambda _vid, _pid: [{"path": usb_interface.encode("utf-8"), "interface_number": 0}],
+        enumerate=lambda _vid, _pid: [
+            {"path": usb_interface.encode("utf-8"), "interface_number": 0}
+        ],
         device=lambda: handle,
     )
     monkeypatch.setitem(sys.modules, "hid", fake_hid)

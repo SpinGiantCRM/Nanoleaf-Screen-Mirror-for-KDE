@@ -173,7 +173,9 @@ def test_status_exposes_requested_vs_effective_backend_for_auto_cached_probe(mon
         def close(self) -> None:
             pass
 
-    monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", lambda **_kwargs: _FakeCaptureBackend())
+    monkeypatch.setattr(
+        "nanoleaf_sync.service.create_capture_backend", lambda **_kwargs: _FakeCaptureBackend()
+    )
     svc._install_drivers()
 
     status = svc.get_status()

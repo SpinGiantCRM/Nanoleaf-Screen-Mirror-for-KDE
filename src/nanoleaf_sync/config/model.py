@@ -70,7 +70,9 @@ class AppConfig:
     # Color -> device mapping
     brightness: float = 1.0  # [0.0, 1.0]
     smoothing: float = 0.5  # One-Euro minimum responsiveness in [0.0, 1.0]
-    smoothing_speed: float = 0.75  # Adaptive motion gain in [0.0, 4.0]; lower = slower response / more smoothing.
+    smoothing_speed: float = (
+        0.75  # Adaptive motion gain in [0.0, 4.0]; lower = slower response / more smoothing.
+    )
     led_gamma: float = 1.0  # Output correction for LED electrical response.
     red_gain: float = 1.0
     green_gain: float = 1.0
@@ -80,8 +82,12 @@ class AppConfig:
     neutral_luminance_gain: float = 1.0
     black_luminance_cutoff: float = 0.0032
     black_luminance_knee: float = 0.0024
-    led_calibration_profile_sdr: LedCalibrationProfile = field(default_factory=LedCalibrationProfile)
-    led_calibration_profile_hdr: LedCalibrationProfile = field(default_factory=LedCalibrationProfile)
+    led_calibration_profile_sdr: LedCalibrationProfile = field(
+        default_factory=LedCalibrationProfile
+    )
+    led_calibration_profile_hdr: LedCalibrationProfile = field(
+        default_factory=LedCalibrationProfile
+    )
 
     # Zones
     zones: list[ZoneConfig] = field(default_factory=list)
@@ -206,7 +212,10 @@ class AppConfig:
             cal.output_channel_order = self.output_channel_order
         if not cal.reverse_zones and self.reverse_zones:
             cal.reverse_zones = self.reverse_zones
-        if cal.calibration_model == "corner_anchored" and self.calibration_model != "corner_anchored":
+        if (
+            cal.calibration_model == "corner_anchored"
+            and self.calibration_model != "corner_anchored"
+        ):
             cal.calibration_model = self.calibration_model
         if cal.corner_anchor_top_left < 0 and self.corner_anchor_top_left >= 0:
             cal.corner_anchor_top_left = self.corner_anchor_top_left
@@ -222,17 +231,28 @@ class AppConfig:
         calibration = self.calibration or CalibrationConfig()
         return CalibrationConfig(
             schema_version=int(
-                getattr(self, "calibration_schema_version", getattr(calibration, "schema_version", 1)) or 1
-            ),
-            calibration_schema_version=int(
-                getattr(self, "calibration_schema_version", getattr(calibration, "calibration_schema_version", 1))
+                getattr(
+                    self, "calibration_schema_version", getattr(calibration, "schema_version", 1)
+                )
                 or 1
             ),
-            calibration_model=str(getattr(calibration, "calibration_model", "corner_anchored") or "corner_anchored"),
+            calibration_schema_version=int(
+                getattr(
+                    self,
+                    "calibration_schema_version",
+                    getattr(calibration, "calibration_schema_version", 1),
+                )
+                or 1
+            ),
+            calibration_model=str(
+                getattr(calibration, "calibration_model", "corner_anchored") or "corner_anchored"
+            ),
             device_zone_count=int(getattr(calibration, "device_zone_count", 0)),
             output_channel_order=str(getattr(calibration, "output_channel_order", "grb") or "grb"),
             normalized_reverse_zones=bool(getattr(calibration, "normalized_reverse_zones", False)),
-            normalized_corner_anchors=[int(i) for i in (getattr(calibration, "normalized_corner_anchors", []) or [])],
+            normalized_corner_anchors=[
+                int(i) for i in (getattr(calibration, "normalized_corner_anchors", []) or [])
+            ],
             reverse_zones=bool(getattr(calibration, "reverse_zones", False)),
             corner_anchor_top_left=int(getattr(calibration, "corner_anchor_top_left", -1)),
             corner_anchor_top_right=int(getattr(calibration, "corner_anchor_top_right", -1)),

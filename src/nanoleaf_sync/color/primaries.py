@@ -40,26 +40,38 @@ class Chromaticities:
 
 # sRGB / BT.709 primaries (D65 white point).
 CHROMATICITIES_SRGB = Chromaticities(
-    rx=0.640, ry=0.330,
-    gx=0.300, gy=0.600,
-    bx=0.150, by=0.060,
-    wx=0.3127, wy=0.3290,
+    rx=0.640,
+    ry=0.330,
+    gx=0.300,
+    gy=0.600,
+    bx=0.150,
+    by=0.060,
+    wx=0.3127,
+    wy=0.3290,
 )
 
 # DCI-P3 (D65 white point).
 CHROMATICITIES_DCIP3 = Chromaticities(
-    rx=0.680, ry=0.320,
-    gx=0.265, gy=0.690,
-    bx=0.150, by=0.060,
-    wx=0.3127, wy=0.3290,
+    rx=0.680,
+    ry=0.320,
+    gx=0.265,
+    gy=0.690,
+    bx=0.150,
+    by=0.060,
+    wx=0.3127,
+    wy=0.3290,
 )
 
 # BT.2020 (D65 white point).
 CHROMATICITIES_BT2020 = Chromaticities(
-    rx=0.708, ry=0.292,
-    gx=0.170, gy=0.797,
-    bx=0.131, by=0.046,
-    wx=0.3127, wy=0.3290,
+    rx=0.708,
+    ry=0.292,
+    gx=0.170,
+    gy=0.797,
+    bx=0.131,
+    by=0.046,
+    wx=0.3127,
+    wy=0.3290,
 )
 
 # Display P3 (same primaries as DCI-P3 but D65 white).
@@ -258,10 +270,14 @@ def get_display_primaries_from_sysfs() -> Chromaticities | None:
             _log.debug(
                 "Display primaries from sysfs %s: r=(%.3f,%.3f) g=(%.3f,%.3f) b=(%.3f,%.3f) w=(%.3f,%.3f)",
                 edid_path,
-                primaries.rx, primaries.ry,
-                primaries.gx, primaries.gy,
-                primaries.bx, primaries.by,
-                primaries.wx, primaries.wy,
+                primaries.rx,
+                primaries.ry,
+                primaries.gx,
+                primaries.gy,
+                primaries.bx,
+                primaries.by,
+                primaries.wx,
+                primaries.wy,
             )
             return primaries
 
@@ -356,10 +372,14 @@ def _read_colord_profile_primaries(
         white = props_iface.Get("org.freedesktop.ColorManager.Profile", "WhitePrimary")
         if red and green and blue and white:
             return Chromaticities(
-                rx=float(red[0]), ry=float(red[1]),
-                gx=float(green[0]), gy=float(green[1]),
-                bx=float(blue[0]), by=float(blue[1]),
-                wx=float(white[0]), wy=float(white[1]),
+                rx=float(red[0]),
+                ry=float(red[1]),
+                gx=float(green[0]),
+                gy=float(green[1]),
+                bx=float(blue[0]),
+                by=float(blue[1]),
+                wx=float(white[0]),
+                wy=float(white[1]),
             )
     except dbus.DBusException:
         pass
@@ -370,10 +390,14 @@ def _read_colord_profile_primaries(
         if prim and len(prim) >= 6:
             # White point defaults to D65.
             return Chromaticities(
-                rx=float(prim[0]), ry=float(prim[1]),
-                gx=float(prim[2]), gy=float(prim[3]),
-                bx=float(prim[4]), by=float(prim[5]),
-                wx=0.3127, wy=0.3290,
+                rx=float(prim[0]),
+                ry=float(prim[1]),
+                gx=float(prim[2]),
+                gy=float(prim[3]),
+                bx=float(prim[4]),
+                by=float(prim[5]),
+                wx=0.3127,
+                wy=0.3290,
             )
     except dbus.DBusException:
         pass

@@ -20,7 +20,9 @@ def _adaptive_edge_thickness(zone_count: int, *, edge_locality: str = "balanced"
     return low_count_thickness + (target - low_count_thickness) * normalized
 
 
-def edge_side_counts(*, zone_count: int, width: int | None = None, height: int | None = None) -> tuple[int, int, int, int]:
+def edge_side_counts(
+    *, zone_count: int, width: int | None = None, height: int | None = None
+) -> tuple[int, int, int, int]:
     count = max(1, int(zone_count))
     if count < 4:
         base = [0, 0, 0, 0]
@@ -37,11 +39,15 @@ def edge_side_counts(*, zone_count: int, width: int | None = None, height: int |
 
     remaining = count - sum(assigned)
     if remaining > 0:
-        order = sorted(range(4), key=lambda idx: (raw[idx] - assigned[idx], side_lengths[idx]), reverse=True)
+        order = sorted(
+            range(4), key=lambda idx: (raw[idx] - assigned[idx], side_lengths[idx]), reverse=True
+        )
         for i in range(remaining):
             assigned[order[i % 4]] += 1
     elif remaining < 0:
-        order = sorted(range(4), key=lambda idx: (assigned[idx] - raw[idx], side_lengths[idx]), reverse=True)
+        order = sorted(
+            range(4), key=lambda idx: (assigned[idx] - raw[idx], side_lengths[idx]), reverse=True
+        )
         to_remove = -remaining
         for idx in order:
             while to_remove > 0 and assigned[idx] > 1:
@@ -59,8 +65,13 @@ class EdgeZoneLayout:
     order_mode: str
 
 
-
-def edge_weighted_layout(*, zone_count: int, width: int | None = None, height: int | None = None, edge_locality: str = "balanced") -> EdgeZoneLayout:
+def edge_weighted_layout(
+    *,
+    zone_count: int,
+    width: int | None = None,
+    height: int | None = None,
+    edge_locality: str = "balanced",
+) -> EdgeZoneLayout:
     count = max(1, int(zone_count))
     return EdgeZoneLayout(
         side_counts=edge_side_counts(zone_count=count, width=width, height=height),
@@ -69,18 +80,37 @@ def edge_weighted_layout(*, zone_count: int, width: int | None = None, height: i
     )
 
 
-def make_edge_weighted_zones(zone_count: int, *, width: int | None = None, height: int | None = None, edge_locality: str = "balanced") -> List[ZoneConfig]:
+def make_edge_weighted_zones(
+    zone_count: int,
+    *,
+    width: int | None = None,
+    height: int | None = None,
+    edge_locality: str = "balanced",
+) -> List[ZoneConfig]:
     count = max(1, int(zone_count))
-    layout = edge_weighted_layout(zone_count=count, width=width, height=height, edge_locality=edge_locality)
+    layout = edge_weighted_layout(
+        zone_count=count, width=width, height=height, edge_locality=edge_locality
+    )
     top_n, right_n, bottom_n, left_n = layout.side_counts
     edge_thickness = layout.edge_thickness
     zones: List[ZoneConfig] = []
     for i in range(top_n):
         zones.append(ZoneConfig(x=i / top_n, y=0.0, w=1.0 / top_n, h=edge_thickness))
     for i in range(right_n):
-        zones.append(ZoneConfig(x=1.0 - edge_thickness, y=i / right_n, w=edge_thickness, h=1.0 / right_n))
+        zones.append(
+            ZoneConfig(x=1.0 - edge_thickness, y=i / right_n, w=edge_thickness, h=1.0 / right_n)
+        )
     for i in range(bottom_n):
-        zones.append(ZoneConfig(x=(bottom_n - 1 - i) / bottom_n, y=1.0 - edge_thickness, w=1.0 / bottom_n, h=edge_thickness))
+        zones.append(
+            ZoneConfig(
+                x=(bottom_n - 1 - i) / bottom_n,
+                y=1.0 - edge_thickness,
+                w=1.0 / bottom_n,
+                h=edge_thickness,
+            )
+        )
     for i in range(left_n):
-        zones.append(ZoneConfig(x=0.0, y=(left_n - 1 - i) / left_n, w=edge_thickness, h=1.0 / left_n))
+        zones.append(
+            ZoneConfig(x=0.0, y=(left_n - 1 - i) / left_n, w=edge_thickness, h=1.0 / left_n)
+        )
     return zones[:count]

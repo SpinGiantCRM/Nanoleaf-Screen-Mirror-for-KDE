@@ -9,7 +9,10 @@ import numpy as np
 
 from nanoleaf_sync.capture.latency_probe import LatencyProbe
 from nanoleaf_sync.color._types import RGBTuple
-from nanoleaf_sync.runtime.calibration_resolver import CALIBRATION_INCOMPLETE_STATUS, CALIBRATION_READY_STATUS
+from nanoleaf_sync.runtime.calibration_resolver import (
+    CALIBRATION_INCOMPLETE_STATUS,
+    CALIBRATION_READY_STATUS,
+)
 
 ZoneRect = tuple[int, int, int, int]
 DeviceZoneMappingSignature = tuple[Any, ...]
@@ -24,7 +27,9 @@ class RuntimeState:
     prev_smoothed_colors: list[RGBTuple] = field(default_factory=list)
 
     cached_zone_rects: list[ZoneRect] | None = None
-    zone_rects_signature: tuple[int, int, tuple[tuple[float, float, float, float], ...]] | None = None
+    zone_rects_signature: tuple[int, int, tuple[tuple[float, float, float, float], ...]] | None = (
+        None
+    )
 
     cached_device_zone_indices: list[int] | None = None
     cached_device_zone_indices_np: np.ndarray | None = None
@@ -46,7 +51,9 @@ class RuntimeState:
     latest_zone_side_counts: tuple[int, int, int, int] = (0, 0, 0, 0)
     latest_edge_sampling_thickness: float | None = None
     latest_zone_diagnostics: list[dict[str, Any]] = field(default_factory=list)
-    latest_side_variance_diagnostics: dict[str, dict[str, float | bool]] = field(default_factory=dict)
+    latest_side_variance_diagnostics: dict[str, dict[str, float | bool]] = field(
+        default_factory=dict
+    )
     configured_priority_mode: str = "normal"
     effective_nice_value: int | None = None
     priority_apply_status: str = "not_attempted"
@@ -174,7 +181,9 @@ class RuntimeState:
                     "fps_cap": float(measurement.fps_cap),
                     "fps_cap_reason": str(measurement.fps_cap_reason),
                     "effective_output_fps": float(measurement.effective_output_fps),
-                    "counters": {str(key): int(value) for key, value in measurement.counters.items()},
+                    "counters": {
+                        str(key): int(value) for key, value in measurement.counters.items()
+                    },
                     "flags": {str(key): bool(value) for key, value in measurement.flags.items()},
                     "labels": {str(key): str(value) for key, value in measurement.labels.items()},
                     "stages": {

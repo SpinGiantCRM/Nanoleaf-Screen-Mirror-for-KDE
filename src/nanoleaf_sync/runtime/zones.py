@@ -128,7 +128,15 @@ def _edge_localized_weights(
     if not (touches_top or touches_bottom or touches_left or touches_right):
         return None
 
-    orientation = "top" if touches_top else "bottom" if touches_bottom else "left" if touches_left else "right"
+    orientation = (
+        "top"
+        if touches_top
+        else "bottom"
+        if touches_bottom
+        else "left"
+        if touches_left
+        else "right"
+    )
     return _edge_weight_template(
         zone_h=zone_h,
         zone_w=zone_w,
@@ -138,7 +146,9 @@ def _edge_localized_weights(
 
 
 @lru_cache(maxsize=256)
-def _edge_weight_template(*, zone_h: int, zone_w: int, orientation: str, locality: str) -> np.ndarray | None:
+def _edge_weight_template(
+    *, zone_h: int, zone_w: int, orientation: str, locality: str
+) -> np.ndarray | None:
     profile = edge_locality_profile(locality)
     yy, xx = np.indices((zone_h, zone_w), dtype=np.float32)
     if orientation in {"top", "bottom"}:
@@ -263,10 +273,7 @@ def zone_colors_array(
         return np.zeros((0, 3), dtype=np.uint8)
 
     step = max(1, int(sample_step))
-    zones_key = tuple(
-        (int(zone[0]), int(zone[1]), int(zone[2]), int(zone[3]))
-        for zone in zones
-    )
+    zones_key = tuple((int(zone[0]), int(zone[1]), int(zone[2]), int(zone[3])) for zone in zones)
     if step > 1:
         img = img[::step, ::step, :]
         h, w, _ = img.shape
@@ -346,31 +353,45 @@ def zone_colors_array(
         return means
 
     out = means.astype(np.float32)
-    prev = np.asarray(previous_zone_colors, dtype=np.float32) if previous_zone_colors is not None else None
+    prev = (
+        np.asarray(previous_zone_colors, dtype=np.float32)
+        if previous_zone_colors is not None
+        else None
+    )
     for idx in range(len(zones)):
         if not valid[idx]:
             continue
-        patch = img[y0[idx]:y1[idx], x0[idx]:x1[idx]]
+        patch = img[y0[idx] : y1[idx], x0[idx] : x1[idx]]
         if patch.size == 0:
             continue
         patch_f = patch.astype(np.float32)
         max_c = patch_f.max(axis=2)
         min_c = patch_f.min(axis=2)
         sat = (max_c - min_c) / np.clip(max_c, 1.0, None)
-        lum = (0.2126 * patch_f[:, :, 0]) + (0.7152 * patch_f[:, :, 1]) + (0.0722 * patch_f[:, :, 2])
+        lum = (
+            (0.2126 * patch_f[:, :, 0]) + (0.7152 * patch_f[:, :, 1]) + (0.0722 * patch_f[:, :, 2])
+        )
         contrast = np.clip(float(np.std(lum) / 64.0), 0.0, 1.0)
         zone_lum = float(np.mean(lum))
         zone_lum_norm = np.clip(zone_lum / 255.0, 0.0, 1.0)
         required_delta = 10.0 + (55.0 * zone_lum_norm)
         prominence = np.clip((lum - zone_lum) / required_delta, 0.0, 1.0)
         prominence = np.power(prominence, 1.0 + (1.2 * zone_lum_norm))
-        vivid_weight = (0.30 + profile["vivid_sat"] * sat + 0.20 * np.clip((lum / 255.0) ** 0.7, 0.0, 1.0)) * prominence
+        vivid_weight = (
+            0.30 + profile["vivid_sat"] * sat + 0.20 * np.clip((lum / 255.0) ** 0.7, 0.0, 1.0)
+        ) * prominence
         # Down-weight huge flat areas so large backgrounds don't fully dominate dynamic/hyper modes.
-        area_rejection = 1.0 - (0.18 * np.clip((1.0 - sat), 0.0, 1.0) * np.clip((1.0 - prominence), 0.0, 1.0))
+        area_rejection = 1.0 - (
+            0.18 * np.clip((1.0 - sat), 0.0, 1.0) * np.clip((1.0 - prominence), 0.0, 1.0)
+        )
         vivid_flat = (vivid_weight * area_rejection).reshape(-1)
         patch_flat = patch_f.reshape(-1, 3)
         weight_sum = float(vivid_flat.sum())
-        highlight = patch_flat.mean(axis=0) if weight_sum <= 0.0 else np.average(patch_flat, axis=0, weights=vivid_flat)
+        highlight = (
+            patch_flat.mean(axis=0)
+            if weight_sum <= 0.0
+            else np.average(patch_flat, axis=0, weights=vivid_flat)
+        )
 
         motion_boost = 0.0
         if prev is not None and idx < len(prev):
@@ -379,7 +400,10 @@ def zone_colors_array(
 
         standout = float(np.clip(np.mean(prominence), 0.0, 1.0))
         highlight_mix = np.clip(
-            profile["base_mix"] + (profile["contrast_w"] * contrast) + (profile["motion_w"] * motion_boost) + (profile["standout_w"] * standout),
+            profile["base_mix"]
+            + (profile["contrast_w"] * contrast)
+            + (profile["motion_w"] * motion_boost)
+            + (profile["standout_w"] * standout),
             0.10,
             0.88 if normalized_mode == "hyper" else 0.78,
         )
@@ -428,7 +452,9 @@ def _zone_means_legacy(
         - integral[cy1[valid_idx], cx0[valid_idx]]
         + integral[cy0[valid_idx], cx0[valid_idx]]
     )
-    means[valid] = np.clip(np.rint(sums / areas[valid_idx, None]), 0.0, 255.0).astype(np.uint8, copy=False)
+    means[valid] = np.clip(np.rint(sums / areas[valid_idx, None]), 0.0, 255.0).astype(
+        np.uint8, copy=False
+    )
     for idx, py0, py1, px0, px1, weights in edge_plans:
         patch = image[py0:py1, px0:px1].astype(np.float64, copy=False)
         weighted = np.einsum("hwc,hw->c", patch, weights, dtype=np.float64)
@@ -468,7 +494,9 @@ def _zone_means_optimized(
     integral = _get_integral_buffer(crop_h + 1, crop_w + 1)
     integral[0, :, :] = 0.0
     integral[:, 0, :] = 0.0
-    integral[1:, 1:, :] = cropped_linear.cumsum(axis=0, dtype=np.float64).cumsum(axis=1, dtype=np.float64)
+    integral[1:, 1:, :] = cropped_linear.cumsum(axis=0, dtype=np.float64).cumsum(
+        axis=1, dtype=np.float64
+    )
     cx0 = x0 - bx0
     cy0 = y0 - by0
     cx1 = x1 - bx0
@@ -527,7 +555,11 @@ def _select_faster_engine_auto(
 
     legacy_ms, legacy_out = _time(_zone_means_legacy)
     optimized_ms, optimized_out = _time(_zone_means_optimized)
-    max_abs_delta = int(np.max(np.abs(legacy_out.astype(np.int16) - optimized_out.astype(np.int16)))) if legacy_out.size else 0
+    max_abs_delta = (
+        int(np.max(np.abs(legacy_out.astype(np.int16) - optimized_out.astype(np.int16))))
+        if legacy_out.size
+        else 0
+    )
     if legacy_ms <= optimized_ms:
         return "legacy"
     if max_abs_delta <= 6:

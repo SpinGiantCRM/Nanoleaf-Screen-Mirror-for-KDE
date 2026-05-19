@@ -135,7 +135,9 @@ def run_readiness_check(
         "bottom_right": int(getattr(calibration, "corner_anchor_bottom_right", -1)),
         "bottom_left": int(getattr(calibration, "corner_anchor_bottom_left", -1)),
     }
-    anchor_validation = validate_corner_anchors(anchors=anchors, device_zone_count=max(1, manual_strip_count))
+    anchor_validation = validate_corner_anchors(
+        anchors=anchors, device_zone_count=max(1, manual_strip_count)
+    )
     if not anchor_validation.valid:
         issues.append(
             ReadinessIssue(
@@ -156,7 +158,9 @@ def run_readiness_check(
         corner_anchor_bottom_left=int(getattr(calibration, "corner_anchor_bottom_left", -1)),
         calibration_model="corner_anchored",
     )
-    if mapping.validation_warnings or len(mapping.device_to_source_indices) != max(1, manual_strip_count):
+    if mapping.validation_warnings or len(mapping.device_to_source_indices) != max(
+        1, manual_strip_count
+    ):
         issues.append(
             ReadinessIssue(
                 check="calibration-mapping",
@@ -167,28 +171,101 @@ def run_readiness_check(
         )
 
     if str(getattr(normalized, "layout_preset", "")) not in LAYOUT_PRESETS:
-        issues.append(ReadinessIssue("preset-layout", "Layout preset is invalid.", "Pick a valid layout preset", CONFIG_PROBLEM_STATUS))
+        issues.append(
+            ReadinessIssue(
+                "preset-layout",
+                "Layout preset is invalid.",
+                "Pick a valid layout preset",
+                CONFIG_PROBLEM_STATUS,
+            )
+        )
     if str(getattr(normalized, "edge_locality", "")) not in EDGE_LOCALITY_PRESETS:
-        issues.append(ReadinessIssue("preset-edge-locality", "Edge locality preset is invalid.", "Pick a valid edge locality", CONFIG_PROBLEM_STATUS))
+        issues.append(
+            ReadinessIssue(
+                "preset-edge-locality",
+                "Edge locality preset is invalid.",
+                "Pick a valid edge locality",
+                CONFIG_PROBLEM_STATUS,
+            )
+        )
     if str(getattr(normalized, "sampling_quality", "")) not in SAMPLING_QUALITY_PRESETS:
-        issues.append(ReadinessIssue("preset-quality", "Sampling quality preset is invalid.", "Pick a valid quality preset", CONFIG_PROBLEM_STATUS))
+        issues.append(
+            ReadinessIssue(
+                "preset-quality",
+                "Sampling quality preset is invalid.",
+                "Pick a valid quality preset",
+                CONFIG_PROBLEM_STATUS,
+            )
+        )
     if str(getattr(normalized, "motion_preset", "")) not in MOTION_PRESETS:
-        issues.append(ReadinessIssue("preset-motion", "Motion preset is invalid.", "Pick a valid motion preset", CONFIG_PROBLEM_STATUS))
+        issues.append(
+            ReadinessIssue(
+                "preset-motion",
+                "Motion preset is invalid.",
+                "Pick a valid motion preset",
+                CONFIG_PROBLEM_STATUS,
+            )
+        )
     if str(getattr(normalized, "color_style", "")) not in COLOR_STYLE_PRESETS:
-        issues.append(ReadinessIssue("preset-color-style", "Color style preset is invalid.", "Pick a valid color style", CONFIG_PROBLEM_STATUS))
+        issues.append(
+            ReadinessIssue(
+                "preset-color-style",
+                "Color style preset is invalid.",
+                "Pick a valid color style",
+                CONFIG_PROBLEM_STATUS,
+            )
+        )
     if str(getattr(normalized, "display_preset", "")) not in DISPLAY_PRESETS:
-        issues.append(ReadinessIssue("preset-display", "Display preset is invalid.", "Pick SDR, HDR, or Auto", CONFIG_PROBLEM_STATUS))
+        issues.append(
+            ReadinessIssue(
+                "preset-display",
+                "Display preset is invalid.",
+                "Pick SDR, HDR, or Auto",
+                CONFIG_PROBLEM_STATUS,
+            )
+        )
 
     if str(getattr(normalized, "hdr_transfer", "")) not in {"srgb", "pq"}:
-        issues.append(ReadinessIssue("hdr-transfer", "HDR transfer setting is invalid.", "Set HDR transfer to sRGB or PQ", CONFIG_PROBLEM_STATUS))
+        issues.append(
+            ReadinessIssue(
+                "hdr-transfer",
+                "HDR transfer setting is invalid.",
+                "Set HDR transfer to sRGB or PQ",
+                CONFIG_PROBLEM_STATUS,
+            )
+        )
     if str(getattr(normalized, "hdr_primaries", "")) not in {"bt709", "bt2020"}:
-        issues.append(ReadinessIssue("hdr-primaries", "HDR primaries setting is invalid.", "Set HDR primaries to BT.709 or BT.2020", CONFIG_PROBLEM_STATUS))
+        issues.append(
+            ReadinessIssue(
+                "hdr-primaries",
+                "HDR primaries setting is invalid.",
+                "Set HDR primaries to BT.709 or BT.2020",
+                CONFIG_PROBLEM_STATUS,
+            )
+        )
     if not (80.0 <= float(getattr(normalized, "hdr_max_nits", 0.0)) <= 10000.0):
-        issues.append(ReadinessIssue("hdr-max-nits", "HDR max nits is out of range.", "Set HDR max nits between 80 and 10000", CONFIG_PROBLEM_STATUS))
+        issues.append(
+            ReadinessIssue(
+                "hdr-max-nits",
+                "HDR max nits is out of range.",
+                "Set HDR max nits between 80 and 10000",
+                CONFIG_PROBLEM_STATUS,
+            )
+        )
     if not (80.0 <= float(getattr(normalized, "sdr_boost_nits", 0.0)) <= 1000.0):
-        issues.append(ReadinessIssue("sdr-boost-nits", "SDR white reference is out of range.", "Set SDR white reference between 80 and 1000 nits", CONFIG_PROBLEM_STATUS))
+        issues.append(
+            ReadinessIssue(
+                "sdr-boost-nits",
+                "SDR white reference is out of range.",
+                "Set SDR white reference between 80 and 1000 nits",
+                CONFIG_PROBLEM_STATUS,
+            )
+        )
 
-    if bool(getattr(normalized, "wizard_completed", False)) and str(getattr(normalized, "wizard_in_progress_state", "")).strip():
+    if (
+        bool(getattr(normalized, "wizard_completed", False))
+        and str(getattr(normalized, "wizard_in_progress_state", "")).strip()
+    ):
         issues.append(
             ReadinessIssue(
                 check="wizard-draft",
@@ -198,7 +275,9 @@ def run_readiness_check(
             )
         )
 
-    if bool(status.get("running")) and int(status.get("consecutive_errors") or 0) >= int(status.get("max_consecutive_errors") or 1):
+    if bool(status.get("running")) and int(status.get("consecutive_errors") or 0) >= int(
+        status.get("max_consecutive_errors") or 1
+    ):
         issues.append(
             ReadinessIssue(
                 check="runtime-loop",

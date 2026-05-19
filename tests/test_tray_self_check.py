@@ -40,7 +40,9 @@ def test_reset_probe_cache_cli(monkeypatch, capsys):
         path = "/tmp/config.toml"
 
         def reset_auto_probe_cache(self):
-            return type("Cfg", (), {"auto_probe_policy": "on-change", "auto_selected_backend": ""})()
+            return type(
+                "Cfg", (), {"auto_probe_policy": "on-change", "auto_selected_backend": ""}
+            )()
 
     monkeypatch.setattr(tray_app, "ConfigManager", _FakeManager)
     rc = tray_app.main(["--reset-probe-cache"])

@@ -40,8 +40,6 @@ _explicit_portal_probe_lock = threading.Lock()
 _portal_benchmark_lock = threading.Lock()
 
 
-
-
 def reset_cached_probe_winner() -> None:
     global _cached_probe_winner
 
@@ -100,7 +98,13 @@ def _probe_rows_from_result(*, result, mode: str) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for candidate in result.candidates:
         latencies = list(getattr(candidate, "latencies_ms", []) or [])
-        status = str(getattr(candidate, "status", "tested" if latencies else ("failed" if candidate.errors else "skipped")))
+        status = str(
+            getattr(
+                candidate,
+                "status",
+                "tested" if latencies else ("failed" if candidate.errors else "skipped"),
+            )
+        )
         row_mode = mode
         if status == "skipped" and candidate.candidate == XDG_PORTAL_BACKEND:
             row_mode = "skipped-interactive"
@@ -110,7 +114,14 @@ def _probe_rows_from_result(*, result, mode: str) -> list[dict[str, object]]:
             _probe_row(
                 backend=candidate.candidate,
                 status=status,
-                reason=str(getattr(candidate, "reason", "") or ("; ".join(error.message for error in candidate.errors) if candidate.errors else "")),
+                reason=str(
+                    getattr(candidate, "reason", "")
+                    or (
+                        "; ".join(error.message for error in candidate.errors)
+                        if candidate.errors
+                        else ""
+                    )
+                ),
                 sample_count=len(latencies),
                 median_ms=candidate.median_ms,
                 p95_ms=candidate.p95_ms,
@@ -279,7 +290,9 @@ def _resolve_auto_backend_with_probe(
             with _cached_probe_winner_lock:
                 current_cached = _cached_probe_winner
                 if is_valid_probe_candidate(current_cached):
-                    logger.info("capture auto-probe cache updated by peer; winner=%s", current_cached)
+                    logger.info(
+                        "capture auto-probe cache updated by peer; winner=%s", current_cached
+                    )
                     return str(current_cached)
                 _cached_probe_winner = result.selected_backend
             logger.info("capture auto-probe selected winner=%s", result.selected_backend)
@@ -351,7 +364,9 @@ def run_explicit_xdg_portal_probe(*, width: int, height: int) -> dict[str, objec
         _explicit_portal_probe_lock.release()
 
 
-def _benchmark_backend(*, backend_name: str, width: int, height: int, samples: int) -> dict[str, object]:
+def _benchmark_backend(
+    *, backend_name: str, width: int, height: int, samples: int
+) -> dict[str, object]:
     backend = create_capture_backend(
         width=width,
         height=height,
@@ -398,12 +413,20 @@ def _benchmark_backend(*, backend_name: str, width: int, height: int, samples: i
         "frame_bytes": frame_bytes,
         "stride": stride,
         "median_capture_ms": float(statistics.median(capture_ms)) if capture_ms else 0.0,
-        "p95_capture_ms": float(sorted(capture_ms)[max(0, min(len(capture_ms) - 1, int(round((len(capture_ms) - 1) * 0.95))))]) if capture_ms else 0.0,
+        "p95_capture_ms": float(
+            sorted(capture_ms)[
+                max(0, min(len(capture_ms) - 1, int(round((len(capture_ms) - 1) * 0.95))))
+            ]
+        )
+        if capture_ms
+        else 0.0,
         "jitter_ms": float(max(capture_ms) - min(capture_ms)) if len(capture_ms) > 1 else 0.0,
         "effective_fps": len(capture_ms) / elapsed_s,
         "empty_buffers": empty_buffers,
         "failed_frames": failed_frames,
-        "cpu_conversion_median_ms": float(statistics.median(conversion_ms)) if conversion_ms else 0.0,
+        "cpu_conversion_median_ms": float(statistics.median(conversion_ms))
+        if conversion_ms
+        else 0.0,
         "e2e_frame_to_hid_ms": None,
         "sample_count": len(capture_ms),
     }

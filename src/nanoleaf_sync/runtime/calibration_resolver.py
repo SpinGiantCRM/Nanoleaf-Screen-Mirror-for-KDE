@@ -96,7 +96,9 @@ def resolve_calibration_mapping(
     if normalized_device_zone_count <= 0:
         normalized_device_zone_count = 1
 
-    anchor_validation = validate_corner_anchors(anchors=anchors, device_zone_count=device_zone_count)
+    anchor_validation = validate_corner_anchors(
+        anchors=anchors, device_zone_count=device_zone_count
+    )
     if not anchor_validation.valid:
         validation_warnings = tuple(anchor_validation.errors)
         return CalibrationMappingSnapshot(
@@ -122,7 +124,8 @@ def resolve_calibration_mapping(
     if len(selected_explicit_map) != target_count:
         source_count = len(selected_explicit_map)
         selected_explicit_map = [
-            int(selected_explicit_map[(idx * source_count) // target_count]) for idx in range(target_count)
+            int(selected_explicit_map[(idx * source_count) // target_count])
+            for idx in range(target_count)
         ]
     direction = anchor_map.direction
 

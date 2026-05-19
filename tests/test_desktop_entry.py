@@ -126,7 +126,9 @@ def test_ensure_user_launcher_entry_writes_preferred_path(monkeypatch, tmp_path:
     assert desktop_entry.RESTRICTED_IFACE_MARKER in content
 
 
-def test_ensure_user_launcher_entry_generates_default_when_no_source(monkeypatch, tmp_path: Path) -> None:
+def test_ensure_user_launcher_entry_generates_default_when_no_source(
+    monkeypatch, tmp_path: Path
+) -> None:
     output_path = tmp_path / "applications" / "nanoleaf-kde-sync.desktop"
 
     monkeypatch.setattr(desktop_entry, "_resolved_desktop_source", lambda: None)
@@ -150,7 +152,9 @@ def test_prepare_desktop_entry_updates_exec_only_in_main_section() -> None:
         "Exec=old-action-command\n"
     )
 
-    prepared = desktop_entry._prepare_desktop_entry_text(text, exec_command="/usr/bin/python3 -m app")
+    prepared = desktop_entry._prepare_desktop_entry_text(
+        text, exec_command="/usr/bin/python3 -m app"
+    )
 
     assert "Exec=/usr/bin/python3 -m app" in prepared
     assert "Exec=old-action-command" in prepared

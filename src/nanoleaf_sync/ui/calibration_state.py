@@ -6,7 +6,10 @@ import logging
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
-from nanoleaf_sync.runtime.calibration_resolver import CalibrationMappingSnapshot, resolve_calibration_mapping
+from nanoleaf_sync.runtime.calibration_resolver import (
+    CalibrationMappingSnapshot,
+    resolve_calibration_mapping,
+)
 from nanoleaf_sync.ui.calibration_preview import (
     CalibrationStep,
     calibration_test_frame,
@@ -133,14 +136,26 @@ class CalibrationState:
     def validation_report(self) -> CalibrationVerificationReport:
         anchors = {
             "top_left": self.corner_anchor_top_left if self.corner_anchor_top_left >= 0 else None,
-            "top_right": self.corner_anchor_top_right if self.corner_anchor_top_right >= 0 else None,
-            "bottom_right": self.corner_anchor_bottom_right if self.corner_anchor_bottom_right >= 0 else None,
-            "bottom_left": self.corner_anchor_bottom_left if self.corner_anchor_bottom_left >= 0 else None,
+            "top_right": self.corner_anchor_top_right
+            if self.corner_anchor_top_right >= 0
+            else None,
+            "bottom_right": self.corner_anchor_bottom_right
+            if self.corner_anchor_bottom_right >= 0
+            else None,
+            "bottom_left": self.corner_anchor_bottom_left
+            if self.corner_anchor_bottom_left >= 0
+            else None,
         }
-        anchor_validation = validate_corner_anchors(anchors=anchors, device_zone_count=self.effective_device_zone_count())
+        anchor_validation = validate_corner_anchors(
+            anchors=anchors, device_zone_count=self.effective_device_zone_count()
+        )
         anchors_unique_valid = bool(anchor_validation.valid)
         score = 1.0 if anchors_unique_valid else 0.0
-        hints = () if anchors_unique_valid else ("Assign four unique in-range corner anchors (TL/TR/BR/BL).",)
+        hints = (
+            ()
+            if anchors_unique_valid
+            else ("Assign four unique in-range corner anchors (TL/TR/BR/BL).",)
+        )
         return CalibrationVerificationReport(
             outcome_status="pass" if anchors_unique_valid else "fail",
             direction_confirmed=True,
@@ -151,7 +166,9 @@ class CalibrationState:
             cycle_confidence_component=1.0,
             confidence_score=score,
             hard_fail=not anchors_unique_valid,
-            remediation_action="No action needed." if anchors_unique_valid else "Assign valid corner anchors before saving calibration.",
+            remediation_action="No action needed."
+            if anchors_unique_valid
+            else "Assign valid corner anchors before saving calibration.",
             remediation_hints=hints,
         )
 
@@ -194,7 +211,7 @@ class CalibrationState:
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
             reverse_zones=self.reverse_zones,
-                        corner_anchor_top_left=self.corner_anchor_top_left,
+            corner_anchor_top_left=self.corner_anchor_top_left,
             corner_anchor_top_right=self.corner_anchor_top_right,
             corner_anchor_bottom_right=self.corner_anchor_bottom_right,
             corner_anchor_bottom_left=self.corner_anchor_bottom_left,
@@ -202,13 +219,15 @@ class CalibrationState:
             resolved_mapping=snapshot,
         )
 
-    def _corner_steps(self, resolved_mapping: CalibrationMappingSnapshot | None = None) -> list[CalibrationStep]:
+    def _corner_steps(
+        self, resolved_mapping: CalibrationMappingSnapshot | None = None
+    ) -> list[CalibrationStep]:
         snapshot = resolved_mapping or self.resolved_mapping_snapshot()
         return corner_anchor_steps(
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
             reverse_zones=self.reverse_zones,
-                        start_anchor=None,
+            start_anchor=None,
             calibration_model="corner_anchored",
             corner_anchor_top_left=self.corner_anchor_top_left,
             corner_anchor_top_right=self.corner_anchor_top_right,
@@ -246,8 +265,8 @@ class CalibrationState:
                 step=step,
                 zone_count=self.zone_count,
                 device_zone_count=self.effective_device_zone_count(),
-                    reverse_zones=self.reverse_zones,
-                                    calibration_model="corner_anchored",
+                reverse_zones=self.reverse_zones,
+                calibration_model="corner_anchored",
                 corner_anchor_top_left=self.corner_anchor_top_left,
                 corner_anchor_top_right=self.corner_anchor_top_right,
                 corner_anchor_bottom_right=self.corner_anchor_bottom_right,
@@ -264,7 +283,7 @@ class CalibrationState:
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
             reverse_zones=self.reverse_zones,
-                        calibration_model="corner_anchored",
+            calibration_model="corner_anchored",
             corner_anchor_top_left=self.corner_anchor_top_left,
             corner_anchor_top_right=self.corner_anchor_top_right,
             corner_anchor_bottom_right=self.corner_anchor_bottom_right,
@@ -280,7 +299,9 @@ class CalibrationState:
             return max(1, len(self._corner_steps()))
         return max(1, self.effective_device_zone_count())
 
-    def frame_for_step(self, *, mode: str, step: int, brightness: float, all_off_except_active: bool) -> list[tuple[int, int, int]]:
+    def frame_for_step(
+        self, *, mode: str, step: int, brightness: float, all_off_except_active: bool
+    ) -> list[tuple[int, int, int]]:
         active_step = self.step_for_mode(mode, step)
         self.current_test_step = int(step)
         inactive = (0, 0, 0) if all_off_except_active else (8, 8, 8)
@@ -303,7 +324,9 @@ def backend_selection_info(runtime_status: dict | None, cfg: AppConfig) -> Backe
         or ""
     ).strip()
     running = bool(status.get("running"))
-    effective = str(status.get("effective_capture_backend") or status.get("capture_backend") or "").strip()
+    effective = str(
+        status.get("effective_capture_backend") or status.get("capture_backend") or ""
+    ).strip()
     unresolved_reason = ""
     if effective.lower() in {"", "unknown", "auto"}:
         if not running:
@@ -339,7 +362,9 @@ def backend_selection_info(runtime_status: dict | None, cfg: AppConfig) -> Backe
     )
 
 
-def build_testing_panel_state(*, state: CalibrationState, runtime_status: dict | None, cfg: AppConfig, mode: str, step: int) -> TestingPanelState:
+def build_testing_panel_state(
+    *, state: CalibrationState, runtime_status: dict | None, cfg: AppConfig, mode: str, step: int
+) -> TestingPanelState:
     backend = backend_selection_info(runtime_status, cfg)
     active = state.step_for_mode(mode, step)
     return TestingPanelState(
@@ -348,9 +373,7 @@ def build_testing_panel_state(*, state: CalibrationState, runtime_status: dict |
             f"| Effective runtime backend: {backend.effective_backend} | Source: {backend.source} | Reason: {backend.reason}"
             + (f" | Unresolved: {backend.unresolved_reason}" if backend.unresolved_reason else "")
         ),
-        zone_mode_summary=(
-            "Strip LED zone mode: configured"
-        )
+        zone_mode_summary=("Strip LED zone mode: configured")
         + f" | {state.auto_detection_status()}",
         effective_zone_count=state.effective_device_zone_count(),
         active_test_description=active.label,
@@ -383,7 +406,9 @@ def build_latency_result(
     )
 
 
-def should_auto_run_latency_probe(*, policy: str, last_result: LatencyProbeResult | None, active_backend: str) -> bool:
+def should_auto_run_latency_probe(
+    *, policy: str, last_result: LatencyProbeResult | None, active_backend: str
+) -> bool:
     normalized = str(policy or "manual").strip().lower()
     if normalized == "manual":
         return False
@@ -407,9 +432,8 @@ def latency_result_summary(result: LatencyProbeResult | None) -> str:
             + (f" | {result.details}" if result.details else "")
         )
     if result.measurement_kind == "unavailable":
-        return (
-            f"Live latency: Not measured | {result.confidence_note}"
-            + (f" | {result.details}" if result.details else "")
+        return f"Live latency: Not measured | {result.confidence_note}" + (
+            f" | {result.details}" if result.details else ""
         )
     return (
         f"Live latency: Not measured | Unsupported latency result kind '{result.measurement_kind}'."

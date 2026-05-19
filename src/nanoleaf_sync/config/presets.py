@@ -43,7 +43,13 @@ SAMPLING_QUALITY_PRESETS = (
     SAMPLING_QUALITY_HIGH,
 )
 MOTION_PRESETS = (MOTION_PRESET_CALM, MOTION_PRESET_RESPONSIVE, MOTION_PRESET_DYNAMIC)
-COLOR_STYLE_PRESETS = (COLOR_STYLE_REFERENCE, COLOR_STYLE_NATURAL, COLOR_STYLE_AMBIENT, COLOR_STYLE_VIVID, COLOR_STYLE_PUNCHY)
+COLOR_STYLE_PRESETS = (
+    COLOR_STYLE_REFERENCE,
+    COLOR_STYLE_NATURAL,
+    COLOR_STYLE_AMBIENT,
+    COLOR_STYLE_VIVID,
+    COLOR_STYLE_PUNCHY,
+)
 DISPLAY_PRESETS = (DISPLAY_PRESET_SDR, DISPLAY_PRESET_HDR, DISPLAY_PRESET_AUTO)
 LIGHT_SPREAD_PRESETS = (LIGHT_SPREAD_PRECISE, LIGHT_SPREAD_BALANCED, LIGHT_SPREAD_SOFT)
 
@@ -78,7 +84,9 @@ def normalize_layout_preset(value: object) -> str:
 
 
 def edge_locality_profile(locality: str) -> EdgeLocalityProfile:
-    normalized = normalize_preset(locality, allowed=EDGE_LOCALITY_PRESETS, default=EDGE_LOCALITY_BALANCED)
+    normalized = normalize_preset(
+        locality, allowed=EDGE_LOCALITY_PRESETS, default=EDGE_LOCALITY_BALANCED
+    )
     if normalized == EDGE_LOCALITY_TIGHT:
         return EdgeLocalityProfile(edge_thickness_target=0.055, edge_bias=8.0, center_sigma=0.18)
     if normalized == EDGE_LOCALITY_WIDE:
@@ -87,12 +95,18 @@ def edge_locality_profile(locality: str) -> EdgeLocalityProfile:
 
 
 def sampling_quality_to_zone_stride(quality: str) -> int:
-    normalized = normalize_preset(quality, allowed=SAMPLING_QUALITY_PRESETS, default=SAMPLING_QUALITY_BALANCED)
-    return {SAMPLING_QUALITY_LOW: 4, SAMPLING_QUALITY_BALANCED: 2, SAMPLING_QUALITY_HIGH: 1}[normalized]
+    normalized = normalize_preset(
+        quality, allowed=SAMPLING_QUALITY_PRESETS, default=SAMPLING_QUALITY_BALANCED
+    )
+    return {SAMPLING_QUALITY_LOW: 4, SAMPLING_QUALITY_BALANCED: 2, SAMPLING_QUALITY_HIGH: 1}[
+        normalized
+    ]
 
 
 def motion_profile(motion_preset: str) -> MotionProfile:
-    normalized = normalize_preset(motion_preset, allowed=MOTION_PRESETS, default=MOTION_PRESET_RESPONSIVE)
+    normalized = normalize_preset(
+        motion_preset, allowed=MOTION_PRESETS, default=MOTION_PRESET_RESPONSIVE
+    )
     if normalized == MOTION_PRESET_CALM:
         return MotionProfile(smoothing_multiplier=0.75, smoothing_speed_multiplier=0.70)
     if normalized == MOTION_PRESET_DYNAMIC:
@@ -101,7 +115,9 @@ def motion_profile(motion_preset: str) -> MotionProfile:
 
 
 def analyzer_mode_for_presets(*, motion_preset: str, color_style: str) -> str:
-    motion = normalize_preset(motion_preset, allowed=MOTION_PRESETS, default=MOTION_PRESET_RESPONSIVE)
+    motion = normalize_preset(
+        motion_preset, allowed=MOTION_PRESETS, default=MOTION_PRESET_RESPONSIVE
+    )
     style = normalize_preset(color_style, allowed=COLOR_STYLE_PRESETS, default=COLOR_STYLE_NATURAL)
     if style in {COLOR_STYLE_REFERENCE, COLOR_STYLE_NATURAL, COLOR_STYLE_AMBIENT}:
         return "balanced"

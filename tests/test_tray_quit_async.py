@@ -49,9 +49,13 @@ def test_on_quit_is_non_blocking_and_idempotent() -> None:
         _close_preview_driver=lambda *, resume_service=False: None,
     )
     fake_tray._request_stop = lambda: NanoleafTrayApp._request_stop(fake_tray)
-    fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(fake_tray)
+    fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(
+        fake_tray
+    )
     fake_tray._set_idle_ui_state = lambda: NanoleafTrayApp._set_idle_ui_state(fake_tray)
-    fake_tray._poll_shutdown_completion = lambda: NanoleafTrayApp._poll_shutdown_completion(fake_tray)
+    fake_tray._poll_shutdown_completion = lambda: NanoleafTrayApp._poll_shutdown_completion(
+        fake_tray
+    )
     fake_tray._finalize_quit = lambda: NanoleafTrayApp._finalize_quit(fake_tray)
 
     NanoleafTrayApp.on_quit(fake_tray)
@@ -102,7 +106,9 @@ def test_on_stop_reports_timeout_without_pretending_idle() -> None:
     )
     fake_tray._service_running = lambda svc=None: NanoleafTrayApp._service_running(fake_tray, svc)
     fake_tray._request_stop = lambda **kwargs: NanoleafTrayApp._request_stop(fake_tray, **kwargs)
-    fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(fake_tray)
+    fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(
+        fake_tray
+    )
 
     NanoleafTrayApp.on_stop(fake_tray)
 
@@ -138,7 +144,9 @@ def test_on_stop_handles_service_state_query_errors_without_exiting() -> None:
     )
     fake_tray._service_running = lambda svc=None: NanoleafTrayApp._service_running(fake_tray, svc)
     fake_tray._request_stop = lambda **kwargs: NanoleafTrayApp._request_stop(fake_tray, **kwargs)
-    fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(fake_tray)
+    fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(
+        fake_tray
+    )
 
     NanoleafTrayApp.on_stop(fake_tray)
 
@@ -197,7 +205,9 @@ def test_on_start_failure_stays_alive_and_stop_after_failure_is_safe() -> None:
         ),
     )
     fake_tray._safe_service_status = lambda: NanoleafTrayApp._safe_service_status(fake_tray)
-    fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(fake_tray)
+    fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(
+        fake_tray
+    )
     fake_tray._service_running = lambda svc=None: NanoleafTrayApp._service_running(fake_tray, svc)
     fake_tray._request_stop = lambda **kwargs: NanoleafTrayApp._request_stop(fake_tray, **kwargs)
     fake_tray._set_idle_ui_state = lambda: NanoleafTrayApp._set_idle_ui_state(fake_tray)
@@ -235,7 +245,9 @@ def test_on_start_contains_status_exceptions_at_callback_boundary() -> None:
         ),
     )
     fake_tray._safe_service_status = lambda: NanoleafTrayApp._safe_service_status(fake_tray)
-    fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(fake_tray)
+    fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(
+        fake_tray
+    )
 
     NanoleafTrayApp.on_start(fake_tray)
 

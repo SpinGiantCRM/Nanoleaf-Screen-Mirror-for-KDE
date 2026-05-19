@@ -49,7 +49,9 @@ def test_reference_mode_preserves_locality_for_bottom_left_signal() -> None:
         color_style="reference",
     )
     arr = np.asarray(colors, dtype=np.uint8)
-    layout = edge_weighted_layout(zone_count=zone_count, width=width, height=height, edge_locality="balanced")
+    layout = edge_weighted_layout(
+        zone_count=zone_count, width=width, height=height, edge_locality="balanced"
+    )
     top_n, right_n, bottom_n, _left_n = layout.side_counts
     bottom_start = top_n + right_n
     far_right_bottom = arr[bottom_start : bottom_start + max(1, bottom_n // 2), 1]
@@ -78,7 +80,10 @@ def test_strip_count_mismatch_warning_exposes_manual_actions() -> None:
 def test_calibration_widget_shows_corner_checklist_and_status() -> None:
     text = open("src/nanoleaf_sync/ui/calibration_widget.py", "r", encoding="utf-8").read()
     assert "corner_checklist_label" in text
-    assert "Calibration:" in open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    assert (
+        "Calibration:"
+        in open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    )
 
 
 def test_raw_mapping_text_is_diagnostics_only() -> None:

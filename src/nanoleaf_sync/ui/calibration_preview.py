@@ -63,10 +63,10 @@ def single_zone_step(
         [int(i) for i in resolved_mapping]
         if resolved_mapping is not None
         else mapping_indices(
-                zone_count=zone_count,
-                device_zone_count=device_zone_count,
-                reverse_zones=reverse_zones,
-                calibration_model=calibration_model,
+            zone_count=zone_count,
+            device_zone_count=device_zone_count,
+            reverse_zones=reverse_zones,
+            calibration_model=calibration_model,
             corner_anchor_top_left=corner_anchor_top_left,
             corner_anchor_top_right=corner_anchor_top_right,
             corner_anchor_bottom_right=corner_anchor_bottom_right,
@@ -78,7 +78,11 @@ def single_zone_step(
     source_total = max(1, int(zone_count))
     target_source_idx = int(step) % source_total
     idx = next(
-        (device_idx for device_idx, mapped_source_idx in enumerate(mapping) if int(mapped_source_idx) == target_source_idx),
+        (
+            device_idx
+            for device_idx, mapped_source_idx in enumerate(mapping)
+            if int(mapped_source_idx) == target_source_idx
+        ),
         int(step) % normalized_total,
     )
     source_idx = int(mapping[idx]) if mapping else target_source_idx
@@ -146,10 +150,10 @@ def corner_anchor_steps(
         [int(i) for i in resolved_mapping]
         if resolved_mapping is not None
         else mapping_indices(
-                zone_count=zone_count,
-                device_zone_count=device_zone_count,
-                reverse_zones=reverse_zones,
-                calibration_model=calibration_model,
+            zone_count=zone_count,
+            device_zone_count=device_zone_count,
+            reverse_zones=reverse_zones,
+            calibration_model=calibration_model,
             corner_anchor_top_left=corner_anchor_top_left,
             corner_anchor_top_right=corner_anchor_top_right,
             corner_anchor_bottom_right=corner_anchor_bottom_right,

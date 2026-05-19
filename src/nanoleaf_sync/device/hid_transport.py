@@ -155,7 +155,11 @@ class HIDTransport:
                             iface_value = None
             if vid_value != vid or pid_value != pid:
                 continue
-            if interface_numbers and iface_value is not None and iface_value not in interface_numbers:
+            if (
+                interface_numbers
+                and iface_value is not None
+                and iface_value not in interface_numbers
+            ):
                 continue
             candidates.append(f"/dev/{hidraw.name}".encode("utf-8"))
         return candidates
@@ -172,9 +176,7 @@ class HIDTransport:
         try:
             import hid  # type: ignore
         except Exception as e:  # pragma: no cover
-            raise RuntimeError(
-                "hidapi bindings not installed. Install `hidapi` package."
-            ) from e
+            raise RuntimeError("hidapi bindings not installed. Install `hidapi` package.") from e
 
         devices = list(hid.enumerate(self.ids.vid, self.ids.pid))
         if not devices:
@@ -269,9 +271,7 @@ class HIDTransport:
             if not candidate_text:
                 candidate_text = "<none>"
             attempts = (
-                "; ".join(attempt_results)
-                if attempt_results
-                else "no open attempts were made"
+                "; ".join(attempt_results) if attempt_results else "no open attempts were made"
             )
             lowered = attempts.lower()
             diagnosis: list[str] = []
@@ -282,7 +282,9 @@ class HIDTransport:
             if "open failed" in lowered or "access denied" in lowered:
                 diagnosis.append("device enumerates but hid backend cannot open it")
             if interface_numbers and "/dev/hidraw" not in lowered:
-                diagnosis.append("device interface layout unsupported by current backend path mapping")
+                diagnosis.append(
+                    "device interface layout unsupported by current backend path mapping"
+                )
             if not diagnosis:
                 diagnosis.append("unable to classify open failure")
             raise RuntimeError(
@@ -303,7 +305,9 @@ class HIDTransport:
         report[: len(payload)] = payload
         return bytes(report)
 
-    def _write_payload(self, payload: bytes) -> dict[str, int | float | list[int] | list[float] | bool | str]:
+    def _write_payload(
+        self, payload: bytes
+    ) -> dict[str, int | float | list[int] | list[float] | bool | str]:
         payload_capacity = self.report_size
         if payload_capacity <= 0:
             raise RuntimeError(
@@ -329,8 +333,8 @@ class HIDTransport:
                 chunk = payload[offset : offset + chunk_size]
                 report_buffer[data_offset : data_offset + chunk_size] = chunk
             if previous_chunk_size > chunk_size:
-                report_buffer[data_offset + chunk_size : data_offset + previous_chunk_size] = b"\x00" * (
-                    previous_chunk_size - chunk_size
+                report_buffer[data_offset + chunk_size : data_offset + previous_chunk_size] = (
+                    b"\x00" * (previous_chunk_size - chunk_size)
                 )
             write_start = time.perf_counter()
             try:
@@ -375,7 +379,9 @@ class HIDTransport:
     def read(self) -> bytes:
         if self._handle is None:
             raise RuntimeError("HID transport not opened.")
-        data = self._handle.read(self.report_size + (1 if self.use_report_id_prefix else 0), self.read_timeout_ms)
+        data = self._handle.read(
+            self.report_size + (1 if self.use_report_id_prefix else 0), self.read_timeout_ms
+        )
         if not data:
             return b""
         raw = bytes(data)

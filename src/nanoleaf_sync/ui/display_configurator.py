@@ -165,7 +165,9 @@ class DisplayConfiguratorDialog:
                 status = runtime_status or {}
                 self._state = CalibrationState.from_config(cfg, status)
                 detected_device_zone_count = int(status.get("device_zone_count") or 0)
-                self._requires_manual_device_zone_count = int(getattr(cfg, "device_zone_count", 0)) <= 0
+                self._requires_manual_device_zone_count = (
+                    int(getattr(cfg, "device_zone_count", 0)) <= 0
+                )
                 self._device_zone_count_confirmed = not self._requires_manual_device_zone_count
                 self._source_zones_locked_to_device_count = (
                     not bool(self._state.source_zones_user_configured)
@@ -184,19 +186,34 @@ class DisplayConfiguratorDialog:
                 self.display_preset_combo.addItems(labels(DISPLAY_PRESET_LABELS))
                 initial_display_preset = str(getattr(cfg, "display_preset", "hdr"))
                 self.display_preset_combo.setCurrentIndex(
-                    max(0, self.display_preset_combo.findText(label_for_value(DISPLAY_PRESET_LABELS, initial_display_preset, default="HDR")))
+                    max(
+                        0,
+                        self.display_preset_combo.findText(
+                            label_for_value(
+                                DISPLAY_PRESET_LABELS, initial_display_preset, default="HDR"
+                            )
+                        ),
+                    )
                 )
                 self.display_mode_help = QLabel("")
-                self.compositor_hdr_mode_checkbox = QCheckBox("KDE SDR-on-HDR compensation / compositor HDR mode")
-                self.compositor_hdr_mode_checkbox.setChecked(bool(getattr(cfg, "compositor_hdr_mode", False)))
+                self.compositor_hdr_mode_checkbox = QCheckBox(
+                    "KDE SDR-on-HDR compensation / compositor HDR mode"
+                )
+                self.compositor_hdr_mode_checkbox.setChecked(
+                    bool(getattr(cfg, "compositor_hdr_mode", False))
+                )
                 self.sdr_boost_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.sdr_boost_nits_slider.setRange(80, 400)
                 self.sdr_boost_nits_slider.setValue(int(getattr(cfg, "sdr_boost_nits", 80.0)))
                 self.sdr_boost_nits_value = QLabel("")
                 self.sdr_white_reference_preset_combo = QComboBox()
-                self.sdr_white_reference_preset_combo.addItems(["80 nits", "120 nits", "160 nits", "203 nits", "Custom"])
+                self.sdr_white_reference_preset_combo.addItems(
+                    ["80 nits", "120 nits", "160 nits", "203 nits", "Custom"]
+                )
                 preset_value = str(getattr(cfg, "sdr_white_reference_preset", "80")).strip().lower()
-                self.sdr_white_reference_preset_combo.setCurrentIndex({"80": 0, "120": 1, "160": 2, "203": 3, "custom": 4}.get(preset_value, 4))
+                self.sdr_white_reference_preset_combo.setCurrentIndex(
+                    {"80": 0, "120": 1, "160": 2, "203": 3, "custom": 4}.get(preset_value, 4)
+                )
                 self.display_advanced_group = QGroupBox("Advanced display details")
                 _set_checkable(self.display_advanced_group, True)
                 _set_checked(self.display_advanced_group, False)
@@ -204,31 +221,90 @@ class DisplayConfiguratorDialog:
                 # Step 3
                 self.edge_locality_combo = QComboBox()
                 self.edge_locality_combo.addItems(labels(EDGE_LOCALITY_LABELS))
-                self.edge_locality_combo.setCurrentIndex(max(0, self.edge_locality_combo.findText(label_for_value(EDGE_LOCALITY_LABELS, str(getattr(cfg, "edge_locality", "tight")), default="Tight"))))
+                self.edge_locality_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.edge_locality_combo.findText(
+                            label_for_value(
+                                EDGE_LOCALITY_LABELS,
+                                str(getattr(cfg, "edge_locality", "tight")),
+                                default="Tight",
+                            )
+                        ),
+                    )
+                )
                 self.motion_preset_combo = QComboBox()
                 self.motion_preset_combo.addItems(labels(MOTION_PRESET_LABELS))
                 initial_motion = str(getattr(cfg, "motion_preset", "responsive"))
-                self.motion_preset_combo.setCurrentIndex(max(0, self.motion_preset_combo.findText(label_for_value(MOTION_PRESET_LABELS, initial_motion, default="Responsive"))))
+                self.motion_preset_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.motion_preset_combo.findText(
+                            label_for_value(
+                                MOTION_PRESET_LABELS, initial_motion, default="Responsive"
+                            )
+                        ),
+                    )
+                )
                 self.color_style_combo = QComboBox()
                 self.color_style_combo.addItems(labels(COLOR_STYLE_LABELS))
-                self.color_style_combo.setCurrentIndex(max(0, self.color_style_combo.findText(label_for_value(COLOR_STYLE_LABELS, str(getattr(cfg, "color_style", "ambient")), default="Ambient (recommended)"))))
+                self.color_style_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.color_style_combo.findText(
+                            label_for_value(
+                                COLOR_STYLE_LABELS,
+                                str(getattr(cfg, "color_style", "ambient")),
+                                default="Ambient (recommended)",
+                            )
+                        ),
+                    )
+                )
                 self.hdr_transfer_combo = QComboBox()
                 self.hdr_transfer_combo.addItems(["srgb", "pq"])
-                self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb")))))
+                self.hdr_transfer_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb"))),
+                    )
+                )
                 self.hdr_transfer_label = QLabel("HDR transfer")
                 self.hdr_primaries_combo = QComboBox()
                 self.hdr_primaries_combo.addItems(["bt709", "bt2020"])
-                self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText(str(getattr(cfg, "hdr_primaries", "bt709")))))
+                self.hdr_primaries_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.hdr_primaries_combo.findText(
+                            str(getattr(cfg, "hdr_primaries", "bt709"))
+                        ),
+                    )
+                )
                 self.hdr_primaries_label = QLabel("HDR primaries")
                 self.hdr_max_nits_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.hdr_max_nits_slider.setRange(80, 10000)
-                self.hdr_max_nits_slider.setValue(min(int(getattr(cfg, "hdr_max_nits", 1000.0)), self.hdr_max_nits_slider.maximum()))
+                self.hdr_max_nits_slider.setValue(
+                    min(
+                        int(getattr(cfg, "hdr_max_nits", 1000.0)),
+                        self.hdr_max_nits_slider.maximum(),
+                    )
+                )
                 self.hdr_max_nits_label = QLabel("HDR max brightness")
                 self.hdr_max_nits_value = QLabel("")
                 self.zone_count_readout = QLabel("")
                 self.sampling_quality_combo = QComboBox()
                 self.sampling_quality_combo.addItems(labels(SAMPLING_QUALITY_LABELS))
-                self.sampling_quality_combo.setCurrentIndex(max(0, self.sampling_quality_combo.findText(label_for_value(SAMPLING_QUALITY_LABELS, str(getattr(cfg, "sampling_quality", "high")), default="High"))))
+                self.sampling_quality_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.sampling_quality_combo.findText(
+                            label_for_value(
+                                SAMPLING_QUALITY_LABELS,
+                                str(getattr(cfg, "sampling_quality", "high")),
+                                default="High",
+                            )
+                        ),
+                    )
+                )
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.device_zone_count_slider.setRange(1, self._device_zone_count_max())
                 self.device_zone_count_slider.setValue(self._state.device_zone_count)
@@ -244,7 +320,9 @@ class DisplayConfiguratorDialog:
                 _set_checked(self.advanced_details_group, False)
 
                 # Step 1
-                self.simple_calibration_widget = SimpleCalibrationWidget(qt=qt, title="Corner calibration")
+                self.simple_calibration_widget = SimpleCalibrationWidget(
+                    qt=qt, title="Corner calibration"
+                )
                 self.reverse_checkbox = self.simple_calibration_widget.reverse_orientation_checkbox
                 self.reverse_checkbox.setChecked(self._state.reverse_zones)
                 self.test_step_index_value = self.simple_calibration_widget.step_index_label
@@ -294,21 +372,31 @@ class DisplayConfiguratorDialog:
                     self.reverse_checkbox.stateChanged,
                 ):
                     signal.connect(self._refresh)
-                self.device_zone_count_slider.valueChanged.connect(self._on_device_zone_count_changed)
+                self.device_zone_count_slider.valueChanged.connect(
+                    self._on_device_zone_count_changed
+                )
                 self._on_device_zone_count_changed(refresh=False)
                 self.display_advanced_group.toggled.connect(
-                    lambda checked: self._set_group_contents_visible(self.display_advanced_group, bool(checked))
+                    lambda checked: self._set_group_contents_visible(
+                        self.display_advanced_group, bool(checked)
+                    )
                 )
                 self.advanced_details_group.toggled.connect(
-                    lambda checked: self._set_group_contents_visible(self.advanced_details_group, bool(checked))
+                    lambda checked: self._set_group_contents_visible(
+                        self.advanced_details_group, bool(checked)
+                    )
                 )
                 self.calibration_diagnostics_group.toggled.connect(
-                    lambda checked: self._set_group_contents_visible(self.calibration_diagnostics_group, bool(checked))
+                    lambda checked: self._set_group_contents_visible(
+                        self.calibration_diagnostics_group, bool(checked)
+                    )
                 )
 
                 self.hdr_max_nits_slider.valueChanged.connect(self._refresh)
                 self.sdr_boost_nits_slider.valueChanged.connect(self._on_sdr_white_slider_changed)
-                self.sdr_white_reference_preset_combo.currentIndexChanged.connect(self._on_sdr_white_preset_changed)
+                self.sdr_white_reference_preset_combo.currentIndexChanged.connect(
+                    self._on_sdr_white_preset_changed
+                )
                 self.simple_calibration_widget.bind_callbacks(
                     on_prev_zone=self._prev_test_zone,
                     on_next_zone=self._next_test_zone,
@@ -373,18 +461,49 @@ class DisplayConfiguratorDialog:
                     setter(text)
 
             def _configure_tooltips(self) -> None:
-                self._set_tooltip(self.reverse_checkbox, "Flip mapping direction if strip order is reversed.")
-                self._set_tooltip(self.calibration_send_button, "Send a fresh calibration frame to the strip right now.")
-                self._set_tooltip(self.calibration_next_button, "Move to the next test zone step and transmit it.")
-                self._set_tooltip(self.calibration_prev_button, "Move to the previous test zone step and transmit it.")
-                self._set_tooltip(self.assign_tl_button, "Assign the lit strip zone as top-left screen corner.")
-                self._set_tooltip(self.assign_tr_button, "Assign the lit strip zone as top-right screen corner.")
-                self._set_tooltip(self.assign_br_button, "Assign the lit strip zone as bottom-right screen corner.")
-                self._set_tooltip(self.assign_bl_button, "Assign the lit strip zone as bottom-left screen corner.")
-                self._set_tooltip(self.reset_anchors_button, "Clear all corner assignments and start anchor placement again.")
-                self._set_tooltip(self.compositor_hdr_mode_checkbox, "Enable compensation when KDE Plasma maps SDR into HDR output.")
-                self._set_tooltip(self.sdr_boost_nits_slider, "Plasma SDR white reference in nits when compositor HDR mode is enabled.")
-                self._set_tooltip(self.edge_locality_combo, "Tight: most accurate/least bleed. Balanced: softer ambient look. Wide: cinematic blend.")
+                self._set_tooltip(
+                    self.reverse_checkbox, "Flip mapping direction if strip order is reversed."
+                )
+                self._set_tooltip(
+                    self.calibration_send_button,
+                    "Send a fresh calibration frame to the strip right now.",
+                )
+                self._set_tooltip(
+                    self.calibration_next_button, "Move to the next test zone step and transmit it."
+                )
+                self._set_tooltip(
+                    self.calibration_prev_button,
+                    "Move to the previous test zone step and transmit it.",
+                )
+                self._set_tooltip(
+                    self.assign_tl_button, "Assign the lit strip zone as top-left screen corner."
+                )
+                self._set_tooltip(
+                    self.assign_tr_button, "Assign the lit strip zone as top-right screen corner."
+                )
+                self._set_tooltip(
+                    self.assign_br_button,
+                    "Assign the lit strip zone as bottom-right screen corner.",
+                )
+                self._set_tooltip(
+                    self.assign_bl_button, "Assign the lit strip zone as bottom-left screen corner."
+                )
+                self._set_tooltip(
+                    self.reset_anchors_button,
+                    "Clear all corner assignments and start anchor placement again.",
+                )
+                self._set_tooltip(
+                    self.compositor_hdr_mode_checkbox,
+                    "Enable compensation when KDE Plasma maps SDR into HDR output.",
+                )
+                self._set_tooltip(
+                    self.sdr_boost_nits_slider,
+                    "Plasma SDR white reference in nits when compositor HDR mode is enabled.",
+                )
+                self._set_tooltip(
+                    self.edge_locality_combo,
+                    "Tight: most accurate/least bleed. Balanced: softer ambient look. Wide: cinematic blend.",
+                )
                 self._set_tooltip(
                     self.motion_preset_combo,
                     "Calm: smoother fades for video and desktop. "
@@ -406,9 +525,13 @@ class DisplayConfiguratorDialog:
                     layout.setVerticalSpacing(4)
                 layout.addWidget(QLabel("Calibration"), 0, 0, 1, 3)
                 layout.addWidget(self.calibration_hint, 1, 0, 1, 3)
-                row = self.simple_calibration_widget.add_to_layout(layout, row=2, include_header=False)
-                layout.addWidget(self.calibration_send_button, row, 0, 1, 3); row += 1
-                layout.addWidget(self.zone_change_notice, row, 0, 1, 3); row += 1
+                row = self.simple_calibration_widget.add_to_layout(
+                    layout, row=2, include_header=False
+                )
+                layout.addWidget(self.calibration_send_button, row, 0, 1, 3)
+                row += 1
+                layout.addWidget(self.zone_change_notice, row, 0, 1, 3)
+                row += 1
                 diagnostics_layout = QGridLayout()
                 diagnostics_layout.addWidget(QLabel("Strip LED zone count"), 0, 0)
                 diagnostics_layout.addWidget(self.device_zone_count_slider, 0, 1)
@@ -528,7 +651,9 @@ class DisplayConfiguratorDialog:
                     self._state.source_zones_user_configured = False
                 self._state.calibration_model = "corner_anchored"
 
-            def _remap_zone_index_between_counts(self, zone_index: int, previous_count: int, new_count: int) -> int:
+            def _remap_zone_index_between_counts(
+                self, zone_index: int, previous_count: int, new_count: int
+            ) -> int:
                 if int(zone_index) < 0:
                     return -1
                 previous_total = max(1, int(previous_count))
@@ -574,7 +699,9 @@ class DisplayConfiguratorDialog:
                 previous_zone_count = self._state.effective_device_zone_count()
                 self._device_zone_count_confirmed = True
                 requested_zone_count = int(self.device_zone_count_slider.value())
-                clamped_zone_count = max(1, min(requested_zone_count, self._device_zone_count_max()))
+                clamped_zone_count = max(
+                    1, min(requested_zone_count, self._device_zone_count_max())
+                )
                 if requested_zone_count != clamped_zone_count:
                     self._set_slider_value_safely(self.device_zone_count_slider, clamped_zone_count)
                 new_zone_count = max(1, int(self.device_zone_count_slider.value()))
@@ -610,12 +737,22 @@ class DisplayConfiguratorDialog:
                 corner_mode = True
                 mapping_snapshot = self._state.resolved_mapping_snapshot()
                 anchors = {
-                    "top_left": self._state.corner_anchor_top_left if self._state.corner_anchor_top_left >= 0 else None,
-                    "top_right": self._state.corner_anchor_top_right if self._state.corner_anchor_top_right >= 0 else None,
-                    "bottom_right": self._state.corner_anchor_bottom_right if self._state.corner_anchor_bottom_right >= 0 else None,
-                    "bottom_left": self._state.corner_anchor_bottom_left if self._state.corner_anchor_bottom_left >= 0 else None,
+                    "top_left": self._state.corner_anchor_top_left
+                    if self._state.corner_anchor_top_left >= 0
+                    else None,
+                    "top_right": self._state.corner_anchor_top_right
+                    if self._state.corner_anchor_top_right >= 0
+                    else None,
+                    "bottom_right": self._state.corner_anchor_bottom_right
+                    if self._state.corner_anchor_bottom_right >= 0
+                    else None,
+                    "bottom_left": self._state.corner_anchor_bottom_left
+                    if self._state.corner_anchor_bottom_left >= 0
+                    else None,
                 }
-                anchor_validation = validate_corner_anchors(anchors=anchors, device_zone_count=effective_zone_count)
+                anchor_validation = validate_corner_anchors(
+                    anchors=anchors, device_zone_count=effective_zone_count
+                )
                 for widget in (
                     self.assign_tl_button,
                     self.assign_tr_button,
@@ -641,7 +778,9 @@ class DisplayConfiguratorDialog:
                 self.anchor_validation_label.setText(f"Validation: {validation_status}")
 
                 verification = self._state.validation_report()
-                calibration_step_valid = self._device_zone_count_confirmed and anchor_validation.valid
+                calibration_step_valid = (
+                    self._device_zone_count_confirmed and anchor_validation.valid
+                )
                 self._flow.set_step_valid(0, calibration_step_valid)
                 self._flow.set_step_valid(1, True)
                 self._flow.set_step_valid(2, True)
@@ -661,7 +800,14 @@ class DisplayConfiguratorDialog:
                     "Finish unlocks after valid corner anchors are assigned and strip zone count is confirmed."
                 )
 
-                hdr_mode = value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="hdr") == "hdr"
+                hdr_mode = (
+                    value_for_label(
+                        DISPLAY_PRESET_LABELS,
+                        str(self.display_preset_combo.currentText()),
+                        default="hdr",
+                    )
+                    == "hdr"
+                )
                 selected_display_mode = value_for_label(
                     DISPLAY_PRESET_LABELS,
                     str(self.display_preset_combo.currentText()),
@@ -671,16 +817,27 @@ class DisplayConfiguratorDialog:
                     self.display_mode_help.setText(
                         "HDR: Use HDR transfer defaults for the most vivid color on HDR desktops."
                     )
-                    self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText("pq")))
-                    self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText("bt2020")))
-                    if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower() != "custom":
+                    self.hdr_transfer_combo.setCurrentIndex(
+                        max(0, self.hdr_transfer_combo.findText("pq"))
+                    )
+                    self.hdr_primaries_combo.setCurrentIndex(
+                        max(0, self.hdr_primaries_combo.findText("bt2020"))
+                    )
+                    if (
+                        str(self.sdr_white_reference_preset_combo.currentText()).strip().lower()
+                        != "custom"
+                    ):
                         self.sdr_white_reference_preset_combo.setCurrentIndex(3)
                 elif selected_display_mode == "sdr":
                     self.display_mode_help.setText(
                         "SDR: Uses SDR-safe defaults for consistent color on standard desktop mode."
                     )
-                    self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText("srgb")))
-                    self.hdr_primaries_combo.setCurrentIndex(max(0, self.hdr_primaries_combo.findText("bt709")))
+                    self.hdr_transfer_combo.setCurrentIndex(
+                        max(0, self.hdr_transfer_combo.findText("srgb"))
+                    )
+                    self.hdr_primaries_combo.setCurrentIndex(
+                        max(0, self.hdr_primaries_combo.findText("bt709"))
+                    )
                 else:
                     self.display_mode_help.setText(
                         "Auto: Switches between SDR and HDR behavior from runtime desktop capability."
@@ -772,7 +929,9 @@ class DisplayConfiguratorDialog:
                     int(self._state.corner_anchor_bottom_left),
                 )
                 if highest_anchor >= configured_count:
-                    calibration_warnings.append("Current anchors were assigned for a different strip length.")
+                    calibration_warnings.append(
+                        "Current anchors were assigned for a different strip length."
+                    )
                 self.zone_change_notice.setText("\n".join(calibration_warnings))
                 self.summary_label.setText(
                     "\n".join(
@@ -795,10 +954,16 @@ class DisplayConfiguratorDialog:
                         zone_count=self._state.zone_count,
                         width=frame_width,
                         height=frame_height,
-                        edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"),
+                        edge_locality=value_for_label(
+                            EDGE_LOCALITY_LABELS,
+                            str(self.edge_locality_combo.currentText()),
+                            default="tight",
+                        ),
                     )
                     side_counts = layout_info.side_counts
-                    side_counts_text = f"{side_counts[0]}/{side_counts[1]}/{side_counts[2]}/{side_counts[3]}"
+                    side_counts_text = (
+                        f"{side_counts[0]}/{side_counts[1]}/{side_counts[2]}/{side_counts[3]}"
+                    )
                     thickness_text = f"{layout_info.edge_thickness:.3f}"
                     localized_text = "on"
                 else:
@@ -817,7 +982,11 @@ class DisplayConfiguratorDialog:
                             f"Per-side zone counts (top/right/bottom/left): {side_counts_text}",
                             f"Edge sampling thickness: {thickness_text}",
                             f"Localized edge sampling: {localized_text}",
-                            ("Verification: Calibration complete" if not verification.hard_fail else "Verification: Needs corner assignments"),
+                            (
+                                "Verification: Calibration complete"
+                                if not verification.hard_fail
+                                else "Verification: Needs corner assignments"
+                            ),
                             device_zone_status_text,
                         )
                     )
@@ -833,9 +1002,16 @@ class DisplayConfiguratorDialog:
                         )
                     )
                 )
-                self._set_group_contents_visible(self.display_advanced_group, bool(self.display_advanced_group.isChecked()))
-                self._set_group_contents_visible(self.advanced_details_group, bool(self.advanced_details_group.isChecked()))
-                self._set_group_contents_visible(self.calibration_diagnostics_group, bool(self.calibration_diagnostics_group.isChecked()))
+                self._set_group_contents_visible(
+                    self.display_advanced_group, bool(self.display_advanced_group.isChecked())
+                )
+                self._set_group_contents_visible(
+                    self.advanced_details_group, bool(self.advanced_details_group.isChecked())
+                )
+                self._set_group_contents_visible(
+                    self.calibration_diagnostics_group,
+                    bool(self.calibration_diagnostics_group.isChecked()),
+                )
                 self._last_preview_refresh_ms = (perf_counter() - refresh_started) * 1000.0
                 if self._flow.index >= 1 and self._calibration_sender is not None:
                     self._ensure_live_preview_running()
@@ -863,10 +1039,18 @@ class DisplayConfiguratorDialog:
                     calibration_model="corner_anchored",
                 )
                 anchors = {
-                    "top_left": self._state.corner_anchor_top_left if self._state.corner_anchor_top_left >= 0 else None,
-                    "top_right": self._state.corner_anchor_top_right if self._state.corner_anchor_top_right >= 0 else None,
-                    "bottom_right": self._state.corner_anchor_bottom_right if self._state.corner_anchor_bottom_right >= 0 else None,
-                    "bottom_left": self._state.corner_anchor_bottom_left if self._state.corner_anchor_bottom_left >= 0 else None,
+                    "top_left": self._state.corner_anchor_top_left
+                    if self._state.corner_anchor_top_left >= 0
+                    else None,
+                    "top_right": self._state.corner_anchor_top_right
+                    if self._state.corner_anchor_top_right >= 0
+                    else None,
+                    "bottom_right": self._state.corner_anchor_bottom_right
+                    if self._state.corner_anchor_bottom_right >= 0
+                    else None,
+                    "bottom_left": self._state.corner_anchor_bottom_left
+                    if self._state.corner_anchor_bottom_left >= 0
+                    else None,
                 }
                 anchor_validation = validate_corner_anchors(
                     anchors=anchors,
@@ -877,7 +1061,14 @@ class DisplayConfiguratorDialog:
                 anchor_bottom_right = int(self._state.corner_anchor_bottom_right)
                 anchor_bottom_left = int(self._state.corner_anchor_bottom_left)
                 zone_count = self._state.zone_count
-                new_zones = make_edge_weighted_zones(zone_count, edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"))
+                new_zones = make_edge_weighted_zones(
+                    zone_count,
+                    edge_locality=value_for_label(
+                        EDGE_LOCALITY_LABELS,
+                        str(self.edge_locality_combo.currentText()),
+                        default="tight",
+                    ),
+                )
                 calibration_payload = CalibrationConfig(
                     schema_version=int(getattr(cfg, "calibration_schema_version", 1) or 1),
                     calibration_model="corner_anchored",
@@ -892,18 +1083,39 @@ class DisplayConfiguratorDialog:
                 return replace(
                     cfg,
                     layout_preset="edge_strip",
-                    edge_locality=value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"),
-                    sampling_quality=value_for_label(SAMPLING_QUALITY_LABELS, str(self.sampling_quality_combo.currentText()), default="high"),
-                    motion_preset=value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"),
-                    color_style=value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"),
-                    display_preset=value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="hdr"),
+                    edge_locality=value_for_label(
+                        EDGE_LOCALITY_LABELS,
+                        str(self.edge_locality_combo.currentText()),
+                        default="tight",
+                    ),
+                    sampling_quality=value_for_label(
+                        SAMPLING_QUALITY_LABELS,
+                        str(self.sampling_quality_combo.currentText()),
+                        default="high",
+                    ),
+                    motion_preset=value_for_label(
+                        MOTION_PRESET_LABELS,
+                        str(self.motion_preset_combo.currentText()),
+                        default="responsive",
+                    ),
+                    color_style=value_for_label(
+                        COLOR_STYLE_LABELS,
+                        str(self.color_style_combo.currentText()),
+                        default="ambient",
+                    ),
+                    display_preset=value_for_label(
+                        DISPLAY_PRESET_LABELS,
+                        str(self.display_preset_combo.currentText()),
+                        default="hdr",
+                    ),
                     hdr_transfer=str(self.hdr_transfer_combo.currentText()),
                     hdr_primaries=str(self.hdr_primaries_combo.currentText()),
                     hdr_max_nits=float(self.hdr_max_nits_slider.value()),
                     sdr_boost_nits=float(self.sdr_boost_nits_slider.value()),
                     sdr_white_reference_preset=(
                         "custom"
-                        if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower() == "custom"
+                        if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower()
+                        == "custom"
                         else str(self.sdr_boost_nits_slider.value())
                     ),
                     led_gamma=cfg.led_gamma,
@@ -940,17 +1152,39 @@ class DisplayConfiguratorDialog:
                     "layout_preset": str(self._state.layout_preset),
                     "reverse_zones": bool(self._state.reverse_zones),
                     "device_zone_count": int(self._state.device_zone_count),
-                    "display_preset": value_for_label(DISPLAY_PRESET_LABELS, str(self.display_preset_combo.currentText()), default="hdr"),
-                    "sampling_quality": value_for_label(SAMPLING_QUALITY_LABELS, str(self.sampling_quality_combo.currentText()), default="high"),
-                    "motion_preset": value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"),
-                    "color_style": value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"),
-                    "edge_locality": value_for_label(EDGE_LOCALITY_LABELS, str(self.edge_locality_combo.currentText()), default="tight"),
+                    "display_preset": value_for_label(
+                        DISPLAY_PRESET_LABELS,
+                        str(self.display_preset_combo.currentText()),
+                        default="hdr",
+                    ),
+                    "sampling_quality": value_for_label(
+                        SAMPLING_QUALITY_LABELS,
+                        str(self.sampling_quality_combo.currentText()),
+                        default="high",
+                    ),
+                    "motion_preset": value_for_label(
+                        MOTION_PRESET_LABELS,
+                        str(self.motion_preset_combo.currentText()),
+                        default="responsive",
+                    ),
+                    "color_style": value_for_label(
+                        COLOR_STYLE_LABELS,
+                        str(self.color_style_combo.currentText()),
+                        default="ambient",
+                    ),
+                    "edge_locality": value_for_label(
+                        EDGE_LOCALITY_LABELS,
+                        str(self.edge_locality_combo.currentText()),
+                        default="tight",
+                    ),
                     "layout_preset": "edge_strip",
                     "corner_anchor_top_left": int(self._state.corner_anchor_top_left),
                     "corner_anchor_top_right": int(self._state.corner_anchor_top_right),
                     "corner_anchor_bottom_right": int(self._state.corner_anchor_bottom_right),
                     "corner_anchor_bottom_left": int(self._state.corner_anchor_bottom_left),
-                    "anchor_validation_errors": [str(code) for code in mapping_snapshot.warning_codes],
+                    "anchor_validation_errors": [
+                        str(code) for code in mapping_snapshot.warning_codes
+                    ],
                 }
                 return json.dumps(payload, sort_keys=True)
 
@@ -966,7 +1200,9 @@ class DisplayConfiguratorDialog:
                     try:
                         os.chmod(path, 0o600)
                     except Exception:
-                        _log.debug("Could not set permissions on wizard session file", exc_info=True)
+                        _log.debug(
+                            "Could not set permissions on wizard session file", exc_info=True
+                        )
                 except Exception:
                     _log.debug("Unable to persist wizard in-progress session state", exc_info=True)
 
@@ -983,7 +1219,9 @@ class DisplayConfiguratorDialog:
                     return
                 restored = self._restore_wizard_state_payload(raw)
                 if restored:
-                    self.zone_change_notice.setText("Recovered unfinished calibration session from local draft storage.")
+                    self.zone_change_notice.setText(
+                        "Recovered unfinished calibration session from local draft storage."
+                    )
 
             def _clear_wizard_session(self) -> None:
                 path = _wizard_session_storage_path()
@@ -1006,40 +1244,105 @@ class DisplayConfiguratorDialog:
                     return False
                 if not isinstance(data, dict):
                     return False
-                self._flow.index = max(0, min(len(WIZARD_STEPS) - 1, int(data.get("flow_index", self._flow.index))))
+                self._flow.index = max(
+                    0, min(len(WIZARD_STEPS) - 1, int(data.get("flow_index", self._flow.index)))
+                )
                 self._test_step = int(data.get("test_step", self._test_step))
                 _ = str(data.get("layout_preset", self._state.layout_preset))
-                self.reverse_checkbox.setChecked(bool(data.get("reverse_zones", self.reverse_checkbox.isChecked())))
-                self.device_zone_count_slider.setValue(int(data.get("device_zone_count", self.device_zone_count_slider.value())))
+                self.reverse_checkbox.setChecked(
+                    bool(data.get("reverse_zones", self.reverse_checkbox.isChecked()))
+                )
+                self.device_zone_count_slider.setValue(
+                    int(data.get("device_zone_count", self.device_zone_count_slider.value()))
+                )
                 self._state.zone_count = int(self.device_zone_count_slider.value())
-                display_idx = self.display_preset_combo.findText(label_for_value(DISPLAY_PRESET_LABELS, str(data.get("display_preset", "hdr")), default="HDR"))
+                display_idx = self.display_preset_combo.findText(
+                    label_for_value(
+                        DISPLAY_PRESET_LABELS, str(data.get("display_preset", "hdr")), default="HDR"
+                    )
+                )
                 if display_idx >= 0:
                     self.display_preset_combo.setCurrentIndex(display_idx)
-                sampling_idx = self.sampling_quality_combo.findText(label_for_value(SAMPLING_QUALITY_LABELS, str(data.get("sampling_quality", "high")), default="High"))
+                sampling_idx = self.sampling_quality_combo.findText(
+                    label_for_value(
+                        SAMPLING_QUALITY_LABELS,
+                        str(data.get("sampling_quality", "high")),
+                        default="High",
+                    )
+                )
                 if sampling_idx >= 0:
                     self.sampling_quality_combo.setCurrentIndex(sampling_idx)
-                motion_idx = self.motion_preset_combo.findText(label_for_value(MOTION_PRESET_LABELS, str(data.get("motion_preset", value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive"))), default="Responsive"))
+                motion_idx = self.motion_preset_combo.findText(
+                    label_for_value(
+                        MOTION_PRESET_LABELS,
+                        str(
+                            data.get(
+                                "motion_preset",
+                                value_for_label(
+                                    MOTION_PRESET_LABELS,
+                                    str(self.motion_preset_combo.currentText()),
+                                    default="responsive",
+                                ),
+                            )
+                        ),
+                        default="Responsive",
+                    )
+                )
                 if motion_idx >= 0:
                     self.motion_preset_combo.setCurrentIndex(motion_idx)
-                color_style_idx = self.color_style_combo.findText(label_for_value(COLOR_STYLE_LABELS, str(data.get("color_style", value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"))), default="Ambient (recommended)"))
+                color_style_idx = self.color_style_combo.findText(
+                    label_for_value(
+                        COLOR_STYLE_LABELS,
+                        str(
+                            data.get(
+                                "color_style",
+                                value_for_label(
+                                    COLOR_STYLE_LABELS,
+                                    str(self.color_style_combo.currentText()),
+                                    default="ambient",
+                                ),
+                            )
+                        ),
+                        default="Ambient (recommended)",
+                    )
+                )
                 if color_style_idx >= 0:
                     self.color_style_combo.setCurrentIndex(color_style_idx)
-                edge_locality_idx = self.edge_locality_combo.findText(label_for_value(EDGE_LOCALITY_LABELS, str(data.get("edge_locality", "tight")), default="Tight"))
+                edge_locality_idx = self.edge_locality_combo.findText(
+                    label_for_value(
+                        EDGE_LOCALITY_LABELS,
+                        str(data.get("edge_locality", "tight")),
+                        default="Tight",
+                    )
+                )
                 if edge_locality_idx >= 0:
                     self.edge_locality_combo.setCurrentIndex(edge_locality_idx)
-                self._state.corner_anchor_top_left = int(data.get("corner_anchor_top_left", self._state.corner_anchor_top_left))
-                self._state.corner_anchor_top_right = int(data.get("corner_anchor_top_right", self._state.corner_anchor_top_right))
-                self._state.corner_anchor_bottom_right = int(data.get("corner_anchor_bottom_right", self._state.corner_anchor_bottom_right))
-                self._state.corner_anchor_bottom_left = int(data.get("corner_anchor_bottom_left", self._state.corner_anchor_bottom_left))
+                self._state.corner_anchor_top_left = int(
+                    data.get("corner_anchor_top_left", self._state.corner_anchor_top_left)
+                )
+                self._state.corner_anchor_top_right = int(
+                    data.get("corner_anchor_top_right", self._state.corner_anchor_top_right)
+                )
+                self._state.corner_anchor_bottom_right = int(
+                    data.get("corner_anchor_bottom_right", self._state.corner_anchor_bottom_right)
+                )
+                self._state.corner_anchor_bottom_left = int(
+                    data.get("corner_anchor_bottom_left", self._state.corner_anchor_bottom_left)
+                )
                 self._refresh()
 
             def _on_sdr_white_slider_changed(self, *_args) -> None:
-                if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower() != "custom":
+                if (
+                    str(self.sdr_white_reference_preset_combo.currentText()).strip().lower()
+                    != "custom"
+                ):
                     self.sdr_white_reference_preset_combo.setCurrentIndex(4)
                 self._refresh()
 
             def _on_sdr_white_preset_changed(self, *_args) -> None:
-                preset_text = str(self.sdr_white_reference_preset_combo.currentText()).strip().lower()
+                preset_text = (
+                    str(self.sdr_white_reference_preset_combo.currentText()).strip().lower()
+                )
                 if preset_text != "custom":
                     self._set_slider_value_safely(
                         self.sdr_boost_nits_slider,
@@ -1109,10 +1412,22 @@ class DisplayConfiguratorDialog:
                     return
                 zone_count = self._state.effective_device_zone_count()
                 frame = [(0, 0, 0)] * zone_count
-                mode = value_for_label(MOTION_PRESET_LABELS, str(self.motion_preset_combo.currentText()), default="responsive")
-                style = value_for_label(COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient")
+                mode = value_for_label(
+                    MOTION_PRESET_LABELS,
+                    str(self.motion_preset_combo.currentText()),
+                    default="responsive",
+                )
+                style = value_for_label(
+                    COLOR_STYLE_LABELS, str(self.color_style_combo.currentText()), default="ambient"
+                )
                 gain = 1.0 if mode == "dynamic" else (0.85 if mode == "responsive" else 0.7)
-                style_gain = {"reference": 1.0, "natural": 1.0, "ambient": 1.05, "vivid": 1.15, "punchy": 1.30}[style]
+                style_gain = {
+                    "reference": 1.0,
+                    "natural": 1.0,
+                    "ambient": 1.05,
+                    "vivid": 1.15,
+                    "punchy": 1.30,
+                }[style]
                 for i in range(zone_count):
                     phase = (i + self._preview_phase) % max(1, zone_count)
                     ramp = phase / max(1, zone_count - 1)
@@ -1120,7 +1435,10 @@ class DisplayConfiguratorDialog:
                     green = int(min(255, 255 * (1.0 - ramp) * 0.8 * style_gain))
                     blue = int(min(255, 150 + (80 if mode == "dynamic" else 0)))
                     frame[i] = (red, green, blue)
-                self._preview_phase = (self._preview_phase + (3 if mode == "dynamic" else (2 if mode == "responsive" else 1))) % max(1, zone_count)
+                self._preview_phase = (
+                    self._preview_phase
+                    + (3 if mode == "dynamic" else (2 if mode == "responsive" else 1))
+                ) % max(1, zone_count)
                 try:
                     self._calibration_sender(frame)
                 except Exception:
@@ -1147,13 +1465,17 @@ class DisplayConfiguratorDialog:
 
             def _next_test_zone(self) -> None:
                 self._pull_state_from_controls()
-                self._test_step = (self._test_step + 1) % self._state.cycle_length(self._current_calibration_mode())
+                self._test_step = (self._test_step + 1) % self._state.cycle_length(
+                    self._current_calibration_mode()
+                )
                 self._refresh()
                 self._send_test_pattern()
 
             def _prev_test_zone(self) -> None:
                 self._pull_state_from_controls()
-                self._test_step = (self._test_step - 1) % self._state.cycle_length(self._current_calibration_mode())
+                self._test_step = (self._test_step - 1) % self._state.cycle_length(
+                    self._current_calibration_mode()
+                )
                 self._refresh()
                 self._send_test_pattern()
 

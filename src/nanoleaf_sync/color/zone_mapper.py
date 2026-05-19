@@ -21,12 +21,16 @@ def resolve_device_zone_indices(
         return []
 
     if fixed_mapping:
-        result = [int(fixed_mapping[i]) % src_n if i < len(fixed_mapping) else 0 for i in range(dst_n)]
+        result = [
+            int(fixed_mapping[i]) % src_n if i < len(fixed_mapping) else 0 for i in range(dst_n)
+        ]
         for i, orig in enumerate(fixed_mapping):
             if i < len(fixed_mapping) and int(orig) >= src_n:
                 _log.warning(
                     "Calibration zone %d (%s) out of range [0, %d); wrapped via modulo",
-                    i, orig, src_n,
+                    i,
+                    orig,
+                    src_n,
                 )
         return result
 

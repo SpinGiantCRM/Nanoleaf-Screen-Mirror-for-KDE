@@ -9,7 +9,6 @@ def coverage_progress_label(*, step: int, device_zone_count: int, source_zone_in
     return f"Coverage sanity: zone {idx + 1}/{total} active (maps to source zone #{int(source_zone_index) + 1})."
 
 
-
 def derive_corner_anchor_device_indices(
     *,
     zone_count: int,

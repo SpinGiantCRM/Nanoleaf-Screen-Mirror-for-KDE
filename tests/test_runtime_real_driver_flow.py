@@ -77,16 +77,18 @@ def test_run_loop_with_usb_driver_initializes_then_sends_frame() -> None:
     )
 
     # startup: model + length; first frame preconditions: on/off + brightness + rgb
-    transport = _FakeTransport([
-        _rsp(0x0C, b"\x00NL82K2"),
-        _rsp(0x03, b"\x00\x04"),
-        _rsp(0x06, b"\x00\x00"),
-        _rsp(0x07, b"\x00"),
-        _rsp(0x08, b"\x00\x00"),
-        _rsp(0x09, b"\x00"),
-        _rsp(0x02, b"\x00"),
-        _rsp(0x02, b"\x00"),
-    ])
+    transport = _FakeTransport(
+        [
+            _rsp(0x0C, b"\x00NL82K2"),
+            _rsp(0x03, b"\x00\x04"),
+            _rsp(0x06, b"\x00\x00"),
+            _rsp(0x07, b"\x00"),
+            _rsp(0x08, b"\x00\x00"),
+            _rsp(0x09, b"\x00"),
+            _rsp(0x02, b"\x00"),
+            _rsp(0x02, b"\x00"),
+        ]
+    )
     driver = NanoleafUSBDriver(
         ids=NanoleafUSBIds(0x37FA, 0x8202),
         transport=transport,
@@ -141,5 +143,9 @@ def test_run_loop_with_usb_driver_initializes_then_sends_frame() -> None:
     expected_pixel0_grb = (0, 120, 0)
     expected_pixel3_grb = (90, 0, 0)
 
-    assert all(abs(actual - expected) <= 1 for actual, expected in zip(pixel0_grb, expected_pixel0_grb))
-    assert all(abs(actual - expected) <= 1 for actual, expected in zip(pixel3_grb, expected_pixel3_grb))
+    assert all(
+        abs(actual - expected) <= 1 for actual, expected in zip(pixel0_grb, expected_pixel0_grb)
+    )
+    assert all(
+        abs(actual - expected) <= 1 for actual, expected in zip(pixel3_grb, expected_pixel3_grb)
+    )

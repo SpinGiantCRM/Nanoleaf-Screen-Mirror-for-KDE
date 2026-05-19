@@ -4,8 +4,17 @@ import json
 import logging
 from typing import Any, Dict, List
 
-from nanoleaf_sync.capture.backend_selection import normalize_backend_preference, normalize_cached_backend
-from nanoleaf_sync.config.model import MAX_DEVICE_ZONE_COUNT, AppConfig, CalibrationConfig, LedCalibrationProfile, ZoneConfig
+from nanoleaf_sync.capture.backend_selection import (
+    normalize_backend_preference,
+    normalize_cached_backend,
+)
+from nanoleaf_sync.config.model import (
+    MAX_DEVICE_ZONE_COUNT,
+    AppConfig,
+    CalibrationConfig,
+    LedCalibrationProfile,
+    ZoneConfig,
+)
 from nanoleaf_sync.config.presets import (
     COLOR_STYLE_PRESETS,
     DISPLAY_PRESETS,
@@ -45,13 +54,9 @@ def _format_bound(value: int) -> str:
 def _require_int_in_range(value: Any, *, field_name: str, minimum: int, maximum: int) -> int:
     bounds = f"{_format_bound(minimum)}..{_format_bound(maximum)}"
     if isinstance(value, bool) or not isinstance(value, int):
-        raise ConfigValidationError(
-            f"{field_name} must be an integer in {bounds}; got {value!r}"
-        )
+        raise ConfigValidationError(f"{field_name} must be an integer in {bounds}; got {value!r}")
     if value < minimum or value > maximum:
-        raise ConfigValidationError(
-            f"{field_name} must be an integer in {bounds}; got {value}"
-        )
+        raise ConfigValidationError(f"{field_name} must be an integer in {bounds}; got {value}")
     return value
 
 
@@ -120,7 +125,10 @@ def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     calibration = dict(calibration_payload) if isinstance(calibration_payload, dict) else {}
 
     calibration_schema_version = _coerce_int(
-        migrated.get("calibration_schema_version", calibration.get("schema_version", CURRENT_CALIBRATION_SCHEMA_VERSION)),
+        migrated.get(
+            "calibration_schema_version",
+            calibration.get("schema_version", CURRENT_CALIBRATION_SCHEMA_VERSION),
+        ),
         CURRENT_CALIBRATION_SCHEMA_VERSION,
     )
     calibration_schema_version = max(1, calibration_schema_version)
@@ -156,21 +164,51 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     red_gain = max(0.5, min(1.5, float(getattr(cfg, "red_gain", 1.0))))
     green_gain = max(0.5, min(1.5, float(getattr(cfg, "green_gain", 1.0))))
     blue_gain = max(0.5, min(1.5, float(getattr(cfg, "blue_gain", 1.0))))
-    white_balance_temperature = max(-1.0, min(1.0, float(getattr(cfg, "white_balance_temperature", 0.0))))
+    white_balance_temperature = max(
+        -1.0, min(1.0, float(getattr(cfg, "white_balance_temperature", 0.0)))
+    )
     chroma_compression = max(0.0, min(0.6, float(getattr(cfg, "chroma_compression", 0.0))))
     neutral_luminance_gain = max(0.7, min(1.5, float(getattr(cfg, "neutral_luminance_gain", 1.0))))
-    black_luminance_cutoff = max(0.0, min(0.03, float(getattr(cfg, "black_luminance_cutoff", 0.0032))))
-    black_luminance_knee = max(0.0005, min(0.03, float(getattr(cfg, "black_luminance_knee", 0.0024))))
+    black_luminance_cutoff = max(
+        0.0, min(0.03, float(getattr(cfg, "black_luminance_cutoff", 0.0032)))
+    )
+    black_luminance_knee = max(
+        0.0005, min(0.03, float(getattr(cfg, "black_luminance_knee", 0.0024)))
+    )
     fps = max(1, min(120, int(cfg.fps)))
 
-    sampling_quality = normalize_preset(getattr(cfg, "sampling_quality", AppConfig.sampling_quality), allowed=SAMPLING_QUALITY_PRESETS, default=AppConfig.sampling_quality)
+    sampling_quality = normalize_preset(
+        getattr(cfg, "sampling_quality", AppConfig.sampling_quality),
+        allowed=SAMPLING_QUALITY_PRESETS,
+        default=AppConfig.sampling_quality,
+    )
     zone_sampling_stride = sampling_quality_to_zone_stride(sampling_quality)
     layout_preset = normalize_layout_preset(getattr(cfg, "layout_preset", AppConfig.layout_preset))
-    edge_locality = normalize_preset(getattr(cfg, "edge_locality", AppConfig.edge_locality), allowed=EDGE_LOCALITY_PRESETS, default=AppConfig.edge_locality)
-    light_spread = normalize_preset(getattr(cfg, "light_spread", AppConfig.light_spread), allowed=LIGHT_SPREAD_PRESETS, default=AppConfig.light_spread)
-    motion_preset = normalize_preset(getattr(cfg, "motion_preset", AppConfig.motion_preset), allowed=MOTION_PRESETS, default=AppConfig.motion_preset)
-    color_style = normalize_preset(getattr(cfg, "color_style", AppConfig.color_style), allowed=COLOR_STYLE_PRESETS, default=AppConfig.color_style)
-    display_preset = normalize_preset(getattr(cfg, "display_preset", AppConfig.display_preset), allowed=DISPLAY_PRESETS, default=AppConfig.display_preset)
+    edge_locality = normalize_preset(
+        getattr(cfg, "edge_locality", AppConfig.edge_locality),
+        allowed=EDGE_LOCALITY_PRESETS,
+        default=AppConfig.edge_locality,
+    )
+    light_spread = normalize_preset(
+        getattr(cfg, "light_spread", AppConfig.light_spread),
+        allowed=LIGHT_SPREAD_PRESETS,
+        default=AppConfig.light_spread,
+    )
+    motion_preset = normalize_preset(
+        getattr(cfg, "motion_preset", AppConfig.motion_preset),
+        allowed=MOTION_PRESETS,
+        default=AppConfig.motion_preset,
+    )
+    color_style = normalize_preset(
+        getattr(cfg, "color_style", AppConfig.color_style),
+        allowed=COLOR_STYLE_PRESETS,
+        default=AppConfig.color_style,
+    )
+    display_preset = normalize_preset(
+        getattr(cfg, "display_preset", AppConfig.display_preset),
+        allowed=DISPLAY_PRESETS,
+        default=AppConfig.display_preset,
+    )
 
     zones: List[ZoneConfig] = []
     for z in cfg.zones:
@@ -196,7 +234,15 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     )
 
     raw_calibration = cfg.calibration or CalibrationConfig()
-    calibration_schema_version = max(1, _coerce_int(getattr(cfg, "calibration_schema_version", getattr(raw_calibration, "schema_version", 1)), 1))
+    calibration_schema_version = max(
+        1,
+        _coerce_int(
+            getattr(
+                cfg, "calibration_schema_version", getattr(raw_calibration, "schema_version", 1)
+            ),
+            1,
+        ),
+    )
     raw_cfg_device_zone_count = _require_int_in_range(
         getattr(cfg, "device_zone_count", 0),
         field_name="device_zone_count",
@@ -219,16 +265,36 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         )
     )
 
-    output_channel_order = normalize_enum(getattr(raw_calibration, "output_channel_order", "grb"), allowed={"rgb": "rgb", "rbg": "rbg", "grb": "grb", "gbr": "gbr", "brg": "brg", "bgr": "bgr"}, default="grb")
+    output_channel_order = normalize_enum(
+        getattr(raw_calibration, "output_channel_order", "grb"),
+        allowed={
+            "rgb": "rgb",
+            "rbg": "rbg",
+            "grb": "grb",
+            "gbr": "gbr",
+            "brg": "brg",
+            "bgr": "bgr",
+        },
+        default="grb",
+    )
     calibration_model = "corner_anchored"
     corner_anchor_top_left = int(getattr(raw_calibration, "corner_anchor_top_left", -1))
     corner_anchor_top_right = int(getattr(raw_calibration, "corner_anchor_top_right", -1))
     corner_anchor_bottom_right = int(getattr(raw_calibration, "corner_anchor_bottom_right", -1))
     corner_anchor_bottom_left = int(getattr(raw_calibration, "corner_anchor_bottom_left", -1))
-    normalized_corner_anchors = [int(i) for i in list(getattr(raw_calibration, "normalized_corner_anchors", []) or [])[:4]]
+    normalized_corner_anchors = [
+        int(i) for i in list(getattr(raw_calibration, "normalized_corner_anchors", []) or [])[:4]
+    ]
     while len(normalized_corner_anchors) < 4:
         normalized_corner_anchors.append(-1)
-    normalized_reverse_zones = coerce_bool(getattr(raw_calibration, "normalized_reverse_zones", coerce_bool(getattr(raw_calibration, "reverse_zones", False), False)), coerce_bool(getattr(raw_calibration, "reverse_zones", False), False))
+    normalized_reverse_zones = coerce_bool(
+        getattr(
+            raw_calibration,
+            "normalized_reverse_zones",
+            coerce_bool(getattr(raw_calibration, "reverse_zones", False), False),
+        ),
+        coerce_bool(getattr(raw_calibration, "reverse_zones", False), False),
+    )
 
     normalized_calibration = CalibrationConfig(
         schema_version=calibration_schema_version,
@@ -246,7 +312,18 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     )
 
     prefer_backend = normalize_backend_preference(cfg.prefer_backend)
-    auto_probe_policy = normalize_enum(getattr(cfg, "auto_probe_policy", AppConfig.auto_probe_policy), allowed={"first-run": "first-run", "first_run": "first-run", "each-boot": "each-boot", "each_boot": "each-boot", "on-change": "on-change", "on_change": "on-change"}, default=AppConfig.auto_probe_policy)
+    auto_probe_policy = normalize_enum(
+        getattr(cfg, "auto_probe_policy", AppConfig.auto_probe_policy),
+        allowed={
+            "first-run": "first-run",
+            "first_run": "first-run",
+            "each-boot": "each-boot",
+            "each_boot": "each-boot",
+            "on-change": "on-change",
+            "on_change": "on-change",
+        },
+        default=AppConfig.auto_probe_policy,
+    )
     performance_priority = normalize_enum(
         getattr(cfg, "performance_priority", AppConfig.performance_priority),
         allowed={
@@ -269,15 +346,27 @@ def validate_config(cfg: AppConfig) -> AppConfig:
             green_gain=max(0.5, min(1.5, float(getattr(p, "green_gain", 1.0)))),
             blue_gain=max(0.5, min(1.5, float(getattr(p, "blue_gain", 1.0)))),
             led_gamma=max(1.0, min(4.0, float(getattr(p, "led_gamma", 1.0)))),
-            white_balance_temperature=max(-1.0, min(1.0, float(getattr(p, "white_balance_temperature", 0.0)))),
+            white_balance_temperature=max(
+                -1.0, min(1.0, float(getattr(p, "white_balance_temperature", 0.0)))
+            ),
             chroma_compression=max(0.0, min(0.6, float(getattr(p, "chroma_compression", 0.0)))),
-            neutral_luminance_gain=max(0.7, min(1.5, float(getattr(p, "neutral_luminance_gain", 1.0)))),
-            black_luminance_cutoff=max(0.0, min(0.03, float(getattr(p, "black_luminance_cutoff", 0.0032)))),
-            black_luminance_knee=max(0.0005, min(0.03, float(getattr(p, "black_luminance_knee", 0.0024)))),
+            neutral_luminance_gain=max(
+                0.7, min(1.5, float(getattr(p, "neutral_luminance_gain", 1.0)))
+            ),
+            black_luminance_cutoff=max(
+                0.0, min(0.03, float(getattr(p, "black_luminance_cutoff", 0.0032)))
+            ),
+            black_luminance_knee=max(
+                0.0005, min(0.03, float(getattr(p, "black_luminance_knee", 0.0024)))
+            ),
         )
 
-    sdr_profile = _normalize_profile(getattr(cfg, "led_calibration_profile_sdr", LedCalibrationProfile()))
-    hdr_profile = _normalize_profile(getattr(cfg, "led_calibration_profile_hdr", LedCalibrationProfile()))
+    sdr_profile = _normalize_profile(
+        getattr(cfg, "led_calibration_profile_sdr", LedCalibrationProfile())
+    )
+    hdr_profile = _normalize_profile(
+        getattr(cfg, "led_calibration_profile_hdr", LedCalibrationProfile())
+    )
 
     return AppConfig(
         fps=fps,
@@ -307,12 +396,19 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         color_style=color_style,
         display_preset=display_preset,
         wizard_completed=coerce_bool(getattr(cfg, "wizard_completed", False), False),
-        wizard_in_progress_state=normalize_wizard_in_progress_state(getattr(cfg, "wizard_in_progress_state", "")),
+        wizard_in_progress_state=normalize_wizard_in_progress_state(
+            getattr(cfg, "wizard_in_progress_state", "")
+        ),
         start_on_launch=coerce_bool(getattr(cfg, "start_on_launch", False), False),
         device_vid=device_vid,
         device_pid=device_pid,
-        use_mock_capture=coerce_bool(getattr(cfg, "use_mock_capture", AppConfig.use_mock_capture), AppConfig.use_mock_capture),
-        auto_probe_enabled=coerce_bool(getattr(cfg, "auto_probe_enabled", AppConfig.auto_probe_enabled), AppConfig.auto_probe_enabled),
+        use_mock_capture=coerce_bool(
+            getattr(cfg, "use_mock_capture", AppConfig.use_mock_capture), AppConfig.use_mock_capture
+        ),
+        auto_probe_enabled=coerce_bool(
+            getattr(cfg, "auto_probe_enabled", AppConfig.auto_probe_enabled),
+            AppConfig.auto_probe_enabled,
+        ),
         auto_probe_policy=auto_probe_policy,
         auto_selected_backend=normalize_cached_backend(getattr(cfg, "auto_selected_backend", "")),
         auto_probe_signature=str(getattr(cfg, "auto_probe_signature", "") or "").strip(),
@@ -325,8 +421,16 @@ def validate_config(cfg: AppConfig) -> AppConfig:
             default="80",
         ),
         sdr_boost_nits=max(80.0, min(1000.0, float(getattr(cfg, "sdr_boost_nits", 80.0)))),
-        hdr_transfer=normalize_enum(cfg.hdr_transfer, allowed={"srgb": "srgb", "pq": "pq", "st2084": "pq"}, default=AppConfig.hdr_transfer),
-        hdr_primaries=normalize_enum(cfg.hdr_primaries, allowed={"bt709": "bt709", "srgb": "bt709", "bt2020": "bt2020"}, default=AppConfig.hdr_primaries),
+        hdr_transfer=normalize_enum(
+            cfg.hdr_transfer,
+            allowed={"srgb": "srgb", "pq": "pq", "st2084": "pq"},
+            default=AppConfig.hdr_transfer,
+        ),
+        hdr_primaries=normalize_enum(
+            cfg.hdr_primaries,
+            allowed={"bt709": "bt709", "srgb": "bt709", "bt2020": "bt2020"},
+            default=AppConfig.hdr_primaries,
+        ),
         calibration_schema_version=calibration_schema_version,
         calibration=normalized_calibration,
         device_zone_count=device_zone_count,
@@ -337,7 +441,17 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         corner_anchor_top_right=corner_anchor_top_right,
         corner_anchor_bottom_right=corner_anchor_bottom_right,
         corner_anchor_bottom_left=corner_anchor_bottom_left,
-        auto_latency_policy=normalize_enum(getattr(cfg, "auto_latency_policy", "manual"), allowed={"manual": "manual", "on-open": "on-open", "on_open": "on-open", "on-open-once-per-backend": "on-open-once-per-backend", "on_open_once_per_backend": "on-open-once-per-backend"}, default="manual"),
+        auto_latency_policy=normalize_enum(
+            getattr(cfg, "auto_latency_policy", "manual"),
+            allowed={
+                "manual": "manual",
+                "on-open": "on-open",
+                "on_open": "on-open",
+                "on-open-once-per-backend": "on-open-once-per-backend",
+                "on_open_once_per_backend": "on-open-once-per-backend",
+            },
+            default="manual",
+        ),
         latency_last_backend=str(getattr(cfg, "latency_last_backend", "") or "").strip(),
         latency_last_value_ms=max(0.0, float(getattr(cfg, "latency_last_value_ms", 0.0) or 0.0)),
         latency_last_trigger=str(getattr(cfg, "latency_last_trigger", "") or "").strip(),

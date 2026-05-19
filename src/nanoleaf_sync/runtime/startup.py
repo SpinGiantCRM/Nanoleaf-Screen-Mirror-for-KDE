@@ -203,7 +203,9 @@ class RuntimeLifecycle:
             self._state.lifecycle_state = "starting"
             self._thread.start()
 
-        startup_completed = self._state.startup_complete.wait(timeout=max(0.0, float(startup_timeout_s)))
+        startup_completed = self._state.startup_complete.wait(
+            timeout=max(0.0, float(startup_timeout_s))
+        )
         if not startup_completed:
             # Startup is still in-flight (for example, awaiting user portal consent).
             with self._lock:
@@ -257,9 +259,15 @@ class RuntimeLifecycle:
         thread_alive = self._thread is not None and self._thread.is_alive()
         if thread_alive:
             if self._state_name in {"idle", "error"}:
-                self._state_name = "running" if self._state.startup_complete.is_set() else "starting"
+                self._state_name = (
+                    "running" if self._state.startup_complete.is_set() else "starting"
+                )
                 self._state.lifecycle_state = self._state_name
-            elif self._state_name == "starting" and self._state.startup_complete.is_set() and self._state.startup_succeeded:
+            elif (
+                self._state_name == "starting"
+                and self._state.startup_complete.is_set()
+                and self._state.startup_succeeded
+            ):
                 self._state_name = "running"
                 self._state.lifecycle_state = "running"
             return

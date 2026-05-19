@@ -189,7 +189,9 @@ def test_stop_does_not_close_shared_backends_from_caller_thread() -> None:
     capture = BlockingCapture(width=16, height=9, close_unblocks=True)
     driver = FakeDriver()
     caller_thread_id = threading.get_ident()
-    service = NanoleafSyncService(config=cfg, capture_backend_override=capture, driver_override=driver)
+    service = NanoleafSyncService(
+        config=cfg, capture_backend_override=capture, driver_override=driver
+    )
 
     assert service.start() is True
     assert capture.wait_until_blocked(timeout=1.0) is True
@@ -212,7 +214,9 @@ def test_stop_timeout_returns_false_when_runtime_remains_blocked() -> None:
     cfg = AppConfig(fps=30, verbose=False, use_mock_capture=False)
     capture = BlockingCapture(width=16, height=9, close_unblocks=False)
     driver = FakeDriver()
-    service = NanoleafSyncService(config=cfg, capture_backend_override=capture, driver_override=driver)
+    service = NanoleafSyncService(
+        config=cfg, capture_backend_override=capture, driver_override=driver
+    )
 
     assert service.start() is True
     assert capture.wait_until_blocked(timeout=1.0) is True
@@ -247,7 +251,9 @@ class ClosableCapture(CaptureBackend):
 
 def test_stop_does_not_initialize_unopened_hid() -> None:
     driver = FakeDriver()
-    service = NanoleafSyncService(config=_valid_runtime_cfg(use_mock_capture=False), driver_override=driver)
+    service = NanoleafSyncService(
+        config=_valid_runtime_cfg(use_mock_capture=False), driver_override=driver
+    )
 
     assert service.stop(timeout=0.01) is True
 
@@ -276,7 +282,9 @@ def test_stop_after_partial_startup_is_safe_and_does_not_send_black_frame() -> N
 
 
 def test_stop_black_frame_requires_ready_existing_driver() -> None:
-    service = NanoleafSyncService(config=_valid_runtime_cfg(device_zone_count=4, use_mock_capture=False))
+    service = NanoleafSyncService(
+        config=_valid_runtime_cfg(device_zone_count=4, use_mock_capture=False)
+    )
 
     service._send_stop_black_frame()
 
@@ -297,7 +305,9 @@ def test_runtime_shutdown_sends_final_black_only_after_driver_ready() -> None:
     cfg = _valid_runtime_cfg(fps=30, verbose=False, use_mock_capture=False, device_zone_count=4)
     capture = FailingOnceCapture(width=16, height=9)
     driver = FakeDriver(zone_count=4)
-    service = NanoleafSyncService(config=cfg, capture_backend_override=capture, driver_override=driver)
+    service = NanoleafSyncService(
+        config=cfg, capture_backend_override=capture, driver_override=driver
+    )
 
     assert service.start() is True
     assert _wait_until(lambda: driver.frames_sent >= 1, timeout_s=1.0)

@@ -76,9 +76,7 @@ class KWinDBusScreenshotCapture:
     ) -> None:
         self.last_capture_path: str | None = None
         self.last_hdr_diagnostics: dict[str, object] = {}
-        self.params = KWinDBusCaptureParams(
-            width=width, height=height, monitor_id=monitor_id
-        )
+        self.params = KWinDBusCaptureParams(width=width, height=height, monitor_id=monitor_id)
         self._loop: asyncio.AbstractEventLoop | None = None
         self._loop_thread: threading.Thread | None = None
         self._loop_ready = threading.Event()
@@ -92,7 +90,9 @@ class KWinDBusScreenshotCapture:
             primaries=str(hdr_primaries),
             max_nits=float(hdr_max_nits),
         )
-        self._resize_index_cache: dict[tuple[int, int, int, int], tuple[np.ndarray, np.ndarray]] = {}
+        self._resize_index_cache: dict[
+            tuple[int, int, int, int], tuple[np.ndarray, np.ndarray]
+        ] = {}
         self._resize_index_cache_limit = 8
         self._legacy_introspection_cache: dict[tuple[str, str], object] = {}
         self._legacy_introspection_cache_max = 4
@@ -139,11 +139,7 @@ class KWinDBusScreenshotCapture:
             ),
             "hdr_max_nits": float(meta.max_nits),
         }
-        if (
-            frame.dtype == np.uint8
-            and meta.transfer == "srgb"
-            and meta.primaries == "bt709"
-        ):
+        if frame.dtype == np.uint8 and meta.transfer == "srgb" and meta.primaries == "bt709":
             return frame
         return convert_frame_to_srgb8(frame, metadata=meta)
 
@@ -206,9 +202,7 @@ class KWinDBusScreenshotCapture:
                 return
             if loop.is_running():
                 try:
-                    future = asyncio.run_coroutine_threadsafe(
-                        self._reset_bus_connections(), loop
-                    )
+                    future = asyncio.run_coroutine_threadsafe(self._reset_bus_connections(), loop)
                     future.result(timeout=1.0)
                 except Exception:
                     pass
@@ -255,9 +249,7 @@ class KWinDBusScreenshotCapture:
 
         legacy_exc: Exception | None = None
         try:
-            return await self._call_with_reconnect(
-                self._capture_reply_via_legacy_interfaces
-            )
+            return await self._call_with_reconnect(self._capture_reply_via_legacy_interfaces)
         except Exception as exc:
             legacy_exc = exc
 
@@ -390,7 +382,9 @@ class KWinDBusScreenshotCapture:
                 "KWin ScreenShot2 interface was available but no capture methods were callable."
             )
         if any(self._is_authorization_error(exc) for _, _, exc in attempt_errors):
-            auth_exc = next(exc for _, _, exc in attempt_errors if self._is_authorization_error(exc))
+            auth_exc = next(
+                exc for _, _, exc in attempt_errors if self._is_authorization_error(exc)
+            )
             raise auth_exc
 
         if all(self._is_signature_or_method_error(exc) for _, _, exc in attempt_errors):
@@ -417,7 +411,9 @@ class KWinDBusScreenshotCapture:
                     introspection = await bus.introspect(bus_name, path)
                     self._legacy_introspection_cache[cache_key] = introspection
                     if len(self._legacy_introspection_cache) > self._legacy_introspection_cache_max:
-                        self._legacy_introspection_cache.pop(next(iter(self._legacy_introspection_cache)))
+                        self._legacy_introspection_cache.pop(
+                            next(iter(self._legacy_introspection_cache))
+                        )
                 proxy = bus.get_proxy_object(bus_name, path, introspection)
                 iface = proxy.get_interface(interface_name)
             except Exception as exc:
@@ -451,9 +447,7 @@ class KWinDBusScreenshotCapture:
         attempts: list[tuple[str, str, list[Any]]] = []
 
         if self.params.monitor_id:
-            attempts.append(
-                ("CaptureScreen", "sa{sv}h", [self.params.monitor_id, options])
-            )
+            attempts.append(("CaptureScreen", "sa{sv}h", [self.params.monitor_id, options]))
         else:
             # Prefer explicit area when no monitor is pinned so we avoid pulling
             # full-resolution monitor frames when the runtime only needs the
@@ -495,13 +489,14 @@ class KWinDBusScreenshotCapture:
                 f"XDG_ACTIVATION_TOKEN={activation}. If launcher metadata changed, restart the Plasma session."
             )
 
-        raise KWinDBusCaptureError(
-            f"KWin ScreenShot2 call failed: {error_name} {details}".strip()
-        )
+        raise KWinDBusCaptureError(f"KWin ScreenShot2 call failed: {error_name} {details}".strip())
 
     def _is_authorization_error(self, exc: Exception) -> bool:
         message = self._format_exception_details(exc).lower()
-        return any(token in message for token in ("accessdenied", "notauthorized", "noauthorized", "access denied"))
+        return any(
+            token in message
+            for token in ("accessdenied", "notauthorized", "noauthorized", "access denied")
+        )
 
     def _is_signature_or_method_error(self, exc: Exception) -> bool:
         message = self._format_exception_details(exc).lower()
@@ -569,7 +564,7 @@ class KWinDBusScreenshotCapture:
                     f"stride={stride!r}, height={height!r})."
                 )
             chunk_len = len(chunk)
-            view[read_total:read_total + chunk_len] = chunk
+            view[read_total : read_total + chunk_len] = chunk
             read_total += chunk_len
         return bytes(view[:read_total])
 
@@ -627,17 +622,13 @@ class KWinDBusScreenshotCapture:
                     "KWin screenshot payload decode failed for byte payload."
                 ) from exc
 
-        raise KWinDBusCaptureError(
-            f"Unsupported KWin screenshot payload type: {type(payload)!r}"
-        )
+        raise KWinDBusCaptureError(f"Unsupported KWin screenshot payload type: {type(payload)!r}")
 
     def _decode_screenshot2_payload(self, reply: _ScreenShot2Payload) -> np.ndarray:
         results = self._normalize_variant_dict(reply.results)
         image_type = results.get("type")
         if image_type != "raw":
-            raise KWinDBusCaptureError(
-                f"Unsupported KWin ScreenShot2 result type: {image_type!r}"
-            )
+            raise KWinDBusCaptureError(f"Unsupported KWin ScreenShot2 result type: {image_type!r}")
         try:
             width = int(results["width"])
             height = int(results["height"])
@@ -685,7 +676,7 @@ class KWinDBusScreenshotCapture:
         while len(tokens) < 3 and idx < n:
             while idx < n and data[idx] in b" \t\r\n":
                 idx += 1
-            if idx < n and data[idx:idx + 1] == b"#":
+            if idx < n and data[idx : idx + 1] == b"#":
                 while idx < n and data[idx] not in b"\r\n":
                     idx += 1
                 continue
@@ -725,9 +716,7 @@ class KWinDBusScreenshotCapture:
 
         image = QImage(str(path))
         if image.isNull():
-            raise KWinDBusCaptureError(
-                f"Failed to decode image from KWin screenshot path: {path}"
-            )
+            raise KWinDBusCaptureError(f"Failed to decode image from KWin screenshot path: {path}")
         return self._qimage_to_rgb_array(image)
 
     def _decode_qimage_bytes(self, payload: bytes) -> np.ndarray:

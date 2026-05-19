@@ -99,7 +99,6 @@ def _to_float01(rgb: np.ndarray) -> np.ndarray:
     return rgb.astype(np.float32, copy=False) / 255.0
 
 
-
 def _pq_eotf_to_linear(c: np.ndarray) -> np.ndarray:
     # ST2084 inverse EOTF.
     # c in [0, 1] encoded domain.
@@ -176,13 +175,17 @@ def analyze_hdr_path(rgb: np.ndarray, metadata: Optional[Any] = None) -> dict[st
         assumption_note = "unknown transfer; assuming sRGB"
     if meta.primaries not in {"bt709", "bt2020"}:
         assumed_primaries = "bt709"
-        assumption_note = (assumption_note + "; " if assumption_note else "") + "unknown primaries; assuming BT.709"
+        assumption_note = (
+            assumption_note + "; " if assumption_note else ""
+        ) + "unknown primaries; assuming BT.709"
 
     enc = _to_float01(rgb)
     tone_map_planned = assumed_transfer in {"pq", "hlg"}
     if tone_map_planned and _looks_sdr_encoded(enc, transfer=assumed_transfer):
         tone_map_planned = False
-        assumption_note = (assumption_note + "; " if assumption_note else "") + "input appears SDR-like; skipping extra HDR tone mapping"
+        assumption_note = (
+            assumption_note + "; " if assumption_note else ""
+        ) + "input appears SDR-like; skipping extra HDR tone mapping"
     if assumed_transfer in {"srgb", "linear"}:
         tone_map_planned = False
 

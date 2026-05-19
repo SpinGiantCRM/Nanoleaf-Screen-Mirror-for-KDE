@@ -57,7 +57,13 @@ class LedColorCalibrationDialog:
                 save_button = QPushButton("Save profile")
 
                 helper_row = QHBoxLayout()
-                for label in ("Too blue", "Too green", "Too red/pink", "Too yellow/warm", "Looks neutral"):
+                for label in (
+                    "Too blue",
+                    "Too green",
+                    "Too red/pink",
+                    "Too yellow/warm",
+                    "Looks neutral",
+                ):
                     button = QPushButton(label)
                     button.clicked.connect(lambda _checked=False, key=label: on_helper_adjust(key))
                     helper_row.addWidget(button)

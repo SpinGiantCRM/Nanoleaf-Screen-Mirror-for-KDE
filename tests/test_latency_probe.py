@@ -68,7 +68,5 @@ def test_latency_probe_reports_unavailable_stage_honestly() -> None:
 
 def test_latency_probe_rejects_negative_stage_values() -> None:
     probe = LatencyProbe()
-    assert probe.add_stage_sample(
-        FrameTimingSample(stage_ms={STAGE_ACTUAL_WORK: -1.0})
-    ) is False
+    assert probe.add_stage_sample(FrameTimingSample(stage_ms={STAGE_ACTUAL_WORK: -1.0})) is False
     assert probe.measurement() is None

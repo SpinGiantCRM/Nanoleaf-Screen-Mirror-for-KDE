@@ -16,10 +16,23 @@ class EdgeLocalityDiagnosticResult:
     far_edge_zones_stayed_dark: bool
 
 
-def run_edge_locality_test(*, zone_count: int, edge_locality: str, sampling_quality: str, motion_preset: str, color_style: str, width: int = 320, height: int = 180) -> EdgeLocalityDiagnosticResult:
+def run_edge_locality_test(
+    *,
+    zone_count: int,
+    edge_locality: str,
+    sampling_quality: str,
+    motion_preset: str,
+    color_style: str,
+    width: int = 320,
+    height: int = 180,
+) -> EdgeLocalityDiagnosticResult:
     stride = {"low": 4, "balanced": 2, "high": 1}.get(str(sampling_quality).lower(), 1)
-    zones = make_edge_weighted_zones(zone_count, width=width, height=height, edge_locality=edge_locality)
-    layout = edge_weighted_layout(zone_count=zone_count, width=width, height=height, edge_locality=edge_locality)
+    zones = make_edge_weighted_zones(
+        zone_count, width=width, height=height, edge_locality=edge_locality
+    )
+    layout = edge_weighted_layout(
+        zone_count=zone_count, width=width, height=height, edge_locality=edge_locality
+    )
     zones_px = zones_from_config(zones, width=width, height=height)
     analyzer_mode = analyzer_mode_for_presets(motion_preset=motion_preset, color_style=color_style)
 
@@ -30,11 +43,15 @@ def run_edge_locality_test(*, zone_count: int, edge_locality: str, sampling_qual
     edge_frame[height - t :, :, :] = np.array([0, 0, 255], dtype=np.uint8)
     edge_frame[:, :t, :] = np.array([255, 255, 255], dtype=np.uint8)
 
-    _ = zone_colors_array(edge_frame, zones_px, sample_step=stride, mode=analyzer_mode, edge_locality=edge_locality)
+    _ = zone_colors_array(
+        edge_frame, zones_px, sample_step=stride, mode=analyzer_mode, edge_locality=edge_locality
+    )
 
     corner_frame = np.zeros((height, width, 3), dtype=np.uint8)
-    corner_frame[height - t : height, : t, :] = np.array([0, 255, 0], dtype=np.uint8)
-    corner_colors = zone_colors_array(corner_frame, zones_px, sample_step=stride, mode=analyzer_mode, edge_locality=edge_locality)
+    corner_frame[height - t : height, :t, :] = np.array([0, 255, 0], dtype=np.uint8)
+    corner_colors = zone_colors_array(
+        corner_frame, zones_px, sample_step=stride, mode=analyzer_mode, edge_locality=edge_locality
+    )
 
     top_n, right_n, bottom_n, left_n = layout.side_counts
     bottom_start = top_n + right_n

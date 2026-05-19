@@ -55,7 +55,9 @@ class _FakeCfgMgr:
 def _fake_tray(service: _FakeService, *, messages: list[str], make_driver):
     cfg_mgr = _FakeCfgMgr()
     cfg = service.config
-    cfg.calibration.device_zone_count = int(getattr(cfg, "calibration", None).device_zone_count or cfg.device_zone_count)
+    cfg.calibration.device_zone_count = int(
+        getattr(cfg, "calibration", None).device_zone_count or cfg.device_zone_count
+    )
     tray = SimpleNamespace(
         service=service,
         config=cfg,
@@ -65,7 +67,9 @@ def _fake_tray(service: _FakeService, *, messages: list[str], make_driver):
         _output_session=OutputSessionController(),
         _make_preview_driver=make_driver,
         on_stop=lambda: service.stop(),
-        tray_icon=SimpleNamespace(showMessage=lambda _title, message, _icon, _ms: messages.append(message)),
+        tray_icon=SimpleNamespace(
+            showMessage=lambda _title, message, _icon, _ms: messages.append(message)
+        ),
         QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Warning=1)),
     )
     tray._build_calibration_preview_diagnostics = lambda *, frame_color_count, driver=None: (
@@ -89,9 +93,11 @@ def test_send_calibration_preview_recovers_service_when_preview_driver_acquire_f
     messages: list[str] = []
     fake_tray = _fake_tray(service, messages=messages, make_driver=lambda: _FailingPreviewDriver())
     fake_tray._acquire_preview_driver = lambda: NanoleafTrayApp._acquire_preview_driver(fake_tray)
-    fake_tray._close_preview_driver = lambda *, resume_service=True: NanoleafTrayApp._close_preview_driver(
-        fake_tray,
-        resume_service=resume_service,
+    fake_tray._close_preview_driver = lambda *, resume_service=True: (
+        NanoleafTrayApp._close_preview_driver(
+            fake_tray,
+            resume_service=resume_service,
+        )
     )
 
     NanoleafTrayApp._send_calibration_preview(fake_tray, [(255, 0, 0)])
@@ -128,9 +134,11 @@ def test_send_calibration_preview_retries_once_before_notifying_failure() -> Non
 
     fake_tray = _fake_tray(service, messages=messages, make_driver=make_driver)
     fake_tray._acquire_preview_driver = lambda: NanoleafTrayApp._acquire_preview_driver(fake_tray)
-    fake_tray._close_preview_driver = lambda *, resume_service=True: NanoleafTrayApp._close_preview_driver(
-        fake_tray,
-        resume_service=resume_service,
+    fake_tray._close_preview_driver = lambda *, resume_service=True: (
+        NanoleafTrayApp._close_preview_driver(
+            fake_tray,
+            resume_service=resume_service,
+        )
     )
 
     NanoleafTrayApp._send_calibration_preview(fake_tray, [(255, 0, 0)])
@@ -143,11 +151,15 @@ def test_send_calibration_preview_notifies_after_retry_exhausted() -> None:
     service = _FakeService()
     messages: list[str] = []
 
-    fake_tray = _fake_tray(service, messages=messages, make_driver=lambda: _FlakyPreviewDriver(should_fail=True))
+    fake_tray = _fake_tray(
+        service, messages=messages, make_driver=lambda: _FlakyPreviewDriver(should_fail=True)
+    )
     fake_tray._acquire_preview_driver = lambda: NanoleafTrayApp._acquire_preview_driver(fake_tray)
-    fake_tray._close_preview_driver = lambda *, resume_service=True: NanoleafTrayApp._close_preview_driver(
-        fake_tray,
-        resume_service=resume_service,
+    fake_tray._close_preview_driver = lambda *, resume_service=True: (
+        NanoleafTrayApp._close_preview_driver(
+            fake_tray,
+            resume_service=resume_service,
+        )
     )
 
     NanoleafTrayApp._send_calibration_preview(fake_tray, [(255, 0, 0)])
@@ -161,11 +173,15 @@ def test_send_calibration_preview_never_promotes_manual_zone_count_from_detected
     service = _FakeService(config=cfg, detected_zone_count=48)
     messages: list[str] = []
 
-    fake_tray = _fake_tray(service, messages=messages, make_driver=lambda: _FlakyPreviewDriver(should_fail=False))
+    fake_tray = _fake_tray(
+        service, messages=messages, make_driver=lambda: _FlakyPreviewDriver(should_fail=False)
+    )
     fake_tray._acquire_preview_driver = lambda: NanoleafTrayApp._acquire_preview_driver(fake_tray)
-    fake_tray._close_preview_driver = lambda *, resume_service=True: NanoleafTrayApp._close_preview_driver(
-        fake_tray,
-        resume_service=resume_service,
+    fake_tray._close_preview_driver = lambda *, resume_service=True: (
+        NanoleafTrayApp._close_preview_driver(
+            fake_tray,
+            resume_service=resume_service,
+        )
     )
 
     NanoleafTrayApp._send_calibration_preview(fake_tray, [(255, 0, 0)] * 48)
@@ -183,7 +199,9 @@ def test_make_preview_driver_disables_live_write_optimization_for_setup_paths() 
 
     class _Service:
         def _make_device_driver(self, *, enable_live_frame_write_optimization: bool = True):
-            captured["enable_live_frame_write_optimization"] = bool(enable_live_frame_write_optimization)
+            captured["enable_live_frame_write_optimization"] = bool(
+                enable_live_frame_write_optimization
+            )
             return object()
 
     tray = SimpleNamespace(service=_Service())

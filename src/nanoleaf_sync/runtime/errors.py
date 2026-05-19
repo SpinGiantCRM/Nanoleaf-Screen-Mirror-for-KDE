@@ -64,7 +64,11 @@ def translate_runtime_error(error: Exception) -> UserFacingError:
             ),
         )
 
-    if "method/signature is incompatible" in normalized or "invalidargs" in normalized or "unknownmethod" in normalized:
+    if (
+        "method/signature is incompatible" in normalized
+        or "invalidargs" in normalized
+        or "unknownmethod" in normalized
+    ):
         return UserFacingError(
             kind="kwin-signature-mismatch",
             summary=message,

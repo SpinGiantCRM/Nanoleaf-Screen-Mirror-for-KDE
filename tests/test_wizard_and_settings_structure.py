@@ -13,8 +13,8 @@ def test_step3_look_and_feel_uses_clean_sections_with_collapsed_advanced_details
     assert 'QGroupBox("Appearance")' in text
     assert 'QGroupBox("Layout")' in text
     assert 'QGroupBox("Advanced details")' in text
-    assert '_set_checkable(self.advanced_details_group, True)' in text
-    assert '_set_checked(self.advanced_details_group, False)' in text
+    assert "_set_checkable(self.advanced_details_group, True)" in text
+    assert "_set_checked(self.advanced_details_group, False)" in text
     assert 'QLabel("Edge locality")' in text
     assert 'QLabel("Motion")' in text
     assert 'QLabel("Color style")' in text

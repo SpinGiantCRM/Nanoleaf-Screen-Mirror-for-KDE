@@ -46,8 +46,7 @@ class KMSGrabCapture:
         self.params = KMSGrabParams(
             width=width,
             height=height,
-            card_path=card_path
-            or os.environ.get("NANOLEAF_DRM_CARD", "/dev/dri/card0"),
+            card_path=card_path or os.environ.get("NANOLEAF_DRM_CARD", "/dev/dri/card0"),
         )
         self._fallback = KWinDBusScreenshotCapture(
             width=width,
@@ -66,7 +65,9 @@ class KMSGrabCapture:
             max_nits=float(hdr_max_nits),
         )
 
-        self._resize_index_cache: dict[tuple[int, int, int, int], tuple[np.ndarray, np.ndarray]] = {}
+        self._resize_index_cache: dict[
+            tuple[int, int, int, int], tuple[np.ndarray, np.ndarray]
+        ] = {}
         self._resize_index_cache_limit = 8
         self._drm_capture_impl = self._resolve_drm_capture_impl()
         self._drm_zone_sampler: DRMZoneSampler | None = None
@@ -83,8 +84,7 @@ class KMSGrabCapture:
                 )
             except KMSGrabError:
                 _log.debug(
-                    "kmsgrab: DRMZoneSampler unavailable on %s; "
-                    "zone-patch capture disabled",
+                    "kmsgrab: DRMZoneSampler unavailable on %s; zone-patch capture disabled",
                     self.params.card_path,
                 )
 
@@ -126,8 +126,7 @@ class KMSGrabCapture:
                 if not self._allow_fallback:
                     raise
                 _log.warning(
-                    "kmsgrab: DRM zone-patch capture failed; "
-                    "falling back to full-frame capture"
+                    "kmsgrab: DRM zone-patch capture failed; falling back to full-frame capture"
                 )
         try:
             if self._drm_capture_impl is None:
@@ -156,9 +155,7 @@ class KMSGrabCapture:
                 "Using KWin D-Bus fallback."
             )
 
-        keyword_call = (
-            f"{self._drm_capture_impl.__name__}(width=..., height=..., card_path=...)"
-        )
+        keyword_call = f"{self._drm_capture_impl.__name__}(width=..., height=..., card_path=...)"
         try:
             result = self._drm_capture_impl(
                 width=self.params.width,
@@ -174,9 +171,7 @@ class KMSGrabCapture:
                     f"Original error: {keyword_error}"
                 ) from keyword_error
 
-            positional_call = (
-                f"{self._drm_capture_impl.__name__}(width, height, card_path)"
-            )
+            positional_call = f"{self._drm_capture_impl.__name__}(width, height, card_path)"
             try:
                 result = self._drm_capture_impl(
                     self.params.width,
@@ -237,9 +232,7 @@ class KMSGrabCapture:
         meta = HDRMetadata.from_any(metadata)
 
         if not isinstance(rgb, np.ndarray):
-            raise TypeError(
-                "DRM capture must return a numpy.ndarray (or (ndarray, metadata))."
-            )
+            raise TypeError("DRM capture must return a numpy.ndarray (or (ndarray, metadata)).")
 
         target_h = int(self.params.height)
         target_w = int(self.params.width)
@@ -252,13 +245,17 @@ class KMSGrabCapture:
                 index_cache_limit=self._resize_index_cache_limit,
             )
 
-        if (
-            rgb.dtype == np.uint8
-            and meta.transfer == "srgb"
-            and meta.primaries == "bt709"
-        ):
+        if rgb.dtype == np.uint8 and meta.transfer == "srgb" and meta.primaries == "bt709":
             self.last_hdr_diagnostics = {
-                **analyze_hdr_path(rgb, metadata={"transfer": "srgb", "primaries": "bt709", "max_nits": meta.max_nits, "source": metadata_source}),
+                **analyze_hdr_path(
+                    rgb,
+                    metadata={
+                        "transfer": "srgb",
+                        "primaries": "bt709",
+                        "max_nits": meta.max_nits,
+                        "source": metadata_source,
+                    },
+                ),
                 "hdr_max_nits": float(meta.max_nits),
             }
             return rgb

@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import numpy as np
 
-from nanoleaf_sync.runtime.color_processing import apply_color_style_mapping, color_pipeline_diagnostics
+from nanoleaf_sync.runtime.color_processing import (
+    apply_color_style_mapping,
+    color_pipeline_diagnostics,
+)
 from nanoleaf_sync.runtime.engine import process_frame
 from nanoleaf_sync.runtime.processing import zones_from_config
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones
 
 
-def _map_single(rgb: tuple[int, int, int], style: str) -> dict[str, float | bool | tuple[int, int, int]]:
+def _map_single(
+    rgb: tuple[int, int, int], style: str
+) -> dict[str, float | bool | tuple[int, int, int]]:
     out = apply_color_style_mapping(np.asarray([rgb], dtype=np.float32), color_style=style)[0]
     return color_pipeline_diagnostics(input_rgb=rgb, output_rgb=tuple(int(v) for v in out.tolist()))
 
@@ -22,7 +27,11 @@ def test_reference_style_limits_chroma_growth_and_preserves_neutral() -> None:
 
 def test_medium_grey_edge_produces_visible_neutral_output() -> None:
     width, height, zone_count = 240, 140, 24
-    zones_px = zones_from_config(make_edge_weighted_zones(zone_count, width=width, height=height, edge_locality="balanced"), width, height)
+    zones_px = zones_from_config(
+        make_edge_weighted_zones(zone_count, width=width, height=height, edge_locality="balanced"),
+        width,
+        height,
+    )
     frame = np.zeros((height, width, 3), dtype=np.uint8)
     frame[:10, :, :] = 128
 
@@ -57,7 +66,6 @@ def test_vivid_and_punchy_allow_more_chroma_than_reference() -> None:
 def test_natural_style_chroma_ratio_caps_at_105() -> None:
     saturated = _map_single((235, 80, 40), "natural")
     assert float(saturated["chroma_ratio"]) <= 1.05
-
 
 
 def test_color_diagnostic_includes_hue_and_cap_metrics() -> None:

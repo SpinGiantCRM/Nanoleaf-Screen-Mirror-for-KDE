@@ -100,7 +100,11 @@ def test_smoke_test_prints_kwin_auth_context_for_shell_launch(monkeypatch, capsy
     monkeypatch.setattr(
         smoke_test,
         "translate_runtime_error",
-        lambda _exc: type("Translated", (), {"kind": "kwin-authorization", "summary": "auth", "guidance": "launch differently"})(),
+        lambda _exc: type(
+            "Translated",
+            (),
+            {"kind": "kwin-authorization", "summary": "auth", "guidance": "launch differently"},
+        )(),
     )
     monkeypatch.delenv("DESKTOP_STARTUP_ID", raising=False)
     monkeypatch.delenv("XDG_ACTIVATION_TOKEN", raising=False)

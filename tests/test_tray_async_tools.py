@@ -15,7 +15,9 @@ def test_summarize_command_output_prefers_combined_preview() -> None:
 
 
 def test_summarize_command_output_uses_stderr_and_default_when_empty() -> None:
-    preview_err, rc_err = summarize_command_output(stdout="", stderr="permission denied", returncode=2)
+    preview_err, rc_err = summarize_command_output(
+        stdout="", stderr="permission denied", returncode=2
+    )
     assert rc_err == 2
     assert "permission denied" in preview_err
 

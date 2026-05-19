@@ -89,11 +89,22 @@ def test_read_frame_gstreamer_returns_none_without_sink() -> None:
 def test_mapped_bytes_to_rgb_handles_bgrx_and_stride_padding() -> None:
     backend = XDGPortalCapture(width=2, height=1)
     # Two pixels in BGRx with 4 bytes of row padding
-    payload = bytes([
-        10, 20, 30, 0,
-        40, 50, 60, 0,
-        0, 0, 0, 0,
-    ])
+    payload = bytes(
+        [
+            10,
+            20,
+            30,
+            0,
+            40,
+            50,
+            60,
+            0,
+            0,
+            0,
+            0,
+            0,
+        ]
+    )
     frame = backend._mapped_bytes_to_rgb(
         payload=payload,
         width=2,
@@ -199,7 +210,9 @@ def test_extract_caps_metadata_reads_fraction_framerate_without_raising() -> Non
             return _FakeStructure()
 
     fake_video = types.SimpleNamespace(
-        VideoInfo=types.SimpleNamespace(new_from_caps=lambda _caps: types.SimpleNamespace(stride=[6]))
+        VideoInfo=types.SimpleNamespace(
+            new_from_caps=lambda _caps: types.SimpleNamespace(stride=[6])
+        )
     )
 
     metadata = backend._extract_caps_metadata(_FakeCaps(), GstVideo=fake_video)
@@ -272,10 +285,14 @@ def test_pull_gst_frame_continues_when_fraction_parse_raises(monkeypatch) -> Non
 
     fake_gst = types.SimpleNamespace(MapFlags=types.SimpleNamespace(READ=object()))
     fake_gst_video = types.SimpleNamespace(
-        VideoInfo=types.SimpleNamespace(new_from_caps=lambda _caps: types.SimpleNamespace(stride=[3]))
+        VideoInfo=types.SimpleNamespace(
+            new_from_caps=lambda _caps: types.SimpleNamespace(stride=[3])
+        )
     )
     monkeypatch.setitem(sys.modules, "gi", types.SimpleNamespace())
-    monkeypatch.setitem(sys.modules, "gi.repository", types.SimpleNamespace(Gst=fake_gst, GstVideo=fake_gst_video))
+    monkeypatch.setitem(
+        sys.modules, "gi.repository", types.SimpleNamespace(Gst=fake_gst, GstVideo=fake_gst_video)
+    )
 
     mapped_calls: list[dict[str, object]] = []
     original_map = backend._mapped_bytes_to_rgb
@@ -290,7 +307,9 @@ def test_pull_gst_frame_continues_when_fraction_parse_raises(monkeypatch) -> Non
     failure_summary = backend._describe_gst_pull_failure(diag)
 
     assert isinstance(frame, np.ndarray)
-    assert mapped_calls, "_mapped_bytes_to_rgb should be attempted even when framerate parsing fails"
+    assert mapped_calls, (
+        "_mapped_bytes_to_rgb should be attempted even when framerate parsing fails"
+    )
     assert diag["framerate"] == "unknown"
     assert diag["caps_metadata_warning"] == "unknown type GstFraction"
     assert diag["rgb_conversion_success"] is True

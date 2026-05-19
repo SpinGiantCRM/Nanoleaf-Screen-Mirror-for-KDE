@@ -18,7 +18,9 @@ def test_autostart_tool_status(monkeypatch, capsys) -> None:
 
 
 def test_autostart_tool_enable_systemd_prints_authorization_warning(monkeypatch, capsys) -> None:
-    monkeypatch.setattr(autostart, "enable_systemd_autostart", lambda: "/tmp/nanoleaf-kde-sync.service")
+    monkeypatch.setattr(
+        autostart, "enable_systemd_autostart", lambda: "/tmp/nanoleaf-kde-sync.service"
+    )
     rc = autostart.main(["enable", "--method", "systemd"])
     out = capsys.readouterr().out
     assert rc == 0

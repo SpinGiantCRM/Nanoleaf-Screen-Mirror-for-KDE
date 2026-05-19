@@ -5,9 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 
-def effective_runtime_zone_count(
-    *, configured: int, detected: int | None
-) -> int | None:
+def effective_runtime_zone_count(*, configured: int, detected: int | None) -> int | None:
     """Return the effective runtime zone count preferring the configured value."""
     configured_count = int(configured or 0)
     if configured_count > 0:

@@ -2,15 +2,22 @@ from __future__ import annotations
 
 import numpy as np
 
-from nanoleaf_sync.runtime.color_processing import apply_color_style_mapping, color_pipeline_diagnostics
+from nanoleaf_sync.runtime.color_processing import (
+    apply_color_style_mapping,
+    color_pipeline_diagnostics,
+)
 from nanoleaf_sync.runtime.engine import process_frame
 from nanoleaf_sync.runtime.processing import zones_from_config
 from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones
 
 
-def _diag(rgb: tuple[int, int, int], style: str) -> dict[str, float | bool | tuple[int, int, int] | str]:
+def _diag(
+    rgb: tuple[int, int, int], style: str
+) -> dict[str, float | bool | tuple[int, int, int] | str]:
     out = apply_color_style_mapping(np.asarray([rgb], dtype=np.float32), color_style=style)[0]
-    return color_pipeline_diagnostics(input_rgb=rgb, output_rgb=tuple(int(v) for v in out.tolist()), color_style=style)
+    return color_pipeline_diagnostics(
+        input_rgb=rgb, output_rgb=tuple(int(v) for v in out.tolist()), color_style=style
+    )
 
 
 def test_black_input_outputs_near_off_reference() -> None:
@@ -21,7 +28,12 @@ def test_black_input_outputs_near_off_reference() -> None:
 
 def test_near_black_outputs_dim_and_stable_without_flicker() -> None:
     seq = [(2, 2, 2), (3, 3, 3), (2, 2, 2), (4, 4, 4), (3, 3, 3), (2, 2, 2)] * 3
-    outs = [apply_color_style_mapping(np.asarray([rgb], dtype=np.float32), color_style="reference")[0][0] for rgb in seq]
+    outs = [
+        apply_color_style_mapping(np.asarray([rgb], dtype=np.float32), color_style="reference")[0][
+            0
+        ]
+        for rgb in seq
+    ]
     offish = [int(np.max(x)) <= 2 for x in outs]
     transitions = sum(1 for i in range(1, len(offish)) if offish[i] != offish[i - 1])
     assert transitions <= 4
@@ -62,14 +74,24 @@ def test_vivid_and_punchy_can_remain_more_stylised() -> None:
 
 def test_noisy_grey_sequence_remains_stable() -> None:
     seq = [(100, 100, 100), (102, 102, 102), (101, 101, 101), (103, 103, 103)] * 5
-    outs = [apply_color_style_mapping(np.asarray([rgb], dtype=np.float32), color_style="ambient")[0][0] for rgb in seq]
-    per_step_delta = [int(np.max(np.abs(outs[i].astype(int) - outs[i - 1].astype(int)))) for i in range(1, len(outs))]
+    outs = [
+        apply_color_style_mapping(np.asarray([rgb], dtype=np.float32), color_style="ambient")[0][0]
+        for rgb in seq
+    ]
+    per_step_delta = [
+        int(np.max(np.abs(outs[i].astype(int) - outs[i - 1].astype(int))))
+        for i in range(1, len(outs))
+    ]
     assert max(per_step_delta) <= 6
 
 
 def test_black_to_white_transition_remains_prompt() -> None:
-    black = apply_color_style_mapping(np.asarray([(0, 0, 0)], dtype=np.float32), color_style="reference")[0][0]
-    white = apply_color_style_mapping(np.asarray([(255, 255, 255)], dtype=np.float32), color_style="reference")[0][0]
+    black = apply_color_style_mapping(
+        np.asarray([(0, 0, 0)], dtype=np.float32), color_style="reference"
+    )[0][0]
+    white = apply_color_style_mapping(
+        np.asarray([(255, 255, 255)], dtype=np.float32), color_style="reference"
+    )[0][0]
     assert int(np.max(black)) <= 1
     assert int(np.min(white)) >= 180
 
@@ -84,7 +106,11 @@ def test_desaturated_scene_regression_reference_and_ambient() -> None:
     frame[:12, :, :] = np.array([15, 15, 15], dtype=np.uint8)  # dark UI bar
     frame[-12:, :, :] = np.array([18, 18, 18], dtype=np.uint8)
 
-    zones_px = zones_from_config(make_edge_weighted_zones(zone_count, width=width, height=height, edge_locality="tight"), width, height)
+    zones_px = zones_from_config(
+        make_edge_weighted_zones(zone_count, width=width, height=height, edge_locality="tight"),
+        width,
+        height,
+    )
     idx = np.arange(zone_count, dtype=np.intp)
 
     ref = np.asarray(
@@ -119,7 +145,9 @@ def test_desaturated_scene_regression_reference_and_ambient() -> None:
     )
 
     # Neutral zones are neutral in reference.
-    neutral_delta = np.abs(ref[:, 0].astype(int) - ref[:, 1].astype(int)) + np.abs(ref[:, 1].astype(int) - ref[:, 2].astype(int))
+    neutral_delta = np.abs(ref[:, 0].astype(int) - ref[:, 1].astype(int)) + np.abs(
+        ref[:, 1].astype(int) - ref[:, 2].astype(int)
+    )
     assert int(np.median(neutral_delta)) <= 12
 
     # Small coloured patches stay local (do not saturate whole strip).

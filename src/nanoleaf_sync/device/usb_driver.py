@@ -5,7 +5,12 @@ import time
 from typing import Any, Sequence
 
 from nanoleaf_sync.device.hid_transport import HIDTransport, HIDWriteError
-from nanoleaf_sync.device.interfaces import DeviceDriver, DriverCapabilities, NanoleafUSBIds, RGBTuple
+from nanoleaf_sync.device.interfaces import (
+    DeviceDriver,
+    DriverCapabilities,
+    NanoleafUSBIds,
+    RGBTuple,
+)
 from nanoleaf_sync.device.protocol import (
     CMD_GET_BRIGHTNESS,
     CMD_GET_LENGTH,
@@ -54,7 +59,9 @@ class NanoleafUSBDriver(DeviceDriver):
                 "output_channel_order must be a permutation of 'rgb' (for example: rgb, grb, bgr)."
             )
         self._output_channel_order = order
-        self._output_channel_indices = tuple({"r": 0, "g": 1, "b": 2}[ch] for ch in self._output_channel_order)
+        self._output_channel_indices = tuple(
+            {"r": 0, "g": 1, "b": 2}[ch] for ch in self._output_channel_order
+        )
 
         self.model_number: str | None = None
         self.zone_count: int | None = None
@@ -73,7 +80,9 @@ class NanoleafUSBDriver(DeviceDriver):
     def _is_live_frame_command(cmd: int) -> bool:
         return int(cmd) == int(CMD_SET_ZONE_COLORS)
 
-    def _request_with_timing(self, cmd: int, payload: bytes = b"") -> tuple[bytes, dict[str, float | int | bool | str | list[int] | list[float]]]:
+    def _request_with_timing(
+        self, cmd: int, payload: bytes = b""
+    ) -> tuple[bytes, dict[str, float | int | bool | str | list[int] | list[float]]]:
         request = self._protocol.build_request(cmd, payload)
         transceive_with_timing = getattr(self._transport, "transceive_with_timing", None)
         if callable(transceive_with_timing):
@@ -206,7 +215,9 @@ class NanoleafUSBDriver(DeviceDriver):
         self._request(CMD_SET_BRIGHTNESS, bytes((clamped,)))
         self._cached_brightness = clamped
 
-    def set_zone_colors(self, colors: Sequence[RGBTuple], *, return_timing: bool = False) -> dict[str, float | bool | str | None] | None:
+    def set_zone_colors(
+        self, colors: Sequence[RGBTuple], *, return_timing: bool = False
+    ) -> dict[str, float | bool | str | None] | None:
         if not self._initialized:
             self.initialize()
         if self.zone_count is None:
@@ -251,12 +262,13 @@ class NanoleafUSBDriver(DeviceDriver):
         frame_build_end = time.perf_counter()
         request_len = 3 + len(payload)
         report_size = int(getattr(self._transport, "report_size", self.report_size))
-        report_count = max(1, (request_len + report_size - 1) // report_size) if report_size > 0 else 0
+        report_count = (
+            max(1, (request_len + report_size - 1) // report_size) if report_size > 0 else 0
+        )
         chunk_sizes = []
         if report_size > 0:
             chunk_sizes = [
-                min(report_size, request_len - idx)
-                for idx in range(0, request_len, report_size)
+                min(report_size, request_len - idx) for idx in range(0, request_len, report_size)
             ]
         self._logger.debug(
             "USB zone frame diagnostics: command=0x%02x intended_zone_count=%d payload_bytes=%d "
@@ -274,8 +286,13 @@ class NanoleafUSBDriver(DeviceDriver):
         live_send_policy = "response_required"
         response_wait_skipped = False
         send_err: Exception | None = None
-        if self._is_live_frame_command(CMD_SET_ZONE_COLORS) and self._enable_live_frame_write_optimization:
-            write_with_nonblocking_drain = getattr(self._transport, "write_with_nonblocking_drain", None)
+        if (
+            self._is_live_frame_command(CMD_SET_ZONE_COLORS)
+            and self._enable_live_frame_write_optimization
+        ):
+            write_with_nonblocking_drain = getattr(
+                self._transport, "write_with_nonblocking_drain", None
+            )
             write_with_timing = getattr(self._transport, "write_with_timing", None)
             if callable(write_with_nonblocking_drain):
                 live_send_policy = "nonblocking_drain"
@@ -386,8 +403,12 @@ class NanoleafUSBDriver(DeviceDriver):
             "reports_per_frame": reports_per_frame,
             "bytes_per_report": bytes_per_report,
             "total_frame_bytes": total_bytes,
-            "report_data_sizes": report_data_sizes if isinstance(report_data_sizes, list) else chunk_sizes,
-            "per_report_write_ms": per_report_write_ms if isinstance(per_report_write_ms, list) else [],
+            "report_data_sizes": report_data_sizes
+            if isinstance(report_data_sizes, list)
+            else chunk_sizes,
+            "per_report_write_ms": per_report_write_ms
+            if isinstance(per_report_write_ms, list)
+            else [],
             "write_blocking": bool(transport_timing.get("write_blocking", True)),
             "write_retry_policy": str(transport_timing.get("retry_policy", "none")),
             "write_rate_limit_policy": str(transport_timing.get("rate_limit_policy", "none")),
@@ -405,7 +426,9 @@ class NanoleafUSBDriver(DeviceDriver):
     def send_frame(self, colors: Sequence[RGBTuple]) -> None:
         self.set_zone_colors(colors)
 
-    def send_frame_with_timing(self, colors: Sequence[RGBTuple]) -> dict[str, float | bool | str | None]:
+    def send_frame_with_timing(
+        self, colors: Sequence[RGBTuple]
+    ) -> dict[str, float | bool | str | None]:
         timing = self.set_zone_colors(colors, return_timing=True)
         if isinstance(timing, dict):
             return timing

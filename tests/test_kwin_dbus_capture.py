@@ -211,9 +211,7 @@ def test_screenshot2_introspection_is_cached(monkeypatch) -> None:
     backend.close()
 
 
-def test_capture_reconnects_and_retries_after_disconnect_error(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_capture_reconnects_and_retries_after_disconnect_error(tmp_path: Path, monkeypatch) -> None:
     ppm_path = tmp_path / "retry.ppm"
     ppm_path.write_bytes(b"P6\n1 1\n255\n" + bytes([200, 100, 50]))
 
@@ -292,9 +290,7 @@ def test_kwin_backend_applies_hdr_conversion_when_configured(monkeypatch) -> Non
         captured["metadata"] = metadata
         return np.ones((1, 2, 3), dtype=np.uint8) * 9
 
-    monkeypatch.setattr(
-        "nanoleaf_sync.capture.kwin_dbus.convert_frame_to_srgb8", _fake_convert
-    )
+    monkeypatch.setattr("nanoleaf_sync.capture.kwin_dbus.convert_frame_to_srgb8", _fake_convert)
 
     frame = backend.capture()
 

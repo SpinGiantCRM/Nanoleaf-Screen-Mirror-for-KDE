@@ -55,9 +55,7 @@ class ReplayScreenCapture:
                 normalized.shape[0] != self.params.height
                 or normalized.shape[1] != self.params.width
             ):
-                resized = np.zeros(
-                    (self.params.height, self.params.width, 3), dtype=np.uint8
-                )
+                resized = np.zeros((self.params.height, self.params.width, 3), dtype=np.uint8)
                 h = min(self.params.height, normalized.shape[0])
                 w = min(self.params.width, normalized.shape[1])
                 resized[:h, :w, :] = normalized[:h, :w, :]

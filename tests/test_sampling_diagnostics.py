@@ -45,7 +45,9 @@ def test_left_purple_remains_local_and_far_side_stays_neutral() -> None:
     frame = np.full((2160, 3840, 3), 120, dtype=np.uint8)
     frame[:, :500, :] = np.array([200, 0, 220], dtype=np.uint8)
     frame[:, 3300:3500, :] = np.array([0, 255, 0], dtype=np.uint8)
-    zones_px = zones_from_config(make_edge_weighted_zones(20, width=3840, height=2160, edge_locality="tight"), 3840, 2160)
+    zones_px = zones_from_config(
+        make_edge_weighted_zones(20, width=3840, height=2160, edge_locality="tight"), 3840, 2160
+    )
     colors = zone_colors_array(frame, zones_px, sample_step=1)
     left_mean_blue = float(np.mean(colors[15:20, 2]))
     right_mean_blue = float(np.mean(colors[5:10, 2]))
@@ -56,7 +58,9 @@ def test_left_purple_remains_local_and_far_side_stays_neutral() -> None:
 def test_bottom_left_green_block_stays_local() -> None:
     frame = np.full((2160, 3840, 3), 110, dtype=np.uint8)
     frame[1700:2160, :500, :] = np.array([0, 255, 0], dtype=np.uint8)
-    zones_px = zones_from_config(make_edge_weighted_zones(20, width=3840, height=2160, edge_locality="tight"), 3840, 2160)
+    zones_px = zones_from_config(
+        make_edge_weighted_zones(20, width=3840, height=2160, edge_locality="tight"), 3840, 2160
+    )
     colors = zone_colors_array(frame, zones_px, sample_step=1)
     assert np.max(colors[10:20, 1]) > 150
     assert np.mean(colors[:5, 1]) < 140
@@ -205,7 +209,9 @@ def test_latency_summary_does_not_fabricate_idle_value() -> None:
 
 def test_per_zone_differences_survive_processing() -> None:
     frame = _make_4k_edge_frame()
-    zones_px = zones_from_config(make_edge_weighted_zones(20, width=3840, height=2160, edge_locality="tight"), 3840, 2160)
+    zones_px = zones_from_config(
+        make_edge_weighted_zones(20, width=3840, height=2160, edge_locality="tight"), 3840, 2160
+    )
     idx = np.arange(len(zones_px), dtype=np.intp)
     out = process_frame(
         frame=frame,

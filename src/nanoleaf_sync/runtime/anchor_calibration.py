@@ -26,7 +26,9 @@ class AnchorValidationResult:
     errors: list[str]
 
 
-def validate_corner_anchors(*, anchors: dict[CornerName, int | None], device_zone_count: int) -> AnchorValidationResult:
+def validate_corner_anchors(
+    *, anchors: dict[CornerName, int | None], device_zone_count: int
+) -> AnchorValidationResult:
     total = max(0, int(device_zone_count))
     errors: list[str] = []
     if total <= 0:
@@ -58,7 +60,9 @@ def _cw_distance(a: int, b: int, total: int) -> int:
     return (int(b) - int(a)) % int(total)
 
 
-def _choose_direction(values: dict[CornerName, int], total: int) -> tuple[str, list[tuple[CornerName, int]], list[int]]:
+def _choose_direction(
+    values: dict[CornerName, int], total: int
+) -> tuple[str, list[tuple[CornerName, int]], list[int]]:
     cw_order = [
         ("top_left", values["top_left"]),
         ("top_right", values["top_right"]),
@@ -73,7 +77,9 @@ def _choose_direction(values: dict[CornerName, int], total: int) -> tuple[str, l
     ]
 
     cw_lengths = [_cw_distance(cw_order[i][1], cw_order[(i + 1) % 4][1], total) for i in range(4)]
-    ccw_lengths = [_cw_distance(ccw_order[i][1], ccw_order[(i + 1) % 4][1], total) for i in range(4)]
+    ccw_lengths = [
+        _cw_distance(ccw_order[i][1], ccw_order[(i + 1) % 4][1], total) for i in range(4)
+    ]
 
     ideal = float(total) / 4.0
     cw_score = sum((length - ideal) ** 2 for length in cw_lengths)

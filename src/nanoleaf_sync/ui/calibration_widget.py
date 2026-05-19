@@ -123,7 +123,9 @@ class SimpleCalibrationWidget:
         layout.addWidget(self.save_button, current_row, 1)
         return current_row + 1
 
-    def set_step_status(self, *, step_index: int, step_total: int, active_zone: int, normalized_offset: int) -> None:
+    def set_step_status(
+        self, *, step_index: int, step_total: int, active_zone: int, normalized_offset: int
+    ) -> None:
         del active_zone, normalized_offset
         current = int(step_index) + 1
         total = max(1, int(step_total))

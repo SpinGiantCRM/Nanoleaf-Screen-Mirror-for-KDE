@@ -232,9 +232,7 @@ def _check_hid_enumeration(config: AppConfig) -> DoctorCheck:
     details: list[str] = []
     module_file = str(getattr(hid, "__file__", "<unknown>") or "<unknown>")
     module_version = str(getattr(hid, "__version__", "<unknown>") or "<unknown>")
-    backend_info = (
-        f"backend_module={module_file} backend_version={module_version}"
-    )
+    backend_info = f"backend_module={module_file} backend_version={module_version}"
     for idx, dev in enumerate(devices):
         path = dev.get("path")
         if isinstance(path, bytes):
@@ -252,8 +250,7 @@ def _check_hid_enumeration(config: AppConfig) -> DoctorCheck:
         "pass",
         (
             f"Found {len(devices)} matching HID device(s) for VID={vid:#06x} PID={pid:#06x}. "
-            f"{backend_info}. "
-            + " ".join(details)
+            f"{backend_info}. " + " ".join(details)
         ),
     )
 
@@ -271,8 +268,12 @@ def _check_real_device_probe(config: AppConfig) -> DoctorCheck:
         driver.initialize()
         detected_zones = getattr(driver, "reported_zone_count", getattr(driver, "zone_count", None))
         configured_zones = int(getattr(config, "device_zone_count", 0) or 0)
-        calibration_zones = int(getattr(getattr(config, "calibration", None), "device_zone_count", 0) or 0)
-        effective_zones = effective_runtime_zone_count(configured=configured_zones, detected=detected_zones)
+        calibration_zones = int(
+            getattr(getattr(config, "calibration", None), "device_zone_count", 0) or 0
+        )
+        effective_zones = effective_runtime_zone_count(
+            configured=configured_zones, detected=detected_zones
+        )
         return DoctorCheck(
             "device-probe",
             "pass",
@@ -319,7 +320,9 @@ def _check_real_device_probe(config: AppConfig) -> DoctorCheck:
 
 
 def _check_calibration_completeness(config: AppConfig) -> DoctorCheck:
-    source_zone_count = int(len(getattr(config, "zones", []) or []) or getattr(config, "device_zone_count", 0) or 0)
+    source_zone_count = int(
+        len(getattr(config, "zones", []) or []) or getattr(config, "device_zone_count", 0) or 0
+    )
     snapshot = resolve_calibration_mapping_from_config(
         config=config,
         source_zone_count=max(1, source_zone_count),
@@ -332,7 +335,9 @@ def _check_calibration_completeness(config: AppConfig) -> DoctorCheck:
             snapshot.status_message,
             "Open Settings > Corner calibration, assign all four unique corner anchors, Save, then start mirroring again.",
         )
-    return DoctorCheck("calibration", "pass", "Corner calibration is complete for runtime streaming.")
+    return DoctorCheck(
+        "calibration", "pass", "Corner calibration is complete for runtime streaming."
+    )
 
 
 def _check_mode_consistency(config: AppConfig) -> DoctorCheck:

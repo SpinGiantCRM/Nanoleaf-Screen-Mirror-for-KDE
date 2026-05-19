@@ -24,7 +24,9 @@ def test_call_with_timeout_timeout_does_not_wait_for_blocked_call() -> None:
     assert elapsed < 0.5
 
 
-def test_call_with_timeout_repeated_calls_do_not_use_thread_pool_executor(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_call_with_timeout_repeated_calls_do_not_use_thread_pool_executor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class _ForbiddenPoolExecutor:
         def __init__(self, *args, **kwargs) -> None:  # noqa: ANN002, ANN003
             raise AssertionError("ThreadPoolExecutor should not be created per call")

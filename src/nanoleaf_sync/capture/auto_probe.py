@@ -38,13 +38,19 @@ def _mark_stats(stats: CandidateProbeResult, min_success_ratio: float) -> None:
     if stats.latencies_ms:
         stats.median_ms = statistics.median(stats.latencies_ms)
         stats.p95_ms = _compute_p95(stats.latencies_ms)
-        stats.jitter_ms = (max(stats.latencies_ms) - min(stats.latencies_ms)) if len(stats.latencies_ms) > 1 else 0.0
+        stats.jitter_ms = (
+            (max(stats.latencies_ms) - min(stats.latencies_ms))
+            if len(stats.latencies_ms) > 1
+            else 0.0
+        )
 
     total = stats.attempted_captures
     ratio = (stats.success_count / total) if total > 0 else 0.0
     stats.qualified = ratio >= min_success_ratio
     if stats.status == "untested":
-        stats.status = "tested" if stats.success_count > 0 else ("failed" if stats.errors else "skipped")
+        stats.status = (
+            "tested" if stats.success_count > 0 else ("failed" if stats.errors else "skipped")
+        )
 
 
 def _record_error(stats: CandidateProbeResult, error: ProbeError) -> None:
@@ -176,7 +182,11 @@ def probe_backends(
             scored.append(item)
             continue
         sample_count = len(item.latencies_ms)
-        sample_penalty = 0.0 if sample_count >= min_samples or probe_config.quick_probe else (min_samples - sample_count) * 4.0
+        sample_penalty = (
+            0.0
+            if sample_count >= min_samples or probe_config.quick_probe
+            else (min_samples - sample_count) * 4.0
+        )
         item.tentative = sample_count < min_samples and not probe_config.quick_probe
         item.score = (
             (item.median_ms * 1.0)
@@ -197,12 +207,13 @@ def probe_backends(
         ),
     )
 
-    selected_row = ranked[0] if ranked and ranked[0].qualified and ranked[0].score is not None else None
+    selected_row = (
+        ranked[0] if ranked and ranked[0].qualified and ranked[0].score is not None else None
+    )
     selected = selected_row.candidate if selected_row is not None else None
     if selected_row is not None:
-        selected_row.reason = (
-            f"selected via score={selected_row.score:.2f}"
-            + (" (tentative: low sample count)" if selected_row.tentative else "")
+        selected_row.reason = f"selected via score={selected_row.score:.2f}" + (
+            " (tentative: low sample count)" if selected_row.tentative else ""
         )
     return ProbeResult(
         selected_backend=selected,

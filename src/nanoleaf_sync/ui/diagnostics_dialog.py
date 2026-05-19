@@ -66,7 +66,9 @@ class BackendDiagnosticsDialog:
                     unresolved_reason=info.unresolved_reason,
                     runtime_started=info.runtime_started,
                     from_auto_probe=bool(self._status.get("from_auto_probe")),
-                    auto_probe_timestamp=str(getattr(self._cfg, "auto_probe_timestamp", "") or "n/a"),
+                    auto_probe_timestamp=str(
+                        getattr(self._cfg, "auto_probe_timestamp", "") or "n/a"
+                    ),
                     detected_device_zone_count=int(self._status.get("device_zone_count") or 0),
                     configured_device_zone_count=int(self._cfg.device_zone_count or 0),
                 )
@@ -76,7 +78,11 @@ class BackendDiagnosticsDialog:
                 self.status_label.setText(
                     f"Requested backend policy: {snapshot.requested_backend} | Selected backend: {snapshot.selected_backend}\n"
                     f"Effective runtime backend: {snapshot.effective_backend} | Source: {snapshot.source} | Reason: {snapshot.selection_reason}"
-                    + (f"\nUnresolved reason: {snapshot.unresolved_reason}" if snapshot.unresolved_reason else "")
+                    + (
+                        f"\nUnresolved reason: {snapshot.unresolved_reason}"
+                        if snapshot.unresolved_reason
+                        else ""
+                    )
                 )
                 self.debug_label.setText(
                     f"Runtime started: {snapshot.runtime_started} | From auto probe: {snapshot.from_auto_probe} | Auto probe timestamp: {snapshot.auto_probe_timestamp}\n"

@@ -61,4 +61,7 @@ def test_reset_tool_stop_runtime_calls_pkill(monkeypatch) -> None:
     monkeypatch.setattr(reset_tool, "ConfigManager", _FakeConfigManager)
 
     reset_tool.main(["diagnostics", "--stop-runtime"])
-    assert calls == [["pkill", "-f", "nanoleaf-kde-sync-service$"], ["pkill", "-f", "nanoleaf-kde-sync$"]]
+    assert calls == [
+        ["pkill", "-f", "nanoleaf-kde-sync-service$"],
+        ["pkill", "-f", "nanoleaf-kde-sync$"],
+    ]

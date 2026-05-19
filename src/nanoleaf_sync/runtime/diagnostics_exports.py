@@ -39,7 +39,9 @@ def format_backend_attempt_row(row: dict[str, object]) -> str:
     )
 
 
-def _normalize_side_counts(raw: object, *, source_zone_count: int) -> tuple[int, int, int, int] | None:
+def _normalize_side_counts(
+    raw: object, *, source_zone_count: int
+) -> tuple[int, int, int, int] | None:
     if not isinstance(raw, (tuple, list)) or len(raw) != 4:
         return None
     try:
@@ -64,11 +66,17 @@ def evaluate_geometry(*, status: dict, cfg: AppConfig) -> dict[str, object]:
     logical_w = int(round(kde_w / kde_scale)) if kde_w > 0 and kde_scale > 0 else 0
     logical_h = int(round(kde_h / kde_scale)) if kde_h > 0 and kde_scale > 0 else 0
     logical_match = logical_w > 0 and logical_h > 0 and cap_w == logical_w and cap_h == logical_h
-    expected_match = expected_w > 0 and expected_h > 0 and cap_w == expected_w and cap_h == expected_h
+    expected_match = (
+        expected_w > 0 and expected_h > 0 and cap_w == expected_w and cap_h == expected_h
+    )
     inferred_scale = (float(kde_w) / float(cap_w)) if kde_w > 0 and cap_w > 0 else 0.0
     physical_aspect = (float(kde_w) / float(kde_h)) if kde_w > 0 and kde_h > 0 else 0.0
     capture_aspect = (float(cap_w) / float(cap_h)) if cap_w > 0 and cap_h > 0 else 0.0
-    aspect_delta = abs(physical_aspect - capture_aspect) if physical_aspect > 0.0 and capture_aspect > 0.0 else None
+    aspect_delta = (
+        abs(physical_aspect - capture_aspect)
+        if physical_aspect > 0.0 and capture_aspect > 0.0
+        else None
+    )
 
     coordinate_mode = "unknown"
     if physical_match:
@@ -82,7 +90,9 @@ def evaluate_geometry(*, status: dict, cfg: AppConfig) -> dict[str, object]:
 
     inferred_scale_sane = inferred_scale >= 1.1 and inferred_scale <= 16.0
     aspect_consistent = aspect_delta is not None and aspect_delta <= 0.03
-    intentional_scaled = bool(expected_match and not physical_match and inferred_scale_sane and aspect_consistent)
+    intentional_scaled = bool(
+        expected_match and not physical_match and inferred_scale_sane and aspect_consistent
+    )
 
     mismatch = bool(
         cap_w > 0
@@ -94,12 +104,16 @@ def evaluate_geometry(*, status: dict, cfg: AppConfig) -> dict[str, object]:
         and not expected_match
     )
     source_zone_count = int(status.get("source_zone_count") or 0)
-    side_counts = _normalize_side_counts(status.get("source_zone_side_counts"), source_zone_count=source_zone_count)
+    side_counts = _normalize_side_counts(
+        status.get("source_zone_side_counts"), source_zone_count=source_zone_count
+    )
 
     return {
         "kde_display_size": (kde_w, kde_h),
         "kde_scale_factor": kde_scale,
-        "capture_backend": status.get("effective_capture_backend") or status.get("capture_backend") or "unknown",
+        "capture_backend": status.get("effective_capture_backend")
+        or status.get("capture_backend")
+        or "unknown",
         "captured_frame_size": (cap_w, cap_h),
         "expected_display_size": (expected_w, expected_h),
         "matches_physical": physical_match,
@@ -111,10 +125,14 @@ def evaluate_geometry(*, status: dict, cfg: AppConfig) -> dict[str, object]:
         "aspect_delta": aspect_delta,
         "coordinate_mode": coordinate_mode,
         "source_zone_count": source_zone_count,
-        "strip_zone_count": int(status.get("configured_device_zone_count") or getattr(cfg, "device_zone_count", 0) or 0),
+        "strip_zone_count": int(
+            status.get("configured_device_zone_count") or getattr(cfg, "device_zone_count", 0) or 0
+        ),
         "side_counts": side_counts,
         "edge_thickness": status.get("edge_sampling_thickness"),
-        "sample_step": int(status.get("zone_sampling_stride") or getattr(cfg, "zone_sampling_stride", 1) or 1),
+        "sample_step": int(
+            status.get("zone_sampling_stride") or getattr(cfg, "zone_sampling_stride", 1) or 1
+        ),
         "edge_locality": status.get("edge_locality") or getattr(cfg, "edge_locality", "balanced"),
         "display_preset": status.get("display_preset") or getattr(cfg, "display_preset", "hdr"),
         "hdr_enabled_assumed": str(getattr(cfg, "display_preset", "hdr")).lower() == "hdr",
@@ -144,7 +162,9 @@ def diagnostics_text_lines(*, status: dict, cfg: AppConfig) -> list[str]:
         f"Expected display size: {geo['expected_display_size'][0]}x{geo['expected_display_size'][1]}",
         f"Match physical display: {'yes' if geo['matches_physical'] else 'no'}",
         f"Match logical/scaled display: {'yes' if geo['matches_logical'] else 'no'}",
-        f"Inferred scale factor: {geo['inferred_scale_factor']:.3f}" if geo['inferred_scale_factor'] else "Inferred scale factor: unknown",
+        f"Inferred scale factor: {geo['inferred_scale_factor']:.3f}"
+        if geo["inferred_scale_factor"]
+        else "Inferred scale factor: unknown",
         f"Coordinate mode: {geo['coordinate_mode']}",
         f"Source-zone count: {geo['source_zone_count']} | Strip LED zone count: {geo['strip_zone_count']}",
         f"Per-side zone counts (T/R/B/L): {side_counts_text}",
@@ -208,7 +228,9 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
     no_pending_frame_ticks = int(counters.get("no_pending_frame_ticks", 0) or 0)
     capture_worker_error_count = int(counters.get("capture_worker_error_count", 0) or 0)
     capture_worker_active = bool(flags.get("capture_worker_active", False))
-    latest_capture_backend_name = str(labels.get("latest_capture_backend_name", "unavailable") or "unavailable")
+    latest_capture_backend_name = str(
+        labels.get("latest_capture_backend_name", "unavailable") or "unavailable"
+    )
     capture_backend_method = str(labels.get("capture_backend_method", "") or "")
     benchmark_capture_ms = str(labels.get("benchmark_capture_ms", "") or "")
     no_pending_rate = str(labels.get("no_pending_frame_rate_per_second", "") or "")
@@ -217,12 +239,18 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
     hid_bytes_per_report = str(labels.get("hid_bytes_per_report", "unavailable") or "unavailable")
     hid_total_frame_bytes = str(labels.get("hid_total_frame_bytes", "unavailable") or "unavailable")
     hid_report_data_sizes = str(labels.get("hid_report_data_sizes", "unavailable") or "unavailable")
-    hid_per_report_write_ms = str(labels.get("hid_per_report_write_ms", "unavailable") or "unavailable")
+    hid_per_report_write_ms = str(
+        labels.get("hid_per_report_write_ms", "unavailable") or "unavailable"
+    )
     hid_write_blocking = str(labels.get("hid_write_blocking", "unknown") or "unknown")
     hid_write_retry_policy = str(labels.get("hid_write_retry_policy", "unknown") or "unknown")
-    hid_write_rate_limit_policy = str(labels.get("hid_write_rate_limit_policy", "unknown") or "unknown")
+    hid_write_rate_limit_policy = str(
+        labels.get("hid_write_rate_limit_policy", "unknown") or "unknown"
+    )
     hid_write_read_calls = str(labels.get("hid_write_read_calls", "unavailable") or "unavailable")
-    hid_live_send_policy = str(labels.get("hid_live_send_policy", "response_required") or "response_required")
+    hid_live_send_policy = str(
+        labels.get("hid_live_send_policy", "response_required") or "response_required"
+    )
     hid_response_wait_skipped = str(labels.get("hid_response_wait_skipped", "no") or "no")
 
     target_met_threshold = max(1.0, target_fps * 0.95)
@@ -253,12 +281,23 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
         work_tracks_loop_gap = (
             actual_work["available"]
             and loop_gap["available"]
-            and abs(actual_work_median - loop_gap_median) <= max(1.0, 0.12 * max(actual_work_median, loop_gap_median))
+            and abs(actual_work_median - loop_gap_median)
+            <= max(1.0, 0.12 * max(actual_work_median, loop_gap_median))
         )
-        actual_over_budget = actual_work["available"] and actual_work_median > frame_interval_target_ms
-        work_under_budget_comfortably = actual_work["available"] and actual_work_median < (0.80 * frame_interval_target_ms)
-        loop_gap_high = loop_gap["available"] and loop_gap_median > (1.15 * frame_interval_target_ms)
-        unattributed_gap_ms = max(0.0, loop_gap_median - actual_work_median) if loop_gap["available"] and actual_work["available"] else 0.0
+        actual_over_budget = (
+            actual_work["available"] and actual_work_median > frame_interval_target_ms
+        )
+        work_under_budget_comfortably = actual_work["available"] and actual_work_median < (
+            0.80 * frame_interval_target_ms
+        )
+        loop_gap_high = loop_gap["available"] and loop_gap_median > (
+            1.15 * frame_interval_target_ms
+        )
+        unattributed_gap_ms = (
+            max(0.0, loop_gap_median - actual_work_median)
+            if loop_gap["available"] and actual_work["available"]
+            else 0.0
+        )
 
         configured_budget = frame_interval_target_ms
         if configured_budget > 0.0 and actual_work["available"]:
@@ -278,8 +317,12 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
                 )
 
         if actual_over_budget and work_tracks_loop_gap and pacing_is_negligible:
-            if frame_plus_hid_median is not None and frame_plus_hid_median >= (0.65 * actual_work_median):
-                limiter_line = "Likely limiter: actual work, dominated by frame processing + HID write."
+            if frame_plus_hid_median is not None and frame_plus_hid_median >= (
+                0.65 * actual_work_median
+            ):
+                limiter_line = (
+                    "Likely limiter: actual work, dominated by frame processing + HID write."
+                )
             else:
                 limiter_line = "Likely limiter: actual work."
         elif work_under_budget_comfortably and loop_gap_high:
@@ -289,15 +332,21 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
             if capture_wait["available"]:
                 limiter_candidates.append(("capture", float(capture_wait["median_ms"])))
             if frame_processing["available"]:
-                limiter_candidates.append(("frame processing", float(frame_processing["median_ms"])))
+                limiter_candidates.append(
+                    ("frame processing", float(frame_processing["median_ms"]))
+                )
             if hid_write["available"]:
                 limiter_candidates.append(("HID write", float(hid_write["median_ms"])))
             if actual_work["available"]:
                 limiter_candidates.append(("actual work", actual_work_median))
             if loop_gap_high and not actual_over_budget:
-                limiter_candidates.append(("pacing/scheduler", loop_gap_median - frame_interval_target_ms))
+                limiter_candidates.append(
+                    ("pacing/scheduler", loop_gap_median - frame_interval_target_ms)
+                )
             if limiter_candidates:
-                limiter_line = f"Likely limiter: {max(limiter_candidates, key=lambda item: item[1])[0]}."
+                limiter_line = (
+                    f"Likely limiter: {max(limiter_candidates, key=lambda item: item[1])[0]}."
+                )
 
         if unattributed_gap_ms > 1.0:
             if no_pending_frame_ticks > 0:
@@ -309,17 +358,23 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
                     "Likely limiter: capture-frame availability (capture worker gap), "
                     "with secondary costs from zone sampling and HID write."
                 )
-            elif capture_call["available"] and capture_call["median_ms"] >= max(5.0, 0.65 * loop_gap_median):
+            elif capture_call["available"] and capture_call["median_ms"] >= max(
+                5.0, 0.65 * loop_gap_median
+            ):
                 gap_attribution_line = "Gap attribution: capture worker spends most of each cycle inside capture.capture()."
                 limiter_line = "Likely limiter: capture backend call latency."
             elif frame_handoff_wait["available"] and frame_handoff_wait["median_ms"] > 1.0:
                 gap_attribution_line = "Gap attribution: runtime spends measurable time waiting on pending frame handoff."
             elif pacing_wait["available"] and pacing_wait_median > 1.0:
-                gap_attribution_line = "Gap attribution: scheduler/pacing sleep contributes to the gap."
+                gap_attribution_line = (
+                    "Gap attribution: scheduler/pacing sleep contributes to the gap."
+                )
             else:
                 gap_attribution_line = "Gap attribution: unattributed runtime gap remains; inspect capture worker and scheduler metrics."
         elif loop_gap_high and not actual_over_budget and pacing_wait["available"]:
-            gap_attribution_line = "Gap attribution: cadence mostly delayed by pacing/scheduler sleeps."
+            gap_attribution_line = (
+                "Gap attribution: cadence mostly delayed by pacing/scheduler sleeps."
+            )
 
     cap_line = "No intentional FPS cap reported."
     if fps_cap > 0.0:
@@ -371,7 +426,11 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
         f"response_wait_skipped: {hid_response_wait_skipped}",
     ]
     lines.extend(budget_lines)
-    if target_fps >= 120.0 and actual_work["available"] and float(actual_work["median_ms"]) > (1000.0 / 120.0):
+    if (
+        target_fps >= 120.0
+        and actual_work["available"]
+        and float(actual_work["median_ms"]) > (1000.0 / 120.0)
+    ):
         lines.append("120 FPS is over budget.")
     if actual_work["available"] and (1000.0 / 60.0) <= float(actual_work["median_ms"]) <= 20.0:
         lines.append("60 FPS is near target but currently slightly over budget.")
@@ -446,7 +505,9 @@ def write_png(path: Path, image_rgb: np.ndarray) -> None:
     path.write_bytes(payload)
 
 
-def _draw_rect(image: np.ndarray, rect: ZoneRect, color: tuple[int, int, int], thickness: int = 2) -> None:
+def _draw_rect(
+    image: np.ndarray, rect: ZoneRect, color: tuple[int, int, int], thickness: int = 2
+) -> None:
     x, y, w, h = rect
     x0 = max(0, int(x))
     y0 = max(0, int(y))
@@ -455,10 +516,10 @@ def _draw_rect(image: np.ndarray, rect: ZoneRect, color: tuple[int, int, int], t
     if x1 <= x0 or y1 <= y0:
         return
     t = max(1, int(thickness))
-    image[y0:min(y1, y0 + t), x0:x1, :] = color
-    image[max(y0, y1 - t):y1, x0:x1, :] = color
-    image[y0:y1, x0:min(x1, x0 + t), :] = color
-    image[y0:y1, max(x0, x1 - t):x1, :] = color
+    image[y0 : min(y1, y0 + t), x0:x1, :] = color
+    image[max(y0, y1 - t) : y1, x0:x1, :] = color
+    image[y0:y1, x0 : min(x1, x0 + t), :] = color
+    image[y0:y1, max(x0, x1 - t) : x1, :] = color
 
 
 def _zone_side_for_index(index: int, side_counts: tuple[int, int, int, int]) -> str:
@@ -490,12 +551,10 @@ def export_sampling_overlay(
     synthetic: bool = False,
 ) -> Path:
     if not synthetic and not (isinstance(frame, np.ndarray) and frame.ndim == 3):
-        raise ValueError("No live frame available. Start mirroring or capture one diagnostic frame.")
-    base = (
-        frame.copy()
-        if isinstance(frame, np.ndarray) and frame.ndim == 3
-        else _synthetic_frame()
-    )
+        raise ValueError(
+            "No live frame available. Start mirroring or capture one diagnostic frame."
+        )
+    base = frame.copy() if isinstance(frame, np.ndarray) and frame.ndim == 3 else _synthetic_frame()
     side_palette = {
         "top": (0, 255, 0),
         "right": (32, 128, 255),
@@ -518,11 +577,20 @@ def export_sampling_overlay(
 
 def export_zone_report(*, rows: Sequence[dict[str, object]]) -> Path:
     if not rows:
-        raise ValueError("No per-zone diagnostics available. Start mirroring or capture one diagnostic frame.")
+        raise ValueError(
+            "No per-zone diagnostics available. Start mirroring or capture one diagnostic frame."
+        )
     out_dir = Path(tempfile.gettempdir()) / "nanoleaf-kde-sync"
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"zone-report-{int(time.time())}.csv"
-    base_fields = ["zone_index", "side", "pixel_rect", "sampled_rgb", "final_output_rgb", "mapped_physical_led_index"]
+    base_fields = [
+        "zone_index",
+        "side",
+        "pixel_rect",
+        "sampled_rgb",
+        "final_output_rgb",
+        "mapped_physical_led_index",
+    ]
     extra_fields = [
         "input_lightness",
         "output_lightness",
@@ -557,7 +625,9 @@ def export_zone_report(*, rows: Sequence[dict[str, object]]) -> Path:
 def export_latency_report(*, status: dict) -> Path:
     measurement = status.get("latency_measurement")
     if not isinstance(measurement, dict):
-        raise ValueError("No live latency diagnostics available. Start live mirroring to collect timing samples.")
+        raise ValueError(
+            "No live latency diagnostics available. Start live mirroring to collect timing samples."
+        )
     stages = measurement.get("stages")
     if not isinstance(stages, dict):
         raise ValueError("Latency diagnostics payload is malformed.")
@@ -625,8 +695,12 @@ def export_latency_report(*, status: dict) -> Path:
                     "target_fps": float(measurement.get("target_fps", 0.0) or 0.0),
                     "fps_cap": float(measurement.get("fps_cap", 0.0) or 0.0),
                     "fps_cap_reason": str(measurement.get("fps_cap_reason", "") or ""),
-                    "effective_output_fps": float(measurement.get("effective_output_fps", 0.0) or 0.0),
-                    "dropped_or_skipped_frames": int(measurement.get("dropped_or_skipped_frames", 0) or 0),
+                    "effective_output_fps": float(
+                        measurement.get("effective_output_fps", 0.0) or 0.0
+                    ),
+                    "dropped_or_skipped_frames": int(
+                        measurement.get("dropped_or_skipped_frames", 0) or 0
+                    ),
                 }
             )
     return path

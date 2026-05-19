@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from typing import Sequence
 
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
-from nanoleaf_sync.ui.zone_presets import edge_weighted_layout, make_edge_weighted_zones, make_horizontal_zones
+from nanoleaf_sync.ui.zone_presets import (
+    edge_weighted_layout,
+    make_edge_weighted_zones,
+    make_horizontal_zones,
+)
 
 DEFAULT_DERIVED_ZONE_COUNT = 8
 
@@ -98,7 +102,10 @@ def derive_source_zone_artifacts(
             frame_height=frame_height,
         )
 
-    count = max(1, effective_zone_count(config=config, detected_device_zone_count=detected_device_zone_count))
+    count = max(
+        1,
+        effective_zone_count(config=config, detected_device_zone_count=detected_device_zone_count),
+    )
     preset = str(getattr(config, "layout_preset", "edge_strip"))
     if preset == "horizontal_debug":
         return SourceZoneArtifacts(

@@ -10,9 +10,7 @@ from nanoleaf_sync.capture.errors import KMSGrabError
 
 def test_capture_factory_mock_is_reusable(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.capture.factory._has_drm_device", lambda: False)
-    monkeypatch.setattr(
-        "nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: False
-    )
+    monkeypatch.setattr("nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: False)
 
     backend = create_capture_backend(
         width=4,
@@ -93,9 +91,7 @@ def test_capture_factory_auto_prefers_kmsgrab_when_low_latency_path_is_available
     monkeypatch,
 ) -> None:
     monkeypatch.setattr("nanoleaf_sync.capture.factory._has_drm_device", lambda: True)
-    monkeypatch.setattr(
-        "nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: True
-    )
+    monkeypatch.setattr("nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: True)
     backend = create_capture_backend(
         width=6,
         height=4,
@@ -109,9 +105,7 @@ def test_capture_factory_auto_falls_back_to_kwin_when_kmsgrab_is_unavailable(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr("nanoleaf_sync.capture.factory._has_drm_device", lambda: False)
-    monkeypatch.setattr(
-        "nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: False
-    )
+    monkeypatch.setattr("nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: False)
     monkeypatch.setenv("NANOLEAF_DISABLE_CAPTURE_PROBE", "1")
     backend = create_capture_backend(
         width=6,
@@ -151,12 +145,12 @@ def test_capture_factory_auto_uses_cached_probe_winner_without_probing(monkeypat
     assert backend.name == "kwin-dbus"
 
 
-def test_capture_factory_auto_respects_probe_kill_switch(monkeypatch, caplog: pytest.LogCaptureFixture) -> None:
+def test_capture_factory_auto_respects_probe_kill_switch(
+    monkeypatch, caplog: pytest.LogCaptureFixture
+) -> None:
     monkeypatch.setenv("NANOLEAF_DISABLE_CAPTURE_PROBE", "1")
     monkeypatch.setattr("nanoleaf_sync.capture.factory._has_drm_device", lambda: False)
-    monkeypatch.setattr(
-        "nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: False
-    )
+    monkeypatch.setattr("nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: False)
     caplog.set_level("INFO")
     backend = create_capture_backend(
         width=6,
@@ -177,9 +171,7 @@ def test_capture_factory_auto_probe_failure_falls_back_to_capability_logic(
 
     monkeypatch.setattr("nanoleaf_sync.capture.auto_probe.probe_backends", _raise_probe)
     monkeypatch.setattr("nanoleaf_sync.capture.factory._has_drm_device", lambda: False)
-    monkeypatch.setattr(
-        "nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: False
-    )
+    monkeypatch.setattr("nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: False)
     caplog.set_level("INFO")
     backend = create_capture_backend(
         width=6,
@@ -203,9 +195,7 @@ def test_capture_factory_auto_legacy_fallback_works_without_probe_dependencies(
 
     monkeypatch.setattr(builtins, "__import__", _import_hook)
     monkeypatch.setattr("nanoleaf_sync.capture.factory._has_drm_device", lambda: False)
-    monkeypatch.setattr(
-        "nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: False
-    )
+    monkeypatch.setattr("nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: False)
 
     backend = create_capture_backend(
         width=6,
@@ -227,9 +217,7 @@ def test_kmsgrab_converts_hdr_before_any_resizing(monkeypatch) -> None:
         captured_shape = frame.shape
         return np.zeros_like(frame, dtype=np.uint8)
 
-    monkeypatch.setattr(
-        "nanoleaf_sync.capture.kmsgrab.convert_frame_to_srgb8", _fake_convert
-    )
+    monkeypatch.setattr("nanoleaf_sync.capture.kmsgrab.convert_frame_to_srgb8", _fake_convert)
     out = backend._convert_if_needed(
         (
             rgb,

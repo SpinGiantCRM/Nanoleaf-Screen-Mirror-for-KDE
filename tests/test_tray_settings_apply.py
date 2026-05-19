@@ -169,7 +169,9 @@ def test_on_settings_rerun_display_setup_restarts_when_running_before_settings(m
             )
 
     monkeypatch.setattr("nanoleaf_sync.ui.tray_app.SettingsDialog", _FakeDialogRerun)
-    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.DisplayConfiguratorDialog", _FakeDisplayConfiguratorDialog)
+    monkeypatch.setattr(
+        "nanoleaf_sync.ui.tray_app.DisplayConfiguratorDialog", _FakeDisplayConfiguratorDialog
+    )
     monkeypatch.setattr("nanoleaf_sync.ui.tray_app.NanoleafSyncService", _FakeService)
 
     class _TrayIcon:
@@ -185,7 +187,9 @@ def test_on_settings_rerun_display_setup_restarts_when_running_before_settings(m
         QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Information=1)),
         _refresh_mode_labels=lambda: None,
         _send_calibration_preview=lambda _colors: None,
-        _close_preview_driver=lambda *, resume_service=False: setattr(fake_tray, "_preview_paused_service", False),
+        _close_preview_driver=lambda *, resume_service=False: setattr(
+            fake_tray, "_preview_paused_service", False
+        ),
         _preview_paused_service=True,
         tray_icon=_TrayIcon(),
         _calibration_dialog=None,
@@ -196,8 +200,8 @@ def test_on_settings_rerun_display_setup_restarts_when_running_before_settings(m
 
     fake_tray.on_start = _on_start
     fake_tray.on_stop = lambda: None
-    fake_tray.on_display_configurator = lambda *, was_running_intent=None: NanoleafTrayApp.on_display_configurator(
-        fake_tray, was_running_intent=was_running_intent
+    fake_tray.on_display_configurator = lambda *, was_running_intent=None: (
+        NanoleafTrayApp.on_display_configurator(fake_tray, was_running_intent=was_running_intent)
     )
 
     NanoleafTrayApp.on_settings(fake_tray)

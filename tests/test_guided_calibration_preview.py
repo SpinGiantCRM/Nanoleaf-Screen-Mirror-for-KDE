@@ -10,7 +10,9 @@ def test_guided_calibration_dialog_drives_live_preview_hooks() -> None:
 
 
 def test_led_dialog_calls_open_close_and_step_callbacks() -> None:
-    text = open("src/nanoleaf_sync/ui/led_color_calibration_dialog.py", "r", encoding="utf-8").read()
+    text = open(
+        "src/nanoleaf_sync/ui/led_color_calibration_dialog.py", "r", encoding="utf-8"
+    ).read()
     assert "if callable(on_open):" in text
     assert "if callable(on_step_changed):" in text
     assert "def done(self, result: int) -> None:" in text

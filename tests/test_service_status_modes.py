@@ -18,7 +18,11 @@ import pytest
 
 from nanoleaf_sync.capture.interfaces import CaptureBackend
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
-from nanoleaf_sync.service import NanoleafSyncService, _DEFAULT_CAPTURE_HEIGHT, _DEFAULT_CAPTURE_WIDTH
+from nanoleaf_sync.service import (
+    NanoleafSyncService,
+    _DEFAULT_CAPTURE_HEIGHT,
+    _DEFAULT_CAPTURE_WIDTH,
+)
 
 
 RGB = Tuple[int, int, int]
@@ -229,7 +233,9 @@ def test_service_first_run_policy_skips_probe_when_cached_winner_exists(monkeypa
         seen_cached_values.append(kwargs.get("cached_probe_winner"))
         return _FakeCaptureBackend()
 
-    monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend)
+    monkeypatch.setattr(
+        "nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend
+    )
     service._install_drivers()
     assert seen_cached_values == ["kwin-dbus"]
 
@@ -253,7 +259,9 @@ def test_status_includes_hdr_colour_path_diagnostics() -> None:
         "assumption": "No backend metadata available; using user preset assumptions.",
         "hdr_max_nits": 1200.0,
     }
-    svc = NanoleafSyncService(config=cfg, capture_backend_override=capture, driver_override=FakeDriver())
+    svc = NanoleafSyncService(
+        config=cfg, capture_backend_override=capture, driver_override=FakeDriver()
+    )
     status = svc.get_status()
     hdr = status["hdr_colour_path"]
     assert hdr["display_preset"] == "hdr"
@@ -265,7 +273,9 @@ def test_status_includes_hdr_colour_path_diagnostics() -> None:
 def test_one_shot_diagnostic_capture_populates_zone_rows_without_starting_runtime() -> None:
     cfg = AppConfig(fps=30, use_mock_capture=False, device_zone_count=12, display_preset="hdr")
     capture = FakeCapture(name="kwin-dbus", width=640, height=360)
-    svc = NanoleafSyncService(config=cfg, capture_backend_override=capture, driver_override=FakeDriver())
+    svc = NanoleafSyncService(
+        config=cfg, capture_backend_override=capture, driver_override=FakeDriver()
+    )
     result = svc.capture_one_diagnostic_frame()
     assert result["ok"] is True
     status = svc.get_status()
@@ -292,7 +302,9 @@ def test_service_each_boot_policy_probes_once_per_process(monkeypatch) -> None:
         seen_cached_values.append(kwargs.get("cached_probe_winner"))
         return _FakeCaptureBackend()
 
-    monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend)
+    monkeypatch.setattr(
+        "nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend
+    )
     NanoleafSyncService._reset_process_boot_probe_state()
     service._install_drivers()
     service._close_backends()
@@ -317,7 +329,9 @@ def test_service_each_boot_policy_across_multiple_instances(monkeypatch) -> None
         seen_cached_values.append(kwargs.get("cached_probe_winner"))
         return _FakeCaptureBackend()
 
-    monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend)
+    monkeypatch.setattr(
+        "nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend
+    )
     NanoleafSyncService._reset_process_boot_probe_state()
 
     service_one._install_drivers()
@@ -345,20 +359,26 @@ def test_service_each_boot_policy_second_instance_uses_in_memory_winner_cache(mo
         seen_cached_values.append(kwargs.get("cached_probe_winner"))
         return _FakeCaptureBackend()
 
-    monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend)
+    monkeypatch.setattr(
+        "nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend
+    )
     NanoleafSyncService._reset_process_boot_probe_state()
 
     service_one._install_drivers()
     # Simulate a caller copying first-instance winner to the shared config object
     # before bringing up a second service in the same process.
-    service_two.config = replace(service_two.config, auto_selected_backend=service_one.config.auto_selected_backend)
+    service_two.config = replace(
+        service_two.config, auto_selected_backend=service_one.config.auto_selected_backend
+    )
     service_two._install_drivers()
 
     assert seen_cached_values == [None, "kwin-dbus"]
     assert service_two.config.auto_selected_backend == "kwin-dbus"
 
 
-def test_service_each_boot_policy_probes_once_per_process_under_concurrent_starts(monkeypatch) -> None:
+def test_service_each_boot_policy_probes_once_per_process_under_concurrent_starts(
+    monkeypatch,
+) -> None:
     cfg = AppConfig(use_mock_capture=False, prefer_backend="auto", auto_probe_policy="each-boot")
     service_one = NanoleafSyncService(config=cfg, driver_override=FakeDriver())
     service_two = NanoleafSyncService(config=cfg, driver_override=FakeDriver())
@@ -382,8 +402,12 @@ def test_service_each_boot_policy_probes_once_per_process_under_concurrent_start
             seen_cached_values.append(kwargs.get("cached_probe_winner"))
         return _FakeCaptureBackend()
 
-    monkeypatch.setattr("nanoleaf_sync.service._build_auto_probe_signature", _fake_build_auto_probe_signature)
-    monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend)
+    monkeypatch.setattr(
+        "nanoleaf_sync.service._build_auto_probe_signature", _fake_build_auto_probe_signature
+    )
+    monkeypatch.setattr(
+        "nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend
+    )
     NanoleafSyncService._reset_process_boot_probe_state()
 
     first = threading.Thread(target=service_one._install_drivers)
@@ -421,7 +445,9 @@ def test_service_each_boot_policy_allows_retry_after_failed_install(monkeypatch)
             raise RuntimeError("probe failed")
         return _FakeCaptureBackend()
 
-    monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend)
+    monkeypatch.setattr(
+        "nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend
+    )
     NanoleafSyncService._reset_process_boot_probe_state()
 
     with pytest.raises(RuntimeError, match="probe failed"):
@@ -453,7 +479,9 @@ def test_service_first_run_policy_creates_cache_and_persists_metadata(monkeypatc
         seen_cached_values.append(kwargs.get("cached_probe_winner"))
         return _FakeCaptureBackend()
 
-    monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend)
+    monkeypatch.setattr(
+        "nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend
+    )
     monkeypatch.setattr("nanoleaf_sync.service.ConfigManager", _FakeConfigManager)
     monkeypatch.setattr("nanoleaf_sync.service._build_auto_probe_signature", lambda _w, _h: "sig-a")
     monkeypatch.setattr(service, "_make_device_driver", lambda: FakeDriver())
@@ -491,7 +519,9 @@ def test_service_on_change_policy_reuses_cache_when_signature_matches(monkeypatc
         seen_cached_values.append(kwargs.get("cached_probe_winner"))
         return _FakeCaptureBackend()
 
-    monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend)
+    monkeypatch.setattr(
+        "nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend
+    )
     monkeypatch.setattr(
         "nanoleaf_sync.service._build_auto_probe_signature",
         lambda _w, _h: "stable-sig",
@@ -525,8 +555,12 @@ def test_service_on_change_policy_reprobes_when_signature_changes(monkeypatch) -
         seen_cached_values.append(kwargs.get("cached_probe_winner"))
         return _FakeCaptureBackend()
 
-    monkeypatch.setattr("nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend)
-    monkeypatch.setattr("nanoleaf_sync.service._build_auto_probe_signature", lambda _w, _h: "new-sig")
+    monkeypatch.setattr(
+        "nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend
+    )
+    monkeypatch.setattr(
+        "nanoleaf_sync.service._build_auto_probe_signature", lambda _w, _h: "new-sig"
+    )
 
     service._install_drivers()
 

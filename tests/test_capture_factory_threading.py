@@ -154,7 +154,9 @@ def test_run_manual_portal_benchmark_is_single_flight(monkeypatch) -> None:
         release.wait(timeout=1.0)
         return {"status": "tested", "mode": "explicit-test"}
 
-    monkeypatch.setattr("nanoleaf_sync.capture.factory.run_explicit_xdg_portal_probe", _fake_explicit)
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.factory.run_explicit_xdg_portal_probe", _fake_explicit
+    )
     monkeypatch.setattr(
         "nanoleaf_sync.capture.factory._benchmark_backend",
         lambda **kwargs: {
