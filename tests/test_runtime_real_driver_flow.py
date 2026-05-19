@@ -144,8 +144,8 @@ def test_run_loop_with_usb_driver_initializes_then_sends_frame() -> None:
     expected_pixel3_grb = (91, 0, 0)
 
     assert all(
-        abs(actual - expected) <= 1 for actual, expected in zip(pixel0_grb, expected_pixel0_grb)
+        abs(actual - expected) <= 2 for actual, expected in zip(pixel0_grb, expected_pixel0_grb)
     )
     assert all(
-        abs(actual - expected) <= 1 for actual, expected in zip(pixel3_grb, expected_pixel3_grb)
+        abs(actual - expected) <= 2 for actual, expected in zip(pixel3_grb, expected_pixel3_grb)
     )

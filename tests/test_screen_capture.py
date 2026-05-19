@@ -92,6 +92,10 @@ def test_capture_factory_auto_prefers_kmsgrab_when_low_latency_path_is_available
 ) -> None:
     monkeypatch.setattr("nanoleaf_sync.capture.factory._has_drm_device", lambda: True)
     monkeypatch.setattr("nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: True)
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.factory._resolve_auto_backend_with_probe",
+        lambda **_kwargs: "kmsgrab",
+    )
     backend = create_capture_backend(
         width=6,
         height=4,

@@ -4,7 +4,11 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.settings_dialog import SettingsDialog
 
 
-def test_settings_dialog_requires_qt_runtime() -> None:
+def test_settings_dialog_requires_qt_runtime(monkeypatch) -> None:
+    def _raise():
+        raise RuntimeError("PyQt6 is required for the tray UI.")
+
+    monkeypatch.setattr("nanoleaf_sync.ui.settings_dialog.load_qt", _raise)
     with pytest.raises(RuntimeError):
         SettingsDialog(None, AppConfig(), calibration_sender=None, runtime_status={})
 
@@ -28,14 +32,8 @@ def test_settings_dialog_source_uses_preset_ui_labels() -> None:
         in text
     )
     assert "window_title = (" in text
-    assert (
-        '"nanoleaf-kde-sync Settings"'
-        in text
-    )
-    assert (
-        '"nanoleaf-kde-sync Advanced / Troubleshooting"'
-        in text
-    )
+    assert '"nanoleaf-kde-sync Settings"' in text
+    assert '"nanoleaf-kde-sync Advanced / Troubleshooting"' in text
     assert "if self._view_mode == SETTINGS_VIEW_ADVANCED:" in text
 
 
