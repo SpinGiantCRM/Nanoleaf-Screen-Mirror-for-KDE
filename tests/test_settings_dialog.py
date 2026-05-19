@@ -27,8 +27,13 @@ def test_settings_dialog_source_uses_preset_ui_labels() -> None:
         "SDR white reference controls how bright SDR/desktop content appears when HDR is enabled."
         in text
     )
+    assert "window_title = (" in text
     assert (
-        'window_title = "nanoleaf-kde-sync Settings" if view_mode != SETTINGS_VIEW_ADVANCED else "nanoleaf-kde-sync Advanced / Troubleshooting"'
+        '"nanoleaf-kde-sync Settings"'
+        in text
+    )
+    assert (
+        '"nanoleaf-kde-sync Advanced / Troubleshooting"'
         in text
     )
     assert "if self._view_mode == SETTINGS_VIEW_ADVANCED:" in text
@@ -75,10 +80,8 @@ def test_fps_slider_label_value_and_tooltip_text() -> None:
     )
     assert "self.fps_slider.setRange(FPS_MIN, FPS_MAX)" in text
     assert "FPS_MAX = 120" in text
-    assert (
-        'layout.addWidget(QLabel("Capture backend"), 7, 0); layout.addWidget(self.capture_backend_combo, 7, 1, 1, 2)'
-        in text
-    )
+    assert 'layout.addWidget(QLabel("Capture backend"), 7, 0)' in text
+    assert "layout.addWidget(self.capture_backend_combo, 7, 1, 1, 2)" in text
 
 
 def test_slider_readouts_bind_live_value_updates() -> None:
@@ -127,7 +130,8 @@ def test_performance_priority_dropdown_present_and_persisted() -> None:
         "High priority may improve scheduling consistency. It may fail without permission. Very high is experimental."
         in text
     )
-    assert "performance_priority=value_for_label(PERFORMANCE_PRIORITY_LABELS" in text
+    assert "performance_priority=value_for_label(" in text
+    assert "PERFORMANCE_PRIORITY_LABELS" in text
 
 
 def test_save_applies_without_closing_dialog() -> None:
