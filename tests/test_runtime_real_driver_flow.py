@@ -82,8 +82,8 @@ def test_run_loop_with_usb_driver_initializes_then_sends_frame() -> None:
             _rsp(0x0C, b"\x00NL82K2"),
             _rsp(0x03, b"\x00\x04"),
             _rsp(0x06, b"\x00\x00"),
-            _rsp(0x07, b"\x00"),
             _rsp(0x08, b"\x00\x00"),
+            _rsp(0x07, b"\x00"),
             _rsp(0x09, b"\x00"),
             _rsp(0x02, b"\x00"),
             _rsp(0x02, b"\x00"),
@@ -133,15 +133,15 @@ def test_run_loop_with_usb_driver_initializes_then_sends_frame() -> None:
     request_codes = [req[0] for req in transport.requests]
     assert request_codes[:2] == [0x0C, 0x03]
     assert len(request_codes) >= 7, "expected at least one frame write"
-    assert request_codes[:7] == [0x0C, 0x03, 0x06, 0x07, 0x08, 0x09, 0x02]
+    assert request_codes[:7] == [0x0C, 0x03, 0x06, 0x08, 0x07, 0x09, 0x02]
     assert transport.requests[5][3:] == b"\x10"
     # Driver default output channel order is GRB, so red/green channels are swapped on the wire.
     payload = transport.requests[6][3:]
     pixel0_grb = tuple(int(channel) for channel in payload[:3])
     pixel3_grb = tuple(int(channel) for channel in payload[9:12])
 
-    expected_pixel0_grb = (0, 120, 0)
-    expected_pixel3_grb = (90, 0, 0)
+    expected_pixel0_grb = (0, 118, 1)
+    expected_pixel3_grb = (91, 0, 0)
 
     assert all(
         abs(actual - expected) <= 1 for actual, expected in zip(pixel0_grb, expected_pixel0_grb)

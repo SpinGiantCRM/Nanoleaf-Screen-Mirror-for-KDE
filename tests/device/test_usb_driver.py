@@ -124,6 +124,8 @@ def test_initialize_queries_model_and_length() -> None:
         [
             _rsp(0x0C, b"\x00NL82K2"),
             _rsp(0x03, b"\x00\x0a"),
+            _rsp(0x06, b"\x00\x01"),
+            _rsp(0x08, b"\x00\x64"),
         ]
     )
     driver = NanoleafUSBDriver(ids=NanoleafUSBIds(0x37FA, 0x8202), transport=transport)
@@ -133,7 +135,7 @@ def test_initialize_queries_model_and_length() -> None:
     assert transport.opened
     assert driver.model_number == "NL82K2"
     assert driver.zone_count == 10
-    assert [req[0] for req in transport.requests] == [0x0C, 0x03]
+    assert [req[0] for req in transport.requests] == [0x0C, 0x03, 0x06, 0x08]
 
 
 def test_initialize_rejects_unsupported_model() -> None:
@@ -263,8 +265,8 @@ def test_send_frame_turns_on_and_sets_min_brightness_once() -> None:
             _rsp(0x0C, b"\x00NL82K2"),
             _rsp(0x03, b"\x00\x02"),
             _rsp(0x06, b"\x00\x00"),
-            _rsp(0x07, b"\x00"),
             _rsp(0x08, b"\x00\x00"),
+            _rsp(0x07, b"\x00"),
             _rsp(0x09, b"\x00"),
             _rsp(0x02, b"\x00"),
             _rsp(0x02, b"\x00"),
@@ -282,8 +284,8 @@ def test_send_frame_turns_on_and_sets_min_brightness_once() -> None:
         0x0C,
         0x03,
         0x06,
-        0x07,
         0x08,
+        0x07,
         0x09,
         0x02,
         0x02,
