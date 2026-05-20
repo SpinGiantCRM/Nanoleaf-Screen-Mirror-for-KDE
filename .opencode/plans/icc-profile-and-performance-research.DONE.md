@@ -1,4 +1,4 @@
-# Research: ICC Profile Support + Performance Optimization
+# Plan: Research — ICC Profile + Performance Optimization (DONE)
 
 Date: 2026-05-18
 Type: Research findings / implementation plan

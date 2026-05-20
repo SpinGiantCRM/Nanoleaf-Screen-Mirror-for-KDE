@@ -5,7 +5,7 @@ import os
 import time
 import threading
 from threading import Thread
-from typing import Callable, Optional
+from typing import Callable
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.errors import translate_runtime_error
@@ -145,19 +145,19 @@ def run_runtime_engine(
     clear_backends: Callable[[], None],
     send_final_frame: Callable[[], None] | None = None,
 ) -> None:
-    from nanoleaf_sync.runtime.engine import run_loop
-
-    state.reset_for_start()
-    apply_process_priority(config=config, state=state)
-    if not initialize_or_fail(
-        install_drivers=install_drivers,
-        close_backends=close_backends,
-        state=state,
-    ):
-        clear_backends()
-        return
-
     try:
+        from nanoleaf_sync.runtime.engine import run_loop
+
+        state.reset_for_start()
+        apply_process_priority(config=config, state=state)
+        if not initialize_or_fail(
+            install_drivers=install_drivers,
+            close_backends=close_backends,
+            state=state,
+        ):
+            clear_backends()
+            return
+
         run_loop(
             config=config,
             state=state,
@@ -194,7 +194,7 @@ class RuntimeLifecycle:
     ) -> None:
         self._state = state
         self._runner = runner
-        self._thread: Optional[Thread] = None
+        self._thread: Thread | None = None
         self._lock = threading.Lock()
         self._state_name = "idle"
 
@@ -235,7 +235,7 @@ class RuntimeLifecycle:
             self._sync_state_locked()
         return self.is_running()
 
-    def stop(self, *, join_timeout: Optional[float] = None) -> bool:
+    def stop(self, *, join_timeout: float | None = None) -> bool:
         with self._lock:
             self._sync_state_locked()
             if self._state_name in {"starting", "running"}:
@@ -249,7 +249,7 @@ class RuntimeLifecycle:
             return not self.is_running()
         return True
 
-    def join(self, timeout: Optional[float] = None) -> None:
+    def join(self, timeout: float | None = None) -> None:
         if self._thread is None:
             return
         self._thread.join(timeout=timeout)

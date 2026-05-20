@@ -74,10 +74,6 @@ SETTINGS_SECTIONS: tuple[str, ...] = (
     "Diagnostics",
 )
 
-SETTINGS_VIEW_STANDARD = "standard"
-SETTINGS_VIEW_ADVANCED = "advanced"
-
-
 class _FallbackLayout:
     def addWidget(self, *_args, **_kwargs) -> None:
         _log.warning("Qt QVBoxLayout unavailable; settings UI degraded.")
@@ -124,7 +120,7 @@ class SettingsDialog:
         runtime_status: dict | None = None,
         initial_section: str | None = None,
         on_apply: Callable[[AppConfig], None] | None = None,
-        view_mode: str = SETTINGS_VIEW_STANDARD,
+        dialog_geometry: bytes | None = None,
     ):
         qt = load_qt()
         QDialog = qt["QDialog"]
@@ -144,15 +140,15 @@ class SettingsDialog:
         class _Dialog(QDialog):
             def __init__(self):
                 super().__init__(parent)
-                window_title = (
-                    "nanoleaf-kde-sync Settings"
-                    if view_mode != SETTINGS_VIEW_ADVANCED
-                    else "nanoleaf-kde-sync Advanced / Troubleshooting"
-                )
+                window_title = "nanoleaf-kde-sync Settings"
                 self.setWindowTitle(window_title)
                 resize = getattr(self, "resize", None)
                 if callable(resize):
                     resize(860, 760)
+                if dialog_geometry is not None:
+                    restore = getattr(self, "restoreGeometry", None)
+                    if callable(restore):
+                        restore(dialog_geometry)
                 self._open_display_configurator = False
                 self._calibration_sender = calibration_sender
                 self._diagnostic_capture = diagnostic_capture
@@ -161,14 +157,12 @@ class SettingsDialog:
                 self._state = CalibrationState.from_config(cfg, runtime_status)
                 self._source_zones_locked_to_device_count = (
                     not bool(self._state.source_zones_user_configured)
-                    and str(self._state.layout_preset) == "edge-weighted"
+                    and str(self._state.layout_preset) == "edge_strip"
                 )
                 self._test_step = 0
                 self._latest_latency = None
                 self._section_widgets: dict[str, object] = {}
                 self._settings_scroll = None
-                self._view_mode = str(view_mode or SETTINGS_VIEW_STANDARD).strip().lower()
-
                 self.brightness_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.brightness_slider.setRange(0, 100)
                 self.brightness_slider.setValue(int(round(cfg.brightness * 100)))
@@ -501,10 +495,6 @@ class SettingsDialog:
                 self.save_led_calibration_profile_button = QPushButton(
                     "Save active calibration profile"
                 )
-                self.display_configurator_button = QPushButton("Re-run Display Setup")
-                self.display_configurator_button.clicked.connect(self._open_configurator)
-                self.open_calibration_tool_button = QPushButton("Open calibration tool")
-                self.open_calibration_tool_button.clicked.connect(self._open_configurator)
                 self._apply_tooltips()
 
                 self.backend_info_label = QLabel("")
@@ -685,14 +675,12 @@ class SettingsDialog:
                     "Diagnostics": diagnostics_section,
                 }
 
-                if self._view_mode == SETTINGS_VIEW_ADVANCED:
-                    content_layout.addWidget(diagnostics_section)
-                else:
-                    content_layout.addWidget(display_section)
-                    content_layout.addWidget(runtime_section)
-                    content_layout.addWidget(zone_mapping_section)
-                    content_layout.addWidget(calibration_section)
-                    content_layout.addWidget(output_section)
+                content_layout.addWidget(display_section)
+                content_layout.addWidget(runtime_section)
+                content_layout.addWidget(zone_mapping_section)
+                content_layout.addWidget(calibration_section)
+                content_layout.addWidget(output_section)
+                content_layout.addWidget(diagnostics_section)
                 content_layout.addStretch(1)
                 content.setLayout(content_layout)
                 scroll.setWidget(content)
@@ -817,9 +805,9 @@ class SettingsDialog:
 
             def _section_heading(self, QLabel, text: str):
                 label = QLabel(text)
-                set_style = getattr(label, "setStyleSheet", None)
-                if callable(set_style):
-                    set_style("font-weight: 600;")
+                set_prop = getattr(label, "setProperty", None)
+                if callable(set_prop):
+                    set_prop("heading", True)
                 return label
 
             def _help_text_label(self, QLabel, text: str):
@@ -1027,7 +1015,6 @@ class SettingsDialog:
                 )
                 led_cal.setLayout(led_layout)
                 layout.addWidget(led_cal, 8, 0, 1, 3)
-                layout.addWidget(self.display_configurator_button, 9, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -1084,15 +1071,20 @@ class SettingsDialog:
                 self._configure_section_layout(layout)
                 layout.addWidget(
                     self._help_text_label(
-                        QLabel, "Use corner calibration to map the strip to your display corners."
+                        QLabel,
+                        "Step through the LEDs until the lit LED matches a screen corner, then assign that corner.",
                     ),
                     0,
                     0,
                     1,
                     3,
                 )
-                layout.addWidget(self.open_calibration_tool_button, 1, 0, 1, 3)
-                layout.addWidget(self.test_label, 2, 0, 1, 3)
+                row = self.simple_calibration_widget.add_to_layout(layout, row=1, include_header=False)
+                layout.addWidget(self.test_label, row, 0, 1, 3)
+                row += 1
+                open_wizard_button = QPushButton("Open full calibration wizard")
+                open_wizard_button.clicked.connect(self._open_configurator)
+                layout.addWidget(open_wizard_button, row, 0, 1, 3)
                 group.setLayout(layout)
                 return group
 
@@ -1121,7 +1113,7 @@ class SettingsDialog:
 
             def _pull_state(self):
                 self._state.zone_count = int(self.zone_count_slider.value())
-                self._state.layout_preset = "edge-weighted"
+                self._state.layout_preset = "edge_strip"
                 self._state.reverse_zones = bool(self.reverse_checkbox.isChecked())
                 self._state.device_zone_count = int(self.device_zone_count_slider.value())
                 self._state.calibration_model = "corner_anchored"
@@ -1449,10 +1441,13 @@ class SettingsDialog:
                     str(self.sdr_white_reference_preset_combo.currentText()).strip().lower()
                 )
                 if preset_text != "custom":
-                    self._set_slider_value_safely(
-                        self.sdr_boost_nits_slider,
-                        int(preset_text.split(" ", 1)[0]),
-                    )
+                    try:
+                        self._set_slider_value_safely(
+                            self.sdr_boost_nits_slider,
+                            int(preset_text.split(" ", 1)[0]),
+                        )
+                    except (ValueError, IndexError):
+                        pass
                 self._refresh_preview_label()
 
             def _detect_kde_sdr_white_reference(self) -> None:
@@ -2246,7 +2241,7 @@ class SettingsDialog:
                         else getattr(cfg, "led_calibration_profile_hdr", LedCalibrationProfile())
                     ),
                     zones=new_zones,
-                    layout_preset="edge-weighted",
+                    layout_preset="edge_strip",
                     edge_locality=value_for_label(
                         EDGE_LOCALITY_LABELS,
                         str(self.edge_locality_combo.currentText()),
@@ -2326,7 +2321,14 @@ class SettingsDialog:
         self._dialog = _Dialog()
 
     def exec(self) -> int:
-        return self._dialog.exec()
+        result = self._dialog.exec()
+        save_geom = getattr(self._dialog, "saveGeometry", None)
+        if callable(save_geom):
+            self._saved_geometry = bytes(save_geom())
+        return result
+
+    def saved_geometry(self) -> bytes | None:
+        return getattr(self, "_saved_geometry", None)
 
     def updated_config(self) -> AppConfig:
         return self._dialog.updated_config()

@@ -186,6 +186,13 @@ class KWinDBusScreenshotCapture:
             self._loop_ready.set()
             loop.run_forever()
             loop.close()
+        except asyncio.CancelledError:
+            try:
+                loop.close()
+            except Exception:
+                pass
+            self._loop = None
+            self._loop_ready.set()
         except Exception as exc:
             self._loop_start_error = exc
             self._loop = None

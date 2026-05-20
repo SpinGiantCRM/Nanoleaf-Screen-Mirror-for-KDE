@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -452,3 +453,71 @@ def test_screenshot2_zero_stride_metadata_raises_zero_expected_bytes_diagnostic(
     assert "stride=0" in message
     assert "height=9" in message
     assert "expected_bytes=0" in message
+
+
+def test_loop_worker_cancelled_error_cleans_up_loop(monkeypatch) -> None:
+    backend = KWinDBusScreenshotCapture(width=2, height=1)
+    closed: list[bool] = []
+
+    class _FakeLoop:
+        def run_forever(self) -> None:
+            raise asyncio.CancelledError()
+
+        def is_running(self) -> bool:
+            return True
+
+        def close(self) -> None:
+            closed.append(True)
+
+    def _fake_new_event_loop():
+        return _FakeLoop()
+
+    monkeypatch.setattr(asyncio, "new_event_loop", _fake_new_event_loop)
+    # set_event_loop validates, accept it silently.
+    monkeypatch.setattr(asyncio, "set_event_loop", lambda _loop: None)
+
+    backend._loop_ready.clear()
+
+    backend._loop_worker()
+
+    # CancelledError is a BaseException in 3.9+, not Exception.
+    # It's caught by the first handler which calls loop.close() and
+    # does NOT set _loop_start_error (cancellation is normal).
+    assert closed == [True]
+    assert backend._loop is None
+    assert backend._loop_ready.is_set()
+    assert backend._loop_start_error is None
+    backend.close()
+
+
+def test_loop_worker_ordinary_exception_sets_error_state(monkeypatch) -> None:
+    backend = KWinDBusScreenshotCapture(width=2, height=1)
+    closed: list[bool] = []
+
+    class _FakeLoop:
+        def run_forever(self) -> None:
+            raise RuntimeError("event loop crash")
+
+        def is_running(self) -> bool:
+            return True
+
+        def close(self) -> None:
+            closed.append(True)
+
+    def _fake_new_event_loop():
+        return _FakeLoop()
+
+    monkeypatch.setattr(asyncio, "new_event_loop", _fake_new_event_loop)
+    monkeypatch.setattr(asyncio, "set_event_loop", lambda _loop: None)
+
+    backend._loop_ready.clear()
+
+    backend._loop_worker()
+
+    # Ordinary exceptions are caught by except Exception:
+    # loop is NOT closed, _loop_start_error records the error.
+    assert closed == []
+    assert backend._loop is None
+    assert backend._loop_ready.is_set()
+    assert isinstance(backend._loop_start_error, RuntimeError)
+    backend.close()

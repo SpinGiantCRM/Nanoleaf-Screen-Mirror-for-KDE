@@ -383,7 +383,7 @@ class XDGPortalCapture:
                 "details": {
                     "expected_bytes": diag.expected_bytes,
                     "received_bytes": diag.received_bytes,
-                    "caps": f"RGB {self.width}x{self.height}",
+                    "caps_expected": f"RGB {self.width}x{self.height}",
                     "sample_received": diag.sample_received,
                     "buffer_present": diag.buffer_present,
                     "buffer_reported_size": diag.buffer_reported_size,
@@ -550,6 +550,7 @@ class XDGPortalCapture:
         self._non_empty_first_buffers = 0
 
         for fmt in self._APP_SINK_FORMATS:
+            pipeline = None
             pipeline_desc = (
                 f"pipewiresrc fd={fd} path={node_id} do-timestamp=true "
                 "! queue leaky=downstream max-size-buffers=2 max-size-bytes=0 max-size-time=0 "

@@ -374,9 +374,7 @@ def _benchmark_backend(
         prefer_backend=backend_name,
     )
     capture_ms: list[float] = []
-    conversion_ms: list[float] = []
     empty_buffers = 0
-    failed_frames = 0
     frame_bytes = 0
     actual_size = "unknown"
     fmt = "unknown"
@@ -388,7 +386,6 @@ def _benchmark_backend(
             try:
                 frame = backend.capture()
             except Exception:
-                failed_frames += 1
                 continue
             capture_ms.append((time.monotonic() - call_start) * 1000.0)
             if frame.size <= 0 or frame.nbytes <= 0:
@@ -398,7 +395,6 @@ def _benchmark_backend(
                 actual_size = f"{frame.shape[1]}x{frame.shape[0]}"
                 fmt = "RGB"
                 stride = int(frame.strides[0]) if frame.strides else None
-            conversion_ms.append(0.0)
     finally:
         close_fn = getattr(backend, "close", None)
         if callable(close_fn):
@@ -423,11 +419,6 @@ def _benchmark_backend(
         "jitter_ms": float(max(capture_ms) - min(capture_ms)) if len(capture_ms) > 1 else 0.0,
         "effective_fps": len(capture_ms) / elapsed_s,
         "empty_buffers": empty_buffers,
-        "failed_frames": failed_frames,
-        "cpu_conversion_median_ms": float(statistics.median(conversion_ms))
-        if conversion_ms
-        else 0.0,
-        "e2e_frame_to_hid_ms": None,
         "sample_count": len(capture_ms),
     }
 

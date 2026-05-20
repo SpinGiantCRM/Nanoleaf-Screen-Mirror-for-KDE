@@ -174,3 +174,28 @@ def test_config_load_rejects_invalid_zone_count_without_defaulting(tmp_path) -> 
 
     with pytest.raises(ConfigValidationError, match="device_zone_count"):
         ConfigManager(path=path).load()
+
+
+def test_normalize_layout_preset_maps_edge_weighted_alias_to_canonical() -> None:
+    from nanoleaf_sync.config.presets import normalize_layout_preset
+    from nanoleaf_sync.config.normalize import validate_config
+
+    assert normalize_layout_preset("edge-weighted") == "edge_strip"
+    assert normalize_layout_preset("edge_strip") == "edge_strip"
+    assert normalize_layout_preset("Edge-Weighted") == "edge_strip"
+
+    cfg = AppConfig(layout_preset="edge-weighted")
+    result = validate_config(cfg)
+    assert result.layout_preset == "edge_strip"
+
+
+def test_settings_dialog_uses_canonical_layout_preset_value() -> None:
+    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    assert '"edge-weighted"' not in text
+    assert '"edge_strip"' in text
+
+
+def test_display_configurator_uses_canonical_layout_preset_value() -> None:
+    text = open("src/nanoleaf_sync/ui/display_configurator.py", "r", encoding="utf-8").read()
+    assert '"edge-weighted"' not in text
+    assert '"edge_strip"' in text

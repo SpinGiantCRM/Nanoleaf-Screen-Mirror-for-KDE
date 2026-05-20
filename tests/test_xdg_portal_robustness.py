@@ -367,3 +367,64 @@ def test_open_via_gstreamer_succeeds_even_with_caps_metadata_warning(monkeypatch
 
     assert backend._use_gstreamer is True
     assert backend._gst_sink is not None
+
+
+def test_open_via_gstreamer_recovers_from_parse_launch_error_with_pipeline_none_guard(
+    monkeypatch,
+) -> None:
+    backend = XDGPortalCapture(width=1, height=1)
+    parse_calls: list[str] = []
+    null_calls: list[object] = []
+
+    class _FakeSink:
+        pass
+
+    class _FakePipeline:
+        def __init__(self) -> None:
+            self.sink = _FakeSink()
+
+        def get_by_name(self, _name: str):
+            return self.sink
+
+        def set_state(self, _state) -> None:
+            pass
+
+    class _FakeGst:
+        class State:
+            PLAYING = object()
+            NULL = object()
+
+        class StateChangeReturn:
+            FAILURE = object()
+            SUCCESS = object()
+
+        @staticmethod
+        def init(_arg) -> None:
+            return None
+
+        @staticmethod
+        def parse_launch(desc: str):
+            parse_calls.append(desc)
+            if len(parse_calls) == 1:
+                raise RuntimeError("no element \"pipewiresrc\"")
+            return _FakePipeline()
+
+    monkeypatch.setitem(sys.modules, "gi", types.SimpleNamespace())
+    monkeypatch.setitem(sys.modules, "gi.repository", types.SimpleNamespace(Gst=_FakeGst))
+
+    frame = np.zeros((1, 1, 3), dtype=np.uint8)
+    diag = {
+        "sample_received": True,
+        "buffer_present": True,
+        "buffer_reported_size": 3,
+        "mapped_memory_size": 3,
+        "format": "RGB",
+        "framerate": "30/1",
+    }
+    monkeypatch.setattr(backend, "_pull_gst_frame", lambda _sink, timeout_s: (frame, diag))
+
+    backend._open_via_gstreamer(fd=7, node_id=77)
+
+    assert len(parse_calls) == 2
+    assert backend._use_gstreamer is True
+    assert backend._gst_sink is not None

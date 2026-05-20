@@ -1,0 +1,155 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   nanoleaf-kde-sync — KDE Breeze-compatible neutral palette
+   Works on Breeze Light and Breeze Dark colour schemes.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Group boxes ──────────────────────────────────────────────────────── */
+QGroupBox {
+    border: 1px solid palette(mid);
+    border-radius: 6px;
+    margin-top: 14px;
+    padding: 12px 8px 8px 8px;
+    font-weight: 600;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 8px;
+    color: palette(window-text);
+}
+
+QGroupBox#diagnosticsGroup {
+    border-color: #da4453;
+}
+
+/* ── Push buttons ─────────────────────────────────────────────────────── */
+QPushButton {
+    padding: 6px 16px;
+    border-radius: 4px;
+    border: 1px solid palette(mid);
+    background: palette(button);
+    color: palette(button-text);
+    min-height: 24px;
+}
+
+QPushButton:hover {
+    background: palette(light);
+}
+
+QPushButton:pressed {
+    background: palette(dark);
+}
+
+QPushButton:disabled {
+    color: palette(mid);
+}
+
+/* ── Sliders ──────────────────────────────────────────────────────────── */
+QSlider::groove:horizontal {
+    height: 6px;
+    background: palette(mid);
+    border-radius: 3px;
+}
+
+QSlider::handle:horizontal {
+    width: 16px;
+    height: 16px;
+    margin: -5px 0;
+    border-radius: 8px;
+    background: #3daee9;
+    border: 1px solid #2a8cc4;
+}
+
+QSlider::handle:horizontal:hover {
+    background: #5cc2f7;
+}
+
+QSlider::handle:horizontal:pressed {
+    background: #2a8cc4;
+}
+
+QSlider::sub-page:horizontal {
+    background: #3daee9;
+    border-radius: 3px;
+}
+
+/* ── Combo boxes ──────────────────────────────────────────────────────── */
+QComboBox {
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid palette(mid);
+    background: palette(button);
+    color: palette(button-text);
+    min-height: 24px;
+}
+
+QComboBox:hover {
+    border-color: #3daee9;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 20px;
+    border-left: 1px solid palette(mid);
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+QComboBox QAbstractItemView {
+    border: 1px solid palette(mid);
+    border-radius: 4px;
+    selection-background-color: #3daee9;
+}
+
+/* ── Check boxes ──────────────────────────────────────────────────────── */
+QCheckBox {
+    spacing: 8px;
+    color: palette(window-text);
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1px solid palette(mid);
+    border-radius: 3px;
+    background: palette(button);
+}
+
+QCheckBox::indicator:checked {
+    background: #3daee9;
+    border-color: #3daee9;
+}
+
+/* ── Labels ───────────────────────────────────────────────────────────── */
+QLabel[heading="true"] {
+    font-weight: bold;
+    font-size: 13px;
+    padding: 4px 0;
+    color: #3daee9;
+}
+
+/* ── Scroll area ──────────────────────────────────────────────────────── */
+QScrollArea {
+    border: none;
+    background: transparent;
+}
+
+QScrollArea > QWidget > QWidget {
+    background: transparent;
+}
+
+/* ── Dialog ───────────────────────────────────────────────────────────── */
+QDialog {
+    background: palette(window);
+}
+
+/* ── Button box ───────────────────────────────────────────────────────── */
+QDialogButtonBox {
+    padding-top: 8px;
+}
+
+QDialogButtonBox QPushButton {
+    min-width: 80px;
+}
