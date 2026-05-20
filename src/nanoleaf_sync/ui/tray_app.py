@@ -219,8 +219,10 @@ class NanoleafTrayApp:
         self._shutdown_in_progress = False
         self._shutdown_deadline = 0.0
         self._shutdown_poll_interval_s = 0.05
-        self._shutdown_timeout_s = 3.0
+        self._shutdown_timeout_s = 5.0
         self._quit_finalized = False
+        self._stop_poll_deadline = 0.0
+        self._stop_poll_count = 0
 
     def _close_preview_driver(self, *, resume_service: bool = True) -> None:
         if self._preview_driver is not None:
@@ -648,9 +650,30 @@ class NanoleafTrayApp:
 
         self.QTimer.singleShot(int(self._shutdown_timeout_s * 1000), _warn_if_still_running)
 
+    def _poll_stop_completion(self) -> None:
+        """Poll until the runtime thread finishes shutting down, then re-enable Start."""
+        if not self._service_running():
+            self._set_idle_ui_state()
+            return
+        if time.monotonic() >= getattr(self, "_stop_poll_deadline", 0.0):
+            _log.warning(
+                "Service still running after stop deadline; "
+                "keeping Start disabled until next UI refresh"
+            )
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                "Mirroring is still stopping or failed to stop within timeout.",
+                self.QSystemTrayIcon.MessageIcon.Warning,
+                7000,
+            )
+            return
+        self._stop_poll_count = getattr(self, "_stop_poll_count", 0) + 1
+        # Back off after repeated polls to avoid busy-waiting.
+        interval_s = min(0.5, 0.05 * (1 + self._stop_poll_count // 10))
+        self.QTimer.singleShot(int(interval_s * 1000), self._poll_stop_completion)
+
     def on_stop(self):
         service = self.service
-        was_running = self._service_running(service)
         try:
             stopped = self._request_stop(timeout_s=self._shutdown_timeout_s)
         except Exception as exc:
@@ -661,17 +684,11 @@ class NanoleafTrayApp:
             self._set_idle_ui_state()
             return
 
-        self.tray_icon.setIcon(self._running_icon if still_running else self._idle_icon)
-        NanoleafTrayApp._safe_refresh_mode_labels(self)
-        if was_running or still_running:
-            self.tray_icon.showMessage(
-                "nanoleaf-kde-sync",
-                "Mirroring is still stopping or failed to stop within timeout.",
-                self.QSystemTrayIcon.MessageIcon.Warning,
-                7000,
-            )
-        if not bool(getattr(self, "_shutdown_in_progress", False)):
-            self._schedule_stop_warning(service)
+        # If the service is still winding down, poll until it stops or we hit
+        # an extended deadline; re-enable the Start button once it's idle.
+        self._stop_poll_deadline = time.monotonic() + self._shutdown_timeout_s
+        self._stop_poll_count = 0
+        self._poll_stop_completion()
 
     def _start_after_launch(self) -> None:
         def worker() -> None:

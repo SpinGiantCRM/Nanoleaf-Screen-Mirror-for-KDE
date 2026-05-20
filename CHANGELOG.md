@@ -1,5 +1,30 @@
 # Changelog
 
+## v1.5.2 — KWin D-Bus & Stop Button Recovery Fixes
+
+**Fixes two critical bugs: kwin-dbus capture hanging forever, and Stop leaving the Start button permanently greyed out.**
+
+### Capture
+- **Added 2.0s timeout to `_run_async` in `kwin_dbus.py`**: `future.result()` now times out after 2.0s with proper cancellation, raising `KWinDBusCaptureError`. This prevents the capture worker from blocking indefinitely when a KWin D-Bus call hangs.
+
+### Tray / Stop
+- **Added `_poll_stop_completion` QTimer polling loop in `on_stop`**: when the runtime thread hasn't finished within the initial 5s join, the poller checks every 50–500ms until the service stops or a 5s deadline expires. `_set_idle_ui_state()` re-enables the Start button once stopped.
+- **Removed dead `was_running` variable** in `on_stop`.
+- **Added `_stop_poll_deadline` and `_stop_poll_count` field initializations** in `__init__`.
+- **Increased `_shutdown_timeout_s`** from 3.0s → 5.0s for consistent timing across stop paths.
+
+### Engine
+- **Increased pipeline thread join timeout** from 1.0s → 2.0s to match `_run_loop_legacy`.
+
+### Tests
+- Updated mocks in `test_tray_quit_async.py` with `_poll_stop_completion` lambda and `import time` for deadline manipulation.
+
+### Files Changed
+- `src/nanoleaf_sync/capture/kwin_dbus.py` — timeout on D-Bus future result
+- `src/nanoleaf_sync/ui/tray_app.py` — stop polling, field init, cleanup
+- `src/nanoleaf_sync/runtime/engine.py` — thread join timeout
+- `tests/test_tray_quit_async.py` — mock updates
+
 ## v1.5.1 — Startup & Shutdown Stability Fixes (pre-release)
 
 **Fixes two critical bugs: startup timeout causing false "failed to produce frame" failures, and stop-mirroring hang when device/capture backends are unresponsive.**
