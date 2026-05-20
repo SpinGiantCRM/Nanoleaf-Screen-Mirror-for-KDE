@@ -171,9 +171,6 @@ def test_run_manual_portal_benchmark_is_single_flight(monkeypatch) -> None:
             "jitter_ms": 0.2,
             "effective_fps": 30.0,
             "empty_buffers": 0,
-            "failed_frames": 0,
-            "cpu_conversion_median_ms": 0.1,
-            "e2e_frame_to_hid_ms": None,
             "sample_count": 30,
         },
     )

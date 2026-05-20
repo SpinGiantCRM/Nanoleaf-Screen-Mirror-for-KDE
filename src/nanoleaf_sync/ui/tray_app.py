@@ -156,6 +156,7 @@ class NanoleafTrayApp:
         self.app = qt["QApplication"](sys.argv)
         self.app.setApplicationName(QT_DESKTOP_FILE_NAME)
         self.app.setDesktopFileName(QT_DESKTOP_FILE_NAME)
+        self._load_stylesheet()
         set_quit_on_last_window_closed = getattr(self.app, "setQuitOnLastWindowClosed", None)
         if callable(set_quit_on_last_window_closed):
             set_quit_on_last_window_closed(False)
@@ -359,6 +360,11 @@ class NanoleafTrayApp:
             or env_enabled
         )
 
+    def _load_stylesheet(self) -> None:
+        qss_path = Path(__file__).resolve().parent / "style.qss"
+        if qss_path.exists():
+            self.app.setStyleSheet(qss_path.read_text(encoding="utf-8"))
+
     def _load_tray_icons(self):
         themed_idle = self.QIcon.fromTheme("nanoleaf-kde-sync")
         if themed_idle.isNull():
@@ -418,31 +424,44 @@ class NanoleafTrayApp:
 
     def _make_menu(self):
         menu = self.QMenu()
-        self.action_start = self.QAction("Start", menu)
-        self.action_stop = self.QAction("Stop", menu)
-        self.action_settings = self.QAction("Settings…", menu)
-        self.action_display_wizard = self.QAction("Calibration / Setup…", menu)
-        self.action_advanced_settings = self.QAction("Advanced / Troubleshooting", menu)
-        self.action_status = self.QAction("About / Status", menu)
-        self.action_troubleshooting = self.QAction("Troubleshooting", menu)
-        self.action_troubleshooting_guide = self.QAction("Open Troubleshooting Guide", menu)
-        self.action_enable_autostart = self.QAction("Enable autostart", menu)
-        self.action_disable_autostart = self.QAction("Disable autostart", menu)
-        self.action_reset_probe_cache = self.QAction(
-            "Reset Auto-Probe Cache (force fresh selection)", menu
+
+        # ── Top-level daily-use actions ──
+        self.action_start = self.QAction(
+            self.QIcon.fromTheme("media-playback-start"), "Start", menu
         )
-        self.action_launch_diagnostics = self.QAction("Show launch diagnostics", menu)
+        self.action_stop = self.QAction(
+            self.QIcon.fromTheme("media-playback-stop"), "Stop", menu
+        )
+        self.action_settings = self.QAction(
+            self.QIcon.fromTheme("preferences-system"), "Settings…", menu
+        )
+        self.action_display_wizard = self.QAction(
+            self.QIcon.fromTheme("preferences-desktop-display"), "Calibration / Setup…", menu
+        )
+        self.action_status = self.QAction(
+            self.QIcon.fromTheme("help-about"), "About / Status", menu
+        )
+
+        # ── Advanced submenu actions ──
+        self.action_advanced_settings = self.QAction("Advanced Settings", menu)
+        self.action_troubleshooting_guide = self.QAction("Troubleshooting Guide", menu)
         self.action_doctor = self.QAction("Run Doctor", menu)
         self.action_smoke = self.QAction("Run Smoke Test", menu)
-        self.action_quit = self.QAction("Quit", menu)
+        self.action_reset_probe_cache = self.QAction("Reset Auto-Probe Cache", menu)
+        self.action_launch_diagnostics = self.QAction("Show Launch Diagnostics", menu)
+        self.action_enable_autostart = self.QAction("Enable Autostart", menu)
+        self.action_disable_autostart = self.QAction("Disable Autostart", menu)
+        self.action_quit = self.QAction(
+            self.QIcon.fromTheme("application-exit"), "Quit", menu
+        )
 
+        # ── Wire triggers ──
         self.action_start.triggered.connect(self.on_start)
         self.action_stop.triggered.connect(self.on_stop)
         self.action_settings.triggered.connect(self.on_settings)
         self.action_display_wizard.triggered.connect(self.on_display_configurator)
-        self.action_troubleshooting.triggered.connect(self.on_troubleshooting)
-        self.action_troubleshooting_guide.triggered.connect(self.on_open_troubleshooting_guide)
         self.action_advanced_settings.triggered.connect(self.on_open_advanced_settings)
+        self.action_troubleshooting_guide.triggered.connect(self.on_open_troubleshooting_guide)
         self.action_status.triggered.connect(self.on_status)
         self.action_enable_autostart.triggered.connect(self.on_enable_autostart)
         self.action_disable_autostart.triggered.connect(self.on_disable_autostart)
@@ -452,9 +471,9 @@ class NanoleafTrayApp:
         self.action_smoke.triggered.connect(self.on_smoke_test)
         self.action_quit.triggered.connect(self.on_quit)
 
-        advanced_menu = self.QMenu("Advanced / Troubleshooting", menu)
+        # ── Build Advanced submenu ──
+        advanced_menu = self.QMenu("Advanced", menu)
         advanced_menu.addAction(self.action_advanced_settings)
-        advanced_menu.addAction(self.action_troubleshooting)
         advanced_menu.addAction(self.action_troubleshooting_guide)
         advanced_menu.addSeparator()
         advanced_menu.addAction(self.action_doctor)
@@ -465,12 +484,15 @@ class NanoleafTrayApp:
         advanced_menu.addAction(self.action_enable_autostart)
         advanced_menu.addAction(self.action_disable_autostart)
 
+        # ── Assemble top-level menu ──
         menu.addAction(self.action_start)
         menu.addAction(self.action_stop)
+        menu.addSeparator()
         menu.addAction(self.action_settings)
         menu.addAction(self.action_display_wizard)
-        menu.addMenu(advanced_menu)
         menu.addAction(self.action_status)
+        menu.addSeparator()
+        menu.addMenu(advanced_menu)
         menu.addSeparator()
         menu.addAction(self.action_quit)
         return menu
@@ -484,6 +506,17 @@ class NanoleafTrayApp:
         set_enabled = getattr(self.action_start, "setEnabled", None)
         if callable(set_enabled):
             set_enabled(start_action_enabled)
+        stop_set_enabled = getattr(self.action_stop, "setEnabled", None)
+        if callable(stop_set_enabled):
+            stop_set_enabled(running)
+        # Dynamic autostart: show only the relevant action.
+        autostart_enabled = user_autostart_path().exists()
+        enable_visible = getattr(self.action_enable_autostart, "setVisible", None)
+        disable_visible = getattr(self.action_disable_autostart, "setVisible", None)
+        if callable(enable_visible):
+            enable_visible(not autostart_enabled)
+        if callable(disable_visible):
+            disable_visible(autostart_enabled)
         capture_mode, device_mode = describe_mode(
             self.config.use_mock_capture,
             self.config.prefer_backend,
@@ -556,6 +589,8 @@ class NanoleafTrayApp:
         running = bool(running and startup_state == "running")
         self.tray_icon.setIcon(self._running_icon if running else self._idle_icon)
         NanoleafTrayApp._safe_refresh_mode_labels(self)
+        if startup_state in {"starting", "running"}:
+            return
         if startup_state == "waiting_for_screen_selection":
             self.tray_icon.showMessage(
                 "nanoleaf-kde-sync",
@@ -711,7 +746,7 @@ class NanoleafTrayApp:
             "nanoleaf-kde-sync", message, self.QSystemTrayIcon.MessageIcon.Information, 6000
         )
 
-    def on_settings(self, *, initial_section: str | None = None, view_mode: str = "standard"):
+    def on_settings(self, *, initial_section: str | None = None):
         def _apply_settings_dialog_config(new_cfg) -> None:
             self.cfg_mgr.save(new_cfg)
             self.config = new_cfg
@@ -730,7 +765,7 @@ class NanoleafTrayApp:
             runtime_status=self.service.get_status(),
             initial_section=initial_section,
             on_apply=_apply_settings_dialog_config,
-            view_mode=view_mode,
+            dialog_geometry=getattr(self, "_saved_settings_geometry", None),
         )
         was_running = self.service.is_running() or bool(
             getattr(self, "_preview_paused_service", False)
@@ -744,15 +779,15 @@ class NanoleafTrayApp:
                 self.on_start()
             return
 
+        save_geom = getattr(dlg, "saved_geometry", None)
+        if callable(save_geom):
+            self._saved_settings_geometry = save_geom()
         if dlg.wants_display_configurator():
             self.config = dlg.updated_config()
             self.cfg_mgr.save(self.config)
             self.on_display_configurator(was_running_intent=was_running)
             return
         _apply_settings_dialog_config(dlg.updated_config())
-
-    def on_troubleshooting(self) -> None:
-        self.on_settings(initial_section="Diagnostics", view_mode="advanced")
 
     def on_open_troubleshooting_guide(self) -> None:
         guide_path = Path(__file__).resolve().parents[3] / "docs" / "TROUBLESHOOTING.md"
@@ -834,10 +869,10 @@ class NanoleafTrayApp:
         self._refresh_mode_labels()
 
     def on_open_advanced_settings(self) -> None:
-        self.on_settings(initial_section="Diagnostics", view_mode="advanced")
+        self.on_settings(initial_section="Diagnostics")
         self.tray_icon.showMessage(
             "nanoleaf-kde-sync",
-            "Opened Advanced / Troubleshooting.",
+            "Opened Advanced Settings.",
             self.QSystemTrayIcon.MessageIcon.Information,
             3000,
         )

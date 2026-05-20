@@ -1,4 +1,4 @@
-# Fix 3 Outstanding Test Failures
+# Plan: Fix 3 outstanding test failures (DONE — already applied)
 
 ## Background
 

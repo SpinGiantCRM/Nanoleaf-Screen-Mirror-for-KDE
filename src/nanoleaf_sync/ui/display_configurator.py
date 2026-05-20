@@ -1149,7 +1149,6 @@ class DisplayConfiguratorDialog:
                     "flow_index": int(self._flow.index),
                     "test_step": int(self._test_step),
                     "zone_count": int(self._state.zone_count),
-                    "layout_preset": str(self._state.layout_preset),
                     "reverse_zones": bool(self._state.reverse_zones),
                     "device_zone_count": int(self._state.device_zone_count),
                     "display_preset": value_for_label(
@@ -1344,12 +1343,14 @@ class DisplayConfiguratorDialog:
                     str(self.sdr_white_reference_preset_combo.currentText()).strip().lower()
                 )
                 if preset_text != "custom":
-                    self._set_slider_value_safely(
-                        self.sdr_boost_nits_slider,
-                        int(preset_text.split(" ", 1)[0]),
-                    )
+                    try:
+                        self._set_slider_value_safely(
+                            self.sdr_boost_nits_slider,
+                            int(preset_text.split(" ", 1)[0]),
+                        )
+                    except (ValueError, IndexError):
+                        pass
                 self._refresh()
-                return True
 
             def _assign_anchor(self, corner: str) -> None:
                 self._pull_state_from_controls()
