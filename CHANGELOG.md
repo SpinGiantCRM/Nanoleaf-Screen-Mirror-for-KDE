@@ -1,5 +1,49 @@
 # Changelog
 
+## v1.4.0 — UI Beautification (pre-release)
+
+**6-phase UI polish — tray menu restructure, unified settings, embedded calibration, KDE Breeze QSS theming, wizard step indicator, dialog geometry persistence.**
+
+### Phase 1 — Tray Menu Cleanup
+- Restructure menu into daily-use top-level actions (Start, Stop, Settings, Calibration/Setup, About/Status) + "Advanced" submenu
+- Add system theme icons (`QIcon.fromTheme`) to Start, Stop, Settings, Calibration/Setup, About/Status, Quit
+- Merge duplicate Troubleshooting actions into single "Troubleshooting Guide" in Advanced submenu
+- Dynamic autostart: show only Enable or Disable toggle based on current filesystem state
+- Remove `view_mode` parameter from `on_settings()` and `on_open_advanced_settings()`
+
+### Phase 2 — Remove view_mode Dualism
+- Purge `SETTINGS_VIEW_STANDARD` and `SETTINGS_VIEW_ADVANCED` constants
+- Remove `view_mode` parameter from `SettingsDialog` constructor; accept `dialog_geometry` instead
+- All 6 sections (Display & Color, Performance, Edge Mapping, Calibration, Device, Diagnostics) always visible
+- Remove dead `_view_mode` branch and related conditional logic
+
+### Phase 3 — Embed SimpleCalibrationWidget
+- Embed `SimpleCalibrationWidget` from `calibration_widget.py` inline in the Calibration section
+- Remove dead `display_configurator_button` ("Re-run Display Setup") and `open_calibration_tool_button`
+- Add "Open full calibration wizard" button to Calibration section that routes to display configurator
+
+### Phase 4 — KDE Breeze-Compatible QSS Stylesheet
+- Create `src/nanoleaf_sync/ui/style.qss` with `palette()`-based neutral theme
+- Style QGroupBox, QPushButton, QSlider, QComboBox, QCheckBox, section headings, scroll areas
+- Load stylesheet at tray startup via `_load_stylesheet()` before app initialization
+- Set `heading` property on section labels so QSS `QLabel[heading="true"]` rule matches
+
+### Phase 5 — Step Indicator
+- Display configurator `step_label` already provides step indicator (pre-existing)
+
+### Phase 6 — Persist Dialog Size
+- `SettingsDialog.__init__` accepts `dialog_geometry: bytes | None` parameter
+- `_Dialog.__init__` restores geometry via `restoreGeometry()` when provided
+- Outer `SettingsDialog.exec()` captures geometry via `saveGeometry()` and exposes it via `saved_geometry()`
+- `tray_app.py` stores geometry in `_saved_settings_geometry` for persistence across dialog opens
+
+### Files Changed
+- `src/nanoleaf_sync/ui/tray_app.py` — menu restructure, icons, autostart, QSS loading, geometry persistence
+- `src/nanoleaf_sync/ui/settings_dialog.py` — remove view_mode, embed calibration widget, clean dead code, geometry persistence
+- `src/nanoleaf_sync/ui/style.qss` — new KDE Breeze-compatible QSS stylesheet
+- `tests/test_tray_menu_structure.py` — update for new menu structure, icons, merged troubleshooting
+- `tests/test_settings_dialog.py` — update for removed view_mode
+
 ## v1.2.2 — Full Codebase Audit (Phases 0-5)
 
 **46 changes across all modules — bugs, dead code, performance, consistency, infrastructure, and polish.**
