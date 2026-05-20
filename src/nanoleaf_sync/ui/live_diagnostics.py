@@ -1,25 +1,6 @@
-# Task: Phase 2 — Live Diagnostics Dialog
-
-## Context
-
-Phase 1 added frame brightness tracking fields to RuntimeState but there was no UI to view them. This phase adds a persistent, auto-refreshing Live Diagnostics dialog accessible from the tray menu that shows real-time capture backend info, frame metrics, pipeline health, device status, and per-zone colors. It refreshes every 500ms via QTimer while open — no need to stop mirroring.
-
-## Files
-
-| File | Action |
-|---|---|
-| `src/nanoleaf_sync/ui/live_diagnostics.py` | NEW — dialog class |
-| `src/nanoleaf_sync/ui/tray_app.py` | Add action + handler |
-
-## Changes
-
-### 1. New file: `src/nanoleaf_sync/ui/live_diagnostics.py`
-
-```python
 from __future__ import annotations
 
 import logging
-from functools import partial
 from typing import Callable
 
 from PyQt6.QtCore import QTimer
@@ -79,7 +60,7 @@ class LiveDiagnosticsDialog(QDialog):
         self._cap_labels = {}
         for row, (label, key) in enumerate(cap_fields):
             self._cap_grid.addWidget(QLabel(label + ":"), row, 0)
-            val = QLabel("—")
+            val = QLabel("\u2014")
             self._cap_grid.addWidget(val, row, 1)
             self._cap_labels[key] = val
         self._content_layout.addWidget(self._cap_group)
@@ -99,7 +80,7 @@ class LiveDiagnosticsDialog(QDialog):
         self._pipe_labels = {}
         for row, (label, key) in enumerate(pipe_fields):
             self._pipe_grid.addWidget(QLabel(label + ":"), row, 0)
-            val = QLabel("—")
+            val = QLabel("\u2014")
             self._pipe_grid.addWidget(val, row, 1)
             self._pipe_labels[key] = val
         self._content_layout.addWidget(self._pipe_group)
@@ -117,7 +98,7 @@ class LiveDiagnosticsDialog(QDialog):
         self._dev_labels = {}
         for row, (label, key) in enumerate(dev_fields):
             self._dev_grid.addWidget(QLabel(label + ":"), row, 0)
-            val = QLabel("—")
+            val = QLabel("\u2014")
             self._dev_grid.addWidget(val, row, 1)
             self._dev_labels[key] = val
         self._content_layout.addWidget(self._dev_group)
@@ -135,7 +116,7 @@ class LiveDiagnosticsDialog(QDialog):
         self._err_labels = {}
         for row, (label, key) in enumerate(err_fields):
             self._err_grid.addWidget(QLabel(label + ":"), row, 0)
-            val = QLabel("—")
+            val = QLabel("\u2014")
             self._err_grid.addWidget(val, row, 1)
             self._err_labels[key] = val
         self._content_layout.addWidget(self._err_group)
@@ -145,7 +126,6 @@ class LiveDiagnosticsDialog(QDialog):
         self._zone_layout = QVBoxLayout()
         self._zone_group.setLayout(self._zone_layout)
         self._zone_grid = None
-        self._zone_labels = {}
         self._content_layout.addWidget(self._zone_group)
 
         self._content_layout.addStretch(1)
@@ -186,12 +166,12 @@ class LiveDiagnosticsDialog(QDialog):
         running = bool(s.get("running", False))
 
         # Capture
-        self._cap_labels["_cap_backend"].setText(str(s.get("capture_backend") or "—"))
-        self._cap_labels["_cap_method"].setText(str(s.get("capture_path") or "—"))
+        self._cap_labels["_cap_backend"].setText(str(s.get("capture_backend") or "\u2014"))
+        self._cap_labels["_cap_method"].setText(str(s.get("capture_path") or "\u2014"))
         w = s.get("captured_frame_width", 0) or 0
         h = s.get("captured_frame_height", 0) or 0
         self._cap_labels["_cap_frame_size"].setText(
-            f"{w}×{h}" if w and h else "—"
+            f"{w}\u00d7{h}" if w and h else "\u2014"
         )
         b = s.get("latest_frame_mean_brightness", 0.0) or 0.0
         self._cap_labels["_cap_brightness"].setText(f"{b:.1f}")
@@ -217,16 +197,16 @@ class LiveDiagnosticsDialog(QDialog):
             tgt = 0
             eff = 0
         self._pipe_labels["_pipe_target_fps"].setText(
-            f"{tgt:.0f}" if tgt else "—"
+            f"{tgt:.0f}" if tgt else "\u2014"
         )
         self._pipe_labels["_pipe_eff_fps"].setText(
-            f"{eff:.1f}" if eff else "—"
+            f"{eff:.1f}" if eff else "\u2014"
         )
         self._pipe_labels["_pipe_lifecycle"].setText(
-            str(s.get("lifecycle_state") or "—")
+            str(s.get("lifecycle_state") or "\u2014")
         )
         self._pipe_labels["_pipe_priority"].setText(
-            str(s.get("configured_priority_mode") or "—")
+            str(s.get("configured_priority_mode") or "\u2014")
         )
 
         # Device
@@ -237,10 +217,10 @@ class LiveDiagnosticsDialog(QDialog):
             "yes" if s.get("capture_backend_ready") else "no"
         )
         self._dev_labels["_dev_cal"].setText(
-            str(s.get("calibration_status") or "—")
+            str(s.get("calibration_status") or "\u2014")
         )
         self._dev_labels["_dev_cal_msg"].setText(
-            str(s.get("calibration_status_message") or "—")
+            str(s.get("calibration_status_message") or "\u2014")
         )
 
         # Errors
@@ -248,13 +228,13 @@ class LiveDiagnosticsDialog(QDialog):
             str(s.get("last_error") or "none")
         )
         self._err_labels["_err_kind"].setText(
-            str(s.get("last_error_kind") or "—")
+            str(s.get("last_error_kind") or "\u2014")
         )
         self._err_labels["_err_guide"].setText(
-            str(s.get("last_error_guidance") or "—")
+            str(s.get("last_error_guidance") or "\u2014")
         )
         self._err_labels["_err_startup_ms"].setText(
-            str(s.get("startup_elapsed_ms", 0)) if running else "—"
+            str(s.get("startup_elapsed_ms", 0)) if running else "\u2014"
         )
 
         # Zone colors
@@ -283,59 +263,3 @@ class LiveDiagnosticsDialog(QDialog):
         # Manage timer: stop if mirroring stopped (live_only mode)
         if self._live_only and not running and self._timer.isActive():
             self._timer.stop()
-```
-
-### 2. Wire in `tray_app.py`
-
-**2a. Add import** at top (line 31 area):
-```python
-from nanoleaf_sync.ui.live_diagnostics import LiveDiagnosticsDialog
-```
-
-**2b. Add action** in `_make_menu()` (after line 447, next to `self.action_troubleshooting_guide`):
-```python
-self.action_live_diagnostics = self.QAction("Live Diagnostics", menu)
-```
-
-**2c. Wire trigger** (after line 464):
-```python
-self.action_live_diagnostics.triggered.connect(self.on_live_diagnostics)
-```
-
-**2d. Add to advanced submenu** (after line 477, after Troubleshooting Guide):
-```python
-advanced_menu.addAction(self.action_live_diagnostics)
-```
-
-**2e. Add handler** (after `on_open_troubleshooting_guide`, line 827):
-```python
-def on_live_diagnostics(self) -> None:
-    dlg = LiveDiagnosticsDialog(
-        parent=None,
-        refresh_fn=self.service.get_status,
-    )
-    dlg.exec()
-```
-
-**2f. Add to `_refresh_mode_labels`** — just ensure the action exists and is usable:
-```python
-# (no change needed — it's always enabled)
-```
-
-### 3. Verification
-
-```bash
-cd ~/Projects/Nanoleaf-Screen-Mirror-for-KDE
-python -m pytest -q --timeout=60 --timeout-method=thread --durations=25 -x
-ruff check src/nanoleaf_sync/ --select E9,F63,F82 --quiet
-```
-
-Manual: Launch app → Advanced → Live Diagnostics. Should show all fields with "—" when idle. Press Start → dialog auto-refreshes every 500ms showing backend name, frame brightness, FPS, black frame counts, per-zone colors.
-
-## Freebuff Snippet
-
-```
-freebuff task-spec
-```
-
-Run from: `~/Projects/Nanoleaf-Screen-Mirror-for-KDE/`

@@ -69,6 +69,9 @@ class RuntimeState:
     calibration_status: str = CALIBRATION_READY_STATUS
     calibration_status_message: str = ""
     target_fps: int = 60
+    consecutive_black_frames: int = 0
+    total_black_frames: int = 0
+    latest_frame_mean_brightness: float = 0.0
 
     def reset_for_start(self) -> None:
         self.prev_smoothed_colors = []
@@ -109,6 +112,9 @@ class RuntimeState:
         self.calibration_status = CALIBRATION_READY_STATUS
         self.calibration_status_message = ""
         self.target_fps = 60
+        self.consecutive_black_frames = 0
+        self.total_black_frames = 0
+        self.latest_frame_mean_brightness = 0.0
 
     def mark_calibration_incomplete(self, message: str) -> None:
         self.calibration_status = CALIBRATION_INCOMPLETE_STATUS
@@ -214,6 +220,9 @@ class RuntimeState:
             "startup_elapsed_ms": float(self.startup_elapsed_ms or 0.0),
             "calibration_status": str(self.calibration_status or CALIBRATION_READY_STATUS),
             "calibration_status_message": str(self.calibration_status_message or ""),
+            "consecutive_black_frames": self.consecutive_black_frames,
+            "total_black_frames": self.total_black_frames,
+            "latest_frame_mean_brightness": self.latest_frame_mean_brightness,
         }
 
 

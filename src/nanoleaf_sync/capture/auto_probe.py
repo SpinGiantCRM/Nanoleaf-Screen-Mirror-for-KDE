@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import logging
 import statistics
 from typing import Sequence, cast
+
+import numpy as np
 
 from nanoleaf_sync.capture.factory import create_capture_backend
 from nanoleaf_sync.capture.interfaces import CaptureBackend
@@ -15,6 +18,8 @@ from nanoleaf_sync.capture.probe_models import (
     ProbeStage,
 )
 from nanoleaf_sync.capture.probe_timing import call_with_timeout, monotonic_s
+
+logger = logging.getLogger(__name__)
 
 INTERACTIVE_SKIP_REASON = "interactive portal permission required; use Test xdg-portal to run."
 
@@ -119,11 +124,23 @@ def probe_backends(
             try:
                 remaining = max(0.0, deadline - monotonic_s())
                 stats.attempted_captures += 1
-                call_with_timeout(
+                frame = call_with_timeout(
                     lambda: backend.capture(),
                     min(probe_config.warmup_timeout_s, remaining),
                     op_name=f"{candidate} warmup capture",
                 )
+                if frame is not None:
+                    try:
+                        mean_val = float(np.mean(frame))
+                    except Exception:
+                        mean_val = 999.0
+                    if mean_val < 2.0:
+                        logger.warning(
+                            "Backend %s returned black frame during probe warmup "
+                            "(mean=%.2f); marking as marginal",
+                            candidate, mean_val,
+                        )
+                        stats.brightness_ok = False
                 stats.success_count += 1
             except Exception as exc:  # noqa: BLE001 - diagnostics collection
                 _record_error(stats, _build_probe_error("warmup", exc))
@@ -137,11 +154,23 @@ def probe_backends(
                 capture_start = monotonic_s()
                 try:
                     remaining = max(0.0, deadline - monotonic_s())
-                    call_with_timeout(
+                    frame = call_with_timeout(
                         lambda: backend.capture(),
                         min(probe_config.capture_timeout_s, remaining),
                         op_name=f"{candidate} capture",
                     )
+                    if frame is not None:
+                        try:
+                            mean_val = float(np.mean(frame))
+                        except Exception:
+                            mean_val = 999.0
+                        if mean_val < 2.0:
+                            logger.warning(
+                                "Backend %s returned black frame during probe "
+                                "(mean=%.2f); marking as marginal",
+                                candidate, mean_val,
+                            )
+                            stats.brightness_ok = False
                     stats.success_count += 1
                     stats.failure_count -= 1
                     stats.latencies_ms.append((monotonic_s() - capture_start) * 1000.0)
@@ -200,6 +229,7 @@ def probe_backends(
         scored,
         key=lambda item: (
             not item.qualified,
+            not item.brightness_ok,
             float("inf") if item.score is None else item.score,
             float("inf") if item.p95_ms is None else item.p95_ms,
             float("inf") if item.jitter_ms is None else item.jitter_ms,
@@ -221,4 +251,5 @@ def probe_backends(
         started_monotonic_s=started,
         elapsed_s=monotonic_s() - started,
         timed_out=timed_out,
+        brightness_ok=all(r.brightness_ok for r in ranked),
     )
