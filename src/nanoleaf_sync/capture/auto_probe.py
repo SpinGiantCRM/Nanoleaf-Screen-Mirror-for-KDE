@@ -138,7 +138,8 @@ def probe_backends(
                         logger.warning(
                             "Backend %s returned black frame during probe warmup "
                             "(mean=%.2f); marking as marginal",
-                            candidate, mean_val,
+                            candidate,
+                            mean_val,
                         )
                         stats.brightness_ok = False
                 stats.success_count += 1
@@ -168,7 +169,8 @@ def probe_backends(
                             logger.warning(
                                 "Backend %s returned black frame during probe "
                                 "(mean=%.2f); marking as marginal",
-                                candidate, mean_val,
+                                candidate,
+                                mean_val,
                             )
                             stats.brightness_ok = False
                     stats.success_count += 1

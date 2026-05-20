@@ -406,7 +406,7 @@ def test_open_via_gstreamer_recovers_from_parse_launch_error_with_pipeline_none_
         def parse_launch(desc: str):
             parse_calls.append(desc)
             if len(parse_calls) == 1:
-                raise RuntimeError("no element \"pipewiresrc\"")
+                raise RuntimeError('no element "pipewiresrc"')
             return _FakePipeline()
 
     monkeypatch.setitem(sys.modules, "gi", types.SimpleNamespace())

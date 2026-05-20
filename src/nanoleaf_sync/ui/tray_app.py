@@ -219,7 +219,7 @@ class NanoleafTrayApp:
         self._shutdown_in_progress = False
         self._shutdown_deadline = 0.0
         self._shutdown_poll_interval_s = 0.05
-        self._shutdown_timeout_s = 1.5
+        self._shutdown_timeout_s = 3.0
         self._quit_finalized = False
 
     def _close_preview_driver(self, *, resume_service: bool = True) -> None:
@@ -430,9 +430,7 @@ class NanoleafTrayApp:
         self.action_start = self.QAction(
             self.QIcon.fromTheme("media-playback-start"), "Start", menu
         )
-        self.action_stop = self.QAction(
-            self.QIcon.fromTheme("media-playback-stop"), "Stop", menu
-        )
+        self.action_stop = self.QAction(self.QIcon.fromTheme("media-playback-stop"), "Stop", menu)
         self.action_settings = self.QAction(
             self.QIcon.fromTheme("preferences-system"), "Settings…", menu
         )
@@ -453,9 +451,7 @@ class NanoleafTrayApp:
         self.action_launch_diagnostics = self.QAction("Show Launch Diagnostics", menu)
         self.action_enable_autostart = self.QAction("Enable Autostart", menu)
         self.action_disable_autostart = self.QAction("Disable Autostart", menu)
-        self.action_quit = self.QAction(
-            self.QIcon.fromTheme("application-exit"), "Quit", menu
-        )
+        self.action_quit = self.QAction(self.QIcon.fromTheme("application-exit"), "Quit", menu)
 
         # ── Wire triggers ──
         self.action_start.triggered.connect(self.on_start)
@@ -572,6 +568,7 @@ class NanoleafTrayApp:
         close_preview = getattr(self, "_close_preview_driver", None)
         if callable(close_preview):
             close_preview(resume_service=False)
+
         try:
             started = self.service.start()
             running = started and self.service.is_running()
@@ -696,15 +693,24 @@ class NanoleafTrayApp:
         NanoleafTrayApp._safe_refresh_mode_labels(self)
         if startup_state in {"starting", "running"}:
             return
-        guidance = (
-            status.get("last_error_guidance") or "Run nanoleaf-kde-sync-doctor for diagnostics."
-        )
-        self.tray_icon.showMessage(
-            "nanoleaf-kde-sync",
-            f"Auto-start failed: {self.service.last_error or 'unknown error'}\n{guidance}",
-            self.QSystemTrayIcon.MessageIcon.Warning,
-            7000,
-        )
+        if startup_state == "waiting_for_screen_selection":
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                "Waiting for screen selection",
+                self.QSystemTrayIcon.MessageIcon.Information,
+                5000,
+            )
+            return
+        if not effective_running:
+            guidance = (
+                status.get("last_error_guidance") or "Run nanoleaf-kde-sync-doctor for diagnostics."
+            )
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                f"Start failed: {self.service.last_error or 'unknown error'}\n{guidance}",
+                self.QSystemTrayIcon.MessageIcon.Warning,
+                7000,
+            )
 
     def on_display_configurator(self, *, was_running_intent: bool | None = None) -> None:
         dlg = DisplayConfiguratorDialog(

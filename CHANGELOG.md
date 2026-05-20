@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.5.1 — Startup & Shutdown Stability Fixes (pre-release)
+
+**Fixes two critical bugs: startup timeout causing false "failed to produce frame" failures, and stop-mirroring hang when device/capture backends are unresponsive.**
+
+### Engine
+- **Fixed indentation bug** in `_run_loop_legacy`: `capture_thread.join(timeout=...)` was inside the while loop (8-space indent), blocking every tick for 1 second — this alone caused repeated "failed to produce frame" failures regardless of timeout
+- **Increased `startup_frame_timeout_s`** from 1.5s → 5.0s in both `_run_loop_legacy` and `_run_loop_pipeline`
+- **Simplified startup timeout condition**: removed `xdg-portal` exemption check (the longer timeout handles all backends uniformly)
+
+### Shutdown
+- **Fixed indefinite hang on stop**: `close_backends()` in `shutdown_backends` now runs in a daemon thread with a 2.0s timeout join, preventing blocking when HID devices or capture backends are unresponsive
+- **Wrapped `send_final_frame()`** in try/except to prevent crash during shutdown
+- **Increased tray `_shutdown_timeout_s`** from 1.5s → 3.0s to give the runtime thread enough time to complete the shutdown sequence
+
+### Files Changed
+- `src/nanoleaf_sync/runtime/engine.py` — indentation fix, timeout increases, simplified condition
+- `src/nanoleaf_sync/runtime/startup.py` — shutdown backends timeout thread
+- `src/nanoleaf_sync/ui/tray_app.py` — shutdown timeout increase
+
 ## v1.5.0 — Frame Validation & Live Diagnostics (pre-release)
 
 **Two-phase pipeline health feature — black-frame detection in the engine, brightness-gated auto-probe ranking, and a real-time Live Diagnostics dialog.**
