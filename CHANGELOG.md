@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.5.0 — Frame Validation & Live Diagnostics (pre-release)
+
+**Two-phase pipeline health feature — black-frame detection in the engine, brightness-gated auto-probe ranking, and a real-time Live Diagnostics dialog.**
+
+### Phase 1 — Frame Validation & Auto-Probe Brightness Check
+- **New `RuntimeState` fields**: `consecutive_black_frames`, `total_black_frames`, `latest_frame_mean_brightness` — tracked in `__init__`, `reset_for_start()`, and `status_snapshot()`
+- **Engine black-frame detection**: `_process_worker` computes `np.mean(frame)` after capture, counts consecutive all-black frames, and logs a warning at 31 consecutive black frames (counter resets on non-black)
+- **Auto-probe brightness gating**: `auto_probe.py` captures frame return values from `call_with_timeout()` warmup/capture calls; checks `np.mean < 2.0` for black frames; sets `brightness_ok=False` on probe stats; factors `brightness_ok` into backend ranking (after `qualified`, before score); propagates to `ProbeResult`. Graceful try-except handles non-numpy mock frames
+- **`probe_models.py`**: Added `brightness_ok: bool = True` to `CandidateProbeResult` and `ProbeResult`
+
+### Phase 2 — Live Diagnostics Dialog
+- **New `src/nanoleaf_sync/ui/live_diagnostics.py`**: `LiveDiagnosticsDialog` with 5 section groups:
+  - **Capture** — backend name, method, frame size, mean brightness, consecutive/total black frames
+  - **Pipeline** — frames sent, consecutive errors, target/effective FPS, lifecycle state, priority mode
+  - **Device** — driver ready, capture backend ready, calibration status/message
+  - **Errors** — last error, error kind, guidance, startup elapsed ms
+  - **Per-Zone Colors** — collapsible grid showing zone index, side, RGB per zone
+- 500ms `QTimer` auto-refresh while mirroring is running; stops timer when mirroring stops (live-only mode)
+- **Tray integration**: Added "Live Diagnostics" action to Advanced submenu between Troubleshooting Guide and Run Doctor
+
+### Files Changed
+- `src/nanoleaf_sync/runtime/state.py` — 3 new fields
+- `src/nanoleaf_sync/runtime/engine.py` — frame brightness validation
+- `src/nanoleaf_sync/capture/auto_probe.py` — brightness-gated backend ranking
+- `src/nanoleaf_sync/capture/probe_models.py` — `brightness_ok` field
+- `src/nanoleaf_sync/ui/live_diagnostics.py` — new live diagnostics dialog
+- `src/nanoleaf_sync/ui/tray_app.py` — live diagnostics wiring
+
 ## v1.4.0 — UI Beautification (pre-release)
 
 **6-phase UI polish — tray menu restructure, unified settings, embedded calibration, KDE Breeze QSS theming, wizard step indicator, dialog geometry persistence.**
