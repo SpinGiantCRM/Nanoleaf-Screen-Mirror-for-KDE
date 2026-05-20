@@ -31,6 +31,7 @@ class CandidateProbeResult:
     score: float | None = None
     tentative: bool = False
     qualified: bool = False
+    brightness_ok: bool = True
 
     @property
     def error_messages(self) -> list[str]:
@@ -59,3 +60,4 @@ class ProbeResult:
     started_monotonic_s: float
     elapsed_s: float
     timed_out: bool = False
+    brightness_ok: bool = True

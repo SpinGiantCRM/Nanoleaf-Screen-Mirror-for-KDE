@@ -27,6 +27,7 @@ from nanoleaf_sync.service import NanoleafSyncService
 from nanoleaf_sync.tools.output_format import describe_mode, summarize_command_output
 from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog
 from nanoleaf_sync.ui.qt_lazy import load_qt
+from nanoleaf_sync.ui.live_diagnostics import LiveDiagnosticsDialog
 from nanoleaf_sync.ui.settings_dialog import SettingsDialog
 from nanoleaf_sync.runtime.output_session import OutputSessionController
 
@@ -445,6 +446,7 @@ class NanoleafTrayApp:
         # ── Advanced submenu actions ──
         self.action_advanced_settings = self.QAction("Advanced Settings", menu)
         self.action_troubleshooting_guide = self.QAction("Troubleshooting Guide", menu)
+        self.action_live_diagnostics = self.QAction("Live Diagnostics", menu)
         self.action_doctor = self.QAction("Run Doctor", menu)
         self.action_smoke = self.QAction("Run Smoke Test", menu)
         self.action_reset_probe_cache = self.QAction("Reset Auto-Probe Cache", menu)
@@ -462,6 +464,7 @@ class NanoleafTrayApp:
         self.action_display_wizard.triggered.connect(self.on_display_configurator)
         self.action_advanced_settings.triggered.connect(self.on_open_advanced_settings)
         self.action_troubleshooting_guide.triggered.connect(self.on_open_troubleshooting_guide)
+        self.action_live_diagnostics.triggered.connect(self.on_live_diagnostics)
         self.action_status.triggered.connect(self.on_status)
         self.action_enable_autostart.triggered.connect(self.on_enable_autostart)
         self.action_disable_autostart.triggered.connect(self.on_disable_autostart)
@@ -475,6 +478,7 @@ class NanoleafTrayApp:
         advanced_menu = self.QMenu("Advanced", menu)
         advanced_menu.addAction(self.action_advanced_settings)
         advanced_menu.addAction(self.action_troubleshooting_guide)
+        advanced_menu.addAction(self.action_live_diagnostics)
         advanced_menu.addSeparator()
         advanced_menu.addAction(self.action_doctor)
         advanced_menu.addAction(self.action_smoke)
@@ -824,6 +828,13 @@ class NanoleafTrayApp:
                 "If those checks fail, open docs/TROUBLESHOOTING.md in the project source."
             ),
         )
+
+    def on_live_diagnostics(self) -> None:
+        dlg = LiveDiagnosticsDialog(
+            parent=None,
+            refresh_fn=self.service.get_status,
+        )
+        dlg.exec()
 
     def on_status(self):
         status = self.service.get_status()

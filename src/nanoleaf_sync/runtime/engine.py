@@ -1346,6 +1346,23 @@ def _run_loop_pipeline(
                 state.first_frame_seen = True
                 img_h, img_w, _ = frame.shape
 
+                mean_brightness = float(np.mean(frame))
+                state.latest_frame_mean_brightness = mean_brightness
+                if mean_brightness < 2.0:
+                    state.consecutive_black_frames += 1
+                    state.total_black_frames += 1
+                    if state.consecutive_black_frames == 31:
+                        logger.warning(
+                            "All-black frames: %d consecutive, "
+                            "backend=%s, method=%s, mean_brightness=%.2f",
+                            state.consecutive_black_frames,
+                            latest_capture_backend_name,
+                            latest_capture_backend_method,
+                            mean_brightness,
+                        )
+                else:
+                    state.consecutive_black_frames = 0
+
                 driver = get_driver()
                 if driver is None:
                     continue
