@@ -242,23 +242,20 @@ class LiveDiagnosticsDialog(QDialog):
         if zone_diag and self._zone_grid is None:
             self._zone_grid = QGridLayout()
             self._zone_layout.insertLayout(0, self._zone_grid)
+        if self._zone_grid is not None and zone_diag:
+            # Clear existing grid contents (takeAt removes from layout; deleteLater frees widgets)
+            while self._zone_grid.count():
+                item = self._zone_grid.takeAt(0)
+                if item and item.widget():
+                    item.widget().deleteLater()
+            # Rebuild headers + zone rows
             for col_i, hdr in enumerate(["Zone", "Side", "RGB"]):
                 self._zone_grid.addWidget(QLabel(hdr), 0, col_i)
-        if self._zone_grid is not None and zone_diag:
-            row_count = self._zone_grid.rowCount()
-            # trim stale rows
-            while row_count > 1 + len(zone_diag):
-                row_count -= 1
-                for col in range(3):
-                    item = self._zone_grid.itemAtPosition(row_count - 1, col)
-                    if item and item.widget():
-                        item.widget().deleteLater()
             for zi, z in enumerate(zone_diag):
                 row = zi + 1
-                if row >= self._zone_grid.rowCount():
-                    self._zone_grid.addWidget(QLabel(str(z.get("zone_index", zi))), row, 0)
-                    self._zone_grid.addWidget(QLabel(str(z.get("side", "?"))), row, 1)
-                    self._zone_grid.addWidget(QLabel(str(z.get("rgb", "?"))), row, 2)
+                self._zone_grid.addWidget(QLabel(str(z.get("zone_index", zi))), row, 0)
+                self._zone_grid.addWidget(QLabel(str(z.get("side", "?"))), row, 1)
+                self._zone_grid.addWidget(QLabel(str(z.get("rgb", "?"))), row, 2)
 
         # Manage timer: stop if mirroring stopped (live_only mode)
         if self._live_only and not running and self._timer.isActive():
