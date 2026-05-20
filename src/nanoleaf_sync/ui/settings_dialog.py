@@ -74,6 +74,7 @@ SETTINGS_SECTIONS: tuple[str, ...] = (
     "Diagnostics",
 )
 
+
 class _FallbackLayout:
     def addWidget(self, *_args, **_kwargs) -> None:
         _log.warning("Qt QVBoxLayout unavailable; settings UI degraded.")
@@ -1079,7 +1080,9 @@ class SettingsDialog:
                     1,
                     3,
                 )
-                row = self.simple_calibration_widget.add_to_layout(layout, row=1, include_header=False)
+                row = self.simple_calibration_widget.add_to_layout(
+                    layout, row=1, include_header=False
+                )
                 layout.addWidget(self.test_label, row, 0, 1, 3)
                 row += 1
                 open_wizard_button = QPushButton("Open full calibration wizard")

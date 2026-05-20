@@ -129,8 +129,22 @@ def shutdown_backends(
     send_final_frame: Callable[[], None] | None = None,
 ) -> None:
     if send_final_frame is not None:
-        send_final_frame()
-    close_backends()
+        try:
+            send_final_frame()
+        except Exception:
+            logger.debug("send_final_frame failed during shutdown", exc_info=True)
+
+    # Run close_backends in a short-lived thread with timeout to prevent
+    # indefinite blocking when the HID device or capture backend is unresponsive.
+    close_thread = threading.Thread(target=close_backends, name="shutdown-close", daemon=True)
+    close_thread.start()
+    close_thread.join(timeout=2.0)
+    if close_thread.is_alive():
+        logger.warning(
+            "close_backends did not complete within shutdown timeout; "
+            "it may still be blocked in device IO"
+        )
+
     clear_backends()
 
 

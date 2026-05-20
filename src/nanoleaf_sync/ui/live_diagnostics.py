@@ -170,25 +170,15 @@ class LiveDiagnosticsDialog(QDialog):
         self._cap_labels["_cap_method"].setText(str(s.get("capture_path") or "\u2014"))
         w = s.get("captured_frame_width", 0) or 0
         h = s.get("captured_frame_height", 0) or 0
-        self._cap_labels["_cap_frame_size"].setText(
-            f"{w}\u00d7{h}" if w and h else "\u2014"
-        )
+        self._cap_labels["_cap_frame_size"].setText(f"{w}\u00d7{h}" if w and h else "\u2014")
         b = s.get("latest_frame_mean_brightness", 0.0) or 0.0
         self._cap_labels["_cap_brightness"].setText(f"{b:.1f}")
-        self._cap_labels["_cap_black_conc"].setText(
-            str(s.get("consecutive_black_frames", 0))
-        )
-        self._cap_labels["_cap_black_total"].setText(
-            str(s.get("total_black_frames", 0))
-        )
+        self._cap_labels["_cap_black_conc"].setText(str(s.get("consecutive_black_frames", 0)))
+        self._cap_labels["_cap_black_total"].setText(str(s.get("total_black_frames", 0)))
 
         # Pipeline
-        self._pipe_labels["_pipe_frames_sent"].setText(
-            str(s.get("frames_sent", 0))
-        )
-        self._pipe_labels["_pipe_errors"].setText(
-            str(s.get("consecutive_errors", 0))
-        )
+        self._pipe_labels["_pipe_frames_sent"].setText(str(s.get("frames_sent", 0)))
+        self._pipe_labels["_pipe_errors"].setText(str(s.get("consecutive_errors", 0)))
         lm = s.get("latency_measurement")
         if lm:
             tgt = lm.get("target_fps", 0)
@@ -196,43 +186,27 @@ class LiveDiagnosticsDialog(QDialog):
         else:
             tgt = 0
             eff = 0
-        self._pipe_labels["_pipe_target_fps"].setText(
-            f"{tgt:.0f}" if tgt else "\u2014"
-        )
-        self._pipe_labels["_pipe_eff_fps"].setText(
-            f"{eff:.1f}" if eff else "\u2014"
-        )
-        self._pipe_labels["_pipe_lifecycle"].setText(
-            str(s.get("lifecycle_state") or "\u2014")
-        )
+        self._pipe_labels["_pipe_target_fps"].setText(f"{tgt:.0f}" if tgt else "\u2014")
+        self._pipe_labels["_pipe_eff_fps"].setText(f"{eff:.1f}" if eff else "\u2014")
+        self._pipe_labels["_pipe_lifecycle"].setText(str(s.get("lifecycle_state") or "\u2014"))
         self._pipe_labels["_pipe_priority"].setText(
             str(s.get("configured_priority_mode") or "\u2014")
         )
 
         # Device
-        self._dev_labels["_dev_driver"].setText(
-            "yes" if s.get("driver_ready") else "no"
-        )
+        self._dev_labels["_dev_driver"].setText("yes" if s.get("driver_ready") else "no")
         self._dev_labels["_dev_cap_ready"].setText(
             "yes" if s.get("capture_backend_ready") else "no"
         )
-        self._dev_labels["_dev_cal"].setText(
-            str(s.get("calibration_status") or "\u2014")
-        )
+        self._dev_labels["_dev_cal"].setText(str(s.get("calibration_status") or "\u2014"))
         self._dev_labels["_dev_cal_msg"].setText(
             str(s.get("calibration_status_message") or "\u2014")
         )
 
         # Errors
-        self._err_labels["_err_last"].setText(
-            str(s.get("last_error") or "none")
-        )
-        self._err_labels["_err_kind"].setText(
-            str(s.get("last_error_kind") or "\u2014")
-        )
-        self._err_labels["_err_guide"].setText(
-            str(s.get("last_error_guidance") or "\u2014")
-        )
+        self._err_labels["_err_last"].setText(str(s.get("last_error") or "none"))
+        self._err_labels["_err_kind"].setText(str(s.get("last_error_kind") or "\u2014"))
+        self._err_labels["_err_guide"].setText(str(s.get("last_error_guidance") or "\u2014"))
         self._err_labels["_err_startup_ms"].setText(
             str(s.get("startup_elapsed_ms", 0)) if running else "\u2014"
         )

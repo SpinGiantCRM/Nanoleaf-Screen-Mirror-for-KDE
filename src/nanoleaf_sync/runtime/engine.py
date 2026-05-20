@@ -580,7 +580,7 @@ def _run_loop_legacy(
     no_pending_started_at = time.perf_counter()
     last_reported_capture_worker_error_count = 0
     startup_started_at = time.perf_counter()
-    startup_frame_timeout_s = max(0.1, float(getattr(config, "startup_frame_timeout_s", 1.5)))
+    startup_frame_timeout_s = max(0.1, float(getattr(config, "startup_frame_timeout_s", 5.0)))
 
     def _capture_worker() -> None:
         nonlocal capture_worker_error, capture_worker_failures, capture_worker_error_count
@@ -1165,10 +1165,7 @@ def _run_loop_legacy(
         if (not sent_any_frame) and (not state.startup_complete.is_set()):
             startup_elapsed = time.perf_counter() - startup_started_at
             state.startup_elapsed_ms = max(0.0, startup_elapsed * 1000.0)
-            if (
-                startup_elapsed >= startup_frame_timeout_s
-                and latest_capture_backend_name != "xdg-portal"
-            ):
+            if startup_elapsed >= startup_frame_timeout_s:
                 backend_name = latest_capture_backend_name or "unavailable"
                 backend_method = latest_capture_backend_method or "unavailable"
                 reason = (
@@ -1217,7 +1214,7 @@ def _run_loop_legacy(
                     f"[service] tick fps={governor.target_fps} elapsed_ms={elapsed_ms:.2f} zones={last_sent_zone_count} send_fps={send_fps:.1f} capture_to_send_ms={ewma_capture_to_send_ms:.2f} replaced_frames={replaced_frames}"
                 )
 
-        capture_thread.join(timeout=1.0)
+    capture_thread.join(timeout=2.0)
     if capture_thread.is_alive():
         logger.warning(
             "capture worker thread did not exit within shutdown timeout; "
@@ -1242,7 +1239,7 @@ def _run_loop_pipeline(
     interval_s = 1.0 / fps
     log_interval_s = float(getattr(config, "status_log_interval_s", 5.0))
     error_limit = max(1, int(getattr(config, "max_consecutive_errors", 5)))
-    startup_frame_timeout_s = max(0.1, float(getattr(config, "startup_frame_timeout_s", 1.5)))
+    startup_frame_timeout_s = max(0.1, float(getattr(config, "startup_frame_timeout_s", 5.0)))
     startup_started_at = time.perf_counter()
 
     # ---- ring buffers ---------------------------------------------------
@@ -1933,10 +1930,7 @@ def _run_loop_pipeline(
         if not state.first_frame_sent and not state.startup_complete.is_set():
             startup_elapsed = now - startup_started_at
             state.startup_elapsed_ms = max(0.0, startup_elapsed * 1000.0)
-            if (
-                startup_elapsed >= startup_frame_timeout_s
-                and latest_capture_backend_name != "xdg-portal"
-            ):
+            if startup_elapsed >= startup_frame_timeout_s:
                 backend = latest_capture_backend_name or "unavailable"
                 method = latest_capture_backend_method or "unavailable"
                 reason = (

@@ -11,13 +11,13 @@ def test_tray_menu_groups_advanced_actions_under_submenu() -> None:
 
 def test_tray_top_level_is_focused_for_daily_use() -> None:
     text = Path("src/nanoleaf_sync/ui/tray_app.py").read_text(encoding="utf-8")
-    assert 'self.action_settings = self.QAction(' in text
-    assert 'self.action_display_wizard = self.QAction(' in text
-    assert 'self.action_status = self.QAction(' in text
+    assert "self.action_settings = self.QAction(" in text
+    assert "self.action_display_wizard = self.QAction(" in text
+    assert "self.action_status = self.QAction(" in text
     assert 'self.action_advanced_settings = self.QAction("Advanced Settings", menu)' in text
     # Redundant header item removed — advanced_menu no longer has the action
     # as first item duplicating the submenu label.
-    assert 'advanced_menu.addAction(self.action_advanced_settings)' in text
+    assert "advanced_menu.addAction(self.action_advanced_settings)" in text
     assert "menu.addMenu(advanced_menu)" in text
     assert "menu.addAction(self.action_status)" in text
     assert text.index("menu.addAction(self.action_status)") < text.index(
