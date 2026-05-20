@@ -1984,7 +1984,7 @@ def _run_loop_pipeline(
 
     # ---- shutdown -------------------------------------------------------
     for t in threads:
-        t.join(timeout=1.0)
+        t.join(timeout=2.0)
         if t.is_alive():
             logger.warning(
                 "%s thread did not exit within shutdown timeout; it may still be blocked in IO",

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from types import SimpleNamespace
 
 from nanoleaf_sync.ui.tray_app import NanoleafTrayApp
@@ -90,8 +91,10 @@ def test_on_stop_reports_timeout_without_pretending_idle() -> None:
     service = _FakeServiceStopTimeout()
     messages: list[str] = []
     icons: list[str] = []
+    timer = _FakeTimer()
     fake_tray = SimpleNamespace(
         service=service,
+        QTimer=timer,
         tray_icon=SimpleNamespace(
             setIcon=lambda icon: icons.append(icon),
             showMessage=lambda _title, text, _icon, _timeout: messages.append(text),
@@ -101,6 +104,8 @@ def test_on_stop_reports_timeout_without_pretending_idle() -> None:
         _refresh_mode_labels=lambda: None,
         _shutdown_in_progress=False,
         _shutdown_timeout_s=0.1,
+        _stop_poll_deadline=0.0,
+        _stop_poll_count=0,
         _schedule_stop_warning=lambda _svc: None,
         QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Warning=2)),
     )
@@ -109,11 +114,22 @@ def test_on_stop_reports_timeout_without_pretending_idle() -> None:
     fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(
         fake_tray
     )
+    fake_tray._set_idle_ui_state = lambda: NanoleafTrayApp._set_idle_ui_state(fake_tray)
+    fake_tray._poll_stop_completion = lambda: NanoleafTrayApp._poll_stop_completion(fake_tray)
 
     NanoleafTrayApp.on_stop(fake_tray)
 
     assert service.stop_calls == 1
-    assert icons[-1] == "running"
+    # on_stop sets _stop_poll_deadline to a future time and starts polling.
+    # The first poll tick sees the future deadline and schedules another tick.
+    assert len(timer.pending) == 1
+    _delay, callback = timer.pending.pop(0)
+    # Advance the poll deadline to the past so the next callback hits the
+    # deadline path.
+    fake_tray._stop_poll_deadline = time.monotonic() - 1.0
+    callback()
+
+    # After the poll deadline, the timeout message should appear.
     assert any("still stopping" in msg for msg in messages)
 
 
@@ -127,9 +143,11 @@ def test_on_stop_handles_service_state_query_errors_without_exiting() -> None:
     messages: list[str] = []
     icons: list[str] = []
     quit_calls: list[str] = []
+    timer = _FakeTimer()
     fake_tray = SimpleNamespace(
         service=service,
         app=SimpleNamespace(quit=lambda: quit_calls.append("quit")),
+        QTimer=timer,
         tray_icon=SimpleNamespace(
             setIcon=lambda icon: icons.append(icon),
             showMessage=lambda _title, text, _icon, _timeout: messages.append(text),
@@ -139,6 +157,8 @@ def test_on_stop_handles_service_state_query_errors_without_exiting() -> None:
         _refresh_mode_labels=lambda: None,
         _shutdown_in_progress=False,
         _shutdown_timeout_s=0.1,
+        _stop_poll_deadline=0.0,
+        _stop_poll_count=0,
         _schedule_stop_warning=lambda _svc: None,
         QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Warning=2)),
     )
@@ -147,6 +167,8 @@ def test_on_stop_handles_service_state_query_errors_without_exiting() -> None:
     fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(
         fake_tray
     )
+    fake_tray._set_idle_ui_state = lambda: NanoleafTrayApp._set_idle_ui_state(fake_tray)
+    fake_tray._poll_stop_completion = lambda: NanoleafTrayApp._poll_stop_completion(fake_tray)
 
     NanoleafTrayApp.on_stop(fake_tray)
 

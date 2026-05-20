@@ -143,11 +143,26 @@ class KWinDBusScreenshotCapture:
             return frame
         return convert_frame_to_srgb8(frame, metadata=meta)
 
-    def _run_async(self, coro):
-        """Run async DBus calls in a dedicated loop for sync capture API."""
+    def _run_async(self, coro, *, timeout: float = 2.0):
+        """Run async DBus calls in a dedicated loop for sync capture API.
+
+        A *timeout* (default 2.0 s) prevents the capture worker from blocking
+        indefinitely when a D-Bus call hangs.  The caller (typically the capture
+        worker) catches the resulting :exc:`TimeoutError` / :exc:`KWinDBusCaptureError`
+        and retries or exits in response to the runtime stop event.
+        """
         loop = self._ensure_background_loop()
         future = asyncio.run_coroutine_threadsafe(coro, loop)
-        return future.result()
+        try:
+            return future.result(timeout=max(0.1, float(timeout)))
+        except TimeoutError:
+            # The future may still be pending; cancel it on the event-loop
+            # thread so we don't leak tasks.
+            future.cancel()
+            raise KWinDBusCaptureError(
+                f"KWin D-Bus call timed out after {timeout:.1f}s. "
+                "The compositor may be busy or the D-Bus session is unresponsive."
+            )
 
     def _ensure_background_loop(self) -> asyncio.AbstractEventLoop:
         loop = self._loop
