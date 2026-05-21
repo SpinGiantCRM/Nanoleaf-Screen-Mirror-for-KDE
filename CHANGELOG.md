@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.5.3 — Stuck Thread Recovery Fix (pre-release)
+
+**Fixes the "Start never completes, Stop doesn't work" bug when the runtime thread blocks on unresponsive HID or capture backends.**
+
+### Startup / Stop Recovery
+- **`RuntimeLifecycle.stop()`**: after join timeout, forcibly detaches stuck threads (blocked in HID open or capture init) and transitions to error state so the UI can recover and re-enable Start.
+- **`RuntimeLifecycle._sync_state_locked()`**: preserves explicitly-set "error" state instead of overwriting it to "idle" when the thread is not alive.
+
+### Tests
+- Updated `tests/test_service_robustness.py` — 2 tests now expect `stop()` returning `True` after detaching (new recovery behavior).
+
+### Files Changed
+- `src/nanoleaf_sync/runtime/startup.py` — detach stuck threads, preserve error state
+- `tests/test_service_robustness.py` — update stop() assertions for recovery path
+
 ## v1.5.2 — KWin D-Bus & Stop Button Recovery Fixes
 
 **Fixes two critical bugs: kwin-dbus capture hanging forever, and Stop leaving the Start button permanently greyed out.**
