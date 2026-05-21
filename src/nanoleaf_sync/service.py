@@ -634,7 +634,8 @@ class NanoleafSyncService:
 
             if self._driver_override is not None:
                 self._driver = self._driver_override
-            else:            self._driver = self._make_device_driver()
+            else:
+                self._driver = self._make_device_driver()
 
             self._driver.initialize()
             self._runtime.driver_ready = True
