@@ -301,6 +301,13 @@ class NanoleafUSBDriver(DeviceDriver):
                     maybe_timing = write_with_nonblocking_drain(request)
                     if isinstance(maybe_timing, dict):
                         transport_timing = maybe_timing
+                        drain_reads = int(transport_timing.get("read_calls", 0))
+                        drain_ms = transport_timing.get("flush_or_wait_ms", 0.0)
+                        self._logger.debug(
+                            "nonblocking drain: read_calls=%d flush_or_wait_ms=%.2f",
+                            drain_reads,
+                            float(drain_ms) if drain_ms is not None else 0.0,
+                        )
                 except Exception as exc:
                     if self._write_failed_before_any_bytes(exc):
                         send_err = exc

@@ -1243,8 +1243,10 @@ def _run_loop_pipeline(
     startup_started_at = time.perf_counter()
 
     # ---- ring buffers ---------------------------------------------------
-    capture_buf: SPSCRingBuffer[CapturePayload] = SPSCRingBuffer(capacity=2)
-    process_buf: SPSCRingBuffer[ProcessedPayload] = SPSCRingBuffer(capacity=2)
+    # Capacity 4 per buffer: absorbs ~33 ms of 120 fps capture jitter
+    # without excessive memory (ProcessedPayload carries several arrays).
+    capture_buf: SPSCRingBuffer[CapturePayload] = SPSCRingBuffer(capacity=4)
+    process_buf: SPSCRingBuffer[ProcessedPayload] = SPSCRingBuffer(capacity=4)
 
     # ---- shared cross-thread metrics (lock-protected) -------------------
     metrics_lock = threading.Lock()
