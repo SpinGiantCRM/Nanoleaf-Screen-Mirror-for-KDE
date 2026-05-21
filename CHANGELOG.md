@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.5.4 — Black Screen Mirroring Fix (pre-release)
+
+**Fixes the critical regression where screen mirroring produced all-black output on the LED strip despite correct capture and processing.**
+
+### Root Cause
+The 3-stage pipeline's `_hid_writer` thread used `write_with_nonblocking_drain` (fire-and-forget HID writes) by default. Zone color frames were sent to the device but never acknowledged/applied, so the LED strip stayed black even though capture and processing worked correctly.
+
+### Fix
+- **`service.py`**: Disable `enable_live_frame_write_optimization` for the runtime service path, forcing the driver to use the response-required `transceive_with_timing` HID path instead of the nonblocking drain.
+- **`engine.py`**: Add return-value checking on `process_buf.push()` in `_process_worker` so frame drops from a full ring buffer are logged as warnings instead of silently ignored.
+
+### Tests
+- Updated `tests/test_service_status_modes.py` mock to accept the new `enable_live_frame_write_optimization` keyword argument.
+
+### Files Changed
+- `src/nanoleaf_sync/service.py` — disable nonblocking drain optimization for runtime
+- `src/nanoleaf_sync/runtime/engine.py` — log dropped frames from full process buffer
+- `tests/test_service_status_modes.py` — mock keyword arg fix
+
 ## v1.5.3 — Stuck Thread Recovery Fix (pre-release)
 
 **Fixes the "Start never completes, Stop doesn't work" bug when the runtime thread blocks on unresponsive HID or capture backends.**

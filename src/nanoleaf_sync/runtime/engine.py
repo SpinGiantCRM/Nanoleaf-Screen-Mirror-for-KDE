@@ -1579,7 +1579,7 @@ def _run_loop_pipeline(
                 state.latest_zone_diagnostics = zone_diagnostics
                 state.latest_side_variance_diagnostics = side_var
 
-                process_buf.push(
+                pushed = process_buf.push(
                     ProcessedPayload(
                         smoothed_colors=smoothed_colors,
                         captured_at=captured_at,
@@ -1595,6 +1595,11 @@ def _run_loop_pipeline(
                     ),
                     timeout=0.01,
                 )
+                if not pushed:
+                    logger.warning(
+                        "process worker: process_buf push timed out; dropping frame "
+                        "(HID writer may be stalled)"
+                    )
                 process_worker_error = None
                 with metrics_lock:
                     process_worker_error_count = 0
