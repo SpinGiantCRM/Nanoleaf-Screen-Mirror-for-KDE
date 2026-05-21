@@ -269,12 +269,9 @@ class RuntimeLifecycle:
                     self._state_name = "error"
                     self._state.lifecycle_state = "failed"
                     self._state.last_error = (
-                        self._state.last_error
-                        or "Service did not stop within timeout"
+                        self._state.last_error or "Service did not stop within timeout"
                     )
-                    self._state.last_error_kind = (
-                        self._state.last_error_kind or "stop-timeout"
-                    )
+                    self._state.last_error_kind = self._state.last_error_kind or "stop-timeout"
                     self._state.last_error_guidance = (
                         self._state.last_error_guidance
                         or "The runtime thread is stuck. Check USB device connection and retry."
