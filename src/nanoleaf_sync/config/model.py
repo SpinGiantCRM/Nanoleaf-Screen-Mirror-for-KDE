@@ -197,6 +197,9 @@ class AppConfig:
     # Pipeline: use the legacy single-threaded path instead of the 3-stage pipeline.
     # The 3-stage pipeline (capture → process → HID) is the default.
     use_legacy_pipeline: bool = False
+    # Maximum seconds to wait for the first frame on startup before timing out.
+    # Increase if kwin-dbus authorization is slow (e.g. first launch from terminal).
+    startup_frame_timeout_s: float = 5.0
 
     def __post_init__(self) -> None:
         """Sync calibration field to ensure single source of truth.

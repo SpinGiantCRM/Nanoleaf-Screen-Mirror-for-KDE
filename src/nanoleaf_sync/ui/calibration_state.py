@@ -227,7 +227,6 @@ class CalibrationState:
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
             reverse_zones=self.reverse_zones,
-            start_anchor=None,
             calibration_model="corner_anchored",
             corner_anchor_top_left=self.corner_anchor_top_left,
             corner_anchor_top_right=self.corner_anchor_top_right,

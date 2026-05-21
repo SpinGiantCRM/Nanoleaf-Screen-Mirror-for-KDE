@@ -102,12 +102,12 @@ def chromaticities_to_xyz_matrix(p: Chromaticities) -> np.ndarray:
     Xg, _Yg, Zg = _xyz_from_xy(gx, gy)
     Xb, _Yb, Zb = _xyz_from_xy(bx, by)
 
-    # Build the 3×3 matrix of primaries.
+    # Build the 3×3 matrix with primaries as *rows* (rgb @ M = xyz).
     M = np.array(
         [
-            [Xr, Xg, Xb],
-            [1.0, 1.0, 1.0],
-            [Zr, Zg, Zb],
+            [Xr, 1.0, Zr],
+            [Xg, 1.0, Zg],
+            [Xb, 1.0, Zb],
         ],
         dtype=np.float64,
     )
@@ -119,11 +119,11 @@ def chromaticities_to_xyz_matrix(p: Chromaticities) -> np.ndarray:
     else:
         W_xyz = np.array([Wx / Wy, 1.0, (1.0 - Wx - Wy) / Wy], dtype=np.float64)
 
-    # Solve for scaling factors: M @ S = W_xyz → S = M⁻¹ @ W_xyz.
-    S = np.linalg.solve(M, W_xyz)
+    # Solve for scaling factors: Mᵀ @ S = W_xyz → S = (Mᵀ)⁻¹ @ W_xyz.
+    S = np.linalg.solve(M.T, W_xyz)
 
-    # Scale columns of M.
-    M_scaled = M * S  # broadcasting: (3,3) * (3,) → columns
+    # Scale rows of M so that [1,1,1] @ M_scaled = M @ S = W_xyz.
+    M_scaled = M * S[:, None]  # broadcast: (3,3) * (3,1) → scale each row
 
     return M_scaled.astype(np.float32)
 
@@ -165,8 +165,9 @@ def build_adaptation_matrix(
     tgt_xyz = chromaticities_to_xyz_matrix(target_primaries)
 
     # Extract white points as XYZ (white = R+G+B at equal intensity).
-    src_white = np.sum(src_xyz, axis=1)
-    tgt_white = np.sum(tgt_xyz, axis=1)
+    # With row-major matrices, [1,1,1] @ M = sum of rows (axis=0) = W_xyz.
+    src_white = np.sum(src_xyz, axis=0)
+    tgt_white = np.sum(tgt_xyz, axis=0)
 
     # Cone responses for white points.
     src_cone = _BFD @ src_white

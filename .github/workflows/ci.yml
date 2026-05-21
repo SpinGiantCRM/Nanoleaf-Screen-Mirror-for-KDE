@@ -50,4 +50,4 @@ jobs:
         run: python scripts/check_calibration_guardrails.py --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.sha }}"
 
       - name: Run tests
-        run: pytest -q --timeout=60 --timeout-method=thread --durations=25 --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=55
+        run: pytest -q --timeout=60 --timeout-method=thread --durations=25 --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=60
