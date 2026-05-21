@@ -635,7 +635,11 @@ class NanoleafSyncService:
             if self._driver_override is not None:
                 self._driver = self._driver_override
             else:
-                self._driver = self._make_device_driver()
+                # Use response-required HID path (disable nonblocking drain optimization)
+                # so the device reliably acknowledges/applies live zone color frames.
+                self._driver = self._make_device_driver(
+                    enable_live_frame_write_optimization=False
+                )
 
             self._driver.initialize()
             self._runtime.driver_ready = True
