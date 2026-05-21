@@ -260,6 +260,23 @@ class RuntimeLifecycle:
         self._state.stop_event.set()
         if join_timeout is not None:
             self.join(timeout=join_timeout)
+            with self._lock:
+                self._sync_state_locked()
+                if self._thread is not None and self._thread.is_alive():
+                    # Thread is stuck (e.g. blocked in HID open or capture init)
+                    # and cannot respond to stop_event. Detach it so the UI
+                    # can recover and the user can retry Start.
+                    self._state_name = "error"
+                    self._state.lifecycle_state = "failed"
+                    self._state.last_error = (
+                        self._state.last_error or "Service did not stop within timeout"
+                    )
+                    self._state.last_error_kind = self._state.last_error_kind or "stop-timeout"
+                    self._state.last_error_guidance = (
+                        self._state.last_error_guidance
+                        or "The runtime thread is stuck. Check USB device connection and retry."
+                    )
+                    self._thread = None
             return not self.is_running()
         return True
 
@@ -298,9 +315,14 @@ class RuntimeLifecycle:
                 self._state_name = "running"
                 self._state.lifecycle_state = "running"
             return
+        # Thread is not alive.
         if self._state_name == "stopping":
             self._state_name = "idle"
             self._state.lifecycle_state = "idle"
+            return
+        if self._state_name == "error":
+            # Preserve explicitly set error state (e.g. from a stuck stop).
+            self._state.lifecycle_state = "failed"
             return
         if self._state.startup_complete.is_set() and not self._state.startup_succeeded:
             self._state_name = "error"

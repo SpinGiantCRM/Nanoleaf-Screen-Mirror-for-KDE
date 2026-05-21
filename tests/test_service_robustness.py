@@ -196,21 +196,24 @@ def test_stop_does_not_close_shared_backends_from_caller_thread() -> None:
     assert service.start() is True
     assert capture.wait_until_blocked(timeout=1.0) is True
 
-    assert service.stop(timeout=0.05) is False
-    assert service.is_running() is True
+    # Stop detaches the stuck thread and returns True so the UI can recover.
+    assert service.stop(timeout=0.05) is True
+    assert service.is_running() is False
+    # close is never called from the caller thread.
     assert capture.close_calls == 0
     assert driver.close_calls == 0
 
+    # Release the captured thread; the detached runtime will finish on its own.
     capture.release()
-    assert service.stop(timeout=1.0) is True
+    assert _wait_until(lambda: capture.close_calls >= 1, timeout_s=2.0)
     assert _wait_until(lambda: not service.is_running(), timeout_s=1.0)
-    assert capture.close_calls == 1
+    assert capture.close_calls >= 1
     assert caller_thread_id not in capture.close_thread_ids
     assert driver.initialized is False
     assert service.stop(timeout=0.2) is True
 
 
-def test_stop_timeout_returns_false_when_runtime_remains_blocked() -> None:
+def test_stop_detaches_stuck_runtime_and_reports_not_running() -> None:
     cfg = AppConfig(fps=30, verbose=False, use_mock_capture=False)
     capture = BlockingCapture(width=16, height=9, close_unblocks=False)
     driver = FakeDriver()
@@ -221,8 +224,9 @@ def test_stop_timeout_returns_false_when_runtime_remains_blocked() -> None:
     assert service.start() is True
     assert capture.wait_until_blocked(timeout=1.0) is True
 
-    assert service.stop(timeout=0.05) is False
-    assert service.is_running() is True
+    # Stop detaches the stuck thread so the UI can recover.
+    assert service.stop(timeout=0.05) is True
+    assert service.is_running() is False
 
     capture.release()
     assert service.stop(timeout=1.0) is True
