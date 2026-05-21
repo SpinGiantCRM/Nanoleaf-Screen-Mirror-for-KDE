@@ -398,6 +398,7 @@ class HIDTransport:
         report: bytes | bytearray | memoryview | Sequence[int],
         *,
         max_drain_reads: int = 2,
+        ack_timeout_ms: int = 25,
     ) -> dict[str, int | float | list[int] | list[float] | bool | str]:
         if self._handle is None:
             raise RuntimeError("HID transport not opened.")
@@ -406,11 +407,15 @@ class HIDTransport:
         drain_start = time.perf_counter()
         drain_reads = 0
         max_reads = max(0, int(max_drain_reads))
+        # 25ms blocking ack: short enough for 30–60 fps pipeline throughput,
+        # long enough for the device to ACK a SET_ZONE_COLORS frame.
+        first_timeout = max(0, int(ack_timeout_ms))
         try:
-            for _ in range(max_reads):
+            for i in range(max_reads):
+                timeout_ms = first_timeout if i == 0 else 0
                 raw_chunk = self._handle.read(
                     self.report_size + (1 if self.use_report_id_prefix else 0),
-                    0,
+                    timeout_ms,
                 )
                 if not raw_chunk:
                     break
