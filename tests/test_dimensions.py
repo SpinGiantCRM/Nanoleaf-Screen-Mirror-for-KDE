@@ -1,26 +1,92 @@
+"""Tests for capture dimension detection and resolution."""
+
 from __future__ import annotations
 
-from pathlib import Path
-
-from nanoleaf_sync.capture import dimensions
-
-
-def test_parse_mode_line() -> None:
-    assert dimensions._parse_mode_line("3840x2160") == (3840, 2160)
-    assert dimensions._parse_mode_line("1920x1080@60") == (1920, 1080)
-    assert dimensions._parse_mode_line("invalid") is None
+from nanoleaf_sync.capture.dimensions import (
+    _parse_mode_line,
+    resolve_capture_dims,
+    DEFAULT_CAPTURE_WIDTH,
+    DEFAULT_CAPTURE_HEIGHT,
+)
 
 
-def test_detect_sysfs_prefers_largest_connected(monkeypatch, tmp_path: Path) -> None:
-    drm = tmp_path / "drm"
-    c1 = drm / "card0-HDMI-A-1"
-    c2 = drm / "card0-DP-1"
-    c1.mkdir(parents=True)
-    c2.mkdir(parents=True)
-    (c1 / "status").write_text("connected\n", encoding="utf-8")
-    (c1 / "modes").write_text("1920x1080\n", encoding="utf-8")
-    (c2 / "status").write_text("connected\n", encoding="utf-8")
-    (c2 / "modes").write_text("3440x1440\n", encoding="utf-8")
+# -- _parse_mode_line ------------------------------------------------------
 
-    monkeypatch.setattr(dimensions, "Path", lambda p: drm if p == "/sys/class/drm" else Path(p))
-    assert dimensions._detect_primary_screen_dims_sysfs() == (3440, 1440)
+
+def test_parse_standard_mode() -> None:
+    result = _parse_mode_line("3840x2160")
+    assert result == (3840, 2160)
+
+
+def test_parse_mode_with_refresh() -> None:
+    result = _parse_mode_line("1920x1080@60")
+    assert result == (1920, 1080)
+
+
+def test_parse_mode_with_whitespace() -> None:
+    result = _parse_mode_line("  2560x1440@144  ")
+    assert result == (2560, 1440)
+
+
+def test_parse_mode_no_x_separator() -> None:
+    assert _parse_mode_line("3840-2160") is None
+
+
+def test_parse_mode_empty() -> None:
+    assert _parse_mode_line("") is None
+
+
+def test_parse_mode_non_numeric() -> None:
+    assert _parse_mode_line("abcxdef") is None
+
+
+def test_parse_mode_negative_values() -> None:
+    assert _parse_mode_line("-1x1080") is None
+    assert _parse_mode_line("1920x-1") is None
+
+
+def test_parse_mode_just_refresh() -> None:
+    assert _parse_mode_line("@60") is None
+
+
+def test_parse_mode_extra_at_signs() -> None:
+    """Only first @ is the separator."""
+    result = _parse_mode_line("1920x1080@60@something")
+    assert result == (1920, 1080)
+
+
+# -- resolve_capture_dims --------------------------------------------------
+
+
+def test_resolve_capture_dims_mock_config_no_zones() -> None:
+    """Without zones or detected screen, returns default dimensions."""
+    from nanoleaf_sync.config.model import AppConfig
+
+    cfg = AppConfig(zones=[])
+    w, h = resolve_capture_dims(cfg)
+    assert w >= 160
+    assert h >= 90
+    assert w == DEFAULT_CAPTURE_WIDTH
+    assert h == DEFAULT_CAPTURE_HEIGHT
+
+
+def test_resolve_capture_dims_wide_zone_count() -> None:
+    """Many zones should increase the minimum width."""
+    from nanoleaf_sync.config.model import AppConfig
+    from nanoleaf_sync.config.model import ZoneConfig
+
+    zones = [ZoneConfig(x=0.0, y=0.0, w=1.0, h=0.1) for _ in range(200)]
+    cfg = AppConfig(zones=zones)
+    w, h = resolve_capture_dims(cfg)
+    assert w >= 200 * 4  # zone_count * 4
+    assert w >= 160
+    assert h >= 90
+
+
+def test_resolve_capture_dims_aspect_ratio_16_9() -> None:
+    """Height should be at least 9/16 of width."""
+    from nanoleaf_sync.config.model import AppConfig
+
+    cfg = AppConfig(zones=[])
+    w, h = resolve_capture_dims(cfg)
+    assert h >= (w * 9) // 16

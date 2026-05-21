@@ -488,6 +488,7 @@ class NanoleafSyncService:
             output_channel_order=self.config.output_channel_order,
             configured_zone_count=int(getattr(self.config, "device_zone_count", 0) or 0),
             enable_live_frame_write_optimization=enable_live_frame_write_optimization,
+            auto_turn_on=bool(getattr(self.config, "auto_turn_on", True)),
         )
 
     def _clear_backends(self) -> None:

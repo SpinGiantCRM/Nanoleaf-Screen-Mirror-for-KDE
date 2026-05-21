@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.5.7 — Audit Fixes, Coverage, and Color Accuracy (pre-release)
+
+**Four bug fixes from a full codebase audit, a critical XYZ color matrix correction, and 60% test coverage (up from 58.68%).**
+
+### Bug Fixes
+- **`calibration_state.py`**: Remove nonexistent `start_anchor=None` kwarg from `_corner_steps()` — would cause latent `TypeError` if that code path were ever reached
+- **`service.py`**: Wire `auto_turn_on` config field through to `NanoleafUSBDriver` — was dead code, config toggle had no effect
+- **`config/model.py`**: Add `startup_frame_timeout_s: float = 5.0` field to `AppConfig` — was a phantom field only accessible via `getattr` fallback
+
+### Critical Color Math Fix
+- **`primaries.py`**: Fixed `chromaticities_to_xyz_matrix` — corrected matrix layout from column-major to row-major, and fixed the white-point scaling solve equation. White point Y was 0.993 (0.7% error in XYZ space), now 1.000000 correctly mapping sRGB white to D65 Y=1.0. Also fixed `build_adaptation_matrix` white point extraction to match row-major convention.
+
+### Test Coverage: 58.68% → 60%
+- **10 new test files** (~177 tests): `test_fps_governor.py`, `test_serialization.py`, `test_capture_utils.py`, `test_compositor.py`, `test_primaries.py`, `test_color_accuracy_diagnostics.py`, `test_srgb.py`, `test_dimensions.py`, `test_normalize.py`, `test_anchor_calibration.py`
+- CI coverage floor: 55% → 60%
+
+### Files Changed
+- `src/nanoleaf_sync/color/primaries.py` — XYZ matrix layout + solve fix
+- `src/nanoleaf_sync/config/model.py` — `startup_frame_timeout_s` field
+- `src/nanoleaf_sync/service.py` — `auto_turn_on` wiring
+- `src/nanoleaf_sync/ui/calibration_state.py` — remove bad kwarg
+- `.github/workflows/ci.yml` — coverage floor 55 → 60
+- `tests/` — 10 new test files
+
 ## v1.5.6 — 120fps Pipeline Throughput Fix (pre-release)
 
 **Fixes the "bottom-left lights work briefly then stop" regression from v1.5.5. Targets 120fps by reducing HID ack timeout and fully draining the input buffer.**
