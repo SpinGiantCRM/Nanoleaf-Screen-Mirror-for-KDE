@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.5.5 — Pipeline Throughput Fix (pre-release)
+
+**Fixes the "mostly black with occasional faint glow" regression from v1.5.4. Restores 30-60fps pipeline throughput while ensuring the device acknowledges every frame.**
+
+### Root Cause
+v1.5.4 disabled the nonblocking HID drain entirely, forcing `transceive_with_timing` (up to 200ms guard window) per frame. This was too slow for the 3-stage pipeline — the HID writer couldn't keep up, the ring buffer filled up, and most frames were dropped. The rare "faint white glow" was the few frames that made it through.
+
+### Fix — Hybrid Drain
+- **`hid_transport.py`**: Modified `write_with_nonblocking_drain` to use a hybrid approach — the first drain read blocks for up to 25ms (`ack_timeout_ms`) to confirm the device acknowledged the frame, then subsequent reads are nonblocking (0ms) to drain extra queued responses. This is fast enough for 30-60fps throughput while guaranteeing the device applies each frame.
+- **`service.py`**: Reverted `_install_drivers()` to use the default `enable_live_frame_write_optimization=True` since the nonblocking drain path is now fixed.
+
+### Tests
+- Renamed `test_write_with_nonblocking_drain_does_not_wait_for_response` → `test_write_with_nonblocking_drain_hybrid_drain_ack` to reflect the new hybrid-blocking behavior.
+
+### Files Changed
+- `src/nanoleaf_sync/device/hid_transport.py` — hybrid drain with ack timeout
+- `src/nanoleaf_sync/service.py` — revert to optimized drain path
+- `tests/device/test_hid_transport.py` — test name update
+
 ## v1.5.4 — Black Screen Mirroring Fix (pre-release)
 
 **Fixes the critical regression where screen mirroring produced all-black output on the LED strip despite correct capture and processing.**

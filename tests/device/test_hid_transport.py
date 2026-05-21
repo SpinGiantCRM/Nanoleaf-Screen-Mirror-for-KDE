@@ -168,7 +168,7 @@ def test_transceive_with_timing_includes_write_and_wait_components() -> None:
     assert timing["read_calls"] >= 1
 
 
-def test_write_with_nonblocking_drain_does_not_wait_for_response() -> None:
+def test_write_with_nonblocking_drain_uses_blocking_ack_then_nonblocking_drain() -> None:
     fake = FakeHIDHandle([b"\x00\x83\x00\x03\x00\x00\x0a" + b"\x00" * 58, b""])
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
     transport._handle = fake
