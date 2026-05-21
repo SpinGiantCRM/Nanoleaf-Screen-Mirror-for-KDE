@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.5.6 — 120fps Pipeline Throughput Fix (pre-release)
+
+**Fixes the "bottom-left lights work briefly then stop" regression from v1.5.5. Targets 120fps by reducing HID ack timeout and fully draining the input buffer.**
+
+### Root Cause
+v1.5.5's 25ms blocking ack timeout was 3x the 8.3ms frame budget at 120fps, starving the HID writer. Additionally, `max_drain_reads=2` only drained 2 HID responses per frame — accumulated responses filled the kernel buffer, causing the device to stop processing new commands after a few seconds.
+
+### Fix
+- **`hid_transport.py`**: Reduced `ack_timeout_ms` from 25→8ms (fits 120fps budget), increased `max_drain_reads` from 2→64 to fully drain all pending HID input
+- **`engine.py`**: Increased ring buffer capacities from 2→4 to absorb ~33ms of 120fps capture jitter
+- **`usb_driver.py`**: Added debug logging of drain read count and flush/wait time per frame
+
+### Files Changed
+- `src/nanoleaf_sync/device/hid_transport.py` — full drain, 8ms ack timeout
+- `src/nanoleaf_sync/device/usb_driver.py` — drain diagnostics logging
+- `src/nanoleaf_sync/runtime/engine.py` — ring buffer capacity 4
+
 ## v1.5.5 — Pipeline Throughput Fix (pre-release)
 
 **Fixes the "mostly black with occasional faint glow" regression from v1.5.4. Restores 30-60fps pipeline throughput while ensuring the device acknowledges every frame.**

@@ -397,9 +397,17 @@ class HIDTransport:
         self,
         report: bytes | bytearray | memoryview | Sequence[int],
         *,
-        max_drain_reads: int = 2,
-        ack_timeout_ms: int = 25,
+        max_drain_reads: int = 64,
+        ack_timeout_ms: int = 8,
     ) -> dict[str, int | float | list[int] | list[float] | bool | str]:
+        """Write a HID report and drain pending input to prevent kernel-buffer
+        back-pressure.  The first drain read blocks for *ack_timeout_ms* (default
+        8 ms — fits within the 120 fps frame budget of ~8.3 ms) to capture the
+        device ACK; subsequent reads use a 0 ms timeout until the input buffer
+        is empty or *max_drain_reads* is reached.
+
+        Returns timing metadata including flush/wait duration and read count.
+        """
         if self._handle is None:
             raise RuntimeError("HID transport not opened.")
         payload = bytes(report)
@@ -407,12 +415,10 @@ class HIDTransport:
         drain_start = time.perf_counter()
         drain_reads = 0
         max_reads = max(0, int(max_drain_reads))
-        # 25ms blocking ack: short enough for 30–60 fps pipeline throughput,
-        # long enough for the device to ACK a SET_ZONE_COLORS frame.
-        first_timeout = max(0, int(ack_timeout_ms))
+        ack_ms = max(0, int(ack_timeout_ms))
         try:
             for i in range(max_reads):
-                timeout_ms = first_timeout if i == 0 else 0
+                timeout_ms = ack_ms if i == 0 else 0
                 raw_chunk = self._handle.read(
                     self.report_size + (1 if self.use_report_id_prefix else 0),
                     timeout_ms,
