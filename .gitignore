@@ -22,3 +22,9 @@ build/
 
 # Local AI / Codex workflow artifacts
 .worklogs/
+
+# AI agent workspace files — local-only, never push to remote
+.agents/
+.opencode/
+docs/ai/
+scripts/ai/
