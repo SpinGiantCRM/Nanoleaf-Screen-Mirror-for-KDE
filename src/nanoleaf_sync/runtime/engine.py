@@ -431,6 +431,10 @@ def process_frame(
     Hot-path frame processing pipeline:
     capture frame -> zone colors -> map -> brightness/smoothing -> send-ready colors.
     """
+    if frame is None or not isinstance(frame, np.ndarray):
+        raise RuntimeError(
+            f"Capture returned invalid frame type: {type(frame).__name__}; expected np.ndarray"
+        )
     if frame.ndim != 3 or frame.shape[2] != 3:
         raise RuntimeError(
             f"Capture returned unexpected frame shape: {getattr(frame, 'shape', None)}"
@@ -465,6 +469,12 @@ def process_frame(
         zone_indices = device_zone_indices
     else:
         zone_indices = np.asarray(device_zone_indices, dtype=np.intp)
+
+    if zone_indices.size == 0:
+        raise RuntimeError(
+            "Device zone mapping is empty; calibration may be incomplete. "
+            "Run the calibration wizard to assign zone positions."
+        )
 
     mapped = raw_colors[zone_indices].astype(np.float32, copy=False)
     mapped = apply_color_style_mapping(mapped, color_style=color_style).astype(
@@ -593,6 +603,7 @@ def _run_loop_legacy(
         with capture_worker_lock:
             capture_worker_active = True
         while not state.stop_event.is_set():
+            state.reinit_pause.wait(timeout=0.001)
             try:
                 if state.is_reinitializing:
                     time.sleep(0.001)
@@ -1280,6 +1291,7 @@ def _run_loop_pipeline(
         with metrics_lock:
             capture_worker_active = True
         while not state.stop_event.is_set():
+            state.reinit_pause.wait(timeout=0.001)
             try:
                 if state.is_reinitializing:
                     time.sleep(0.001)
@@ -1332,6 +1344,7 @@ def _run_loop_pipeline(
     def _process_worker() -> None:
         nonlocal process_worker_error, process_worker_error_count, frame_seq
         while not state.stop_event.is_set():
+            state.reinit_pause.wait(timeout=0.001)
             try:
                 if state.is_reinitializing:
                     time.sleep(0.001)
@@ -1350,7 +1363,8 @@ def _run_loop_pipeline(
                 if mean_brightness < 2.0:
                     state.consecutive_black_frames += 1
                     state.total_black_frames += 1
-                    if state.consecutive_black_frames == 31:
+                    # Log warning periodically (every ~1s at 60fps) instead of just once
+                    if state.consecutive_black_frames % 60 == 0:
                         logger.warning(
                             "All-black frames: %d consecutive, "
                             "backend=%s, method=%s, mean_brightness=%.2f",
@@ -1622,6 +1636,7 @@ def _run_loop_pipeline(
         last_send_done_ts: float | None = None
 
         while not state.stop_event.is_set():
+            state.reinit_pause.wait(timeout=0.001)
             try:
                 if state.is_reinitializing:
                     time.sleep(0.001)
@@ -1991,10 +2006,10 @@ def _run_loop_pipeline(
 
     # ---- shutdown -------------------------------------------------------
     for t in threads:
-        t.join(timeout=2.0)
+        t.join(timeout=3.0)
         if t.is_alive():
             logger.warning(
-                "%s thread did not exit within shutdown timeout; it may still be blocked in IO",
+                "%s thread did not exit within shutdown timeout (3s); it may still be blocked in IO",
                 t.name,
             )
 

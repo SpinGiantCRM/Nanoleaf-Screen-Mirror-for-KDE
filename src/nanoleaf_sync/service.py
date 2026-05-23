@@ -123,7 +123,7 @@ def _build_auto_probe_signature(capture_width: int, capture_height: int) -> str:
 class NanoleafSyncService:
     """Service orchestration around runtime startup/shutdown and per-frame engine loop."""
 
-    _PROCESS_BOOT_PROBE_LOCK = threading.Lock()
+    _PROCESS_BOOT_PROBE_LOCK = threading.RLock()
     _PROCESS_BOOT_PROBE_STATE = "pending"
 
     @classmethod
@@ -472,7 +472,9 @@ class NanoleafSyncService:
                     if callable(close_fn):
                         close_fn()
                 except Exception:
-                    pass
+                    logger.warning(
+                        "Error closing diagnostic capture backend", exc_info=True
+                    )
 
     def _make_device_driver(
         self, *, enable_live_frame_write_optimization: bool = True
@@ -515,7 +517,7 @@ class NanoleafSyncService:
                 return
             driver.send_frame([(0, 0, 0)] * zone_count)
         except Exception:
-            logger.debug("Unable to send final stop frame.", exc_info=True)
+            logger.debug("Unable to send final stop frame (expected if already off)", exc_info=True)
 
     def _close_backends(self) -> None:
         capture = self._capture
@@ -525,7 +527,11 @@ class NanoleafSyncService:
                 if close_fn is not None:
                     close_fn()
         except Exception:
-            pass
+            logger.warning(
+                "Error closing capture backend '%s'",
+                getattr(capture, "name", repr(capture)),
+                exc_info=True,
+            )
         finally:
             self._capture = None
 
@@ -534,7 +540,7 @@ class NanoleafSyncService:
             if driver is not None:
                 driver.close()
         except Exception:
-            pass
+            logger.warning("Error closing device driver", exc_info=True)
         finally:
             self._driver = None
 
@@ -668,7 +674,13 @@ class NanoleafSyncService:
 
     def install_signal_handlers(self) -> None:
         def _handler(signum, _frame):
-            self.stop()
+            stop_result = self.stop(timeout=5.0)
+            if not stop_result:
+                logger.warning(
+                    "Signal %d handler: clean shutdown timed out; forcing exit",
+                    signum,
+                )
+                os._exit(1)
 
         signal.signal(signal.SIGINT, _handler)
         signal.signal(signal.SIGTERM, _handler)

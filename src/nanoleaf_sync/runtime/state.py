@@ -22,6 +22,7 @@ DeviceZoneMappingSignature = tuple[Any, ...]
 class RuntimeState:
     stop_event: threading.Event = field(default_factory=threading.Event)
     startup_complete: threading.Event = field(default_factory=threading.Event)
+    reinit_pause: threading.Event = field(default_factory=threading.Event)
     startup_succeeded: bool = False
 
     prev_smoothed_colors: list[RGBTuple] = field(default_factory=list)
@@ -74,6 +75,7 @@ class RuntimeState:
     latest_frame_mean_brightness: float = 0.0
 
     def reset_for_start(self) -> None:
+        self.reinit_pause.clear()
         self.prev_smoothed_colors = []
         self.cached_zone_rects = None
         self.zone_rects_signature = None

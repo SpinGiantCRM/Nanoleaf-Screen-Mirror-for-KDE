@@ -16,7 +16,7 @@ class FakeTransport:
         self.opened = False
         self.closed = False
 
-    def open(self) -> None:
+    def open(self, **kwargs: object) -> None:
         self.opened = True
 
     def transceive(self, request: bytes) -> bytes:
@@ -110,7 +110,7 @@ class UncertainFailingTransport(FakeTransport):
 
 
 class FailingOpenTransport(FakeTransport):
-    def open(self) -> None:
+    def open(self, **kwargs: object) -> None:
         self.opened = True
         raise RuntimeError("permission denied")
 

@@ -172,17 +172,46 @@ class HIDTransport:
             return None
         return 3 + int.from_bytes(buf[1:3], byteorder="big")
 
-    def open(self) -> None:
+    def open(self, *, retry_attempts: int = 0, retry_delay_s: float = 0.0) -> None:
+        """Open the HID device.
+
+        When *retry_attempts* > 0 the method will attempt to enumerate and open
+        the device up to that many extra times with an exponential back-off
+        delay starting at *retry_delay_s* (capped at 5.0 s).  This is useful
+        for recovery after an unplug/replug event during active mirroring.
+        """
         try:
             import hid  # type: ignore
         except Exception as e:  # pragma: no cover
+            error_text = str(e).lower()
+            if "libusb" in error_text or "cannot open shared object" in error_text:
+                raise RuntimeError(
+                    "libusb-1.0 shared library not found. Install libusb: "
+                    "'sudo pacman -S libusb' (Arch) or 'sudo apt install libusb-1.0-0' (Debian/Ubuntu)."
+                ) from e
+            if "hidraw" in error_text or "permission" in error_text:
+                raise RuntimeError(
+                    "HID device access denied. Ensure udev rules are installed: "
+                    "run 'sudo ./scripts/setup_udev.sh' or check device permissions."
+                ) from e
             raise RuntimeError("hidapi bindings not installed. Install `hidapi` package.") from e
 
-        devices = list(hid.enumerate(self.ids.vid, self.ids.pid))
-        if not devices:
-            raise RuntimeError(
+        max_attempts = max(1, int(retry_attempts) + 1)
+        base_delay = max(0.0, float(retry_delay_s))
+        last_exc: Exception | None = None
+        for attempt in range(max_attempts):
+            if attempt > 0:
+                delay = min(base_delay * (2 ** (attempt - 1)), 5.0)
+                time.sleep(delay)
+            devices = list(hid.enumerate(self.ids.vid, self.ids.pid))
+            if devices:
+                break
+            last_exc = RuntimeError(
                 f"Nanoleaf device not found VID={self.ids.vid:#06x} PID={self.ids.pid:#06x}"
+                f"{' (retry ' + str(attempt + 1) + '/' + str(max_attempts) + ')' if max_attempts > 1 else ''}"
             )
+        else:
+            raise last_exc  # type: ignore[misc]
 
         self._handle = hid.device()
         attempt_results: list[str] = []

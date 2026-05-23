@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Sequence
 
@@ -9,6 +10,8 @@ from nanoleaf_sync.ui.zone_presets import (
     make_edge_weighted_zones,
     make_horizontal_zones,
 )
+
+_log = logging.getLogger(__name__)
 
 DEFAULT_DERIVED_ZONE_COUNT = 8
 
@@ -91,6 +94,16 @@ def derive_source_zone_artifacts(
     frame_height: int | None = None,
 ) -> SourceZoneArtifacts:
     if config.zones:
+        source_count = len(config.zones)
+        device_count = int(getattr(config, "device_zone_count", 0) or 0)
+        if device_count > 0 and source_count != device_count:
+            _log.warning(
+                "Zone count mismatch: manual source zones=%d does not match "
+                "device_zone_count=%d. Adjacent LEDs may duplicate colors. "
+                "Update device_zone_count or re-run calibration.",
+                source_count,
+                device_count,
+            )
         return SourceZoneArtifacts(
             zones=config.zones,
             side_counts=None,

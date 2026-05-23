@@ -1,5 +1,53 @@
 # Changelog
 
+## v1.5.8 — Codebase Audit Fixes (pre-release)
+
+**17 bug fixes and stability improvements from a comprehensive codebase audit covering asyncio race conditions, thread safety, resource cleanup, and startup/shutdown reliability.**
+
+### Critical Fixes
+- **`store.py`**: Added `fcntl.flock` config file locking to prevent corruption from concurrent writes
+- **`engine.py`**: Frame validation (ndarray check, empty `device_zone_indices` guard) prevents crashes on bad capture frames; periodic black-frame logging every 60 frames instead of one-shot at count 31
+- **`xdg_portal.py`**: Fixed asyncio cross-loop `"Task got Future attached to a different loop"` bug by nulling `_portal_bus` before session close; added fallback worker thread with timeout
+- **`primaries.py`**: Added `_DETECTED_PRIMARIES_LOCK` to fix cache population race condition
+- **`state.py`**: Added `reinit_pause` threading.Event for coordinated worker pause/resume during backend reinitialization
+- **`startup.py`**: Pause workers before backend destruction to prevent stale resource access; increased join timeout from 2s to 5s
+- **`service.py`**: Changed `_PROCESS_BOOT_PROBE_LOCK` to `RLock` for reentrant safety; added exception logging for previously-swallowed errors; signal handler fallback to `os._exit(1)` after 5s timeout
+- **`kwin_dbus.py`**: try-except guards around asyncio operations with increased timeouts
+- **`color_processing.py`**: Added `_GAMUT_LOCK` for thread-safe gamut matrix updates
+
+### High-Severity Fixes
+- **`tray_app.py`**: 30s timeout on diagnostic subprocess calls; skip wizard when config passes readiness check; no auto-start after config load failure
+- **`hid_transport.py`**: Retry with exponential backoff in `open()` for device reconnection; improved import error messages distinguishing libusb vs permission issues
+- **`usb_driver.py`**: Wired device reconnection retry (`retry_attempts=3, retry_delay_s=0.5`) in `initialize()`
+- **`normalize.py`**: Wizard state corruption guard with size limit + JSON error handling
+- **`diagnostics_exports.py`**: `chmod 0o600` on temporary diagnostic export files
+- **`zone_derivation.py`**: Zone count mismatch warning between user-defined zones and device zone count
+- **`pyproject.toml`**: Documented `pipewire` and `pygobject` as optional dependency groups
+
+### Tests
+- **447 new readiness check tests** in `test_readiness_check.py` — comprehensive coverage of zone count validation, corner anchors, calibration mapping, wizard draft detection, runtime loop detection, device/capture probe errors, error category prioritization, and edge cases
+- Updated `FakeTransport` and `_FakeTransport` mocks to accept `**kwargs` for new retry parameters
+- Updated `test_normalize.py` for wizard state corruption fix
+
+### Files Changed
+- `src/nanoleaf_sync/capture/kwin_dbus.py` — asyncio guards
+- `src/nanoleaf_sync/capture/xdg_portal.py` — portal session close fix
+- `src/nanoleaf_sync/color/primaries.py` — primaries cache lock
+- `src/nanoleaf_sync/config/normalize.py` — wizard state limit
+- `src/nanoleaf_sync/config/store.py` — config file locking
+- `src/nanoleaf_sync/device/hid_transport.py` — retry + error messages
+- `src/nanoleaf_sync/device/usb_driver.py` — retry wiring
+- `src/nanoleaf_sync/runtime/color_processing.py` — gamut lock
+- `src/nanoleaf_sync/runtime/diagnostics_exports.py` — temp file perms
+- `src/nanoleaf_sync/runtime/engine.py` — frame validation, black-frame logging
+- `src/nanoleaf_sync/runtime/startup.py` — reinit pause, join timeout
+- `src/nanoleaf_sync/runtime/state.py` — reinit_pause event
+- `src/nanoleaf_sync/runtime/zone_derivation.py` — zone mismatch warning
+- `src/nanoleaf_sync/service.py` — RLock, exception logging, signal handler
+- `src/nanoleaf_sync/ui/tray_app.py` — subprocess timeout, wizard UX, auto-start gating
+- `pyproject.toml` — optional deps documentation
+- `tests/` — 447 new readiness check tests, transport mock fixes
+
 ## v1.5.7 — Audit Fixes, Coverage, and Color Accuracy (pre-release)
 
 **Four bug fixes from a full codebase audit, a critical XYZ color matrix correction, and 60% test coverage (up from 58.68%).**

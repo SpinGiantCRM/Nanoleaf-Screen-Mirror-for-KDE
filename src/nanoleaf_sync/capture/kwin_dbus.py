@@ -224,16 +224,31 @@ class KWinDBusScreenshotCapture:
                 return
             if loop.is_running():
                 try:
-                    future = asyncio.run_coroutine_threadsafe(self._reset_bus_connections(), loop)
-                    future.result(timeout=1.0)
+                    future = asyncio.run_coroutine_threadsafe(
+                        self._reset_bus_connections(), loop
+                    )
+                    future.result(timeout=2.0)
+                except (TimeoutError, Exception):
+                    logger = __import__("logging").getLogger(__name__)
+                    logger.warning(
+                        "KWin D-Bus bus reset timed out or failed during close",
+                        exc_info=True,
+                    )
+                try:
+                    loop.call_soon_threadsafe(loop.stop)
                 except Exception:
                     pass
-                loop.call_soon_threadsafe(loop.stop)
             else:
                 self._screenshot2_bus = None
                 self._legacy_bus = None
             if self._loop_thread is not None:
-                self._loop_thread.join(timeout=1.0)
+                self._loop_thread.join(timeout=3.0)
+                if self._loop_thread.is_alive():
+                    import logging
+
+                    logging.getLogger(__name__).warning(
+                        "KWin D-Bus event loop thread did not exit within 3s timeout"
+                    )
 
             self._loop = None
             self._loop_thread = None

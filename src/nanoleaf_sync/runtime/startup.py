@@ -110,6 +110,10 @@ def reinitialize_backends(
     state: RuntimeState,
 ) -> None:
     state.is_reinitializing = True
+    state.reinit_pause.set()
+    # Brief grace period to let workers that are mid-operation finish
+    # before we tear down the backends they hold references to.
+    time.sleep(0.05)
     try:
         close_backends()
         now_ts = time.perf_counter()
@@ -120,6 +124,7 @@ def reinitialize_backends(
     finally:
         state.consecutive_errors = 0
         state.is_reinitializing = False
+        state.reinit_pause.clear()
 
 
 def shutdown_backends(
@@ -138,10 +143,10 @@ def shutdown_backends(
     # indefinite blocking when the HID device or capture backend is unresponsive.
     close_thread = threading.Thread(target=close_backends, name="shutdown-close", daemon=True)
     close_thread.start()
-    close_thread.join(timeout=2.0)
+    close_thread.join(timeout=5.0)
     if close_thread.is_alive():
         logger.warning(
-            "close_backends did not complete within shutdown timeout; "
+            "close_backends did not complete within shutdown timeout (5s); "
             "it may still be blocked in device IO"
         )
 
