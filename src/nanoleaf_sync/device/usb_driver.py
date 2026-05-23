@@ -158,7 +158,7 @@ class NanoleafUSBDriver(DeviceDriver):
     def initialize(self) -> None:
         if self._initialized:
             return
-        self._transport.open()
+        self._transport.open(retry_attempts=3, retry_delay_s=0.5)
         try:
             self.model_number = self.get_model_number()
             if self.model_number not in SUPPORTED_MODEL_NUMBERS:

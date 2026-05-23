@@ -105,16 +105,27 @@ def normalize_enum(value: Any, *, allowed: Dict[str, str], default: str) -> str:
     return allowed.get(normalized, default)
 
 
+_WIZARD_STATE_MAX_BYTES = 64 * 1024
+
+
 def normalize_wizard_in_progress_state(raw_value: Any) -> str:
     raw_text = str(raw_value or "").strip()
     if not raw_text:
         return ""
+    if len(raw_text.encode("utf-8", errors="replace")) > _WIZARD_STATE_MAX_BYTES:
+        logger.warning(
+            "Wizard in-progress state exceeds %d byte limit; clearing to prevent corruption",
+            _WIZARD_STATE_MAX_BYTES,
+        )
+        return ""
     try:
         payload = json.loads(raw_text)
     except (TypeError, ValueError, json.JSONDecodeError):
-        return raw_text
+        logger.warning("Wizard in-progress state is not valid JSON; clearing to empty")
+        return ""
     if not isinstance(payload, dict):
-        return raw_text
+        logger.warning("Wizard in-progress state is not a JSON object; clearing to empty")
+        return ""
     return json.dumps(payload, separators=(",", ":"), sort_keys=True)
 
 

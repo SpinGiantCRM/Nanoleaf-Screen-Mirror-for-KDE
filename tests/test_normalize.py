@@ -172,7 +172,7 @@ def test_normalize_wizard_json() -> None:
 
 def test_normalize_wizard_non_json_text() -> None:
     result = normalize_wizard_in_progress_state("just some text")
-    assert result == "just some text"
+    assert result == ""
 
 
 def test_normalize_wizard_json_sorts_keys() -> None:

@@ -568,10 +568,12 @@ def export_sampling_overlay(
 
     out_dir = Path(tempfile.gettempdir()) / "nanoleaf-kde-sync"
     out_dir.mkdir(parents=True, exist_ok=True)
+    os.chmod(out_dir, 0o700)
     stamp = int(time.time())
     mode = "synthetic-test" if synthetic else "live-captured"
     path = out_dir / f"sampling-overlay-{mode}-{stamp}.png"
     write_png(path, base)
+    os.chmod(path, 0o600)
     return path
 
 
@@ -582,6 +584,7 @@ def export_zone_report(*, rows: Sequence[dict[str, object]]) -> Path:
         )
     out_dir = Path(tempfile.gettempdir()) / "nanoleaf-kde-sync"
     out_dir.mkdir(parents=True, exist_ok=True)
+    os.chmod(out_dir, 0o700)
     path = out_dir / f"zone-report-{int(time.time())}.csv"
     base_fields = [
         "zone_index",
@@ -619,6 +622,7 @@ def export_zone_report(*, rows: Sequence[dict[str, object]]) -> Path:
         writer.writeheader()
         for row in rows:
             writer.writerow({key: row.get(key, "") for key in fields})
+    os.chmod(path, 0o600)
     return path
 
 
@@ -634,6 +638,7 @@ def export_latency_report(*, status: dict) -> Path:
 
     out_dir = Path(tempfile.gettempdir()) / "nanoleaf-kde-sync"
     out_dir.mkdir(parents=True, exist_ok=True)
+    os.chmod(out_dir, 0o700)
     path = out_dir / f"latency-breakdown-{int(time.time())}.csv"
     with path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(
@@ -703,6 +708,7 @@ def export_latency_report(*, status: dict) -> Path:
                     ),
                 }
             )
+    os.chmod(path, 0o600)
     return path
 
 

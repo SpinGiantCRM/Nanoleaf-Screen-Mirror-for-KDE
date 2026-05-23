@@ -30,7 +30,7 @@ class _FakeTransport:
         self.open_calls = 0
         self.close_calls = 0
 
-    def open(self) -> None:
+    def open(self, **kwargs: object) -> None:
         self.opened = True
         self.open_calls += 1
 

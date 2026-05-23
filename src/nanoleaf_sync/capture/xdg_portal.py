@@ -886,29 +886,43 @@ class XDGPortalCapture:
 
         session_handle = self._session_handle
         self._session_handle = None
-        try:
-            try:
-                asyncio.get_running_loop()
-            except RuntimeError:
-                asyncio.run(self._close_portal_session(session_handle))
-                return
 
+        # Detach the old portal bus so _close_portal_session creates a fresh
+        # D-Bus connection on whatever event loop runs it.  This avoids
+        # "Task got Future attached to a different loop" errors when the
+        # original negotiation loop has already been closed.
+        self._portal_bus = None
+
+        try:
+            asyncio.run(self._close_portal_session(session_handle))
+        except RuntimeError as exc:
+            # asyncio.run() can fail if an event loop is already running.
+            # Fall back to a short-lived worker thread with its own loop.
+            logger.warning(
+                "Portal session close via asyncio.run failed; trying worker thread: %s",
+                exc,
+            )
             error: BaseException | None = None
 
             def _worker() -> None:
                 nonlocal error
                 try:
                     asyncio.run(self._close_portal_session(session_handle))
-                except BaseException as exc:  # pragma: no cover - defensive fallback
-                    error = exc
+                except BaseException as thread_exc:
+                    error = thread_exc
 
             thread = threading.Thread(target=_worker, name="portal-close-session", daemon=True)
             thread.start()
-            thread.join()
+            thread.join(timeout=5.0)
             if error is not None:
-                raise error
+                logger.warning("Portal session close via worker thread failed: %s", error)
+            elif thread.is_alive():
+                logger.warning("Portal session close worker thread still running after 5s timeout")
         except Exception:
-            pass
+            logger.debug(
+                "Portal session close failed (non-critical)",
+                exc_info=True,
+            )
 
     def _load_restore_token(self) -> Optional[str]:
         try:

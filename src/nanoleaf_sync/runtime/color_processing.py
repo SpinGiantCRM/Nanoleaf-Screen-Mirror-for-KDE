@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -17,6 +18,7 @@ _log = logging.getLogger(__name__)
 
 _GAMUT_ADAPTATION_MATRIX: np.ndarray | None = None
 _GAMUT_ADAPTATION_MATRIX_T: np.ndarray | None = None
+_GAMUT_LOCK = threading.Lock()
 
 
 def init_gamut_adaptation(display_gamut: str) -> None:
@@ -50,12 +52,16 @@ def init_gamut_adaptation(display_gamut: str) -> None:
             )
         else:
             _log.debug("Gamut adaptation: no display primaries detected; using identity (sRGB)")
-        _GAMUT_ADAPTATION_MATRIX = None
-        _GAMUT_ADAPTATION_MATRIX_T = None
+        with _GAMUT_LOCK:
+            _GAMUT_ADAPTATION_MATRIX = None
+            _GAMUT_ADAPTATION_MATRIX_T = None
         return
 
-    _GAMUT_ADAPTATION_MATRIX = build_adaptation_matrix(src, CHROMATICITIES_SRGB)
-    _GAMUT_ADAPTATION_MATRIX_T = np.ascontiguousarray(_GAMUT_ADAPTATION_MATRIX.T)
+    new_matrix = build_adaptation_matrix(src, CHROMATICITIES_SRGB)
+    new_matrix_t = np.ascontiguousarray(new_matrix.T)
+    with _GAMUT_LOCK:
+        _GAMUT_ADAPTATION_MATRIX = new_matrix
+        _GAMUT_ADAPTATION_MATRIX_T = new_matrix_t
     _log.debug(
         "Gamut adaptation: display primaries r=(%.3f,%.3f) g=(%.3f,%.3f) b=(%.3f,%.3f)",
         src.rx,
@@ -184,8 +190,10 @@ def apply_color_style_mapping_with_diagnostics(
     linear = srgb_u8_to_linear01(rgb)
 
     # Apply display-gamut → sRGB adaptation in linear space.
-    if _GAMUT_ADAPTATION_MATRIX_T is not None:
-        linear = np.clip(linear @ _GAMUT_ADAPTATION_MATRIX_T, 0.0, 1.0)
+    with _GAMUT_LOCK:
+        matrix_t = _GAMUT_ADAPTATION_MATRIX_T
+    if matrix_t is not None:
+        linear = np.clip(linear @ matrix_t, 0.0, 1.0)
         rgb = linear01_to_srgb_u8(linear)
 
     y = np.clip(

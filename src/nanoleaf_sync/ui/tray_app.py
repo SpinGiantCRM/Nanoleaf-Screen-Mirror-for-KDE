@@ -213,7 +213,13 @@ class NanoleafTrayApp:
                 self.QSystemTrayIcon.MessageIcon.Warning,
                 10000,
             )
-        if not self._config_created and bool(getattr(self.config, "start_on_launch", False)):
+        # Only auto-start after a successful config load; skip when config
+        # was broken and we fell back to diagnostic mode.
+        if (
+            not self._config_created
+            and not self._startup_warning
+            and bool(getattr(self.config, "start_on_launch", False))
+        ):
             self.QTimer.singleShot(0, self._start_after_launch)
 
         self._shutdown_in_progress = False
@@ -416,13 +422,12 @@ class NanoleafTrayApp:
             if running_icon.isNull():
                 running_icon = fallback_running_icon
 
-        _log.info(
-            "Icon resolution: themed_idle_null=%s themed_running_null=%s fallback=%s final_idle_null=%s",
-            themed_idle.isNull(),
-            themed_running.isNull(),
-            selected_path,
-            idle_icon.isNull(),
-        )
+        # Log a warning if generated pixel-fallback icons are used
+        if idle_icon.isNull() or running_icon.isNull():
+            _log.warning(
+                "No SVG/theme icons found; using generated fallback icons. "
+                "Install the app properly or place icons in assets/icons/hicolor/scalable/apps/"
+            )
         return idle_icon, running_icon
 
     def _make_menu(self):
@@ -996,12 +1001,22 @@ class NanoleafTrayApp:
 
         def worker() -> None:
             try:
-                result = subprocess.run(argv, capture_output=True, text=True, check=False)
+                result = subprocess.run(
+                    argv, capture_output=True, text=True, check=False, timeout=30
+                )
                 preview, rc = summarize_command_output(
                     result.stdout, result.stderr, result.returncode
                 )
                 self.QTimer.singleShot(
                     0, lambda: self._handle_tool_result(label=label, preview=preview, rc=rc)
+                )
+            except subprocess.TimeoutExpired:
+                self.QTimer.singleShot(
+                    0,
+                    lambda: self._handle_tool_error(
+                        label=label,
+                        error=RuntimeError(f"{label} timed out after 30s"),
+                    ),
                 )
             except Exception as exc:
                 self.QTimer.singleShot(
@@ -1075,7 +1090,30 @@ class NanoleafTrayApp:
 
     def run(self):
         if bool(getattr(self.config, "wizard_completed", False)) is False:
-            self.on_display_configurator()
+            # Skip wizard if config passes readiness check (already configured manually)
+            from nanoleaf_sync.runtime.readiness_check import (
+                READY_STATUS,
+                run_readiness_check,
+            )
+
+            try:
+                report = run_readiness_check(
+                    config=self.config,
+                    runtime_status=self.service.get_status(),
+                    source_zone_count=None,
+                    capture_probe=lambda _cfg: None,
+                    device_probe=lambda _cfg: None,
+                )
+                if report.status == READY_STATUS:
+                    _log.info("Config passes readiness check; skipping first-run wizard")
+                else:
+                    self.on_display_configurator()
+            except Exception:
+                _log.warning(
+                    "Readiness check failed during startup; falling back to wizard",
+                    exc_info=True,
+                )
+                self.on_display_configurator()
         return self.app.exec()
 
 

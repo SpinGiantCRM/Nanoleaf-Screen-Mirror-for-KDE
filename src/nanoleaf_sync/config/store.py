@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import fcntl
+import logging
 import os
 import tempfile
 import tomllib
 from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 from dacite import Config as DaciteConfig
 from dacite import from_dict
@@ -162,8 +166,19 @@ class ConfigManager:
 
         encoded = dump_toml(payload)
 
+        # Use advisory file locking to prevent concurrent saves from corrupting
+        # the config (e.g., tray app + settings dialog racing on save).
+        lock_fd: int | None = None
         tmp_path: Optional[Path] = None
         try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+            lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o600)
+            try:
+                fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            except OSError:
+                logger.warning("Config save: flock not supported; proceeding without locking")
+
             with tempfile.NamedTemporaryFile(
                 mode="w",
                 encoding="utf-8",
@@ -179,8 +194,17 @@ class ConfigManager:
 
             os.replace(str(tmp_path), str(self.path))
         finally:
+            if lock_fd is not None:
+                try:
+                    fcntl.flock(lock_fd, fcntl.LOCK_UN)
+                except Exception:
+                    pass
+                try:
+                    os.close(lock_fd)
+                except Exception:
+                    pass
             if tmp_path is not None and tmp_path.exists():
                 try:
                     tmp_path.unlink()
                 except Exception:
-                    pass
+                    logger.debug("Failed to unlink temp config file", exc_info=True)

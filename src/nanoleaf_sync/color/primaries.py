@@ -11,6 +11,7 @@ Supports:
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -424,6 +425,7 @@ _PRIMARIES_BY_GAMUT: dict[str, Chromaticities] = {
 
 _DETECTED_PRIMARIES_CACHE: Chromaticities | None = None
 _DETECTED_PRIMARIES_FILLED: bool = False
+_DETECTED_PRIMARIES_LOCK = threading.Lock()
 
 
 def get_display_primaries() -> Chromaticities | None:
@@ -432,21 +434,27 @@ def get_display_primaries() -> Chromaticities | None:
     Results are cached for the lifetime of the process.
     """
     global _DETECTED_PRIMARIES_CACHE, _DETECTED_PRIMARIES_FILLED
+
+    # Fast path: cache already populated, read outside lock (safe because
+    # once _FILLED is True the cache pointer is never mutated to None).
     if _DETECTED_PRIMARIES_FILLED:
         return _DETECTED_PRIMARIES_CACHE
-    _DETECTED_PRIMARIES_FILLED = True
 
-    primaries = get_display_primaries_colord()
-    if primaries is not None:
-        _DETECTED_PRIMARIES_CACHE = primaries
+    with _DETECTED_PRIMARIES_LOCK:
+        # Re-check under lock in case another thread finished detection.
+        if _DETECTED_PRIMARIES_FILLED:
+            return _DETECTED_PRIMARIES_CACHE
+
+        primaries = get_display_primaries_colord()
+        if primaries is not None:
+            _DETECTED_PRIMARIES_CACHE = primaries
+            _DETECTED_PRIMARIES_FILLED = True
+            return primaries
+
+        primaries = get_display_primaries_from_sysfs()
+        _DETECTED_PRIMARIES_CACHE = primaries  # None if no EDID found
+        _DETECTED_PRIMARIES_FILLED = True
         return primaries
-
-    primaries = get_display_primaries_from_sysfs()
-    if primaries is not None:
-        _DETECTED_PRIMARIES_CACHE = primaries
-        return primaries
-
-    return None
 
 
 def get_primaries_for_gamut(gamut: str) -> Chromaticities | None:
@@ -462,5 +470,6 @@ def get_primaries_for_gamut(gamut: str) -> Chromaticities | None:
 def invalidate_primaries_cache() -> None:
     """Reset the detected-primaries cache (e.g. after display reconnect)."""
     global _DETECTED_PRIMARIES_CACHE, _DETECTED_PRIMARIES_FILLED
-    _DETECTED_PRIMARIES_CACHE = None
-    _DETECTED_PRIMARIES_FILLED = False
+    with _DETECTED_PRIMARIES_LOCK:
+        _DETECTED_PRIMARIES_CACHE = None
+        _DETECTED_PRIMARIES_FILLED = False

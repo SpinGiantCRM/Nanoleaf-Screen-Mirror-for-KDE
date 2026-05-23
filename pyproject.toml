@@ -27,6 +27,12 @@ test = [
   "ruff>=0.6",
   "mypy>=1.0",
 ]
+portal = [
+  "pipewire",
+]
+gstreamer = [
+  "pygobject",
+]
 
 [project.scripts]
 nanoleaf-kde-sync = "nanoleaf_sync.ui.tray_app:main"
