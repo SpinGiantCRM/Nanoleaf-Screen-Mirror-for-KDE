@@ -472,9 +472,7 @@ class NanoleafSyncService:
                     if callable(close_fn):
                         close_fn()
                 except Exception:
-                    logger.warning(
-                        "Error closing diagnostic capture backend", exc_info=True
-                    )
+                    logger.warning("Error closing diagnostic capture backend", exc_info=True)
 
     def _make_device_driver(
         self, *, enable_live_frame_write_optimization: bool = True

@@ -911,19 +911,13 @@ class XDGPortalCapture:
                 except BaseException as thread_exc:
                     error = thread_exc
 
-            thread = threading.Thread(
-                target=_worker, name="portal-close-session", daemon=True
-            )
+            thread = threading.Thread(target=_worker, name="portal-close-session", daemon=True)
             thread.start()
             thread.join(timeout=5.0)
             if error is not None:
-                logger.warning(
-                    "Portal session close via worker thread failed: %s", error
-                )
+                logger.warning("Portal session close via worker thread failed: %s", error)
             elif thread.is_alive():
-                logger.warning(
-                    "Portal session close worker thread still running after 5s timeout"
-                )
+                logger.warning("Portal session close worker thread still running after 5s timeout")
         except Exception:
             logger.debug(
                 "Portal session close failed (non-critical)",

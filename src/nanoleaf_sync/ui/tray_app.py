@@ -215,7 +215,11 @@ class NanoleafTrayApp:
             )
         # Only auto-start after a successful config load; skip when config
         # was broken and we fell back to diagnostic mode.
-        if not self._config_created and not self._startup_warning and bool(getattr(self.config, "start_on_launch", False)):
+        if (
+            not self._config_created
+            and not self._startup_warning
+            and bool(getattr(self.config, "start_on_launch", False))
+        ):
             self.QTimer.singleShot(0, self._start_after_launch)
 
         self._shutdown_in_progress = False
@@ -997,7 +1001,9 @@ class NanoleafTrayApp:
 
         def worker() -> None:
             try:
-                result = subprocess.run(argv, capture_output=True, text=True, check=False, timeout=30)
+                result = subprocess.run(
+                    argv, capture_output=True, text=True, check=False, timeout=30
+                )
                 preview, rc = summarize_command_output(
                     result.stdout, result.stderr, result.returncode
                 )
@@ -1089,6 +1095,7 @@ class NanoleafTrayApp:
                 READY_STATUS,
                 run_readiness_check,
             )
+
             try:
                 report = run_readiness_check(
                     config=self.config,
@@ -1098,9 +1105,7 @@ class NanoleafTrayApp:
                     device_probe=lambda _cfg: None,
                 )
                 if report.status == READY_STATUS:
-                    _log.info(
-                        "Config passes readiness check; skipping first-run wizard"
-                    )
+                    _log.info("Config passes readiness check; skipping first-run wizard")
                 else:
                     self.on_display_configurator()
             except Exception:

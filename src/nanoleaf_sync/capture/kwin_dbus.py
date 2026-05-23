@@ -224,9 +224,7 @@ class KWinDBusScreenshotCapture:
                 return
             if loop.is_running():
                 try:
-                    future = asyncio.run_coroutine_threadsafe(
-                        self._reset_bus_connections(), loop
-                    )
+                    future = asyncio.run_coroutine_threadsafe(self._reset_bus_connections(), loop)
                     future.result(timeout=2.0)
                 except (TimeoutError, Exception):
                     logger = __import__("logging").getLogger(__name__)
