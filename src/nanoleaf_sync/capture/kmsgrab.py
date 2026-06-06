@@ -56,12 +56,12 @@ class KMSGrabCapture:
             hdr_primaries=hdr_primaries,
         )
         self._allow_fallback = bool(allow_fallback)
-        self.last_capture_path: str = "drm-kms"
+        self.last_capture_path: str | None = "drm-kms"
         self.last_hdr_diagnostics: dict[str, object] = {}
 
         self._hdr_defaults = HDRMetadata(
-            transfer=str(hdr_transfer),
-            primaries=str(hdr_primaries),
+            transfer=hdr_transfer if hdr_transfer in ("srgb", "pq", "hlg", "linear", "unknown") else "srgb",  # type: ignore[arg-type]
+            primaries=hdr_primaries if hdr_primaries in ("bt709", "bt2020", "unknown") else "bt709",  # type: ignore[arg-type]
             max_nits=float(hdr_max_nits),
         )
 
@@ -197,7 +197,7 @@ class KMSGrabCapture:
             pass
 
         try:
-            module = import_module("kmsgrab")  # type: ignore
+            module = import_module("kmsgrab")
             capture = getattr(module, "capture", None)
             if callable(capture):
                 return capture
@@ -209,7 +209,7 @@ class KMSGrabCapture:
     def _supports_positional_call(self, capture_impl: object) -> bool:
         """Return True when signature inspection indicates 3 positional args are accepted."""
         try:
-            signature = inspect.signature(capture_impl)
+            signature = inspect.signature(capture_impl)  # type: ignore[arg-type]
         except (TypeError, ValueError):
             return True
 

@@ -30,6 +30,12 @@ from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.live_diagnostics import LiveDiagnosticsDialog
 from nanoleaf_sync.ui.settings_dialog import SettingsDialog
 from nanoleaf_sync.runtime.output_session import OutputSessionController
+from nanoleaf_sync.runtime.readiness_check import (
+    NEEDS_CALIBRATION_STATUS,
+    CONFIG_PROBLEM_STATUS,
+    ReadinessReport,
+    run_readiness_check,
+)
 
 SELF_CHECK_IMPORTS: tuple[str, ...] = (
     "nanoleaf_sync.config.store",
@@ -229,6 +235,43 @@ class NanoleafTrayApp:
         self._quit_finalized = False
         self._stop_poll_deadline = 0.0
         self._stop_poll_count = 0
+        self._startup_refresh_deadline = 0.0
+
+    def _quick_setup_readiness(self) -> ReadinessReport:
+        """Fast config/calibration readiness check without capture/device probes."""
+        return run_readiness_check(
+            config=self.config,
+            runtime_status=self._safe_service_status(),
+            source_zone_count=None,
+            capture_probe=lambda _cfg: None,
+            device_probe=lambda _cfg: None,
+        )
+
+    def _schedule_startup_refresh(self) -> None:
+        """Poll tray labels while startup is in-flight (portal consent, first frame, etc.)."""
+        self._startup_refresh_deadline = time.monotonic() + 120.0
+        self.QTimer.singleShot(250, self._poll_startup_refresh)
+
+    def _poll_startup_refresh(self) -> None:
+        status = self._safe_service_status()
+        startup_state = str(status.get("startup_state") or "")
+        self._safe_refresh_mode_labels()
+        if startup_state in {"starting", "waiting_for_screen_selection"}:
+            if time.monotonic() < getattr(self, "_startup_refresh_deadline", 0.0):
+                self.QTimer.singleShot(500, self._poll_startup_refresh)
+            return
+        if startup_state == "running":
+            self.tray_icon.setIcon(self._running_icon)
+            return
+        if startup_state in {"idle", "error"} and not self._service_running():
+            guidance = status.get("last_error_guidance") or ""
+            if status.get("last_error") or status.get("start_failure_reason"):
+                self.tray_icon.showMessage(
+                    "nanoleaf-kde-sync",
+                    f"Start failed: {status.get('last_error') or status.get('start_failure_reason')}\n{guidance}",
+                    self.QSystemTrayIcon.MessageIcon.Warning,
+                    7000,
+                )
 
     def _close_preview_driver(self, *, resume_service: bool = True) -> None:
         if self._preview_driver is not None:
@@ -549,6 +592,18 @@ class NanoleafTrayApp:
         )
         if waiting_for_screen:
             self.action_start.setText("Start (Waiting for screen selection)")
+        elif not running and startup_state in {"idle", "error"}:
+            readiness_fn = getattr(self, "_quick_setup_readiness", None)
+            if callable(readiness_fn):
+                report = readiness_fn()
+                if report.status == NEEDS_CALIBRATION_STATUS:
+                    self.action_start.setText("Start (Needs calibration)")
+                elif report.status == CONFIG_PROBLEM_STATUS:
+                    self.action_start.setText("Start (Needs setup)")
+                else:
+                    self.action_start.setText("Start")
+            else:
+                self.action_start.setText("Start")
         else:
             self.action_start.setText("Start")
 
@@ -571,10 +626,44 @@ class NanoleafTrayApp:
         startup_state = str(start_status.get("startup_state") or "")
         if startup_state in {"starting", "waiting_for_screen_selection", "running", "stopping"}:
             NanoleafTrayApp._safe_refresh_mode_labels(self)
+            schedule_refresh = getattr(self, "_schedule_startup_refresh", None)
+            if startup_state in {"starting", "waiting_for_screen_selection"} and callable(
+                schedule_refresh
+            ):
+                schedule_refresh()
             return
         close_preview = getattr(self, "_close_preview_driver", None)
         if callable(close_preview):
             close_preview(resume_service=False)
+
+        readiness_fn = getattr(self, "_quick_setup_readiness", None)
+        preflight = readiness_fn() if callable(readiness_fn) else None
+        if preflight is not None and not preflight.ready and bool(
+            getattr(self.config, "wizard_completed", False)
+        ):
+            issue = preflight.issues[0] if preflight.issues else None
+            reason = issue.reason if issue else preflight.status
+            fix = issue.fix if issue else "Open Display Setup or Settings"
+            message = f"Cannot start mirroring yet.\n{reason}\n{fix}"
+            if preflight.status == NEEDS_CALIBRATION_STATUS:
+                message = f"{message}\n\nOpening Display Setup…"
+                self.tray_icon.showMessage(
+                    "nanoleaf-kde-sync",
+                    message,
+                    self.QSystemTrayIcon.MessageIcon.Warning,
+                    8000,
+                )
+                self.on_display_configurator(was_running_intent=False)
+                return
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                message,
+                self.QSystemTrayIcon.MessageIcon.Warning,
+                8000,
+            )
+            if preflight.status == CONFIG_PROBLEM_STATUS:
+                self.on_settings()
+            return
 
         try:
             started = self.service.start()
@@ -597,15 +686,12 @@ class NanoleafTrayApp:
         running = bool(running and startup_state == "running")
         self.tray_icon.setIcon(self._running_icon if running else self._idle_icon)
         NanoleafTrayApp._safe_refresh_mode_labels(self)
-        if startup_state in {"starting", "running"}:
-            return
-        if startup_state == "waiting_for_screen_selection":
-            self.tray_icon.showMessage(
-                "nanoleaf-kde-sync",
-                "Waiting for screen selection",
-                self.QSystemTrayIcon.MessageIcon.Information,
-                5000,
-            )
+        if startup_state in {"starting", "running", "waiting_for_screen_selection"}:
+            schedule_refresh = getattr(self, "_schedule_startup_refresh", None)
+            if startup_state in {"starting", "waiting_for_screen_selection"} and callable(
+                schedule_refresh
+            ):
+                schedule_refresh()
             return
         if not running:
             guidance = (
@@ -713,15 +799,12 @@ class NanoleafTrayApp:
         effective_running = bool(running and startup_state == "running")
         self.tray_icon.setIcon(self._running_icon if effective_running else self._idle_icon)
         NanoleafTrayApp._safe_refresh_mode_labels(self)
-        if startup_state in {"starting", "running"}:
-            return
-        if startup_state == "waiting_for_screen_selection":
-            self.tray_icon.showMessage(
-                "nanoleaf-kde-sync",
-                "Waiting for screen selection",
-                self.QSystemTrayIcon.MessageIcon.Information,
-                5000,
-            )
+        if startup_state in {"starting", "running", "waiting_for_screen_selection"}:
+            schedule_refresh = getattr(self, "_schedule_startup_refresh", None)
+            if startup_state in {"starting", "waiting_for_screen_selection"} and callable(
+                schedule_refresh
+            ):
+                schedule_refresh()
             return
         if not effective_running:
             guidance = (

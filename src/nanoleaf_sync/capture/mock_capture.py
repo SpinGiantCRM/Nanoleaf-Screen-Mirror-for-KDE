@@ -42,3 +42,7 @@ class MockScreenCapture:
         self._frame[:, :, 1] = np.clip(np.rint(g * 255.0), 0, 255).astype(np.uint8)
         self._frame[:, :, 2] = np.clip(np.rint(b * 255.0), 0, 255).astype(np.uint8)
         return self._frame.copy()
+
+    def close(self) -> None:
+        """No-op close for mock capture."""
+        pass

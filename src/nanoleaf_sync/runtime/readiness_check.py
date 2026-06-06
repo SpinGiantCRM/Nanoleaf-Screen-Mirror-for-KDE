@@ -129,14 +129,14 @@ def run_readiness_check(
         )
 
     calibration = normalized.effective_calibration()
-    anchors = {
+    anchors: dict[str, int | None] = {
         "top_left": int(getattr(calibration, "corner_anchor_top_left", -1)),
         "top_right": int(getattr(calibration, "corner_anchor_top_right", -1)),
         "bottom_right": int(getattr(calibration, "corner_anchor_bottom_right", -1)),
         "bottom_left": int(getattr(calibration, "corner_anchor_bottom_left", -1)),
     }
     anchor_validation = validate_corner_anchors(
-        anchors=anchors, device_zone_count=max(1, manual_strip_count)
+        anchors=anchors, device_zone_count=max(1, manual_strip_count)  # type: ignore[arg-type]
     )
     if not anchor_validation.valid:
         issues.append(
