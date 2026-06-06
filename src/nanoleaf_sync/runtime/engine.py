@@ -1058,12 +1058,12 @@ def _run_loop_legacy(
                             STAGE_IDLE_WAIT: idle_wait_ms,
                             STAGE_RUNTIME_IDLE_WAIT: idle_wait_ms,
                             STAGE_FRAME_PROCESSING: frame_processing_ms,
-                            STAGE_FRAME_CONVERT: processing_timings.frame_convert_ms,
-                            STAGE_ZONE_SAMPLING: processing_timings.zone_sampling_ms,
-                            STAGE_COLOUR_PROCESSING: processing_timings.colour_processing_ms,
-                            STAGE_SMOOTHING: processing_timings.smoothing_ms,
-                            STAGE_LED_CALIBRATION: processing_timings.led_calibration_ms,
-                            STAGE_OUTPUT_PREPARE: processing_timings.output_prepare_ms,
+                            STAGE_FRAME_CONVERT: processing_timings.frame_convert_ms,  # type: ignore[union-attr]
+                            STAGE_ZONE_SAMPLING: processing_timings.zone_sampling_ms,  # type: ignore[union-attr]
+                            STAGE_COLOUR_PROCESSING: processing_timings.colour_processing_ms,  # type: ignore[union-attr]
+                            STAGE_SMOOTHING: processing_timings.smoothing_ms,  # type: ignore[union-attr]
+                            STAGE_LED_CALIBRATION: processing_timings.led_calibration_ms,  # type: ignore[union-attr]
+                            STAGE_OUTPUT_PREPARE: processing_timings.output_prepare_ms,  # type: ignore[union-attr]
                             STAGE_ACTUAL_WORK: actual_work_ms,
                             STAGE_HID_WRITE: hid_write_ms,
                             STAGE_HID_FRAME_BUILD: hid_frame_build_ms,
@@ -1428,7 +1428,7 @@ def _run_loop_pipeline(
                     frame=frame,
                     prev_smoothed_colors=state.prev_smoothed_colors,
                     zones_px=zones_px,
-                    device_zone_indices=device_zone_indices,
+                    device_zone_indices=device_zone_indices,  # type: ignore[arg-type]
                     brightness=config.brightness,
                     smoothing=config.smoothing,
                     smoothing_speed=config.smoothing_speed,
@@ -1520,10 +1520,10 @@ def _run_loop_pipeline(
                         )
                         smoothed_colors = [
                             tuple(int(c) for c in row) for row in smoothed_arr.tolist()
-                        ]
+                        ]  # type: ignore[misc]
 
                 # Atomic prev_smoothed_colors swap
-                state.prev_smoothed_colors = smoothed_colors
+                state.prev_smoothed_colors = smoothed_colors  # type: ignore[assignment]
                 state.first_frame_processed = True
                 state.last_frame_width = int(img_w)
                 state.last_frame_height = int(img_h)
@@ -1533,7 +1533,7 @@ def _run_loop_pipeline(
                 # Build zone diagnostics
                 zone_diagnostics: list[dict[str, object]] = []
                 for zone_index, rect in enumerate(zones_px):
-                    sampled_rgb = tuple(int(c) for c in sampled_zone_colors[zone_index].tolist())
+                    sampled_rgb = tuple(int(c) for c in sampled_zone_colors[zone_index].tolist())  # type: ignore[union-attr]
                     mapped_led_index = None
                     for led_idx, src_idx in enumerate(device_zone_indices.tolist()):
                         if int(src_idx) == int(zone_index):
@@ -1544,10 +1544,10 @@ def _run_loop_pipeline(
                         final_rgb = sampled_rgb
                     else:
                         pre_led_rgb = tuple(
-                            int(c) for c in pre_led_colors[mapped_led_index].tolist()
+                            int(c) for c in pre_led_colors[mapped_led_index].tolist()  # type: ignore[union-attr]
                         )
                         final_rgb = tuple(
-                            int(c) for c in final_zone_colors[mapped_led_index].tolist()
+                            int(c) for c in final_zone_colors[mapped_led_index].tolist()  # type: ignore[union-attr]
                         )
                     top, right, bottom, left = state.latest_zone_side_counts
                     if zone_index < top:
@@ -1583,28 +1583,28 @@ def _run_loop_pipeline(
                         }
                     )
                 side_var = _side_variance_diagnostics(
-                    sampled=sampled_zone_colors,
-                    final=final_zone_colors,
+                    sampled=sampled_zone_colors,  # type: ignore[arg-type]
+                    final=final_zone_colors,  # type: ignore[arg-type]
                     side_counts=state.latest_zone_side_counts,
                 )
                 for row in zone_diagnostics:
-                    row["side_variance"] = side_var.get(str(row.get("side")), {})
+                    row["side_variance"] = side_var.get(str(row.get("side")), {})  # type: ignore[attr-defined]
                     row["processing_flattened_side"] = bool(
-                        row["side_variance"].get("processing_flattened", False)
+                        row["side_variance"].get("processing_flattened", False)  # type: ignore[attr-defined]
                     )
                 state.latest_zone_diagnostics = zone_diagnostics
                 state.latest_side_variance_diagnostics = side_var
 
                 pushed = process_buf.push(
                     ProcessedPayload(
-                        smoothed_colors=smoothed_colors,
+                        smoothed_colors=smoothed_colors,  # type: ignore[arg-type]
                         captured_at=captured_at,
                         frame=frame,
                         zones_px=list(zones_px),
                         device_zone_indices=device_zone_indices,
-                        sampled_zone_colors=sampled_zone_colors,
-                        pre_led_colors=pre_led_colors,
-                        final_zone_colors=final_zone_colors,
+                        sampled_zone_colors=sampled_zone_colors,  # type: ignore[arg-type]
+                        pre_led_colors=pre_led_colors,  # type: ignore[arg-type]
+                        final_zone_colors=final_zone_colors,  # type: ignore[arg-type]
                         processing_timings=processing_timings,
                         zone_diagnostics=zone_diagnostics,
                         side_var=side_var,
@@ -1709,17 +1709,17 @@ def _run_loop_pipeline(
                 if callable(send_with_timing):
                     timing = send_with_timing(payload.smoothed_colors)
                     hid_frame_build_ms = (
-                        float(timing.get("frame_build_ms"))
+                        float(timing.get("frame_build_ms"))  # type: ignore[arg-type]
                         if isinstance(timing, dict) and timing.get("frame_build_ms") is not None
                         else None
                     )
                     hid_device_write_ms = (
-                        float(timing.get("device_write_ms"))
+                        float(timing.get("device_write_ms"))  # type: ignore[arg-type]
                         if isinstance(timing, dict) and timing.get("device_write_ms") is not None
                         else None
                     )
                     hid_flush_or_wait_ms = (
-                        float(timing.get("flush_or_wait_ms"))
+                        float(timing.get("flush_or_wait_ms"))  # type: ignore[arg-type]
                         if isinstance(timing, dict) and timing.get("flush_or_wait_ms") is not None
                         else None
                     )
@@ -1762,12 +1762,12 @@ def _run_loop_pipeline(
                     hid_device_write_ms = hid_write_ms
 
                 frame_processing_ms = (
-                    (payload.processing_timings.frame_convert_ms or 0.0)
-                    + (payload.processing_timings.zone_sampling_ms or 0.0)
-                    + (payload.processing_timings.colour_processing_ms or 0.0)
-                    + (payload.processing_timings.smoothing_ms or 0.0)
-                    + (payload.processing_timings.led_calibration_ms or 0.0)
-                    + (payload.processing_timings.output_prepare_ms or 0.0)
+                    (payload.processing_timings.frame_convert_ms or 0.0)  # type: ignore[attr-defined]
+                    + (payload.processing_timings.zone_sampling_ms or 0.0)  # type: ignore[attr-defined]
+                    + (payload.processing_timings.colour_processing_ms or 0.0)  # type: ignore[attr-defined]
+                    + (payload.processing_timings.smoothing_ms or 0.0)  # type: ignore[attr-defined]
+                    + (payload.processing_timings.led_calibration_ms or 0.0)  # type: ignore[attr-defined]
+                    + (payload.processing_timings.output_prepare_ms or 0.0)  # type: ignore[attr-defined]
                 )
                 actual_work_ms = (send_done - now) * 1000.0
                 loop_gap_ms = (
@@ -1813,12 +1813,12 @@ def _run_loop_pipeline(
                             STAGE_IDLE_WAIT: None,
                             STAGE_RUNTIME_IDLE_WAIT: None,
                             STAGE_FRAME_PROCESSING: frame_processing_ms,
-                            STAGE_FRAME_CONVERT: payload.processing_timings.frame_convert_ms,
-                            STAGE_ZONE_SAMPLING: payload.processing_timings.zone_sampling_ms,
-                            STAGE_COLOUR_PROCESSING: payload.processing_timings.colour_processing_ms,
-                            STAGE_SMOOTHING: payload.processing_timings.smoothing_ms,
-                            STAGE_LED_CALIBRATION: payload.processing_timings.led_calibration_ms,
-                            STAGE_OUTPUT_PREPARE: payload.processing_timings.output_prepare_ms,
+                            STAGE_FRAME_CONVERT: payload.processing_timings.frame_convert_ms,  # type: ignore[attr-defined]
+                            STAGE_ZONE_SAMPLING: payload.processing_timings.zone_sampling_ms,  # type: ignore[attr-defined]
+                            STAGE_COLOUR_PROCESSING: payload.processing_timings.colour_processing_ms,  # type: ignore[attr-defined]
+                            STAGE_SMOOTHING: payload.processing_timings.smoothing_ms,  # type: ignore[attr-defined]
+                            STAGE_LED_CALIBRATION: payload.processing_timings.led_calibration_ms,  # type: ignore[attr-defined]
+                            STAGE_OUTPUT_PREPARE: payload.processing_timings.output_prepare_ms,  # type: ignore[attr-defined]
                             STAGE_ACTUAL_WORK: actual_work_ms,
                             STAGE_HID_WRITE: hid_write_ms,
                             STAGE_HID_FRAME_BUILD: hid_frame_build_ms,

@@ -86,8 +86,8 @@ class KWinDBusScreenshotCapture:
         self._legacy_bus = None
         self._loop_start_error: BaseException | None = None
         self._hdr_defaults = HDRMetadata(
-            transfer=str(hdr_transfer),
-            primaries=str(hdr_primaries),
+            transfer=hdr_transfer if hdr_transfer in ("srgb", "pq", "hlg", "linear", "unknown") else "srgb",  # type: ignore[arg-type]
+            primaries=hdr_primaries if hdr_primaries in ("bt709", "bt2020", "unknown") else "bt709",  # type: ignore[arg-type]
             max_nits=float(hdr_max_nits),
         )
         self._resize_index_cache: dict[
@@ -803,6 +803,7 @@ class KWinDBusScreenshotCapture:
             ) from exc
 
         fmt = QImage.Format(image_format)
+        # Copy into a mutable buffer so QImage can safely reference it until conversion.
         raw_copy = bytearray(data)
         image = QImage(raw_copy, width, height, stride, fmt)
         if image.isNull():

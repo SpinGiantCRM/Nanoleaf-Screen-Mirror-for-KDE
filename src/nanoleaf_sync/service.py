@@ -429,13 +429,13 @@ class NanoleafSyncService:
             self._runtime.latest_zones_px = list(zones_px)
             self._runtime.latest_zone_side_counts = tuple(
                 int(i) for i in (artifacts.side_counts or (0, 0, 0, 0))
-            )
+            )  # type: ignore[assignment]
             self._runtime.latest_edge_sampling_thickness = artifacts.edge_sampling_thickness
             rows: list[dict[str, object]] = []
             for zone_index, rect in enumerate(zones_px):
-                sampled_rgb = tuple(int(c) for c in sampled_zone_colors[zone_index].tolist())
-                pre_led_rgb = tuple(int(c) for c in pre_led_colors[zone_index].tolist())
-                final_rgb = tuple(int(c) for c in final_zone_colors[zone_index].tolist())
+                sampled_rgb = tuple(int(c) for c in sampled_zone_colors[zone_index].tolist())  # type: ignore[union-attr]
+                pre_led_rgb = tuple(int(c) for c in pre_led_colors[zone_index].tolist())  # type: ignore[union-attr]
+                final_rgb = tuple(int(c) for c in final_zone_colors[zone_index].tolist())  # type: ignore[union-attr]
                 top, right, bottom, left = self._runtime.latest_zone_side_counts
                 if zone_index < top:
                     side = "top"
@@ -612,7 +612,7 @@ class NanoleafSyncService:
                         )
                         updated_config = replace(
                             self.config,
-                            auto_selected_backend=winner,
+                            auto_selected_backend=winner or "",
                             auto_probe_signature=signature,
                         )
                         if needs_write:

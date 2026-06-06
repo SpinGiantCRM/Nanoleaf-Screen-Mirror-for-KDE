@@ -179,7 +179,7 @@ def _kmsgrab_bindings_available() -> bool:
             pass
 
         try:
-            module = import_module("kmsgrab")  # type: ignore
+            module = import_module("kmsgrab")
             return callable(getattr(module, "capture", None))
         except ImportError:
             return False
@@ -454,10 +454,10 @@ def run_manual_portal_benchmark(*, width: int, height: int, samples: int = 30) -
             samples=samples,
         )
         portal_better = (
-            float(portal_stats["p95_capture_ms"]) <= float(kwin_stats["p95_capture_ms"])
-            and float(portal_stats["jitter_ms"]) <= float(kwin_stats["jitter_ms"])
-            and int(portal_stats["empty_buffers"]) == 0
-            and int(portal_stats["sample_count"]) >= max(10, samples // 2)
+            float(portal_stats["p95_capture_ms"]) <= float(kwin_stats["p95_capture_ms"])  # type: ignore[arg-type]
+            and float(portal_stats["jitter_ms"]) <= float(kwin_stats["jitter_ms"])  # type: ignore[arg-type]
+            and int(portal_stats["empty_buffers"]) == 0  # type: ignore[call-overload]
+            and int(portal_stats["sample_count"]) >= max(10, samples // 2)  # type: ignore[call-overload]
         )
         return {
             "status": "tested",

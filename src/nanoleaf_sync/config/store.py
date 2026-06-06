@@ -121,6 +121,7 @@ class ConfigManager:
         cfg = self.load()
         updated_cfg = replace(
             cfg,
+            device_zone_count=0,
             calibration_schema_version=1,
             calibration=CalibrationConfig(),
             reverse_zones=False,

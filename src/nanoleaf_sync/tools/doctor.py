@@ -210,7 +210,7 @@ def _check_hid_enumeration(config: AppConfig) -> DoctorCheck:
         )
 
     try:
-        import hid  # type: ignore
+        import hid
 
         devices = hid.enumerate(vid, pid)
     except Exception as exc:
@@ -473,7 +473,7 @@ def run_doctor(
 
 
 def format_report(checks: list[DoctorCheck]) -> str:
-    sections = {"pass": [], "warn": [], "fail": []}
+    sections: dict[str, list[str]] = {"pass": [], "warn": [], "fail": []}
     for check in checks:
         icon = {"pass": "PASS", "warn": "WARN", "fail": "FAIL"}[check.status]
         line = f"[{icon}] {check.name}: {check.message}"
