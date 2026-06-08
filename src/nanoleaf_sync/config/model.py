@@ -112,6 +112,8 @@ class AppConfig:
     display_preset: str = "hdr"
     # Tracks whether the first-run display configurator has been completed.
     wizard_completed: bool = False
+    # Schema version for wizard_in_progress_state JSON payload.
+    wizard_state_version: int = 1
     # Serialized setup draft for crash-recovery only.
     wizard_in_progress_state: str = ""
     start_on_launch: bool = False

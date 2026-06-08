@@ -7,6 +7,14 @@ from pathlib import Path
 import numpy as np
 
 
+def test_package_exposes_version() -> None:
+    import nanoleaf_sync
+
+    project_root = Path(__file__).resolve().parents[1]
+    expected = (project_root / "VERSION").read_text(encoding="utf-8").strip()
+    assert nanoleaf_sync.__version__ == expected
+
+
 def test_device_package_exports_import() -> None:
     from nanoleaf_sync.device import (
         DeviceDriver,

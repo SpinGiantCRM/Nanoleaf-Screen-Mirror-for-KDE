@@ -9,7 +9,7 @@ from nanoleaf_sync.config.serialization import (
     dump_toml,
     toml_render_scalar,
     toml_render_list,
-    _dump_toml_fallback,
+    _prepare_payload_for_round_trip,
 )
 
 
@@ -55,74 +55,8 @@ def test_toml_render_list_empty() -> None:
     assert toml_render_list([]) == "[]"
 
 
-def test_fallback_dump_flat_dict() -> None:
-    payload = {"fps": 60, "brightness": 0.8, "verbose": True}
-    result = _dump_toml_fallback(payload)
-    assert "fps = 60" in result
-    assert "brightness = 0.8" in result
-    assert "verbose = true" in result
-
-
-def test_fallback_dump_nested_table() -> None:
-    payload = {"calibration": {"device_zone_count": 48, "reverse_zones": False}}
-    result = _dump_toml_fallback(payload)
-    assert "[calibration]" in result
-    assert "device_zone_count = 48" in result
-    assert "reverse_zones = false" in result
-
-
-def test_fallback_dump_list_of_tables() -> None:
-    payload = {
-        "zones": [
-            {"x": 0.0, "y": 0.0, "w": 0.5, "h": 0.1},
-            {"x": 0.5, "y": 0.0, "w": 0.5, "h": 0.1},
-        ]
-    }
-    result = _dump_toml_fallback(payload)
-    assert "[[zones]]" in result
-    assert "x = 0.0" in result
-    # Should appear twice (once per zone)
-    assert result.count("x =") == 2
-
-
-def test_fallback_dump_preserves_list_scalars() -> None:
-    payload = {
-        "normalized_corner_anchors": [1, 12, 24, 36],
-    }
-    result = _dump_toml_fallback(payload)
-    assert "[1, 12, 24, 36]" in result
-
-
-def test_fallback_dump_empty_dict() -> None:
-    result = _dump_toml_fallback({})
-    assert result == "\n"
-
-
-def test_fallback_dump_sampling_quality_normalized() -> None:
-    payload = {"sampling_quality": "HIGH"}
-    result = _dump_toml_fallback(payload)
-    # The key is special-cased to lower-case the value, then rendered as a quoted TOML string
-    assert 'sampling_quality = "high"' in result
-
-
-def test_fallback_dump_deeply_nested() -> None:
-    payload = {
-        "a": {
-            "b": {"c": 1},
-            "d": 2,
-        }
-    }
-    result = _dump_toml_fallback(payload)
-    assert "[a]" in result
-    assert "d = 2" in result
-    assert "[a.b]" in result
-    assert "c = 1" in result
-
-
-def test_fallback_dump_calibration_roundtrip() -> None:
-    """Calibration blob should survive round-trip through fallback dump."""
-    from nanoleaf_sync.config.serialization import _prepare_payload_for_round_trip
-
+def test_dump_toml_calibration_roundtrip() -> None:
+    """Calibration blob should survive round-trip through dump."""
     payload = {
         "calibration": {
             "device_zone_count": 48,

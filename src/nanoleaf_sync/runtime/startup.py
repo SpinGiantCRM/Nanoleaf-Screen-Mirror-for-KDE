@@ -19,6 +19,7 @@ def _current_nice_value() -> int | None:
     try:
         return int(os.getpriority(os.PRIO_PROCESS, 0))
     except Exception:
+        logger.debug("Unable to read process nice value", exc_info=True)
         return None
 
 

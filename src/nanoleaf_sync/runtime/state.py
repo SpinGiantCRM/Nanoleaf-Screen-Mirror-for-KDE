@@ -20,6 +20,9 @@ DeviceZoneMappingSignature = tuple[Any, ...]
 
 @dataclass
 class RuntimeState:
+    # Individual field reads/writes are GIL-safe; multi-field updates should
+    # acquire _lock for a consistent snapshot.
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
     stop_event: threading.Event = field(default_factory=threading.Event)
     startup_complete: threading.Event = field(default_factory=threading.Event)
     reinit_pause: threading.Event = field(default_factory=threading.Event)
@@ -73,6 +76,10 @@ class RuntimeState:
     consecutive_black_frames: int = 0
     total_black_frames: int = 0
     latest_frame_mean_brightness: float = 0.0
+
+    def _assert_locked(self) -> None:
+        if not self._lock.locked():
+            raise RuntimeError("RuntimeState multi-field update requires _lock")
 
     def reset_for_start(self) -> None:
         self.reinit_pause.clear()

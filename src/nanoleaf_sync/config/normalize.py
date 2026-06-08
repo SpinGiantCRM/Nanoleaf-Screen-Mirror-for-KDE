@@ -30,6 +30,7 @@ from nanoleaf_sync.config.presets import (
 logger = logging.getLogger(__name__)
 SCHEMA_VERSION = 1
 CURRENT_CALIBRATION_SCHEMA_VERSION = 1
+CURRENT_WIZARD_STATE_VERSION = 1
 
 
 class ConfigValidationError(ValueError):
@@ -149,6 +150,39 @@ def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     calibration["calibration_schema_version"] = calibration_schema_version
     migrated["calibration_schema_version"] = calibration_schema_version
     migrated["calibration"] = calibration
+
+    wizard_state_version = max(
+        1,
+        _coerce_int(migrated.get("wizard_state_version", CURRENT_WIZARD_STATE_VERSION), 1),
+    )
+    migrated["wizard_state_version"] = wizard_state_version
+
+    raw_wizard = str(migrated.get("wizard_in_progress_state", "") or "").strip()
+    if raw_wizard:
+        try:
+            payload = json.loads(raw_wizard)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            logger.warning("Wizard in-progress state is not valid JSON during migration; clearing")
+            migrated["wizard_in_progress_state"] = ""
+        else:
+            if not isinstance(payload, dict):
+                logger.warning(
+                    "Wizard in-progress state is not a JSON object during migration; clearing"
+                )
+                migrated["wizard_in_progress_state"] = ""
+            else:
+                draft_version = _coerce_int(
+                    payload.get("wizard_state_version", 0),
+                    0,
+                )
+                if draft_version != wizard_state_version:
+                    logger.warning(
+                        "Wizard in-progress state version %d does not match config version %d; clearing",
+                        draft_version,
+                        wizard_state_version,
+                    )
+                    migrated["wizard_in_progress_state"] = ""
+
     return migrated
 
 

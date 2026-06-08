@@ -557,7 +557,7 @@ class DRMZoneSampler:
                     ctypes.c_size_t(self._mapped_size),
                 )
             except Exception:
-                pass
+                _log.debug("DRM mmap munmap failed during close", exc_info=True)
             self._mapped_ptr = None
             self._mapped_size = 0
 
@@ -568,8 +568,9 @@ class DRMZoneSampler:
                 pass
             self._fd = -1
 
-    def __del__(self) -> None:
-        try:
-            self.close()
-        except Exception:
-            pass
+    def __enter__(self) -> DRMZoneSampler:
+        return self
+
+    def __exit__(self, *args: object) -> bool:
+        self.close()
+        return False

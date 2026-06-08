@@ -145,6 +145,7 @@ class XDGPortalCapture:
                 error.append(exc)
             finally:
                 if loop is not None:
+                    assert self._portal_bus is None
                     loop.close()
 
         worker = threading.Thread(target=_worker, name="portal-negotiate", daemon=True)
@@ -582,7 +583,10 @@ class XDGPortalCapture:
                 try:
                     pipeline.set_state(Gst.State.NULL)
                 except Exception:
-                    pass
+                    logger.debug(
+                        "Failed to set Gst pipeline to NULL during format probe",
+                        exc_info=True,
+                    )
 
         raise XDGPortalError(
             "Portal stream negotiated, but no CPU-readable frame was received. "
@@ -790,7 +794,7 @@ class XDGPortalCapture:
                                         next(iter(self._caps_video_info_cache))
                                     )
                         except Exception:
-                            pass
+                            logger.debug("Failed to cache caps video info", exc_info=True)
         except Exception as exc:  # noqa: BLE001
             warnings.append(str(exc))
         if warnings:
@@ -837,7 +841,10 @@ class XDGPortalCapture:
 
                     pipeline.set_state(Gst.State.NULL)
                 except Exception:
-                    pass
+                    logger.debug(
+                        "Failed to set Gst pipeline to NULL during close",
+                        exc_info=True,
+                    )
             self._gst_pipeline = None
             self._gst_sink = None
             return

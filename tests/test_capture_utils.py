@@ -5,6 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from collections import OrderedDict
+
 from nanoleaf_sync.capture._utils import effective_runtime_zone_count, _resize_to_target
 
 
@@ -72,6 +74,29 @@ def test_resize_with_index_cache() -> None:
     assert (100, 200, 50, 100) in cache  # cache populated
     result2 = _resize_to_target(frame=frame, target_height=50, target_width=100, index_cache=cache)
     assert result1.shape == result2.shape
+
+
+def test_resize_ordered_dict_lru_eviction() -> None:
+    cache: OrderedDict[tuple[int, int, int, int], tuple[np.ndarray, np.ndarray]] = OrderedDict()
+    frames: list[np.ndarray] = []
+    keys: list[tuple[int, int, int, int]] = []
+    for i in range(8):
+        h = 50 + i
+        frame = np.random.randint(0, 256, (h, 200, 3), dtype=np.uint8)
+        frames.append(frame)
+        key = (h, 200, 25 + i, 100)
+        keys.append(key)
+        _resize_to_target(frame=frame, target_height=25 + i, target_width=100, index_cache=cache)
+    assert len(cache) == 8
+    # Touch the oldest key so it becomes MRU before the next insert evicts LRU.
+    _resize_to_target(
+        frame=frames[0], target_height=25, target_width=100, index_cache=cache
+    )
+    new_frame = np.random.randint(0, 256, (200, 200, 3), dtype=np.uint8)
+    _resize_to_target(frame=new_frame, target_height=99, target_width=100, index_cache=cache)
+    assert keys[0] in cache
+    assert keys[1] not in cache
+    assert len(cache) == 8
 
 
 def test_resize_cache_limit_eviction() -> None:

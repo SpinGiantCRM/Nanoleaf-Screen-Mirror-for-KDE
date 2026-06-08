@@ -645,6 +645,7 @@ def _run_loop_legacy(
                     capture_worker_failures += 1
                     capture_worker_error_count += 1
                     capture_worker_error = exc
+                logger.debug("capture worker error", exc_info=True)
                 time.sleep(0.005)
         with capture_worker_lock:
             capture_worker_active = False
@@ -772,7 +773,8 @@ def _run_loop_legacy(
                 last_reported_capture_worker_error_count = capture_worker_error_count_now
                 no_pending_frame_ticks = 0
             else:
-                assert frame is not None
+                if frame is None:
+                    raise ValueError("capture returned None frame")
                 img_h, img_w, _ = frame.shape
                 zones_px, device_zone_indices = _ensure_runtime_artifacts(
                     state=state,

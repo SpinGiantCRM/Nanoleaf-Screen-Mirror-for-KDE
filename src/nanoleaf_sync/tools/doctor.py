@@ -3,8 +3,11 @@ from __future__ import annotations
 import argparse
 import asyncio
 import importlib
+import logging
 import os
 import sys
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass
 from pathlib import Path
 import threading
@@ -316,7 +319,7 @@ def _check_real_device_probe(config: AppConfig) -> DoctorCheck:
         try:
             driver.close()
         except Exception:
-            pass
+            logger.debug("Failed to close device driver during doctor probe", exc_info=True)
 
 
 def _check_calibration_completeness(config: AppConfig) -> DoctorCheck:
@@ -433,7 +436,7 @@ def _check_real_capture_probe(config: AppConfig) -> DoctorCheck:
             if close_fn is not None:
                 close_fn()
         except Exception:
-            pass
+            logger.debug("Failed to close capture backend during doctor probe", exc_info=True)
 
 
 def run_doctor(

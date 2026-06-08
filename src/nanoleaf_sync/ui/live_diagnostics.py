@@ -154,6 +154,7 @@ class LiveDiagnosticsDialog(QDialog):
             try:
                 return bool(self._refresh_fn().get("running", False))
             except Exception:
+                _log.debug("Unable to query live diagnostics running state", exc_info=True)
                 return False
         return True
 
@@ -161,6 +162,7 @@ class LiveDiagnosticsDialog(QDialog):
         try:
             s = self._refresh_fn()
         except Exception:
+            _log.debug("Live diagnostics refresh failed", exc_info=True)
             return
 
         running = bool(s.get("running", False))

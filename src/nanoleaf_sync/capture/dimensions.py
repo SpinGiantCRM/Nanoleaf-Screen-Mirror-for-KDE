@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Optional, Tuple
 
 from nanoleaf_sync.config.model import AppConfig
 
+logger = logging.getLogger(__name__)
 
 DEFAULT_CAPTURE_WIDTH = 480
 DEFAULT_CAPTURE_HEIGHT = 270
@@ -41,6 +43,9 @@ def _detect_primary_screen_dims_sysfs() -> Optional[Tuple[int, int]]:
         try:
             status = status_path.read_text(encoding="utf-8", errors="ignore").strip().lower()
         except Exception:
+            logger.debug(
+                "Unable to read DRM connector status from %s", status_path, exc_info=True
+            )
             continue
         if status != "connected":
             continue
@@ -48,6 +53,7 @@ def _detect_primary_screen_dims_sysfs() -> Optional[Tuple[int, int]]:
         try:
             mode_lines = modes_path.read_text(encoding="utf-8", errors="ignore").splitlines()
         except Exception:
+            logger.debug("Unable to read DRM connector modes from %s", modes_path, exc_info=True)
             continue
 
         for line in mode_lines:
@@ -69,14 +75,16 @@ def detect_primary_screen_dims(*, qt_widgets_module=None) -> Optional[Tuple[int,
     qt_widgets = qt_widgets_module
     if qt_widgets is None:
         try:
-            from PyQt6 import QtWidgets as qt_widgets  # type: ignore
+            from PyQt6 import QtWidgets as qt_widgets
         except Exception:
+            logger.debug("PyQt6 unavailable for screen dimension detection", exc_info=True)
             return None
 
     try:
         qapplication = qt_widgets.QApplication
         app = qapplication.instance()
     except Exception:
+        logger.debug("Unable to access Qt QApplication for screen detection", exc_info=True)
         return None
 
     created_app = False
@@ -85,6 +93,7 @@ def detect_primary_screen_dims(*, qt_widgets_module=None) -> Optional[Tuple[int,
             app = qapplication([])
             created_app = True
         except Exception:
+            logger.debug("Unable to create Qt QApplication for screen detection", exc_info=True)
             return None
 
     try:
@@ -98,6 +107,7 @@ def detect_primary_screen_dims(*, qt_widgets_module=None) -> Optional[Tuple[int,
             return None
         return width, height
     except Exception:
+        logger.debug("Unable to read primary screen geometry from Qt", exc_info=True)
         return None
     finally:
         if created_app:

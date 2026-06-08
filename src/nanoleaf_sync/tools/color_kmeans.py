@@ -75,4 +75,4 @@ def dominant_colors_kmeans(
     order = np.argsort(-counts)  # descending counts
 
     centers_u8 = np.clip(np.rint(centers[order]), 0, 255).astype(np.uint8)
-    return [tuple(map(int, c.tolist())) for c in centers_u8]
+    return [(int(c[0]), int(c[1]), int(c[2])) for c in centers_u8]

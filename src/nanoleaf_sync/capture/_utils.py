@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
+
 import numpy as np
 
 
@@ -21,7 +23,9 @@ def _resize_to_target(
     frame: np.ndarray,
     target_height: int,
     target_width: int,
-    index_cache: dict[tuple[int, int, int, int], tuple[np.ndarray, np.ndarray]] | None = None,
+    index_cache: OrderedDict[tuple[int, int, int, int], tuple[np.ndarray, np.ndarray]]
+    | dict[tuple[int, int, int, int], tuple[np.ndarray, np.ndarray]]
+    | None = None,
     index_cache_limit: int = 8,
 ) -> np.ndarray:
     """Resize frame to target capture dimensions via nearest-neighbour index mapping.
@@ -46,13 +50,20 @@ def _resize_to_target(
         cached = index_cache.get(cache_key)
         if cached is not None:
             y_idx, x_idx = cached
+            if isinstance(index_cache, OrderedDict):
+                index_cache.move_to_end(cache_key)
 
     if y_idx is None:
         y_idx = np.linspace(0, frame.shape[0] - 1, target_height).astype(np.intp)
         x_idx = np.linspace(0, frame.shape[1] - 1, target_width).astype(np.intp)
         if index_cache is not None:
             index_cache[cache_key] = (y_idx, x_idx)
+            if isinstance(index_cache, OrderedDict):
+                index_cache.move_to_end(cache_key)
             if len(index_cache) > index_cache_limit:
-                index_cache.pop(next(iter(index_cache)))
+                if isinstance(index_cache, OrderedDict):
+                    index_cache.popitem(last=False)
+                else:
+                    index_cache.pop(next(iter(index_cache)))
 
     return frame[y_idx[:, None], x_idx[None, :], :]

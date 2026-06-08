@@ -1,5 +1,35 @@
 # Changelog
 
+## v1.6.0 — Final Release Audit Cleanup
+
+**Completes the forensic audit remediation: 15 integration fixes, exception logging across the codebase, thread-safety hardening, and release packaging alignment.**
+
+### Release & Packaging
+- **VERSION** bumped to `1.6.0`; `nanoleaf_sync.__version__` exposed via `importlib.metadata`
+- **README** header updated to v1.6.0
+- **CI** coverage floor raised to 70%; mypy scope expanded to full `src/nanoleaf_sync`
+- **PKGBUILD** installs 48×48 and 128×128 PNG icons alongside scalable SVG
+- **tomli-w** is now a hard dependency; fallback TOML dumper removed
+
+### Stability & Thread Safety
+- **`runtime/state.py`**: `RuntimeState._lock` for multi-field consistency; `_assert_locked()` debug helper
+- **`capture/_drm_zone_sampler.py`**: `__del__` replaced with context manager (`__enter__`/`__exit__`)
+- **`capture/kwin_dbus.py`**: loop close sanity checks; cross-loop reinit regression test
+- **`capture/xdg_portal.py`**: `_portal_bus` nulled before `loop.close()` assertion
+- **`capture/_utils.py`**: LRU index cache uses `OrderedDict.move_to_end()` for correct eviction
+- **`runtime/engine.py`**: `assert frame is not None` replaced with explicit `ValueError`
+
+### Config & Wizard
+- **`config/model.py`**: `wizard_state_version` field for draft schema versioning
+- **`config/normalize.py`**: migration clears wizard draft on version mismatch
+- **`service.py`**: public `reset_boot_probe_state()` API for tests
+
+### Error Handling
+- Added `logger.exception()` / `logger.warning(exc_info=True)` / `logger.debug(exc_info=True)` to ~30 previously silent `except Exception:` handlers across 17 modules
+
+### Tests
+- New: `test_runtime_state.py`, kwin cross-loop reinit test, wizard version migration tests, OrderedDict LRU test, `__version__` smoke test
+
 ## v1.5.8 — Codebase Audit Fixes (pre-release)
 
 **17 bug fixes and stability improvements from a comprehensive codebase audit covering asyncio race conditions, thread safety, resource cleanup, and startup/shutdown reliability.**
