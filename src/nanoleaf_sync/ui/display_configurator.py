@@ -1146,6 +1146,9 @@ class DisplayConfiguratorDialog:
                     calibration_model="corner_anchored",
                 )
                 payload = {
+                    "wizard_state_version": int(
+                        getattr(cfg, "wizard_state_version", 1) or 1
+                    ),
                     "flow_index": int(self._flow.index),
                     "test_step": int(self._test_step),
                     "zone_count": int(self._state.zone_count),
@@ -1240,6 +1243,7 @@ class DisplayConfiguratorDialog:
                 try:
                     data = json.loads(raw)
                 except Exception:
+                    _log.debug("Unable to parse wizard state payload", exc_info=True)
                     return False
                 if not isinstance(data, dict):
                     return False

@@ -79,6 +79,7 @@ class ConfigManager:
                 config=DaciteConfig(strict=False, cast=[int, float, str, bool]),
             )
         except Exception:
+            logger.exception("Failed to deserialize config; using defaults")
             self._config = AppConfig()
             return self._config
         loaded_device_zone_count = int(data.get("device_zone_count") or 0)
@@ -199,11 +200,11 @@ class ConfigManager:
                 try:
                     fcntl.flock(lock_fd, fcntl.LOCK_UN)
                 except Exception:
-                    pass
+                    logger.debug("Failed to release config file lock", exc_info=True)
                 try:
                     os.close(lock_fd)
                 except Exception:
-                    pass
+                    logger.debug("Failed to close config lock fd", exc_info=True)
             if tmp_path is not None and tmp_path.exists():
                 try:
                     tmp_path.unlink()

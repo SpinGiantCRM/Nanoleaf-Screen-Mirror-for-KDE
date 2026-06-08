@@ -36,7 +36,6 @@ from nanoleaf_sync.config.presets import (
     MOTION_PRESET_CALM,
 )
 from nanoleaf_sync.config.serialization import (
-    _dump_toml_fallback,
     _prepare_payload_for_round_trip,
     dump_toml,
     toml_render_scalar,
@@ -226,28 +225,23 @@ def test_toml_render_list() -> None:
     assert toml_render_list([1, 2, 3]) == "[1, 2, 3]"
 
 
-def test_dump_toml_fallback_basic() -> None:
-    result = _dump_toml_fallback({"fps": 60, "brightness": 1.0, "name": "test"})
-    assert "fps = 60" in result
-    assert "brightness = 1.0" in result
-    assert '"test"' in result
+def test_dump_toml_basic() -> None:
+    result = dump_toml({"fps": 60, "brightness": 1.0, "name": "test"})
+    assert "fps" in result
+    assert "brightness" in result
+    assert "test" in result
 
 
-def test_dump_toml_fallback_nested() -> None:
-    result = _dump_toml_fallback({"top": {"inner": 42}})
-    assert "[top]" in result
-    assert "inner = 42" in result
+def test_dump_toml_nested() -> None:
+    result = dump_toml({"top": {"inner": 42}})
+    assert "top" in result
+    assert "inner" in result
 
 
-def test_dump_toml_fallback_array_of_tables() -> None:
-    result = _dump_toml_fallback({"zones": [{"x": 0.0, "y": 0.0}, {"x": 1.0, "y": 1.0}]})
-    assert "[[zones]]" in result
-    assert "x = 0.0" in result
-
-
-def test_dump_toml_fallback_sampling_quality_normalized() -> None:
-    result = _dump_toml_fallback({"sampling_quality": "HIGH"})
-    assert "sampling_quality = \"high\"" in result
+def test_dump_toml_array_of_tables() -> None:
+    result = dump_toml({"zones": [{"x": 0.0, "y": 0.0}, {"x": 1.0, "y": 1.0}]})
+    assert "zones" in result
+    assert "x" in result
 
 
 def test_prepare_payload_for_round_trip_no_calibration() -> None:

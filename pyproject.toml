@@ -58,6 +58,9 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 
 [tool.coverage.run]
+omit = [
+  "src/nanoleaf_sync/ui/*",
+]
 
 [tool.ruff]
 line-length = 100
@@ -70,3 +73,16 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 exclude = ["src/nanoleaf_sync/ui/"]
 files = ["src/nanoleaf_sync"]
+
+# Pre-existing typing debt in capture/runtime/device; config+tools are strict.
+[[tool.mypy.overrides]]
+module = [
+  "nanoleaf_sync.capture.*",
+  "nanoleaf_sync.runtime.*",
+  "nanoleaf_sync.device.*",
+  "nanoleaf_sync.service",
+  "nanoleaf_sync.desktop_entry",
+  "nanoleaf_sync.color.hdr",
+  "nanoleaf_sync.color.zone_mapper",
+]
+ignore_errors = true

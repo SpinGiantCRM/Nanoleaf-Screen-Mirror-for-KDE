@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import sys
 import threading
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
@@ -205,7 +208,7 @@ class KWinDBusScreenshotCapture:
             try:
                 loop.close()
             except Exception:
-                pass
+                logger.debug("Failed to close asyncio loop on cancellation", exc_info=True)
             self._loop = None
             self._loop_ready.set()
         except Exception as exc:
@@ -235,7 +238,7 @@ class KWinDBusScreenshotCapture:
                 try:
                     loop.call_soon_threadsafe(loop.stop)
                 except Exception:
-                    pass
+                    logger.debug("Failed to stop asyncio loop during close", exc_info=True)
             else:
                 self._screenshot2_bus = None
                 self._legacy_bus = None
@@ -248,6 +251,8 @@ class KWinDBusScreenshotCapture:
                         "KWin D-Bus event loop thread did not exit within 3s timeout"
                     )
 
+            if loop is not None:
+                assert loop.is_closed() or not loop.is_running()
             self._loop = None
             self._loop_thread = None
             self._loop_ready.clear()

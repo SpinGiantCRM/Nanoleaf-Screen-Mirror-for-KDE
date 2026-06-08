@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 import re
 import sys
 import time
 from pathlib import Path
 from typing import Any, Optional, Sequence
+
+logger = logging.getLogger(__name__)
 
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 
@@ -87,7 +90,7 @@ class HIDTransport:
                     if re.fullmatch(r"hidraw\d+", child.name):
                         candidates.append(f"/dev/{child.name}".encode("utf-8"))
             except Exception:
-                pass
+                logger.debug("Unable to enumerate hidraw candidates from sysfs", exc_info=True)
 
         deduped: list[bytes] = []
         seen: set[bytes] = set()
@@ -111,6 +114,7 @@ class HIDTransport:
         try:
             return path.read_text(encoding="utf-8").strip()
         except Exception:
+            logger.debug("Unable to read sysfs text from %s", path, exc_info=True)
             return None
 
     @classmethod
@@ -225,6 +229,7 @@ class HIDTransport:
                 if interface is not None:
                     interface_numbers.add(int(interface))
             except Exception:
+                logger.debug("Unable to parse HID interface number", exc_info=True)
                 continue
 
         def _candidate_sort_key(dev: dict[str, Any]) -> tuple[int, int, str]:
@@ -232,6 +237,7 @@ class HIDTransport:
             try:
                 interface_key = 9999 if interface is None else int(interface)
             except Exception:
+                logger.debug("Unable to parse HID interface number for sort key", exc_info=True)
                 interface_key = 9999
             path_text = self._fmt_path(dev.get("path"))
             if path_text.startswith("/dev/hidraw"):

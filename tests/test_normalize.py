@@ -189,6 +189,28 @@ def test_migrate_bare_config() -> None:
     assert isinstance(result["calibration"], dict)
     assert result["calibration"]["schema_version"] == 1
     assert result["calibration_schema_version"] == 1
+    assert result["wizard_state_version"] == 1
+
+
+def test_migrate_clears_wizard_state_on_version_mismatch() -> None:
+    result = migrate_config_dict(
+        {
+            "wizard_state_version": 1,
+            "wizard_in_progress_state": '{"flow_index": 1}',
+        }
+    )
+    assert result["wizard_in_progress_state"] == ""
+
+
+def test_migrate_preserves_matching_wizard_state_version() -> None:
+    draft = '{"wizard_state_version": 1, "flow_index": 2}'
+    result = migrate_config_dict(
+        {
+            "wizard_state_version": 1,
+            "wizard_in_progress_state": draft,
+        }
+    )
+    assert result["wizard_in_progress_state"] == draft
 
 
 def test_migrate_preserves_existing() -> None:

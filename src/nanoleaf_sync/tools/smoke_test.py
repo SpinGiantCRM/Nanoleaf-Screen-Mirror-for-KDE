@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 from nanoleaf_sync.capture.backend_selection import (
     AUTO_BACKEND,
@@ -147,13 +150,13 @@ def main(argv: list[str] | None = None) -> int:
         try:
             driver.close()
         except Exception:
-            pass
+            logger.debug("Failed to close device driver during smoke test", exc_info=True)
         try:
             close_fn = getattr(capture, "close", None)
             if close_fn is not None:
                 close_fn()
         except Exception:
-            pass
+            logger.debug("Failed to close capture backend during smoke test", exc_info=True)
 
     return return_code
 

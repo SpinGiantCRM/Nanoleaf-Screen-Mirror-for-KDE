@@ -386,6 +386,7 @@ def _benchmark_backend(
             try:
                 frame = backend.capture()
             except Exception:
+                logger.debug("Capture benchmark attempt failed", exc_info=True)
                 continue
             capture_ms.append((time.monotonic() - call_start) * 1000.0)
             if frame.size <= 0 or frame.nbytes <= 0:

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import subprocess
+
+logger = logging.getLogger(__name__)
 
 from nanoleaf_sync.desktop_entry import (
     disable_autostart,
@@ -56,6 +59,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             state = (result.stdout or "").strip() or (result.stderr or "").strip() or "disabled"
         except Exception:
+            logger.debug("Unable to query systemd autostart state", exc_info=True)
             state = "unknown"
         if state == "enabled":
             print(f"Autostart is enabled: {unit}")

@@ -43,11 +43,11 @@ jobs:
         run: ruff check src/ tests/ --select E9,F63,F7,F82
 
       - name: Type check
-        run: mypy src/nanoleaf_sync/tools/config_init.py src/nanoleaf_sync/tools/output_format.py --ignore-missing-imports --follow-imports=silent
+        run: mypy src/nanoleaf_sync --ignore-missing-imports --follow-imports=silent
 
       - name: Calibration guardrails
         if: github.event_name == 'pull_request'
         run: python scripts/check_calibration_guardrails.py --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.sha }}"
 
       - name: Run tests
-        run: pytest -q --timeout=60 --timeout-method=thread --durations=25 --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=60
+        run: pytest -q --timeout=60 --timeout-method=thread --durations=25 --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=70

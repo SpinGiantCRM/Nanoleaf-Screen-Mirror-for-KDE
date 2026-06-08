@@ -85,6 +85,7 @@ def _build_auto_probe_signature(capture_width: int, capture_height: int) -> str:
         has_drm_device = bool(capture_factory.has_drm_device())
         kmsgrab_bindings = bool(capture_factory.kmsgrab_bindings_available())
     except Exception:
+        logger.debug("Unable to probe DRM/kmsgrab capability", exc_info=True)
         has_drm_device = False
         kmsgrab_bindings = False
 
@@ -125,6 +126,10 @@ class NanoleafSyncService:
 
     _PROCESS_BOOT_PROBE_LOCK = threading.RLock()
     _PROCESS_BOOT_PROBE_STATE = "pending"
+
+    @staticmethod
+    def reset_boot_probe_state() -> None:
+        NanoleafSyncService._reset_process_boot_probe_state()
 
     @classmethod
     def _reset_process_boot_probe_state(cls) -> None:

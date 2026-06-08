@@ -65,6 +65,7 @@ def _read_app_version() -> str:
             encoding="utf-8"
         ).strip() or "unknown"
     except Exception:
+        _log.debug("Unable to read VERSION file", exc_info=True)
         return "unknown"
 
 
@@ -93,6 +94,7 @@ def _show_gui_startup_error(message: str) -> None:
         qt["QMessageBox"].critical(None, "nanoleaf-kde-sync startup error", message)
         app.processEvents()
     except Exception:
+        _log.debug("Unable to show GUI startup error dialog", exc_info=True)
         print(message, file=sys.stderr, flush=True)
 
 

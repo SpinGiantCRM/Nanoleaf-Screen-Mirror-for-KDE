@@ -94,7 +94,7 @@ class KMSGrabCapture:
             try:
                 self._drm_zone_sampler.close()
             except Exception:
-                pass
+                _log.debug("Failed to close DRM zone sampler", exc_info=True)
             self._drm_zone_sampler = None
         if hasattr(self._fallback, "close"):
             self._fallback.close()

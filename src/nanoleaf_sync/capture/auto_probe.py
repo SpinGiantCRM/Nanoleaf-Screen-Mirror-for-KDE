@@ -133,6 +133,10 @@ def probe_backends(
                     try:
                         mean_val = float(np.mean(frame))
                     except Exception:
+                        logger.debug(
+                            "Unable to compute frame mean during probe warmup",
+                            exc_info=True,
+                        )
                         mean_val = 999.0
                     if mean_val < 2.0:
                         logger.warning(
@@ -164,6 +168,10 @@ def probe_backends(
                         try:
                             mean_val = float(np.mean(frame))
                         except Exception:
+                            logger.debug(
+                                "Unable to compute frame mean during probe capture",
+                                exc_info=True,
+                            )
                             mean_val = 999.0
                         if mean_val < 2.0:
                             logger.warning(

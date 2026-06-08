@@ -25,9 +25,9 @@ def _reset_capture_factory_caches() -> None:
     reset_cached_probe_winner()
     reset_capability_check_cache()
     reset_cached_drm_probe()
-    service_module.NanoleafSyncService._reset_process_boot_probe_state()  # noqa: SLF001
+    service_module.NanoleafSyncService.reset_boot_probe_state()
     yield
     reset_cached_probe_winner()
     reset_capability_check_cache()
     reset_cached_drm_probe()
-    service_module.NanoleafSyncService._reset_process_boot_probe_state()  # noqa: SLF001
+    service_module.NanoleafSyncService.reset_boot_probe_state()

@@ -40,6 +40,12 @@ package() {
   install -Dm644 assets/icons/hicolor/scalable/apps/nanoleaf-kde-sync.svg \
     "$pkgdir/usr/share/icons/hicolor/scalable/apps/nanoleaf-kde-sync.svg"
 
+  install -Dm644 assets/icons/hicolor/48x48/apps/nanoleaf-kde-sync.png \
+    "$pkgdir/usr/share/icons/hicolor/48x48/apps/nanoleaf-kde-sync.png"
+
+  install -Dm644 assets/icons/hicolor/128x128/apps/nanoleaf-kde-sync.png \
+    "$pkgdir/usr/share/icons/hicolor/128x128/apps/nanoleaf-kde-sync.png"
+
   install -Dm644 assets/udev/60-nanoleaf-kde-sync.rules \
     "$pkgdir/usr/lib/udev/rules.d/60-nanoleaf-kde-sync.rules"
 

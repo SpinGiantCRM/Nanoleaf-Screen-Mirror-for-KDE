@@ -521,3 +521,24 @@ def test_loop_worker_ordinary_exception_sets_error_state(monkeypatch) -> None:
     assert backend._loop_ready.is_set()
     assert isinstance(backend._loop_start_error, RuntimeError)
     backend.close()
+
+
+def test_close_clears_loop_so_reinit_uses_fresh_loop(monkeypatch) -> None:
+    """After close/reinit, the asyncio loop object must not be reused."""
+    backend = KWinDBusScreenshotCapture(width=2, height=1)
+
+    try:
+        backend._ensure_background_loop()
+        first_loop = backend._loop
+        first_thread = backend._loop_thread
+        assert first_loop is not None
+        backend.close()
+        assert backend._loop is None
+        assert first_loop.is_closed()
+
+        backend._ensure_background_loop()
+        assert backend._loop is not None
+        assert backend._loop is not first_loop
+        assert backend._loop_thread is not first_thread
+    finally:
+        backend.close()

@@ -1,4 +1,4 @@
-# Nanoleaf Screen Mirror for KDE (1.3.4 release track)
+# Nanoleaf Screen Mirror for KDE (v1.6.0)
 
 Personal-first Nanoleaf USB screen mirroring app for KDE Plasma 6 on Linux.
 
