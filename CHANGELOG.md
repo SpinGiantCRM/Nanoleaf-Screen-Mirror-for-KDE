@@ -1,6 +1,29 @@
 # Changelog
 
-## v1.6.0 — Final Release Audit Cleanup
+## v1.7.0 — Packaging, Bug Fixes, and Auto-Update Checker
+
+**Wheel now ships VERSION + assets, version reporting works when pip-installed, self-update checker, and runtime bug fixes.**
+
+### Packaging & Distribution
+- **`pyproject.toml`**: added `[tool.setuptools.package-data]` including `VERSION`, `ui/style.qss`, `assets/icons/`, `assets/udev/`; added `packaging` dependency; narrowed coverage omit to individual UI files
+- **`MANIFEST.in`**: created with explicit source distribution file patterns
+- **`PKGBUILD`**: hardcoded `pkgver=1.6.0` → `1.7.0`, pinned `sha256sums`
+- **`_read_app_version()`**: replaced filesystem VERSION walk with `nanoleaf_sync.__version__` (works via `importlib.metadata`)
+- **`_make_device_driver()`**: made public as `make_device_driver()` on `NanoleafSyncService`; `tray_app.py` updated to call it
+
+### Runtime Bug Fixes
+- **`_send_stop_black_frame()`**: TOCTOU race fixed — hold `_status_lock` across the read-use cycle of `self._driver`
+- **`_close_backends()`**: also wrapped with `_status_lock` for consistency
+- **`capture_thread.join()`**: moved inside `is_alive()` guard to prevent crash on early-exit paths
+- **`ConfigManager.load()`**: now logs WARNING with exception details on config corruption/OSError/TOML error instead of silently falling back
+- **`_load_stylesheet()`**: logs warning when `style.qss` not found
+
+### Auto-Update Checker
+- **`compat/update_checker.py`**: new module — GitHub release checker via `urllib.request` (no `requests` dep), ETag caching, 1-hour TTL, `packaging.version` comparison
+- **Tray menu**: "Check for Updates…" in Advanced submenu; background check on startup; tray notification for new versions
+- **`SELF_CHECK_IMPORTS`** updated with the new module
+
+### v1.6.0 — Final Release Audit Cleanup
 
 **Completes the forensic audit remediation: 15 integration fixes, exception logging across the codebase, thread-safety hardening, and release packaging alignment.**
 

@@ -55,18 +55,30 @@ class ConfigManager:
 
         try:
             raw = self.path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            # Config corruption/unreadable file should not prevent the app from starting.
+        except (OSError, UnicodeDecodeError) as exc:
+            logger.warning(
+                "Config file unreadable at %s; using defaults: %s",
+                self.path,
+                exc,
+            )
             self._config = AppConfig()
             return self._config
         try:
             data = tomllib.loads(raw) if raw.strip() else {}
-        except tomllib.TOMLDecodeError:
-            # Config corruption should not prevent the app from starting.
+        except tomllib.TOMLDecodeError as exc:
+            logger.warning(
+                "Config file corrupted at %s; using defaults: %s",
+                self.path,
+                exc,
+            )
             self._config = AppConfig()
             return self._config
 
         if not isinstance(data, dict):
+            logger.warning(
+                "Config file has invalid top-level structure at %s; using defaults",
+                self.path,
+            )
             self._config = AppConfig()
             return self._config
 

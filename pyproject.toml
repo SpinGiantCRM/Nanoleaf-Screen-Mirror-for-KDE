@@ -17,6 +17,7 @@ dependencies = [
   "hidapi>=0.14.0",
   "dacite>=1.8.1",
   "tomli-w>=1.0.0",
+  "packaging>=24.0",
 ]
 
 [project.optional-dependencies]
@@ -53,13 +54,25 @@ package-dir = {"" = "src"}
 where = ["src"]
 include = ["nanoleaf_sync*"]
 
+[tool.setuptools.package-data]
+nanoleaf_sync = [
+  "VERSION",
+  "ui/style.qss",
+  "assets/icons/**/*",
+  "assets/udev/60-nanoleaf-kde-sync.rules",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
 
 [tool.coverage.run]
 omit = [
-  "src/nanoleaf_sync/ui/*",
+  "src/nanoleaf_sync/ui/settings_dialog.py",
+  "src/nanoleaf_sync/ui/display_configurator.py",
+  "src/nanoleaf_sync/ui/live_diagnostics.py",
+  "src/nanoleaf_sync/ui/diagnostics_dialog.py",
+  "src/nanoleaf_sync/ui/led_color_calibration_dialog.py",
 ]
 
 [tool.ruff]

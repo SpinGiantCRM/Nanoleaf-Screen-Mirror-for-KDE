@@ -24,6 +24,8 @@ from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture
 from nanoleaf_sync.capture.kwin_dbus import KWinDBusScreenshotCapture
 from nanoleaf_sync.capture.mock_capture import MockScreenCapture
 from nanoleaf_sync.capture.xdg_portal import XDGPortalCapture
+from nanoleaf_sync.compat.kwin_probe import log_kwin_probe_results
+from nanoleaf_sync.compat.portal_probe import log_portal_probe_results
 
 logger = logging.getLogger(__name__)
 
@@ -478,6 +480,14 @@ def run_manual_portal_benchmark(*, width: int, height: int, samples: int = 30) -
         _portal_benchmark_lock.release()
 
 
+def _log_compat_probe_results(*, prefer_backend: str) -> None:
+    normalized = normalize_backend_preference(prefer_backend)
+    if normalized in {AUTO_BACKEND, KWIN_DBUS_BACKEND, KMSGRAB_BACKEND}:
+        log_kwin_probe_results()
+    if normalized in {AUTO_BACKEND, XDG_PORTAL_BACKEND}:
+        log_portal_probe_results()
+
+
 def _resolve_prefer_backend(
     *,
     prefer_backend: str,
@@ -486,6 +496,7 @@ def _resolve_prefer_backend(
     auto_probe_enabled: bool | None,
     cached_probe_winner: str | None,
 ) -> str:
+    _log_compat_probe_results(prefer_backend=prefer_backend)
     normalized = normalize_backend_preference(prefer_backend)
     if normalized == AUTO_BACKEND:
         return _resolve_auto_backend_with_probe(

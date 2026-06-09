@@ -199,7 +199,7 @@ def test_doctor_help_lists_documented_capture_and_device_flags(
     with pytest.raises(SystemExit) as excinfo:
         doctor.main(["--help"])
     assert excinfo.value.code == 0
-    help_text = capsys.readouterr().out
+    help_text = " ".join(capsys.readouterr().out.split())
     assert "--capture" in help_text
     assert "--device" in help_text
     assert "configured backend policy" in help_text

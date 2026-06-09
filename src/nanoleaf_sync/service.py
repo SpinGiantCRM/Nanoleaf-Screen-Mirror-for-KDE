@@ -38,6 +38,11 @@ from nanoleaf_sync.runtime.startup import (
 from nanoleaf_sync.runtime.state import RuntimeState
 from nanoleaf_sync.runtime.compositor import effective_sdr_boost
 from nanoleaf_sync.runtime.diagnostics_exports import default_kde_display_metadata
+from nanoleaf_sync.compat.version_snapshot import (
+    check_for_upgrade,
+    update_snapshot,
+    upgrade_notification_message,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -177,6 +182,21 @@ class NanoleafSyncService:
         self._device_model: str | None = None
         self._device_zone_count: int | None = None
         self._status_lock = threading.Lock()
+        self._kde_upgrade_report = self._check_kde_upgrade_on_startup()
+
+    @property
+    def kde_upgrade_notice(self) -> str | None:
+        return upgrade_notification_message(self._kde_upgrade_report)
+
+    @property
+    def kde_upgrade_report(self) -> dict:
+        return dict(self._kde_upgrade_report)
+
+    @staticmethod
+    def _check_kde_upgrade_on_startup() -> dict:
+        report = check_for_upgrade()
+        update_snapshot()
+        return report
 
     @property
     def last_error(self) -> Optional[str]:
@@ -308,6 +328,8 @@ class NanoleafSyncService:
         status["_latest_zones_px"] = self._runtime.latest_zones_px
         status["_latest_zone_side_counts"] = self._runtime.latest_zone_side_counts
         status.update(default_kde_display_metadata())
+        status["kde_upgrade_report"] = self._kde_upgrade_report
+        status["kde_upgrade_notice"] = self.kde_upgrade_notice or ""
         detected_display = detect_primary_screen_dims()
         if detected_display is not None:
             status["kde_display_width"] = int(detected_display[0])
@@ -479,7 +501,7 @@ class NanoleafSyncService:
                 except Exception:
                     logger.warning("Error closing diagnostic capture backend", exc_info=True)
 
-    def _make_device_driver(
+    def make_device_driver(
         self, *, enable_live_frame_write_optimization: bool = True
     ) -> DeviceDriver:
         ids = NanoleafUSBIds(vid=self.config.device_vid, pid=self.config.device_pid)
@@ -507,20 +529,24 @@ class NanoleafSyncService:
     def _send_stop_black_frame(self) -> None:
         if not self._runtime.driver_ready:
             return
-        driver = self._driver
-        if driver is None:
-            return
-        try:
-            zone_count = int(getattr(driver, "zone_count", 0) or 0)
-            if zone_count <= 0:
-                zone_count = int(getattr(driver, "reported_zone_count", 0) or 0)
-            if zone_count <= 0:
-                zone_count = int(getattr(self.config, "device_zone_count", 0) or 0)
-            if zone_count <= 0:
+        with self._status_lock:
+            driver = self._driver
+            if driver is None:
                 return
-            driver.send_frame([(0, 0, 0)] * zone_count)
-        except Exception:
-            logger.debug("Unable to send final stop frame (expected if already off)", exc_info=True)
+            try:
+                zone_count = int(getattr(driver, "zone_count", 0) or 0)
+                if zone_count <= 0:
+                    zone_count = int(getattr(driver, "reported_zone_count", 0) or 0)
+                if zone_count <= 0:
+                    zone_count = int(getattr(self.config, "device_zone_count", 0) or 0)
+                if zone_count <= 0:
+                    return
+                driver.send_frame([(0, 0, 0)] * zone_count)
+            except Exception:
+                logger.debug(
+                    "Unable to send final stop frame (expected if already off)",
+                    exc_info=True,
+                )
 
     def _close_backends(self) -> None:
         capture = self._capture
@@ -538,14 +564,15 @@ class NanoleafSyncService:
         finally:
             self._capture = None
 
-        driver = self._driver
-        try:
-            if driver is not None:
-                driver.close()
-        except Exception:
-            logger.warning("Error closing device driver", exc_info=True)
-        finally:
-            self._driver = None
+        with self._status_lock:
+            driver = self._driver
+            try:
+                if driver is not None:
+                    driver.close()
+            except Exception:
+                logger.warning("Error closing device driver", exc_info=True)
+            finally:
+                self._driver = None
 
     def _install_drivers(self) -> None:
         width = self._capture_width
@@ -645,7 +672,7 @@ class NanoleafSyncService:
             if self._driver_override is not None:
                 self._driver = self._driver_override
             else:
-                self._driver = self._make_device_driver()
+                self._driver = self.make_device_driver()
 
             self._driver.initialize()
             self._runtime.driver_ready = True

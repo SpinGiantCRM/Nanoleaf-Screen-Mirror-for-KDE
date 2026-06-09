@@ -1227,12 +1227,13 @@ def _run_loop_legacy(
                     f"[service] tick fps={governor.target_fps} elapsed_ms={elapsed_ms:.2f} zones={last_sent_zone_count} send_fps={send_fps:.1f} capture_to_send_ms={ewma_capture_to_send_ms:.2f} replaced_frames={replaced_frames}"
                 )
 
-    capture_thread.join(timeout=2.0)
     if capture_thread.is_alive():
-        logger.warning(
-            "capture worker thread did not exit within shutdown timeout; "
-            "it may still be blocked in capture backend IO"
-        )
+        capture_thread.join(timeout=2.0)
+        if capture_thread.is_alive():
+            logger.warning(
+                "capture worker thread did not exit within shutdown timeout; "
+                "it may still be blocked in capture backend IO"
+            )
 
 
 def _run_loop_pipeline(

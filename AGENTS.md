@@ -1,5 +1,8 @@
 # AGENTS.md
 
+## Project overview
+Real-time screen mirroring to Nanoleaf Aurora/Lines/Canvas LED controllers over USB HID. KDE Plasma 6 + Wayland, PyQt6 system tray, kwin-DBUS capture backend. Single-device (one USB strip), not a generic LED controller platform.
+
 This file defines durable repo rules for AI contributors. These rules apply regardless of which agent reads them.
 
 ## Workflow

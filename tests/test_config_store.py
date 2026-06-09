@@ -68,12 +68,14 @@ def test_load_returns_default_when_no_file(tmp_path: Path) -> None:
     assert cfg.device_zone_count == 0
 
 
-def test_load_corrupt_toml_returns_default(tmp_path: Path) -> None:
+def test_load_corrupt_toml_returns_default(tmp_path: Path, caplog) -> None:
     path = tmp_path / "config.toml"
     path.write_text("this is not valid toml {{{", encoding="utf-8")
     mgr = ConfigManager(path=path)
-    cfg = mgr.load()
+    with caplog.at_level("WARNING", logger="nanoleaf_sync.config.store"):
+        cfg = mgr.load()
     assert isinstance(cfg, AppConfig)
+    assert any("corrupted" in record.message.lower() for record in caplog.records)
 
 
 def test_load_empty_file_returns_default(tmp_path: Path) -> None:
@@ -92,13 +94,15 @@ def test_load_non_dict_toml_returns_default(tmp_path: Path) -> None:
     assert isinstance(cfg, AppConfig)
 
 
-def test_load_invalid_unicode_returns_default(tmp_path: Path) -> None:
+def test_load_invalid_unicode_returns_default(tmp_path: Path, caplog) -> None:
     path = tmp_path / "config.toml"
     # Write binary garbage that will fail UTF-8 decode
     path.write_bytes(b"\xff\xfe\x00\x00")
     mgr = ConfigManager(path=path)
-    cfg = mgr.load()
+    with caplog.at_level("WARNING", logger="nanoleaf_sync.config.store"):
+        cfg = mgr.load()
     assert isinstance(cfg, AppConfig)
+    assert any("unreadable" in record.message.lower() for record in caplog.records)
 
 
 def test_initialize_creates_file(tmp_path: Path) -> None:

@@ -13,6 +13,7 @@ import threading
 import time
 import traceback
 
+import nanoleaf_sync
 from nanoleaf_sync.config.store import ConfigManager, mode_config
 from nanoleaf_sync.desktop_entry import (
     QT_DESKTOP_FILE_NAME,
@@ -22,6 +23,13 @@ from nanoleaf_sync.desktop_entry import (
     launch_context_snapshot,
     redact_launch_token,
     user_autostart_path,
+)
+from nanoleaf_sync.compat.update_checker import (
+    check_for_updates,
+    manual_check_message,
+    mark_update_notified,
+    should_notify_for_update,
+    update_notification_message,
 )
 from nanoleaf_sync.service import NanoleafSyncService
 from nanoleaf_sync.tools.output_format import describe_mode, summarize_command_output
@@ -38,6 +46,7 @@ from nanoleaf_sync.runtime.readiness_check import (
 )
 
 SELF_CHECK_IMPORTS: tuple[str, ...] = (
+    "nanoleaf_sync.compat.update_checker",
     "nanoleaf_sync.config.store",
     "nanoleaf_sync.service",
     "nanoleaf_sync.ui.tray_app",
@@ -60,13 +69,7 @@ def first_run_message(mode: str) -> str:
 
 
 def _read_app_version() -> str:
-    try:
-        return (Path(__file__).resolve().parents[3] / "VERSION").read_text(
-            encoding="utf-8"
-        ).strip() or "unknown"
-    except Exception:
-        _log.debug("Unable to read VERSION file", exc_info=True)
-        return "unknown"
+    return nanoleaf_sync.__version__
 
 
 def _configure_startup_logging() -> Path:
@@ -221,6 +224,14 @@ class NanoleafTrayApp:
                 self.QSystemTrayIcon.MessageIcon.Warning,
                 10000,
             )
+        kde_upgrade_notice = getattr(self.service, "kde_upgrade_notice", None)
+        if kde_upgrade_notice:
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                kde_upgrade_notice,
+                self.QSystemTrayIcon.MessageIcon.Information,
+                10000,
+            )
         # Only auto-start after a successful config load; skip when config
         # was broken and we fell back to diagnostic mode.
         if (
@@ -238,6 +249,7 @@ class NanoleafTrayApp:
         self._stop_poll_deadline = 0.0
         self._stop_poll_count = 0
         self._startup_refresh_deadline = 0.0
+        self._schedule_startup_update_check()
 
     def _quick_setup_readiness(self) -> ReadinessReport:
         """Fast config/calibration readiness check without capture/device probes."""
@@ -382,7 +394,7 @@ class NanoleafTrayApp:
             )
 
     def _make_preview_driver(self):
-        return self.service._make_device_driver(enable_live_frame_write_optimization=False)
+        return self.service.make_device_driver(enable_live_frame_write_optimization=False)
 
     def _set_qt_desktop_identity(self) -> None:
         for method_name in ("setDesktopFileName", "setApplicationName"):
@@ -418,6 +430,11 @@ class NanoleafTrayApp:
         qss_path = Path(__file__).resolve().parent / "style.qss"
         if qss_path.exists():
             self.app.setStyleSheet(qss_path.read_text(encoding="utf-8"))
+        else:
+            _log.warning(
+                "Stylesheet not found at %s; continuing without custom theme",
+                qss_path,
+            )
 
     def _load_tray_icons(self):
         themed_idle = self.QIcon.fromTheme("nanoleaf-kde-sync")
@@ -499,6 +516,7 @@ class NanoleafTrayApp:
         self.action_live_diagnostics = self.QAction("Live Diagnostics", menu)
         self.action_doctor = self.QAction("Run Doctor", menu)
         self.action_smoke = self.QAction("Run Smoke Test", menu)
+        self.action_check_updates = self.QAction("Check for Updates…", menu)
         self.action_reset_probe_cache = self.QAction("Reset Auto-Probe Cache", menu)
         self.action_launch_diagnostics = self.QAction("Show Launch Diagnostics", menu)
         self.action_enable_autostart = self.QAction("Enable Autostart", menu)
@@ -520,6 +538,7 @@ class NanoleafTrayApp:
         self.action_launch_diagnostics.triggered.connect(self.on_show_launch_diagnostics)
         self.action_doctor.triggered.connect(self.on_doctor)
         self.action_smoke.triggered.connect(self.on_smoke_test)
+        self.action_check_updates.triggered.connect(self.on_check_for_updates)
         self.action_quit.triggered.connect(self.on_quit)
 
         # ── Build Advanced submenu ──
@@ -530,6 +549,7 @@ class NanoleafTrayApp:
         advanced_menu.addSeparator()
         advanced_menu.addAction(self.action_doctor)
         advanced_menu.addAction(self.action_smoke)
+        advanced_menu.addAction(self.action_check_updates)
         advanced_menu.addAction(self.action_reset_probe_cache)
         advanced_menu.addAction(self.action_launch_diagnostics)
         advanced_menu.addSeparator()
@@ -1045,6 +1065,70 @@ class NanoleafTrayApp:
     def on_smoke_test(self):
         self._run_command_async(
             label="smoke test", argv=[sys.executable, "-m", "nanoleaf_sync.tools.smoke_test"]
+        )
+
+    def _schedule_startup_update_check(self) -> None:
+        def worker() -> None:
+            try:
+                result = check_for_updates(force=False)
+            except Exception as exc:
+                _log.warning("Startup update check failed: %s", exc, exc_info=True)
+                return
+            self.QTimer.singleShot(0, lambda: self._handle_startup_update_check(result))
+
+        threading.Thread(target=worker, name="update-check-startup", daemon=True).start()
+
+    def _handle_startup_update_check(self, result) -> None:
+        self._safe_refresh_mode_labels()
+        if not should_notify_for_update(result):
+            return
+        notice = update_notification_message(result)
+        if not notice or result.latest_version is None:
+            return
+        mark_update_notified(result.latest_version)
+        self.tray_icon.showMessage(
+            "nanoleaf-kde-sync",
+            notice,
+            self.QSystemTrayIcon.MessageIcon.Information,
+            10000,
+        )
+
+    def on_check_for_updates(self) -> None:
+        self.action_check_updates.setEnabled(False)
+        self.tray_icon.showMessage(
+            "nanoleaf-kde-sync",
+            "Checking for updates…",
+            self.QSystemTrayIcon.MessageIcon.Information,
+            3000,
+        )
+
+        def worker() -> None:
+            try:
+                result = check_for_updates(force=True)
+            except Exception as exc:
+                self.QTimer.singleShot(
+                    0,
+                    lambda exc=exc: self._handle_manual_update_check_error(exc),
+                )
+                return
+            self.QTimer.singleShot(0, lambda: self._handle_manual_update_check(result))
+
+        threading.Thread(target=worker, name="update-check-manual", daemon=True).start()
+
+    def _handle_manual_update_check(self, result) -> None:
+        self.action_check_updates.setEnabled(True)
+        self.QMessageBox.information(
+            None,
+            "nanoleaf-kde-sync updates",
+            manual_check_message(result),
+        )
+
+    def _handle_manual_update_check_error(self, error: Exception) -> None:
+        self.action_check_updates.setEnabled(True)
+        self.QMessageBox.warning(
+            None,
+            "nanoleaf-kde-sync updates",
+            f"Could not check for updates: {error}",
         )
 
     def on_reset_probe_cache(self) -> None:

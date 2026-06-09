@@ -5,14 +5,17 @@ import asyncio
 import importlib
 import logging
 import os
+import platform
 import sys
+import webbrowser
+from urllib.parse import urlencode
 
 logger = logging.getLogger(__name__)
 from dataclasses import dataclass
 from pathlib import Path
 import threading
 
-from typing import Literal
+from typing import Any, Literal
 
 from nanoleaf_sync.capture.backend_selection import (
     AUTO_BACKEND,
@@ -36,9 +39,17 @@ from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
 from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping_from_config
 from nanoleaf_sync.runtime.errors import translate_runtime_error
+from nanoleaf_sync.compat.kde_version import format_version_tuple, get_kwin_version, get_plasma_version
+from nanoleaf_sync.compat.kwin_probe import get_screenshot2_api_version
+from nanoleaf_sync.compat.portal_probe import get_portal_version, supports_pipewire_serial
+from nanoleaf_sync.compat.version_snapshot import check_for_upgrade, collect_current_versions
 
 
 Status = Literal["pass", "warn", "fail"]
+
+_UPSTREAM_ISSUE_URL = (
+    "https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/issues/new"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -439,6 +450,35 @@ def _check_real_capture_probe(config: AppConfig) -> DoctorCheck:
             logger.debug("Failed to close capture backend during doctor probe", exc_info=True)
 
 
+def collect_kde_compatibility_report() -> list[str]:
+    plasma = format_version_tuple(get_plasma_version())
+    kwin = format_version_tuple(get_kwin_version())
+    screenshot2 = get_screenshot2_api_version()
+    portal = get_portal_version()
+    upgrade = check_for_upgrade()
+    changed = upgrade.get("changed") or {}
+
+    lines = [
+        "KDE Compatibility:",
+        f"  KWin version:    {kwin}",
+        f"  Plasma version:  {plasma}",
+        f"  ScreenShot2 API: v{screenshot2 or 'unknown'}",
+        f"  Portal version:  {portal or 'unknown'}",
+        f"  PipeWire serial: {'yes' if supports_pipewire_serial() else 'no'}",
+    ]
+    if changed:
+        lines.append("  Version changes since last run:")
+        for key, item in changed.items():
+            lines.append(f"    {key}: {item.get('previous')} -> {item.get('current')}")
+    else:
+        lines.append("  Version changes since last run: none")
+    lines.append(
+        "  If mirroring fails after a KDE update, run nanoleaf-kde-sync-doctor "
+        "and check project releases for a compatibility update."
+    )
+    return lines
+
+
 def run_doctor(
     *, include_device_probe: bool = False, include_capture_probe: bool = False
 ) -> list[DoctorCheck]:
@@ -475,6 +515,69 @@ def run_doctor(
     return checks
 
 
+def _build_issue_body(
+    report_text: str,
+    env_info: dict[str, Any],
+    compat_lines: list[str],
+) -> str:
+    screenshot2 = env_info.get("last_seen_screenshot2_version", "unknown")
+    screenshot2_display = f"v{screenshot2}" if screenshot2 != "unknown" else "unknown"
+    rows = [
+        ("KWin", env_info.get("last_seen_kwin_version", "unknown")),
+        ("Plasma", env_info.get("last_seen_kde_plasma_version", "unknown")),
+        ("ScreenShot2 API", screenshot2_display),
+        ("Portal version", str(env_info.get("last_seen_portal_version", "unknown"))),
+        ("Python", env_info.get("last_seen_python_version", "unknown")),
+        ("Platform", f"{sys.platform} / {platform.machine()}"),
+    ]
+
+    lines = [
+        "## Environment",
+        "| Key | Value |",
+        "|-----|-------|",
+    ]
+    for key, value in rows:
+        lines.append(f"| {key} | {value} |")
+
+    lines.extend(["", "## KDE Compatibility", "```", *compat_lines, "```"])
+    lines.extend(
+        [
+            "",
+            "## Doctor Report",
+            "<details>",
+            "<summary>Full doctor output</summary>",
+            "",
+            "```",
+            report_text,
+            "```",
+            "",
+            "</details>",
+            "",
+            "## Error Logs",
+            "None captured",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _build_upstream_issue_url(*, title: str, body: str) -> str:
+    return f"{_UPSTREAM_ISSUE_URL}?{urlencode({'title': title, 'body': body})}"
+
+
+def _open_upstream_issue(checks: list[DoctorCheck]) -> str:
+    report_text = format_report(checks)
+    compat_lines = collect_kde_compatibility_report()
+    env_info = collect_current_versions()
+    body = _build_issue_body(report_text, env_info, compat_lines)
+    kwin = env_info.get("last_seen_kwin_version", "unknown")
+    plasma = env_info.get("last_seen_kde_plasma_version", "unknown")
+    title = f"Compatibility issue: {kwin} / Plasma {plasma}"
+    url = _build_upstream_issue_url(title=title, body=body)
+    print(url)
+    webbrowser.open(url)
+    return url
+
+
 def format_report(checks: list[DoctorCheck]) -> str:
     sections: dict[str, list[str]] = {"pass": [], "warn": [], "fail": []}
     for check in checks:
@@ -486,6 +589,7 @@ def format_report(checks: list[DoctorCheck]) -> str:
 
     output: list[str] = []
     output.append("== nanoleaf-kde-sync doctor ==")
+    output.extend(collect_kde_compatibility_report())
     for key in ("fail", "warn", "pass"):
         output.append(f"\n{key.upper()} ({len(sections[key])})")
         output.extend(sections[key] or ["- none"])
@@ -502,9 +606,20 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Attempt a capture probe using your configured backend policy and report exact failure causes",
     )
+    parser.add_argument(
+        "--report-upstream",
+        action="store_true",
+        help="Open a pre-filled GitHub issue with compatibility and doctor diagnostics",
+    )
     args = parser.parse_args(argv)
 
-    checks = run_doctor(include_device_probe=args.device, include_capture_probe=args.capture)
+    include_device = args.device or args.report_upstream
+    include_capture = args.capture or args.report_upstream
+    checks = run_doctor(
+        include_device_probe=include_device, include_capture_probe=include_capture
+    )
+    if args.report_upstream:
+        _open_upstream_issue(checks)
     print(format_report(checks))
     failures = [c for c in checks if c.status == "fail"]
     return 1 if failures else 0

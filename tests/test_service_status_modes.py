@@ -484,7 +484,7 @@ def test_service_first_run_policy_creates_cache_and_persists_metadata(monkeypatc
     )
     monkeypatch.setattr("nanoleaf_sync.service.ConfigManager", _FakeConfigManager)
     monkeypatch.setattr("nanoleaf_sync.service._build_auto_probe_signature", lambda _w, _h: "sig-a")
-    monkeypatch.setattr(service, "_make_device_driver", lambda **kwargs: FakeDriver())
+    monkeypatch.setattr(service, "make_device_driver", lambda **kwargs: FakeDriver())
 
     service._install_drivers()
 

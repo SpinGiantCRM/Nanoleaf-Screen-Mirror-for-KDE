@@ -198,7 +198,7 @@ def test_make_preview_driver_disables_live_write_optimization_for_setup_paths() 
     captured: dict[str, bool] = {}
 
     class _Service:
-        def _make_device_driver(self, *, enable_live_frame_write_optimization: bool = True):
+        def make_device_driver(self, *, enable_live_frame_write_optimization: bool = True):
             captured["enable_live_frame_write_optimization"] = bool(
                 enable_live_frame_write_optimization
             )
