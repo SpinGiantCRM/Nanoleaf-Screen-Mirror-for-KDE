@@ -10,6 +10,40 @@ class UserFacingError:
     guidance: str
 
 
+def _kde_version_context() -> str:
+    try:
+        from nanoleaf_sync.compat.kde_version import format_version_tuple, get_kwin_version, get_plasma_version
+        from nanoleaf_sync.compat.kwin_probe import get_screenshot2_api_version
+        from nanoleaf_sync.compat.portal_probe import get_portal_version
+
+        plasma = format_version_tuple(get_plasma_version())
+        kwin = format_version_tuple(get_kwin_version())
+        screenshot2 = get_screenshot2_api_version()
+        portal = get_portal_version()
+        return (
+            f"Detected KDE Plasma {plasma}, KWin {kwin}, "
+            f"ScreenShot2 API v{screenshot2 or 'unknown'}, portal v{portal or 'unknown'}."
+        )
+    except Exception:
+        return ""
+
+
+def _append_kde_context(guidance: str) -> str:
+    context = _kde_version_context()
+    if not context:
+        return guidance
+    return f"{guidance} {context}"
+
+
+def _kwin_major_version() -> int:
+    try:
+        from nanoleaf_sync.compat.kde_version import get_kwin_version
+
+        return int(get_kwin_version()[0])
+    except Exception:
+        return 0
+
+
 def translate_runtime_error(error: Exception) -> UserFacingError:
     message = str(error or "Unknown runtime error")
     normalized = message.lower()
@@ -45,23 +79,35 @@ def translate_runtime_error(error: Exception) -> UserFacingError:
         )
 
     if "screen" in normalized and ("access denied" in normalized or "notauthorized" in normalized):
+        guidance = (
+            "KWin ScreenShot2 access requires a desktop file with "
+            "X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2 and a fresh session login."
+        )
+        if _kwin_major_version() >= 6:
+            guidance += (
+                " If this started after a KDE update, restart from the Application Launcher and see "
+                "TROUBLESHOOTING.md → 'KWin Authorization'."
+            )
         return UserFacingError(
             kind="kwin-authorization",
             summary=message,
-            guidance=(
-                "KWin ScreenShot2 access requires a desktop file with "
-                "X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2 and a fresh session login."
-            ),
+            guidance=_append_kde_context(guidance),
         )
 
     if "kde policy" in normalized and "screenshot" in normalized:
+        guidance = (
+            "KWin denied screenshot authorization. Launch from an installed desktop entry containing "
+            "X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2 and re-login to Plasma."
+        )
+        if _kwin_major_version() >= 6:
+            guidance += (
+                " If this started after a KDE update, restart from the Application Launcher and see "
+                "TROUBLESHOOTING.md → 'KWin Authorization'."
+            )
         return UserFacingError(
             kind="kwin-authorization",
             summary=message,
-            guidance=(
-                "KWin denied screenshot authorization. Launch from an installed desktop entry containing "
-                "X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2 and re-login to Plasma."
-            ),
+            guidance=_append_kde_context(guidance),
         )
 
     if (
@@ -126,13 +172,26 @@ def translate_runtime_error(error: Exception) -> UserFacingError:
         )
 
     if "portal negotiation failed" in normalized or "portal start" in normalized:
+        guidance = (
+            "The screen-share portal reported an error. "
+            "Retry once, then run `nanoleaf-kde-sync-doctor --capture` if it persists."
+        )
+        try:
+            from nanoleaf_sync.compat.portal_probe import get_portal_version
+
+            portal_version = get_portal_version()
+            if portal_version >= 7:
+                guidance += (
+                    " Portal API version looks newer than tested; try the kwin-dbus backend in Settings."
+                )
+            elif portal_version > 0:
+                guidance += " Try switching to the kwin-dbus backend in Settings if portal capture keeps failing."
+        except Exception:
+            pass
         return UserFacingError(
             kind="portal-backend",
             summary=message,
-            guidance=(
-                "The screen-share portal reported an error. "
-                "Retry once, then run `nanoleaf-kde-sync-doctor --capture` if it persists."
-            ),
+            guidance=_append_kde_context(guidance),
         )
 
     return UserFacingError(

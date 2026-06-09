@@ -125,7 +125,7 @@ def test_capture_mode_replay_is_explicit() -> None:
 
 def test_make_device_driver_uses_real_driver() -> None:
     svc = NanoleafSyncService(config=_make_cfg())
-    driver = svc._make_device_driver()
+    driver = svc.make_device_driver()
     assert driver.__class__.__name__ == "NanoleafUSBDriver"
 
 
@@ -151,7 +151,7 @@ def test_make_device_driver_requires_non_zero_vid_pid_for_real_device() -> None:
     cfg = AppConfig(device_vid=0, device_pid=0)
     svc = NanoleafSyncService(config=cfg)
     with pytest.raises(ValueError) as excinfo:
-        svc._make_device_driver()
+        svc.make_device_driver()
     assert "non-zero device_vid/device_pid" in str(excinfo.value)
 
 

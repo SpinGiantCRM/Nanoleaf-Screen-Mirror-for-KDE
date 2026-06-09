@@ -1,0 +1,3 @@
+include VERSION
+graft assets
+recursive-include src/nanoleaf_sync/ui *.qss

@@ -25,6 +25,7 @@ build/
 
 # AI agent workspace files — local-only, never push to remote
 .agents/
+.cursorignore
 .opencode/
 docs/ai/
 scripts/ai/
