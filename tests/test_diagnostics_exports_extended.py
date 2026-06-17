@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.diagnostics_exports import (
@@ -139,7 +138,9 @@ def test_zone_side_for_index() -> None:
 
 
 def test_png_pack() -> None:
-    import zlib, struct
+    import zlib
+    import struct
+
     data = b"hello"
     chunk = b"IEND" + data
     expected_crc = zlib.crc32(chunk) & 0xFFFFFFFF
@@ -325,12 +326,42 @@ def test_latency_breakdown_lines_with_stages() -> None:
                 "hid_device_write_limited": "no",
             },
             "stages": {
-                "actual_work_ms": {"available": True, "median_ms": 12.0, "p95_ms": 15.0, "sample_count": 100},
-                "loop_gap_ms": {"available": True, "median_ms": 16.5, "p95_ms": 20.0, "sample_count": 100},
-                "pacing_wait_ms": {"available": True, "median_ms": 0.5, "p95_ms": 1.0, "sample_count": 100},
-                "frame_processing_ms": {"available": True, "median_ms": 8.0, "p95_ms": 10.0, "sample_count": 100},
-                "hid_write_ms": {"available": True, "median_ms": 3.0, "p95_ms": 4.0, "sample_count": 100},
-                "capture_wait_ms": {"available": True, "median_ms": 2.0, "p95_ms": 3.0, "sample_count": 100},
+                "actual_work_ms": {
+                    "available": True,
+                    "median_ms": 12.0,
+                    "p95_ms": 15.0,
+                    "sample_count": 100,
+                },
+                "loop_gap_ms": {
+                    "available": True,
+                    "median_ms": 16.5,
+                    "p95_ms": 20.0,
+                    "sample_count": 100,
+                },
+                "pacing_wait_ms": {
+                    "available": True,
+                    "median_ms": 0.5,
+                    "p95_ms": 1.0,
+                    "sample_count": 100,
+                },
+                "frame_processing_ms": {
+                    "available": True,
+                    "median_ms": 8.0,
+                    "p95_ms": 10.0,
+                    "sample_count": 100,
+                },
+                "hid_write_ms": {
+                    "available": True,
+                    "median_ms": 3.0,
+                    "p95_ms": 4.0,
+                    "sample_count": 100,
+                },
+                "capture_wait_ms": {
+                    "available": True,
+                    "median_ms": 2.0,
+                    "p95_ms": 3.0,
+                    "sample_count": 100,
+                },
             },
         }
     }
@@ -354,11 +385,36 @@ def test_latency_breakdown_lines_with_fps_cap() -> None:
             "flags": {},
             "labels": {},
             "stages": {
-                "actual_work_ms": {"available": True, "median_ms": 5.0, "p95_ms": 7.0, "sample_count": 50},
-                "loop_gap_ms": {"available": True, "median_ms": 33.0, "p95_ms": 35.0, "sample_count": 50},
-                "pacing_wait_ms": {"available": True, "median_ms": 25.0, "p95_ms": 28.0, "sample_count": 50},
-                "frame_processing_ms": {"available": True, "median_ms": 2.0, "p95_ms": 3.0, "sample_count": 50},
-                "hid_write_ms": {"available": True, "median_ms": 2.0, "p95_ms": 3.0, "sample_count": 50},
+                "actual_work_ms": {
+                    "available": True,
+                    "median_ms": 5.0,
+                    "p95_ms": 7.0,
+                    "sample_count": 50,
+                },
+                "loop_gap_ms": {
+                    "available": True,
+                    "median_ms": 33.0,
+                    "p95_ms": 35.0,
+                    "sample_count": 50,
+                },
+                "pacing_wait_ms": {
+                    "available": True,
+                    "median_ms": 25.0,
+                    "p95_ms": 28.0,
+                    "sample_count": 50,
+                },
+                "frame_processing_ms": {
+                    "available": True,
+                    "median_ms": 2.0,
+                    "p95_ms": 3.0,
+                    "sample_count": 50,
+                },
+                "hid_write_ms": {
+                    "available": True,
+                    "median_ms": 2.0,
+                    "p95_ms": 3.0,
+                    "sample_count": 50,
+                },
                 "capture_wait_ms": {"available": False, "sample_count": 0},
                 "capture_call_ms": {"available": False, "sample_count": 0},
             },

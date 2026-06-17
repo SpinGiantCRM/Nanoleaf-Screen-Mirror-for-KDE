@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -19,21 +18,12 @@ from nanoleaf_sync.capture.dimensions import (
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.presets import (
     EdgeLocalityProfile,
-    MotionProfile,
     edge_locality_profile,
     motion_profile,
     normalize_preset,
     normalize_layout_preset,
     sampling_quality_to_zone_stride,
     analyzer_mode_for_presets,
-    COLOR_STYLE_PUNCHY,
-    MOTION_PRESET_DYNAMIC,
-    EDGE_LOCALITY_TIGHT,
-    EDGE_LOCALITY_WIDE,
-    SAMPLING_QUALITY_HIGH,
-    SAMPLING_QUALITY_BALANCED,
-    SAMPLING_QUALITY_LOW,
-    MOTION_PRESET_CALM,
 )
 from nanoleaf_sync.config.serialization import (
     _prepare_payload_for_round_trip,
@@ -79,7 +69,9 @@ def test_detect_primary_screen_dims_read_failure(monkeypatch: pytest.MonkeyPatch
     drm_path = MagicMock()
     drm_path.exists.return_value = True
     drm_path.iterdir.return_value = []
-    monkeypatch.setattr("nanoleaf_sync.capture.dimensions.Path", lambda p: drm_path if "drm" in str(p) else Path(p))
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.dimensions.Path", lambda p: drm_path if "drm" in str(p) else Path(p)
+    )
     result = _detect_primary_screen_dims_sysfs()
     assert result is None
 
@@ -106,6 +98,7 @@ def test_resolve_capture_dims_default() -> None:
 
 def test_resolve_capture_dims_with_zones() -> None:
     from nanoleaf_sync.config.model import ZoneConfig
+
     cfg = AppConfig(zones=[ZoneConfig(x=0, y=0, w=0.1, h=0.1)] * 100)
     w, h = resolve_capture_dims(cfg)
     assert w >= 400  # 100 zones * 4
@@ -117,11 +110,15 @@ def test_resolve_capture_dims_with_zones() -> None:
 
 
 def test_normalize_preset_valid() -> None:
-    assert normalize_preset("high", allowed=("low", "balanced", "high"), default="balanced") == "high"
+    assert (
+        normalize_preset("high", allowed=("low", "balanced", "high"), default="balanced") == "high"
+    )
 
 
 def test_normalize_preset_case_insensitive() -> None:
-    assert normalize_preset("HIGH", allowed=("low", "balanced", "high"), default="balanced") == "high"
+    assert (
+        normalize_preset("HIGH", allowed=("low", "balanced", "high"), default="balanced") == "high"
+    )
 
 
 def test_normalize_preset_invalid_returns_default() -> None:
@@ -183,7 +180,9 @@ def test_motion_profile_responsive() -> None:
 
 def test_analyzer_mode_balanced() -> None:
     assert analyzer_mode_for_presets(motion_preset="calm", color_style="reference") == "balanced"
-    assert analyzer_mode_for_presets(motion_preset="responsive", color_style="natural") == "balanced"
+    assert (
+        analyzer_mode_for_presets(motion_preset="responsive", color_style="natural") == "balanced"
+    )
     assert analyzer_mode_for_presets(motion_preset="dynamic", color_style="ambient") == "balanced"
 
 
@@ -258,6 +257,7 @@ def test_prepare_payload_for_round_trip_with_calibration() -> None:
 def test_dump_toml_with_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     """When tomli_w is not available, uses fallback."""
     import builtins
+
     original_import = builtins.__import__
 
     def _fail_tomli(name, *args, **kwargs):

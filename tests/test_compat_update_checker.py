@@ -7,7 +7,6 @@ from pathlib import Path
 from urllib.error import HTTPError
 
 import nanoleaf_sync
-import pytest
 
 from nanoleaf_sync.compat import update_checker
 

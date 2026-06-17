@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from nanoleaf_sync.runtime.color_accuracy_diagnostics import (
     run_color_accuracy_diagnostic,

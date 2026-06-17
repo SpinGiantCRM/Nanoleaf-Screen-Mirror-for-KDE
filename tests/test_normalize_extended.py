@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
+from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.normalize import (
     _coerce_int,
     ConfigValidationError,
@@ -210,7 +210,9 @@ def test_coerce_int_invalid_returns_default() -> None:
 
 
 def test_validate_raw_config_values_valid() -> None:
-    validate_raw_config_values({"device_vid": 0x37FA, "device_pid": 0x8202, "device_zone_count": 10})
+    validate_raw_config_values(
+        {"device_vid": 0x37FA, "device_pid": 0x8202, "device_zone_count": 10}
+    )
 
 
 def test_validate_raw_config_values_vid_out_of_range() -> None:

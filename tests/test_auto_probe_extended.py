@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import statistics
-
-import pytest
 
 from nanoleaf_sync.capture.probe_models import CandidateProbeResult, ProbeError
 from nanoleaf_sync.capture.auto_probe import (

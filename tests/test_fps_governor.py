@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from nanoleaf_sync.runtime.fps_governor import FPSGovernor, FPS_TIERS
 
 

@@ -60,7 +60,9 @@ class KMSGrabCapture:
         self.last_hdr_diagnostics: dict[str, object] = {}
 
         self._hdr_defaults = HDRMetadata(
-            transfer=hdr_transfer if hdr_transfer in ("srgb", "pq", "hlg", "linear", "unknown") else "srgb",  # type: ignore[arg-type]
+            transfer=hdr_transfer
+            if hdr_transfer in ("srgb", "pq", "hlg", "linear", "unknown")
+            else "srgb",  # type: ignore[arg-type]
             primaries=hdr_primaries if hdr_primaries in ("bt709", "bt2020", "unknown") else "bt709",  # type: ignore[arg-type]
             max_nits=float(hdr_max_nits),
         )

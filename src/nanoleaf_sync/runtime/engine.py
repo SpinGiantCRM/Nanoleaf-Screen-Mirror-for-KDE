@@ -1547,10 +1547,12 @@ def _run_loop_pipeline(
                         final_rgb = sampled_rgb
                     else:
                         pre_led_rgb = tuple(
-                            int(c) for c in pre_led_colors[mapped_led_index].tolist()  # type: ignore[union-attr]
+                            int(c)
+                            for c in pre_led_colors[mapped_led_index].tolist()  # type: ignore[union-attr]
                         )
                         final_rgb = tuple(
-                            int(c) for c in final_zone_colors[mapped_led_index].tolist()  # type: ignore[union-attr]
+                            int(c)
+                            for c in final_zone_colors[mapped_led_index].tolist()  # type: ignore[union-attr]
                         )
                     top, right, bottom, left = state.latest_zone_side_counts
                     if zone_index < top:

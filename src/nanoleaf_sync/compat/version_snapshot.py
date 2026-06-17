@@ -7,7 +7,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from nanoleaf_sync.compat.kde_version import format_version_tuple, get_kwin_version, get_plasma_version
+from nanoleaf_sync.compat.kde_version import (
+    format_version_tuple,
+    get_kwin_version,
+    get_plasma_version,
+)
 from nanoleaf_sync.compat.kwin_probe import get_screenshot2_api_version
 from nanoleaf_sync.compat.portal_probe import get_portal_version
 
@@ -73,7 +77,9 @@ def check_for_upgrade(*, path: Path | None = None) -> dict[str, Any]:
     if changed:
         logger.warning(
             "KDE environment version change detected: %s",
-            ", ".join(f"{key} {item['previous']} -> {item['current']}" for key, item in changed.items()),
+            ", ".join(
+                f"{key} {item['previous']} -> {item['current']}" for key, item in changed.items()
+            ),
         )
     return result
 

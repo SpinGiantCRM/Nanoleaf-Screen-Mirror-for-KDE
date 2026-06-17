@@ -89,9 +89,7 @@ def test_resize_ordered_dict_lru_eviction() -> None:
         _resize_to_target(frame=frame, target_height=25 + i, target_width=100, index_cache=cache)
     assert len(cache) == 8
     # Touch the oldest key so it becomes MRU before the next insert evicts LRU.
-    _resize_to_target(
-        frame=frames[0], target_height=25, target_width=100, index_cache=cache
-    )
+    _resize_to_target(frame=frames[0], target_height=25, target_width=100, index_cache=cache)
     new_frame = np.random.randint(0, 256, (200, 200, 3), dtype=np.uint8)
     _resize_to_target(frame=new_frame, target_height=99, target_width=100, index_cache=cache)
     assert keys[0] in cache

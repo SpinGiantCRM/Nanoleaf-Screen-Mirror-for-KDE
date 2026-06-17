@@ -10,10 +10,6 @@ import pytest
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.runtime.readiness_check import (
     CONFIG_PROBLEM_STATUS,
-    NEEDS_CALIBRATION_STATUS,
-    READY_STATUS,
-    ReadinessIssue,
-    ReadinessReport,
     _probe_capture_backend,
     _probe_device,
     run_readiness_check,
@@ -58,9 +54,7 @@ def test_config_load_failure_captured() -> None:
     def _failing_validate(c: AppConfig) -> AppConfig:
         raise ValueError("config is broken")
 
-    with patch(
-        "nanoleaf_sync.runtime.readiness_check.validate_config", _failing_validate
-    ):
+    with patch("nanoleaf_sync.runtime.readiness_check.validate_config", _failing_validate):
         report = run_readiness_check(
             config=cfg,
             runtime_status={},
@@ -91,9 +85,16 @@ def test_valid_presets_no_issues() -> None:
         device_probe=lambda _c: None,
     )
     preset_checks = {
-        "preset-layout", "preset-edge-locality", "preset-quality",
-        "preset-motion", "preset-color-style", "preset-display",
-        "hdr-transfer", "hdr-primaries", "hdr-max-nits", "sdr-boost-nits",
+        "preset-layout",
+        "preset-edge-locality",
+        "preset-quality",
+        "preset-motion",
+        "preset-color-style",
+        "preset-display",
+        "hdr-transfer",
+        "hdr-primaries",
+        "hdr-max-nits",
+        "sdr-boost-nits",
     }
     for issue in report.issues:
         assert issue.check not in preset_checks
@@ -126,10 +127,12 @@ def test_multiple_issues_from_wizard_and_runtime() -> None:
 
 def test_probe_capture_backend_does_not_crash(monkeypatch: pytest.MonkeyPatch) -> None:
     """_probe_capture_backend should handle missing backends gracefully."""
+
     # Mock create_capture_backend to return a mock that supports close
     class _MockBackend:
         def close(self) -> None:
             pass
+
     monkeypatch.setattr(
         "nanoleaf_sync.runtime.readiness_check.create_capture_backend",
         lambda **kw: _MockBackend(),
@@ -144,16 +147,18 @@ def test_probe_capture_backend_does_not_crash(monkeypatch: pytest.MonkeyPatch) -
 
 def test_probe_device_does_not_crash(monkeypatch: pytest.MonkeyPatch) -> None:
     """_probe_device should handle missing devices gracefully."""
+
     class _MockDriver:
         def __init__(self, **kw):
             pass
+
         def initialize(self) -> None:
             pass
+
         def close(self) -> None:
             pass
-    monkeypatch.setattr(
-        "nanoleaf_sync.runtime.readiness_check.NanoleafUSBDriver", _MockDriver
-    )
+
+    monkeypatch.setattr("nanoleaf_sync.runtime.readiness_check.NanoleafUSBDriver", _MockDriver)
     result = _probe_device(_valid_config())
     assert result is None
 

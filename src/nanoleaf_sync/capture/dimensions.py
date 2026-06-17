@@ -43,9 +43,7 @@ def _detect_primary_screen_dims_sysfs() -> Optional[Tuple[int, int]]:
         try:
             status = status_path.read_text(encoding="utf-8", errors="ignore").strip().lower()
         except Exception:
-            logger.debug(
-                "Unable to read DRM connector status from %s", status_path, exc_info=True
-            )
+            logger.debug("Unable to read DRM connector status from %s", status_path, exc_info=True)
             continue
         if status != "connected":
             continue

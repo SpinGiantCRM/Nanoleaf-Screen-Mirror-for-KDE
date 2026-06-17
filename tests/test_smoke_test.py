@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.tools import smoke_test

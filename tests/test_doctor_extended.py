@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -149,18 +148,14 @@ def test_probe_status_auto_no_cache() -> None:
 
 def test_probe_status_auto_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("NANOLEAF_DISABLE_CAPTURE_PROBE", "true")
-    result = _check_probe_status(
-        AppConfig(prefer_backend="auto", auto_probe_enabled=False)
-    )
+    result = _check_probe_status(AppConfig(prefer_backend="auto", auto_probe_enabled=False))
     assert "effective_enabled=False" in result.message
 
 
 def test_probe_status_auto_enabled_no_override() -> None:
     with pytest.MonkeyPatch.context() as mp:
         mp.delenv("NANOLEAF_DISABLE_CAPTURE_PROBE", raising=False)
-        result = _check_probe_status(
-            AppConfig(prefer_backend="auto", auto_probe_enabled=True)
-        )
+        result = _check_probe_status(AppConfig(prefer_backend="auto", auto_probe_enabled=True))
     assert "effective_enabled=True" in result.message
 
 
@@ -228,7 +223,9 @@ def test_normalized_backend_empty() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_desktop_authorization_no_files_found(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_desktop_authorization_no_files_found(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     autostart = tmp_path / "nonexistent-autostart.desktop"
     template = tmp_path / "nonexistent-template.desktop"
 
@@ -241,7 +238,9 @@ def test_desktop_authorization_no_files_found(monkeypatch: pytest.MonkeyPatch, t
     assert "No desktop entry found" in result.message
 
 
-def test_desktop_authorization_template_no_marker(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_desktop_authorization_template_no_marker(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     autostart = tmp_path / "nonexistent-autostart.desktop"
     template = tmp_path / "repo-docs.desktop"
     template.write_text("[Desktop Entry]\n", encoding="utf-8")
@@ -254,7 +253,9 @@ def test_desktop_authorization_template_no_marker(monkeypatch: pytest.MonkeyPatc
     assert "missing restricted interface marker" in result.message
 
 
-def test_desktop_authorization_autostart_no_marker(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_desktop_authorization_autostart_no_marker(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     autostart = tmp_path / "home-autostart.desktop"
     autostart.write_text("[Desktop Entry]\nName=Foo\n", encoding="utf-8")
 
@@ -265,11 +266,11 @@ def test_desktop_authorization_autostart_no_marker(monkeypatch: pytest.MonkeyPat
     assert "missing restricted interface marker" in result.message.lower()
 
 
-def test_desktop_authorization_autostart_with_marker(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_desktop_authorization_autostart_with_marker(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     autostart = tmp_path / "home-autostart.desktop"
-    autostart.write_text(
-        f"[Desktop Entry]\n{doctor.RESTRICTED_IFACE_MARKER}\n", encoding="utf-8"
-    )
+    autostart.write_text(f"[Desktop Entry]\n{doctor.RESTRICTED_IFACE_MARKER}\n", encoding="utf-8")
 
     monkeypatch.setattr(doctor, "user_autostart_path", lambda: autostart)
 
@@ -277,7 +278,9 @@ def test_desktop_authorization_autostart_with_marker(monkeypatch: pytest.MonkeyP
     assert result.status == "pass"
 
 
-def test_desktop_authorization_installed_no_marker(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_desktop_authorization_installed_no_marker(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     autostart = tmp_path / "nonexistent-autostart.desktop"
     installed = tmp_path / "usr" / "share" / "applications" / "nanoleaf-kde-sync.desktop"
     installed.parent.mkdir(parents=True, exist_ok=True)
@@ -312,7 +315,9 @@ def test_run_probe_sync_no_running_loop(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def test_run_doctor_auto_backend_default_config(monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_config(monkeypatch, AppConfig(device_vid=0x37FA, device_pid=0x8201, prefer_backend="auto"))
+    _patch_config(
+        monkeypatch, AppConfig(device_vid=0x37FA, device_pid=0x8201, prefer_backend="auto")
+    )
     _patch_checks_pass(monkeypatch)
 
     async def _probe_pass() -> DoctorCheck:
@@ -463,15 +468,25 @@ def test_doctor_check_immutable() -> None:
 def test_main_all_pass(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_config(monkeypatch, AppConfig(device_vid=0x37FA, device_pid=0x8201))
     _patch_checks_pass(monkeypatch)
-    monkeypatch.setattr(doctor, "_check_hid_enumeration", lambda cfg: DoctorCheck("hid-device", "pass", "ok"))
-    monkeypatch.setattr(doctor, "_check_desktop_authorization", lambda: DoctorCheck("desktop-authorization", "pass", "ok"))
-    monkeypatch.setattr(doctor, "_run_probe_sync", lambda: DoctorCheck("kwin-screenshot2", "pass", "ok"))
+    monkeypatch.setattr(
+        doctor, "_check_hid_enumeration", lambda cfg: DoctorCheck("hid-device", "pass", "ok")
+    )
+    monkeypatch.setattr(
+        doctor,
+        "_check_desktop_authorization",
+        lambda: DoctorCheck("desktop-authorization", "pass", "ok"),
+    )
+    monkeypatch.setattr(
+        doctor, "_run_probe_sync", lambda: DoctorCheck("kwin-screenshot2", "pass", "ok")
+    )
 
     result = doctor.main([])
     assert result == 0
 
 
-def test_main_with_failures(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_main_with_failures(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     _patch_config(monkeypatch, AppConfig(device_vid=0x37FA, device_pid=0x8201))
     monkeypatch.setattr(
         doctor, "_check_python_runtime", lambda: DoctorCheck("python", "fail", "old python")
@@ -497,7 +512,9 @@ def test_main_with_failures(monkeypatch: pytest.MonkeyPatch, capsys: pytest.Capt
         doctor, "_check_hid_enumeration", lambda cfg: DoctorCheck("hid-device", "pass", "ok")
     )
     monkeypatch.setattr(
-        doctor, "_check_desktop_authorization", lambda: DoctorCheck("desktop-authorization", "pass", "ok")
+        doctor,
+        "_check_desktop_authorization",
+        lambda: DoctorCheck("desktop-authorization", "pass", "ok"),
     )
     monkeypatch.setattr(
         doctor, "_run_probe_sync", lambda: DoctorCheck("kwin-screenshot2", "pass", "ok")
@@ -516,6 +533,7 @@ def _patch_config(monkeypatch, cfg: AppConfig) -> None:
     class _FakeConfigManager:
         def load(self) -> AppConfig:
             return cfg
+
     monkeypatch.setattr(doctor, "ConfigManager", _FakeConfigManager)
     monkeypatch.setattr(doctor, "validate_config", lambda loaded_cfg: loaded_cfg)
 
@@ -545,7 +563,9 @@ def _patch_checks_pass(monkeypatch) -> None:
         doctor, "_check_hid_enumeration", lambda cfg: DoctorCheck("hid-device", "pass", "ok")
     )
     monkeypatch.setattr(
-        doctor, "_check_desktop_authorization", lambda: DoctorCheck("desktop-authorization", "pass", "ok")
+        doctor,
+        "_check_desktop_authorization",
+        lambda: DoctorCheck("desktop-authorization", "pass", "ok"),
     )
     monkeypatch.setattr(
         doctor, "_run_probe_sync", lambda: DoctorCheck("kwin-screenshot2", "pass", "ok")

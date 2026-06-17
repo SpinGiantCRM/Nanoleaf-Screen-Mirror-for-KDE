@@ -64,7 +64,9 @@ def test_chromaticities_is_frozen() -> None:
 def test_chromaticities_one_zero_y() -> None:
     """A single zero Y primary triggers the y==0 branch without singular matrix."""
     # Only ry=0 triggers the y==0 branch. Other primaries keep Y>0.
-    p = Chromaticities(rx=0.640, ry=0.0, gx=0.300, gy=0.600, bx=0.150, by=0.060, wx=0.3127, wy=0.3290)
+    p = Chromaticities(
+        rx=0.640, ry=0.0, gx=0.300, gy=0.600, bx=0.150, by=0.060, wx=0.3127, wy=0.3290
+    )
     M = chromaticities_to_xyz_matrix(p)
     assert M.shape == (3, 3)
     assert M.dtype == np.float32
@@ -212,10 +214,26 @@ def test_sysfs_primaries_no_drm_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     """When /sys/class/drm doesn't exist, returns None."""
     monkeypatch.setattr("nanoleaf_sync.color.primaries.Path", lambda p: tmp_path / p)
     # Create a non-existent path
-    result = get_display_primaries_from_sysfs.__wrapped__ if hasattr(get_display_primaries_from_sysfs, "__wrapped__") else get_display_primaries_from_sysfs
+    result = (
+        get_display_primaries_from_sysfs.__wrapped__
+        if hasattr(get_display_primaries_from_sysfs, "__wrapped__")
+        else get_display_primaries_from_sysfs
+    )
     # Just use monkeypatch on the module-level Path
     import nanoleaf_sync.color.primaries as primaries_module
-    monkeypatch.setattr(primaries_module, "Path", type("FakePath", (), {"__new__": lambda cls, p: tmp_path / p, "__truediv__": lambda self, other: tmp_path / other}))
+
+    monkeypatch.setattr(
+        primaries_module,
+        "Path",
+        type(
+            "FakePath",
+            (),
+            {
+                "__new__": lambda cls, p: tmp_path / p,
+                "__truediv__": lambda self, other: tmp_path / other,
+            },
+        ),
+    )
     # Simpler: monkeypatch the drm_root check
     result = get_display_primaries_from_sysfs()
     # This should return None if /sys/class/drm doesn't exist on the test system
@@ -267,6 +285,7 @@ def test_sysfs_primaries_with_mock_edid(tmp_path: Path, monkeypatch: pytest.Monk
             return original_path_class(*args, **kwargs)
 
     import nanoleaf_sync.color.primaries as primaries_module
+
     monkeypatch.setattr(primaries_module, "Path", _FakePath)
     result = get_display_primaries_from_sysfs()
     assert result is not None
@@ -445,6 +464,7 @@ def test_display_primaries_cache_thread_safety(monkeypatch: pytest.MonkeyPatch) 
 def test_read_colord_profile_import_fails_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
     """When dbus import fails inside _read_colord_profile_primaries, returns None."""
     import builtins
+
     original_import = builtins.__import__
 
     def _fail_dbus(name, *args, **kwargs):
@@ -464,6 +484,7 @@ def test_read_colord_profile_import_fails_returns_none(monkeypatch: pytest.Monke
 
 def test_bfd_invertibility() -> None:
     from nanoleaf_sync.color.primaries import _BFD, _BFD_INV
+
     identity = np.eye(3, dtype=np.float64)
     np.testing.assert_allclose(_BFD @ _BFD_INV, identity, atol=1e-6)
     np.testing.assert_allclose(_BFD_INV @ _BFD, identity, atol=1e-6)

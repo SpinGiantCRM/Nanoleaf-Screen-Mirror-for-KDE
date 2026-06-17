@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -45,7 +44,9 @@ def test_user_systemd_service_path() -> None:
     assert ".config/systemd/user" in str(path)
 
 
-def test_installed_desktop_entry_candidates_with_xdg_data_dirs(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_installed_desktop_entry_candidates_with_xdg_data_dirs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("XDG_DATA_DIRS", "/usr/share:/usr/local/share")
     candidates = desktop_entry.installed_desktop_entry_candidates()
     assert len(candidates) >= 2
@@ -136,9 +137,15 @@ def test_prepare_desktop_entry_text_with_exec_command() -> None:
     assert "Exec=old" not in result
 
 
-def test_ensure_user_launcher_entry_from_template(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ensure_user_launcher_entry_from_template(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """When source template exists, use it."""
-    monkeypatch.setattr(desktop_entry, "preferred_user_desktop_entry_path", lambda: tmp_path / "nanoleaf-kde-sync.desktop")
+    monkeypatch.setattr(
+        desktop_entry,
+        "preferred_user_desktop_entry_path",
+        lambda: tmp_path / "nanoleaf-kde-sync.desktop",
+    )
     monkeypatch.setattr(desktop_entry, "_resolved_desktop_source", lambda: None)
     monkeypatch.setattr(desktop_entry, "runtime_exec_command", lambda: "python -m nanoleaf_sync")
 
@@ -149,9 +156,15 @@ def test_ensure_user_launcher_entry_from_template(tmp_path: Path, monkeypatch: p
     assert "Type=Application" in content
 
 
-def test_ensure_user_launcher_entry_self_heals(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ensure_user_launcher_entry_self_heals(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """When no source template, self-heals with minimal entry."""
-    monkeypatch.setattr(desktop_entry, "preferred_user_desktop_entry_path", lambda: tmp_path / "nanoleaf-kde-sync.desktop")
+    monkeypatch.setattr(
+        desktop_entry,
+        "preferred_user_desktop_entry_path",
+        lambda: tmp_path / "nanoleaf-kde-sync.desktop",
+    )
     monkeypatch.setattr(desktop_entry, "_resolved_desktop_source", lambda: None)
     monkeypatch.setattr(desktop_entry, "runtime_exec_command", lambda: "python -m nanoleaf_sync")
 
@@ -177,7 +190,9 @@ def test_redact_launch_token_long() -> None:
     assert len(result) <= 10
 
 
-def test_resolved_desktop_source_template_exists(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolved_desktop_source_template_exists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     template = tmp_path / "nanoleaf-kde-sync.desktop"
     template.write_text("[Desktop Entry]\nExec=test")
     monkeypatch.setattr(desktop_entry, "source_desktop_template_path", lambda: template)
@@ -186,7 +201,9 @@ def test_resolved_desktop_source_template_exists(tmp_path: Path, monkeypatch: py
     assert result == template
 
 
-def test_resolved_desktop_source_from_installed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolved_desktop_source_from_installed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     template = tmp_path / "nonexistent.desktop"
     installed = tmp_path / "installed.desktop"
     installed.write_text("[Desktop Entry]")
@@ -196,15 +213,21 @@ def test_resolved_desktop_source_from_installed(tmp_path: Path, monkeypatch: pyt
     assert result == installed
 
 
-def test_resolved_desktop_source_none_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(desktop_entry, "source_desktop_template_path", lambda: tmp_path / "nonexistent")
+def test_resolved_desktop_source_none_found(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        desktop_entry, "source_desktop_template_path", lambda: tmp_path / "nonexistent"
+    )
     monkeypatch.setattr(desktop_entry, "installed_desktop_entry_candidates", lambda: [])
     result = desktop_entry._resolved_desktop_source()
     assert result is None
 
 
 def test_disable_autostart_not_exists(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(desktop_entry, "user_autostart_path", lambda: tmp_path / "nonexistent.desktop")
+    monkeypatch.setattr(
+        desktop_entry, "user_autostart_path", lambda: tmp_path / "nonexistent.desktop"
+    )
     result = desktop_entry.disable_autostart()
     assert result is False
 

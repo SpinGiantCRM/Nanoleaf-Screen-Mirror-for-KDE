@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from nanoleaf_sync.runtime.color_processing import (
     LedCalibration,
@@ -15,7 +14,6 @@ from nanoleaf_sync.runtime.color_processing import (
     init_gamut_adaptation,
     rgb_u8_to_oklch,
     oklch_to_rgb_u8,
-    STYLE_PROFILES,
 )
 
 

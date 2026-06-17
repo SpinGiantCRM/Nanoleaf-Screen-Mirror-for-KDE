@@ -39,7 +39,11 @@ from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
 from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping_from_config
 from nanoleaf_sync.runtime.errors import translate_runtime_error
-from nanoleaf_sync.compat.kde_version import format_version_tuple, get_kwin_version, get_plasma_version
+from nanoleaf_sync.compat.kde_version import (
+    format_version_tuple,
+    get_kwin_version,
+    get_plasma_version,
+)
 from nanoleaf_sync.compat.kwin_probe import get_screenshot2_api_version
 from nanoleaf_sync.compat.portal_probe import get_portal_version, supports_pipewire_serial
 from nanoleaf_sync.compat.version_snapshot import check_for_upgrade, collect_current_versions
@@ -47,9 +51,7 @@ from nanoleaf_sync.compat.version_snapshot import check_for_upgrade, collect_cur
 
 Status = Literal["pass", "warn", "fail"]
 
-_UPSTREAM_ISSUE_URL = (
-    "https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/issues/new"
-)
+_UPSTREAM_ISSUE_URL = "https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/issues/new"
 
 
 @dataclass(frozen=True, slots=True)
@@ -615,9 +617,7 @@ def main(argv: list[str] | None = None) -> int:
 
     include_device = args.device or args.report_upstream
     include_capture = args.capture or args.report_upstream
-    checks = run_doctor(
-        include_device_probe=include_device, include_capture_probe=include_capture
-    )
+    checks = run_doctor(include_device_probe=include_device, include_capture_probe=include_capture)
     if args.report_upstream:
         _open_upstream_issue(checks)
     print(format_report(checks))

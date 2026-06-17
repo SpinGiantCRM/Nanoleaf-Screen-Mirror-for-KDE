@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-from unittest.mock import patch
 
 import pytest
 
@@ -124,6 +122,7 @@ def test_drm_device_present(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
             if str(path_str) == str(card0):
                 return card0
             return RealPath(*args, **kwargs)
+
     monkeypatch.setattr(factory, "Path", _FakePath)
     assert _has_drm_device() is True
 
@@ -137,7 +136,9 @@ def test_capability_cache_ttl(monkeypatch: pytest.MonkeyPatch) -> None:
         call_count[0] += 1
         return True
 
-    monkeypatch.setattr(factory, "_capability_cache_get_or_refresh", lambda key, resolver: _counting_resolver())
+    monkeypatch.setattr(
+        factory, "_capability_cache_get_or_refresh", lambda key, resolver: _counting_resolver()
+    )
     # Not the best test, but verifies the cache infrastructure doesn't crash
     assert _has_drm_device() is True or _has_drm_device() is False
 
@@ -217,6 +218,7 @@ def test_kmsgrab_bindings_not_available(monkeypatch: pytest.MonkeyPatch) -> None
     reset_capability_check_cache()
     # Make both import paths fail
     import builtins
+
     original_import = builtins.__import__
 
     def _fail_kmsgrab(name, *args, **kwargs):

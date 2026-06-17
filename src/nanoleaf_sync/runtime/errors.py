@@ -12,7 +12,11 @@ class UserFacingError:
 
 def _kde_version_context() -> str:
     try:
-        from nanoleaf_sync.compat.kde_version import format_version_tuple, get_kwin_version, get_plasma_version
+        from nanoleaf_sync.compat.kde_version import (
+            format_version_tuple,
+            get_kwin_version,
+            get_plasma_version,
+        )
         from nanoleaf_sync.compat.kwin_probe import get_screenshot2_api_version
         from nanoleaf_sync.compat.portal_probe import get_portal_version
 
@@ -181,9 +185,7 @@ def translate_runtime_error(error: Exception) -> UserFacingError:
 
             portal_version = get_portal_version()
             if portal_version >= 7:
-                guidance += (
-                    " Portal API version looks newer than tested; try the kwin-dbus backend in Settings."
-                )
+                guidance += " Portal API version looks newer than tested; try the kwin-dbus backend in Settings."
             elif portal_version > 0:
                 guidance += " Try switching to the kwin-dbus backend in Settings if portal capture keeps failing."
         except Exception:

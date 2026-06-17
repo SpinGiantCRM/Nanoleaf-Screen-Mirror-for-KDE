@@ -79,6 +79,12 @@ omit = [
 line-length = 100
 target-version = "py311"
 
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
+
+[tool.ruff.format]
+line-ending = "lf"
+
 [tool.mypy]
 python_version = "3.11"
 ignore_missing_imports = true
@@ -99,3 +105,7 @@ module = [
   "nanoleaf_sync.color.zone_mapper",
 ]
 ignore_errors = true
+
+[tool.bandit]
+exclude_dirs = ["tests", "build", "dist", ".venv"]
+skips = ["B101", "B108", "B110", "B311", "B324", "B404", "B603", "B607", "B608"]

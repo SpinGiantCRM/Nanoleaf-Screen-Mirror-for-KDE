@@ -58,3 +58,19 @@ Always inspect the live repo before editing. Do not assume old repo state.
 ## PR history
 
 Use `docs/PR_HISTORY.md` for the local PR metadata index. If a PR title is unavailable from local metadata, do not infer beyond metadata.
+
+## Cross-Session Memory
+- `.opencode/context/activeContext.md` — current focus, read first
+- `.opencode/context/decisionLog.md` — architectural decisions, reference when proposing changes
+- `.opencode/context/progress.md` — what's done and what's left
+
+## Security
+- NEVER commit secrets, API keys, or tokens
+- Gitleaks runs in pre-commit and will block commits containing secrets
+- Semgrep scans run in CI for Python security vulnerabilities
+
+## Spec Process
+- Use `specs/SCOPE_TEMPLATE.md` for all feature specs
+- Follow SCOPE method: Structure → Constraints → Outcomes → Phases → Examples
+- Keep specs under 100 lines
+- Always include "Out of Scope" section

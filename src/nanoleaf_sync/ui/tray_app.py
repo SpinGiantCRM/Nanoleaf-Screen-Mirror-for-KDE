@@ -660,8 +660,10 @@ class NanoleafTrayApp:
 
         readiness_fn = getattr(self, "_quick_setup_readiness", None)
         preflight = readiness_fn() if callable(readiness_fn) else None
-        if preflight is not None and not preflight.ready and bool(
-            getattr(self.config, "wizard_completed", False)
+        if (
+            preflight is not None
+            and not preflight.ready
+            and bool(getattr(self.config, "wizard_completed", False))
         ):
             issue = preflight.issues[0] if preflight.issues else None
             reason = issue.reason if issue else preflight.status

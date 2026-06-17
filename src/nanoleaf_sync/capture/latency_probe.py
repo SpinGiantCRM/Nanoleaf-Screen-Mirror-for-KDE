@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 from statistics import median
-from typing import Iterable
 
 
 STAGE_CAPTURE_WAIT = "capture_wait_ms"

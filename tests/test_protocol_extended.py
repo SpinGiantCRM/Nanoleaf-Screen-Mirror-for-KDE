@@ -6,7 +6,6 @@ import pytest
 
 from nanoleaf_sync.device.protocol import (
     CMD_GET_LENGTH,
-    CMD_GET_MODEL_NUMBER,
     NanoleafTLVProtocol,
     ProtocolCommandError,
     ProtocolMalformedResponseError,

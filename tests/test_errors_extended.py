@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from nanoleaf_sync.runtime.errors import (
     UserFacingError,
@@ -23,7 +22,9 @@ def test_translate_device_not_found() -> None:
 
 
 def test_translate_hid_permission() -> None:
-    result = translate_runtime_error(RuntimeError("Failed to open Nanoleaf HID device: permission denied"))
+    result = translate_runtime_error(
+        RuntimeError("Failed to open Nanoleaf HID device: permission denied")
+    )
     assert result.kind == "hid-permission"
     assert "udev" in result.guidance
 
@@ -71,7 +72,9 @@ def test_translate_session_bus() -> None:
 
 
 def test_translate_kwin_unavailable() -> None:
-    result = translate_runtime_error(RuntimeError("all known KWin screenshot interfaces unreachable"))
+    result = translate_runtime_error(
+        RuntimeError("all known KWin screenshot interfaces unreachable")
+    )
     assert result.kind == "kwin-unavailable"
 
 

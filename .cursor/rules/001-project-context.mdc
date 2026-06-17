@@ -1,0 +1,19 @@
+---
+description: Project overview and architecture
+globs: ["*.py", "*.md", "*.toml", "*.cfg", "*.yml", "*.yaml"]
+alwaysApply: true
+---
+# Nanoleaf-Screen-Mirror-for-KDE
+
+Real-time screen mirroring to Nanoleaf Aurora/Lines/Canvas LED controllers over USB HID. KDE Plasma 6 + Wayland, PyQt6 system tray, kwin-DBUS capture backend. Single-device (one USB strip), not a generic LED controller platform.
+
+## Stack
+- Python 3.11+, PyQt6, numpy, dbus-next, hidapi, dacite
+- KDE Plasma 6 + Wayland (screenshot2 / kwin DBus)
+- USB HID protocol for Nanoleaf LED controllers
+
+## Key Conventions
+- Type hints everywhere
+- No comments in code unless absolutely necessary
+- Format + lint with ruff before committing
+- Test coverage > 70%
