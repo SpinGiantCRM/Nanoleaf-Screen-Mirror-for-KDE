@@ -82,7 +82,17 @@ jobs:
           echo "RELEASE_VERSION=${RELEASE_VERSION}" >> "$GITHUB_ENV"
 
       - name: Validate Arch package metadata
-        uses: ./.github/actions/arch-metadata-validation
+        run: |
+          set -euo pipefail
+          bash -n packaging/arch/nanoleaf-kde-sync.install
+          if command -v pacman >/dev/null 2>&1; then
+            useradd -m builder 2>/dev/null || true
+            chown -R builder:builder "$GITHUB_WORKSPACE"
+            cd packaging/arch
+            su - builder -c "cd \"$GITHUB_WORKSPACE/packaging/arch\" && makepkg --printsrcinfo >/dev/null"
+          else
+            echo "pacman unavailable on this runner; validated install script only."
+          fi
 
       - name: Build Python distributions
         run: |
