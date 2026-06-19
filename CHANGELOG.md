@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.7.1 — CI Green, Pre-commit, and Audit Cleanup
+
+**Restores a green CI/pre-commit baseline after the v1.7.0 tooling expansion, with lint debt cleared and small runtime/tooling hardening.**
+
+### Tooling & CI
+- Fixed all ruff violations (684+) and aligned pre-commit hooks with CI (ruff, ruff-format, mypy, gitleaks)
+- Added `ruff format --check` to main CI workflow; removed no-op ghostcheck pre-commit hook
+- Added calibration guardrails tests and wired Arch metadata validation into release workflow
+- Documented developer setup (`pip install -e .[test]`, `pre-commit install`) in README
+
+### Code quality & structure
+- Moved zone preset geometry from `ui/zone_presets.py` to `runtime/zone_presets.py` (UI re-exports shim)
+- Removed dead `ui/diagnostics_dialog.py`; dropped unused `ReplayScreenCapture` from capture exports
+- PKGBUILD/README aligned to 1.7.1
+
+### Doctor & tests
+- Doctor now fails clearly when Python is below 3.11
+- Fixed headless CI crash in Qt screen-dimension fallback test
+- Added `tests/test_runtime_zone_presets.py` and `tests/test_check_calibration_guardrails.py`
+
 ## v1.7.0 — Packaging, Bug Fixes, and Auto-Update Checker
 
 **Wheel now ships VERSION + assets, version reporting works when pip-installed, self-update checker, and runtime bug fixes.**
