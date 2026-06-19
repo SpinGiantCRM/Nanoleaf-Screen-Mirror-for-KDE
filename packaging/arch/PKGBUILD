@@ -22,7 +22,7 @@ source=(
   "$pkgname-$pkgver.tar.gz::https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/archive/refs/tags/v$pkgver.tar.gz"
 )
 # Verify against the published GitHub tarball when cutting a release.
-sha256sums=('758882c5bb7f77c370aa36b30bab21cfad03dd7d1047cbac66cfad791a32e251')
+sha256sums=('48fe6d58fd898d5df3b0814588abf31e02777b68a461710dbe9b613c54b4b016')
 
 build() {
   cd "Nanoleaf-Screen-Mirror-for-KDE-$pkgver"
