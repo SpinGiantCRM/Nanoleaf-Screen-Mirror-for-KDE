@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from nanoleaf_sync.ui.qt_lazy import load_qt
-
 
 CALIBRATION_STEPS: tuple[str, ...] = (
     "1. Black / near-black cutoff",
@@ -47,7 +46,8 @@ class LedColorCalibrationDialog:
                     "Reference mode is used for calibration because it avoids saturation boost."
                 )
                 self.pattern_label = QLabel(
-                    "Use visual patterns: black, near-black, dark grey, 10/25/50/75% grey, white, primary/secondary colours, and locality checks."
+                    "Use visual patterns: black, near-black, dark grey, 10/25/50/75% grey, "
+                    "white, primary/secondary colours, and locality checks."
                 )
                 self.pattern_label.setWordWrap(True)
 

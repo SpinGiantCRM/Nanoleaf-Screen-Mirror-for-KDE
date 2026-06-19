@@ -10,6 +10,7 @@ from nanoleaf_sync.runtime.edge_locality_diagnostics import run_edge_locality_te
 from nanoleaf_sync.runtime.engine import process_frame
 from nanoleaf_sync.runtime.processing import zones_from_config
 from nanoleaf_sync.ui.zone_presets import edge_weighted_layout, make_edge_weighted_zones
+from tests.repo_text import read_repo_text
 
 
 def test_active_config_serialization_has_no_legacy_preset_fields() -> None:
@@ -71,28 +72,25 @@ def test_edge_locality_diagnostic_corner_test_passes() -> None:
 
 
 def test_strip_count_mismatch_warning_exposes_manual_actions() -> None:
-    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     assert "Use reported count" in text
     assert "Keep manual count" in text
     assert "Reset anchors and recalibrate" in text
 
 
 def test_calibration_widget_shows_corner_checklist_and_status() -> None:
-    text = open("src/nanoleaf_sync/ui/calibration_widget.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/calibration_widget.py")
     assert "corner_checklist_label" in text
-    assert (
-        "Calibration:"
-        in open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
-    )
+    assert "Calibration:" in read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
 
 
 def test_raw_mapping_text_is_diagnostics_only() -> None:
-    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     assert "Raw device→source mapping" in text
     assert "self.preview_label.setText(" in text
 
 
 def test_settings_sections_present() -> None:
-    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     for section in ("Display & Color", "Performance", "Calibration", "Device", "Diagnostics"):
         assert section in text

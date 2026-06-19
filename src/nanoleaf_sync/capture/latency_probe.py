@@ -4,7 +4,6 @@ from collections import deque
 from dataclasses import dataclass
 from statistics import median
 
-
 STAGE_CAPTURE_WAIT = "capture_wait_ms"
 STAGE_CAPTURE_CALL = "capture_call_ms"
 STAGE_RUNTIME_CAPTURE_CALL = "runtime_capture_call_ms"

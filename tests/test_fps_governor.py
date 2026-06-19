@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from nanoleaf_sync.runtime.fps_governor import FPSGovernor, FPS_TIERS
+from nanoleaf_sync.runtime.fps_governor import FPS_TIERS, FPSGovernor
 
 
 def test_initial_target_matches_constructor_arg() -> None:
@@ -85,7 +85,7 @@ def test_steady_state_no_oscillation() -> None:
     """At comfortable utilisation, target FPS should not oscillate."""
     g = FPSGovernor(initial_fps=60)
     target_history: list[int] = []
-    for i in range(200):
+    for _i in range(200):
         # ~50% utilisation at 60fps (8.3ms)
         result = g.record_frame(8.3)
         target_history.append(result)
@@ -154,7 +154,7 @@ def test_transitions_tracked_in_metrics() -> None:
     metrics = g.get_metrics()
     transitions = metrics["transitions"]
     assert len(transitions) > 0
-    for frame, old_fps, new_fps in transitions:
+    for _frame, old_fps, new_fps in transitions:
         assert new_fps < old_fps  # should have stepped down
 
 

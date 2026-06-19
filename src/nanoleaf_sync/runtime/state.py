@@ -130,7 +130,10 @@ class RuntimeState:
         self.calibration_status_message = str(message or "calibration_incomplete")
         self.last_error = self.calibration_status_message
         self.last_error_kind = CALIBRATION_INCOMPLETE_STATUS
-        self.last_error_guidance = "Open Settings > Corner calibration and assign all four corners, then start mirroring again."
+        self.last_error_guidance = (
+            "Open Settings > Corner calibration and assign all four corners, "
+            "then start mirroring again."
+        )
         self.start_failure_reason = self.calibration_status_message
         self.lifecycle_state = CALIBRATION_INCOMPLETE_STATUS
 

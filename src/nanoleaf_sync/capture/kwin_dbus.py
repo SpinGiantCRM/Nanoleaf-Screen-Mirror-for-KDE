@@ -9,7 +9,7 @@ import threading
 logger = logging.getLogger(__name__)
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -30,7 +30,7 @@ class KWinDBusCaptureParams:
     # If None, the implementation will use the primary screen.
     # Monitor selection is intentionally left flexible because KDE/KWin
     # export different identifiers depending on version/compositor.
-    monitor_id: Optional[str] = None
+    monitor_id: str | None = None
 
 
 class KWinDBusCaptureError(RuntimeError):
@@ -71,7 +71,7 @@ class KWinDBusScreenshotCapture:
         self,
         width: int,
         height: int,
-        monitor_id: Optional[str] = None,
+        monitor_id: str | None = None,
         *,
         hdr_max_nits: float = 1000.0,
         hdr_transfer: str = "srgb",
@@ -167,7 +167,7 @@ class KWinDBusScreenshotCapture:
             raise KWinDBusCaptureError(
                 f"KWin D-Bus call timed out after {timeout:.1f}s. "
                 "The compositor may be busy or the D-Bus session is unresponsive."
-            )
+            ) from None
 
     def _ensure_background_loop(self) -> asyncio.AbstractEventLoop:
         loop = self._loop
@@ -261,7 +261,7 @@ class KWinDBusScreenshotCapture:
             self._screenshot2_bus = None
             self._legacy_bus = None
 
-    def _try_capture_via_dbus(self) -> Optional[np.ndarray]:
+    def _try_capture_via_dbus(self) -> np.ndarray | None:
         reply = self._run_async(self._capture_reply_via_dbus())
         frame = self._decode_reply_to_rgb(reply)
         if frame is None:
@@ -527,8 +527,10 @@ class KWinDBusScreenshotCapture:
                 "KWin ScreenShot2 access denied by KDE policy. This can happen when KDE cannot "
                 "associate this process with an authorized desktop entry. Confirm the running app "
                 f"uses Qt desktop file name '{QT_DESKTOP_FILE_NAME}' and the launcher desktop file "
-                f"contains '{RESTRICTED_IFACE_MARKER}'. Launch context: DESKTOP_STARTUP_ID={startup_id}; "
-                f"XDG_ACTIVATION_TOKEN={activation}. If launcher metadata changed, restart the Plasma session."
+                f"contains '{RESTRICTED_IFACE_MARKER}'. Launch context: "
+                f"DESKTOP_STARTUP_ID={startup_id}; "
+                f"XDG_ACTIVATION_TOKEN={activation}. "
+                "If launcher metadata changed, restart the Plasma session."
             )
 
         raise KWinDBusCaptureError(f"KWin ScreenShot2 call failed: {error_name} {details}".strip())
@@ -622,7 +624,7 @@ class KWinDBusScreenshotCapture:
         # Most interfaces export a no-arg fullscreen screenshot method.
         return ((),)
 
-    def _decode_reply_to_rgb(self, reply: object) -> Optional[np.ndarray]:
+    def _decode_reply_to_rgb(self, reply: object) -> np.ndarray | None:
         if isinstance(reply, _ScreenShot2Payload):
             return self._decode_screenshot2_payload(reply)
 
@@ -648,9 +650,9 @@ class KWinDBusScreenshotCapture:
 
         if isinstance(payload, memoryview):
             payload = payload.tobytes()
-        elif isinstance(payload, bytearray):
-            payload = bytes(payload)
-        elif isinstance(payload, list) and all(isinstance(v, int) for v in payload):
+        elif isinstance(payload, bytearray) or (
+            isinstance(payload, list) and all(isinstance(v, int) for v in payload)
+        ):
             payload = bytes(payload)
 
         if isinstance(payload, bytes):
@@ -702,12 +704,12 @@ class KWinDBusScreenshotCapture:
             normalized[key] = getattr(value, "value", value)
         return normalized
 
-    def _decode_ppm_path(self, path: Path) -> Optional[np.ndarray]:
+    def _decode_ppm_path(self, path: Path) -> np.ndarray | None:
         if path.suffix.lower() not in {".ppm", ".pnm"}:
             return None
         return self._decode_ppm_bytes(path.read_bytes())
 
-    def _decode_ppm_bytes(self, data: bytes) -> Optional[np.ndarray]:
+    def _decode_ppm_bytes(self, data: bytes) -> np.ndarray | None:
         if not data.startswith(b"P6"):
             return None
 

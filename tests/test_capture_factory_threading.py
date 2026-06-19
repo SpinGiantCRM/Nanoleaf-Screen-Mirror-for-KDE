@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
 from nanoleaf_sync.capture.factory import (
     _cached_probe_winner_lock,
-    _resolve_auto_backend_with_probe,
     _has_drm_device,
-    run_manual_portal_benchmark,
-    run_explicit_xdg_portal_probe,
-    run_fresh_backend_probe,
+    _resolve_auto_backend_with_probe,
     reset_cached_probe_winner,
     reset_capability_check_cache,
+    run_explicit_xdg_portal_probe,
+    run_fresh_backend_probe,
+    run_manual_portal_benchmark,
 )
 
 

@@ -6,19 +6,18 @@ import numpy as np
 import pytest
 
 from nanoleaf_sync.color.primaries import (
-    Chromaticities,
-    CHROMATICITIES_SRGB,
-    CHROMATICITIES_DCIP3,
     CHROMATICITIES_BT2020,
+    CHROMATICITIES_DCIP3,
     CHROMATICITIES_DISPLAYP3,
-    chromaticities_to_xyz_matrix,
+    CHROMATICITIES_SRGB,
+    Chromaticities,
+    _parse_edid_primaries,
     build_adaptation_matrix,
+    chromaticities_to_xyz_matrix,
+    get_display_primaries,
     get_primaries_for_gamut,
     invalidate_primaries_cache,
-    get_display_primaries,
-    _parse_edid_primaries,
 )
-
 
 # ---------------------------------------------------------------------------
 # Chromaticities constants

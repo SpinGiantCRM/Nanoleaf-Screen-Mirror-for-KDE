@@ -1,37 +1,21 @@
 from __future__ import annotations
 
-from dataclasses import replace
 import logging
-from typing import Callable
+from collections.abc import Callable
+from dataclasses import replace
 
 import numpy as np
 
 _log = logging.getLogger(__name__)
 
+import contextlib
+
+from nanoleaf_sync.capture.factory import (
+    run_explicit_xdg_portal_probe,
+    run_fresh_backend_probe,
+    run_manual_portal_benchmark,
+)
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig, LedCalibrationProfile
-from nanoleaf_sync.ui.calibration_state import (
-    CalibrationState,
-    backend_selection_info,
-    build_latency_result,
-    latency_result_summary,
-    should_auto_run_latency_probe,
-    build_testing_panel_state,
-)
-from nanoleaf_sync.ui.calibration_widget import SimpleCalibrationWidget
-from nanoleaf_sync.ui.preset_ui import (
-    COLOR_STYLE_LABELS,
-    DISPLAY_PRESET_LABELS,
-    EDGE_LOCALITY_LABELS,
-    LIGHT_SPREAD_LABELS,
-    MOTION_PRESET_LABELS,
-    SAMPLING_QUALITY_LABELS,
-    PERFORMANCE_PRIORITY_LABELS,
-    label_for_value,
-    labels,
-    value_for_label,
-)
-from nanoleaf_sync.ui.qt_lazy import load_qt
-from nanoleaf_sync.runtime.edge_locality_diagnostics import run_edge_locality_test
 from nanoleaf_sync.runtime.color_accuracy_diagnostics import run_color_accuracy_diagnostic
 from nanoleaf_sync.runtime.color_processing import (
     LedCalibration,
@@ -39,22 +23,40 @@ from nanoleaf_sync.runtime.color_processing import (
     apply_led_calibration,
     color_pipeline_diagnostics,
 )
-from nanoleaf_sync.runtime.readiness_check import run_readiness_check
 from nanoleaf_sync.runtime.compositor import effective_sdr_boost
 from nanoleaf_sync.runtime.diagnostics_exports import (
     diagnostics_text_lines,
     export_latency_report,
     export_sampling_overlay,
-    format_backend_attempt_row,
     export_zone_report,
+    format_backend_attempt_row,
 )
-from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones
+from nanoleaf_sync.runtime.edge_locality_diagnostics import run_edge_locality_test
+from nanoleaf_sync.runtime.readiness_check import run_readiness_check
+from nanoleaf_sync.ui.calibration_state import (
+    CalibrationState,
+    backend_selection_info,
+    build_latency_result,
+    build_testing_panel_state,
+    latency_result_summary,
+    should_auto_run_latency_probe,
+)
+from nanoleaf_sync.ui.calibration_widget import SimpleCalibrationWidget
 from nanoleaf_sync.ui.led_color_calibration_dialog import LedColorCalibrationDialog
-from nanoleaf_sync.capture.factory import (
-    run_explicit_xdg_portal_probe,
-    run_fresh_backend_probe,
-    run_manual_portal_benchmark,
+from nanoleaf_sync.ui.preset_ui import (
+    COLOR_STYLE_LABELS,
+    DISPLAY_PRESET_LABELS,
+    EDGE_LOCALITY_LABELS,
+    LIGHT_SPREAD_LABELS,
+    MOTION_PRESET_LABELS,
+    PERFORMANCE_PRIORITY_LABELS,
+    SAMPLING_QUALITY_LABELS,
+    label_for_value,
+    labels,
+    value_for_label,
 )
+from nanoleaf_sync.ui.qt_lazy import load_qt
+from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones
 
 FPS_MIN = 1
 FPS_MAX = 120
@@ -524,7 +526,8 @@ class SettingsDialog:
                 self.zone_report_label = QLabel("")
                 self.latency_report_label = QLabel("")
                 self.recovery_tools_hint_label = QLabel(
-                    "Use tray Advanced / Troubleshooting for Run Doctor, Run Smoke Test, launch diagnostics, and probe cache reset."
+                    "Use tray Advanced / Troubleshooting for Run Doctor, Run Smoke Test, "
+                    "launch diagnostics, and probe cache reset."
                 )
                 self.preview_label = self.simple_calibration_widget.preview_text_label
                 self.preview_visual_label = self.simple_calibration_widget.preview_visual_label
@@ -703,16 +706,19 @@ class SettingsDialog:
                 )
                 self.smoothing_slider.setToolTip("Blends frame-to-frame colors to reduce flicker.")
                 self.smoothing_speed_slider.setToolTip(
-                    "Motion response gain for smoothing. Lower values react slower (more smoothing); 0 keeps the strongest smoothing."
+                    "Motion response gain for smoothing. Lower values react slower "
+                    "(more smoothing); 0 keeps the strongest smoothing."
                 )
                 self.fps_slider.setToolTip(
-                    "This is the target update rate. Actual output FPS may be lower if capture, processing, or HID output cannot keep up."
+                    "This is the target update rate. Actual output FPS may be lower if "
+                    "capture, processing, or HID output cannot keep up."
                 )
                 self.sampling_quality_combo.setToolTip(
                     "Low = better performance, Balanced = default, High = best visual fidelity."
                 )
                 self.performance_priority_combo.setToolTip(
-                    "High priority may improve scheduling consistency. It may fail without permission. Very high is experimental."
+                    "High priority may improve scheduling consistency. It may fail without "
+                    "permission. Very high is experimental."
                 )
                 self.led_gamma_slider.setToolTip(
                     "Gamma correction for LED response. 1.00 keeps output linear."
@@ -730,16 +736,20 @@ class SettingsDialog:
                     "Dynamic: fastest response with basic flicker control."
                 )
                 self.color_style_combo.setToolTip(
-                    "Reference: Most accurate. Preserves greys as neutral light, avoids saturation boost, turns off only for black/near-black.\n"
-                    "Ambient: Recommended glow. Similar to Reference, with slightly stronger neutral brightness and smoother ambience.\n"
+                    "Reference: Most accurate. Preserves greys as neutral light, "
+                    "avoids saturation boost, turns off only for black/near-black.\n"
+                    "Ambient: Recommended glow. Similar to Reference, with slightly "
+                    "stronger neutral brightness and smoother ambience.\n"
                     "Vivid: Richer colour response.\n"
                     "Punchy: Strong stylised colour effect."
                 )
                 self.edge_locality_combo.setToolTip(
-                    "Tight: most accurate/least bleed. Balanced: softer ambient look. Wide: cinematic blend."
+                    "Tight: most accurate/least bleed. Balanced: softer ambient look. "
+                    "Wide: cinematic blend."
                 )
                 self.light_spread_combo.setToolTip(
-                    "Neighbour blending only. Precise = least spread, Balanced = default, Soft = cinematic."
+                    "Neighbour blending only. Precise = least spread, Balanced = default, "
+                    "Soft = cinematic."
                 )
                 self.hdr_max_nits_slider.setToolTip(
                     "Reference display peak brightness for HDR tone mapping."
@@ -778,7 +788,8 @@ class SettingsDialog:
                     "Chroma compression: reduces LED oversaturation."
                 )
                 self.neutral_luminance_gain_slider.setToolTip(
-                    "Neutral luminance: controls how bright grey/white screen areas appear on the LEDs."
+                    "Neutral luminance: controls how bright grey/white screen areas "
+                    "appear on the LEDs."
                 )
                 self.black_luminance_cutoff_slider.setToolTip(
                     "Black cutoff: controls when near-black screen areas turn the LEDs off."
@@ -907,7 +918,8 @@ class SettingsDialog:
                 layout.addWidget(
                     self._help_text_label(
                         QLabel,
-                        "Grey and white screen areas create neutral ambient light. Black areas turn the LEDs off.",
+                        "Grey and white screen areas create neutral ambient light. "
+                        "Black areas turn the LEDs off.",
                     ),
                     3,
                     0,
@@ -934,7 +946,8 @@ class SettingsDialog:
                 advanced_layout.addWidget(
                     self._help_text_label(
                         QLabel,
-                        "SDR white reference controls how bright SDR/desktop content appears when HDR is enabled.",
+                        "SDR white reference controls how bright SDR/desktop content appears "
+                        "when HDR is enabled.",
                     ),
                     3,
                     0,
@@ -947,7 +960,8 @@ class SettingsDialog:
                 advanced_layout.addWidget(
                     self._help_text_label(
                         QLabel,
-                        "KDE guidance: 203 nits is a useful PQ reference. 160/120 can be more comfortable. 80 nits is nominal SDR and may look dim.",
+                        "KDE guidance: 203 nits is a useful PQ reference. 160/120 can be more "
+                        "comfortable. 80 nits is nominal SDR and may look dim.",
                     ),
                     6,
                     0,
@@ -997,7 +1011,8 @@ class SettingsDialog:
                 led_layout.addWidget(
                     self._help_text_label(
                         QLabel,
-                        "Reference: Most accurate. Preserves greys as neutral light, avoids saturation boost, turns off only for black/near-black.",
+                        "Reference: Most accurate. Preserves greys as neutral light, "
+                        "avoids saturation boost, turns off only for black/near-black.",
                     ),
                     10,
                     0,
@@ -1007,7 +1022,8 @@ class SettingsDialog:
                 led_layout.addWidget(
                     self._help_text_label(
                         QLabel,
-                        "Ambient: Recommended glow. Similar to Reference, with slightly stronger neutral brightness and smoother ambience.",
+                        "Ambient: Recommended glow. Similar to Reference, with slightly "
+                        "stronger neutral brightness and smoother ambience.",
                     ),
                     11,
                     0,
@@ -1073,7 +1089,8 @@ class SettingsDialog:
                 layout.addWidget(
                     self._help_text_label(
                         QLabel,
-                        "Step through the LEDs until the lit LED matches a screen corner, then assign that corner.",
+                        "Step through the LEDs until the lit LED matches a screen corner, "
+                        "then assign that corner.",
                     ),
                     0,
                     0,
@@ -1137,7 +1154,7 @@ class SettingsDialog:
                     str(self.sdr_white_reference_preset_combo.currentText()).strip().lower()
                     != "custom"
                 ):
-                    try:
+                    with contextlib.suppress(ValueError, IndexError):
                         self._set_slider_value_safely(
                             self.sdr_boost_nits_slider,
                             int(
@@ -1146,8 +1163,6 @@ class SettingsDialog:
                                 )[0]
                             ),
                         )
-                    except (ValueError, IndexError):
-                        pass
                 self.brightness_value.setText(f"{self.brightness_slider.value()}%")
                 self.smoothing_value.setText(f"{self.smoothing_slider.value()}%")
                 self.smoothing_speed_value.setText(
@@ -1198,8 +1213,10 @@ class SettingsDialog:
                 }
                 info = backend_selection_info(preview_status, pending_cfg)
                 self.backend_info_label.setText(
-                    f"Requested backend policy: {info.requested_policy} | Selected backend: {info.selected_backend} "
-                    f"| Effective runtime backend: {info.effective_backend} | Source: {info.source} | Reason: {info.reason}"
+                    f"Requested backend policy: {info.requested_policy} | "
+                    f"Selected backend: {info.selected_backend} | "
+                    f"Effective runtime backend: {info.effective_backend} | "
+                    f"Source: {info.source} | Reason: {info.reason}"
                     + (f" | Unresolved: {info.unresolved_reason}" if info.unresolved_reason else "")
                 )
 
@@ -1216,7 +1233,8 @@ class SettingsDialog:
                 )
                 if detected > 0 and configured != detected:
                     warnings.append(
-                        "Device-reported count differs from configured count. The configured manual value is used."
+                        "Device-reported count differs from configured count. "
+                        "The configured manual value is used."
                     )
                 if source != configured:
                     warnings.append("Changing strip count invalidates calibration.")
@@ -1228,7 +1246,8 @@ class SettingsDialog:
                 current_zone = active_step.device_zone_index
                 step_total = self._test_cycle_length()
                 self.current_zone_label.setText(
-                    f"Test zone step: {self._test_step + 1}/{step_total} | Active physical strip zone: {current_zone}"
+                    f"Test zone step: {self._test_step + 1}/{step_total} | "
+                    f"Active physical strip zone: {current_zone}"
                 )
                 self.test_step_index_label.setText(f"{self._test_step + 1}/{step_total}")
                 self.simple_calibration_widget.corner_checklist_label.setText(
@@ -1264,7 +1283,8 @@ class SettingsDialog:
                     step=self._test_step,
                 )
                 self.preview_label.setText(
-                    f"{panel.zone_mode_summary}\nStrip LED zones in use: {panel.effective_zone_count}"
+                    f"{panel.zone_mode_summary}\n"
+                    f"Strip LED zones in use: {panel.effective_zone_count}"
                 )
                 self.preview_visual_label.setText("")
                 self.test_label.setText(f"{panel.active_test_description}\n{panel.backend_summary}")
@@ -1274,7 +1294,8 @@ class SettingsDialog:
                             f"Mapping preview: {self._state.mapping_preview_visual()}",
                             f"Raw device→source mapping: {self._state.mapping_preview_text()}",
                             (
-                                "Live diagnostics unavailable.\nStart mirroring to measure live output FPS."
+                                "Live diagnostics unavailable.\n"
+                                "Start mirroring to measure live output FPS."
                                 if not isinstance(
                                     self._runtime_status.get("_latest_frame_rgb"), np.ndarray
                                 )
@@ -1332,19 +1353,35 @@ class SettingsDialog:
                     )
                     ratios.append(float(diag["chroma_ratio"]))
                     neutral_ok = neutral_ok and bool(diag["neutral_grey_preserved"])
+                compositor_hdr_mode = (
+                    "yes" if bool(hdr_path.get("compositor_hdr_mode", False)) else "no"
+                )
+                tone_mapping_applied = (
+                    "yes" if bool(hdr_path.get("tone_mapping_applied", False)) else "no"
+                )
+                sdr_compensation_applied = (
+                    "yes" if bool(hdr_path.get("sdr_compensation_applied", False)) else "no"
+                )
+                neutral_grey_verdict = "pass" if neutral_ok else "warn"
                 self.hdr_colour_path_label.setText(
                     "\n".join(
                         (
                             "HDR colour path",
-                            f"active transfer/primaries: {hdr_path.get('hdr_transfer', 'unknown')} / {hdr_path.get('hdr_primaries', 'unknown')}",
-                            f"compositor HDR mode: {'yes' if bool(hdr_path.get('compositor_hdr_mode', False)) else 'no'}",
-                            f"SDR white reference: {self.sdr_boost_nits_slider.value()} nits ({self.sdr_white_reference_preset_combo.currentText()})",
-                            f"effective SDR boost: {float(hdr_path.get('effective_sdr_boost_scalar', 1.0)):.3f}",
-                            f"tone mapper: {'yes' if bool(hdr_path.get('tone_mapping_applied', False)) else 'no'}",
-                            f"SDR compensation: {'yes' if bool(hdr_path.get('sdr_compensation_applied', False)) else 'no'}",
+                            f"active transfer/primaries: "
+                            f"{hdr_path.get('hdr_transfer', 'unknown')} / "
+                            f"{hdr_path.get('hdr_primaries', 'unknown')}",
+                            f"compositor HDR mode: {compositor_hdr_mode}",
+                            f"SDR white reference: {self.sdr_boost_nits_slider.value()} nits "
+                            f"({self.sdr_white_reference_preset_combo.currentText()})",
+                            f"effective SDR boost: "
+                            f"{float(hdr_path.get('effective_sdr_boost_scalar', 1.0)):.3f}",
+                            f"tone mapper: {tone_mapping_applied}",
+                            f"SDR compensation: {sdr_compensation_applied}",
                             f"chroma ratio diagnostic: max={max(ratios):.3f}",
-                            f"neutral grey verdict: {'pass' if neutral_ok else 'warn'}",
-                            f"metadata source: {hdr_path.get('capture_metadata_source', 'unknown')} | assumption: {hdr_path.get('assumption', 'none')}",
+                            f"neutral grey verdict: {neutral_grey_verdict}",
+                            f"metadata source: "
+                            f"{hdr_path.get('capture_metadata_source', 'unknown')} | "
+                            f"assumption: {hdr_path.get('assumption', 'none')}",
                             f"warnings: {', '.join(hdr_path.get('warnings', [])) or 'none'}",
                         )
                     )
@@ -1400,7 +1437,12 @@ class SettingsDialog:
                     "\n".join(
                         [f"Exported {len(rows)} zone rows: {out}"]
                         + [
-                            f"#{r.get('zone_index')} {r.get('side')} rect={r.get('pixel_rect')} sampled={r.get('sampled_rgb')} out={r.get('final_output_rgb')} led={r.get('mapped_physical_led_index')}"
+                            (
+                                f"#{r.get('zone_index')} {r.get('side')} "
+                                f"rect={r.get('pixel_rect')} sampled={r.get('sampled_rgb')} "
+                                f"out={r.get('final_output_rgb')} "
+                                f"led={r.get('mapped_physical_led_index')}"
+                            )
                             for r in preview
                         ]
                     )
@@ -1444,13 +1486,11 @@ class SettingsDialog:
                     str(self.sdr_white_reference_preset_combo.currentText()).strip().lower()
                 )
                 if preset_text != "custom":
-                    try:
+                    with contextlib.suppress(ValueError, IndexError):
                         self._set_slider_value_safely(
                             self.sdr_boost_nits_slider,
                             int(preset_text.split(" ", 1)[0]),
                         )
-                    except (ValueError, IndexError):
-                        pass
                 self._refresh_preview_label()
 
             def _detect_kde_sdr_white_reference(self) -> None:
@@ -1700,14 +1740,15 @@ class SettingsDialog:
                 return max(MAX_ZONE_COUNT, detected + 16)
 
             def _on_device_zone_count_slider_changed(self, *_args) -> None:
-                previous_zone_count = self._state.effective_device_zone_count()
+                self._state.effective_device_zone_count()
                 max_count = self._device_zone_count_max()
                 requested = int(self.device_zone_count_slider.value())
                 clamped = max(1, min(requested, max_count))
                 if requested != clamped:
                     self._set_slider_value_safely(self.device_zone_count_slider, clamped)
                 self.device_zone_count_status_label.setText(
-                    "Set this to the number of physical lighting zones on your strip. This app will not auto-change this value."
+                    "Set this to the number of physical lighting zones on your strip. "
+                    "This app will not auto-change this value."
                 )
                 if self._source_zones_locked_to_device_count:
                     self._set_slider_value_safely(self.zone_count_slider, clamped)
@@ -1863,7 +1904,11 @@ class SettingsDialog:
                         measurement_kind="unavailable",
                         confidence_note="Start mirroring before measuring latency.",
                         triggered_by="manual",
-                        details=f"Configured frame interval: {1000.0 / max(1, int(self.fps_slider.value())):.1f} ms at {int(self.fps_slider.value())} FPS\n{probe_details}",
+                        details=(
+                            f"Configured frame interval: "
+                            f"{1000.0 / max(1, int(self.fps_slider.value())):.1f} ms at "
+                            f"{int(self.fps_slider.value())} FPS\n{probe_details}"
+                        ),
                     )
                     self.run_latency_button.setText("Measure active backend latency")
                 self.latency_label.setText(latency_result_summary(self._latest_latency))
@@ -1909,7 +1954,8 @@ class SettingsDialog:
 
             def _run_xdg_portal_test(self) -> None:
                 self.latency_label.setText(
-                    "Testing xdg-portal. Approve the KDE/portal screen or window selection prompt if it appears."
+                    "Testing xdg-portal. Approve the KDE/portal screen or window selection "
+                    "prompt if it appears."
                 )
                 try:
                     result = run_explicit_xdg_portal_probe(
@@ -1918,10 +1964,15 @@ class SettingsDialog:
                     )
                     self.latency_label.setText(
                         "xdg-portal explicit test:\n"
-                        f"status={result.get('status')} mode={result.get('mode')} reason={result.get('reason')}\n"
-                        f"last_success_stage={result.get('last_success_stage') or '-'} failing_stage={result.get('failing_stage') or '-'}\n"
+                        f"status={result.get('status')} mode={result.get('mode')} "
+                        f"reason={result.get('reason')}\n"
+                        f"last_success_stage={result.get('last_success_stage') or '-'} "
+                        f"failing_stage={result.get('failing_stage') or '-'}\n"
                         + "\n".join(
-                            f"- {row.get('stage')}: {row.get('status')} {row.get('detail') or ''}".strip()
+                            (
+                                f"- {row.get('stage')}: {row.get('status')} "
+                                f"{row.get('detail') or ''}"
+                            ).strip()
                             for row in (result.get("stages") or [])
                             if isinstance(row, dict)
                         )
@@ -1930,11 +1981,16 @@ class SettingsDialog:
                         details = result.get("details") or {}
                         self.xdg_hint_label.setText(
                             "Troubleshooting hints (run manually):\n"
-                            "systemctl --user status xdg-desktop-portal xdg-desktop-portal-kde pipewire wireplumber\n"
-                            'journalctl --user -u xdg-desktop-portal -u xdg-desktop-portal-kde -u pipewire -u wireplumber --since "10 minutes ago" --no-pager\n'
-                            f"Details: expected_bytes={details.get('expected_bytes')} received_bytes={details.get('received_bytes')} "
-                            f"caps={details.get('caps')} size={details.get('width')}x{details.get('height')} "
-                            f"timeout_s={details.get('first_frame_timeout_s')} empty_buffers={details.get('empty_buffer_count')}"
+                            "systemctl --user status xdg-desktop-portal "
+                            "xdg-desktop-portal-kde pipewire wireplumber\n"
+                            "journalctl --user -u xdg-desktop-portal -u xdg-desktop-portal-kde "
+                            '-u pipewire -u wireplumber --since "10 minutes ago" --no-pager\n'
+                            f"Details: expected_bytes={details.get('expected_bytes')} "
+                            f"received_bytes={details.get('received_bytes')} "
+                            f"caps={details.get('caps')} size={details.get('width')}x"
+                            f"{details.get('height')} "
+                            f"timeout_s={details.get('first_frame_timeout_s')} "
+                            f"empty_buffers={details.get('empty_buffer_count')}"
                         )
                     else:
                         self.xdg_hint_label.setText("")
@@ -1957,18 +2013,17 @@ class SettingsDialog:
                     if not isinstance(item, dict):
                         continue
                     rows.append(
-                        (
-                            f"- backend={item.get('backend')} target={item.get('target_capture_size')} "
-                            f"actual={item.get('actual_frame_size')} format={item.get('format')} "
-                            f"bytes={item.get('frame_bytes')} stride={item.get('stride')} "
-                            f"median={float(item.get('median_capture_ms') or 0.0):.2f}ms "
-                            f"p95={float(item.get('p95_capture_ms') or 0.0):.2f}ms "
-                            f"jitter={float(item.get('jitter_ms') or 0.0):.2f}ms "
-                            f"fps={float(item.get('effective_fps') or 0.0):.2f} "
-                            f"empty={item.get('empty_buffers')} failed={item.get('failed_frames')} "
-                            f"cpu-conv={float(item.get('cpu_conversion_median_ms') or 0.0):.2f}ms "
-                            f"e2e={item.get('e2e_frame_to_hid_ms')}"
-                        )
+                        f"- backend={item.get('backend')} "
+                        f"target={item.get('target_capture_size')} "
+                        f"actual={item.get('actual_frame_size')} format={item.get('format')} "
+                        f"bytes={item.get('frame_bytes')} stride={item.get('stride')} "
+                        f"median={float(item.get('median_capture_ms') or 0.0):.2f}ms "
+                        f"p95={float(item.get('p95_capture_ms') or 0.0):.2f}ms "
+                        f"jitter={float(item.get('jitter_ms') or 0.0):.2f}ms "
+                        f"fps={float(item.get('effective_fps') or 0.0):.2f} "
+                        f"empty={item.get('empty_buffers')} failed={item.get('failed_frames')} "
+                        f"cpu-conv={float(item.get('cpu_conversion_median_ms') or 0.0):.2f}ms "
+                        f"e2e={item.get('e2e_frame_to_hid_ms')}"
                     )
                 self.latency_label.setText(
                     "Manual xdg-portal benchmark:\n"
@@ -2010,7 +2065,11 @@ class SettingsDialog:
                             measurement_kind="unavailable",
                             confidence_note="Runtime has not processed frames yet.",
                             triggered_by="auto",
-                            details=f"Configured frame interval: {1000.0 / max(1, int(self.fps_slider.value())):.1f} ms at {int(self.fps_slider.value())} FPS\n{probe_details}",
+                            details=(
+                                f"Configured frame interval: "
+                                f"{1000.0 / max(1, int(self.fps_slider.value())):.1f} ms at "
+                                f"{int(self.fps_slider.value())} FPS\n{probe_details}"
+                            ),
                         )
                         self.run_latency_button.setText("Measure active backend latency")
                     self.latency_label.setText(latency_result_summary(self._latest_latency))
@@ -2061,13 +2120,18 @@ class SettingsDialog:
                 return {
                     "latency_ms": pipeline_median,
                     "confidence_note": (
-                        f"Measured live runtime samples (n={sample_count}, median={pipeline_median:.1f}ms, p95={pipeline_p95:.1f}ms, max={pipeline_max:.1f}ms)"
+                        f"Measured live runtime samples (n={sample_count}, "
+                        f"median={pipeline_median:.1f}ms, p95={pipeline_p95:.1f}ms, "
+                        f"max={pipeline_max:.1f}ms)"
                     ),
                     "details": (
-                        f"{'Manual' if triggered_by == 'manual' else 'Auto'} measured runtime work time (not cadence) | "
+                        f"{'Manual' if triggered_by == 'manual' else 'Auto'} measured runtime "
+                        f"work time (not cadence) | "
                         f"loop-gap median/p95={cadence_median:.1f}/{cadence_p95:.1f}ms (cadence) | "
-                        f"actual-work median/p95/max={pipeline_median:.1f}/{pipeline_p95:.1f}/{pipeline_max:.1f}ms | "
-                        f"effective FPS={effective_fps:.1f} | dropped/skipped={dropped} | samples={sample_count}"
+                        f"actual-work median/p95/max="
+                        f"{pipeline_median:.1f}/{pipeline_p95:.1f}/{pipeline_max:.1f}ms | "
+                        f"effective FPS={effective_fps:.1f} | "
+                        f"dropped/skipped={dropped} | samples={sample_count}"
                     ),
                 }
 
@@ -2118,7 +2182,8 @@ class SettingsDialog:
                 if cached_backend and result_origin != "manual":
                     formatted.insert(
                         0,
-                        f"Using cached backend: {cached_backend}. Press Re-test backends to run a fresh manual probe.",
+                        f"Using cached backend: {cached_backend}. "
+                        "Press Re-test backends to run a fresh manual probe.",
                     )
                 if measured_rows <= 0:
                     formatted.insert(0, "No measured candidate timings yet in this session.")

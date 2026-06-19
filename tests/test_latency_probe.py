@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 from nanoleaf_sync.capture.latency_probe import (
-    FrameTimingSample,
-    LatencyProbe,
-    STAGE_CAPTURE_WAIT,
+    STAGE_ACTUAL_WORK,
     STAGE_CAPTURE_CALL,
     STAGE_CAPTURE_SUCCESS_INTERVAL,
+    STAGE_CAPTURE_WAIT,
     STAGE_FRAME_HANDOFF_WAIT,
-    STAGE_ACTUAL_WORK,
+    STAGE_FRAME_PROCESSING,
     STAGE_HID_WRITE,
     STAGE_LOOP_GAP,
-    STAGE_FRAME_PROCESSING,
+    FrameTimingSample,
+    LatencyProbe,
 )
 
 

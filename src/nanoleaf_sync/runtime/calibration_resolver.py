@@ -9,8 +9,8 @@ from nanoleaf_sync.runtime.anchor_calibration import derive_anchor_zone_map, val
 CALIBRATION_INCOMPLETE_STATUS = "calibration_incomplete"
 CALIBRATION_READY_STATUS = "ready"
 CALIBRATION_INCOMPLETE_MESSAGE = (
-    "calibration_incomplete: Corner calibration is incomplete; assign all four unique corner anchors "
-    "before starting screen mirroring."
+    "calibration_incomplete: Corner calibration is incomplete; "
+    "assign all four unique corner anchors before starting screen mirroring."
 )
 
 

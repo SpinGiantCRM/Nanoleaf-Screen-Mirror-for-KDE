@@ -1,4 +1,4 @@
-# Nanoleaf Screen Mirror for KDE (v1.6.0)
+# Nanoleaf Screen Mirror for KDE (v1.7.0)
 
 Personal-first Nanoleaf USB screen mirroring app for KDE Plasma 6 on Linux.
 
@@ -101,6 +101,16 @@ nanoleaf-kde-sync-reset diagnostics --stop-runtime
 ## Release gate
 
 Only CI needs to pass before release.
+
+## Developer setup
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .[test]
+pre-commit install
+pre-commit run --all-files
+```
 
 ## Supported environment
 

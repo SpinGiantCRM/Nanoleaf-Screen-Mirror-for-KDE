@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-
-from nanoleaf_sync.capture.probe_models import CandidateProbeResult, ProbeError
 from nanoleaf_sync.capture.auto_probe import (
+    _build_probe_error,
     _compute_p95,
     _mark_stats,
-    _build_probe_error,
     _record_error,
 )
-
+from nanoleaf_sync.capture.probe_models import CandidateProbeResult, ProbeError
 
 # ---------------------------------------------------------------------------
 # _compute_p95

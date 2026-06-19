@@ -8,30 +8,29 @@ from unittest.mock import MagicMock
 import pytest
 
 from nanoleaf_sync.capture.dimensions import (
-    _parse_mode_line,
+    DEFAULT_CAPTURE_HEIGHT,
+    DEFAULT_CAPTURE_WIDTH,
     _detect_primary_screen_dims_sysfs,
+    _parse_mode_line,
     detect_primary_screen_dims,
     resolve_capture_dims,
-    DEFAULT_CAPTURE_WIDTH,
-    DEFAULT_CAPTURE_HEIGHT,
 )
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.presets import (
     EdgeLocalityProfile,
+    analyzer_mode_for_presets,
     edge_locality_profile,
     motion_profile,
-    normalize_preset,
     normalize_layout_preset,
+    normalize_preset,
     sampling_quality_to_zone_stride,
-    analyzer_mode_for_presets,
 )
 from nanoleaf_sync.config.serialization import (
     _prepare_payload_for_round_trip,
     dump_toml,
-    toml_render_scalar,
     toml_render_list,
+    toml_render_scalar,
 )
-
 
 # ===========================================================================
 # dimensions.py

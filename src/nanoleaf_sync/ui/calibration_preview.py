@@ -1,14 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 from nanoleaf_sync.ui.calibration_flow import (
     coverage_progress_label,
     derive_corner_anchor_device_indices,
 )
 from nanoleaf_sync.ui.zone_calibration import mapping_indices
-
 
 RGB = tuple[int, int, int]
 

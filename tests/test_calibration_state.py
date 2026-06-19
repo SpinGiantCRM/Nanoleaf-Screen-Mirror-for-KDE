@@ -1,6 +1,6 @@
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
-from nanoleaf_sync.ui.zone_presets import make_horizontal_zones
 from nanoleaf_sync.ui.calibration_state import CalibrationState
+from nanoleaf_sync.ui.zone_presets import make_horizontal_zones
 
 
 def test_calibration_state_uses_reverse_from_calibration_block() -> None:

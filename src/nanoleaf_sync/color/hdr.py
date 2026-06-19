@@ -11,14 +11,14 @@ Goal:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 import numpy as np
+
 from nanoleaf_sync.runtime.srgb import (
     linear01_to_srgb_encoded,
     srgb_eotf_to_linear01,
 )
-
 
 TransferFn = Literal["srgb", "pq", "hlg", "linear", "unknown"]
 Primaries = Literal["bt709", "bt2020", "unknown"]
@@ -66,7 +66,7 @@ class HDRMetadata:
     # We assume normalized float conversion already happens in the caller.
 
     @staticmethod
-    def from_any(value: Any) -> "HDRMetadata":
+    def from_any(value: Any) -> HDRMetadata:
         if isinstance(value, HDRMetadata):
             return value
         if isinstance(value, dict):
@@ -162,7 +162,7 @@ def _looks_sdr_encoded(enc: np.ndarray, *, transfer: str) -> bool:
     return True
 
 
-def analyze_hdr_path(rgb: np.ndarray, metadata: Optional[Any] = None) -> dict[str, object]:
+def analyze_hdr_path(rgb: np.ndarray, metadata: Any | None = None) -> dict[str, object]:
     meta = HDRMetadata.from_any(metadata)
     source = "unknown"
     if isinstance(metadata, dict):
@@ -214,7 +214,7 @@ def _linear_to_srgb_encoded(linear: np.ndarray) -> np.ndarray:
 
 def convert_frame_to_srgb8(
     rgb: np.ndarray,
-    metadata: Optional[Any] = None,
+    metadata: Any | None = None,
 ) -> np.ndarray:
     """
     Convert a capture RGB buffer into `uint8` sRGB.

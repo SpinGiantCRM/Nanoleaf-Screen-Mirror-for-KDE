@@ -12,10 +12,9 @@ from nanoleaf_sync.runtime.color_processing import (
     color_pipeline_diagnostics,
     get_last_color_process_ms,
     init_gamut_adaptation,
-    rgb_u8_to_oklch,
     oklch_to_rgb_u8,
+    rgb_u8_to_oklch,
 )
-
 
 # ---------------------------------------------------------------------------
 # init_gamut_adaptation
@@ -206,8 +205,8 @@ def test_color_pipeline_diagnostics_neutral_input() -> None:
 def test_rgb_oklch_roundtrip() -> None:
     """Round-trip should preserve colors approximately."""
     rgb = np.array([[128, 64, 192]], dtype=np.uint8)
-    l, c, h = rgb_u8_to_oklch(rgb)
-    result = oklch_to_rgb_u8(l, c, h)
+    lum, c, h = rgb_u8_to_oklch(rgb)
+    result = oklch_to_rgb_u8(lum, c, h)
     assert result.shape == rgb.shape
     # Should be close (some precision loss)
     diff = np.max(np.abs(result.astype(np.int32) - rgb.astype(np.int32)))

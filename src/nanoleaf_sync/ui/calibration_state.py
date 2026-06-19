@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import logging
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
@@ -98,7 +98,7 @@ class CalibrationState:
     calibration_model: str = "corner_anchored"
 
     @classmethod
-    def from_config(cls, cfg: AppConfig, runtime_status: dict | None = None) -> "CalibrationState":
+    def from_config(cls, cfg: AppConfig, runtime_status: dict | None = None) -> CalibrationState:
         runtime_status = runtime_status or {}
         calibration = cfg.effective_calibration()
         layout_preset = str(getattr(cfg, "layout_preset", "edge_strip"))
@@ -197,12 +197,26 @@ class CalibrationState:
     def mapping_preview_text(self) -> str:
         snapshot = self.resolved_mapping_snapshot()
         source_mode = "user-configured" if self.source_zones_user_configured else "auto-derived"
+        preview_text = mapping_preview_text(
+            zone_count=self.zone_count,
+            device_zone_count=self.effective_device_zone_count(),
+            reverse_zones=self.reverse_zones,
+            corner_anchor_top_left=self.corner_anchor_top_left,
+            corner_anchor_top_right=self.corner_anchor_top_right,
+            corner_anchor_bottom_right=self.corner_anchor_bottom_right,
+            corner_anchor_bottom_left=self.corner_anchor_bottom_left,
+            calibration_model="corner_anchored",
+            resolved_mapping=snapshot,
+        )
         return (
             f"{self.auto_detection_status()}\n"
-            f"Layout preset: {self.layout_preset} | source zones: {self.zone_count} | strip zones: {self.effective_device_zone_count()} | source mode: {source_mode}\n"
-            f"Anchors TL/TR/BR/BL: {self.corner_anchor_top_left}/{self.corner_anchor_top_right}/{self.corner_anchor_bottom_right}/{self.corner_anchor_bottom_left}\n"
+            f"Layout preset: {self.layout_preset} | source zones: {self.zone_count} | "
+            f"strip zones: {self.effective_device_zone_count()} | source mode: {source_mode}\n"
+            f"Anchors TL/TR/BR/BL: {self.corner_anchor_top_left}/"
+            f"{self.corner_anchor_top_right}/{self.corner_anchor_bottom_right}/"
+            f"{self.corner_anchor_bottom_left}\n"
             "Simple corner calibration preview\n"
-            f"{mapping_preview_text(zone_count=self.zone_count, device_zone_count=self.effective_device_zone_count(), reverse_zones=self.reverse_zones, corner_anchor_top_left=self.corner_anchor_top_left, corner_anchor_top_right=self.corner_anchor_top_right, corner_anchor_bottom_right=self.corner_anchor_bottom_right, corner_anchor_bottom_left=self.corner_anchor_bottom_left, calibration_model='corner_anchored', resolved_mapping=snapshot)}"
+            f"{preview_text}"
         )
 
     def mapping_preview_visual(self) -> str:
@@ -368,8 +382,10 @@ def build_testing_panel_state(
     active = state.step_for_mode(mode, step)
     return TestingPanelState(
         backend_summary=(
-            f"Requested backend policy: {backend.requested_policy} | Selected backend: {backend.selected_backend} "
-            f"| Effective runtime backend: {backend.effective_backend} | Source: {backend.source} | Reason: {backend.reason}"
+            f"Requested backend policy: {backend.requested_policy} | "
+            f"Selected backend: {backend.selected_backend} | "
+            f"Effective runtime backend: {backend.effective_backend} | "
+            f"Source: {backend.source} | Reason: {backend.reason}"
             + (f" | Unresolved: {backend.unresolved_reason}" if backend.unresolved_reason else "")
         ),
         zone_mode_summary=("Strip LED zone mode: configured")
@@ -400,7 +416,7 @@ def build_latency_result(
         measurement_kind=str(measurement_kind),
         confidence_note=str(confidence_note),
         triggered_by=str(triggered_by),
-        recorded_at_utc=datetime.now(timezone.utc).isoformat(),
+        recorded_at_utc=datetime.now(UTC).isoformat(),
         details=str(details),
     )
 

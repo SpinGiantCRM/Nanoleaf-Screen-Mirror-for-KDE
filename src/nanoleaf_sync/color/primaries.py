@@ -270,7 +270,8 @@ def get_display_primaries_from_sysfs() -> Chromaticities | None:
         primaries = _parse_edid_primaries(raw)
         if primaries is not None:
             _log.debug(
-                "Display primaries from sysfs %s: r=(%.3f,%.3f) g=(%.3f,%.3f) b=(%.3f,%.3f) w=(%.3f,%.3f)",
+                "Display primaries from sysfs %s: "
+                "r=(%.3f,%.3f) g=(%.3f,%.3f) b=(%.3f,%.3f) w=(%.3f,%.3f)",
                 edid_path,
                 primaries.rx,
                 primaries.ry,

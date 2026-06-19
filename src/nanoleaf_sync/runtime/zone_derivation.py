@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
-from nanoleaf_sync.ui.zone_presets import (
+from nanoleaf_sync.runtime.zone_presets import (
     edge_weighted_layout,
     make_edge_weighted_zones,
     make_horizontal_zones,

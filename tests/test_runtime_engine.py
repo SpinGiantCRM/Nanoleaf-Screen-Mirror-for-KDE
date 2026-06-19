@@ -1,6 +1,7 @@
-import numpy as np
 import threading
 import time
+
+import numpy as np
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.runtime.engine import (
@@ -77,7 +78,7 @@ def test_tight_locality_keeps_bottom_left_signal_local() -> None:
 
     top_n, right_n, bottom_n, left_n = edge_side_counts(zone_count=48, width=160, height=90)
     bottom = colors[top_n + right_n : top_n + right_n + bottom_n]
-    left = colors[top_n + right_n + bottom_n : top_n + right_n + bottom_n + left_n]
+    colors[top_n + right_n + bottom_n : top_n + right_n + bottom_n + left_n]
 
     assert sum(1 for c in bottom[-4:] if c[1] > 85) >= 1
     assert sum(1 for c in bottom[:4] if c[1] > 60) == 0
@@ -298,7 +299,7 @@ def test_run_loop_fails_start_when_no_first_frame_arrives() -> None:
 
     state = RuntimeState()
     cfg = _cfg_with_valid_calibration(48, fps=60)
-    setattr(cfg, "startup_frame_timeout_s", 0.12)
+    cfg.startup_frame_timeout_s = 0.12
     run_loop(
         config=cfg,
         state=state,

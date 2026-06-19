@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
 
 import numpy as np
 
@@ -31,10 +30,10 @@ class ReplayScreenCapture:
             height=height,
             frames_path=Path(frames_path).expanduser(),
         )
-        self._frames: List[np.ndarray] = self._load_frames(self.params.frames_path)
+        self._frames: list[np.ndarray] = self._load_frames(self.params.frames_path)
         self._idx = 0
 
-    def _load_frames(self, path: Path) -> List[np.ndarray]:
+    def _load_frames(self, path: Path) -> list[np.ndarray]:
         if not path.exists():
             raise FileNotFoundError(f"Replay frames file not found: {path}")
 
@@ -48,7 +47,7 @@ class ReplayScreenCapture:
                 f"Expected frames shape (N,H,W,3), got: {getattr(frames, 'shape', None)}"
             )
 
-        out: List[np.ndarray] = []
+        out: list[np.ndarray] = []
         for frame in frames:
             normalized = np.asarray(frame, dtype=np.uint8)
             if (

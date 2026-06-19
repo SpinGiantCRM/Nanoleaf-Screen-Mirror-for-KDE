@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 import pytest
 
 from nanoleaf_sync.capture import factory
@@ -19,7 +18,6 @@ from nanoleaf_sync.capture.factory import (
     reset_cached_probe_winner,
     reset_capability_check_cache,
 )
-
 
 # ---------------------------------------------------------------------------
 # _env_bool

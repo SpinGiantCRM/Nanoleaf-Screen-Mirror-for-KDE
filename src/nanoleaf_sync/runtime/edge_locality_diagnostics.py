@@ -6,8 +6,8 @@ import numpy as np
 
 from nanoleaf_sync.config.presets import analyzer_mode_for_presets
 from nanoleaf_sync.runtime.processing import zones_from_config
+from nanoleaf_sync.runtime.zone_presets import edge_weighted_layout, make_edge_weighted_zones
 from nanoleaf_sync.runtime.zones import zone_colors_array
-from nanoleaf_sync.ui.zone_presets import edge_weighted_layout, make_edge_weighted_zones
 
 
 @dataclass(frozen=True)
@@ -55,7 +55,7 @@ def run_edge_locality_test(
 
     top_n, right_n, bottom_n, left_n = layout.side_counts
     bottom_start = top_n + right_n
-    bottom_end = bottom_start + bottom_n
+    bottom_start + bottom_n
     far_bottom = corner_colors[bottom_start : bottom_start + max(1, bottom_n // 2)]
     far_right = corner_colors[top_n : top_n + right_n]
     far_edge_mean = 0.0
@@ -66,8 +66,13 @@ def run_edge_locality_test(
     far_edge_dark = far_edge_mean < 20.0
 
     summary = (
-        f"presets layout=edge_strip edge_locality={edge_locality} sampling_quality={sampling_quality} motion={motion_preset} color={color_style} | "
-        f"source_zones={len(zones)} strip_zones={zone_count} sides(T/R/B/L)={layout.side_counts[0]}/{layout.side_counts[1]}/{layout.side_counts[2]}/{layout.side_counts[3]} | "
-        f"edge_thickness={layout.edge_thickness:.3f} sample_stride={stride} analyzer_mode={analyzer_mode} far_edge_dark={'yes' if far_edge_dark else 'no'}"
+        f"presets layout=edge_strip edge_locality={edge_locality} "
+        f"sampling_quality={sampling_quality} motion={motion_preset} color={color_style} | "
+        f"source_zones={len(zones)} strip_zones={zone_count} "
+        f"sides(T/R/B/L)={layout.side_counts[0]}/{layout.side_counts[1]}/"
+        f"{layout.side_counts[2]}/{layout.side_counts[3]} | "
+        f"edge_thickness={layout.edge_thickness:.3f} sample_stride={stride} "
+        f"analyzer_mode={analyzer_mode} "
+        f"far_edge_dark={'yes' if far_edge_dark else 'no'}"
     )
     return EdgeLocalityDiagnosticResult(summary=summary, far_edge_zones_stayed_dark=far_edge_dark)

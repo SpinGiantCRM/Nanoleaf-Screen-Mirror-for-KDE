@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 import statistics
-from typing import Sequence, cast
+from collections.abc import Sequence
+from typing import cast
 
 import numpy as np
 
@@ -116,7 +117,7 @@ def probe_backends(
         try:
             remaining = max(0.0, deadline - monotonic_s())
             backend = call_with_timeout(
-                lambda: factory(candidate, width, height),
+                lambda c=candidate: factory(c, width, height),
                 min(probe_config.instantiate_timeout_s, remaining),
                 op_name=f"{candidate} instantiate",
             )
@@ -125,7 +126,7 @@ def probe_backends(
                 remaining = max(0.0, deadline - monotonic_s())
                 stats.attempted_captures += 1
                 frame = call_with_timeout(
-                    lambda: backend.capture(),
+                    lambda b=backend: b.capture(),
                     min(probe_config.warmup_timeout_s, remaining),
                     op_name=f"{candidate} warmup capture",
                 )
@@ -160,7 +161,7 @@ def probe_backends(
                 try:
                     remaining = max(0.0, deadline - monotonic_s())
                     frame = call_with_timeout(
-                        lambda: backend.capture(),
+                        lambda b=backend: b.capture(),
                         min(probe_config.capture_timeout_s, remaining),
                         op_name=f"{candidate} capture",
                     )

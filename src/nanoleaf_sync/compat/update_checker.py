@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -48,7 +48,7 @@ def default_cache_path() -> Path:
 
 
 def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _normalize_release_tag(tag_name: str | None) -> str | None:
@@ -68,15 +68,15 @@ def _parse_checked_at(value: str | None) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _cache_is_fresh(payload: dict[str, Any], *, now: datetime | None = None) -> bool:
     checked_at = _parse_checked_at(str(payload.get("checked_at") or ""))
     if checked_at is None:
         return False
-    current = now or datetime.now(timezone.utc)
+    current = now or datetime.now(UTC)
     age_s = (current - checked_at).total_seconds()
     return age_s < CACHE_TTL_S
 
@@ -165,7 +165,7 @@ def _fetch_latest_release(*, etag: str | None = None) -> tuple[int, dict[str, An
     if etag:
         headers["If-None-Match"] = etag
     request = Request(GITHUB_LATEST_URL, headers=headers, method="GET")
-    with urlopen(request, timeout=15) as response:
+    with urlopen(request, timeout=15) as response:  # nosec B310
         status = int(getattr(response, "status", response.getcode()))
         body = response.read().decode("utf-8")
         response_etag = response.headers.get("ETag")

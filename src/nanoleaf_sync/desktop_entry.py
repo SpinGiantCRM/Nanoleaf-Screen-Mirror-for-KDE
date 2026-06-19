@@ -13,7 +13,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 AUTOSTART_DESKTOP_NAME = "nanoleaf-kde-sync.desktop"
 SYSTEMD_SERVICE_NAME = "nanoleaf-kde-sync.service"
 QT_DESKTOP_FILE_NAME = AUTOSTART_DESKTOP_NAME.removesuffix(".desktop")
@@ -198,7 +197,8 @@ def enable_autostart() -> Path:
     source = _resolved_desktop_source()
     if source is None:
         raise FileNotFoundError(
-            "Unable to find nanoleaf-kde-sync.desktop in source docs/ or installed desktop-entry locations."
+            "Unable to find nanoleaf-kde-sync.desktop in source docs/ "
+            "or installed desktop-entry locations."
         )
 
     destination = user_autostart_path()

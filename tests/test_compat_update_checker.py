@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 from urllib.error import HTTPError
 
 import nanoleaf_sync
-
 from nanoleaf_sync.compat import update_checker
 
 
@@ -32,7 +31,7 @@ class _FakeHTTPResponse:
 
 def test_check_for_updates_uses_fresh_cache_without_network(tmp_path: Path, monkeypatch) -> None:
     cache_path = tmp_path / "version-check.json"
-    checked_at = datetime.now(timezone.utc).isoformat()
+    checked_at = datetime.now(UTC).isoformat()
     cache_path.write_text(
         json.dumps(
             {
@@ -93,7 +92,7 @@ def test_check_for_updates_fetches_and_writes_cache(tmp_path: Path, monkeypatch)
 
 def test_check_for_updates_honors_etag_not_modified(tmp_path: Path, monkeypatch) -> None:
     cache_path = tmp_path / "version-check.json"
-    stale_checked_at = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    stale_checked_at = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
     cache_path.write_text(
         json.dumps(
             {
@@ -133,7 +132,7 @@ def test_check_for_updates_rate_limited_falls_back_to_cache(tmp_path: Path, monk
     cache_path.write_text(
         json.dumps(
             {
-                "checked_at": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(),
+                "checked_at": (datetime.now(UTC) - timedelta(hours=2)).isoformat(),
                 "tag_name": "v1.8.0",
                 "latest_version": "1.8.0",
                 "update_available": True,

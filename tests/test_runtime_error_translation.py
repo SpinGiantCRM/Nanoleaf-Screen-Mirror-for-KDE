@@ -23,7 +23,8 @@ def test_runtime_state_records_translated_error() -> None:
 def test_translate_kwin_signature_mismatch_error() -> None:
     translated = translate_runtime_error(
         RuntimeError(
-            "KWin ScreenShot2 interface is present but method/signature is incompatible with this Plasma version."
+            "KWin ScreenShot2 interface is present but method/signature is "
+            "incompatible with this Plasma version."
         )
     )
     assert translated.kind == "kwin-signature-mismatch"

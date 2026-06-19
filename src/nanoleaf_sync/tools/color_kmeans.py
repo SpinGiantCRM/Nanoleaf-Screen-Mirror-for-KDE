@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Tuple
-
 import numpy as np
 
 from nanoleaf_sync.runtime.zones import _ensure_rgb_u8
@@ -14,7 +12,7 @@ def dominant_colors_kmeans(
     sample_pixels: int = 10_000,
     max_iter: int = 15,
     rng_seed: int = 0,
-) -> List[Tuple[int, int, int]]:
+) -> list[tuple[int, int, int]]:
     """
     Find dominant colors using k-means clustering.
 
@@ -38,14 +36,14 @@ def dominant_colors_kmeans(
 
     n = min(total, int(sample_pixels))
     rng = np.random.default_rng(rng_seed)
-    idx = rng.choice(total, size=n, replace=False if n < total else True)
+    idx = rng.choice(total, size=n, replace=not n < total)
     sample = pixels[idx].astype(np.float32, copy=False)
 
     # Initialize centroids by sampling random points.
     initial_idx = rng.choice(
         sample.shape[0],
         size=n_clusters,
-        replace=False if n_clusters <= sample.shape[0] else True,
+        replace=not n_clusters <= sample.shape[0],
     )
     centers = sample[initial_idx]  # (K, 3)
 

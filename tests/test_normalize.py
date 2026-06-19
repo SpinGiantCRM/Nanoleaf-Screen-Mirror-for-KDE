@@ -5,16 +5,15 @@ from __future__ import annotations
 import pytest
 
 from nanoleaf_sync.config.normalize import (
-    coerce_bool,
-    normalize_enum,
-    normalize_wizard_in_progress_state,
-    migrate_config_dict,
-    validate_raw_config_values,
     ConfigValidationError,
     _coerce_int,
     _require_int_in_range,
+    coerce_bool,
+    migrate_config_dict,
+    normalize_enum,
+    normalize_wizard_in_progress_state,
+    validate_raw_config_values,
 )
-
 
 # -- _coerce_int -----------------------------------------------------------
 

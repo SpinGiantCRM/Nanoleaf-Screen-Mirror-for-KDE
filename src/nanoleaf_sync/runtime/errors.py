@@ -89,8 +89,8 @@ def translate_runtime_error(error: Exception) -> UserFacingError:
         )
         if _kwin_major_version() >= 6:
             guidance += (
-                " If this started after a KDE update, restart from the Application Launcher and see "
-                "TROUBLESHOOTING.md → 'KWin Authorization'."
+                " If this started after a KDE update, restart from the Application Launcher "
+                "and see TROUBLESHOOTING.md → 'KWin Authorization'."
             )
         return UserFacingError(
             kind="kwin-authorization",
@@ -100,13 +100,14 @@ def translate_runtime_error(error: Exception) -> UserFacingError:
 
     if "kde policy" in normalized and "screenshot" in normalized:
         guidance = (
-            "KWin denied screenshot authorization. Launch from an installed desktop entry containing "
-            "X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2 and re-login to Plasma."
+            "KWin denied screenshot authorization. Launch from an installed desktop entry "
+            "containing X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2 "
+            "and re-login to Plasma."
         )
         if _kwin_major_version() >= 6:
             guidance += (
-                " If this started after a KDE update, restart from the Application Launcher and see "
-                "TROUBLESHOOTING.md → 'KWin Authorization'."
+                " If this started after a KDE update, restart from the Application Launcher "
+                "and see TROUBLESHOOTING.md → 'KWin Authorization'."
             )
         return UserFacingError(
             kind="kwin-authorization",
@@ -144,7 +145,8 @@ def translate_runtime_error(error: Exception) -> UserFacingError:
             summary=message,
             guidance=(
                 "KWin returned screenshot data that could not be decoded. "
-                "Try different capture dimensions and include doctor capture diagnostics in bug reports."
+                "Try different capture dimensions and include doctor capture diagnostics "
+                "in bug reports."
             ),
         )
 
@@ -163,8 +165,8 @@ def translate_runtime_error(error: Exception) -> UserFacingError:
             kind="kwin-unavailable",
             summary=message,
             guidance=(
-                "KWin screenshot DBus interfaces were not reachable. Confirm you are running in KDE Plasma "
-                "with a valid session bus and choose mock capture if needed."
+                "KWin screenshot DBus interfaces were not reachable. Confirm you are running "
+                "in KDE Plasma with a valid session bus and choose mock capture if needed."
             ),
         )
 
@@ -185,9 +187,15 @@ def translate_runtime_error(error: Exception) -> UserFacingError:
 
             portal_version = get_portal_version()
             if portal_version >= 7:
-                guidance += " Portal API version looks newer than tested; try the kwin-dbus backend in Settings."
+                guidance += (
+                    " Portal API version looks newer than tested; "
+                    "try the kwin-dbus backend in Settings."
+                )
             elif portal_version > 0:
-                guidance += " Try switching to the kwin-dbus backend in Settings if portal capture keeps failing."
+                guidance += (
+                    " Try switching to the kwin-dbus backend in Settings "
+                    "if portal capture keeps failing."
+                )
         except Exception:
             pass
         return UserFacingError(

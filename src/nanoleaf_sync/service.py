@@ -14,36 +14,37 @@ import signal
 import threading
 import time
 from dataclasses import replace
-from datetime import datetime, timezone
-from typing import Optional, Tuple
+from datetime import UTC, datetime
 
-from nanoleaf_sync.capture.interfaces import CaptureBackend
 from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
 from nanoleaf_sync.capture.dimensions import (
     DEFAULT_CAPTURE_HEIGHT as _DEFAULT_CAPTURE_HEIGHT,
+)
+from nanoleaf_sync.capture.dimensions import (
     DEFAULT_CAPTURE_WIDTH as _DEFAULT_CAPTURE_WIDTH,
+)
+from nanoleaf_sync.capture.dimensions import (
     detect_primary_screen_dims,
     resolve_capture_dims,
 )
-from nanoleaf_sync.capture.factory import create_capture_backend
-from nanoleaf_sync.capture.factory import last_auto_probe_report
-from nanoleaf_sync.config.model import AppConfig
-from nanoleaf_sync.config.store import ConfigManager
-from nanoleaf_sync.device.interfaces import DeviceDriver, NanoleafUSBIds
-from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
-from nanoleaf_sync.runtime.startup import (
-    RuntimeLifecycle,
-    run_runtime_engine,
-)
-from nanoleaf_sync.runtime.state import RuntimeState
-from nanoleaf_sync.runtime.compositor import effective_sdr_boost
-from nanoleaf_sync.runtime.diagnostics_exports import default_kde_display_metadata
+from nanoleaf_sync.capture.factory import create_capture_backend, last_auto_probe_report
+from nanoleaf_sync.capture.interfaces import CaptureBackend
 from nanoleaf_sync.compat.version_snapshot import (
     check_for_upgrade,
     update_snapshot,
     upgrade_notification_message,
 )
-
+from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.config.store import ConfigManager
+from nanoleaf_sync.device.interfaces import DeviceDriver, NanoleafUSBIds
+from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
+from nanoleaf_sync.runtime.compositor import effective_sdr_boost
+from nanoleaf_sync.runtime.diagnostics_exports import default_kde_display_metadata
+from nanoleaf_sync.runtime.startup import (
+    RuntimeLifecycle,
+    run_runtime_engine,
+)
+from nanoleaf_sync.runtime.state import RuntimeState
 
 logger = logging.getLogger(__name__)
 _AUTO_PROBE_WINNERS = {"kwin-dbus", "xdg-portal", "kmsgrab"}
@@ -71,11 +72,11 @@ __all__ = (
 )
 
 
-def _detect_primary_screen_dims(*, qt_widgets_module=None) -> Optional[Tuple[int, int]]:
+def _detect_primary_screen_dims(*, qt_widgets_module=None) -> tuple[int, int] | None:
     return detect_primary_screen_dims(qt_widgets_module=qt_widgets_module)
 
 
-def _resolve_capture_dims(config: AppConfig) -> Tuple[int, int]:
+def _resolve_capture_dims(config: AppConfig) -> tuple[int, int]:
     return resolve_capture_dims(config)
 
 
@@ -156,7 +157,7 @@ class NanoleafSyncService:
 
     def __init__(
         self,
-        config: Optional[AppConfig] = None,
+        config: AppConfig | None = None,
         *,
         capture_backend_override: CaptureBackend | None = None,
         driver_override=None,
@@ -199,7 +200,7 @@ class NanoleafSyncService:
         return report
 
     @property
-    def last_error(self) -> Optional[str]:
+    def last_error(self) -> str | None:
         return self._runtime.last_error
 
     @property
@@ -209,11 +210,11 @@ class NanoleafSyncService:
     def start(self) -> bool:
         return self._lifecycle.start(startup_timeout_s=1.0)
 
-    def stop(self, timeout: Optional[float] = 1.5) -> bool:
+    def stop(self, timeout: float | None = 1.5) -> bool:
         join_timeout = max(0.0, float(timeout)) if timeout is not None else None
         return self._lifecycle.stop(join_timeout=join_timeout)
 
-    def join(self, timeout: Optional[float] = None) -> None:
+    def join(self, timeout: float | None = None) -> None:
         self._lifecycle.join(timeout=timeout)
 
     def is_running(self) -> bool:
@@ -275,7 +276,10 @@ class NanoleafSyncService:
             else (
                 "Runtime has not started yet."
                 if not self.is_running()
-                else f"No concrete backend implementation resolved for policy '{self.config.prefer_backend}'."
+                else (
+                    f"No concrete backend implementation resolved for policy "
+                    f"'{self.config.prefer_backend}'."
+                )
             )
         )
         status["from_auto_probe"] = self._selection_reason in {"cached-probe", "fresh-probe"}
@@ -385,7 +389,10 @@ class NanoleafSyncService:
         if self.is_running():
             return {
                 "ok": False,
-                "message": "Mirroring is already running; stop mirroring before one-shot diagnostic capture.",
+                "message": (
+                    "Mirroring is already running; stop mirroring before "
+                    "one-shot diagnostic capture."
+                ),
             }
         capture = self._capture
         created_capture = False
@@ -488,7 +495,9 @@ class NanoleafSyncService:
             self._runtime.latest_zone_diagnostics = rows
             return {
                 "ok": True,
-                "message": f"Captured one diagnostic frame ({img_w}x{img_h}) with {len(rows)} zones.",
+                "message": (
+                    f"Captured one diagnostic frame ({img_w}x{img_h}) with {len(rows)} zones."
+                ),
             }
         except Exception as exc:
             return {"ok": False, "message": f"One-shot diagnostic capture failed: {exc}"}
@@ -650,7 +659,7 @@ class NanoleafSyncService:
                         if needs_write:
                             updated_config = replace(
                                 updated_config,
-                                auto_probe_timestamp=datetime.now(timezone.utc).isoformat(),
+                                auto_probe_timestamp=datetime.now(UTC).isoformat(),
                             )
                             if (
                                 self._capture_backend_override is None

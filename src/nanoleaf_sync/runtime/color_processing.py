@@ -48,7 +48,8 @@ def init_gamut_adaptation(display_gamut: str) -> None:
     if src is None:
         if gamut == "custom":
             _log.warning(
-                "Gamut adaptation: 'custom' display gamut selected but user chromaticities are not yet supported; using identity (sRGB)"
+                "Gamut adaptation: 'custom' display gamut selected but user "
+                "chromaticities are not yet supported; using identity (sRGB)"
             )
         else:
             _log.debug("Gamut adaptation: no display primaries detected; using identity (sRGB)")
@@ -174,10 +175,10 @@ def rgb_u8_to_oklch(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray
     return oklab[..., 0], c, h
 
 
-def oklch_to_rgb_u8(l: np.ndarray, c: np.ndarray, h: np.ndarray) -> np.ndarray:
+def oklch_to_rgb_u8(lum: np.ndarray, c: np.ndarray, h: np.ndarray) -> np.ndarray:
     a = c * np.cos(h)
     b = c * np.sin(h)
-    oklab = np.stack((l, a, b), axis=-1)
+    oklab = np.stack((lum, a, b), axis=-1)
     linear = _oklab_to_linear(oklab)
     return linear01_to_srgb_u8(linear)
 
@@ -201,7 +202,7 @@ def apply_color_style_mapping_with_diagnostics(
         0.0,
         1.0,
     )
-    l, c, h = rgb_u8_to_oklch(rgb)
+    lum, c, h = rgb_u8_to_oklch(rgb)
 
     c_boosted = c * style.chroma_boost
     c_cap = c * style.chroma_cap_ratio
@@ -228,14 +229,14 @@ def apply_color_style_mapping_with_diagnostics(
         (np.maximum(y, style.neutral_luminance_floor) * style.neutral_luminance_gain), 0.0, 1.0
     )
     neutral_l = np.cbrt(neutral_y)
-    l_mapped = np.clip((neutral_l * neutral_weight) + (l * (1.0 - neutral_weight)), 0.0, 1.0)
+    lum_mapped = np.clip((neutral_l * neutral_weight) + (lum * (1.0 - neutral_weight)), 0.0, 1.0)
     c_mapped = c_mapped * (1.0 - (0.92 * neutral_weight))
 
-    l_mapped *= black_gate
+    lum_mapped *= black_gate
     c_mapped *= black_gate
 
     out = oklch_to_rgb_u8(
-        l_mapped.astype(np.float32), c_mapped.astype(np.float32), h.astype(np.float32)
+        lum_mapped.astype(np.float32), c_mapped.astype(np.float32), h.astype(np.float32)
     )
     return out, cap_applied
 
@@ -269,15 +270,15 @@ def apply_led_calibration(colors: np.ndarray, calibration: LedCalibration) -> np
         rgb *= wb_gain
 
     rgb8 = np.clip(np.rint(rgb), 0.0, 255.0).astype(np.uint8, copy=False)
-    l, c, h = rgb_u8_to_oklch(rgb8)
+    lum, c, h = rgb_u8_to_oklch(rgb8)
     c = c / (1.0 + (np.clip(float(calibration.chroma_compression), 0.0, 0.6) * c))
 
     neutral_w = np.clip((0.03 - c) / 0.03, 0.0, 1.0)
     neutral_gain = np.clip(float(calibration.neutral_luminance_gain), 0.7, 1.5)
-    l = np.clip(l * (1.0 + (neutral_gain - 1.0) * neutral_w), 0.0, 1.0)
-    out = oklch_to_rgb_u8(l.astype(np.float32), c.astype(np.float32), h.astype(np.float32)).astype(
-        np.float32
-    )
+    lum = np.clip(lum * (1.0 + (neutral_gain - 1.0) * neutral_w), 0.0, 1.0)
+    out = oklch_to_rgb_u8(
+        lum.astype(np.float32), c.astype(np.float32), h.astype(np.float32)
+    ).astype(np.float32)
 
     cutoff = np.clip(float(calibration.black_luminance_cutoff), 0.0, 0.03)
     knee = np.clip(float(calibration.black_luminance_knee), 0.0005, 0.03)

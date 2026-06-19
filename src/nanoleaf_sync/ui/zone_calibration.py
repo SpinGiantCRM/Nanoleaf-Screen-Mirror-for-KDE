@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.calibration_resolver import (
     CalibrationMappingSnapshot,
@@ -48,7 +49,8 @@ def corner_anchor_validation_summary(
     return (
         "Anchor validation summary: "
         f"missing corners: {', '.join(missing) if missing else 'none'} | "
-        f"duplicate zone assignments: {', '.join(duplicate_groups) if duplicate_groups else 'none'} | "
+        f"duplicate zone assignments: "
+        f"{', '.join(duplicate_groups) if duplicate_groups else 'none'} | "
         f"out-of-range assignments: {', '.join(out_of_range) if out_of_range else 'none'}"
     )
 
@@ -128,7 +130,8 @@ def mapping_preview_text(
     else:
         notes = f"\nCorner anchors drive mapping for this calibration mode.\n{summary}"
     return (
-        f"Calibration model: {model} | source zones: {zone_count} | strip zones: {device_zone_count}\n"
+        f"Calibration model: {model} | source zones: {zone_count} | "
+        f"strip zones: {device_zone_count}\n"
         f"{detail_line}{notes}\n"
         f"Device zone order (device→screen): {preview}{suffix}"
     )

@@ -6,12 +6,11 @@ import numpy as np
 import pytest
 
 from nanoleaf_sync.runtime.srgb import (
-    srgb_eotf_to_linear01,
     linear01_to_srgb_encoded,
-    srgb_u8_to_linear01,
     linear01_to_srgb_u8,
+    srgb_eotf_to_linear01,
+    srgb_u8_to_linear01,
 )
-
 
 # -- srgb_eotf_to_linear01 ------------------------------------------------
 
@@ -23,7 +22,7 @@ def test_srgb_eotf_black_is_zero() -> None:
 
 def test_srgb_eotf_white_is_one() -> None:
     result = srgb_eotf_to_linear01(np.array([1.0], dtype=np.float32))
-    pytest.approx(result[0], abs=0.001) == 1.0
+    assert result[0] == pytest.approx(1.0, abs=0.001)
 
 
 def test_srgb_eotf_mid_gray_rises() -> None:

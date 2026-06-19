@@ -6,8 +6,8 @@ import pytest
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.normalize import (
-    _coerce_int,
     ConfigValidationError,
+    _coerce_int,
     coerce_bool,
     migrate_config_dict,
     normalize_enum,
@@ -15,7 +15,6 @@ from nanoleaf_sync.config.normalize import (
     validate_config,
     validate_raw_config_values,
 )
-
 
 # ---------------------------------------------------------------------------
 # coerce_bool edge cases

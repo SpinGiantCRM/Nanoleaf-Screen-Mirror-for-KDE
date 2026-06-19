@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
@@ -23,7 +24,6 @@ from nanoleaf_sync.tools.doctor import (
     format_report,
     run_doctor,
 )
-
 
 # ---------------------------------------------------------------------------
 # _check_python_runtime
@@ -456,7 +456,7 @@ def test_doctor_check_with_action() -> None:
 
 def test_doctor_check_immutable() -> None:
     c = DoctorCheck("test", "pass", "ok")
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         c.name = "changed"  # type: ignore[misc]
 
 

@@ -4,17 +4,17 @@ import numpy as np
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.diagnostics_exports import latency_breakdown_lines
+from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
 from nanoleaf_sync.runtime.startup import apply_process_priority
 from nanoleaf_sync.runtime.state import RuntimeState
 from nanoleaf_sync.runtime.zones import (
     _AUTO_ENGINE_CACHE,
     _cached_sampling_plan,
+    _edge_localized_weights,
     _zone_means_legacy,
     _zone_means_optimized,
-    _edge_localized_weights,
     zone_colors_array,
 )
-from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
 
 
 def _latency_status(

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 from nanoleaf_sync.capture.backend_selection import (
     normalize_backend_preference,
@@ -24,6 +24,8 @@ from nanoleaf_sync.config.presets import (
     SAMPLING_QUALITY_PRESETS,
     normalize_layout_preset,
     normalize_preset,
+)
+from nanoleaf_sync.config.presets import (
     sampling_quality_to_zone_stride as sampling_quality_to_zone_stride_impl,
 )
 
@@ -61,7 +63,7 @@ def _require_int_in_range(value: Any, *, field_name: str, minimum: int, maximum:
     return value
 
 
-def validate_raw_config_values(data: Dict[str, Any]) -> None:
+def validate_raw_config_values(data: dict[str, Any]) -> None:
     for field_name in ("device_vid", "device_pid"):
         if field_name in data:
             _require_int_in_range(
@@ -101,7 +103,7 @@ def coerce_bool(value: Any, default: bool) -> bool:
     return default
 
 
-def normalize_enum(value: Any, *, allowed: Dict[str, str], default: str) -> str:
+def normalize_enum(value: Any, *, allowed: dict[str, str], default: str) -> str:
     normalized = str(value).strip().lower()
     return allowed.get(normalized, default)
 
@@ -130,8 +132,8 @@ def normalize_wizard_in_progress_state(raw_value: Any) -> str:
     return json.dumps(payload, separators=(",", ":"), sort_keys=True)
 
 
-def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:
-    migrated: Dict[str, Any] = dict(data)
+def migrate_config_dict(data: dict[str, Any]) -> dict[str, Any]:
+    migrated: dict[str, Any] = dict(data)
     migrated.setdefault("schema_version", SCHEMA_VERSION)
     calibration_payload = migrated.get("calibration")
     calibration = dict(calibration_payload) if isinstance(calibration_payload, dict) else {}
@@ -177,7 +179,8 @@ def migrate_config_dict(data: Dict[str, Any]) -> Dict[str, Any]:
                 )
                 if draft_version != wizard_state_version:
                     logger.warning(
-                        "Wizard in-progress state version %d does not match config version %d; clearing",
+                        "Wizard in-progress state version %d does not match "
+                        "config version %d; clearing",
                         draft_version,
                         wizard_state_version,
                     )
@@ -255,7 +258,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         default=AppConfig.display_preset,
     )
 
-    zones: List[ZoneConfig] = []
+    zones: list[ZoneConfig] = []
     for z in cfg.zones:
         x = max(0.0, min(1.0, float(z.x)))
         y = max(0.0, min(1.0, float(z.y)))

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 CMD_SET_ZONE_COLORS = 0x02
 CMD_GET_LENGTH = 0x03
 CMD_GET_ON_OFF = 0x06
@@ -76,7 +75,8 @@ class NanoleafTLVProtocol:
         expected_len = 3 + payload_len
         if len(data) < expected_len:
             raise ProtocolShortReadError(
-                f"TLV response shorter than declared length: got {len(data)} bytes, expected {expected_len}"
+                f"TLV response shorter than declared length: "
+                f"got {len(data)} bytes, expected {expected_len}"
             )
         if len(data) > expected_len:
             # HID report padding may be present; caller should pass exact TLV bytes.

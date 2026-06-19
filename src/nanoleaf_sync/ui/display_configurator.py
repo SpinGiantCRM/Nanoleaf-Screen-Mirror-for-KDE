@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from time import perf_counter
-from typing import Callable
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
@@ -16,7 +17,6 @@ from nanoleaf_sync.ui.calibration_state import (
     build_testing_panel_state,
 )
 from nanoleaf_sync.ui.calibration_widget import SimpleCalibrationWidget
-from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.preset_ui import (
     COLOR_STYLE_LABELS,
     DISPLAY_PRESET_LABELS,
@@ -27,6 +27,7 @@ from nanoleaf_sync.ui.preset_ui import (
     labels,
     value_for_label,
 )
+from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.zone_presets import edge_weighted_layout, make_edge_weighted_zones
 
 MAX_WIZARD_ZONE_COUNT = 128
@@ -164,7 +165,7 @@ class DisplayConfiguratorDialog:
                 self._initial_calibration = cfg.effective_calibration()
                 status = runtime_status or {}
                 self._state = CalibrationState.from_config(cfg, status)
-                detected_device_zone_count = int(status.get("device_zone_count") or 0)
+                int(status.get("device_zone_count") or 0)
                 self._requires_manual_device_zone_count = (
                     int(getattr(cfg, "device_zone_count", 0)) <= 0
                 )
@@ -344,7 +345,8 @@ class DisplayConfiguratorDialog:
                 self.reset_anchors_button = self.simple_calibration_widget.reset_anchors_button
                 self.current_zone_label = self.simple_calibration_widget.current_zone_label
                 self.calibration_hint = QLabel(
-                    "Use Previous/Next zone to find the right physical LED, assign corners, and adjust reverse orientation if needed."
+                    "Use Previous/Next zone to find the right physical LED, assign corners, "
+                    "and adjust reverse orientation if needed."
                 )
 
                 # Summary
@@ -502,7 +504,8 @@ class DisplayConfiguratorDialog:
                 )
                 self._set_tooltip(
                     self.edge_locality_combo,
-                    "Tight: most accurate/least bleed. Balanced: softer ambient look. Wide: cinematic blend.",
+                    "Tight: most accurate/least bleed. Balanced: softer ambient look. "
+                    "Wide: cinematic blend.",
                 )
                 self._set_tooltip(
                     self.motion_preset_combo,
@@ -512,8 +515,10 @@ class DisplayConfiguratorDialog:
                 )
                 self._set_tooltip(
                     self.color_style_combo,
-                    "Reference: Most accurate. Preserves greys as neutral light, avoids saturation boost, turns off only for black/near-black.\n"
-                    "Ambient: Recommended glow. Similar to Reference, with slightly stronger neutral brightness and smoother ambience.\n"
+                    "Reference: Most accurate. Preserves greys as neutral light, "
+                    "avoids saturation boost, turns off only for black/near-black.\n"
+                    "Ambient: Recommended glow. Similar to Reference, with slightly "
+                    "stronger neutral brightness and smoother ambience.\n"
                     "Vivid: Richer colour response.\n"
                     "Punchy: Strong stylised colour effect.",
                 )
@@ -735,7 +740,7 @@ class DisplayConfiguratorDialog:
                     next_set_enabled(self._flow.can_go_next())
                 effective_zone_count = self._state.effective_device_zone_count()
                 corner_mode = True
-                mapping_snapshot = self._state.resolved_mapping_snapshot()
+                self._state.resolved_mapping_snapshot()
                 anchors = {
                     "top_left": self._state.corner_anchor_top_left
                     if self._state.corner_anchor_top_left >= 0
@@ -797,7 +802,8 @@ class DisplayConfiguratorDialog:
                 if callable(finish_set_enabled):
                     finish_set_enabled(can_finish)
                 self.finish_policy_note.setText(
-                    "Finish unlocks after valid corner anchors are assigned and strip zone count is confirmed."
+                    "Finish unlocks after valid corner anchors are assigned and "
+                    "strip zone count is confirmed."
                 )
 
                 hdr_mode = (
@@ -840,7 +846,8 @@ class DisplayConfiguratorDialog:
                     )
                 else:
                     self.display_mode_help.setText(
-                        "Auto: Switches between SDR and HDR behavior from runtime desktop capability."
+                        "Auto: Switches between SDR and HDR behavior from runtime "
+                        "desktop capability."
                     )
                 for widget in (
                     self.hdr_transfer_label,
@@ -918,7 +925,8 @@ class DisplayConfiguratorDialog:
                 source_count = int(self._state.zone_count or 0)
                 if detected_count > 0 and configured_count != detected_count:
                     calibration_warnings.append(
-                        f"Device-reported count: {detected_count} (diagnostic only; may be inaccurate)"
+                        f"Device-reported count: {detected_count} "
+                        "(diagnostic only; may be inaccurate)"
                     )
                 if source_count != configured_count:
                     calibration_warnings.append("Changing strip count invalidates calibration.")
@@ -974,7 +982,8 @@ class DisplayConfiguratorDialog:
                 self.advanced_details.setText(
                     "\n".join(
                         (
-                            f"Calibration model/internal resolver mode: {self._state.calibration_model}",
+                            f"Calibration model/internal resolver mode: "
+                            f"{self._state.calibration_model}",
                             f"Sampling quality: {self.sampling_quality_combo.currentText()}",
                             "Calibration mode: corner calibration",
                             f"Screen sampling zones: {self._state.zone_count}",
@@ -994,8 +1003,11 @@ class DisplayConfiguratorDialog:
                 self.calibration_diagnostics_label.setText(
                     "\n".join(
                         (
-                            f"Backend policy/effective backend: {self._state.auto_detection_status()}",
-                            f"Device-reported count: {self._state.detected_device_zone_count or 'n/a'} (diagnostic only; may be inaccurate)",
+                            f"Backend policy/effective backend: "
+                            f"{self._state.auto_detection_status()}",
+                            f"Device-reported count: "
+                            f"{self._state.detected_device_zone_count or 'n/a'} "
+                            "(diagnostic only; may be inaccurate)",
                             f"Configured strip LED zones: {effective_zone_count}",
                             f"Mapping preview: {self._state.mapping_preview_visual()}",
                             f"Device→source mapping list: {self._state.mapping_preview_text()}",
@@ -1027,8 +1039,8 @@ class DisplayConfiguratorDialog:
 
             def updated_config(self) -> AppConfig:
                 self._pull_state_from_controls()
-                verification = self._state.validation_report()
-                mapping_snapshot = resolve_calibration_mapping(
+                self._state.validation_report()
+                resolve_calibration_mapping(
                     zone_count=max(1, int(self._state.zone_count)),
                     device_zone_count=max(1, int(self._state.effective_device_zone_count())),
                     reverse_zones=bool(self._state.reverse_zones),
@@ -1052,7 +1064,7 @@ class DisplayConfiguratorDialog:
                     if self._state.corner_anchor_bottom_left >= 0
                     else None,
                 }
-                anchor_validation = validate_corner_anchors(
+                validate_corner_anchors(
                     anchors=anchors,
                     device_zone_count=self._state.effective_device_zone_count(),
                 )
@@ -1345,13 +1357,11 @@ class DisplayConfiguratorDialog:
                     str(self.sdr_white_reference_preset_combo.currentText()).strip().lower()
                 )
                 if preset_text != "custom":
-                    try:
+                    with contextlib.suppress(ValueError, IndexError):
                         self._set_slider_value_safely(
                             self.sdr_boost_nits_slider,
                             int(preset_text.split(" ", 1)[0]),
                         )
-                    except (ValueError, IndexError):
-                        pass
                 self._refresh()
 
             def _assign_anchor(self, corner: str) -> None:

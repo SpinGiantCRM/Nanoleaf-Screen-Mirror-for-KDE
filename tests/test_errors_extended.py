@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 from nanoleaf_sync.runtime.errors import (
     UserFacingError,
     translate_runtime_error,

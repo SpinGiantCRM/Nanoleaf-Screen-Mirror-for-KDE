@@ -9,9 +9,8 @@ from __future__ import annotations
 
 import threading
 import time
-from dataclasses import dataclass
-from dataclasses import replace
-from typing import Sequence, Tuple
+from collections.abc import Sequence
+from dataclasses import dataclass, replace
 
 import numpy as np
 import pytest
@@ -19,13 +18,12 @@ import pytest
 from nanoleaf_sync.capture.interfaces import CaptureBackend
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.service import (
-    NanoleafSyncService,
     _DEFAULT_CAPTURE_HEIGHT,
     _DEFAULT_CAPTURE_WIDTH,
+    NanoleafSyncService,
 )
 
-
-RGB = Tuple[int, int, int]
+RGB = tuple[int, int, int]
 
 
 @dataclass

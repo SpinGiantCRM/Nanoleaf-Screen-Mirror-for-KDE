@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import time
 import threading
+import time
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence, Tuple
 
 import numpy as np
 
@@ -11,8 +11,7 @@ from nanoleaf_sync.capture.interfaces import CaptureBackend
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.service import NanoleafSyncService
 
-
-RGB = Tuple[int, int, int]
+RGB = tuple[int, int, int]
 
 
 def _wait_until(

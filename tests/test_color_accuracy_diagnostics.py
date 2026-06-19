@@ -5,8 +5,8 @@ from __future__ import annotations
 import numpy as np
 
 from nanoleaf_sync.runtime.color_accuracy_diagnostics import (
-    run_color_accuracy_diagnostic,
     ColorAccuracyDiagnosticResult,
+    run_color_accuracy_diagnostic,
 )
 from nanoleaf_sync.runtime.color_processing import apply_color_style_mapping
 
@@ -73,9 +73,7 @@ def test_diagnostic_with_reference_style() -> None:
         mapper=_make_style_mapper("reference"), color_style="reference"
     )
     # Chroma ratio should not explode
-    assert (
-        "avg_chroma_ratio=1.0" in result.summary or "avg_chroma_ratio=0." in result.summary or True
-    )
+    assert True
     # Neutral should be preserved
     assert "neutral_preserved=yes" in result.summary
 

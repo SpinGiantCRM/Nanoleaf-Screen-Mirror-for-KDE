@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import os
 import inspect
 import logging
-from importlib import import_module
+import os
 from dataclasses import dataclass
-from typing import Optional
+from importlib import import_module
 
 import numpy as np
 
-from nanoleaf_sync.capture._utils import _resize_to_target
 from nanoleaf_sync.capture._drm_zone_sampler import DRMZoneSampler
+from nanoleaf_sync.capture._utils import _resize_to_target
 from nanoleaf_sync.capture.errors import KMSGrabError
 from nanoleaf_sync.capture.kwin_dbus import KWinDBusScreenshotCapture
 from nanoleaf_sync.color.hdr import HDRMetadata, analyze_hdr_path, convert_frame_to_srgb8
@@ -36,7 +35,7 @@ class KMSGrabCapture:
         self,
         width: int,
         height: int,
-        card_path: Optional[str] = None,
+        card_path: str | None = None,
         *,
         hdr_max_nits: float = 1000.0,
         hdr_transfer: str = "srgb",
@@ -153,7 +152,8 @@ class KMSGrabCapture:
         """Try available DRM capture bindings, otherwise raise KMSGrabError."""
         if self._drm_capture_impl is None:
             raise KMSGrabError(
-                "DRM/KMS capture bindings are not available yet (expected _kmsgrab or kmsgrab module). "
+                "DRM/KMS capture bindings are not available yet "
+                "(expected _kmsgrab or kmsgrab module). "
                 "Using KWin D-Bus fallback."
             )
 

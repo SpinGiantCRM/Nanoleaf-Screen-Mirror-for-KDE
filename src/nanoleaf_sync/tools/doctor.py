@@ -11,10 +11,9 @@ import webbrowser
 from urllib.parse import urlencode
 
 logger = logging.getLogger(__name__)
+import threading
 from dataclasses import dataclass
 from pathlib import Path
-import threading
-
 from typing import Any, Literal
 
 from nanoleaf_sync.capture.backend_selection import (
@@ -25,6 +24,14 @@ from nanoleaf_sync.capture.backend_selection import (
     normalize_backend_preference,
 )
 from nanoleaf_sync.capture.factory import auto_probe_effective_state
+from nanoleaf_sync.compat.kde_version import (
+    format_version_tuple,
+    get_kwin_version,
+    get_plasma_version,
+)
+from nanoleaf_sync.compat.kwin_probe import get_screenshot2_api_version
+from nanoleaf_sync.compat.portal_probe import get_portal_version, supports_pipewire_serial
+from nanoleaf_sync.compat.version_snapshot import check_for_upgrade, collect_current_versions
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.normalize import validate_config
 from nanoleaf_sync.config.store import ConfigManager
@@ -39,15 +46,6 @@ from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
 from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping_from_config
 from nanoleaf_sync.runtime.errors import translate_runtime_error
-from nanoleaf_sync.compat.kde_version import (
-    format_version_tuple,
-    get_kwin_version,
-    get_plasma_version,
-)
-from nanoleaf_sync.compat.kwin_probe import get_screenshot2_api_version
-from nanoleaf_sync.compat.portal_probe import get_portal_version, supports_pipewire_serial
-from nanoleaf_sync.compat.version_snapshot import check_for_upgrade, collect_current_versions
-
 
 Status = Literal["pass", "warn", "fail"]
 
@@ -66,14 +64,15 @@ from nanoleaf_sync.capture._utils import effective_runtime_zone_count
 
 
 def _check_python_runtime() -> DoctorCheck:
-    if sys.version_info < (3, 11):
+    version = sys.version.split()[0]
+    if sys.version_info < (3, 11):  # noqa: UP036
         return DoctorCheck(
             "python",
             "fail",
-            f"Python {sys.version.split()[0]} detected.",
-            "Use Python 3.11+.",
+            f"Python 3.11+ required; found {version}.",
+            "Install Python 3.11 or newer for this project.",
         )
-    return DoctorCheck("python", "pass", f"Python {sys.version.split()[0]} detected.")
+    return DoctorCheck("python", "pass", f"Python {version} detected.")
 
 
 def _check_dependencies() -> DoctorCheck:
@@ -88,7 +87,8 @@ def _check_dependencies() -> DoctorCheck:
             "dependencies",
             "fail",
             f"Missing Python modules: {', '.join(missing)}.",
-            "Install project deps: pip install -e .[test] (provides hidapi package and `hid` runtime module).",
+            "Install project deps: pip install -e .[test] "
+            "(provides hidapi package and `hid` runtime module).",
         )
     return DoctorCheck("dependencies", "pass", "Core Python modules are importable.")
 
@@ -160,8 +160,10 @@ def _check_desktop_authorization() -> DoctorCheck:
         return DoctorCheck(
             "desktop-authorization",
             "warn",
-            f"Autostart desktop entry exists but is missing restricted interface marker ({autostart}).",
-            f"Recreate it with `nanoleaf-kde-sync-autostart enable` so it includes {RESTRICTED_IFACE_MARKER}.",
+            f"Autostart desktop entry exists but is missing restricted interface marker "
+            f"({autostart}).",
+            f"Recreate it with `nanoleaf-kde-sync-autostart enable` so it includes "
+            f"{RESTRICTED_IFACE_MARKER}.",
         )
 
     installed_with_marker: list[Path] = []
@@ -189,21 +191,24 @@ def _check_desktop_authorization() -> DoctorCheck:
         return DoctorCheck(
             "desktop-authorization",
             "warn",
-            f"Installed desktop entry is missing restricted interface marker ({installed_without_marker[0]}).",
+            f"Installed desktop entry is missing restricted interface marker "
+            f"({installed_without_marker[0]}).",
             f"Update package desktop entry to include {RESTRICTED_IFACE_MARKER}.",
         )
     if template.exists() and template_has_marker:
         return DoctorCheck(
             "desktop-authorization",
             "warn",
-            f"Source desktop template is authorized ({template}), but no installed desktop entry or autostart file was found.",
+            f"Source desktop template is authorized ({template}), but no installed "
+            "desktop entry or autostart file was found.",
             "Install the desktop file with your package manager, then enable autostart.",
         )
     if template.exists():
         return DoctorCheck(
             "desktop-authorization",
             "warn",
-            f"Source desktop template is present but missing restricted interface marker ({template}).",
+            f"Source desktop template is present but missing restricted interface marker "
+            f"({template}).",
             f"Add {RESTRICTED_IFACE_MARKER} to the template and reinstall.",
         )
     return DoctorCheck(
@@ -234,7 +239,8 @@ def _check_hid_enumeration(config: AppConfig) -> DoctorCheck:
             "hid-device",
             "fail",
             f"Unable to enumerate HID devices: {exc}",
-            "Install/enable hidapi for your environment and confirm device access permissions, then rerun doctor.",
+            "Install/enable hidapi for your environment and confirm device access "
+            "permissions, then rerun doctor.",
         )
 
     if not devices:
@@ -257,7 +263,8 @@ def _check_hid_enumeration(config: AppConfig) -> DoctorCheck:
             f"#{idx} path={path or '<unknown>'} interface_number={dev.get('interface_number')!r} "
             f"usage_page={dev.get('usage_page')!r} usage={dev.get('usage')!r} "
             f"release_number={dev.get('release_number')!r} bus_type={dev.get('bus_type')!r} "
-            f"manufacturer={dev.get('manufacturer_string')!r} product={dev.get('product_string')!r} "
+            f"manufacturer={dev.get('manufacturer_string')!r} "
+            f"product={dev.get('product_string')!r} "
             f"serial={dev.get('serial_number')!r}"
         )
 
@@ -313,14 +320,16 @@ def _check_real_device_probe(config: AppConfig) -> DoctorCheck:
         )
         if any(marker in lowered for marker in open_failure_markers):
             action = (
-                "Run `nanoleaf-kde-sync-doctor` and inspect hid-device per-path details, then retry "
-                "with `--device`. Inspect the per-path open attempt results (`open_path(...)` / `open(...)`) "
-                "to distinguish busy-handle vs backend mismatch vs permission issues."
+                "Run `nanoleaf-kde-sync-doctor` and inspect hid-device per-path details, "
+                "then retry with `--device`. Inspect the per-path open attempt results "
+                "(`open_path(...)` / `open(...)`) to distinguish busy-handle vs backend "
+                "mismatch vs permission issues."
             )
         else:
             action = (
-                "Verify permissions and supported models first. If permissions are already correct, "
-                "rerun `nanoleaf-kde-sync-doctor --device` and capture the full exception text for deeper HID diagnosis."
+                "Verify permissions and supported models first. If permissions are already "
+                "correct, rerun `nanoleaf-kde-sync-doctor --device` and capture the full "
+                "exception text for deeper HID diagnosis."
             )
         return DoctorCheck(
             "device-probe",
@@ -349,7 +358,8 @@ def _check_calibration_completeness(config: AppConfig) -> DoctorCheck:
             "calibration",
             "warn",
             snapshot.status_message,
-            "Open Settings > Corner calibration, assign all four unique corner anchors, Save, then start mirroring again.",
+            "Open Settings > Corner calibration, assign all four unique corner anchors, "
+            "Save, then start mirroring again.",
         )
     return DoctorCheck(
         "calibration", "pass", "Corner calibration is complete for runtime streaming."
@@ -364,7 +374,8 @@ def _check_mode_consistency(config: AppConfig) -> DoctorCheck:
             "mode-consistency",
             "fail",
             "Unsupported real capture backend in config.",
-            "Set prefer_backend to 'auto', 'kwin-dbus', 'xdg-portal', or 'kmsgrab', or enable mock capture.",
+            "Set prefer_backend to 'auto', 'kwin-dbus', 'xdg-portal', or 'kmsgrab', "
+            "or enable mock capture.",
         )
     return DoctorCheck("mode-consistency", "pass", "Capture/device mode configuration is coherent.")
 
@@ -380,7 +391,8 @@ def _check_probe_status(config: AppConfig) -> DoctorCheck:
         return DoctorCheck(
             "probe-status",
             "pass",
-            f"Auto-probe inactive (requested backend={normalized or 'unset'}). Selection reason=explicit.",
+            f"Auto-probe inactive (requested backend={normalized or 'unset'}). "
+            "Selection reason=explicit.",
         )
 
     cached = str(getattr(config, "auto_selected_backend", "") or "").strip()
@@ -395,16 +407,18 @@ def _check_probe_status(config: AppConfig) -> DoctorCheck:
             "probe-status",
             "pass",
             (
-                f"Auto-probe configured_enabled={configured_enabled} policy={policy} cached_winner={cached} "
-                f"effective_enabled={effective_enabled} effective_reason={effective_reason} "
-                f"selection_reason=cached-probe signature={signature or 'none'} timestamp={timestamp or 'none'}."
+                f"Auto-probe configured_enabled={configured_enabled} policy={policy} "
+                f"cached_winner={cached} effective_enabled={effective_enabled} "
+                f"effective_reason={effective_reason} selection_reason=cached-probe "
+                f"signature={signature or 'none'} timestamp={timestamp or 'none'}."
             ),
         )
     return DoctorCheck(
         "probe-status",
         "warn",
         (
-            f"Auto-probe configured_enabled={configured_enabled} effective_enabled={effective_enabled} "
+            f"Auto-probe configured_enabled={configured_enabled} "
+            f"effective_enabled={effective_enabled} "
             f"effective_reason={effective_reason} policy={policy} has no cached winner yet "
             "(next decision likely fresh-probe/fallback)."
         ),
@@ -583,7 +597,7 @@ def _open_upstream_issue(checks: list[DoctorCheck]) -> str:
 def format_report(checks: list[DoctorCheck]) -> str:
     sections: dict[str, list[str]] = {"pass": [], "warn": [], "fail": []}
     for check in checks:
-        icon = {"pass": "PASS", "warn": "WARN", "fail": "FAIL"}[check.status]
+        icon = {"pass": "PASS", "warn": "WARN", "fail": "FAIL"}[check.status]  # nosec B105
         line = f"[{icon}] {check.name}: {check.message}"
         if check.action:
             line += f" Action: {check.action}"
@@ -606,7 +620,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--capture",
         action="store_true",
-        help="Attempt a capture probe using your configured backend policy and report exact failure causes",
+        help=(
+            "Attempt a capture probe using your configured backend policy "
+            "and report exact failure causes"
+        ),
     )
     parser.add_argument(
         "--report-upstream",

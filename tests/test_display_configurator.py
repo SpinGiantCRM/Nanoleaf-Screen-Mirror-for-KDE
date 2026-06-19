@@ -2,6 +2,7 @@ import pytest
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog
+from tests.repo_text import read_repo_text
 
 
 def test_display_configurator_requires_qt_runtime(monkeypatch) -> None:
@@ -14,7 +15,7 @@ def test_display_configurator_requires_qt_runtime(monkeypatch) -> None:
 
 
 def test_display_configurator_source_uses_new_preset_controls() -> None:
-    text = open("src/nanoleaf_sync/ui/display_configurator.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/display_configurator.py")
     assert "display_preset_combo" in text
     assert "edge_locality_combo" in text
     assert "motion_preset_combo" in text
@@ -24,7 +25,7 @@ def test_display_configurator_source_uses_new_preset_controls() -> None:
 
 
 def test_step1_primary_flow_hides_mapping_and_model_text() -> None:
-    text = open("src/nanoleaf_sync/ui/display_configurator.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/display_configurator.py")
     assert 'self.preview_visual.setText("")' in text
     assert 'self.calibration_diagnostics_group = QGroupBox("Diagnostics")' in text
     assert "Calibration model/internal resolver mode" in text
@@ -32,7 +33,7 @@ def test_step1_primary_flow_hides_mapping_and_model_text() -> None:
 
 
 def test_step2_advanced_display_details_include_hdr_compositor_controls() -> None:
-    text = open("src/nanoleaf_sync/ui/display_configurator.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/display_configurator.py")
     assert "KDE SDR-on-HDR compensation / compositor HDR mode" in text
     assert 'QLabel("SDR white reference")' in text
     assert "SDR white reference preset" in text

@@ -2,6 +2,7 @@ import pytest
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.settings_dialog import SettingsDialog
+from tests.repo_text import normalized_repo_text, read_repo_text, source_contains_all
 
 
 def test_settings_dialog_requires_qt_runtime(monkeypatch) -> None:
@@ -14,7 +15,7 @@ def test_settings_dialog_requires_qt_runtime(monkeypatch) -> None:
 
 
 def test_settings_dialog_source_uses_preset_ui_labels() -> None:
-    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     assert "display_preset_combo" in text
     assert "layout_preset" in text
     assert "motion_preset_combo" in text
@@ -30,16 +31,17 @@ def test_settings_dialog_source_uses_preset_ui_labels() -> None:
     assert "Diagnostics Actions" in text
     assert "Quality Diagnostics" in text
     assert "Recovery Tools" in text
-    assert (
-        "SDR white reference controls how bright SDR/desktop content appears when HDR is enabled."
-        in text
+    assert source_contains_all(
+        "src/nanoleaf_sync/ui/settings_dialog.py",
+        "SDR white reference controls how bright SDR/desktop content appears",
+        "when HDR is enabled.",
     )
     assert "window_title = " in text
     assert '"nanoleaf-kde-sync Settings"' in text
 
 
 def test_settings_primary_sections_do_not_expose_raw_mapping_text() -> None:
-    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     assert "self.preview_label.setText(" in text
     assert (
         "self._state.mapping_preview_text()"
@@ -48,19 +50,21 @@ def test_settings_primary_sections_do_not_expose_raw_mapping_text() -> None:
 
 
 def test_strip_count_mismatch_warning_text_present() -> None:
-    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
-    assert (
-        "Device-reported count differs from configured count. The configured manual value is used."
-        in text
+    path = "src/nanoleaf_sync/ui/settings_dialog.py"
+    assert source_contains_all(
+        path,
+        "Device-reported count differs from configured count.",
+        "The configured manual value is used.",
     )
-    assert "Changing strip count invalidates calibration." in text
-    assert "Current anchors were assigned for a different strip length." in text
-    assert "Use reported count" in text
-    assert "Keep manual count" in text
+    normalized = normalized_repo_text(path)
+    assert "Changing strip count invalidates calibration." in normalized
+    assert "Current anchors were assigned for a different strip length." in normalized
+    assert "Use reported count" in normalized
+    assert "Keep manual count" in normalized
 
 
 def test_sdr_white_reference_controls_present() -> None:
-    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     assert "Detect KDE SDR white reference" in text
     assert "Use detected value" in text
     assert "sdr_boost_nits_slider.valueChanged.connect(self._on_sdr_white_slider_changed)" in text
@@ -70,12 +74,13 @@ def test_sdr_white_reference_controls_present() -> None:
 
 
 def test_fps_slider_label_value_and_tooltip_text() -> None:
-    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     assert "Target capture/output FPS" in text
     assert 'self.fps_value.setText(f"{self.fps_slider.value()} FPS")' in text
-    assert (
-        "This is the target update rate. Actual output FPS may be lower if capture, processing, or HID output cannot keep up."
-        in text
+    assert source_contains_all(
+        "src/nanoleaf_sync/ui/settings_dialog.py",
+        "This is the target update rate. Actual output FPS may be lower if capture,",
+        "processing, or HID output cannot keep up.",
     )
     assert "self.fps_slider.setRange(FPS_MIN, FPS_MAX)" in text
     assert "FPS_MAX = 120" in text
@@ -84,7 +89,7 @@ def test_fps_slider_label_value_and_tooltip_text() -> None:
 
 
 def test_slider_readouts_bind_live_value_updates() -> None:
-    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     assert "def _bind_live_numeric_updates(self) -> None:" in text
     assert "self.brightness_slider.valueChanged" in text
     assert "self.smoothing_slider.valueChanged" in text
@@ -95,7 +100,7 @@ def test_slider_readouts_bind_live_value_updates() -> None:
 
 
 def test_settings_layout_uses_consistent_spacing_helpers() -> None:
-    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     assert "def _configure_section_layout(self, layout) -> None:" in text
     assert "def _help_text_label(self, QLabel, text: str):" in text
     assert "self._configure_section_layout(layout)" in text
@@ -103,38 +108,36 @@ def test_settings_layout_uses_consistent_spacing_helpers() -> None:
 
 
 def test_guided_led_calibration_controls_present() -> None:
-    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     assert "Calibrate LED colour" in text
     assert "Black cutoff" in text
-    assert (
-        "Neutral luminance: controls how bright grey/white screen areas appear on the LEDs." in text
+    assert source_contains_all(
+        "src/nanoleaf_sync/ui/settings_dialog.py",
+        "Neutral luminance: controls how bright grey/white screen areas",
+        "appear on the LEDs.",
     )
-    assert (
-        "Reference mode is used for calibration because it avoids saturation boost."
-        in open(
-            "src/nanoleaf_sync/ui/led_color_calibration_dialog.py", "r", encoding="utf-8"
-        ).read()
+    assert source_contains_all(
+        "src/nanoleaf_sync/ui/led_color_calibration_dialog.py",
+        "Reference mode is used for calibration because it avoids saturation boost.",
     )
 
 
 def test_performance_priority_dropdown_present_and_persisted() -> None:
-    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     assert "Performance priority" in text
     assert "performance_priority_combo" in text
-    assert (
-        "Very high experimental"
-        in open("src/nanoleaf_sync/ui/preset_ui.py", "r", encoding="utf-8").read()
-    )
-    assert (
-        "High priority may improve scheduling consistency. It may fail without permission. Very high is experimental."
-        in text
+    assert "Very high experimental" in read_repo_text("src/nanoleaf_sync/ui/preset_ui.py")
+    assert source_contains_all(
+        "src/nanoleaf_sync/ui/settings_dialog.py",
+        "High priority may improve scheduling consistency. It may fail without permission.",
+        "Very high is experimental.",
     )
     assert "performance_priority=value_for_label(" in text
     assert "PERFORMANCE_PRIORITY_LABELS" in text
 
 
 def test_save_applies_without_closing_dialog() -> None:
-    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     assert "QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Close" in text
     assert "buttons.accepted.connect(self._apply_settings)" in text
     assert "buttons.rejected.connect(self.reject)" in text
@@ -143,7 +146,7 @@ def test_save_applies_without_closing_dialog() -> None:
 
 
 def test_settings_dialog_surfaces_latest_auto_and_manual_probe_results() -> None:
-    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     assert "def _update_latency_label_for_latest_probe_result(self) -> None:" in text
     assert "self._update_latency_label_for_latest_probe_result()" in text
     assert "Last auto-run probe result." in text
@@ -156,7 +159,6 @@ def test_settings_dialog_surfaces_latest_auto_and_manual_probe_results() -> None
 
 
 def test_sdr_white_preset_changed_uses_defensive_split_parsing() -> None:
-    text = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
-    # Verify try/except guards the fragile .split() int parsing
-    assert "except (ValueError, IndexError):" in text
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
+    assert "contextlib.suppress(ValueError, IndexError)" in text
     assert 'preset_text.split(" ", 1)[0]' in text

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Literal
+from typing import Any, Literal
 
 ProbeStage = Literal["instantiate", "warmup", "capture", "close", "unknown"]
 ProbeErrorKind = Literal["timeout", "backend-init", "capture-failed", "backend-close", "unknown"]

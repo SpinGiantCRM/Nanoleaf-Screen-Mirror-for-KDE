@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import numpy as np
 import pytest
 
 from nanoleaf_sync.color.primaries import (
-    CHROMATICITIES_SRGB,
-    CHROMATICITIES_DCIP3,
     CHROMATICITIES_BT2020,
+    CHROMATICITIES_DCIP3,
     CHROMATICITIES_DISPLAYP3,
+    CHROMATICITIES_SRGB,
     Chromaticities,
     _parse_edid_primaries,
     _read_colord_profile_primaries,
@@ -22,7 +23,6 @@ from nanoleaf_sync.color.primaries import (
     get_primaries_for_gamut,
     invalidate_primaries_cache,
 )
-
 
 # ---------------------------------------------------------------------------
 # Chromaticities constants
@@ -57,7 +57,7 @@ def test_chromaticities_displayp3_equals_dcip3() -> None:
 
 def test_chromaticities_is_frozen() -> None:
     p = CHROMATICITIES_SRGB
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         p.rx = 0.5  # type: ignore[misc]
 
 

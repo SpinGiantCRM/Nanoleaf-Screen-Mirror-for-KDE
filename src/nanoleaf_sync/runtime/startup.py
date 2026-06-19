@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import logging
 import os
-import time
 import threading
+import time
+from collections.abc import Callable
 from threading import Thread
-from typing import Callable
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.errors import translate_runtime_error
 from nanoleaf_sync.runtime.state import RuntimeState
-
 
 logger = logging.getLogger(__name__)
 

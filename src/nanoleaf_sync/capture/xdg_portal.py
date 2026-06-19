@@ -8,18 +8,17 @@ PipeWire. A restore token is persisted so users are not repeatedly prompted.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+import contextlib
 import logging
 import os
 import threading
 import time
-
-from nanoleaf_sync.capture.portal_helpers import random_token, request_path, unwrap_variant
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 
+from nanoleaf_sync.capture.portal_helpers import random_token, request_path, unwrap_variant
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +80,7 @@ class XDGPortalCapture:
         width: int,
         height: int,
         *,
-        restore_token_path: Optional[Path] = None,
+        restore_token_path: Path | None = None,
     ) -> None:
         self.width = int(width)
         self.height = int(height)
@@ -90,9 +89,9 @@ class XDGPortalCapture:
         self._token_path = restore_token_path or (
             Path.home() / ".config" / "nanoleaf-kde-sync" / "portal_token"
         )
-        self._pw_fd: Optional[int] = None
-        self._node_id: Optional[int] = None
-        self._session_handle: Optional[str] = None
+        self._pw_fd: int | None = None
+        self._node_id: int | None = None
+        self._session_handle: str | None = None
         self._portal_bus = None
         self._initialized = False
         self._use_gstreamer = False
@@ -122,10 +121,8 @@ class XDGPortalCapture:
     def close(self) -> None:
         self._close_pipewire_stream()
         if self._pw_fd is not None:
-            try:
+            with contextlib.suppress(OSError):
                 os.close(self._pw_fd)
-            except OSError:
-                pass
             self._pw_fd = None
         self._close_portal_session_sync()
         self._initialized = False
@@ -364,7 +361,8 @@ class XDGPortalCapture:
             diag.received_bytes = received_bytes
             if received_bytes < expected_bytes:
                 raise XDGPortalError(
-                    f"Frame bytes too small for negotiated dimensions (received={received_bytes}, expected={expected_bytes})."
+                    "Frame bytes too small for negotiated dimensions "
+                    f"(received={received_bytes}, expected={expected_bytes})."
                 )
             diag.mark("frame dimensions/stride/bytes validated", "ok")
             return {
@@ -421,7 +419,10 @@ class XDGPortalCapture:
             diag.mark(failing_stage, "failed", message)
             reason = message
             if "produced empty buffers" in message:
-                reason = "PipeWire stream opened but produced empty buffers; likely format negotiation or portal stream issue."
+                reason = (
+                    "PipeWire stream opened but produced empty buffers; "
+                    "likely format negotiation or portal stream issue."
+                )
             return {
                 "selected_backend": None,
                 "mode": "explicit-test",
@@ -612,12 +613,12 @@ class XDGPortalCapture:
             return f"unsupported pixel format ({fmt}){warning_text}"
         return f"no CPU-readable frame{warning_text}"
 
-    def _read_pipewire_frame(self) -> Optional[np.ndarray]:
+    def _read_pipewire_frame(self) -> np.ndarray | None:
         if self._use_gstreamer:
             return self._read_frame_gstreamer()
         return self._read_frame_pipewire_python()
 
-    def _read_frame_pipewire_python(self) -> Optional[np.ndarray]:
+    def _read_frame_pipewire_python(self) -> np.ndarray | None:
         buf = self._pw_stream.dequeue_buffer()
         if buf is None:
             return None
@@ -625,7 +626,7 @@ class XDGPortalCapture:
         self._pw_stream.queue_buffer(buf)
         return np.frombuffer(data, dtype=np.uint8).reshape(self.height, self.width, 3).copy()
 
-    def _read_frame_gstreamer(self) -> Optional[np.ndarray]:
+    def _read_frame_gstreamer(self) -> np.ndarray | None:
         sink = getattr(self, "_gst_sink", None)
         if sink is None:
             return None
@@ -635,7 +636,7 @@ class XDGPortalCapture:
 
     def _pull_gst_frame(
         self, appsink, *, timeout_s: float
-    ) -> tuple[Optional[np.ndarray], dict[str, object]]:
+    ) -> tuple[np.ndarray | None, dict[str, object]]:
         from gi.repository import Gst, GstVideo
 
         deadline = time.monotonic() + max(0.01, timeout_s)
@@ -677,7 +678,7 @@ class XDGPortalCapture:
                 continue
             last_diag["sample_received"] = True
             caps = sample.get_caps()
-            last_diag.update(self._extract_caps_metadata(caps, GstVideo=GstVideo))
+            last_diag.update(self._extract_caps_metadata(caps, gst_video=GstVideo))
 
             buffer = sample.get_buffer()
             if buffer is None:
@@ -735,7 +736,7 @@ class XDGPortalCapture:
         self._non_empty_first_buffers = non_empty_buffers
         return None, last_diag
 
-    def _extract_caps_metadata(self, caps, *, GstVideo) -> dict[str, object]:
+    def _extract_caps_metadata(self, caps, *, gst_video) -> dict[str, object]:
         metadata: dict[str, object] = {
             "caps": None,
             "width": 0,
@@ -781,7 +782,7 @@ class XDGPortalCapture:
                         metadata["stride"] = int(cached_vi)
                     else:
                         try:
-                            video_info = GstVideo.VideoInfo.new_from_caps(caps)
+                            video_info = gst_video.VideoInfo.new_from_caps(caps)
                             if video_info is not None:
                                 stride_val = int(video_info.stride[0])
                                 metadata["stride"] = stride_val
@@ -809,7 +810,7 @@ class XDGPortalCapture:
         height: int,
         fmt: str,
         stride: int | None,
-    ) -> Optional[np.ndarray]:
+    ) -> np.ndarray | None:
         channels = (
             3 if fmt in {"RGB", "BGR"} else 4 if fmt in {"RGBx", "BGRx", "RGBA", "BGRA"} else 0
         )
@@ -931,7 +932,7 @@ class XDGPortalCapture:
                 exc_info=True,
             )
 
-    def _load_restore_token(self) -> Optional[str]:
+    def _load_restore_token(self) -> str | None:
         try:
             return self._token_path.read_text(encoding="utf-8").strip() or None
         except OSError:

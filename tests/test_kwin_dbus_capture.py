@@ -300,9 +300,9 @@ def test_kwin_backend_applies_hdr_conversion_when_configured(monkeypatch) -> Non
     assert int(frame[0, 0, 0]) == 9
     assert captured["shape"] == (1, 2, 3)
     meta = captured["metadata"]
-    assert getattr(meta, "transfer") == "pq"
-    assert getattr(meta, "primaries") == "bt2020"
-    assert float(getattr(meta, "max_nits")) == 1200.0
+    assert meta.transfer == "pq"
+    assert meta.primaries == "bt2020"
+    assert float(meta.max_nits) == 1200.0
 
 
 def test_screenshot2_attempts_capture_screen_before_capture_area_with_monitor_id() -> None:

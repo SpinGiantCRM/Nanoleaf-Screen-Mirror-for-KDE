@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from nanoleaf_sync.capture.backend_selection import normalize_backend_preference
 from nanoleaf_sync.capture.factory import create_capture_backend
@@ -297,7 +297,11 @@ def run_readiness_check(
         issues.append(
             ReadinessIssue(
                 check="capture-backend",
-                reason=f"Capture backend '{normalize_backend_preference(normalized.prefer_backend)}' failed to initialize: {exc}",
+                reason=(
+                    f"Capture backend "
+                    f"'{normalize_backend_preference(normalized.prefer_backend)}' "
+                    f"failed to initialize: {exc}"
+                ),
                 fix="Select another capture backend",
                 category=CAPTURE_PROBLEM_STATUS,
             )

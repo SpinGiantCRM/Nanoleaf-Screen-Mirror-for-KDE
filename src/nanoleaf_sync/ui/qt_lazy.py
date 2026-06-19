@@ -7,7 +7,7 @@ def load_qt():
     """
 
     try:
-        from PyQt6.QtCore import QObject, QTimer, Qt, pyqtSignal
+        from PyQt6.QtCore import QObject, Qt, QTimer, pyqtSignal
         from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
         from PyQt6.QtWidgets import (
             QApplication,

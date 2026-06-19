@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import FrozenInstanceError, replace
 
 import pytest
 
@@ -442,7 +442,7 @@ def test_readiness_issue_fields_preserved() -> None:
 
 def test_readiness_issue_is_frozen() -> None:
     issue = ReadinessIssue(check="test-check", reason="r", fix="f", category=CONFIG_PROBLEM_STATUS)
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         issue.check = "changed"  # type: ignore[misc]
 
 

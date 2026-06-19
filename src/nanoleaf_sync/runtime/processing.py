@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Sequence, Tuple
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -8,7 +8,7 @@ from nanoleaf_sync.color._types import RGBTuple
 from nanoleaf_sync.config.model import ZoneConfig
 
 
-def apply_brightness(colors: Sequence[RGBTuple], brightness: float) -> List[RGBTuple]:
+def apply_brightness(colors: Sequence[RGBTuple], brightness: float) -> list[RGBTuple]:
     if not colors:
         return []
     b = max(0.0, min(1.0, float(brightness)))
@@ -23,7 +23,7 @@ def ema_smooth(
     prev: Sequence[RGBTuple],
     current: Sequence[RGBTuple],
     alpha: float,
-) -> List[RGBTuple]:
+) -> list[RGBTuple]:
     """Exponential moving average: ema = alpha * current + (1-alpha) * prev."""
 
     a = max(0.0, min(1.0, float(alpha)))
@@ -40,11 +40,11 @@ def ema_smooth(
 
 def zones_from_config(
     zones: Sequence[ZoneConfig], width: int, height: int
-) -> List[Tuple[int, int, int, int]]:
+) -> list[tuple[int, int, int, int]]:
     if not zones:
         return [(0, 0, width, height)]
 
-    out: List[Tuple[int, int, int, int]] = []
+    out: list[tuple[int, int, int, int]] = []
     for z in zones:
         out.append((int(z.x * width), int(z.y * height), int(z.w * width), int(z.h * height)))
     return out

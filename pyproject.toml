@@ -27,6 +27,7 @@ test = [
   "pytest-timeout>=2.3",
   "ruff>=0.6",
   "mypy>=1.0",
+  "pre-commit>=4.0",
 ]
 portal = [
   "pipewire",
@@ -71,7 +72,6 @@ omit = [
   "src/nanoleaf_sync/ui/settings_dialog.py",
   "src/nanoleaf_sync/ui/display_configurator.py",
   "src/nanoleaf_sync/ui/live_diagnostics.py",
-  "src/nanoleaf_sync/ui/diagnostics_dialog.py",
   "src/nanoleaf_sync/ui/led_color_calibration_dialog.py",
 ]
 
@@ -81,6 +81,22 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["N802", "N803", "N806"]
+"src/nanoleaf_sync/tools/doctor.py" = ["E402"]
+"src/nanoleaf_sync/tools/smoke_test.py" = ["E402"]
+"src/nanoleaf_sync/tools/autostart.py" = ["E402"]
+"src/nanoleaf_sync/capture/kwin_dbus.py" = ["E402"]
+"src/nanoleaf_sync/config/store.py" = ["E402"]
+"src/nanoleaf_sync/device/hid_transport.py" = ["E402"]
+"src/nanoleaf_sync/ui/settings_dialog.py" = ["E402", "N802", "N803", "N806"]
+"src/nanoleaf_sync/ui/display_configurator.py" = ["N802", "N803", "N806"]
+"src/nanoleaf_sync/ui/calibration_widget.py" = ["N806"]
+"src/nanoleaf_sync/ui/led_color_calibration_dialog.py" = ["N806"]
+"src/nanoleaf_sync/capture/_drm_zone_sampler.py" = ["N802", "N806"]
+"src/nanoleaf_sync/color/hdr.py" = ["N806"]
+"src/nanoleaf_sync/color/primaries.py" = ["N806"]
 
 [tool.ruff.format]
 line-ending = "lf"

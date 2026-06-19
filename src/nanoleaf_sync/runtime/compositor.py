@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from nanoleaf_sync.runtime.srgb import srgb_u8_to_linear01
 from nanoleaf_sync.color.hdr import _linear_to_srgb_encoded
+from nanoleaf_sync.runtime.srgb import srgb_u8_to_linear01
 
 _SDR_REFERENCE_NITS = 80.0
 

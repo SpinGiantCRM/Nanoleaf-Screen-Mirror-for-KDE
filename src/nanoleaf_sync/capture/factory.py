@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from importlib import import_module
 import logging
 import os
-from pathlib import Path
 import statistics
 import threading
 import time
-from typing import Callable
+from collections.abc import Callable
+from importlib import import_module
+from pathlib import Path
 
 from nanoleaf_sync.capture.backend_selection import (
     AUTO_BACKEND,

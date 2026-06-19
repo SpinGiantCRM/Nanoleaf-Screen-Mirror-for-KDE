@@ -6,19 +6,18 @@ import numpy as np
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.diagnostics_exports import (
+    _draw_rect,
     _format_latency_metric,
     _normalize_side_counts,
-    _zone_side_for_index,
     _png_pack,
-    _draw_rect,
     _synthetic_frame,
+    _zone_side_for_index,
+    default_kde_display_metadata,
     diagnostics_text_lines,
     evaluate_geometry,
     format_backend_attempt_row,
     latency_breakdown_lines,
-    default_kde_display_metadata,
 )
-
 
 # ---------------------------------------------------------------------------
 # _format_latency_metric
@@ -138,8 +137,8 @@ def test_zone_side_for_index() -> None:
 
 
 def test_png_pack() -> None:
-    import zlib
     import struct
+    import zlib
 
     data = b"hello"
     chunk = b"IEND" + data

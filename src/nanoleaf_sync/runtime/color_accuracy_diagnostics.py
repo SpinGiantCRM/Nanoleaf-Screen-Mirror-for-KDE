@@ -68,6 +68,7 @@ def run_color_accuracy_diagnostic(
     summary = (
         f"colour_accuracy avg_chroma_ratio={avg_ratio:.3f} max_chroma_ratio={max_ratio:.3f} "
         f"max_hue_delta={max_hue_delta:.2f} neutral_preserved={'yes' if neutral_ok else 'no'} "
-        f"black_cutoff={'yes' if black_ok else 'no'} neutral_floor_hits={neutral_floor_count} chroma_caps={capped_count}"
+        f"black_cutoff={'yes' if black_ok else 'no'} "
+        f"neutral_floor_hits={neutral_floor_count} chroma_caps={capped_count}"
     )
     return ColorAccuracyDiagnosticResult(summary=summary, entries=entries)

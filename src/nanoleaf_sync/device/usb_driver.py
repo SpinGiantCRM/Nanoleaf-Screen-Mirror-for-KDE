@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from nanoleaf_sync.device.hid_transport import HIDTransport, HIDWriteError
 from nanoleaf_sync.device.interfaces import (
@@ -123,7 +124,9 @@ class NanoleafUSBDriver(DeviceDriver):
             "device_write_ms": 0.0,
             "flush_or_wait_ms": None,
             "device_limited": False,
-            "flush_or_wait_reason": "Live HID write failed before a response wait could safely run.",
+            "flush_or_wait_reason": (
+                "Live HID write failed before a response wait could safely run."
+            ),
             "reports_per_frame": int(report_count),
             "bytes_per_report": int(report_size),
             "total_frame_bytes": int(request_len),
@@ -150,7 +153,8 @@ class NanoleafUSBDriver(DeviceDriver):
                 "Failed to close HID transport after uncertain live frame write failure",
             )
         self._logger.warning(
-            "Live HID frame write failed with uncertain device state; closed transport before retrying future frames: %s: %s",
+            "Live HID frame write failed with uncertain device state; "
+            "closed transport before retrying future frames: %s: %s",
             type(exc).__name__,
             exc,
         )
@@ -241,15 +245,18 @@ class NanoleafUSBDriver(DeviceDriver):
             for r, g, b in colors
         ]
 
-        # Host policy (not protocol requirement): if fewer colors than zones, pad with black/off zones.
+        # Host policy (not protocol requirement): pad with black/off zones when short.
         if len(normalized) < self.zone_count:
             normalized.extend([(0, 0, 0)] * (self.zone_count - len(normalized)))
         elif len(normalized) > self.zone_count:
             raise RuntimeError(
                 "Refusing to silently truncate zone colors: "
-                f"frame_colors={len(normalized)} exceeds effective_zone_count={self.zone_count} "
-                f"(reported_zone_count={self.reported_zone_count}, configured_zone_count={self._configured_zone_count}). "
-                "Update device_zone_count calibration/config so runtime mapping matches the physical strip."
+                f"frame_colors={len(normalized)} exceeds "
+                f"effective_zone_count={self.zone_count} "
+                f"(reported_zone_count={self.reported_zone_count}, "
+                f"configured_zone_count={self._configured_zone_count}). "
+                "Update device_zone_count calibration/config so runtime mapping "
+                "matches the physical strip."
             )
 
         payload_buffer = bytearray(len(normalized) * 3)
@@ -328,7 +335,8 @@ class NanoleafUSBDriver(DeviceDriver):
                         self._close_after_uncertain_live_write(exc)
                         raise RuntimeError(
                             "Live frame write failed with uncertain HID write status; "
-                            "closed transport and skipped immediate fallback to avoid duplicate frame send."
+                            "closed transport and skipped immediate fallback "
+                            "to avoid duplicate frame send."
                         ) from exc
             elif callable(write_with_timing):
                 live_send_policy = "write_only"
@@ -359,7 +367,8 @@ class NanoleafUSBDriver(DeviceDriver):
                         self._close_after_uncertain_live_write(exc)
                         raise RuntimeError(
                             "Live frame write failed with uncertain HID write status; "
-                            "closed transport and skipped immediate fallback to avoid duplicate frame send."
+                            "closed transport and skipped immediate fallback "
+                            "to avoid duplicate frame send."
                         ) from exc
         if live_send_policy == "response_required":
             try:
@@ -367,7 +376,8 @@ class NanoleafUSBDriver(DeviceDriver):
             except Exception:
                 if send_err is not None:
                     raise RuntimeError(
-                        "Live frame write-only path failed and response-required fallback also failed."
+                        "Live frame write-only path failed and "
+                        "response-required fallback also failed."
                     ) from send_err
                 raise
         device_write_ms = float(transport_timing.get("write_ms") or 0.0)
@@ -383,7 +393,8 @@ class NanoleafUSBDriver(DeviceDriver):
         bytes_per_report = int(transport_timing.get("bytes_per_report") or report_size)
         if isinstance(report_data_sizes, list) and isinstance(per_report_write_ms, list):
             self._logger.debug(
-                "USB HID write timing: reports_per_frame=%d bytes_per_report=%d total_frame_bytes=%d "
+                "USB HID write timing: reports_per_frame=%d bytes_per_report=%d "
+                "total_frame_bytes=%d "
                 "report_data_sizes=%s per_report_write_ms=%s write_ms=%.2f flush_or_wait_ms=%s "
                 "write_blocking=%s retry_policy=%s rate_limit_policy=%s",
                 reports_per_frame,

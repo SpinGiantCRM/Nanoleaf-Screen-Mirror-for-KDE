@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 from nanoleaf_sync.color._types import RGBTuple
 
@@ -13,8 +13,8 @@ def resolve_device_zone_indices(
     *,
     device_zone_count: int,
     reverse: bool = False,
-    fixed_mapping: Optional[Sequence[int]] = None,
-) -> List[int]:
+    fixed_mapping: Sequence[int] | None = None,
+) -> list[int]:
     src_n = max(0, int(source_zone_count))
     dst_n = max(0, int(device_zone_count))
     if src_n == 0 or dst_n == 0:
@@ -45,8 +45,8 @@ def map_colors_to_device_zones(
     *,
     device_zone_count: int,
     reverse: bool = False,
-    fixed_mapping: Optional[Sequence[int]] = None,
-) -> List[RGBTuple]:
+    fixed_mapping: Sequence[int] | None = None,
+) -> list[RGBTuple]:
     src = list(screen_colors)
     if not src:
         return [(0, 0, 0)] * max(0, int(device_zone_count))

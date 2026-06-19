@@ -4,8 +4,9 @@ import logging
 import re
 import sys
 import time
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ class HIDTransport:
         self.report_size = int(report_size)
         self.read_timeout_ms = int(read_timeout_ms)
         self.use_report_id_prefix = bool(use_report_id_prefix)
-        self._handle: Optional[object] = None
+        self._handle: object | None = None
 
     @staticmethod
     def _fmt_path(value: Any) -> str:
@@ -88,7 +89,7 @@ class HIDTransport:
             try:
                 for child in sorted(sys_interface_dir.rglob("hidraw*")):
                     if re.fullmatch(r"hidraw\d+", child.name):
-                        candidates.append(f"/dev/{child.name}".encode("utf-8"))
+                        candidates.append(f"/dev/{child.name}".encode())
             except Exception:
                 logger.debug("Unable to enumerate hidraw candidates from sysfs", exc_info=True)
 
@@ -165,7 +166,7 @@ class HIDTransport:
                 and iface_value not in interface_numbers
             ):
                 continue
-            candidates.append(f"/dev/{hidraw.name}".encode("utf-8"))
+            candidates.append(f"/dev/{hidraw.name}".encode())
         return candidates
 
     @staticmethod
@@ -191,7 +192,8 @@ class HIDTransport:
             if "libusb" in error_text or "cannot open shared object" in error_text:
                 raise RuntimeError(
                     "libusb-1.0 shared library not found. Install libusb: "
-                    "'sudo pacman -S libusb' (Arch) or 'sudo apt install libusb-1.0-0' (Debian/Ubuntu)."
+                    "'sudo pacman -S libusb' (Arch) or "
+                    "'sudo apt install libusb-1.0-0' (Debian/Ubuntu)."
                 ) from e
             if "hidraw" in error_text or "permission" in error_text:
                 raise RuntimeError(
@@ -210,9 +212,10 @@ class HIDTransport:
             devices = list(hid.enumerate(self.ids.vid, self.ids.pid))
             if devices:
                 break
+            retry_suffix = f" (retry {attempt + 1}/{max_attempts})" if max_attempts > 1 else ""
             last_exc = RuntimeError(
-                f"Nanoleaf device not found VID={self.ids.vid:#06x} PID={self.ids.pid:#06x}"
-                f"{' (retry ' + str(attempt + 1) + '/' + str(max_attempts) + ')' if max_attempts > 1 else ''}"
+                f"Nanoleaf device not found VID={self.ids.vid:#06x} "
+                f"PID={self.ids.pid:#06x}{retry_suffix}"
             )
         else:
             raise last_exc  # type: ignore[misc]
@@ -298,7 +301,8 @@ class HIDTransport:
             return
         except Exception as exc:
             attempt_results.append(
-                f"open({self.ids.vid:#06x}, {self.ids.pid:#06x}) failed: {type(exc).__name__}: {exc}"
+                f"open({self.ids.vid:#06x}, {self.ids.pid:#06x}) failed: "
+                f"{type(exc).__name__}: {exc}"
             )
             self._handle = None
             backend = self._hid_backend_metadata(hid)
@@ -363,7 +367,9 @@ class HIDTransport:
         per_report_write_ms: list[float] = []
         previous_chunk_size = 0
         total_write_start = time.perf_counter()
-        for offset, chunk_size in zip(range(0, len(payload), payload_capacity), report_data_sizes):
+        for offset, chunk_size in zip(
+            range(0, len(payload), payload_capacity), report_data_sizes, strict=False
+        ):
             if chunk_size > 0:
                 chunk = payload[offset : offset + chunk_size]
                 report_buffer[data_offset : data_offset + chunk_size] = chunk

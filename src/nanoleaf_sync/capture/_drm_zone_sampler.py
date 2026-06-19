@@ -12,11 +12,12 @@ All public errors are raised as :class:`KMSGrabError` so that callers in
 
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import fcntl
 import logging
 import os
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -233,7 +234,7 @@ class DRMZoneSampler:
     def __init__(self, card_path: str = "/dev/dri/card0") -> None:
         self._card_path: str = os.fspath(card_path)
         self._fd: int = -1
-        self._mapped_ptr: Optional[int] = None
+        self._mapped_ptr: int | None = None
         self._mapped_size: int = 0
         self._width: int = 0
         self._height: int = 0
@@ -341,8 +342,8 @@ class DRMZoneSampler:
         fb2.fb_id = fb_id
         try:
             fcntl.ioctl(self._fd, DRM_IOCTL_MODE_GETFB2, fb2)
-        except OSError:
-            raise KMSGrabError(f"DRM_IOCTL_MODE_GETFB2 failed for FB {fb_id}")
+        except OSError as exc:
+            raise KMSGrabError(f"DRM_IOCTL_MODE_GETFB2 failed for FB {fb_id}") from exc
 
         self._fourcc = int(fb2.pixel_format)
         self._pitch_bytes = int(fb2.pitches[0])
@@ -473,7 +474,7 @@ class DRMZoneSampler:
     # Public API
     # ------------------------------------------------------------------
 
-    def capture_zone_patches(self, centers: List[Tuple[int, int]]) -> np.ndarray:
+    def capture_zone_patches(self, centers: list[tuple[int, int]]) -> np.ndarray:
         """Return an ``(N, 3) uint8`` array of zone-average colours.
 
         Each zone is sampled from a 5×5 pixel patch centred on the given
@@ -562,10 +563,8 @@ class DRMZoneSampler:
             self._mapped_size = 0
 
         if self._fd >= 0:
-            try:
+            with contextlib.suppress(OSError):
                 os.close(self._fd)
-            except OSError:
-                pass
             self._fd = -1
 
     def __enter__(self) -> DRMZoneSampler:

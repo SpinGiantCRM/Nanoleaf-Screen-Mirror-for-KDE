@@ -6,8 +6,8 @@ import struct
 import tempfile
 import time
 import zlib
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 import numpy as np
 
@@ -83,9 +83,7 @@ def evaluate_geometry(*, status: dict, cfg: AppConfig) -> dict[str, object]:
         coordinate_mode = "physical"
     elif logical_match:
         coordinate_mode = "logical"
-    elif expected_match:
-        coordinate_mode = "scaled"
-    elif kde_w > 0 and cap_w > 0:
+    elif expected_match or kde_w > 0 and cap_w > 0:
         coordinate_mode = "scaled"
 
     inferred_scale_sane = inferred_scale >= 1.1 and inferred_scale <= 16.0
@@ -138,9 +136,15 @@ def evaluate_geometry(*, status: dict, cfg: AppConfig) -> dict[str, object]:
         "hdr_enabled_assumed": str(getattr(cfg, "display_preset", "hdr")).lower() == "hdr",
         "geometry_warning": mismatch,
         "warning_text": (
-            f"Captured frame is scaled/downsampled from physical display by {inferred_scale:.1f}x; sampling coordinates are scaled."
+            (
+                f"Captured frame is scaled/downsampled from physical display "
+                f"by {inferred_scale:.1f}x; sampling coordinates are scaled."
+            )
             if intentional_scaled and inferred_scale > 0.0
-            else "Captured frame size does not match display geometry. Sampling positions may be scaled or offset."
+            else (
+                "Captured frame size does not match display geometry. "
+                "Sampling positions may be scaled or offset."
+            )
         ),
     }
 
@@ -159,23 +163,30 @@ def diagnostics_text_lines(*, status: dict, cfg: AppConfig) -> list[str]:
         f"KDE scale factor: {geo['kde_scale_factor'] or 'unknown'}",
         f"Selected backend: {geo['capture_backend']}",
         f"Captured frame size: {geo['captured_frame_size'][0]}x{geo['captured_frame_size'][1]}",
-        f"Expected display size: {geo['expected_display_size'][0]}x{geo['expected_display_size'][1]}",
+        f"Expected display size: "
+        f"{geo['expected_display_size'][0]}x{geo['expected_display_size'][1]}",
         f"Match physical display: {'yes' if geo['matches_physical'] else 'no'}",
         f"Match logical/scaled display: {'yes' if geo['matches_logical'] else 'no'}",
         f"Inferred scale factor: {geo['inferred_scale_factor']:.3f}"
         if geo["inferred_scale_factor"]
         else "Inferred scale factor: unknown",
         f"Coordinate mode: {geo['coordinate_mode']}",
-        f"Source-zone count: {geo['source_zone_count']} | Strip LED zone count: {geo['strip_zone_count']}",
+        f"Source-zone count: {geo['source_zone_count']} | "
+        f"Strip LED zone count: {geo['strip_zone_count']}",
         f"Per-side zone counts (T/R/B/L): {side_counts_text}",
-        f"Edge thickness: {geo['edge_thickness'] if geo['edge_thickness'] is not None else 'n/a'} | sample_step: {geo['sample_step']} | edge locality: {geo['edge_locality']}",
+        f"Edge thickness: {geo['edge_thickness'] if geo['edge_thickness'] is not None else 'n/a'} "
+        f"| sample_step: {geo['sample_step']} | edge locality: {geo['edge_locality']}",
         f"Light spread mode: {status.get('light_spread', 'balanced')}",
-        f"Display preset: {geo['display_preset']} | HDR enabled/assumed: {'yes' if geo['hdr_enabled_assumed'] else 'no'}",
+        f"Display preset: {geo['display_preset']} | "
+        f"HDR enabled/assumed: {'yes' if geo['hdr_enabled_assumed'] else 'no'}",
         "Grey and white screen areas create neutral ambient light. Black areas turn the LEDs off.",
         geo["warning_text"]
         if geo["geometry_warning"] or bool(geo.get("intentional_scaled_capture"))
         else "Display geometry and capture frame space are consistent.",
-        "If per-zone output remains varied but the wall looks blended, this is likely physical diffusion.",
+        (
+            "If per-zone output remains varied but the wall looks blended, "
+            "this is likely physical diffusion."
+        ),
         "If per-zone output is already flat, software processing/sampling spread is likely.",
         *latency_lines,
     ]
@@ -216,15 +227,15 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
     actual_work = _stage("actual_work_ms")
     capture_wait = _stage("capture_wait_ms")
     capture_call = _stage("capture_call_ms")
-    runtime_capture_call = _stage("runtime_capture_call_ms")
-    capture_worker_loop_gap = _stage("capture_worker_loop_gap_ms")
-    capture_success_interval = _stage("capture_success_interval_ms")
+    _stage("runtime_capture_call_ms")
+    _stage("capture_worker_loop_gap_ms")
+    _stage("capture_success_interval_ms")
     frame_handoff_wait = _stage("frame_handoff_wait_ms")
-    pending_frame_age = _stage("pending_frame_age_ms")
+    _stage("pending_frame_age_ms")
     frame_processing = _stage("frame_processing_ms")
     hid_write = _stage("hid_write_ms")
     hid_device_write = _stage("hid_device_write_ms")
-    inferred_unattributed_gap = _stage("inferred_unattributed_gap_ms")
+    _stage("inferred_unattributed_gap_ms")
     no_pending_frame_ticks = int(counters.get("no_pending_frame_ticks", 0) or 0)
     capture_worker_error_count = int(counters.get("capture_worker_error_count", 0) or 0)
     capture_worker_active = bool(flags.get("capture_worker_active", False))
@@ -302,14 +313,17 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
         configured_budget = frame_interval_target_ms
         if configured_budget > 0.0 and actual_work["available"]:
             budget_lines.append(
-                f"{int(round(target_fps))} FPS budget: {configured_budget:.2f}ms; actual work median: {actual_work_median:.2f}ms."
+                f"{int(round(target_fps))} FPS budget: {configured_budget:.2f}ms; "
+                f"actual work median: {actual_work_median:.2f}ms."
             )
         if frame_plus_hid_median is not None:
             for compare_fps in (120, 90, 60, 30):
                 compare_budget = 1000.0 / float(compare_fps)
                 if compare_fps == int(round(target_fps)) or compare_fps == 60:
                     budget_lines.append(
-                        f"{compare_fps} FPS budget: {compare_budget:.2f}ms; frame processing + HID write median: {frame_plus_hid_median:.2f}ms."
+                        f"{compare_fps} FPS budget: {compare_budget:.2f}ms; "
+                        f"frame processing + HID write median: "
+                        f"{frame_plus_hid_median:.2f}ms."
                     )
             if frame_plus_hid_median > configured_budget:
                 budget_lines.append(
@@ -361,16 +375,25 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
             elif capture_call["available"] and capture_call["median_ms"] >= max(
                 5.0, 0.65 * loop_gap_median
             ):
-                gap_attribution_line = "Gap attribution: capture worker spends most of each cycle inside capture.capture()."
+                gap_attribution_line = (
+                    "Gap attribution: capture worker spends most of each cycle "
+                    "inside capture.capture()."
+                )
                 limiter_line = "Likely limiter: capture backend call latency."
             elif frame_handoff_wait["available"] and frame_handoff_wait["median_ms"] > 1.0:
-                gap_attribution_line = "Gap attribution: runtime spends measurable time waiting on pending frame handoff."
+                gap_attribution_line = (
+                    "Gap attribution: runtime spends measurable time waiting "
+                    "on pending frame handoff."
+                )
             elif pacing_wait["available"] and pacing_wait_median > 1.0:
                 gap_attribution_line = (
                     "Gap attribution: scheduler/pacing sleep contributes to the gap."
                 )
             else:
-                gap_attribution_line = "Gap attribution: unattributed runtime gap remains; inspect capture worker and scheduler metrics."
+                gap_attribution_line = (
+                    "Gap attribution: unattributed runtime gap remains; "
+                    "inspect capture worker and scheduler metrics."
+                )
         elif loop_gap_high and not actual_over_budget and pacing_wait["available"]:
             gap_attribution_line = (
                 "Gap attribution: cadence mostly delayed by pacing/scheduler sleeps."
@@ -392,7 +415,8 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
         gap_attribution_line,
         cap_line,
         f"dropped/skipped frames: {dropped}",
-        f"inferred_unattributed_gap_ms: {max(0.0, float(loop_gap['median_ms']) - float(actual_work['median_ms'])):.2f}"
+        f"inferred_unattributed_gap_ms: "
+        f"{max(0.0, float(loop_gap['median_ms']) - float(actual_work['median_ms'])):.2f}"
         if loop_gap["available"] and actual_work["available"]
         else "inferred_unattributed_gap_ms: unavailable",
         f"capture_worker_active: {'yes' if capture_worker_active else 'no'}",
@@ -410,8 +434,14 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
             if str(status.get("priority_apply_error", "")).strip()
             else "priority_apply_error: none"
         ),
-        f"hid_frame_build_ms: unavailable ({labels.get('hid_frame_build_reason', 'not instrumented')})",
-        f"hid_flush_or_wait_ms: unavailable ({labels.get('hid_flush_or_wait_reason', 'not instrumented')})",
+        (
+            f"hid_frame_build_ms: unavailable "
+            f"({labels.get('hid_frame_build_reason', 'not instrumented')})"
+        ),
+        (
+            f"hid_flush_or_wait_ms: unavailable "
+            f"({labels.get('hid_flush_or_wait_reason', 'not instrumented')})"
+        ),
         f"hid_device_write_limited: {hid_device_write_limited}",
         f"hid_reports_per_frame: {hid_reports_per_frame}",
         f"hid_bytes_per_report: {hid_bytes_per_report}",
@@ -437,11 +467,13 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
         lines.append("Try 60 FPS for stable use.")
     if hid_device_write["available"] and float(hid_device_write["median_ms"]) >= 5.0:
         lines.append(
-            f"HID path appears device-write limited (hid_device_write_ms median ~{float(hid_device_write['median_ms']):.2f}ms)."
+            "HID path appears device-write limited "
+            f"(hid_device_write_ms median ~{float(hid_device_write['median_ms']):.2f}ms)."
         )
     if hid_device_write["available"] and float(hid_device_write["median_ms"]) > (1000.0 / 60.0):
         lines.append(
-            "60 FPS cannot be reliably met due to HID write time (hid_device_write_ms exceeds 16.67ms)."
+            "60 FPS cannot be reliably met due to HID write time "
+            "(hid_device_write_ms exceeds 16.67ms)."
         )
     if hid_device_write["available"] and float(hid_device_write["median_ms"]) > (1000.0 / 120.0):
         lines.append(
@@ -613,7 +645,7 @@ def export_zone_report(*, rows: Sequence[dict[str, object]]) -> Path:
             fields.append(key)
             seen.add(key)
     for row in rows:
-        for key in row.keys():
+        for key in row:
             if key not in seen:
                 fields.append(key)
                 seen.add(key)

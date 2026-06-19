@@ -122,10 +122,7 @@ def test_mapped_bytes_to_rgb_handles_bgrx_and_stride_padding() -> None:
 @pytest.mark.parametrize("fmt", ["RGB", "BGR", "RGBx", "BGRx", "RGBA", "BGRA"])
 def test_mapped_bytes_to_rgb_supports_multiple_formats(fmt: str) -> None:
     backend = XDGPortalCapture(width=1, height=1)
-    if fmt in {"RGB", "BGR"}:
-        payload = bytes([1, 2, 3])
-    else:
-        payload = bytes([1, 2, 3, 255])
+    payload = bytes([1, 2, 3]) if fmt in {"RGB", "BGR"} else bytes([1, 2, 3, 255])
     frame = backend._mapped_bytes_to_rgb(payload=payload, width=1, height=1, fmt=fmt, stride=None)
     assert isinstance(frame, np.ndarray)
     assert frame.shape == (1, 1, 3)
@@ -215,7 +212,7 @@ def test_extract_caps_metadata_reads_fraction_framerate_without_raising() -> Non
         )
     )
 
-    metadata = backend._extract_caps_metadata(_FakeCaps(), GstVideo=fake_video)
+    metadata = backend._extract_caps_metadata(_FakeCaps(), gst_video=fake_video)
 
     assert metadata["caps"] == "video/x-raw,format=RGB,width=2,height=1,framerate=60/1"
     assert metadata["framerate"] == "60/1"
@@ -374,7 +371,6 @@ def test_open_via_gstreamer_recovers_from_parse_launch_error_with_pipeline_none_
 ) -> None:
     backend = XDGPortalCapture(width=1, height=1)
     parse_calls: list[str] = []
-    null_calls: list[object] = []
 
     class _FakeSink:
         pass

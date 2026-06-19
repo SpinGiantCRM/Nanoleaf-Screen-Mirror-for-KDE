@@ -7,7 +7,7 @@ import tempfile
 import tomllib
 from dataclasses import asdict, replace
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +40,9 @@ def mode_config(mode: str) -> AppConfig:
 
 
 class ConfigManager:
-    def __init__(self, path: Optional[os.PathLike[str] | str] = None) -> None:
+    def __init__(self, path: os.PathLike[str] | str | None = None) -> None:
         self.path = Path(path) if path is not None else default_config_path()
-        self._config: Optional[AppConfig] = None
+        self._config: AppConfig | None = None
 
     def _migrate_json_if_present(self) -> None:
         return
@@ -173,7 +173,7 @@ class ConfigManager:
         cfg = validate_config(config)
         self._config = cfg
 
-        payload: Dict[str, Any] = asdict(cfg)
+        payload: dict[str, Any] = asdict(cfg)
         payload["zones"] = [asdict(z) for z in cfg.zones]
         payload["zone_sampling_stride"] = int(cfg.zone_sampling_stride)
         payload["sampling_quality"] = str(cfg.sampling_quality)
@@ -183,7 +183,7 @@ class ConfigManager:
         # Use advisory file locking to prevent concurrent saves from corrupting
         # the config (e.g., tray app + settings dialog racing on save).
         lock_fd: int | None = None
-        tmp_path: Optional[Path] = None
+        tmp_path: Path | None = None
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             lock_path = self.path.with_suffix(self.path.suffix + ".lock")

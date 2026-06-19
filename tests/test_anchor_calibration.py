@@ -5,11 +5,10 @@ from __future__ import annotations
 import pytest
 
 from nanoleaf_sync.runtime.anchor_calibration import (
-    validate_corner_anchors,
-    derive_anchor_zone_map,
     AnchorMappingResult,
+    derive_anchor_zone_map,
+    validate_corner_anchors,
 )
-
 
 # -- validate_corner_anchors -----------------------------------------------
 

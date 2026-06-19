@@ -6,9 +6,9 @@ import numpy as np
 import pytest
 
 from nanoleaf_sync.runtime.compositor import (
-    effective_sdr_boost,
     apply_sdr_boost_compensation,
     apply_zone_sdr_boost,
+    effective_sdr_boost,
 )
 
 

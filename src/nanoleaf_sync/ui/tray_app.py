@@ -4,16 +4,23 @@ import argparse
 import importlib
 import json
 import logging
-from logging.handlers import RotatingFileHandler
 import os
-from pathlib import Path
 import subprocess
 import sys
 import threading
 import time
 import traceback
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 import nanoleaf_sync
+from nanoleaf_sync.compat.update_checker import (
+    check_for_updates,
+    manual_check_message,
+    mark_update_notified,
+    should_notify_for_update,
+    update_notification_message,
+)
 from nanoleaf_sync.config.store import ConfigManager, mode_config
 from nanoleaf_sync.desktop_entry import (
     QT_DESKTOP_FILE_NAME,
@@ -24,26 +31,19 @@ from nanoleaf_sync.desktop_entry import (
     redact_launch_token,
     user_autostart_path,
 )
-from nanoleaf_sync.compat.update_checker import (
-    check_for_updates,
-    manual_check_message,
-    mark_update_notified,
-    should_notify_for_update,
-    update_notification_message,
+from nanoleaf_sync.runtime.output_session import OutputSessionController
+from nanoleaf_sync.runtime.readiness_check import (
+    CONFIG_PROBLEM_STATUS,
+    NEEDS_CALIBRATION_STATUS,
+    ReadinessReport,
+    run_readiness_check,
 )
 from nanoleaf_sync.service import NanoleafSyncService
 from nanoleaf_sync.tools.output_format import describe_mode, summarize_command_output
 from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog
-from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.live_diagnostics import LiveDiagnosticsDialog
+from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.settings_dialog import SettingsDialog
-from nanoleaf_sync.runtime.output_session import OutputSessionController
-from nanoleaf_sync.runtime.readiness_check import (
-    NEEDS_CALIBRATION_STATUS,
-    CONFIG_PROBLEM_STATUS,
-    ReadinessReport,
-    run_readiness_check,
-)
 
 SELF_CHECK_IMPORTS: tuple[str, ...] = (
     "nanoleaf_sync.compat.update_checker",
@@ -62,7 +62,8 @@ def first_run_message(mode: str) -> str:
             "If the light is not detected, open Help → Troubleshooting from the tray menu."
         )
     return (
-        "Diagnostic mock-capture mode is enabled. Screen capture is simulated, but USB output still needs hardware.\n"
+        "Diagnostic mock-capture mode is enabled. Screen capture is simulated, "
+        "but USB output still needs hardware.\n"
         "You can switch to Real hardware mode any time in Settings.\n"
         "Start the app from the tray menu when ready."
     )
@@ -179,7 +180,8 @@ class NanoleafTrayApp:
 
         if not self.QSystemTrayIcon.isSystemTrayAvailable():
             raise RuntimeError(
-                "System tray is unavailable in this session. Ensure KDE tray/StatusNotifier is enabled. "
+                "System tray is unavailable in this session. "
+                "Ensure KDE tray/StatusNotifier is enabled. "
                 f"Diagnostics log: {self.startup_log_path}"
             )
 
@@ -198,7 +200,10 @@ class NanoleafTrayApp:
             self.config = self.cfg_mgr.load()
             self.service = NanoleafSyncService(config=self.config)
         except Exception as exc:
-            self._startup_warning = f"Failed to load config/service: {exc}. Using safe defaults; open Settings and save to repair your config."
+            self._startup_warning = (
+                f"Failed to load config/service: {exc}. Using safe defaults; "
+                "open Settings and save to repair your config."
+            )
             self._config_created = False
             self.config = mode_config("diagnostic")
             self.service = NanoleafSyncService(config=self.config)
@@ -282,7 +287,9 @@ class NanoleafTrayApp:
             if status.get("last_error") or status.get("start_failure_reason"):
                 self.tray_icon.showMessage(
                     "nanoleaf-kde-sync",
-                    f"Start failed: {status.get('last_error') or status.get('start_failure_reason')}\n{guidance}",
+                    f"Start failed: "
+                    f"{status.get('last_error') or status.get('start_failure_reason')}\n"
+                    f"{guidance}",
                     self.QSystemTrayIcon.MessageIcon.Warning,
                     7000,
                 )
@@ -407,7 +414,8 @@ class NanoleafTrayApp:
         startup_id = redact_launch_token(context.get("DESKTOP_STARTUP_ID"))
         activation = redact_launch_token(context.get("XDG_ACTIVATION_TOKEN"))
         _log.info(
-            "Startup context: desktop_file=%s startup_id=%s activation=%s tray_available=%s tray_visible=%s",
+            "Startup context: desktop_file=%s startup_id=%s activation=%s "
+            "tray_available=%s tray_visible=%s",
             self.app.desktopFileName() or "unset",
             startup_id,
             activation,
@@ -447,7 +455,6 @@ class NanoleafTrayApp:
             themed_running = self.QIcon.fromTheme("nanoleaf-kde-sync")
 
         fallback_icon = self.QIcon()
-        selected_path = "none"
         for candidate in (
             Path(__file__).resolve().parents[3]
             / "assets"
@@ -466,7 +473,7 @@ class NanoleafTrayApp:
         ):
             if candidate.exists():
                 fallback_icon = self.QIcon(str(candidate))
-                selected_path = str(candidate)
+                str(candidate)
                 break
 
         idle_icon = themed_idle if not themed_idle.isNull() else fallback_icon
@@ -981,15 +988,19 @@ class NanoleafTrayApp:
             else ("Searching / not connected" if running else "Not started")
         )
         last_error = status.get("last_error")
+        help_guidance = status.get("last_error_guidance") or (
+            "Open Help / Troubleshooting from the tray menu."
+        )
         summary = "\n".join(
             [
                 f"Version: {self._app_version}",
                 f"State: {'Running' if running else 'Idle'}",
-                f"Capture method: {status.get('effective_capture_backend') or self.config.prefer_backend}",
+                f"Capture method: "
+                f"{status.get('effective_capture_backend') or self.config.prefer_backend}",
                 f"USB device: {connection_text}",
                 f"Device model: {status.get('device_model') or 'unknown'}",
                 f"Last issue: {last_error or 'None'}",
-                f"Help: {status.get('last_error_guidance') or 'Open Help / Troubleshooting from the tray menu.'}",
+                f"Help: {help_guidance}",
             ]
         )
         details = "\n".join(
@@ -1308,7 +1319,8 @@ def main(argv: list[str] | None = None) -> int:
         cfg = mgr.reset_auto_probe_cache()
         print(
             f"Reset auto-probe cache in {mgr.path} "
-            f"(policy={cfg.auto_probe_policy}, selected_backend={cfg.auto_selected_backend or 'none'}).",
+            f"(policy={cfg.auto_probe_policy}, "
+            f"selected_backend={cfg.auto_selected_backend or 'none'}).",
             flush=True,
         )
         return 0

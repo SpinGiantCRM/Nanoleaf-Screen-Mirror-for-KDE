@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import threading
 import time
-from typing import Callable, TypeVar, cast
-
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import TypeVar, cast
 
 T = TypeVar("T")
 

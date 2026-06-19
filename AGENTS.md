@@ -51,7 +51,8 @@ Always inspect the live repo before editing. Do not assume old repo state.
 
 - `python -m pytest -q --timeout=60 --timeout-method=thread --durations=25`
 - `python -m pytest -q --timeout=60 --timeout-method=thread --durations=25 --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=70`
-- `ruff check src/ tests/ --select E9,F63,F7,F82`
+- `ruff check src/ tests/`
+- `ruff format --check src/ tests/`
 - `mypy src/nanoleaf_sync --ignore-missing-imports --follow-imports=silent`
 - Documentation-only patches should at least run `git diff --check`.
 

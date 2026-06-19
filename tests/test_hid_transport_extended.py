@@ -9,7 +9,6 @@ import pytest
 from nanoleaf_sync.device.hid_transport import HIDTransport
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 
-
 # ---------------------------------------------------------------------------
 # open() retry logic
 # ---------------------------------------------------------------------------

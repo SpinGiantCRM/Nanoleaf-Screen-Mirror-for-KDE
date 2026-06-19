@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional, Tuple
 
 from nanoleaf_sync.config.model import AppConfig
 
@@ -12,7 +11,7 @@ DEFAULT_CAPTURE_WIDTH = 480
 DEFAULT_CAPTURE_HEIGHT = 270
 
 
-def _parse_mode_line(line: str) -> Optional[Tuple[int, int]]:
+def _parse_mode_line(line: str) -> tuple[int, int] | None:
     # Typical modes: "3840x2160" or "3840x2160@60"
     head = line.strip().split("@", 1)[0]
     if "x" not in head:
@@ -28,12 +27,12 @@ def _parse_mode_line(line: str) -> Optional[Tuple[int, int]]:
     return width, height
 
 
-def _detect_primary_screen_dims_sysfs() -> Optional[Tuple[int, int]]:
+def _detect_primary_screen_dims_sysfs() -> tuple[int, int] | None:
     drm_root = Path("/sys/class/drm")
     if not drm_root.exists():
         return None
 
-    best: Optional[Tuple[int, int]] = None
+    best: tuple[int, int] | None = None
     for connector in sorted(drm_root.iterdir()):
         status_path = connector / "status"
         modes_path = connector / "modes"
@@ -63,7 +62,7 @@ def _detect_primary_screen_dims_sysfs() -> Optional[Tuple[int, int]]:
     return best
 
 
-def detect_primary_screen_dims(*, qt_widgets_module=None) -> Optional[Tuple[int, int]]:
+def detect_primary_screen_dims(*, qt_widgets_module=None) -> tuple[int, int] | None:
     """Best-effort primary-screen detection via sysfs/DRM first, Qt fallback."""
     if qt_widgets_module is None:
         detected = _detect_primary_screen_dims_sysfs()
@@ -73,7 +72,9 @@ def detect_primary_screen_dims(*, qt_widgets_module=None) -> Optional[Tuple[int,
     qt_widgets = qt_widgets_module
     if qt_widgets is None:
         try:
-            from PyQt6 import QtWidgets as qt_widgets
+            from PyQt6 import QtWidgets
+
+            qt_widgets = QtWidgets
         except Exception:
             logger.debug("PyQt6 unavailable for screen dimension detection", exc_info=True)
             return None
@@ -112,7 +113,7 @@ def detect_primary_screen_dims(*, qt_widgets_module=None) -> Optional[Tuple[int,
             app.quit()
 
 
-def resolve_capture_dims(config: AppConfig) -> Tuple[int, int]:
+def resolve_capture_dims(config: AppConfig) -> tuple[int, int]:
     """Return ``(width, height)`` for capture initialization."""
     zone_count = max(1, len(getattr(config, "zones", ()) or ()))
     target_w = max(DEFAULT_CAPTURE_WIDTH, zone_count * 4, 160)

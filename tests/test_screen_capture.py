@@ -1,11 +1,12 @@
-import numpy as np
-import pytest
 import builtins
 
+import numpy as np
+import pytest
+
 from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
+from nanoleaf_sync.capture.errors import KMSGrabError
 from nanoleaf_sync.capture.factory import create_capture_backend
 from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture
-from nanoleaf_sync.capture.errors import KMSGrabError
 
 
 def test_capture_factory_mock_is_reusable(monkeypatch) -> None:

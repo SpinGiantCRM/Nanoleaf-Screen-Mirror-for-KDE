@@ -1,4 +1,5 @@
 from nanoleaf_sync.ui.calibration_state import CalibrationState
+from tests.repo_text import read_repo_text
 
 
 def test_calibration_state_has_minimal_fields() -> None:
@@ -9,7 +10,7 @@ def test_calibration_state_has_minimal_fields() -> None:
 
 
 def test_step3_look_and_feel_uses_clean_sections_with_collapsed_advanced_details() -> None:
-    text = open("src/nanoleaf_sync/ui/display_configurator.py", "r", encoding="utf-8").read()
+    text = read_repo_text("src/nanoleaf_sync/ui/display_configurator.py")
     assert 'QGroupBox("Appearance")' in text
     assert 'QGroupBox("Layout")' in text
     assert 'QGroupBox("Advanced details")' in text
@@ -26,8 +27,8 @@ def test_step3_look_and_feel_uses_clean_sections_with_collapsed_advanced_details
 
 
 def test_wizard_and_settings_use_canonical_preset_vocabulary() -> None:
-    wizard = open("src/nanoleaf_sync/ui/display_configurator.py", "r", encoding="utf-8").read()
-    settings = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    wizard = read_repo_text("src/nanoleaf_sync/ui/display_configurator.py")
+    settings = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     for token in (
         "layout_preset",
         "edge_locality",
@@ -44,16 +45,16 @@ def test_wizard_and_settings_use_canonical_preset_vocabulary() -> None:
 
 
 def test_horizontal_layout_is_not_primary_recommendation() -> None:
-    wizard = open("src/nanoleaf_sync/ui/display_configurator.py", "r", encoding="utf-8").read()
-    helper = open("src/nanoleaf_sync/ui/preset_ui.py", "r", encoding="utf-8").read()
+    wizard = read_repo_text("src/nanoleaf_sync/ui/display_configurator.py")
+    helper = read_repo_text("src/nanoleaf_sync/ui/preset_ui.py")
     assert "Horizontal (diagnostic, not recommended)" not in helper
     assert "layout_debug_combo" not in wizard
     assert "Full-screen horizontal" not in wizard
 
 
 def test_old_ui_labels_removed_from_primary_flow() -> None:
-    wizard = open("src/nanoleaf_sync/ui/display_configurator.py", "r", encoding="utf-8").read()
-    settings = open("src/nanoleaf_sync/ui/settings_dialog.py", "r", encoding="utf-8").read()
+    wizard = read_repo_text("src/nanoleaf_sync/ui/display_configurator.py")
+    settings = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     assert "Dynamism" not in wizard
     assert "Dynamism" not in settings
     assert "Optional vibrancy 100%" not in wizard

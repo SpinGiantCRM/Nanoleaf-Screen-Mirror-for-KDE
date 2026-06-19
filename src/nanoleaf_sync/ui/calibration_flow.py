@@ -6,7 +6,10 @@ from nanoleaf_sync.ui.zone_calibration import mapping_indices
 def coverage_progress_label(*, step: int, device_zone_count: int, source_zone_index: int) -> str:
     total = max(1, int(device_zone_count))
     idx = int(step) % total
-    return f"Coverage sanity: zone {idx + 1}/{total} active (maps to source zone #{int(source_zone_index) + 1})."
+    return (
+        f"Coverage sanity: zone {idx + 1}/{total} active "
+        f"(maps to source zone #{int(source_zone_index) + 1})."
+    )
 
 
 def derive_corner_anchor_device_indices(

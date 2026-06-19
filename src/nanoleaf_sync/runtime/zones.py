@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import threading
+from collections.abc import Sequence
 from functools import lru_cache
-from typing import List, Sequence, Tuple
 
 import numpy as np
-from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
-from nanoleaf_sync.config.presets import edge_locality_profile
+
 from nanoleaf_sync.color._types import RGBTuple
+from nanoleaf_sync.config.presets import edge_locality_profile
+from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
 
-
-ZoneRect = Tuple[int, int, int, int]
+ZoneRect = tuple[int, int, int, int]
 _ZoneSamplingPlan = tuple[
     np.ndarray,
     np.ndarray,
@@ -244,7 +244,7 @@ def zone_colors(
     zones: Sequence[ZoneRect],
     *,
     sample_step: int = 1,
-) -> List[RGBTuple]:
+) -> list[RGBTuple]:
     zone_arr = zone_colors_array(image, zones, sample_step=sample_step)
     return [tuple(int(c) for c in row) for row in zone_arr]
 

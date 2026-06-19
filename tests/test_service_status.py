@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence, Tuple
 
 import numpy as np
 import pytest
@@ -10,8 +10,7 @@ from nanoleaf_sync.capture.interfaces import CaptureBackend
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.service import NanoleafSyncService
 
-
-RGB = Tuple[int, int, int]
+RGB = tuple[int, int, int]
 
 
 @dataclass

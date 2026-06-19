@@ -11,8 +11,8 @@ from nanoleaf_sync.desktop_entry import (
     disable_systemd_autostart,
     enable_autostart,
     enable_systemd_autostart,
-    user_systemd_service_path,
     user_autostart_path,
+    user_systemd_service_path,
 )
 
 
@@ -23,7 +23,10 @@ def main(argv: list[str] | None = None) -> int:
         "--method",
         choices=("desktop", "systemd"),
         default="desktop",
-        help="Autostart method. Use desktop for KWin ScreenShot2 authorization; systemd may miss desktop-session DBus authorization context.",
+        help=(
+            "Autostart method. Use desktop for KWin ScreenShot2 authorization; "
+            "systemd may miss desktop-session DBus authorization context."
+        ),
     )
     args = parser.parse_args(argv)
 
@@ -32,8 +35,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Enabled autostart: {path}")
         if args.method == "systemd":
             print(
-                "WARNING: systemd --user autostart can fail KWin ScreenShot2 authorization because it "
-                "may not inherit desktop-entry launch context. Prefer `--method desktop` for reliable capture."
+                "WARNING: systemd --user autostart can fail KWin ScreenShot2 authorization "
+                "because it may not inherit desktop-entry launch context. "
+                "Prefer `--method desktop` for reliable capture."
             )
         return 0
 

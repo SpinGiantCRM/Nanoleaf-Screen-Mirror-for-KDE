@@ -9,12 +9,40 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 import numpy as np
 
-from nanoleaf_sync.runtime.zones import zone_colors_array
+from nanoleaf_sync.capture.latency_probe import (
+    STAGE_ACTUAL_WORK,
+    STAGE_CAPTURE_CALL,
+    STAGE_CAPTURE_SUCCESS_INTERVAL,
+    STAGE_CAPTURE_WAIT,
+    STAGE_CAPTURE_WORKER_LOOP_GAP,
+    STAGE_COLOUR_PROCESSING,
+    STAGE_FRAME_AVAILABLE_WAIT,
+    STAGE_FRAME_CONVERT,
+    STAGE_FRAME_HANDOFF_WAIT,
+    STAGE_FRAME_PROCESSING,
+    STAGE_HID_DEVICE_WRITE,
+    STAGE_HID_FLUSH_OR_WAIT,
+    STAGE_HID_FRAME_BUILD,
+    STAGE_HID_WRITE,
+    STAGE_IDLE_WAIT,
+    STAGE_INFERRED_UNATTRIBUTED_GAP,
+    STAGE_LED_CALIBRATION,
+    STAGE_LOOP_GAP,
+    STAGE_OUTPUT_PREPARE,
+    STAGE_PACING_WAIT,
+    STAGE_PENDING_FRAME_AGE,
+    STAGE_RUNTIME_CAPTURE_CALL,
+    STAGE_RUNTIME_IDLE_WAIT,
+    STAGE_SMOOTHING,
+    STAGE_ZONE_SAMPLING,
+    FrameTimingSample,
+)
+from nanoleaf_sync.color._types import RGBTuple
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.presets import analyzer_mode_for_presets, motion_profile
 from nanoleaf_sync.runtime.calibration_resolver import (
@@ -23,53 +51,24 @@ from nanoleaf_sync.runtime.calibration_resolver import (
     CALIBRATION_READY_STATUS,
     resolve_calibration_mapping_from_config,
 )
-from nanoleaf_sync.runtime.processing import zones_from_config
 from nanoleaf_sync.runtime.color_processing import (
     LedCalibration,
     apply_color_style_mapping,
     apply_led_calibration,
     color_pipeline_diagnostics,
+    init_gamut_adaptation,
 )
-from nanoleaf_sync.runtime.zone_derivation import derive_source_zone_artifacts
 from nanoleaf_sync.runtime.compositor import (
     apply_sdr_boost_compensation,
     apply_zone_sdr_boost,
     effective_sdr_boost,
 )
+from nanoleaf_sync.runtime.fps_governor import FPSGovernor
+from nanoleaf_sync.runtime.processing import zones_from_config
 from nanoleaf_sync.runtime.ring_buf import (
     CapturePayload,
     ProcessedPayload,
     SPSCRingBuffer,
-)
-from nanoleaf_sync.runtime.color_processing import init_gamut_adaptation
-from nanoleaf_sync.runtime.fps_governor import FPSGovernor
-from nanoleaf_sync.capture.latency_probe import (
-    FrameTimingSample,
-    STAGE_CAPTURE_WAIT,
-    STAGE_CAPTURE_CALL,
-    STAGE_RUNTIME_CAPTURE_CALL,
-    STAGE_CAPTURE_WORKER_LOOP_GAP,
-    STAGE_CAPTURE_SUCCESS_INTERVAL,
-    STAGE_FRAME_HANDOFF_WAIT,
-    STAGE_FRAME_AVAILABLE_WAIT,
-    STAGE_PENDING_FRAME_AGE,
-    STAGE_PACING_WAIT,
-    STAGE_IDLE_WAIT,
-    STAGE_RUNTIME_IDLE_WAIT,
-    STAGE_FRAME_PROCESSING,
-    STAGE_FRAME_CONVERT,
-    STAGE_ZONE_SAMPLING,
-    STAGE_COLOUR_PROCESSING,
-    STAGE_SMOOTHING,
-    STAGE_LED_CALIBRATION,
-    STAGE_OUTPUT_PREPARE,
-    STAGE_ACTUAL_WORK,
-    STAGE_HID_WRITE,
-    STAGE_HID_FRAME_BUILD,
-    STAGE_HID_DEVICE_WRITE,
-    STAGE_HID_FLUSH_OR_WAIT,
-    STAGE_LOOP_GAP,
-    STAGE_INFERRED_UNATTRIBUTED_GAP,
 )
 from nanoleaf_sync.runtime.startup import reinitialize_backends, should_reinitialize
 from nanoleaf_sync.runtime.state import (
@@ -77,10 +76,15 @@ from nanoleaf_sync.runtime.state import (
     RuntimeState,
     ZoneRect,
 )
-from nanoleaf_sync.color._types import RGBTuple
-
+from nanoleaf_sync.runtime.zone_derivation import derive_source_zone_artifacts
+from nanoleaf_sync.runtime.zones import zone_colors_array
 
 logger = logging.getLogger(__name__)
+
+
+def _no_pending_frame_rate_per_second(events: int, started_at: float) -> str:
+    elapsed = max(0.001, time.perf_counter() - started_at)
+    return f"{events / elapsed:.2f}"
 
 
 @dataclass
@@ -379,7 +383,7 @@ def _side_variance_diagnostics(
     out: dict[str, dict[str, float | bool]] = {}
     names = ("top", "right", "bottom", "left")
     start = 0
-    for name, count in zip(names, side_counts):
+    for name, count in zip(names, side_counts, strict=False):
         end = start + max(0, int(count))
         s = sampled[start:end]
         f = final[start:end]
@@ -766,7 +770,9 @@ def _run_loop_legacy(
                         labels={
                             "latest_capture_backend_name": latest_capture_backend_name,
                             "capture_backend_method": latest_capture_backend_method,
-                            "no_pending_frame_rate_per_second": f"{(no_pending_frame_events / max(0.001, time.perf_counter() - no_pending_started_at)):.2f}",
+                            "no_pending_frame_rate_per_second": _no_pending_frame_rate_per_second(
+                                no_pending_frame_events, no_pending_started_at
+                            ),
                         },
                     )
                 )
@@ -1096,7 +1102,9 @@ def _run_loop_legacy(
                         labels={
                             "latest_capture_backend_name": latest_capture_backend_name,
                             "capture_backend_method": latest_capture_backend_method,
-                            "no_pending_frame_rate_per_second": f"{(no_pending_frame_events / max(0.001, time.perf_counter() - no_pending_started_at)):.2f}",
+                            "no_pending_frame_rate_per_second": _no_pending_frame_rate_per_second(
+                                no_pending_frame_events, no_pending_started_at
+                            ),
                             "hid_flush_or_wait_reason": hid_flush_or_wait_reason,
                             "hid_frame_build_reason": hid_frame_build_reason,
                             "hid_device_write_limited": hid_device_limited_label,
@@ -1183,7 +1191,8 @@ def _run_loop_legacy(
                 backend_method = latest_capture_backend_method or "unavailable"
                 reason = (
                     "Start failed before first frame: capture backend produced no frame "
-                    f"within {startup_frame_timeout_s:.1f}s (backend={backend_name}, method={backend_method})."
+                    f"within {startup_frame_timeout_s:.1f}s "
+                    f"(backend={backend_name}, method={backend_method})."
                 )
                 state.last_error = reason
                 state.last_error_kind = "capture-timeout"
@@ -1212,7 +1221,8 @@ def _run_loop_legacy(
             sent_in_window = 0
             elapsed_ms = (processing_end - start) * 1000.0
             logger.info(
-                "service_tick seq=%s fps=%s elapsed_ms=%.2f zones=%s errors=%s send_fps=%.1f capture_to_send_ms=%.2f replaced_frames=%s",
+                "service_tick seq=%s fps=%s elapsed_ms=%.2f zones=%s errors=%s "
+                "send_fps=%.1f capture_to_send_ms=%.2f replaced_frames=%s",
                 frame_seq,
                 governor.target_fps,
                 elapsed_ms,
@@ -1224,7 +1234,10 @@ def _run_loop_legacy(
             )
             if config.verbose:
                 print(
-                    f"[service] tick fps={governor.target_fps} elapsed_ms={elapsed_ms:.2f} zones={last_sent_zone_count} send_fps={send_fps:.1f} capture_to_send_ms={ewma_capture_to_send_ms:.2f} replaced_frames={replaced_frames}"
+                    f"[service] tick fps={governor.target_fps} elapsed_ms={elapsed_ms:.2f} "
+                    f"zones={last_sent_zone_count} send_fps={send_fps:.1f} "
+                    f"capture_to_send_ms={ewma_capture_to_send_ms:.2f} "
+                    f"replaced_frames={replaced_frames}"
                 )
 
     if capture_thread.is_alive():
@@ -1250,7 +1263,7 @@ def _run_loop_pipeline(
     governor = FPSGovernor(initial_fps=fps)
     state.target_fps = governor.target_fps
     gov_lock = threading.Lock()
-    interval_s = 1.0 / fps
+    1.0 / fps
     log_interval_s = float(getattr(config, "status_log_interval_s", 5.0))
     error_limit = max(1, int(getattr(config, "max_consecutive_errors", 5)))
     startup_frame_timeout_s = max(0.1, float(getattr(config, "startup_frame_timeout_s", 5.0)))
@@ -1635,7 +1648,6 @@ def _run_loop_pipeline(
     # ---- HID writer -----------------------------------------------------
     def _hid_writer() -> None:
         nonlocal last_sent_zone_count, ewma_capture_to_send_ms, frame_seq, governor
-        sent_any_frame = False
         sent_in_window = 0
         last_log = time.perf_counter()
         last_send_done_ts: float | None = None
@@ -1678,7 +1690,11 @@ def _run_loop_pipeline(
                             labels={
                                 "latest_capture_backend_name": latest_capture_backend_name,
                                 "capture_backend_method": latest_capture_backend_method,
-                                "no_pending_frame_rate_per_second": f"{(no_pending_events / max(0.001, time.perf_counter() - no_pending_started_at)):.2f}",
+                                "no_pending_frame_rate_per_second": (
+                                    _no_pending_frame_rate_per_second(
+                                        no_pending_events, no_pending_started_at
+                                    )
+                                ),
                             },
                         )
                     )
@@ -1820,7 +1836,9 @@ def _run_loop_pipeline(
                             STAGE_FRAME_PROCESSING: frame_processing_ms,
                             STAGE_FRAME_CONVERT: payload.processing_timings.frame_convert_ms,  # type: ignore[attr-defined]
                             STAGE_ZONE_SAMPLING: payload.processing_timings.zone_sampling_ms,  # type: ignore[attr-defined]
-                            STAGE_COLOUR_PROCESSING: payload.processing_timings.colour_processing_ms,  # type: ignore[attr-defined]
+                            STAGE_COLOUR_PROCESSING: (
+                                payload.processing_timings.colour_processing_ms
+                            ),  # type: ignore[attr-defined]
                             STAGE_SMOOTHING: payload.processing_timings.smoothing_ms,  # type: ignore[attr-defined]
                             STAGE_LED_CALIBRATION: payload.processing_timings.led_calibration_ms,  # type: ignore[attr-defined]
                             STAGE_OUTPUT_PREPARE: payload.processing_timings.output_prepare_ms,  # type: ignore[attr-defined]
@@ -1844,7 +1862,9 @@ def _run_loop_pipeline(
                         labels={
                             "latest_capture_backend_name": latest_capture_backend_name,
                             "capture_backend_method": latest_capture_backend_method,
-                            "no_pending_frame_rate_per_second": f"{(no_pending_events / max(0.001, time.perf_counter() - no_pending_started_at)):.2f}",
+                            "no_pending_frame_rate_per_second": _no_pending_frame_rate_per_second(
+                                no_pending_events, no_pending_started_at
+                            ),
                             "hid_flush_or_wait_reason": hid_flush_or_wait_reason,
                             "hid_frame_build_reason": hid_frame_build_reason,
                             "hid_device_write_limited": hid_device_limited_label,
@@ -1864,7 +1884,6 @@ def _run_loop_pipeline(
                 )
 
                 state.record_success()
-                sent_any_frame = True
                 state.first_frame_sent = True
                 state.startup_elapsed_ms = max(
                     0.0,
@@ -1947,7 +1966,7 @@ def _run_loop_pipeline(
         t.start()
 
     # ---- supervisory loop ------------------------------------------------
-    last_log = time.perf_counter()
+    time.perf_counter()
     last_reinit_check = time.perf_counter()
     while not state.stop_event.is_set():
         time.sleep(0.05)
@@ -2014,7 +2033,8 @@ def _run_loop_pipeline(
         t.join(timeout=3.0)
         if t.is_alive():
             logger.warning(
-                "%s thread did not exit within shutdown timeout (3s); it may still be blocked in IO",
+                "%s thread did not exit within shutdown timeout (3s); "
+                "it may still be blocked in IO",
                 t.name,
             )
 

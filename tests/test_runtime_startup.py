@@ -3,11 +3,14 @@ from __future__ import annotations
 import threading
 import time
 
-from nanoleaf_sync.runtime.startup import reinitialize_backends, run_runtime_engine
+from nanoleaf_sync.config.model import AppConfig, ZoneConfig
+from nanoleaf_sync.runtime.startup import (
+    RuntimeLifecycle,
+    reinitialize_backends,
+    run_runtime_engine,
+)
 from nanoleaf_sync.runtime.state import RuntimeState
 from nanoleaf_sync.runtime.zone_derivation import effective_zone_count
-from nanoleaf_sync.config.model import AppConfig, ZoneConfig
-from nanoleaf_sync.runtime.startup import RuntimeLifecycle
 
 
 class _Closable:

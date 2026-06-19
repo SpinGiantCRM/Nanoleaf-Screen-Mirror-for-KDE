@@ -12,12 +12,12 @@ SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+from nanoleaf_sync import service as service_module  # noqa: E402
 from nanoleaf_sync.capture.factory import (  # noqa: E402
     reset_cached_probe_winner,
     reset_capability_check_cache,
 )
 from nanoleaf_sync.capture.kmsgrab import reset_cached_drm_probe  # noqa: E402
-from nanoleaf_sync import service as service_module  # noqa: E402
 
 
 @pytest.fixture(autouse=True)

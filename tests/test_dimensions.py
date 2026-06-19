@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from nanoleaf_sync.capture.dimensions import (
+    DEFAULT_CAPTURE_HEIGHT,
+    DEFAULT_CAPTURE_WIDTH,
     _parse_mode_line,
     resolve_capture_dims,
-    DEFAULT_CAPTURE_WIDTH,
-    DEFAULT_CAPTURE_HEIGHT,
 )
-
 
 # -- _parse_mode_line ------------------------------------------------------
 
@@ -72,8 +71,7 @@ def test_resolve_capture_dims_mock_config_no_zones() -> None:
 
 def test_resolve_capture_dims_wide_zone_count() -> None:
     """Many zones should increase the minimum width."""
-    from nanoleaf_sync.config.model import AppConfig
-    from nanoleaf_sync.config.model import ZoneConfig
+    from nanoleaf_sync.config.model import AppConfig, ZoneConfig
 
     zones = [ZoneConfig(x=0.0, y=0.0, w=1.0, h=0.1) for _ in range(200)]
     cfg = AppConfig(zones=zones)

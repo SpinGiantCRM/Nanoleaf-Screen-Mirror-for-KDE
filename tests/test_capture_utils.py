@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
+
 import numpy as np
 import pytest
 
-from collections import OrderedDict
-
-from nanoleaf_sync.capture._utils import effective_runtime_zone_count, _resize_to_target
+from nanoleaf_sync.capture._utils import _resize_to_target, effective_runtime_zone_count
 
 
 def test_effective_zone_count_configured_wins() -> None:

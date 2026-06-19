@@ -6,10 +6,10 @@ import json
 from copy import deepcopy
 
 from nanoleaf_sync.config.serialization import (
-    dump_toml,
-    toml_render_scalar,
-    toml_render_list,
     _prepare_payload_for_round_trip,
+    dump_toml,
+    toml_render_list,
+    toml_render_scalar,
 )
 
 

@@ -11,13 +11,12 @@ from nanoleaf_sync.capture.backend_selection import (
     AUTO_PROBE_CANDIDATES,
     normalize_backend_preference,
 )
-from nanoleaf_sync.capture.factory import auto_probe_effective_state, create_capture_backend
 from nanoleaf_sync.capture.dimensions import resolve_capture_dims
+from nanoleaf_sync.capture.factory import auto_probe_effective_state, create_capture_backend
 from nanoleaf_sync.config.store import ConfigManager
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
 from nanoleaf_sync.runtime.errors import translate_runtime_error
-
 
 DEFAULT_SMOKE_WIDTH = 320
 DEFAULT_SMOKE_HEIGHT = 180
@@ -86,7 +85,8 @@ def main(argv: list[str] | None = None) -> int:
         selection_reason = "fallback"
     print(
         "backend decision: "
-        f"requested={cfg.prefer_backend} effective={effective_backend} selection_reason={selection_reason}"
+        f"requested={cfg.prefer_backend} effective={effective_backend} "
+        f"selection_reason={selection_reason}"
     )
 
     driver = NanoleafUSBDriver(ids=NanoleafUSBIds(vid=cfg.device_vid, pid=cfg.device_pid))
@@ -138,8 +138,8 @@ def main(argv: list[str] | None = None) -> int:
                 os.environ.get("XDG_ACTIVATION_TOKEN") or "unset"
             ).strip() or "unset"
             print(
-                "context warning: shell-run smoke tests may lack KDE launcher policy unless launched from "
-                "an authorized desktop entry."
+                "context warning: shell-run smoke tests may lack KDE launcher policy "
+                "unless launched from an authorized desktop entry."
             )
             print(
                 "effective activation context: "

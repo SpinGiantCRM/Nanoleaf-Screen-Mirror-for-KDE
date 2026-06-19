@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 
 class SimpleCalibrationWidget:
@@ -17,7 +17,8 @@ class SimpleCalibrationWidget:
         self.title = title
         self.header_label = QLabel(title)
         self.preview_text_label = QLabel(
-            "Step through the LEDs until the lit LED matches a screen corner, then assign that corner."
+            "Step through the LEDs until the lit LED matches a screen corner, "
+            "then assign that corner."
         )
         self.preview_visual_label = QLabel("")
         self.current_zone_label = QLabel("Current LED: 1 of 1")

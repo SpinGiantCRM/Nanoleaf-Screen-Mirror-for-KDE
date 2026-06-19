@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -87,7 +87,7 @@ def check_for_upgrade(*, path: Path | None = None) -> dict[str, Any]:
 def update_snapshot(*, path: Path | None = None) -> dict[str, Any]:
     snapshot_path = path or default_snapshot_path()
     payload = collect_current_versions()
-    payload["last_updated"] = datetime.now(timezone.utc).isoformat()
+    payload["last_updated"] = datetime.now(UTC).isoformat()
     snapshot_path.parent.mkdir(parents=True, exist_ok=True)
     snapshot_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     logger.info("Updated KDE version snapshot at %s", snapshot_path)
