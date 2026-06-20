@@ -61,7 +61,7 @@ jobs:
     name: Arch package metadata
     runs-on: ubuntu-latest
     container:
-      image: archlinux:archlinux
+      image: archlinux:latest
       options: --privileged
     timeout-minutes: 15
     steps:
