@@ -347,3 +347,32 @@ def test_kmsgrab_drm_capture_mismatched_signature_raises_actionable_kmsgrab_erro
     assert "Attempted signature" in msg
     assert "_mismatched(width=..., height=..., card_path=...)" in msg
     assert "does not support positional retry" in msg
+
+
+def test_kmsgrab_sticky_kwin_fallback_skips_drm_after_first_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend = KMSGrabCapture(width=4, height=3)
+    drm_attempts = {"count": 0}
+
+    def _fake_drm_impl(**_kwargs) -> np.ndarray:
+        drm_attempts["count"] += 1
+        raise KMSGrabError("DRM unavailable")
+
+    backend._drm_capture_impl = _fake_drm_impl
+    fallback_calls = {"count": 0}
+    fallback_frame = np.zeros((3, 4, 3), dtype=np.uint8)
+
+    def _fallback_capture() -> np.ndarray:
+        fallback_calls["count"] += 1
+        return fallback_frame
+
+    monkeypatch.setattr(backend._fallback, "capture", _fallback_capture)
+
+    assert backend.capture().shape == (3, 4, 3)
+    assert backend.capture().shape == (3, 4, 3)
+
+    assert drm_attempts["count"] == 1
+    assert fallback_calls["count"] == 2
+    assert backend._use_kwin_only is True
+    assert backend.last_capture_path == "kwin-dbus"

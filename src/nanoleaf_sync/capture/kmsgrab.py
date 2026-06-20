@@ -55,6 +55,7 @@ class KMSGrabCapture:
             hdr_primaries=hdr_primaries,
         )
         self._allow_fallback = bool(allow_fallback)
+        self._use_kwin_only = False
         self.last_capture_path: str | None = "drm-kms"
         self.last_hdr_diagnostics: dict[str, object] = {}
 
@@ -112,6 +113,11 @@ class KMSGrabCapture:
         self,
         zone_centers: list[tuple[int, int]] | None = None,
     ) -> np.ndarray:
+        if self._use_kwin_only:
+            fallback_rgb = self._fallback.capture()
+            self.last_capture_path = "kwin-dbus"
+            return fallback_rgb
+
         if (
             self._drm_zone_sampler is not None
             and zone_centers is not None
@@ -146,6 +152,7 @@ class KMSGrabCapture:
             )
             fallback_rgb = self._fallback.capture()
             self.last_capture_path = "kwin-dbus"
+            self._use_kwin_only = True
             return fallback_rgb
 
     def _capture_drm_rgb(self) -> np.ndarray:

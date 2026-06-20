@@ -1,4 +1,4 @@
-# Nanoleaf Screen Mirror for KDE (v1.7.1)
+# Nanoleaf Screen Mirror for KDE (v1.7.2)
 
 Personal-first Nanoleaf USB screen mirroring app for KDE Plasma 6 on Linux.
 
@@ -13,13 +13,22 @@ This repo is intentionally lean: app code, packaging, and only practical docs ne
 
 ## Install (Arch / CachyOS)
 
+**Recommended (pacman / paru updates):**
+
 ```bash
-paru -S --needed python-dacite
-cd packaging/arch
-makepkg -si
+paru -S --needed python-dacite nanoleaf-kde-sync
 ```
 
-Install udev rule after package install:
+After the package is published on AUR, normal system updates (`paru -Syu`) keep the app current.
+
+**Local checkout build (development or pre-AUR):**
+
+```bash
+paru -S --needed python-dacite
+./scripts/build_arch_package.sh
+```
+
+Install udev rules after package install:
 
 ```bash
 ./scripts/setup_udev.sh
@@ -69,7 +78,7 @@ On Plasma HDR desktops, verify SDR white reference and compositor HDR settings i
 
 ## Fresh install / reinstall / uninstall helpers
 
-Local checkout helpers:
+Pacman-managed reinstall from a local checkout:
 
 ```bash
 ./scripts/reinstall_local.sh
@@ -77,6 +86,8 @@ Local checkout helpers:
 # optional full purge:
 ./scripts/uninstall_local.sh --purge-config
 ```
+
+See [Arch / AUR packaging](docs/PACKAGING_AUR.md) for maintainer and AUR publish steps.
 
 Reinstall helper stops old tray/service processes first to avoid stale runtime loops and HID handles.
 

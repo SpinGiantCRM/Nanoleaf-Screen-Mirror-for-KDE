@@ -600,6 +600,7 @@ def export_sampling_overlay(
 
     out_dir = Path(tempfile.gettempdir()) / "nanoleaf-kde-sync"
     out_dir.mkdir(parents=True, exist_ok=True)
+    # nosemgrep: python.lang.security.audit.insecure-file-permissions.insecure-file-permissions
     os.chmod(out_dir, 0o700)
     stamp = int(time.time())
     mode = "synthetic-test" if synthetic else "live-captured"
@@ -616,6 +617,7 @@ def export_zone_report(*, rows: Sequence[dict[str, object]]) -> Path:
         )
     out_dir = Path(tempfile.gettempdir()) / "nanoleaf-kde-sync"
     out_dir.mkdir(parents=True, exist_ok=True)
+    # nosemgrep: python.lang.security.audit.insecure-file-permissions.insecure-file-permissions
     os.chmod(out_dir, 0o700)
     path = out_dir / f"zone-report-{int(time.time())}.csv"
     base_fields = [
@@ -670,6 +672,7 @@ def export_latency_report(*, status: dict) -> Path:
 
     out_dir = Path(tempfile.gettempdir()) / "nanoleaf-kde-sync"
     out_dir.mkdir(parents=True, exist_ok=True)
+    # nosemgrep: python.lang.security.audit.insecure-file-permissions.insecure-file-permissions
     os.chmod(out_dir, 0o700)
     path = out_dir / f"latency-breakdown-{int(time.time())}.csv"
     with path.open("w", newline="", encoding="utf-8") as fh:

@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.7.2 — Mirroring Fix, Stale kmsgrab Cache, Arch Packaging
+
+**Fixes screen mirroring when a stale kmsgrab auto-probe cache survives without DRM bindings; migrates install path to pacman/AUR.**
+
+### Runtime fixes
+- Invalidate cached or fresh-probe `kmsgrab` winner when DRM/bindings are unavailable; fall back to `kwin-dbus`
+- `KMSGrabCapture` sticky kwin-dbus fallback after first DRM failure (no per-frame double capture)
+- Service self-heals probe cache to `kwin-dbus` after sustained runtime fallback
+- Doctor warns when cached `kmsgrab` is stale with reset/remediation guidance
+
+### Packaging
+- Added `scripts/build_arch_package.sh` and rewrote `reinstall_local.sh` for pacman (PEP 668 safe)
+- Added `docs/PACKAGING_AUR.md` and `packaging/arch/.SRCINFO` for AUR publish
+- README install path: `paru -S nanoleaf-kde-sync` + local `./scripts/build_arch_package.sh`
+
+### CI
+- Semgrep nosemgrep annotations for intentional restrictive chmod on diagnostic export dirs
+
 ## v1.7.1 — CI Green, Pre-commit, and Audit Cleanup
 
 **Restores a green CI/pre-commit baseline after the v1.7.0 tooling expansion, with lint debt cleared and small runtime/tooling hardening.**

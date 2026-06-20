@@ -214,3 +214,31 @@ def test_one_shot_diagnostic_capture_does_not_pollute_live_latency_metrics() -> 
     assert result["ok"] is True
     status = svc.get_status()
     assert status["latency_measurement"] is None
+
+
+def test_get_status_heals_stale_kmsgrab_probe_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    saved: dict[str, AppConfig] = {}
+
+    class _FakeConfigManager:
+        def save(self, cfg: AppConfig) -> None:
+            saved["config"] = cfg
+
+    class _KmsCapture:
+        name = "kmsgrab"
+        last_capture_path = "kwin-dbus"
+
+        def close(self) -> None:
+            pass
+
+    cfg = AppConfig(prefer_backend="auto", auto_selected_backend="kmsgrab")
+    svc = NanoleafSyncService(config=cfg)
+    svc._capture = _KmsCapture()
+    monkeypatch.setattr("nanoleaf_sync.service.ConfigManager", _FakeConfigManager)
+
+    for frames in (1, 2, 3):
+        svc._runtime.frames_sent = frames
+        svc.get_status()
+
+    assert "config" in saved
+    assert saved["config"].auto_selected_backend == "kwin-dbus"
+    assert svc.config.auto_selected_backend == "kwin-dbus"

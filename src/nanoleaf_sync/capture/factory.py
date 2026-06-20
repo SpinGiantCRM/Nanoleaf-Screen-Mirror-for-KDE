@@ -195,6 +195,14 @@ def _resolve_auto_backend() -> str:
     return "kwin-dbus"
 
 
+def cached_probe_winner_is_viable(value: str | None) -> bool:
+    if not is_valid_probe_candidate(value):
+        return False
+    if value == KMSGRAB_BACKEND:
+        return _has_drm_device() and _kmsgrab_bindings_available()
+    return True
+
+
 def _env_bool(var_name: str) -> bool | None:
     raw = os.environ.get(var_name)
     if raw is None:
@@ -260,7 +268,7 @@ def _resolve_auto_backend_with_probe(
 
     with _cached_probe_winner_lock:
         cached = cached_probe_winner or _cached_probe_winner
-    if is_valid_probe_candidate(cached):
+    if is_valid_probe_candidate(cached) and cached_probe_winner_is_viable(cached):
         _set_last_auto_probe_report(
             [
                 _probe_row(
@@ -275,6 +283,11 @@ def _resolve_auto_backend_with_probe(
         )
         logger.info("capture auto-probe using cached winner=%s", cached)
         return str(cached)
+    if is_valid_probe_candidate(cached):
+        logger.warning(
+            "capture auto-probe cached winner=%s is no longer viable; re-probing",
+            cached,
+        )
 
     candidates = list(AUTO_PROBE_CANDIDATES)
     logger.info("capture auto-probe candidates=%s", ", ".join(candidates))
@@ -289,16 +302,27 @@ def _resolve_auto_backend_with_probe(
         logger.info("capture auto-probe tested candidates=%s", tested)
 
         if result.selected_backend is not None:
+            winner = str(result.selected_backend)
+            if not cached_probe_winner_is_viable(winner):
+                logger.warning(
+                    "capture auto-probe selected winner=%s is not viable; "
+                    "using capability fallback=%s",
+                    winner,
+                    fallback,
+                )
+                return fallback
             with _cached_probe_winner_lock:
                 current_cached = _cached_probe_winner
-                if is_valid_probe_candidate(current_cached):
+                if is_valid_probe_candidate(current_cached) and cached_probe_winner_is_viable(
+                    current_cached
+                ):
                     logger.info(
                         "capture auto-probe cache updated by peer; winner=%s", current_cached
                     )
                     return str(current_cached)
-                _cached_probe_winner = result.selected_backend
-            logger.info("capture auto-probe selected winner=%s", result.selected_backend)
-            return result.selected_backend
+                _cached_probe_winner = winner
+            logger.info("capture auto-probe selected winner=%s", winner)
+            return winner
 
         logger.warning(
             "capture auto-probe yielded no qualified backend; using capability fallback=%s",

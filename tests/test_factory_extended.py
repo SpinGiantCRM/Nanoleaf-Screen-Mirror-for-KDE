@@ -226,3 +226,83 @@ def test_kmsgrab_bindings_not_available(monkeypatch: pytest.MonkeyPatch) -> None
 
     monkeypatch.setattr(builtins, "__import__", _fail_kmsgrab)
     assert _kmsgrab_bindings_available() is False
+
+
+def test_cached_probe_winner_is_viable_kmsgrab_requires_bindings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reset_capability_check_cache()
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.factory._has_drm_device",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.factory._kmsgrab_bindings_available",
+        lambda: False,
+    )
+    from nanoleaf_sync.capture.factory import cached_probe_winner_is_viable
+
+    assert cached_probe_winner_is_viable("kmsgrab") is False
+    assert cached_probe_winner_is_viable("kwin-dbus") is True
+
+
+def test_resolve_auto_backend_ignores_stale_kmsgrab_cache(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reset_cached_probe_winner()
+    reset_capability_check_cache()
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.factory._has_drm_device",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.factory._kmsgrab_bindings_available",
+        lambda: False,
+    )
+
+    def _probe_fail(*_args, **_kwargs):
+        raise RuntimeError("probe unavailable")
+
+    monkeypatch.setattr("nanoleaf_sync.capture.auto_probe.probe_backends", _probe_fail)
+    from nanoleaf_sync.capture.factory import _resolve_auto_backend_with_probe
+
+    result = _resolve_auto_backend_with_probe(
+        width=320,
+        height=180,
+        auto_probe_enabled=True,
+        cached_probe_winner="kmsgrab",
+    )
+    assert result == "kwin-dbus"
+
+
+def test_resolve_auto_backend_rejects_nonviable_fresh_probe_winner(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reset_cached_probe_winner()
+    reset_capability_check_cache()
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.factory._has_drm_device",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.factory._kmsgrab_bindings_available",
+        lambda: False,
+    )
+
+    class _ProbeResult:
+        selected_backend = "kmsgrab"
+        candidates: list[object] = []
+
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.auto_probe.probe_backends",
+        lambda *_args, **_kwargs: _ProbeResult(),
+    )
+    from nanoleaf_sync.capture.factory import _resolve_auto_backend_with_probe
+
+    result = _resolve_auto_backend_with_probe(
+        width=320,
+        height=180,
+        auto_probe_enabled=True,
+        cached_probe_winner=None,
+    )
+    assert result == "kwin-dbus"

@@ -146,6 +146,30 @@ def test_probe_status_auto_no_cache() -> None:
     assert "no cached winner" in result.message
 
 
+def test_probe_status_warns_on_stale_kmsgrab_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    from nanoleaf_sync.capture.factory import reset_capability_check_cache
+
+    reset_capability_check_cache()
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.factory._has_drm_device",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.factory._kmsgrab_bindings_available",
+        lambda: False,
+    )
+    result = _check_probe_status(
+        AppConfig(
+            prefer_backend="auto",
+            auto_selected_backend="kmsgrab",
+            auto_probe_enabled=True,
+        )
+    )
+    assert result.status == "warn"
+    assert "cached_winner=kmsgrab is stale" in result.message
+    assert "nanoleaf-kde-sync-reset diagnostics" in (result.action or "")
+
+
 def test_probe_status_auto_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("NANOLEAF_DISABLE_CAPTURE_PROBE", "true")
     result = _check_probe_status(AppConfig(prefer_backend="auto", auto_probe_enabled=False))

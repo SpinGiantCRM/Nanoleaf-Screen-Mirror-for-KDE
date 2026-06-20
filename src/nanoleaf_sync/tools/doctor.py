@@ -23,7 +23,10 @@ from nanoleaf_sync.capture.backend_selection import (
     XDG_PORTAL_BACKEND,
     normalize_backend_preference,
 )
-from nanoleaf_sync.capture.factory import auto_probe_effective_state
+from nanoleaf_sync.capture.factory import (
+    auto_probe_effective_state,
+    cached_probe_winner_is_viable,
+)
 from nanoleaf_sync.compat.kde_version import (
     format_version_tuple,
     get_kwin_version,
@@ -401,6 +404,18 @@ def _check_probe_status(config: AppConfig) -> DoctorCheck:
     policy = str(getattr(config, "auto_probe_policy", "on-change") or "on-change").strip()
     configured_enabled = bool(getattr(config, "auto_probe_enabled", True))
     effective_enabled, effective_reason = auto_probe_effective_state(configured_enabled)
+
+    if cached == "kmsgrab" and not cached_probe_winner_is_viable(cached):
+        return DoctorCheck(
+            "probe-status",
+            "warn",
+            (
+                f"Auto-probe cached_winner=kmsgrab is stale: kmsgrab bindings are unavailable "
+                f"(effective_enabled={effective_enabled} effective_reason={effective_reason})."
+            ),
+            "Run `nanoleaf-kde-sync-reset diagnostics --stop-runtime` or set "
+            '`prefer_backend = "kwin-dbus"` in config.toml.',
+        )
 
     if cached:
         return DoctorCheck(

@@ -179,6 +179,8 @@ class NanoleafSyncService:
         self._cached_probe_winner: str | None = None
         self._selection_reason: str = "fallback"
         self._effective_capture_backend: str | None = None
+        self._kmsgrab_fallback_streak = 0
+        self._probe_heal_last_frames = 0
         self._device_discovered = False
         self._device_model: str | None = None
         self._device_zone_count: int | None = None
@@ -334,6 +336,7 @@ class NanoleafSyncService:
         status.update(default_kde_display_metadata())
         status["kde_upgrade_report"] = self._kde_upgrade_report
         status["kde_upgrade_notice"] = self.kde_upgrade_notice or ""
+        self._maybe_heal_stale_probe_cache()
         detected_display = detect_primary_screen_dims()
         if detected_display is not None:
             status["kde_display_width"] = int(detected_display[0])
@@ -698,6 +701,49 @@ class NanoleafSyncService:
             if claimed_each_boot_probe:
                 self._finish_each_boot_probe(success=False)
             raise
+
+    def _maybe_heal_stale_probe_cache(self) -> None:
+        if normalize_capture_backend(self.config.prefer_backend, default="auto") != "auto":
+            return
+        if str(getattr(self.config, "auto_selected_backend", "") or "") != "kmsgrab":
+            return
+        if self._capture is None or getattr(self._capture, "name", None) != "kmsgrab":
+            return
+        capture_path = getattr(self._capture, "last_capture_path", None)
+        if capture_path != "kwin-dbus":
+            self._kmsgrab_fallback_streak = 0
+            return
+        frames_sent = int(self._runtime.frames_sent or 0)
+        if frames_sent <= self._probe_heal_last_frames:
+            return
+        self._probe_heal_last_frames = frames_sent
+        self._kmsgrab_fallback_streak += 1
+        if self._kmsgrab_fallback_streak < 3:
+            return
+        if self._capture_backend_override is not None:
+            return
+
+        signature = _build_auto_probe_signature(self._capture_width, self._capture_height)
+        healed_winner = "kwin-dbus"
+        updated_config = replace(
+            self.config,
+            auto_selected_backend=healed_winner,
+            auto_probe_signature=signature,
+            auto_probe_timestamp=datetime.now(UTC).isoformat(),
+        )
+        try:
+            ConfigManager().save(updated_config)
+        except Exception as exc:
+            logger.warning("Failed to persist healed auto-probe cache metadata: %s", exc)
+            return
+        self.config = updated_config
+        self._cached_probe_winner = healed_winner
+        self._selection_reason = "cached-probe"
+        self._kmsgrab_fallback_streak = 0
+        logger.info(
+            "Healed stale kmsgrab auto-probe cache; persisted winner=%s after runtime fallback",
+            healed_winner,
+        )
 
     def _run_runtime(self) -> None:
         run_runtime_engine(
