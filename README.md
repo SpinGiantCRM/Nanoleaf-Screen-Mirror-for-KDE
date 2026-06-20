@@ -1,27 +1,25 @@
-# Nanoleaf Screen Mirror for KDE (v1.7.3)
+# Nanoleaf Screen Mirror for KDE
 
-Personal-first Nanoleaf USB screen mirroring app for KDE Plasma 6 on Linux.
+Public Nanoleaf USB screen mirroring app for KDE Plasma 6 on Linux (Arch / CachyOS and other distros via source install).
 
-This repo is intentionally lean: app code, packaging, and only practical docs needed to install/run/troubleshoot.
+Mirrors your display edge colors to supported Nanoleaf USB strips in real time, with a tray app, setup wizard, calibration, and diagnostics.
 
-## What it does
+## What you need
 
-- Captures your active display on KDE Plasma 6
-- Samples edge/zone colors
-- Streams colors to supported Nanoleaf USB strips (`NL82K1`, `NL82K2`)
-- Provides a tray app + settings + first-run display setup
+- Linux with KDE Plasma 6 (Wayland recommended)
+- A supported Nanoleaf USB strip: `NL82K1` (`0x37fa:0x8201`) or `NL82K2` (`0x37fa:0x8202`)
+- USB permissions via udev (see [Hardware setup](docs/HARDWARE_SETUP.md))
 
 ## Install (Arch / CachyOS)
 
-**Recommended (pacman / paru updates):**
+**When published on AUR:**
 
 ```bash
 paru -S --needed python-dacite nanoleaf-kde-sync
+paru -Syu
 ```
 
-After the package is published on AUR, normal system updates (`paru -Syu`) keep the app current.
-
-**Local checkout build (development or pre-AUR):**
+**Until AUR account is available — local build from this repo:**
 
 ```bash
 paru -S --needed python-dacite
@@ -68,6 +66,8 @@ nanoleaf-kde-sync-service
 
 Manual strip count is authoritative for runtime, mapping, and calibration. Device-reported count is diagnostics-only unless you explicitly apply a new value.
 
+See the [User guide](docs/USER_GUIDE.md) for a full walkthrough.
+
 ## HDR / SDR notes
 
 - `Display preset = SDR`: SDR-safe defaults.
@@ -89,8 +89,6 @@ Pacman-managed reinstall from a local checkout:
 
 See [Arch / AUR packaging](docs/PACKAGING_AUR.md) for maintainer and AUR publish steps.
 
-Reinstall helper stops old tray/service processes first to avoid stale runtime loops and HID handles.
-
 ## Reset commands
 
 ```bash
@@ -99,19 +97,20 @@ nanoleaf-kde-sync-reset calibration --stop-runtime
 nanoleaf-kde-sync-reset diagnostics --stop-runtime
 ```
 
-- `app-config`: full config reset.
-- `calibration`: anchors/mapping/calibration payload only.
-- `diagnostics`: probe/latency/wizard draft caches only.
+## Documentation
 
-## Practical docs
-
+- [User guide](docs/USER_GUIDE.md)
 - [Hardware setup](docs/HARDWARE_SETUP.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Smoke test](docs/SMOKE_TEST.md)
+- [Security](docs/SECURITY.md)
+- [Contributing](CONTRIBUTING.md)
+
+Installed packages also ship docs under `/usr/share/doc/nanoleaf-kde-sync/`.
 
 ## Release gate
 
-Only CI needs to pass before release.
+Run `./scripts/release_gate.sh` before tagging a release. CI must be green on `main`.
 
 ## Developer setup
 
@@ -135,24 +134,6 @@ pre-commit run --all-files
 - Device strip count auto-detection is diagnostics-only; not auto-applied.
 - Desktop-entry launch context is still preferred for reliable KWin authorization.
 
+## License
 
-## Ambient color model defaults
-
-The daily-use default is now tuned for stable ambient glow rather than precision-debug sampling:
-
-- Layout: `edge_strip`
-- Edge locality: `balanced` (default for stability; `tight` remains available for precision diagnostics)
-- Quality: `high`
-- Motion: `responsive`
-- Color style: `ambient` (recommended)
-- Display preset: `hdr`
-
-Color styles:
-- **Reference / Natural**: color-accurate, neutral-preserving, chroma-capped.
-- **Ambient**: recommended Nanoleaf-like stable glow with neutral luminance floor.
-- **Vivid**: richer color with controlled chroma boost.
-- **Punchy**: strongest stylized response.
-
-Grey/white edge content now drives neutral luminance directly, so medium greys produce visible neutral light instead of collapsing toward black.
-
-Diagnostics include edge-locality and colour-accuracy summaries (input/output RGB, perceptual lightness/chroma ratio, hue delta, neutral preservation), plus HDR/SDR compositor context.
+Source-available non-commercial license — see [LICENSE](LICENSE). Redistribution terms apply; read before packaging or mirroring.

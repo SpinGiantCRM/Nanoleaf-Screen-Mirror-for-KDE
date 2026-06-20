@@ -19,9 +19,19 @@ _log = logging.getLogger(__name__)
 _GAMUT_ADAPTATION_MATRIX: np.ndarray | None = None
 _GAMUT_ADAPTATION_MATRIX_T: np.ndarray | None = None
 _GAMUT_LOCK = threading.Lock()
+_SKIP_DISPLAY_GAMUT: bool = False
 
 
-def init_gamut_adaptation(display_gamut: str) -> None:
+def set_skip_display_gamut_adaptation(skip: bool) -> None:
+    global _SKIP_DISPLAY_GAMUT
+    _SKIP_DISPLAY_GAMUT = bool(skip)
+
+
+def init_gamut_adaptation(
+    display_gamut: str,
+    *,
+    custom_chromaticities: tuple[float, float, float, float, float, float] | None = None,
+) -> None:
     """Initialise the gamut adaptation matrix from display primaries → sRGB.
 
     Called once at pipeline start with the config ``display_gamut`` value.
@@ -33,14 +43,29 @@ def init_gamut_adaptation(display_gamut: str) -> None:
 
     from nanoleaf_sync.color.primaries import (
         CHROMATICITIES_SRGB,
+        Chromaticities,
         build_adaptation_matrix,
         get_display_primaries,
     )
 
     gamut = str(display_gamut or "auto").strip().lower()
 
-    src = get_display_primaries() if gamut == "auto" else None
-    if src is None and gamut != "auto":
+    src: Chromaticities | None
+    if gamut == "custom" and custom_chromaticities is not None:
+        rx, ry, gx, gy, bx, by = custom_chromaticities
+        src = Chromaticities(
+            rx=float(rx),
+            ry=float(ry),
+            gx=float(gx),
+            gy=float(gy),
+            bx=float(bx),
+            by=float(by),
+            wx=0.3127,
+            wy=0.3290,
+        )
+    elif gamut == "auto":
+        src = get_display_primaries()
+    else:
         from nanoleaf_sync.color.primaries import get_primaries_for_gamut
 
         src = get_primaries_for_gamut(gamut)
@@ -48,8 +73,8 @@ def init_gamut_adaptation(display_gamut: str) -> None:
     if src is None:
         if gamut == "custom":
             _log.warning(
-                "Gamut adaptation: 'custom' display gamut selected but user "
-                "chromaticities are not yet supported; using identity (sRGB)"
+                "Gamut adaptation: 'custom' display gamut selected but chromaticities "
+                "are missing; using identity (sRGB)"
             )
         else:
             _log.debug("Gamut adaptation: no display primaries detected; using identity (sRGB)")
@@ -145,6 +170,31 @@ class LedCalibration:
     neutral_luminance_gain: float = 1.0
     black_luminance_cutoff: float = 0.0032
     black_luminance_knee: float = 0.0024
+    color_matrix: tuple[float, ...] = ()
+
+
+def apply_display_gamut_adaptation(colors: np.ndarray) -> np.ndarray:
+    if _SKIP_DISPLAY_GAMUT:
+        return colors
+    rgb = np.clip(np.rint(colors), 0.0, 255.0).astype(np.uint8, copy=False)
+    linear = srgb_u8_to_linear01(rgb)
+    with _GAMUT_LOCK:
+        matrix_t = _GAMUT_ADAPTATION_MATRIX_T
+    if matrix_t is None:
+        return colors.astype(np.float32, copy=False)
+    linear = np.clip(linear @ matrix_t, 0.0, 1.0)
+    return linear01_to_srgb_u8(linear).astype(np.float32, copy=False)
+
+
+def _planckian_white_balance_gains(temperature: float) -> np.ndarray:
+    wb = float(np.clip(temperature, -1.0, 1.0))
+    if abs(wb) < 1e-6:
+        return np.asarray([1.0, 1.0, 1.0], dtype=np.float32)
+    warm = wb > 0.0
+    scale = abs(wb)
+    if warm:
+        return np.asarray([1.0 + (0.10 * scale), 1.0, 1.0 - (0.06 * scale)], dtype=np.float32)
+    return np.asarray([1.0 - (0.06 * scale), 1.0, 1.0 + (0.10 * scale)], dtype=np.float32)
 
 
 def _linear_to_oklab(linear_rgb: np.ndarray) -> np.ndarray:
@@ -189,13 +239,6 @@ def apply_color_style_mapping_with_diagnostics(
     style = STYLE_PROFILES.get(str(color_style).strip().lower(), STYLE_PROFILES["ambient"])
     rgb = np.clip(np.rint(colors), 0.0, 255.0).astype(np.uint8, copy=False)
     linear = srgb_u8_to_linear01(rgb)
-
-    # Apply display-gamut → sRGB adaptation in linear space.
-    with _GAMUT_LOCK:
-        matrix_t = _GAMUT_ADAPTATION_MATRIX_T
-    if matrix_t is not None:
-        linear = np.clip(linear @ matrix_t, 0.0, 1.0)
-        rgb = linear01_to_srgb_u8(linear)
 
     y = np.clip(
         (0.2126 * linear[..., 0]) + (0.7152 * linear[..., 1]) + (0.0722 * linear[..., 2]),
@@ -264,10 +307,15 @@ def apply_led_calibration(colors: np.ndarray, calibration: LedCalibration) -> np
     )
     rgb *= np.clip(gains, 0.5, 1.5)
 
-    wb = float(np.clip(calibration.white_balance_temperature, -1.0, 1.0))
-    if abs(wb) > 1e-6:
-        wb_gain = np.asarray([1.0 + (0.12 * wb), 1.0, 1.0 - (0.12 * wb)], dtype=np.float32)
-        rgb *= wb_gain
+    matrix_values = tuple(float(v) for v in (calibration.color_matrix or ()))
+    if len(matrix_values) == 9:
+        linear = srgb_u8_to_linear01(np.clip(np.rint(rgb), 0.0, 255.0).astype(np.uint8, copy=False))
+        matrix = np.asarray(matrix_values, dtype=np.float32).reshape(3, 3)
+        linear = np.clip(linear @ matrix.T, 0.0, 1.0)
+        rgb = linear01_to_srgb_u8(linear).astype(np.float32)
+
+    wb_gain = _planckian_white_balance_gains(float(calibration.white_balance_temperature))
+    rgb *= wb_gain
 
     rgb8 = np.clip(np.rint(rgb), 0.0, 255.0).astype(np.uint8, copy=False)
     lum, c, h = rgb_u8_to_oklch(rgb8)

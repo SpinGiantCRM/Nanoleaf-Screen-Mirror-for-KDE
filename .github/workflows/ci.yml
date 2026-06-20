@@ -17,6 +17,8 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
     timeout-minutes: 30
+    env:
+      QT_QPA_PLATFORM: offscreen
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -53,7 +55,21 @@ jobs:
         run: python scripts/check_calibration_guardrails.py --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.sha }}"
 
       - name: Run tests
-        run: pytest -q --timeout=60 --timeout-method=thread --durations=25 --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=70
+        run: pytest -q --timeout=60 --timeout-method=thread --durations=25 --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=75
+
+  arch-metadata:
+    name: Arch package metadata
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:archlinux
+      options: --privileged
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate Arch package metadata
+        uses: ./.github/actions/arch-metadata-validation
 
   gitleaks:
     name: Gitleaks (secrets)
@@ -89,6 +105,8 @@ jobs:
     name: Semgrep SAST
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      security-events: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -99,7 +117,7 @@ jobs:
           audit_on: push
           generate_sarif: true
       - name: Upload SARIF
-        if: always()
+        if: always() && hashFiles('semgrep.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep.sarif

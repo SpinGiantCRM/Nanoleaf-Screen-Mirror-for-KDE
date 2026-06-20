@@ -31,6 +31,7 @@ from nanoleaf_sync.desktop_entry import (
     redact_launch_token,
     user_autostart_path,
 )
+from nanoleaf_sync.doc_paths import resolve_user_doc, user_doc_url
 from nanoleaf_sync.runtime.output_session import OutputSessionController
 from nanoleaf_sync.runtime.readiness_check import (
     CONFIG_PROBLEM_STATUS,
@@ -160,6 +161,7 @@ class NanoleafTrayApp:
         self.QLabel = qt["QLabel"]
         self.QPushButton = qt["QPushButton"]
         self.QVBoxLayout = qt["QVBoxLayout"]
+        self.QHBoxLayout = qt["QHBoxLayout"]
         self.QTimer = qt["QTimer"]
         self.QMessageBox = qt["QMessageBox"]
         self.Qt = qt["Qt"]
@@ -473,7 +475,6 @@ class NanoleafTrayApp:
         ):
             if candidate.exists():
                 fallback_icon = self.QIcon(str(candidate))
-                str(candidate)
                 break
 
         idle_icon = themed_idle if not themed_idle.isNull() else fallback_icon
@@ -921,7 +922,7 @@ class NanoleafTrayApp:
         if callable(close_preview):
             close_preview(resume_service=False)
         if not accepted:
-            if was_running:
+            if was_running and not dlg.settings_applied_in_session():
                 self.on_start()
             return
 
@@ -936,8 +937,8 @@ class NanoleafTrayApp:
         _apply_settings_dialog_config(dlg.updated_config())
 
     def on_open_troubleshooting_guide(self) -> None:
-        guide_path = Path(__file__).resolve().parents[3] / "docs" / "TROUBLESHOOTING.md"
-        if guide_path.exists():
+        guide_path = resolve_user_doc("TROUBLESHOOTING.md")
+        if guide_path is not None:
             try:
                 opened = subprocess.run(
                     ["xdg-open", str(guide_path)],
@@ -959,6 +960,25 @@ class NanoleafTrayApp:
                     "Unable to open troubleshooting guide with xdg-open: %s", exc, exc_info=True
                 )
 
+        guide_url = user_doc_url("TROUBLESHOOTING.md")
+        if guide_url is not None:
+            try:
+                subprocess.run(
+                    ["xdg-open", guide_url],
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                self.tray_icon.showMessage(
+                    "nanoleaf-kde-sync",
+                    f"Opened troubleshooting guide online:\n{guide_url}",
+                    self.QSystemTrayIcon.MessageIcon.Information,
+                    5000,
+                )
+                return
+            except Exception as exc:
+                _log.warning("Unable to open online troubleshooting guide: %s", exc, exc_info=True)
+
         self.QMessageBox.information(
             None,
             "nanoleaf-kde-sync troubleshooting",
@@ -967,7 +987,8 @@ class NanoleafTrayApp:
                 "• Advanced / Troubleshooting\n"
                 "• Run Doctor\n"
                 "• Run Smoke Test\n\n"
-                "If those checks fail, open docs/TROUBLESHOOTING.md in the project source."
+                "Online guide:\n"
+                f"{guide_url or 'https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE'}"
             ),
         )
 
@@ -1014,13 +1035,40 @@ class NanoleafTrayApp:
         )
         dialog = self.QDialog()
         dialog.setWindowTitle("nanoleaf-kde-sync · About / Status")
+        dialog.setMinimumWidth(420)
         layout = self.QVBoxLayout()
         layout.addWidget(self.QLabel(summary))
         details_label = self.QLabel(f"Technical details:\n{details}")
         layout.addWidget(details_label)
+        docs_url = user_doc_url("USER_GUIDE.md") or (
+            "https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE"
+        )
+        docs_label = self.QLabel(
+            f'Documentation: <a href="{docs_url}">User guide &amp; troubleshooting</a>'
+        )
+        set_open_external = getattr(docs_label, "setOpenExternalLinks", None)
+        if callable(set_open_external):
+            set_open_external(True)
+        set_text_format = getattr(docs_label, "setTextFormat", None)
+        if callable(set_text_format):
+            set_text_format(self.Qt.TextFormat.RichText)
+        layout.addWidget(docs_label)
+        button_row = self.QHBoxLayout()
+        copy_button = self.QPushButton("Copy diagnostics summary")
         close_button = self.QPushButton("Close")
+        clipboard_text = f"{summary}\n\nTechnical details:\n{details}"
+
+        def _copy_summary() -> None:
+            clipboard = self.app.clipboard()
+            if clipboard is not None:
+                clipboard.setText(clipboard_text)
+
+        copy_button.clicked.connect(_copy_summary)
         close_button.clicked.connect(dialog.accept)
-        layout.addWidget(close_button)
+        button_row.addWidget(copy_button)
+        button_row.addStretch(1)
+        button_row.addWidget(close_button)
+        layout.addLayout(button_row)
         dialog.setLayout(layout)
         dialog.exec()
         self._refresh_mode_labels()

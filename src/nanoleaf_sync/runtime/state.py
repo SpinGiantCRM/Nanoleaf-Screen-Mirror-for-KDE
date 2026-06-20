@@ -76,6 +76,8 @@ class RuntimeState:
     consecutive_black_frames: int = 0
     total_black_frames: int = 0
     latest_frame_mean_brightness: float = 0.0
+    latest_zone_centers: list[tuple[int, int]] = field(default_factory=list)
+    skip_display_gamut_adaptation: bool = False
 
     def _assert_locked(self) -> None:
         if not self._lock.locked():

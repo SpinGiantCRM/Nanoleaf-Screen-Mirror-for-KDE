@@ -150,6 +150,25 @@ def mapping_preview_visual(
     return " ".join(chunks) + (" …" if len(indices) > limit else "")
 
 
+def strip_corner_diagram(*, active_corner: str | None = None) -> str:
+    active = str(active_corner or "").strip().lower()
+
+    def _mark(label: str, corner_key: str) -> str:
+        if active == corner_key:
+            return f"[{label}*]"
+        return f" {label} "
+
+    return "\n".join(
+        [
+            f"{_mark('TL', 'top_left')}----------------{_mark('TR', 'top_right')}",
+            "|                              |",
+            "|         screen edge          |",
+            "|                              |",
+            f"{_mark('BL', 'bottom_left')}----------------{_mark('BR', 'bottom_right')}",
+        ]
+    )
+
+
 def zone_test_instruction(step: int, total: int) -> str:
     if total <= 0:
         return "No zones available for test mode."

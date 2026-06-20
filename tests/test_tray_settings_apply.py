@@ -15,11 +15,12 @@ class _FakeCfgMgr:
 
 
 class _FakeService:
-    def __init__(self, *, config):
+    def __init__(self, *, config, running=False):
         self.config = config
+        self._running = running
 
     def is_running(self):
-        return False
+        return self._running
 
     def get_status(self):
         return {}
@@ -49,6 +50,29 @@ class _FakeDialog:
 class _FakeDialogCancel(_FakeDialog):
     def exec(self):
         return 0
+
+    def settings_applied_in_session(self):
+        return False
+
+
+class _FakeDialogSaveThenClose(_FakeDialog):
+    def __init__(self, parent, cfg, on_apply=None, **_kwargs):
+        self._cfg = cfg
+        self._on_apply = on_apply
+
+    def exec(self):
+        if callable(self._on_apply):
+            self._on_apply(self.updated_config())
+        return 0
+
+    def settings_applied_in_session(self):
+        return True
+
+    def wants_display_configurator(self):
+        return False
+
+    def updated_config(self):
+        return self._cfg
 
 
 class _FakeDialogRerun(_FakeDialog):
@@ -103,6 +127,31 @@ def test_on_settings_cancel_discards_changes(monkeypatch) -> None:
 
     assert fake_tray.cfg_mgr.saved is None
     assert fake_tray.service.config.device_zone_count == 3
+
+
+def test_on_settings_save_then_close_skips_second_start(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.SettingsDialog", _FakeDialogSaveThenClose)
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.NanoleafSyncService", _FakeService)
+
+    starts = {"count": 0}
+    original_cfg = AppConfig(device_zone_count=3, output_channel_order="rgb")
+    fake_tray = SimpleNamespace(
+        config=original_cfg,
+        cfg_mgr=_FakeCfgMgr(),
+        service=_FakeService(config=original_cfg, running=True),
+        _calibration_dialog=None,
+        QDialog=SimpleNamespace(DialogCode=SimpleNamespace(Accepted=1)),
+        _refresh_mode_labels=lambda: None,
+        _send_calibration_preview=lambda _colors: None,
+        on_stop=lambda: None,
+        on_start=lambda: starts.__setitem__("count", starts["count"] + 1),
+        _close_preview_driver=None,
+    )
+
+    NanoleafTrayApp.on_settings(fake_tray)
+
+    assert starts["count"] == 1
+    assert fake_tray.cfg_mgr.saved is not None
 
 
 def test_on_open_advanced_settings_routes_to_settings_dialog() -> None:

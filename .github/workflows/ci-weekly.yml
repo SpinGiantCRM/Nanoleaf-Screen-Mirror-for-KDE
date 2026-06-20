@@ -32,7 +32,8 @@ jobs:
       - name: Type check
         run: mypy src/nanoleaf_sync --ignore-missing-imports --follow-imports=silent
       - name: pip audit
-        run: pip-audit
-        continue-on-error: true
+        run: pip-audit --path .
       - name: Tests
-        run: pytest -q --timeout=60 --timeout-method=thread --durations=25 --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=70
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: pytest -q --timeout=60 --timeout-method=thread --durations=25 --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=75

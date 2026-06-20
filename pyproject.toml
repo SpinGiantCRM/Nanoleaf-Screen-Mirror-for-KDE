@@ -11,13 +11,13 @@ license = "LicenseRef-Nanoleaf-Source-Available-Non-Commercial"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = [
-  "numpy>=1.21",
-  "PyQt6>=6.0",
-  "dbus-next>=0.2.0",
-  "hidapi>=0.14.0",
-  "dacite>=1.8.1",
-  "tomli-w>=1.0.0",
-  "packaging>=24.0",
+  "numpy>=1.21,<3",
+  "PyQt6>=6.0,<7",
+  "dbus-next>=0.2.0,<1",
+  "hidapi>=0.14.0,<1",
+  "dacite>=1.8.1,<2",
+  "tomli-w>=1.0.0,<2",
+  "packaging>=24.0,<26",
 ]
 
 [project.optional-dependencies]
@@ -109,7 +109,6 @@ warn_unused_ignores = true
 exclude = ["src/nanoleaf_sync/ui/"]
 files = ["src/nanoleaf_sync"]
 
-# Pre-existing typing debt in capture/runtime/device; config+tools are strict.
 [[tool.mypy.overrides]]
 module = [
   "nanoleaf_sync.capture.*",

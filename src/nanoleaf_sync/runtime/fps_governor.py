@@ -15,7 +15,7 @@ _UP_THRESHOLD = 0.60  # utilisation below this for N consecutive frames → step
 _DOWN_THRESHOLD = 0.80  # utilisation above this → step down
 _WINDOW_SIZE = 30
 _WARMUP_FRAMES = 10
-_UP_CONSECUTIVE = 100
+_UP_CONSECUTIVE = 50
 
 
 class FPSGovernor:

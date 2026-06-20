@@ -76,22 +76,16 @@ def test_detect_primary_screen_dims_read_failure(monkeypatch: pytest.MonkeyPatch
 
 
 def test_detect_primary_screen_dims_qt_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
-    """When sysfs fails and PyQt6 is unavailable, return None."""
-    import builtins
-
+    """When sysfs fails and Qt fallback is unavailable, return None."""
     monkeypatch.setattr(
         "nanoleaf_sync.capture.dimensions._detect_primary_screen_dims_sysfs",
         lambda: None,
     )
-    original_import = builtins.__import__
 
-    def _raise_qt_import(name: str, *args: object, **kwargs: object) -> object:
-        if name == "PyQt6":
-            raise ImportError("PyQt6 unavailable in test")
-        return original_import(name, *args, **kwargs)
+    class _UnavailableQt:
+        pass
 
-    monkeypatch.setattr(builtins, "__import__", _raise_qt_import)
-    assert detect_primary_screen_dims() is None
+    assert detect_primary_screen_dims(qt_widgets_module=_UnavailableQt()) is None
 
 
 def test_resolve_capture_dims_default() -> None:

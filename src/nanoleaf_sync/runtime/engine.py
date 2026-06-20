@@ -44,24 +44,27 @@ from nanoleaf_sync.capture.latency_probe import (
 )
 from nanoleaf_sync.color._types import RGBTuple
 from nanoleaf_sync.config.model import AppConfig
-from nanoleaf_sync.config.presets import analyzer_mode_for_presets, motion_profile
+from nanoleaf_sync.runtime.blending import (
+    AdaptiveSmoothingDiagnostics,
+    adaptive_one_euro_blend,
+    apply_neighbor_blend,
+)
 from nanoleaf_sync.runtime.calibration_resolver import (
     CALIBRATION_INCOMPLETE_MESSAGE,
     CALIBRATION_INCOMPLETE_STATUS,
     CALIBRATION_READY_STATUS,
     resolve_calibration_mapping_from_config,
 )
+from nanoleaf_sync.runtime.color_pipeline import (
+    ColorPipelineParams,
+    build_pipeline_params_from_config,
+    process_zone_colors,
+    zone_centers_from_zones_px,
+)
 from nanoleaf_sync.runtime.color_processing import (
     LedCalibration,
-    apply_color_style_mapping,
-    apply_led_calibration,
     color_pipeline_diagnostics,
     init_gamut_adaptation,
-)
-from nanoleaf_sync.runtime.compositor import (
-    apply_sdr_boost_compensation,
-    apply_zone_sdr_boost,
-    effective_sdr_boost,
 )
 from nanoleaf_sync.runtime.fps_governor import FPSGovernor
 from nanoleaf_sync.runtime.processing import zones_from_config
@@ -77,9 +80,23 @@ from nanoleaf_sync.runtime.state import (
     ZoneRect,
 )
 from nanoleaf_sync.runtime.zone_derivation import derive_source_zone_artifacts
-from nanoleaf_sync.runtime.zones import zone_colors_array
 
 logger = logging.getLogger(__name__)
+
+
+def _gamut_init_from_config(config: AppConfig) -> None:
+    gamut = str(getattr(config, "display_gamut", "auto")).strip().lower()
+    custom = None
+    if gamut == "custom":
+        custom = (
+            float(getattr(config, "custom_gamut_red_x", 0.64)),
+            float(getattr(config, "custom_gamut_red_y", 0.33)),
+            float(getattr(config, "custom_gamut_green_x", 0.30)),
+            float(getattr(config, "custom_gamut_green_y", 0.60)),
+            float(getattr(config, "custom_gamut_blue_x", 0.15)),
+            float(getattr(config, "custom_gamut_blue_y", 0.06)),
+        )
+    init_gamut_adaptation(gamut, custom_chromaticities=custom)
 
 
 def _no_pending_frame_rate_per_second(events: int, started_at: float) -> str:
@@ -89,18 +106,9 @@ def _no_pending_frame_rate_per_second(events: int, started_at: float) -> str:
 
 @dataclass
 class PendingFrame:
-    frame: np.ndarray
+    frame: np.ndarray | None
     captured_at: float
-
-
-@dataclass(frozen=True)
-class AdaptiveSmoothingDiagnostics:
-    scene_activity: str
-    median_zone_delta: float
-    max_zone_delta: float
-    min_effective_alpha: float
-    max_effective_alpha: float
-    deadband_active: bool
+    precomputed_zone_colors: np.ndarray | None = None
 
 
 @dataclass(frozen=True)
@@ -159,96 +167,13 @@ def _adaptive_one_euro_blend(
     smoothing_speed: float = 0.75,
     motion_preset: str = "responsive",
 ) -> tuple[np.ndarray, AdaptiveSmoothingDiagnostics]:
-    """
-    Adaptive smoothing blend inspired by the One Euro filter.
-
-    `smoothing` remains user-facing in [0,1]:
-    - 0.0: strongest smoothing at low motion
-    - 1.0: effectively no smoothing
-    """
-    preset = str(motion_preset or "responsive").strip().lower()
-    min_alpha = max(0.0, min(1.0, float(smoothing)))
-    speed_gain = np.clip(float(smoothing_speed) / 4.0, 0.0, 1.0) ** 2
-
-    delta = current - previous
-    zone_delta = np.mean(np.abs(delta), axis=1)
-    if zone_delta.size == 0:
-        diagnostics = AdaptiveSmoothingDiagnostics(
-            scene_activity="static",
-            median_zone_delta=0.0,
-            max_zone_delta=0.0,
-            min_effective_alpha=min_alpha,
-            max_effective_alpha=min_alpha,
-            deadband_active=False,
-        )
-        return current, diagnostics
-
-    deadband = 2.0
-    tiny_blend = 0.08
-    zone_gamma = 1.10
-    scene_boost = {
-        "static": 0.0,
-        "low": 0.22,
-        "medium": 0.44,
-        "high": 0.70,
-    }
-    large_jump = 42.0
-    jump_alpha_min = 0.72
-    if preset == "calm":
-        deadband = 3.0
-        tiny_blend = 0.03
-        zone_gamma = 1.35
-        scene_boost = {"static": 0.0, "low": 0.16, "medium": 0.34, "high": 0.56}
-        large_jump = 50.0
-        jump_alpha_min = 0.58
-    elif preset == "dynamic":
-        deadband = 1.2
-        tiny_blend = 0.14
-        zone_gamma = 0.90
-        scene_boost = {"static": 0.04, "low": 0.30, "medium": 0.55, "high": 0.84}
-        large_jump = 34.0
-        jump_alpha_min = 0.84
-
-    median_delta = float(np.median(zone_delta))
-    mean_delta = float(np.mean(zone_delta))
-    max_delta = float(np.max(zone_delta))
-
-    if median_delta < deadband * 1.15 and mean_delta < deadband * 1.4:
-        scene_activity = "static"
-    elif median_delta < 9.0:
-        scene_activity = "low"
-    elif median_delta < 24.0:
-        scene_activity = "medium"
-    else:
-        scene_activity = "high"
-
-    zone_motion = np.clip((zone_delta - deadband) / max(1e-6, 64.0 - deadband), 0.0, 1.0)
-    zone_motion = np.power(zone_motion, zone_gamma)
-    scene_motion = scene_boost[scene_activity]
-    adaptive_motion = np.maximum(zone_motion, scene_motion)
-    adaptive_motion *= speed_gain
-    alpha_zone = min_alpha + (1.0 - min_alpha) * adaptive_motion
-
-    large_change_mask = zone_delta >= large_jump
-    if large_change_mask.any():
-        fast_floor = jump_alpha_min * (0.65 + 0.35 * speed_gain)
-        alpha_zone = np.where(large_change_mask, np.maximum(alpha_zone, fast_floor), alpha_zone)
-
-    tiny_mask = zone_delta < deadband
-    if tiny_mask.any():
-        alpha_zone = np.where(tiny_mask, np.minimum(alpha_zone, tiny_blend), alpha_zone)
-
-    alpha_rgb = alpha_zone[:, None]
-    blended = alpha_rgb * current + (1.0 - alpha_rgb) * previous
-    diagnostics = AdaptiveSmoothingDiagnostics(
-        scene_activity=scene_activity,
-        median_zone_delta=median_delta,
-        max_zone_delta=max_delta,
-        min_effective_alpha=float(np.min(alpha_zone)),
-        max_effective_alpha=float(np.max(alpha_zone)),
-        deadband_active=bool(tiny_mask.any()),
+    return adaptive_one_euro_blend(
+        current=current,
+        previous=previous,
+        smoothing=smoothing,
+        smoothing_speed=smoothing_speed,
+        motion_preset=motion_preset,
     )
-    return blended, diagnostics
 
 
 def _zones_signature(
@@ -368,13 +293,7 @@ def _ensure_runtime_artifacts(
 
 
 def _apply_neighbor_blend(mapped: np.ndarray, *, spread_mode: str) -> np.ndarray:
-    mode = str(spread_mode or "balanced").strip().lower()
-    weight = {"precise": 0.04, "balanced": 0.12, "soft": 0.24}.get(mode, 0.12)
-    if mapped.shape[0] < 8 or weight <= 0.0:
-        return mapped
-    prev = np.roll(mapped, 1, axis=0)
-    nxt = np.roll(mapped, -1, axis=0)
-    return ((1.0 - (2.0 * weight)) * mapped) + (weight * prev) + (weight * nxt)
+    return apply_neighbor_blend(mapped, spread_mode=spread_mode)
 
 
 def _side_variance_diagnostics(
@@ -426,127 +345,55 @@ def process_frame(
     compositor_hdr_mode: bool = False,
     sdr_boost_nits: float = 80.0,
     hdr_max_nits: float = 1000.0,
+    accuracy_mode: bool = False,
+    skip_display_gamut_adaptation: bool = False,
+    precomputed_zone_colors: np.ndarray | None = None,
     return_diagnostics: bool = False,
+    build_zone_diagnostics: bool = False,
+    led_calibration: LedCalibration | None = None,
 ) -> (
     list[RGBTuple]
     | tuple[list[RGBTuple], np.ndarray, np.ndarray, np.ndarray, FrameProcessingTimings]
 ):
-    """
-    Hot-path frame processing pipeline:
-    capture frame -> zone colors -> map -> brightness/smoothing -> send-ready colors.
-    """
-    if frame is None or not isinstance(frame, np.ndarray):
-        raise RuntimeError(
-            f"Capture returned invalid frame type: {type(frame).__name__}; expected np.ndarray"
-        )
-    if frame.ndim != 3 or frame.shape[2] != 3:
-        raise RuntimeError(
-            f"Capture returned unexpected frame shape: {getattr(frame, 'shape', None)}"
-        )
-
-    timings = FrameProcessingTimings()
-    stage_start = time.perf_counter()
-    boost = effective_sdr_boost(sdr_boost_nits=sdr_boost_nits)
-    if compositor_hdr_mode and abs(boost - 1.0) > 1e-6:
-        frame = apply_sdr_boost_compensation(
-            frame,
-            sdr_boost_nits=sdr_boost_nits,
-            hdr_max_nits=hdr_max_nits,
-        )
-    frame_convert_done = time.perf_counter()
-
-    analyzer_mode = analyzer_mode_for_presets(motion_preset=motion_preset, color_style=color_style)
-    raw_colors = zone_colors_array(
-        frame,
-        zones_px,
-        sample_step=zone_sampling_stride,
-        mode=analyzer_mode,
-        previous_zone_colors=prev_smoothed_colors,
+    """Hot-path frame processing via the unified color pipeline contract."""
+    calibration = led_calibration or LedCalibration(
+        red_gain=red_gain,
+        green_gain=green_gain,
+        blue_gain=blue_gain,
+        led_gamma=led_gamma,
+        white_balance_temperature=white_balance_temperature,
+        chroma_compression=chroma_compression,
+        neutral_luminance_gain=neutral_luminance_gain,
+        black_luminance_cutoff=black_luminance_cutoff,
+        black_luminance_knee=black_luminance_knee,
+    )
+    params = ColorPipelineParams(
+        brightness=brightness,
+        smoothing=smoothing,
+        smoothing_speed=smoothing_speed,
+        zone_sampling_stride=zone_sampling_stride,
+        zone_sampling_engine=zone_sampling_engine,
+        motion_preset=motion_preset,
+        light_spread=light_spread,
+        color_style=color_style,
         edge_locality=edge_locality,
-        engine=zone_sampling_engine,
+        compositor_hdr_mode=compositor_hdr_mode,
+        sdr_boost_nits=sdr_boost_nits,
+        hdr_max_nits=hdr_max_nits,
+        accuracy_mode=accuracy_mode,
+        skip_display_gamut_adaptation=skip_display_gamut_adaptation,
+        led_calibration=calibration,
+        return_diagnostics=return_diagnostics,
+        build_zone_diagnostics=build_zone_diagnostics,
     )
-    if raw_colors.size == 0:
-        return []
-    sampling_done = time.perf_counter()
-
-    if isinstance(device_zone_indices, np.ndarray):
-        zone_indices = device_zone_indices
-    else:
-        zone_indices = np.asarray(device_zone_indices, dtype=np.intp)
-
-    if zone_indices.size == 0:
-        raise RuntimeError(
-            "Device zone mapping is empty; calibration may be incomplete. "
-            "Run the calibration wizard to assign zone positions."
-        )
-
-    mapped = raw_colors[zone_indices].astype(np.float32, copy=False)
-    mapped = apply_color_style_mapping(mapped, color_style=color_style).astype(
-        np.float32, copy=False
+    return process_zone_colors(
+        frame=frame if precomputed_zone_colors is None else None,
+        precomputed_zone_colors=precomputed_zone_colors,
+        prev_smoothed_colors=prev_smoothed_colors,
+        zones_px=zones_px,
+        device_zone_indices=device_zone_indices,
+        params=params,
     )
-    colour_processing_done = time.perf_counter()
-    mapped = _apply_neighbor_blend(mapped, spread_mode=light_spread).astype(np.float32, copy=False)
-
-    b = max(0.0, min(1.0, float(brightness)))
-    if b != 1.0:
-        mapped *= b
-
-    motion = motion_profile(motion_preset)
-    smoothing = max(0.0, min(1.0, float(smoothing) * motion.smoothing_multiplier))
-    smoothing_speed = max(0.0, min(4.0, float(smoothing_speed) * motion.smoothing_speed_multiplier))
-
-    if prev_smoothed_colors:
-        n = min(len(prev_smoothed_colors), mapped.shape[0])
-        if n:
-            prev_arr = np.asarray(prev_smoothed_colors[:n], dtype=np.float32)
-            mapped[:n], _adaptive_diag = _adaptive_one_euro_blend(
-                current=mapped[:n],
-                previous=prev_arr,
-                smoothing=smoothing,
-                smoothing_speed=smoothing_speed,
-                motion_preset=motion_preset,
-            )
-    smoothing_done = time.perf_counter()
-
-    pre_led_calibration = np.array(mapped, copy=True)
-    mapped = apply_led_calibration(
-        mapped,
-        LedCalibration(
-            red_gain=red_gain,
-            green_gain=green_gain,
-            blue_gain=blue_gain,
-            led_gamma=led_gamma,
-            white_balance_temperature=white_balance_temperature,
-            chroma_compression=chroma_compression,
-            neutral_luminance_gain=neutral_luminance_gain,
-            black_luminance_cutoff=black_luminance_cutoff,
-            black_luminance_knee=black_luminance_knee,
-        ),
-    )
-    led_calibration_done = time.perf_counter()
-
-    np.clip(mapped, 0.0, 255.0, out=mapped)
-    np.rint(mapped, out=mapped)
-    out = mapped.astype(np.uint8, copy=False)
-    out_list = [tuple(int(c) for c in row) for row in out.tolist()]
-    output_prepare_done = time.perf_counter()
-    if return_diagnostics:
-        timings = FrameProcessingTimings(
-            frame_convert_ms=(frame_convert_done - stage_start) * 1000.0,
-            zone_sampling_ms=(sampling_done - frame_convert_done) * 1000.0,
-            colour_processing_ms=(colour_processing_done - sampling_done) * 1000.0,
-            smoothing_ms=(smoothing_done - colour_processing_done) * 1000.0,
-            led_calibration_ms=(led_calibration_done - smoothing_done) * 1000.0,
-            output_prepare_ms=(output_prepare_done - led_calibration_done) * 1000.0,
-        )
-        return (
-            out_list,
-            raw_colors.astype(np.uint8, copy=False),
-            pre_led_calibration.astype(np.uint8, copy=False),
-            out,
-            timings,
-        )
-    return out_list
 
 
 def _run_loop_legacy(
@@ -558,7 +405,7 @@ def _run_loop_legacy(
     install_drivers,
     close_backends,
 ) -> None:
-    init_gamut_adaptation(str(getattr(config, "display_gamut", "auto")))
+    _gamut_init_from_config(config)
     fps = max(1, int(config.fps))
     governor = FPSGovernor(initial_fps=fps)
     state.target_fps = governor.target_fps
@@ -1258,7 +1105,7 @@ def _run_loop_pipeline(
     install_drivers,
     close_backends,
 ) -> None:
-    init_gamut_adaptation(str(getattr(config, "display_gamut", "auto")))
+    _gamut_init_from_config(config)
     fps = max(1, int(config.fps))
     governor = FPSGovernor(initial_fps=fps)
     state.target_fps = governor.target_fps
@@ -1269,11 +1116,9 @@ def _run_loop_pipeline(
     startup_frame_timeout_s = max(0.1, float(getattr(config, "startup_frame_timeout_s", 5.0)))
     startup_started_at = time.perf_counter()
 
-    # ---- ring buffers ---------------------------------------------------
-    # Capacity 4 per buffer: absorbs ~33 ms of 120 fps capture jitter
-    # without excessive memory (ProcessedPayload carries several arrays).
-    capture_buf: SPSCRingBuffer[CapturePayload] = SPSCRingBuffer(capacity=4)
-    process_buf: SPSCRingBuffer[ProcessedPayload] = SPSCRingBuffer(capacity=4)
+    # Capacity 2 per buffer: latest-frame semantics with minimal stale buffering.
+    capture_buf: SPSCRingBuffer[CapturePayload] = SPSCRingBuffer(capacity=2)
+    process_buf: SPSCRingBuffer[ProcessedPayload] = SPSCRingBuffer(capacity=2)
 
     # ---- shared cross-thread metrics (lock-protected) -------------------
     metrics_lock = threading.Lock()
@@ -1319,7 +1164,15 @@ def _run_loop_pipeline(
                 backend_name = str(getattr(cap, "name", "unknown"))
                 backend_method = str(getattr(cap, "last_capture_path", "") or "")
                 capture_start = time.perf_counter()
-                frame = cap.capture()
+                zone_centers = list(state.latest_zone_centers)
+                capture_result = None
+                if zone_centers:
+                    try:
+                        capture_result = cap.capture(zone_centers=zone_centers)
+                    except TypeError:
+                        capture_result = cap.capture()
+                else:
+                    capture_result = cap.capture()
                 capture_end = time.perf_counter()
                 call_ms = (capture_end - capture_start) * 1000.0
                 with metrics_lock:
@@ -1331,18 +1184,35 @@ def _run_loop_pipeline(
                             capture_end - last_capture_completed_ts
                         ) * 1000.0
                     last_capture_completed_ts = capture_end
-                if frame is None:
+                if capture_result is None:
                     continue
-                with metrics_lock:
-                    if last_capture_success_ts is not None:
-                        capture_success_interval_ms_latest = (
-                            capture_end - last_capture_success_ts
-                        ) * 1000.0
-                    last_capture_success_ts = capture_end
-                if not capture_buf.try_push(CapturePayload(frame=frame, captured_at=capture_end)):
+                precomputed: np.ndarray | None = None
+                frame: np.ndarray | None = None
+                if (
+                    isinstance(capture_result, np.ndarray)
+                    and capture_result.ndim == 2
+                    and capture_result.shape[1] == 3
+                ):
+                    precomputed = capture_result.astype(np.uint8, copy=False)
+                else:
+                    frame = capture_result
+                if not capture_buf.try_push(
+                    CapturePayload(
+                        captured_at=capture_end,
+                        frame=frame,
+                        precomputed_zone_colors=precomputed,
+                    )
+                ):
                     logger.debug("capture worker: ring buffer full; dropping frame")
                     with metrics_lock:
                         no_pending_frame_events += 1
+                else:
+                    with metrics_lock:
+                        if last_capture_success_ts is not None:
+                            capture_success_interval_ms_latest = (
+                                capture_end - last_capture_success_ts
+                            ) * 1000.0
+                        last_capture_success_ts = capture_end
                 with metrics_lock:
                     capture_worker_failures = 0
             except Exception as exc:
@@ -1365,16 +1235,27 @@ def _run_loop_pipeline(
                 if state.is_reinitializing:
                     time.sleep(0.001)
                     continue
-                payload = capture_buf.pop(timeout=0.01)
+                payload = capture_buf.pop_latest(timeout=0.01)
                 if payload is None:
                     continue
 
                 frame = payload.frame
+                precomputed_zone_colors = payload.precomputed_zone_colors
                 captured_at = payload.captured_at
                 state.first_frame_seen = True
-                img_h, img_w, _ = frame.shape
 
-                mean_brightness = float(np.mean(frame))
+                if frame is not None:
+                    img_h, img_w, _ = frame.shape
+                    mean_brightness = float(np.mean(frame))
+                elif precomputed_zone_colors is not None:
+                    cap_for_dims = get_capture()
+                    cap_params = getattr(cap_for_dims, "params", None)
+                    img_w = int(getattr(cap_params, "width", state.last_frame_width or 480))
+                    img_h = int(getattr(cap_params, "height", state.last_frame_height or 270))
+                    mean_brightness = float(np.mean(precomputed_zone_colors))
+                else:
+                    continue
+
                 state.latest_frame_mean_brightness = mean_brightness
                 if mean_brightness < 2.0:
                     state.consecutive_black_frames += 1
@@ -1428,93 +1309,54 @@ def _run_loop_pipeline(
                     )
                     break
 
-                active_profile = (
-                    getattr(config, "led_calibration_profile_sdr", None)
-                    if str(getattr(config, "display_preset", "hdr")).strip().lower() == "sdr"
-                    else getattr(config, "led_calibration_profile_hdr", None)
+                state.latest_zone_centers = zone_centers_from_zones_px(
+                    zones_px,
+                    frame_width=img_w,
+                    frame_height=img_h,
+                )
+
+                build_diagnostics = bool(
+                    getattr(config, "verbose", False)
+                    or getattr(config, "live_diagnostics_enabled", False)
                 )
                 with metrics_lock:
                     frame_seq += 1
-
-                compositor_hdr = bool(getattr(config, "compositor_hdr_mode", False))
-                sdr_boost = float(getattr(config, "sdr_boost_nits", 80.0))
-                hdr_max = float(getattr(config, "hdr_max_nits", 1000.0))
-
+                cap_backend = get_capture()
+                if cap_backend is not None:
+                    hdr_diag = getattr(cap_backend, "last_hdr_diagnostics", None) or {}
+                    if isinstance(hdr_diag, dict):
+                        state.skip_display_gamut_adaptation = bool(
+                            hdr_diag.get("skip_display_gamut_adaptation", False)
+                        )
+                pipeline_params = build_pipeline_params_from_config(
+                    config,
+                    return_diagnostics=True,
+                    build_zone_diagnostics=build_diagnostics,
+                    skip_display_gamut_adaptation=state.skip_display_gamut_adaptation,
+                )
                 processed = process_frame(
                     frame=frame,
+                    precomputed_zone_colors=precomputed_zone_colors,
                     prev_smoothed_colors=state.prev_smoothed_colors,
                     zones_px=zones_px,
                     device_zone_indices=device_zone_indices,  # type: ignore[arg-type]
-                    brightness=config.brightness,
-                    smoothing=config.smoothing,
-                    smoothing_speed=config.smoothing_speed,
-                    zone_sampling_stride=config.zone_sampling_stride,
-                    zone_sampling_engine=getattr(config, "zone_sampling_engine", "auto"),
-                    led_gamma=float(getattr(active_profile, "led_gamma", config.led_gamma)),
-                    motion_preset=getattr(config, "motion_preset", "responsive"),
-                    light_spread=getattr(config, "light_spread", "balanced"),
-                    red_gain=float(
-                        getattr(
-                            active_profile,
-                            "red_gain",
-                            getattr(config, "red_gain", 1.0),
-                        )
-                    ),
-                    green_gain=float(
-                        getattr(
-                            active_profile,
-                            "green_gain",
-                            getattr(config, "green_gain", 1.0),
-                        )
-                    ),
-                    blue_gain=float(
-                        getattr(
-                            active_profile,
-                            "blue_gain",
-                            getattr(config, "blue_gain", 1.0),
-                        )
-                    ),
-                    white_balance_temperature=float(
-                        getattr(
-                            active_profile,
-                            "white_balance_temperature",
-                            getattr(config, "white_balance_temperature", 0.0),
-                        )
-                    ),
-                    chroma_compression=float(
-                        getattr(
-                            active_profile,
-                            "chroma_compression",
-                            getattr(config, "chroma_compression", 0.0),
-                        )
-                    ),
-                    neutral_luminance_gain=float(
-                        getattr(
-                            active_profile,
-                            "neutral_luminance_gain",
-                            getattr(config, "neutral_luminance_gain", 1.0),
-                        )
-                    ),
-                    black_luminance_cutoff=float(
-                        getattr(
-                            active_profile,
-                            "black_luminance_cutoff",
-                            getattr(config, "black_luminance_cutoff", 0.0032),
-                        )
-                    ),
-                    black_luminance_knee=float(
-                        getattr(
-                            active_profile,
-                            "black_luminance_knee",
-                            getattr(config, "black_luminance_knee", 0.0024),
-                        )
-                    ),
-                    color_style=getattr(config, "color_style", "natural"),
-                    edge_locality=getattr(config, "edge_locality", "balanced"),
-                    compositor_hdr_mode=False,
-                    sdr_boost_nits=sdr_boost,
-                    hdr_max_nits=hdr_max,
+                    compositor_hdr_mode=pipeline_params.compositor_hdr_mode,
+                    sdr_boost_nits=pipeline_params.sdr_boost_nits,
+                    hdr_max_nits=pipeline_params.hdr_max_nits,
+                    accuracy_mode=pipeline_params.accuracy_mode,
+                    skip_display_gamut_adaptation=pipeline_params.skip_display_gamut_adaptation,
+                    brightness=pipeline_params.brightness,
+                    smoothing=pipeline_params.smoothing,
+                    smoothing_speed=pipeline_params.smoothing_speed,
+                    zone_sampling_stride=pipeline_params.zone_sampling_stride,
+                    zone_sampling_engine=pipeline_params.zone_sampling_engine,
+                    motion_preset=pipeline_params.motion_preset,
+                    light_spread=pipeline_params.light_spread,
+                    color_style=pipeline_params.color_style,
+                    edge_locality=pipeline_params.edge_locality,
+                    led_calibration=pipeline_params.led_calibration,
                     return_diagnostics=True,
+                    build_zone_diagnostics=build_diagnostics,
                 )
                 (
                     smoothed_colors,
@@ -1524,100 +1366,90 @@ def _run_loop_pipeline(
                     processing_timings,
                 ) = processed
 
-                # ---- zone-level SDR boost (instead of full-frame) --------
-                if compositor_hdr:
-                    boost = effective_sdr_boost(sdr_boost_nits=sdr_boost)
-                    if abs(boost - 1.0) > 1e-6:
-                        smoothed_arr = np.asarray(smoothed_colors, dtype=np.uint8)
-                        smoothed_arr = apply_zone_sdr_boost(
-                            smoothed_arr,
-                            sdr_boost_nits=sdr_boost,
-                            hdr_max_nits=hdr_max,
-                        )
-                        smoothed_colors = [
-                            tuple(int(c) for c in row) for row in smoothed_arr.tolist()
-                        ]  # type: ignore[misc]
-
-                # Atomic prev_smoothed_colors swap
                 state.prev_smoothed_colors = smoothed_colors  # type: ignore[assignment]
                 state.first_frame_processed = True
                 state.last_frame_width = int(img_w)
                 state.last_frame_height = int(img_h)
-                state.latest_frame_rgb = frame
+                if frame is not None:
+                    state.latest_frame_rgb = frame
                 state.latest_zones_px = list(zones_px)
 
-                # Build zone diagnostics
                 zone_diagnostics: list[dict[str, object]] = []
-                for zone_index, rect in enumerate(zones_px):
-                    sampled_rgb = tuple(int(c) for c in sampled_zone_colors[zone_index].tolist())  # type: ignore[union-attr]
-                    mapped_led_index = None
-                    for led_idx, src_idx in enumerate(device_zone_indices.tolist()):
-                        if int(src_idx) == int(zone_index):
-                            mapped_led_index = led_idx
-                            break
-                    if mapped_led_index is None:
-                        pre_led_rgb = sampled_rgb
-                        final_rgb = sampled_rgb
-                    else:
-                        pre_led_rgb = tuple(
+                if build_diagnostics:
+                    for zone_index, rect in enumerate(zones_px):
+                        sampled_rgb = tuple(
                             int(c)
-                            for c in pre_led_colors[mapped_led_index].tolist()  # type: ignore[union-attr]
+                            for c in sampled_zone_colors[zone_index].tolist()  # type: ignore[union-attr]
                         )
-                        final_rgb = tuple(
-                            int(c)
-                            for c in final_zone_colors[mapped_led_index].tolist()  # type: ignore[union-attr]
+                        mapped_led_index = None
+                        for led_idx, src_idx in enumerate(device_zone_indices.tolist()):
+                            if int(src_idx) == int(zone_index):
+                                mapped_led_index = led_idx
+                                break
+                        if mapped_led_index is None:
+                            pre_led_rgb = sampled_rgb
+                            final_rgb = sampled_rgb
+                        else:
+                            pre_led_rgb = tuple(
+                                int(c)
+                                for c in pre_led_colors[mapped_led_index].tolist()  # type: ignore[union-attr]
+                            )
+                            final_rgb = tuple(
+                                int(c)
+                                for c in final_zone_colors[mapped_led_index].tolist()  # type: ignore[union-attr]
+                            )
+                        top, right, bottom, left = state.latest_zone_side_counts
+                        if zone_index < top:
+                            side = "top"
+                        elif zone_index < top + right:
+                            side = "right"
+                        elif zone_index < top + right + bottom:
+                            side = "bottom"
+                        elif zone_index < top + right + bottom + left:
+                            side = "left"
+                        else:
+                            side = "unknown"
+                        zone_diagnostics.append(
+                            {
+                                "zone_index": zone_index,
+                                "side": side,
+                                "pixel_rect": rect,
+                                "sampled_rgb": sampled_rgb,
+                                "output_rgb_before_led_calibration": pre_led_rgb,
+                                "final_output_rgb": final_rgb,
+                                "mapped_physical_led_index": mapped_led_index,
+                                "input_luminance": color_pipeline_diagnostics(
+                                    input_rgb=sampled_rgb,
+                                    output_rgb=sampled_rgb,
+                                    color_style=str(getattr(config, "color_style", "reference")),
+                                )["sampled_luminance"],
+                                **color_pipeline_diagnostics(
+                                    input_rgb=sampled_rgb,
+                                    output_rgb=final_rgb,
+                                    color_style=str(getattr(config, "color_style", "reference")),
+                                ),
+                                "led_calibration_applied": pre_led_rgb != final_rgb,
+                            }
                         )
-                    top, right, bottom, left = state.latest_zone_side_counts
-                    if zone_index < top:
-                        side = "top"
-                    elif zone_index < top + right:
-                        side = "right"
-                    elif zone_index < top + right + bottom:
-                        side = "bottom"
-                    elif zone_index < top + right + bottom + left:
-                        side = "left"
-                    else:
-                        side = "unknown"
-                    zone_diagnostics.append(
-                        {
-                            "zone_index": zone_index,
-                            "side": side,
-                            "pixel_rect": rect,
-                            "sampled_rgb": sampled_rgb,
-                            "output_rgb_before_led_calibration": pre_led_rgb,
-                            "final_output_rgb": final_rgb,
-                            "mapped_physical_led_index": mapped_led_index,
-                            "input_luminance": color_pipeline_diagnostics(
-                                input_rgb=sampled_rgb,
-                                output_rgb=sampled_rgb,
-                                color_style=str(getattr(config, "color_style", "reference")),
-                            )["sampled_luminance"],
-                            **color_pipeline_diagnostics(
-                                input_rgb=sampled_rgb,
-                                output_rgb=final_rgb,
-                                color_style=str(getattr(config, "color_style", "reference")),
-                            ),
-                            "led_calibration_applied": pre_led_rgb != final_rgb,
-                        }
+                    side_var = _side_variance_diagnostics(
+                        sampled=sampled_zone_colors,  # type: ignore[arg-type]
+                        final=final_zone_colors,  # type: ignore[arg-type]
+                        side_counts=state.latest_zone_side_counts,
                     )
-                side_var = _side_variance_diagnostics(
-                    sampled=sampled_zone_colors,  # type: ignore[arg-type]
-                    final=final_zone_colors,  # type: ignore[arg-type]
-                    side_counts=state.latest_zone_side_counts,
-                )
-                for row in zone_diagnostics:
-                    row["side_variance"] = side_var.get(str(row.get("side")), {})  # type: ignore[attr-defined]
-                    row["processing_flattened_side"] = bool(
-                        row["side_variance"].get("processing_flattened", False)  # type: ignore[attr-defined]
-                    )
-                state.latest_zone_diagnostics = zone_diagnostics
-                state.latest_side_variance_diagnostics = side_var
+                    for row in zone_diagnostics:
+                        row["side_variance"] = side_var.get(str(row.get("side")), {})  # type: ignore[attr-defined]
+                        row["processing_flattened_side"] = bool(
+                            row["side_variance"].get("processing_flattened", False)  # type: ignore[attr-defined]
+                        )
+                    state.latest_zone_diagnostics = zone_diagnostics
+                    state.latest_side_variance_diagnostics = side_var
+                else:
+                    side_var = {}
 
                 pushed = process_buf.push(
                     ProcessedPayload(
                         smoothed_colors=smoothed_colors,  # type: ignore[arg-type]
                         captured_at=captured_at,
-                        frame=frame,
                         zones_px=list(zones_px),
                         device_zone_indices=device_zone_indices,
                         sampled_zone_colors=sampled_zone_colors,  # type: ignore[arg-type]
@@ -1658,7 +1490,7 @@ def _run_loop_pipeline(
                 if state.is_reinitializing:
                     time.sleep(0.001)
                     continue
-                payload = process_buf.pop(timeout=0.01)
+                payload = process_buf.pop_latest(timeout=0.01)
                 now = time.perf_counter()
 
                 if payload is None:
@@ -1898,7 +1730,7 @@ def _run_loop_pipeline(
 
                 # ---- adaptive FPS governor -----------------------------
                 previous_target = governor.target_fps
-                governor.record_frame(actual_work_ms)
+                governor.record_frame(capture_to_send_ms)
                 with gov_lock:
                     state.target_fps = governor.target_fps
                 if governor.target_fps != previous_target:

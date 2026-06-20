@@ -1,0 +1,29 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      python-runtime:
+        patterns:
+          - numpy
+          - PyQt6
+          - dbus-next
+          - hidapi
+          - dacite
+          - tomli-w
+          - packaging
+      python-dev:
+        patterns:
+          - pytest*
+          - ruff
+          - mypy
+          - pre-commit
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

@@ -136,6 +136,8 @@ class SettingsDialog:
         QPushButton = qt["QPushButton"]
         QTimer = qt["QTimer"]
         QScrollArea = _qt_widget(qt, "QScrollArea", _FallbackScrollArea)
+        QHBoxLayout = _qt_widget(qt, "QHBoxLayout", _FallbackLayout)
+        QListWidget = _qt_widget(qt, "QListWidget", _FallbackWidget)
         QVBoxLayout = _qt_widget(qt, "QVBoxLayout", _FallbackLayout)
         QGroupBox = _qt_widget(qt, "QGroupBox", _FallbackWidget)
         QWidget = _qt_widget(qt, "QWidget", _FallbackWidget)
@@ -166,6 +168,7 @@ class SettingsDialog:
                 self._latest_latency = None
                 self._section_widgets: dict[str, object] = {}
                 self._settings_scroll = None
+                self._settings_applied_in_session = False
                 self.brightness_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.brightness_slider.setRange(0, 100)
                 self.brightness_slider.setValue(int(round(cfg.brightness * 100)))
@@ -652,7 +655,6 @@ class SettingsDialog:
                 buttons.accepted.connect(self._apply_settings)
                 buttons.rejected.connect(self.reject)
 
-                root = QVBoxLayout()
                 scroll = QScrollArea()
                 scroll.setWidgetResizable(True)
                 self._settings_scroll = scroll
@@ -688,7 +690,31 @@ class SettingsDialog:
                 content_layout.addStretch(1)
                 content.setLayout(content_layout)
                 scroll.setWidget(content)
-                root.addWidget(scroll)
+
+                section_nav = QListWidget()
+                for section_name in SETTINGS_SECTIONS:
+                    add_item = getattr(section_nav, "addItem", None)
+                    if callable(add_item):
+                        add_item(section_name)
+                set_fixed_width = getattr(section_nav, "setFixedWidth", None)
+                if callable(set_fixed_width):
+                    set_fixed_width(160)
+                current_row_changed = getattr(section_nav, "currentRowChanged", None)
+                if callable(current_row_changed):
+                    current_row_changed.connect(
+                        lambda row: (
+                            self.focus_section(SETTINGS_SECTIONS[int(row)])
+                            if 0 <= int(row) < len(SETTINGS_SECTIONS)
+                            else None
+                        )
+                    )
+
+                body_layout = QHBoxLayout()
+                body_layout.addWidget(section_nav)
+                body_layout.addWidget(scroll, 1)
+
+                root = QVBoxLayout()
+                root.addLayout(body_layout)
                 root.addWidget(buttons)
                 self.setLayout(root)
 
@@ -2200,6 +2226,10 @@ class SettingsDialog:
                 if not callable(apply_fn):
                     return
                 apply_fn(self.updated_config())
+                self._settings_applied_in_session = True
+
+            def settings_applied_in_session(self) -> bool:
+                return bool(self._settings_applied_in_session)
 
             def focus_section(self, section_name: str) -> bool:
                 target = self._section_widgets.get(section_name)
@@ -2406,3 +2436,6 @@ class SettingsDialog:
 
     def focus_section(self, section_name: str) -> bool:
         return bool(self._dialog.focus_section(section_name))
+
+    def settings_applied_in_session(self) -> bool:
+        return bool(self._dialog.settings_applied_in_session())

@@ -87,6 +87,17 @@ class SPSCRingBuffer(Generic[T]):
                 return None
             return self._deque.popleft()
 
+    def pop_latest(self, timeout: float = 0.01) -> T | None:
+        """Return the newest queued item, discarding older entries."""
+        item = self.pop(timeout=timeout)
+        if item is None:
+            return None
+        while True:
+            newer = self.try_pop()
+            if newer is None:
+                return item
+            item = newer
+
     def try_pop(self) -> T | None:
         """Pop an item without blocking.  Returns ``None`` if empty."""
         with self._lock:
@@ -121,8 +132,9 @@ class SPSCRingBuffer(Generic[T]):
 class CapturePayload:
     """Payload flowing from the capture worker to the process worker."""
 
-    frame: np.ndarray
     captured_at: float
+    frame: np.ndarray | None = None
+    precomputed_zone_colors: np.ndarray | None = None
 
 
 @dataclass
@@ -131,12 +143,12 @@ class ProcessedPayload:
 
     smoothed_colors: list
     captured_at: float
-    frame: np.ndarray
     zones_px: list
     device_zone_indices: np.ndarray
     sampled_zone_colors: np.ndarray
     pre_led_colors: np.ndarray
     final_zone_colors: np.ndarray
     processing_timings: object
+    frame: np.ndarray | None = None
     zone_diagnostics: list = field(default_factory=list)
     side_var: dict = field(default_factory=dict)

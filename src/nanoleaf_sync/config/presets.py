@@ -124,3 +124,58 @@ def analyzer_mode_for_presets(*, motion_preset: str, color_style: str) -> str:
     if motion == MOTION_PRESET_DYNAMIC and style == COLOR_STYLE_PUNCHY:
         return "hyper"
     return "dynamic"
+
+
+def is_accuracy_mode(accuracy_mode: bool, color_style: str) -> bool:
+    if accuracy_mode:
+        return True
+    style = normalize_preset(color_style, allowed=COLOR_STYLE_PRESETS, default=COLOR_STYLE_NATURAL)
+    return style in {COLOR_STYLE_REFERENCE, COLOR_STYLE_NATURAL}
+
+
+def effective_light_spread(*, light_spread: str, accuracy_mode: bool, color_style: str) -> str:
+    if not is_accuracy_mode(accuracy_mode, color_style):
+        return normalize_preset(
+            light_spread, allowed=LIGHT_SPREAD_PRESETS, default=LIGHT_SPREAD_BALANCED
+        )
+    normalized = normalize_preset(
+        light_spread, allowed=LIGHT_SPREAD_PRESETS, default=LIGHT_SPREAD_BALANCED
+    )
+    if normalized == LIGHT_SPREAD_SOFT:
+        return LIGHT_SPREAD_BALANCED
+    return normalized
+
+
+def effective_zone_sampling_engine(
+    *, zone_sampling_engine: str, accuracy_mode: bool, color_style: str
+) -> str:
+    if is_accuracy_mode(accuracy_mode, color_style):
+        return "optimized"
+    normalized = str(zone_sampling_engine or "auto").strip().lower()
+    if normalized in {"auto", "legacy", "optimized"}:
+        return normalized
+    return "auto"
+
+
+def effective_motion_and_smoothing(
+    *,
+    motion_preset: str,
+    smoothing: float,
+    smoothing_speed: float,
+    accuracy_mode: bool,
+    color_style: str,
+) -> tuple[str, float, float]:
+    if not is_accuracy_mode(accuracy_mode, color_style):
+        profile = motion_profile(motion_preset)
+        return (
+            normalize_preset(
+                motion_preset, allowed=MOTION_PRESETS, default=MOTION_PRESET_RESPONSIVE
+            ),
+            max(0.0, min(1.0, float(smoothing) * profile.smoothing_multiplier)),
+            max(0.0, min(4.0, float(smoothing_speed) * profile.smoothing_speed_multiplier)),
+        )
+    return (
+        MOTION_PRESET_RESPONSIVE,
+        max(0.35, min(1.0, float(smoothing))),
+        max(0.5, min(4.0, float(smoothing_speed))),
+    )

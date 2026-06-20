@@ -14,7 +14,7 @@ Next steps:
       sudo usermod -aG plugdev "$USER"
       log out/in after adding group membership
       Reconnect USB device and re-run doctor.
-      See docs/HARDWARE_SETUP.md for deeper troubleshooting.
+      See /usr/share/doc/nanoleaf-kde-sync/HARDWARE_SETUP.md
 
   2) Create initial config (safe default):
      nanoleaf-kde-sync-init-config --mode full-real
@@ -22,6 +22,9 @@ Next steps:
   3) Validate runtime paths:
      nanoleaf-kde-sync-doctor
      nanoleaf-kde-sync-smoke-test
+
+  4) Read the user guide:
+     xdg-open /usr/share/doc/nanoleaf-kde-sync/USER_GUIDE.md
 
 Optional autostart:
   nanoleaf-kde-sync-autostart enable

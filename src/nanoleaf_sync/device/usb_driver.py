@@ -71,6 +71,7 @@ class NanoleafUSBDriver(DeviceDriver):
         self._cached_on_state: bool | None = None
         self._cached_brightness: int | None = None
         self.last_send_timing: dict[str, Any] = {}
+        self._live_payload_buffer: bytearray | None = None
 
     def _request(self, cmd: int, payload: bytes = b"") -> bytes:
         request = self._protocol.build_request(cmd, payload)
@@ -259,7 +260,10 @@ class NanoleafUSBDriver(DeviceDriver):
                 "matches the physical strip."
             )
 
-        payload_buffer = bytearray(len(normalized) * 3)
+        payload_len = len(normalized) * 3
+        if self._live_payload_buffer is None or len(self._live_payload_buffer) != payload_len:
+            self._live_payload_buffer = bytearray(payload_len)
+        payload_buffer = self._live_payload_buffer
         write_idx = 0
         for rgb in normalized:
             for channel_idx in self._output_channel_indices:

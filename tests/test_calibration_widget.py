@@ -83,4 +83,5 @@ def test_simple_calibration_widget_preview_and_status_helpers() -> None:
     assert "Step 2 of 8" in widget.step_index_label.text
     assert "Current LED: 2 of 8" in widget.current_zone_label.text
     assert widget.preview_text_label.text == "preview text"
-    assert widget.preview_visual_label.text == "preview visual"
+    assert "preview visual" in widget.preview_visual_label.text
+    assert "TL" in widget.preview_visual_label.text

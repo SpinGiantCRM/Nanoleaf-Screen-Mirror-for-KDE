@@ -14,6 +14,7 @@ from typing import Any
 import numpy as np
 
 from nanoleaf_sync.capture._utils import _resize_to_target
+from nanoleaf_sync.color.capture_metadata import resolve_capture_metadata
 from nanoleaf_sync.color.hdr import HDRMetadata, analyze_hdr_path, convert_frame_to_srgb8
 from nanoleaf_sync.desktop_entry import (
     QT_DESKTOP_FILE_NAME,
@@ -131,7 +132,14 @@ class KWinDBusScreenshotCapture:
         return frame
 
     def _convert_if_needed(self, frame: np.ndarray) -> np.ndarray:
-        meta = self._hdr_defaults
+        user_meta = resolve_capture_metadata(
+            user_transfer=self._hdr_defaults.transfer,
+            user_primaries=self._hdr_defaults.primaries,
+            user_max_nits=float(self._hdr_defaults.max_nits),
+            display_preset="hdr",
+            kwin_display_referred=True,
+        )
+        meta = user_meta.to_hdr_metadata()
         self.last_hdr_diagnostics = {
             **analyze_hdr_path(
                 frame,
@@ -139,10 +147,12 @@ class KWinDBusScreenshotCapture:
                     "transfer": meta.transfer,
                     "primaries": meta.primaries,
                     "max_nits": meta.max_nits,
-                    "source": "user preset",
+                    "source": user_meta.source,
                 },
             ),
             "hdr_max_nits": float(meta.max_nits),
+            "assumption": user_meta.assumption,
+            "skip_display_gamut_adaptation": user_meta.skip_display_gamut_adaptation,
         }
         if frame.dtype == np.uint8 and meta.transfer == "srgb" and meta.primaries == "bt709":
             return frame

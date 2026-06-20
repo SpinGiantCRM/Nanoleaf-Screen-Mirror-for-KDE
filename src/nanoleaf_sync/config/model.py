@@ -54,6 +54,7 @@ class LedCalibrationProfile:
     neutral_luminance_gain: float = 1.0
     black_luminance_cutoff: float = 0.0032
     black_luminance_knee: float = 0.0024
+    color_matrix: list[float] = field(default_factory=list)
 
 
 @dataclass
@@ -158,6 +159,14 @@ class AppConfig:
     # - bt.2020: BT.2020 primaries
     # - custom: user-provided chromaticities (not yet wired)
     display_gamut: str = "auto"
+    custom_gamut_red_x: float = 0.6400
+    custom_gamut_red_y: float = 0.3300
+    custom_gamut_green_x: float = 0.3000
+    custom_gamut_green_y: float = 0.6000
+    custom_gamut_blue_x: float = 0.1500
+    custom_gamut_blue_y: float = 0.0600
+    accuracy_mode: bool = False
+    live_diagnostics_enabled: bool = False
 
     # Device zone calibration (mapping sampled screen zones to physical strip zones)
     calibration_schema_version: int = 1

@@ -20,6 +20,11 @@ dist/
 build/
 *.egg-info/
 
+packaging/arch/pkg/
+packaging/arch/src/
+packaging/arch/*.pkg.tar.zst
+packaging/arch/nanoleaf-kde-sync-*.tar.gz
+
 # Local AI / Codex workflow artifacts
 .worklogs/
 

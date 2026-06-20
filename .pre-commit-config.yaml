@@ -16,6 +16,14 @@ repos:
         files: ^src/nanoleaf_sync/
         pass_filenames: false
         entry: mypy src/nanoleaf_sync
+  - repo: local
+    hooks:
+      - id: bandit
+        name: bandit
+        entry: bandit -r src/ -c pyproject.toml
+        language: system
+        pass_filenames: false
+        files: ^src/
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.24.0
     hooks:

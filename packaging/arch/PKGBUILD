@@ -1,6 +1,6 @@
 # Maintainer: nanoleaf-kde-sync contributors
 pkgname=nanoleaf-kde-sync
-pkgver=1.7.3
+pkgver=1.0.0
 pkgrel=1
 pkgdesc='Nanoleaf screen mirroring for KDE Plasma on Linux.'
 arch=('x86_64')
@@ -21,7 +21,7 @@ install='nanoleaf-kde-sync.install'
 source=(
   "$pkgname-$pkgver.tar.gz::https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/archive/refs/tags/v$pkgver.tar.gz"
 )
-# Verify against the published GitHub tarball when cutting a release.
+# Run `updpkgsums` against the published v1.0.0 GitHub tarball before AUR upload.
 sha256sums=('SKIP')
 
 build() {
@@ -53,4 +53,10 @@ package() {
     "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 
   install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  install -Dm644 docs/TROUBLESHOOTING.md "$pkgdir/usr/share/doc/$pkgname/TROUBLESHOOTING.md"
+  install -Dm644 docs/HARDWARE_SETUP.md "$pkgdir/usr/share/doc/$pkgname/HARDWARE_SETUP.md"
+  install -Dm644 docs/SMOKE_TEST.md "$pkgdir/usr/share/doc/$pkgname/SMOKE_TEST.md"
+  install -Dm644 docs/PACKAGING_AUR.md "$pkgdir/usr/share/doc/$pkgname/PACKAGING_AUR.md"
+  install -Dm644 docs/USER_GUIDE.md "$pkgdir/usr/share/doc/$pkgname/USER_GUIDE.md"
+  install -Dm644 docs/SECURITY.md "$pkgdir/usr/share/doc/$pkgname/SECURITY.md"
 }

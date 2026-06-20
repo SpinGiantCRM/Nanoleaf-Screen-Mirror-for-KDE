@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from nanoleaf_sync.ui.zone_calibration import strip_corner_diagram
+
 
 class SimpleCalibrationWidget:
     """Reusable simple corner-assignment calibration controls.
@@ -133,9 +135,11 @@ class SimpleCalibrationWidget:
         self.step_index_label.setText(f"Step {current} of {total}")
         self.current_zone_label.setText(f"Current LED: {current} of {total}")
 
-    def set_preview(self, *, text: str, visual: str) -> None:
+    def set_preview(self, *, text: str, visual: str, active_corner: str | None = None) -> None:
         self.preview_text_label.setText(str(text))
-        self.preview_visual_label.setText(str(visual))
+        diagram = strip_corner_diagram(active_corner=active_corner)
+        combined = f"{diagram}\n\n{visual}" if str(visual).strip() else diagram
+        self.preview_visual_label.setText(combined)
 
     def set_reverse_orientation(self, checked: bool) -> None:
         self.reverse_orientation_checkbox.setChecked(bool(checked))

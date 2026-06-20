@@ -12,6 +12,7 @@ from nanoleaf_sync.capture._drm_zone_sampler import DRMZoneSampler
 from nanoleaf_sync.capture._utils import _resize_to_target
 from nanoleaf_sync.capture.errors import KMSGrabError
 from nanoleaf_sync.capture.kwin_dbus import KWinDBusScreenshotCapture
+from nanoleaf_sync.color.capture_metadata import resolve_capture_metadata
 from nanoleaf_sync.color.hdr import HDRMetadata, analyze_hdr_path, convert_frame_to_srgb8
 
 _log = logging.getLogger(__name__)
@@ -239,6 +240,18 @@ class KMSGrabCapture:
             metadata_source = "user preset"
 
         meta = HDRMetadata.from_any(metadata)
+        resolved = resolve_capture_metadata(
+            backend_metadata={
+                "transfer": meta.transfer,
+                "primaries": meta.primaries,
+                "max_nits": meta.max_nits,
+                "source": metadata_source,
+            },
+            user_transfer=str(self._hdr_defaults.transfer),
+            user_primaries=str(self._hdr_defaults.primaries),
+            user_max_nits=float(self._hdr_defaults.max_nits),
+        )
+        meta = resolved.to_hdr_metadata()
 
         if not isinstance(rgb, np.ndarray):
             raise TypeError("DRM capture must return a numpy.ndarray (or (ndarray, metadata)).")
@@ -262,10 +275,12 @@ class KMSGrabCapture:
                         "transfer": "srgb",
                         "primaries": "bt709",
                         "max_nits": meta.max_nits,
-                        "source": metadata_source,
+                        "source": resolved.source,
                     },
                 ),
                 "hdr_max_nits": float(meta.max_nits),
+                "assumption": resolved.assumption,
+                "skip_display_gamut_adaptation": resolved.skip_display_gamut_adaptation,
             }
             return rgb
 
@@ -276,10 +291,12 @@ class KMSGrabCapture:
                     "transfer": meta.transfer,
                     "primaries": meta.primaries,
                     "max_nits": meta.max_nits,
-                    "source": metadata_source,
+                    "source": resolved.source,
                 },
             ),
             "hdr_max_nits": float(meta.max_nits),
+            "assumption": resolved.assumption,
+            "skip_display_gamut_adaptation": resolved.skip_display_gamut_adaptation,
         }
         return convert_frame_to_srgb8(rgb, metadata=meta)
 

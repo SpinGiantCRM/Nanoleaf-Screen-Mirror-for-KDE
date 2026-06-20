@@ -353,7 +353,10 @@ class DisplayConfiguratorDialog:
                 self.summary_label = QLabel("")
                 self.finish_policy_note = QLabel("")
 
-                self.cancel_button = QPushButton("Cancel")
+                self.cancel_button = QPushButton("Save draft & close")
+                self.cancel_button.setToolTip(
+                    "Keep your in-progress setup choices as a draft and close the wizard."
+                )
                 self.back_button = QPushButton("Back")
                 self.next_button = QPushButton("Next")
                 self.finish_button = QPushButton("Finish")
