@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from types import SimpleNamespace
 
+from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.tray_app import NanoleafTrayApp
 
 
@@ -210,6 +211,8 @@ def test_on_start_failure_stays_alive_and_stop_after_failure_is_safe() -> None:
     quit_calls: list[str] = []
     fake_tray = SimpleNamespace(
         service=service,
+        config=AppConfig(),
+        cfg_mgr=SimpleNamespace(save=lambda _cfg: None),
         tray_icon=SimpleNamespace(
             setIcon=lambda icon: icons.append(icon),
             showMessage=lambda _title, text, _icon, _timeout: messages.append(text),
@@ -233,6 +236,9 @@ def test_on_start_failure_stays_alive_and_stop_after_failure_is_safe() -> None:
     fake_tray._service_running = lambda svc=None: NanoleafTrayApp._service_running(fake_tray, svc)
     fake_tray._request_stop = lambda **kwargs: NanoleafTrayApp._request_stop(fake_tray, **kwargs)
     fake_tray._set_idle_ui_state = lambda: NanoleafTrayApp._set_idle_ui_state(fake_tray)
+    fake_tray._sync_config_for_mirroring = lambda: NanoleafTrayApp._sync_config_for_mirroring(
+        fake_tray
+    )
 
     NanoleafTrayApp.on_start(fake_tray)
     NanoleafTrayApp.on_stop(fake_tray)
@@ -254,6 +260,8 @@ def test_on_start_contains_status_exceptions_at_callback_boundary() -> None:
     messages: list[str] = []
     fake_tray = SimpleNamespace(
         service=service,
+        config=AppConfig(),
+        cfg_mgr=SimpleNamespace(save=lambda _cfg: None),
         tray_icon=SimpleNamespace(
             setIcon=lambda _icon: None,
             showMessage=lambda _title, text, _icon, _timeout: messages.append(text),
@@ -268,6 +276,9 @@ def test_on_start_contains_status_exceptions_at_callback_boundary() -> None:
     )
     fake_tray._safe_service_status = lambda: NanoleafTrayApp._safe_service_status(fake_tray)
     fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(
+        fake_tray
+    )
+    fake_tray._sync_config_for_mirroring = lambda: NanoleafTrayApp._sync_config_for_mirroring(
         fake_tray
     )
 

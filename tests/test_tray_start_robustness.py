@@ -47,6 +47,7 @@ def _tray_shell(service) -> SimpleNamespace:
     tray = SimpleNamespace(
         service=service,
         config=AppConfig(),
+        cfg_mgr=SimpleNamespace(save=lambda _cfg: None),
         tray_icon=fake_icon,
         _idle_icon="idle",
         _running_icon="running",
@@ -65,6 +66,7 @@ def _tray_shell(service) -> SimpleNamespace:
         _output_session=SimpleNamespace(release=lambda _owner: None),
     )
     tray._close_preview_driver = lambda: NanoleafTrayApp._close_preview_driver(tray)
+    tray._sync_config_for_mirroring = lambda: NanoleafTrayApp._sync_config_for_mirroring(tray)
     return tray
 
 

@@ -39,6 +39,9 @@ class _FakeService:
 
 def _wire_preview_helpers(fake_tray: SimpleNamespace) -> None:
     fake_tray._close_preview_driver = lambda: NanoleafTrayApp._close_preview_driver(fake_tray)
+    fake_tray._sync_config_for_mirroring = lambda: NanoleafTrayApp._sync_config_for_mirroring(
+        fake_tray
+    )
     fake_tray._restart_mirroring_service = lambda *, was_running: (
         NanoleafTrayApp._restart_mirroring_service(fake_tray, was_running=was_running)
     )

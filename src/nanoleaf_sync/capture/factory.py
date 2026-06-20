@@ -544,6 +544,7 @@ def create_capture_backend(
     hdr_primaries: str = "bt709",
     auto_probe_enabled: bool | None = None,
     cached_probe_winner: str | None = None,
+    drm_zone_patch_capture: bool = False,
 ) -> CaptureBackend:
     """Create capture backend for the runtime.
 
@@ -587,6 +588,7 @@ def create_capture_backend(
                 hdr_max_nits=hdr_max_nits,
                 hdr_transfer=hdr_transfer,
                 hdr_primaries=hdr_primaries,
+                drm_zone_patch_capture=drm_zone_patch_capture,
             )
         except Exception as exc:  # noqa: BLE001
             raise CaptureBackendInitializationError(KMSGRAB_BACKEND, str(exc)) from exc

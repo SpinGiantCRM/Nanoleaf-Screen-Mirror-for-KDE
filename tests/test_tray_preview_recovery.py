@@ -96,6 +96,7 @@ def _fake_tray(service: _FakeService, *, messages: list[str], make_driver):
     tray._restart_mirroring_service = lambda *, was_running: (
         NanoleafTrayApp._restart_mirroring_service(tray, was_running=was_running)
     )
+    tray._sync_config_for_mirroring = lambda: NanoleafTrayApp._sync_config_for_mirroring(tray)
     tray.on_start = lambda: tray.service.start()
     return tray
 

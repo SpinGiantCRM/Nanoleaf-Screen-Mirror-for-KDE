@@ -11,6 +11,7 @@ from nanoleaf_sync.color._types import RGBTuple
 from nanoleaf_sync.config.presets import (
     effective_light_spread,
     effective_motion_and_smoothing,
+    effective_sampling_mode,
     effective_zone_sampling_engine,
     is_accuracy_mode,
 )
@@ -41,6 +42,8 @@ class ColorPipelineParams:
     light_spread: str = "balanced"
     color_style: str = "natural"
     edge_locality: str = "balanced"
+    sampling_mode: str = "auto"
+    letterbox_detection: bool = True
     compositor_hdr_mode: bool = False
     sdr_boost_nits: float = 80.0
     hdr_max_nits: float = 1000.0
@@ -96,6 +99,11 @@ def process_zone_colors(
         accuracy_mode=params.accuracy_mode,
         color_style=params.color_style,
     )
+    resolved_sampling_mode = effective_sampling_mode(
+        sampling_mode=params.sampling_mode,
+        color_style=params.color_style,
+        accuracy_mode=params.accuracy_mode,
+    )
 
     if precomputed_zone_colors is not None:
         raw_colors = np.asarray(precomputed_zone_colors, dtype=np.uint8)
@@ -111,14 +119,32 @@ def process_zone_colors(
         if is_accuracy_mode(params.accuracy_mode, params.color_style):
             analyzer_mode = "balanced"
 
+        sampling_zones = list(zones_px)
+        if params.letterbox_detection and frame is not None:
+            from nanoleaf_sync.runtime.content_bounds import (
+                clip_zones_to_content_bounds,
+                detect_content_bounds,
+                letterbox_margins_significant,
+            )
+
+            bounds = detect_content_bounds(frame)
+            if letterbox_margins_significant(frame, bounds):
+                sampling_zones = clip_zones_to_content_bounds(
+                    sampling_zones,
+                    bounds=bounds,
+                    frame_width=int(frame.shape[1]),
+                    frame_height=int(frame.shape[0]),
+                )
+
         raw_colors = zone_colors_array(
             frame,  # type: ignore[arg-type]
-            zones_px,
+            sampling_zones,
             sample_step=params.zone_sampling_stride,
             mode=analyzer_mode,
             previous_zone_colors=prev_smoothed_colors,
             edge_locality=params.edge_locality,
             engine=zone_engine,
+            sampling_mode=resolved_sampling_mode,
         )
     if raw_colors.size == 0:
         return []
@@ -286,6 +312,8 @@ def build_pipeline_params_from_config(
         light_spread=str(getattr(config, "light_spread", "balanced")),
         color_style=str(getattr(config, "color_style", "natural")),
         edge_locality=str(getattr(config, "edge_locality", "balanced")),
+        sampling_mode=str(getattr(config, "sampling_mode", "auto")),
+        letterbox_detection=bool(getattr(config, "letterbox_detection", True)),
         compositor_hdr_mode=bool(getattr(config, "compositor_hdr_mode", False)),
         sdr_boost_nits=float(getattr(config, "sdr_boost_nits", 80.0)),
         hdr_max_nits=float(getattr(config, "hdr_max_nits", 1000.0)),

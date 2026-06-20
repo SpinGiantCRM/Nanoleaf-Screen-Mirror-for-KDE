@@ -48,3 +48,32 @@ def zones_from_config(
     for z in zones:
         out.append((int(z.x * width), int(z.y * height), int(z.w * width), int(z.h * height)))
     return out
+
+
+def scale_zones_to_display(
+    zones_px: Sequence[tuple[int, int, int, int]],
+    *,
+    capture_width: int,
+    capture_height: int,
+    display_width: int,
+    display_height: int,
+) -> list[tuple[int, int, int, int]]:
+    cap_w = max(1, int(capture_width))
+    cap_h = max(1, int(capture_height))
+    disp_w = max(1, int(display_width))
+    disp_h = max(1, int(display_height))
+    if cap_w == disp_w and cap_h == disp_h:
+        return [(int(x), int(y), int(w), int(h)) for x, y, w, h in zones_px]
+    sx = disp_w / float(cap_w)
+    sy = disp_h / float(cap_h)
+    scaled: list[tuple[int, int, int, int]] = []
+    for x, y, w, h in zones_px:
+        scaled.append(
+            (
+                int(round(x * sx)),
+                int(round(y * sy)),
+                max(1, int(round(w * sx))),
+                max(1, int(round(h * sy))),
+            )
+        )
+    return scaled

@@ -107,8 +107,13 @@ class AppConfig:
     edge_locality: str = "balanced"
     light_spread: str = "balanced"
     sampling_quality: str = "high"
+    sampling_mode: str = "auto"
     motion_preset: str = "responsive"
     color_style: str = "ambient"
+    layout_inset: float = 0.0
+    layout_scale: float = 1.0
+    letterbox_detection: bool = True
+    drm_zone_patch_capture: bool = False
     display_preset: str = "hdr"
     # Tracks whether the first-run display configurator has been completed.
     wizard_completed: bool = False

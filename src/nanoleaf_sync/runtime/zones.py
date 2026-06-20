@@ -11,6 +11,7 @@ from nanoleaf_sync.config.presets import edge_locality_profile
 from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
 
 ZoneRect = tuple[int, int, int, int]
+_WeightPlan = tuple[int, int, int, int, int, np.ndarray]
 _ZoneSamplingPlan = tuple[
     np.ndarray,
     np.ndarray,
@@ -22,12 +23,14 @@ _ZoneSamplingPlan = tuple[
     int,
     int,
     int,
-    tuple[tuple[int, int, int, int, int, np.ndarray], ...],
+    tuple[_WeightPlan, ...],
 ]
 
 
 _thread_local = threading.local()
-_AUTO_ENGINE_CACHE: dict[tuple[tuple[tuple[int, int, int, int], ...], int, int, int, str], str] = {}
+_AUTO_ENGINE_CACHE: dict[
+    tuple[tuple[tuple[int, int, int, int], ...], int, int, int, str, str], str
+] = {}
 
 
 _COLOR_MODE_PROFILES = {
@@ -173,6 +176,59 @@ def _edge_weight_template(
     return weights / weight_sum
 
 
+def _zone_screen_orientation(
+    *,
+    zone_x0: int,
+    zone_y0: int,
+    zone_x1: int,
+    zone_y1: int,
+    frame_w: int,
+    frame_h: int,
+) -> str | None:
+    zone_w = max(0, int(zone_x1 - zone_x0))
+    zone_h = max(0, int(zone_y1 - zone_y0))
+    if zone_w <= 0 or zone_h <= 0:
+        return None
+    edge_thin_limit_w = max(2.0, frame_w * 0.22)
+    edge_thin_limit_h = max(2.0, frame_h * 0.22)
+    touches_top = zone_y0 <= 0 and zone_h <= edge_thin_limit_h
+    touches_bottom = zone_y1 >= frame_h and zone_h <= edge_thin_limit_h
+    touches_left = zone_x0 <= 0 and zone_w <= edge_thin_limit_w
+    touches_right = zone_x1 >= frame_w and zone_w <= edge_thin_limit_w
+    if (touches_top or touches_bottom) and (zone_w / max(1.0, float(frame_w))) > 0.40:
+        return None
+    if (touches_left or touches_right) and (zone_h / max(1.0, float(frame_h))) > 0.40:
+        return None
+    if touches_top:
+        return "top"
+    if touches_bottom:
+        return "bottom"
+    if touches_left:
+        return "left"
+    if touches_right:
+        return "right"
+    return None
+
+
+@lru_cache(maxsize=256)
+def _outer_edge_weight_template(*, zone_h: int, zone_w: int, orientation: str) -> np.ndarray:
+    depth = min(2, zone_h if orientation in {"top", "bottom"} else zone_w)
+    depth = max(1, depth)
+    weights = np.zeros((zone_h, zone_w), dtype=np.float32)
+    if orientation == "top":
+        weights[:depth, :] = 1.0
+    elif orientation == "bottom":
+        weights[-depth:, :] = 1.0
+    elif orientation == "left":
+        weights[:, :depth] = 1.0
+    else:
+        weights[:, -depth:] = 1.0
+    weight_sum = float(weights.sum())
+    if weight_sum <= 1e-6:
+        return np.ones((zone_h, zone_w), dtype=np.float32) / float(zone_h * zone_w)
+    return weights / weight_sum
+
+
 @lru_cache(maxsize=128)
 def _cached_sampling_plan(
     zones_key: tuple[tuple[int, int, int, int], ...],
@@ -180,6 +236,7 @@ def _cached_sampling_plan(
     frame_h: int,
     sample_step: int,
     edge_locality: str,
+    sampling_mode: str,
 ) -> _ZoneSamplingPlan:
     step = max(1, int(sample_step))
     h = int(frame_h)
@@ -209,20 +266,38 @@ def _cached_sampling_plan(
     bx1 = int(np.max(x1[valid])) if valid.any() else 0
     by1 = int(np.max(y1[valid])) if valid.any() else 0
 
-    edge_plans: list[tuple[int, int, int, int, np.ndarray]] = []
+    edge_plans: list[_WeightPlan] = []
+    mode = str(sampling_mode or "area_average").strip().lower()
     for idx in valid_idx.tolist():
-        weights = _edge_localized_weights(
+        orientation = _zone_screen_orientation(
             zone_x0=int(x0[idx]),
             zone_y0=int(y0[idx]),
             zone_x1=int(x1[idx]),
             zone_y1=int(y1[idx]),
             frame_w=w,
             frame_h=h,
-            edge_locality=edge_locality,
         )
-        if weights is None:
-            continue
-        edge_plans.append((idx, int(y0[idx]), int(y1[idx]), int(x0[idx]), int(x1[idx]), weights))
+        weights: np.ndarray | None = None
+        if mode == "edge_direct" and orientation is not None:
+            weights = _outer_edge_weight_template(
+                zone_h=int(y1[idx] - y0[idx]),
+                zone_w=int(x1[idx] - x0[idx]),
+                orientation=orientation,
+            )
+        elif mode == "area_average":
+            weights = _edge_localized_weights(
+                zone_x0=int(x0[idx]),
+                zone_y0=int(y0[idx]),
+                zone_x1=int(x1[idx]),
+                zone_y1=int(y1[idx]),
+                frame_w=w,
+                frame_h=h,
+                edge_locality=edge_locality,
+            )
+        if weights is not None:
+            edge_plans.append(
+                (idx, int(y0[idx]), int(y1[idx]), int(x0[idx]), int(x1[idx]), weights)
+            )
 
     return (
         x0,
@@ -258,6 +333,7 @@ def zone_colors_array(
     previous_zone_colors: Sequence[RGBTuple] | None = None,
     edge_locality: str = "balanced",
     engine: str = "auto",
+    sampling_mode: str = "area_average",
 ) -> np.ndarray:
     """
     Given a list of screen regions and an image, return average RGB per zone.
@@ -273,26 +349,29 @@ def zone_colors_array(
         return np.zeros((0, 3), dtype=np.uint8)
 
     step = max(1, int(sample_step))
+    normalized_sampling_mode = str(sampling_mode or "area_average").strip().lower()
     zones_key = tuple((int(zone[0]), int(zone[1]), int(zone[2]), int(zone[3])) for zone in zones)
     if step > 1:
         img = img[::step, ::step, :]
         h, w, _ = img.shape
 
-    x0, y0, x1, y1, areas, valid_idx, bx0, by0, bx1, by1, edge_plans = _cached_sampling_plan(
+    x0, y0, x1, y1, areas, valid_idx, bx0, by0, bx1, by1, weight_plans = _cached_sampling_plan(
         zones_key,
         orig_w,
         orig_h,
         step,
         str(edge_locality),
+        normalized_sampling_mode,
     )
     valid = areas > 0
+    weighted_indices = {plan[0] for plan in weight_plans}
 
     means = np.zeros((len(zones), 3), dtype=np.uint8)
     if valid.any():
         normalized_engine = str(engine or "auto").strip().lower()
         selected_engine = normalized_engine
         if normalized_engine == "auto":
-            cache_key = (zones_key, w, h, step, str(edge_locality))
+            cache_key = (zones_key, w, h, step, str(edge_locality), normalized_sampling_mode)
             selected_engine = _AUTO_ENGINE_CACHE.get(cache_key, "")
             if not selected_engine:
                 selected_engine = _select_faster_engine_auto(
@@ -308,7 +387,7 @@ def zone_colors_array(
                     by0=by0,
                     bx1=bx1,
                     by1=by1,
-                    edge_plans=edge_plans,
+                    weight_plans=weight_plans,
                 )
                 _AUTO_ENGINE_CACHE[cache_key] = selected_engine
         if selected_engine == "legacy":
@@ -325,7 +404,8 @@ def zone_colors_array(
                 by0=by0,
                 bx1=bx1,
                 by1=by1,
-                edge_plans=edge_plans,
+                weight_plans=weight_plans,
+                weighted_indices=weighted_indices,
             )
         else:
             means = _zone_means_optimized(
@@ -341,8 +421,22 @@ def zone_colors_array(
                 by0=by0,
                 bx1=bx1,
                 by1=by1,
-                edge_plans=edge_plans,
+                weight_plans=weight_plans,
+                weighted_indices=weighted_indices,
             )
+
+        if normalized_sampling_mode in {"vivid_weighted", "peak_luma"}:
+            linear_img = srgb_u8_to_linear01(img)
+            for idx in range(len(zones)):
+                if not valid[idx]:
+                    continue
+                patch_linear = linear_img[y0[idx] : y1[idx], x0[idx] : x1[idx]]
+                if patch_linear.size == 0:
+                    continue
+                if normalized_sampling_mode == "peak_luma":
+                    means[idx] = _peak_luma_zone_mean(patch_linear)
+                else:
+                    means[idx] = _vivid_weighted_zone_mean(patch_linear)
 
     normalized_mode = str(mode).strip().lower()
     if normalized_mode == "balanced":
@@ -418,6 +512,49 @@ def zone_colors_array(
     return np.clip(np.rint(out), 0.0, 255.0).astype(np.uint8)
 
 
+def _peak_luma_zone_mean(patch_linear: np.ndarray, *, top_fraction: float = 0.25) -> np.ndarray:
+    patch_u8 = linear01_to_srgb_u8(patch_linear.reshape(-1, 3)).reshape(patch_linear.shape)
+    lum = (
+        (0.2126 * patch_u8[:, :, 0].astype(np.float32))
+        + (0.7152 * patch_u8[:, :, 1].astype(np.float32))
+        + (0.0722 * patch_u8[:, :, 2].astype(np.float32))
+    )
+    flat_lum = lum.reshape(-1)
+    if flat_lum.size == 0:
+        return np.zeros(3, dtype=np.uint8)
+    cutoff = float(np.quantile(flat_lum, max(0.0, min(1.0, 1.0 - top_fraction))))
+    mask = flat_lum >= cutoff
+    if not bool(mask.any()):
+        mask = np.ones_like(flat_lum, dtype=bool)
+    selected = patch_linear.reshape(-1, 3)[mask]
+    avg_linear = selected.mean(axis=0).astype(np.float32, copy=False)
+    return linear01_to_srgb_u8(avg_linear)
+
+
+def _vivid_weighted_zone_mean(patch_linear: np.ndarray, *, vivid_sat: float = 0.35) -> np.ndarray:
+    patch_u8 = linear01_to_srgb_u8(patch_linear.reshape(-1, 3)).reshape(patch_linear.shape)
+    patch_f = patch_u8.astype(np.float32)
+    max_c = patch_f.max(axis=2)
+    min_c = patch_f.min(axis=2)
+    sat = (max_c - min_c) / np.clip(max_c, 1.0, None)
+    lum = (0.2126 * patch_f[:, :, 0]) + (0.7152 * patch_f[:, :, 1]) + (0.0722 * patch_f[:, :, 2])
+    zone_lum = float(np.mean(lum))
+    zone_lum_norm = np.clip(zone_lum / 255.0, 0.0, 1.0)
+    required_delta = 10.0 + (55.0 * zone_lum_norm)
+    prominence = np.clip((lum - zone_lum) / required_delta, 0.0, 1.0)
+    vivid_weight = (
+        0.30 + vivid_sat * sat + 0.20 * np.clip((lum / 255.0) ** 0.7, 0.0, 1.0)
+    ) * prominence
+    vivid_flat = vivid_weight.reshape(-1)
+    patch_flat = patch_linear.reshape(-1, 3)
+    weight_sum = float(vivid_flat.sum())
+    if weight_sum <= 0.0:
+        avg_linear = patch_flat.mean(axis=0)
+    else:
+        avg_linear = np.average(patch_flat, axis=0, weights=vivid_flat)
+    return linear01_to_srgb_u8(avg_linear.astype(np.float32, copy=False))
+
+
 def _zone_means_legacy(
     *,
     image: np.ndarray,
@@ -432,30 +569,34 @@ def _zone_means_legacy(
     by0: int,
     bx1: int,
     by1: int,
-    edge_plans: tuple[tuple[int, int, int, int, int, np.ndarray], ...],
+    weight_plans: tuple[_WeightPlan, ...],
+    weighted_indices: set[int],
 ) -> np.ndarray:
     means = np.zeros((len(x0), 3), dtype=np.uint8)
     if not valid.any():
         return means
-    cropped = image[by0:by1, bx0:bx1].astype(np.float64, copy=False)
-    integral = _get_integral_buffer(cropped.shape[0] + 1, cropped.shape[1] + 1)
-    integral[0, :, :] = 0.0
-    integral[:, 0, :] = 0.0
-    integral[1:, 1:, :] = cropped.cumsum(axis=0, dtype=np.float64).cumsum(axis=1, dtype=np.float64)
-    cx0 = x0 - bx0
-    cy0 = y0 - by0
-    cx1 = x1 - bx0
-    cy1 = y1 - by0
-    sums = (
-        integral[cy1[valid_idx], cx1[valid_idx]]
-        - integral[cy0[valid_idx], cx1[valid_idx]]
-        - integral[cy1[valid_idx], cx0[valid_idx]]
-        + integral[cy0[valid_idx], cx0[valid_idx]]
-    )
-    means[valid] = np.clip(np.rint(sums / areas[valid_idx, None]), 0.0, 255.0).astype(
-        np.uint8, copy=False
-    )
-    for idx, py0, py1, px0, px1, weights in edge_plans:
+    integral_indices = valid_idx[~np.isin(valid_idx, list(weighted_indices))]
+    if integral_indices.size > 0:
+        cropped = image[by0:by1, bx0:bx1].astype(np.float64, copy=False)
+        integral = _get_integral_buffer(cropped.shape[0] + 1, cropped.shape[1] + 1)
+        integral[0, :, :] = 0.0
+        integral[:, 0, :] = 0.0
+        cropped_sum = cropped.cumsum(axis=0, dtype=np.float64).cumsum(axis=1, dtype=np.float64)
+        integral[1:, 1:, :] = cropped_sum
+        cx0 = x0 - bx0
+        cy0 = y0 - by0
+        cx1 = x1 - bx0
+        cy1 = y1 - by0
+        sums = (
+            integral[cy1[integral_indices], cx1[integral_indices]]
+            - integral[cy0[integral_indices], cx1[integral_indices]]
+            - integral[cy1[integral_indices], cx0[integral_indices]]
+            + integral[cy0[integral_indices], cx0[integral_indices]]
+        )
+        means[integral_indices] = np.clip(
+            np.rint(sums / areas[integral_indices, None]), 0.0, 255.0
+        ).astype(np.uint8, copy=False)
+    for idx, py0, py1, px0, px1, weights in weight_plans:
         patch = image[py0:py1, px0:px1].astype(np.float64, copy=False)
         weighted = np.einsum("hwc,hw->c", patch, weights, dtype=np.float64)
         means[idx] = np.clip(np.rint(weighted), 0.0, 255.0).astype(np.uint8, copy=False)
@@ -476,7 +617,8 @@ def _zone_means_optimized(
     by0: int,
     bx1: int,
     by1: int,
-    edge_plans: tuple[tuple[int, int, int, int, int, np.ndarray], ...],
+    weight_plans: tuple[_WeightPlan, ...],
+    weighted_indices: set[int],
 ) -> np.ndarray:
     """Zone-average in linear RGB via integral image (no full-frame Oklab pass).
 
@@ -489,27 +631,29 @@ def _zone_means_optimized(
     if not valid.any():
         return means
     linear_img = srgb_u8_to_linear01(image)
-    cropped_linear = linear_img[by0:by1, bx0:bx1, :]
-    crop_h, crop_w, _ = cropped_linear.shape
-    integral = _get_integral_buffer(crop_h + 1, crop_w + 1)
-    integral[0, :, :] = 0.0
-    integral[:, 0, :] = 0.0
-    integral[1:, 1:, :] = cropped_linear.cumsum(axis=0, dtype=np.float64).cumsum(
-        axis=1, dtype=np.float64
-    )
-    cx0 = x0 - bx0
-    cy0 = y0 - by0
-    cx1 = x1 - bx0
-    cy1 = y1 - by0
-    sums = (
-        integral[cy1[valid_idx], cx1[valid_idx]]
-        - integral[cy0[valid_idx], cx1[valid_idx]]
-        - integral[cy1[valid_idx], cx0[valid_idx]]
-        + integral[cy0[valid_idx], cx0[valid_idx]]
-    )
-    avg_linear = (sums / areas[valid_idx, None]).astype(np.float32, copy=False)
-    means[valid] = linear01_to_srgb_u8(avg_linear)
-    for idx, py0, py1, px0, px1, weights in edge_plans:
+    integral_indices = valid_idx[~np.isin(valid_idx, list(weighted_indices))]
+    if integral_indices.size > 0:
+        cropped_linear = linear_img[by0:by1, bx0:bx1, :]
+        crop_h, crop_w, _ = cropped_linear.shape
+        integral = _get_integral_buffer(crop_h + 1, crop_w + 1)
+        integral[0, :, :] = 0.0
+        integral[:, 0, :] = 0.0
+        integral[1:, 1:, :] = cropped_linear.cumsum(axis=0, dtype=np.float64).cumsum(
+            axis=1, dtype=np.float64
+        )
+        cx0 = x0 - bx0
+        cy0 = y0 - by0
+        cx1 = x1 - bx0
+        cy1 = y1 - by0
+        sums = (
+            integral[cy1[integral_indices], cx1[integral_indices]]
+            - integral[cy0[integral_indices], cx1[integral_indices]]
+            - integral[cy1[integral_indices], cx0[integral_indices]]
+            + integral[cy0[integral_indices], cx0[integral_indices]]
+        )
+        avg_linear = (sums / areas[integral_indices, None]).astype(np.float32, copy=False)
+        means[integral_indices] = linear01_to_srgb_u8(avg_linear)
+    for idx, py0, py1, px0, px1, weights in weight_plans:
         patch_linear = linear_img[py0:py1, px0:px1]
         weighted_linear = np.einsum("hwc,hw->c", patch_linear, weights, dtype=np.float64)
         means[idx] = linear01_to_srgb_u8(weighted_linear.astype(np.float32, copy=False))
@@ -530,9 +674,11 @@ def _select_faster_engine_auto(
     by0: int,
     bx1: int,
     by1: int,
-    edge_plans: tuple[tuple[int, int, int, int, int, np.ndarray], ...],
+    weight_plans: tuple[_WeightPlan, ...],
 ) -> str:
     import time
+
+    weighted_indices = {plan[0] for plan in weight_plans}
 
     def _time(fn) -> tuple[float, np.ndarray]:
         start = time.perf_counter()
@@ -549,7 +695,8 @@ def _select_faster_engine_auto(
             by0=by0,
             bx1=bx1,
             by1=by1,
-            edge_plans=edge_plans,
+            weight_plans=weight_plans,
+            weighted_indices=weighted_indices,
         )
         return (time.perf_counter() - start) * 1000.0, out
 

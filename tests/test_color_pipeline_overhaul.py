@@ -51,7 +51,7 @@ def test_accuracy_mode_caps_light_spread() -> None:
             accuracy_mode=True,
             color_style="reference",
         )
-        == "balanced"
+        == "off"
     )
 
 

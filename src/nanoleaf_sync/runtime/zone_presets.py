@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from nanoleaf_sync.config.model import ZoneConfig
@@ -113,3 +114,36 @@ def make_edge_weighted_zones(
             ZoneConfig(x=0.0, y=(left_n - 1 - i) / left_n, w=edge_thickness, h=1.0 / left_n)
         )
     return zones[:count]
+
+
+def apply_layout_transform(
+    zones: Sequence[ZoneConfig],
+    *,
+    inset: float = 0.0,
+    scale: float = 1.0,
+) -> list[ZoneConfig]:
+    inset_v = max(0.0, min(0.4, float(inset)))
+    scale_v = max(0.5, min(1.0, float(scale)))
+    if inset_v <= 1e-6 and abs(scale_v - 1.0) <= 1e-6:
+        return list(zones)
+
+    out: list[ZoneConfig] = []
+    for zone in zones:
+        x = float(zone.x)
+        y = float(zone.y)
+        w = float(zone.w)
+        h = float(zone.h)
+        cx = x + (w * 0.5)
+        cy = y + (h * 0.5)
+        ncx = 0.5 + ((cx - 0.5) * scale_v)
+        ncy = 0.5 + ((cy - 0.5) * scale_v)
+        nw = w * scale_v
+        nh = h * scale_v
+        nx = ncx - (nw * 0.5)
+        ny = ncy - (nh * 0.5)
+        nx = max(inset_v, min(1.0 - inset_v - nw, nx))
+        ny = max(inset_v, min(1.0 - inset_v - nh, ny))
+        nw = max(1e-6, min(1.0 - nx, nw))
+        nh = max(1e-6, min(1.0 - ny, nh))
+        out.append(ZoneConfig(x=nx, y=ny, w=nw, h=nh))
+    return out

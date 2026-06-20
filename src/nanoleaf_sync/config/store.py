@@ -83,6 +83,7 @@ class ConfigManager:
             return self._config
 
         validate_raw_config_values(data)
+        raw_use_mock_capture = bool(data.get("use_mock_capture", False))
         migrated_data = migrate_config_dict(data)
         try:
             cfg = from_dict(
@@ -101,6 +102,8 @@ class ConfigManager:
             "calibration_schema_version" not in data or "calibration" not in data
         )
         self._config = validate_config(cfg)
+        if raw_use_mock_capture and not self._config.use_mock_capture:
+            self.save(self._config)
         should_persist_legacy_auto_zone_count = (
             loaded_device_zone_count <= 0
             and self._config.device_zone_count > 0

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
 from nanoleaf_sync.runtime.zone_presets import (
+    apply_layout_transform,
     edge_weighted_layout,
     make_edge_weighted_zones,
     make_horizontal_zones,
@@ -137,13 +138,19 @@ def derive_source_zone_artifacts(
         height=frame_height,
         edge_locality=str(getattr(config, "edge_locality", "balanced")),
     )
+    derived_zones = make_edge_weighted_zones(
+        count,
+        edge_locality=str(getattr(config, "edge_locality", "balanced")),
+        width=frame_width,
+        height=frame_height,
+    )
+    derived_zones = apply_layout_transform(
+        derived_zones,
+        inset=float(getattr(config, "layout_inset", 0.0)),
+        scale=float(getattr(config, "layout_scale", 1.0)),
+    )
     return SourceZoneArtifacts(
-        zones=make_edge_weighted_zones(
-            count,
-            edge_locality=str(getattr(config, "edge_locality", "balanced")),
-            width=frame_width,
-            height=frame_height,
-        ),
+        zones=derived_zones,
         side_counts=layout.side_counts,
         zone_order_mode=layout.order_mode,
         edge_sampling_thickness=layout.edge_thickness,

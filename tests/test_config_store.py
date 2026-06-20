@@ -131,6 +131,20 @@ def test_initialize_with_force_overwrites(tmp_path: Path) -> None:
     assert cfg.use_mock_capture is False
 
 
+def test_load_clears_mock_capture_after_completed_wizard(tmp_path: Path) -> None:
+    path = tmp_path / "config.toml"
+    path.write_text(
+        "wizard_completed = true\nuse_mock_capture = true\n",
+        encoding="utf-8",
+    )
+    mgr = ConfigManager(path=path)
+    cfg = mgr.load()
+    assert cfg.wizard_completed is True
+    assert cfg.use_mock_capture is False
+    reloaded = path.read_text(encoding="utf-8")
+    assert "use_mock_capture = false" in reloaded
+
+
 def test_exists(tmp_path: Path) -> None:
     path = tmp_path / "config.toml"
     mgr = ConfigManager(path=path)

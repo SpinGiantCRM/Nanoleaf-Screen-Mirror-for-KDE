@@ -333,13 +333,15 @@ def test_zone_sampling_auto_picks_faster_engine_for_48_edge_zones() -> None:
         frame.shape[0],
         1,
         "balanced",
+        "area_average",
     )
     assert _AUTO_ENGINE_CACHE.get(key) in {"legacy", "optimized"}
     zones_key = tuple((int(a), int(b), int(c), int(d)) for a, b, c, d in zones)
-    x0, y0, x1, y1, areas, valid_idx, bx0, by0, bx1, by1, edge_plans = _cached_sampling_plan(
-        zones_key, frame.shape[1], frame.shape[0], 1, "balanced"
+    x0, y0, x1, y1, areas, valid_idx, bx0, by0, bx1, by1, weight_plans = _cached_sampling_plan(
+        zones_key, frame.shape[1], frame.shape[0], 1, "balanced", "area_average"
     )
     valid = areas > 0
+    weighted_indices = {plan[0] for plan in weight_plans}
     legacy = _zone_means_legacy(
         image=frame,
         x0=x0,
@@ -353,7 +355,8 @@ def test_zone_sampling_auto_picks_faster_engine_for_48_edge_zones() -> None:
         by0=by0,
         bx1=bx1,
         by1=by1,
-        edge_plans=edge_plans,
+        weight_plans=weight_plans,
+        weighted_indices=weighted_indices,
     )
     optimized = _zone_means_optimized(
         image=frame,
@@ -368,7 +371,8 @@ def test_zone_sampling_auto_picks_faster_engine_for_48_edge_zones() -> None:
         by0=by0,
         bx1=bx1,
         by1=by1,
-        edge_plans=edge_plans,
+        weight_plans=weight_plans,
+        weighted_indices=weighted_indices,
     )
     assert np.max(np.abs(legacy.astype(np.int16) - optimized.astype(np.int16))) <= 30
     np.testing.assert_array_equal(

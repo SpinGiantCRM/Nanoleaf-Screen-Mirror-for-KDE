@@ -326,7 +326,17 @@ class NanoleafTrayApp:
         self._output_session.release("setup")
         return was_paused
 
+    def _sync_config_for_mirroring(self) -> None:
+        from nanoleaf_sync.config.normalize import validate_config
+
+        updated = validate_config(self.config)
+        if updated.use_mock_capture == self.config.use_mock_capture:
+            return
+        self.config = updated
+        self.cfg_mgr.save(updated)
+
     def _restart_mirroring_service(self, *, was_running: bool) -> None:
+        self._sync_config_for_mirroring()
         if self.service.is_running():
             self.on_stop()
         self.service = NanoleafSyncService(config=self.config)
@@ -703,6 +713,7 @@ class NanoleafTrayApp:
                 schedule_refresh()
             return
         self._close_preview_driver()
+        self._sync_config_for_mirroring()
 
         readiness_fn = getattr(self, "_quick_setup_readiness", None)
         preflight = readiness_fn() if callable(readiness_fn) else None

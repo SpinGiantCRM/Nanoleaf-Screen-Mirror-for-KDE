@@ -22,6 +22,7 @@ from typing import Any
 import numpy as np
 
 from nanoleaf_sync.capture.errors import KMSGrabError
+from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
 
 _log = logging.getLogger(__name__)
 
@@ -527,6 +528,59 @@ class DRMZoneSampler:
                 out[i, 1] = int(sum_g // n_pixels)
                 out[i, 2] = int(sum_b // n_pixels)
             # else: patch empty → stays [0,0,0]
+
+        return out
+
+    def capture_zone_rects(self, rects: list[tuple[int, int, int, int]]) -> np.ndarray:
+        """Return ``(N, 3) uint8`` zone colours averaged over each display rectangle."""
+        if self._mapped_ptr is None or self._mapped_ptr == 0:
+            raise KMSGrabError("DRMZoneSampler: framebuffer not mapped")
+
+        n_zones = len(rects)
+        out = np.zeros((n_zones, 3), dtype=np.uint8)
+        if n_zones == 0:
+            return out
+
+        buf = ctypes.cast(
+            ctypes.c_void_p(self._mapped_ptr),
+            ctypes.POINTER(ctypes.c_uint8),
+        )
+
+        w = self._width
+        h = self._height
+        pitch = self._pitch_bytes
+        r_off = self._r_byte
+        g_off = self._g_byte
+        b_off = self._b_byte
+
+        for i, (rx, ry, rw, rh) in enumerate(rects):
+            x0 = max(0, min(w, int(rx)))
+            y0 = max(0, min(h, int(ry)))
+            x1 = max(x0, min(w, int(rx) + max(1, int(rw))))
+            y1 = max(y0, min(h, int(ry) + max(1, int(rh))))
+            if x1 <= x0 or y1 <= y0:
+                continue
+
+            n_pixels = 0
+            sum_linear = np.zeros(3, dtype=np.float64)
+            for py in range(y0, y1):
+                row_base = py * pitch
+                for px in range(x0, x1):
+                    pixel_base = row_base + px * 4
+                    rgb_u8 = np.array(
+                        [
+                            buf[pixel_base + r_off],
+                            buf[pixel_base + g_off],
+                            buf[pixel_base + b_off],
+                        ],
+                        dtype=np.uint8,
+                    )
+                    sum_linear += srgb_u8_to_linear01(rgb_u8[None, :])[0]
+                    n_pixels += 1
+
+            if n_pixels > 0:
+                avg_linear = (sum_linear / float(n_pixels)).astype(np.float32, copy=False)
+                out[i] = linear01_to_srgb_u8(avg_linear)
 
         return out
 

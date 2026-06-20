@@ -4,15 +4,16 @@ import logging
 from pathlib import Path
 
 from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.runtime.zone_presets import _adaptive_edge_thickness
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_CAPTURE_WIDTH = 480
 DEFAULT_CAPTURE_HEIGHT = 270
+_MIN_EDGE_PIXELS = 6
 
 
 def _parse_mode_line(line: str) -> tuple[int, int] | None:
-    # Typical modes: "3840x2160" or "3840x2160@60"
     head = line.strip().split("@", 1)[0]
     if "x" not in head:
         return None
@@ -115,9 +116,20 @@ def detect_primary_screen_dims(*, qt_widgets_module=None) -> tuple[int, int] | N
 
 def resolve_capture_dims(config: AppConfig) -> tuple[int, int]:
     """Return ``(width, height)`` for capture initialization."""
-    zone_count = max(1, len(getattr(config, "zones", ()) or ()))
+    zone_count = max(
+        1,
+        len(getattr(config, "zones", ()) or ()),
+        int(getattr(config, "device_zone_count", 0) or 0),
+    )
+    edge_locality = str(getattr(config, "edge_locality", "balanced"))
+    edge_thickness = _adaptive_edge_thickness(zone_count, edge_locality=edge_locality)
+    min_height_for_edge = max(
+        DEFAULT_CAPTURE_HEIGHT,
+        int(round((DEFAULT_CAPTURE_HEIGHT / max(edge_thickness, 0.05)) * edge_thickness)),
+        _MIN_EDGE_PIXELS * 3,
+    )
     target_w = max(DEFAULT_CAPTURE_WIDTH, zone_count * 4, 160)
-    target_h = max(DEFAULT_CAPTURE_HEIGHT, (target_w * 9) // 16, 90)
+    target_h = max(min_height_for_edge, (target_w * 9) // 16, 90)
 
     detected = detect_primary_screen_dims()
     if detected is not None:

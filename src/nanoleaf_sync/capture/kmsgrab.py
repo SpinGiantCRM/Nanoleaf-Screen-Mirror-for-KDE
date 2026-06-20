@@ -42,12 +42,14 @@ class KMSGrabCapture:
         hdr_transfer: str = "srgb",
         hdr_primaries: str = "bt709",
         allow_fallback: bool = True,
+        drm_zone_patch_capture: bool = False,
     ) -> None:
         self.params = KMSGrabParams(
             width=width,
             height=height,
             card_path=card_path or os.environ.get("NANOLEAF_DRM_CARD", "/dev/dri/card0"),
         )
+        self._drm_zone_patch_capture = bool(drm_zone_patch_capture)
         self._fallback = KWinDBusScreenshotCapture(
             width=width,
             height=height,
@@ -113,29 +115,28 @@ class KMSGrabCapture:
     def capture(
         self,
         zone_centers: list[tuple[int, int]] | None = None,
+        zone_rects: list[tuple[int, int, int, int]] | None = None,
     ) -> np.ndarray:
         if self._use_kwin_only:
             fallback_rgb = self._fallback.capture()
             self.last_capture_path = "kwin-dbus"
             return fallback_rgb
 
-        if (
-            self._drm_zone_sampler is not None
-            and zone_centers is not None
-            and len(zone_centers) > 0
-        ):
-            try:
-                patches = self._drm_zone_sampler.capture_zone_patches(
-                    zone_centers,
-                )
-                self.last_capture_path = "drm-zone-patches"
-                return patches
-            except KMSGrabError:
-                if not self._allow_fallback:
-                    raise
-                _log.warning(
-                    "kmsgrab: DRM zone-patch capture failed; falling back to full-frame capture"
-                )
+        if self._drm_zone_patch_capture and self._drm_zone_sampler is not None:
+            display_rects = zone_rects
+            if display_rects is None and zone_centers:
+                display_rects = [(max(0, cx - 2), max(0, cy - 2), 5, 5) for cx, cy in zone_centers]
+            if display_rects:
+                try:
+                    patches = self._drm_zone_sampler.capture_zone_rects(display_rects)
+                    self.last_capture_path = "drm-zone-rects"
+                    return patches
+                except KMSGrabError:
+                    if not self._allow_fallback:
+                        raise
+                    _log.warning(
+                        "kmsgrab: DRM zone-rect capture failed; falling back to full-frame capture"
+                    )
         try:
             if self._drm_capture_impl is None:
                 raise KMSGrabError("DRM/KMS capture bindings are unavailable.")

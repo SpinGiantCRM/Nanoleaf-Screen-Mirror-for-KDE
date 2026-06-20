@@ -186,6 +186,9 @@ def migrate_config_dict(data: dict[str, Any]) -> dict[str, Any]:
                     )
                     migrated["wizard_in_progress_state"] = ""
 
+    if bool(migrated.get("wizard_completed")) and bool(migrated.get("use_mock_capture")):
+        migrated["use_mock_capture"] = False
+
     return migrated
 
 
@@ -251,6 +254,27 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         getattr(cfg, "color_style", AppConfig.color_style),
         allowed=COLOR_STYLE_PRESETS,
         default=AppConfig.color_style,
+    )
+    sampling_mode = normalize_preset(
+        getattr(cfg, "sampling_mode", AppConfig.sampling_mode),
+        allowed=(
+            "auto",
+            "area_average",
+            "edge_direct",
+            "vivid_weighted",
+            "peak_luma",
+        ),
+        default=AppConfig.sampling_mode,
+    )
+    layout_inset = max(0.0, min(0.4, float(getattr(cfg, "layout_inset", 0.0))))
+    layout_scale = max(0.5, min(1.0, float(getattr(cfg, "layout_scale", 1.0))))
+    letterbox_detection = coerce_bool(
+        getattr(cfg, "letterbox_detection", AppConfig.letterbox_detection),
+        AppConfig.letterbox_detection,
+    )
+    drm_zone_patch_capture = coerce_bool(
+        getattr(cfg, "drm_zone_patch_capture", AppConfig.drm_zone_patch_capture),
+        AppConfig.drm_zone_patch_capture,
     )
     display_preset = normalize_preset(
         getattr(cfg, "display_preset", AppConfig.display_preset),
@@ -416,6 +440,13 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         getattr(cfg, "led_calibration_profile_hdr", LedCalibrationProfile())
     )
 
+    wizard_completed = coerce_bool(getattr(cfg, "wizard_completed", False), False)
+    use_mock_capture = coerce_bool(
+        getattr(cfg, "use_mock_capture", AppConfig.use_mock_capture), AppConfig.use_mock_capture
+    )
+    if wizard_completed:
+        use_mock_capture = False
+
     return AppConfig(
         fps=fps,
         prefer_backend=prefer_backend,
@@ -442,17 +473,20 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         sampling_quality=sampling_quality,
         motion_preset=motion_preset,
         color_style=color_style,
+        sampling_mode=sampling_mode,
+        layout_inset=layout_inset,
+        layout_scale=layout_scale,
+        letterbox_detection=letterbox_detection,
+        drm_zone_patch_capture=drm_zone_patch_capture,
         display_preset=display_preset,
-        wizard_completed=coerce_bool(getattr(cfg, "wizard_completed", False), False),
+        wizard_completed=wizard_completed,
         wizard_in_progress_state=normalize_wizard_in_progress_state(
             getattr(cfg, "wizard_in_progress_state", "")
         ),
         start_on_launch=coerce_bool(getattr(cfg, "start_on_launch", False), False),
         device_vid=device_vid,
         device_pid=device_pid,
-        use_mock_capture=coerce_bool(
-            getattr(cfg, "use_mock_capture", AppConfig.use_mock_capture), AppConfig.use_mock_capture
-        ),
+        use_mock_capture=use_mock_capture,
         auto_probe_enabled=coerce_bool(
             getattr(cfg, "auto_probe_enabled", AppConfig.auto_probe_enabled),
             AppConfig.auto_probe_enabled,

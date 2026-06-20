@@ -417,6 +417,9 @@ class NanoleafSyncService:
                         auto_probe_enabled=getattr(self.config, "auto_probe_enabled", None),
                         cached_probe_winner=self._cached_probe_winner
                         or self.config.auto_selected_backend,
+                        drm_zone_patch_capture=bool(
+                            getattr(self.config, "drm_zone_patch_capture", False)
+                        ),
                     )
                     created_capture = True
                 init = getattr(capture, "initialize", None)
@@ -630,6 +633,9 @@ class NanoleafSyncService:
                     hdr_primaries=self.config.hdr_primaries,
                     auto_probe_enabled=self.config.auto_probe_enabled,
                     cached_probe_winner=selected_cache,
+                    drm_zone_patch_capture=bool(
+                        getattr(self.config, "drm_zone_patch_capture", False)
+                    ),
                 )
                 if normalized_preference != "auto":
                     self._selection_reason = "explicit"

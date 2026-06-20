@@ -31,6 +31,13 @@ DISPLAY_PRESET_AUTO = "auto"
 LIGHT_SPREAD_PRECISE = "precise"
 LIGHT_SPREAD_BALANCED = "balanced"
 LIGHT_SPREAD_SOFT = "soft"
+LIGHT_SPREAD_OFF = "off"
+
+SAMPLING_MODE_AUTO = "auto"
+SAMPLING_MODE_AREA_AVERAGE = "area_average"
+SAMPLING_MODE_EDGE_DIRECT = "edge_direct"
+SAMPLING_MODE_VIVID_WEIGHTED = "vivid_weighted"
+SAMPLING_MODE_PEAK_LUMA = "peak_luma"
 
 LAYOUT_PRESETS = (
     LAYOUT_PRESET_EDGE_STRIP,
@@ -51,7 +58,19 @@ COLOR_STYLE_PRESETS = (
     COLOR_STYLE_PUNCHY,
 )
 DISPLAY_PRESETS = (DISPLAY_PRESET_SDR, DISPLAY_PRESET_HDR, DISPLAY_PRESET_AUTO)
-LIGHT_SPREAD_PRESETS = (LIGHT_SPREAD_PRECISE, LIGHT_SPREAD_BALANCED, LIGHT_SPREAD_SOFT)
+LIGHT_SPREAD_PRESETS = (
+    LIGHT_SPREAD_OFF,
+    LIGHT_SPREAD_PRECISE,
+    LIGHT_SPREAD_BALANCED,
+    LIGHT_SPREAD_SOFT,
+)
+SAMPLING_MODE_PRESETS = (
+    SAMPLING_MODE_AUTO,
+    SAMPLING_MODE_AREA_AVERAGE,
+    SAMPLING_MODE_EDGE_DIRECT,
+    SAMPLING_MODE_VIVID_WEIGHTED,
+    SAMPLING_MODE_PEAK_LUMA,
+)
 
 
 @dataclass(frozen=True)
@@ -134,6 +153,12 @@ def is_accuracy_mode(accuracy_mode: bool, color_style: str) -> bool:
 
 
 def effective_light_spread(*, light_spread: str, accuracy_mode: bool, color_style: str) -> str:
+    style = normalize_preset(color_style, allowed=COLOR_STYLE_PRESETS, default=COLOR_STYLE_NATURAL)
+    if is_accuracy_mode(accuracy_mode, color_style) or style in {
+        COLOR_STYLE_REFERENCE,
+        COLOR_STYLE_NATURAL,
+    }:
+        return LIGHT_SPREAD_OFF
     if not is_accuracy_mode(accuracy_mode, color_style):
         return normalize_preset(
             light_spread, allowed=LIGHT_SPREAD_PRESETS, default=LIGHT_SPREAD_BALANCED
@@ -144,6 +169,24 @@ def effective_light_spread(*, light_spread: str, accuracy_mode: bool, color_styl
     if normalized == LIGHT_SPREAD_SOFT:
         return LIGHT_SPREAD_BALANCED
     return normalized
+
+
+def effective_sampling_mode(*, sampling_mode: str, color_style: str, accuracy_mode: bool) -> str:
+    normalized = normalize_preset(
+        sampling_mode, allowed=SAMPLING_MODE_PRESETS, default=SAMPLING_MODE_AUTO
+    )
+    if normalized != SAMPLING_MODE_AUTO:
+        return normalized
+    if is_accuracy_mode(accuracy_mode, color_style):
+        return SAMPLING_MODE_EDGE_DIRECT
+    style = normalize_preset(color_style, allowed=COLOR_STYLE_PRESETS, default=COLOR_STYLE_AMBIENT)
+    if style in {COLOR_STYLE_REFERENCE, COLOR_STYLE_NATURAL}:
+        return SAMPLING_MODE_EDGE_DIRECT
+    if style == COLOR_STYLE_AMBIENT:
+        return SAMPLING_MODE_VIVID_WEIGHTED
+    if style in {COLOR_STYLE_VIVID, COLOR_STYLE_PUNCHY}:
+        return SAMPLING_MODE_VIVID_WEIGHTED
+    return SAMPLING_MODE_EDGE_DIRECT
 
 
 def effective_zone_sampling_engine(

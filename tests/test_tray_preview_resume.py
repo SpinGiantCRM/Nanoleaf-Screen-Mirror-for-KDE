@@ -67,12 +67,16 @@ def test_restart_mirroring_service_replaces_service_instance(monkeypatch) -> Non
     _FakeService.instances.clear()
     fake_tray = SimpleNamespace(
         config=AppConfig(device_zone_count=4),
+        cfg_mgr=SimpleNamespace(save=lambda _cfg: None),
         service=original,
         tray_icon=SimpleNamespace(showMessage=lambda *_a, **_k: None),
         QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Warning=1)),
         _refresh_mode_labels=lambda: None,
         on_stop=lambda: fake_tray.service.stop(),
         on_start=lambda: fake_tray.service.start(),
+    )
+    fake_tray._sync_config_for_mirroring = lambda: NanoleafTrayApp._sync_config_for_mirroring(
+        fake_tray
     )
 
     NanoleafTrayApp._restart_mirroring_service(fake_tray, was_running=True)

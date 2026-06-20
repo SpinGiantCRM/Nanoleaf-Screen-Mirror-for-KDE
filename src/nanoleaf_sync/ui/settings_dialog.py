@@ -2449,7 +2449,11 @@ class SettingsDialog:
                     corner_anchor_top_right=int(self._state.corner_anchor_top_right),
                     corner_anchor_bottom_right=int(self._state.corner_anchor_bottom_right),
                     corner_anchor_bottom_left=int(self._state.corner_anchor_bottom_left),
-                    use_mock_capture=bool(getattr(cfg, "use_mock_capture", False)),
+                    use_mock_capture=(
+                        False
+                        if bool(getattr(cfg, "wizard_completed", False))
+                        else bool(getattr(cfg, "use_mock_capture", False))
+                    ),
                     prefer_backend=str(self.capture_backend_combo.currentText()),
                     auto_probe_policy=str(self.auto_probe_policy_combo.currentText()),
                     auto_latency_policy=str(self.auto_latency_policy_combo.currentText()),

@@ -77,6 +77,8 @@ class RuntimeState:
     total_black_frames: int = 0
     latest_frame_mean_brightness: float = 0.0
     latest_zone_centers: list[tuple[int, int]] = field(default_factory=list)
+    latest_zone_rects_display: list[tuple[int, int, int, int]] = field(default_factory=list)
+    flattening_mitigation_active: bool = False
     skip_display_gamut_adaptation: bool = False
 
     def _assert_locked(self) -> None:

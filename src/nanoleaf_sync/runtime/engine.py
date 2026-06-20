@@ -67,7 +67,7 @@ from nanoleaf_sync.runtime.color_processing import (
     init_gamut_adaptation,
 )
 from nanoleaf_sync.runtime.fps_governor import FPSGovernor
-from nanoleaf_sync.runtime.processing import zones_from_config
+from nanoleaf_sync.runtime.processing import scale_zones_to_display, zones_from_config
 from nanoleaf_sync.runtime.ring_buf import (
     CapturePayload,
     ProcessedPayload,
@@ -182,11 +182,15 @@ def _zones_signature(
     layout_preset: str,
     img_w: int,
     img_h: int,
-) -> tuple[int, int, str, tuple[tuple[float, float, float, float], ...]]:
+    layout_inset: float = 0.0,
+    layout_scale: float = 1.0,
+) -> tuple[int, int, str, float, float, tuple[tuple[float, float, float, float], ...]]:
     return (
         int(img_w),
         int(img_h),
         str(layout_preset),
+        float(layout_inset),
+        float(layout_scale),
         tuple((float(z.x), float(z.y), float(z.w), float(z.h)) for z in zones),
     )
 
@@ -240,6 +244,8 @@ def _ensure_runtime_artifacts(
         ),
         img_w=img_w,
         img_h=img_h,
+        layout_inset=float(getattr(config, "layout_inset", 0.0)),
+        layout_scale=float(getattr(config, "layout_scale", 1.0)),
     )
     if state.zone_rects_signature != zone_sig or state.cached_zone_rects is None:
         state.cached_zone_rects = zones_from_config(effective_zones, img_w, img_h)
@@ -342,6 +348,8 @@ def process_frame(
     black_luminance_knee: float = 0.0024,
     color_style: str = "natural",
     edge_locality: str = "tight",
+    sampling_mode: str = "auto",
+    letterbox_detection: bool = True,
     compositor_hdr_mode: bool = False,
     sdr_boost_nits: float = 80.0,
     hdr_max_nits: float = 1000.0,
@@ -377,6 +385,8 @@ def process_frame(
         light_spread=light_spread,
         color_style=color_style,
         edge_locality=edge_locality,
+        sampling_mode=sampling_mode,
+        letterbox_detection=letterbox_detection,
         compositor_hdr_mode=compositor_hdr_mode,
         sdr_boost_nits=sdr_boost_nits,
         hdr_max_nits=hdr_max_nits,
@@ -1164,11 +1174,14 @@ def _run_loop_pipeline(
                 backend_name = str(getattr(cap, "name", "unknown"))
                 backend_method = str(getattr(cap, "last_capture_path", "") or "")
                 capture_start = time.perf_counter()
-                zone_centers = list(state.latest_zone_centers)
+                zone_rects = list(state.latest_zone_rects_display)
                 capture_result = None
-                if zone_centers:
+                use_drm_rects = bool(getattr(config, "drm_zone_patch_capture", False)) and bool(
+                    zone_rects
+                )
+                if use_drm_rects:
                     try:
-                        capture_result = cap.capture(zone_centers=zone_centers)
+                        capture_result = cap.capture(zone_rects=zone_rects)
                     except TypeError:
                         capture_result = cap.capture()
                 else:
@@ -1177,7 +1190,9 @@ def _run_loop_pipeline(
                 call_ms = (capture_end - capture_start) * 1000.0
                 with metrics_lock:
                     latest_capture_backend_name = backend_name
-                    latest_capture_backend_method = backend_method
+                    latest_capture_backend_method = str(
+                        getattr(cap, "last_capture_path", "") or backend_method
+                    )
                     capture_call_ms_latest = call_ms
                     if last_capture_completed_ts is not None:
                         capture_worker_loop_gap_ms_latest = (
@@ -1314,6 +1329,21 @@ def _run_loop_pipeline(
                     frame_width=img_w,
                     frame_height=img_h,
                 )
+                display_w = img_w
+                display_h = img_h
+                cap_for_display = get_capture()
+                if cap_for_display is not None:
+                    drm_sampler = getattr(cap_for_display, "_drm_zone_sampler", None)
+                    if drm_sampler is not None:
+                        display_w = int(getattr(drm_sampler, "width", display_w) or display_w)
+                        display_h = int(getattr(drm_sampler, "height", display_h) or display_h)
+                state.latest_zone_rects_display = scale_zones_to_display(
+                    zones_px,
+                    capture_width=img_w,
+                    capture_height=img_h,
+                    display_width=display_w,
+                    display_height=display_h,
+                )
 
                 build_diagnostics = bool(
                     getattr(config, "verbose", False)
@@ -1334,6 +1364,9 @@ def _run_loop_pipeline(
                     build_zone_diagnostics=build_diagnostics,
                     skip_display_gamut_adaptation=state.skip_display_gamut_adaptation,
                 )
+                light_spread = pipeline_params.light_spread
+                if state.flattening_mitigation_active:
+                    light_spread = "off"
                 processed = process_frame(
                     frame=frame,
                     precomputed_zone_colors=precomputed_zone_colors,
@@ -1351,9 +1384,11 @@ def _run_loop_pipeline(
                     zone_sampling_stride=pipeline_params.zone_sampling_stride,
                     zone_sampling_engine=pipeline_params.zone_sampling_engine,
                     motion_preset=pipeline_params.motion_preset,
-                    light_spread=pipeline_params.light_spread,
+                    light_spread=light_spread,
                     color_style=pipeline_params.color_style,
                     edge_locality=pipeline_params.edge_locality,
+                    sampling_mode=pipeline_params.sampling_mode,
+                    letterbox_detection=pipeline_params.letterbox_detection,
                     led_calibration=pipeline_params.led_calibration,
                     return_diagnostics=True,
                     build_zone_diagnostics=build_diagnostics,
@@ -1443,8 +1478,12 @@ def _run_loop_pipeline(
                         )
                     state.latest_zone_diagnostics = zone_diagnostics
                     state.latest_side_variance_diagnostics = side_var
+                    state.flattening_mitigation_active = any(
+                        bool(side.get("processing_flattened", False)) for side in side_var.values()
+                    )
                 else:
                     side_var = {}
+                    state.flattening_mitigation_active = False
 
                 pushed = process_buf.push(
                     ProcessedPayload(

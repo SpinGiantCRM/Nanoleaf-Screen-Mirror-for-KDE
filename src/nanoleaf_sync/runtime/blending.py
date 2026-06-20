@@ -17,7 +17,7 @@ class AdaptiveSmoothingDiagnostics:
 
 def apply_neighbor_blend(mapped: np.ndarray, *, spread_mode: str) -> np.ndarray:
     mode = str(spread_mode or "balanced").strip().lower()
-    weight = {"precise": 0.04, "balanced": 0.12, "soft": 0.24}.get(mode, 0.12)
+    weight = {"off": 0.0, "precise": 0.04, "balanced": 0.12, "soft": 0.24}.get(mode, 0.12)
     if mapped.shape[0] < 8 or weight <= 0.0:
         return mapped
     prev = np.roll(mapped, 1, axis=0)
