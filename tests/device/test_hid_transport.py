@@ -181,6 +181,52 @@ def test_write_with_nonblocking_drain_uses_blocking_ack_then_nonblocking_drain()
     assert timing["flush_or_wait_ms"] >= 0.0
 
 
+def test_write_with_nonblocking_drain_respects_wall_clock_budget() -> None:
+    class _AlwaysDataHandle(FakeHIDHandle):
+        def read(self, _size: int, _timeout_ms: int):
+            return list(b"\x00" * 65)
+
+    fake = _AlwaysDataHandle(reads=[])
+    transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
+    transport._handle = fake
+
+    timing = transport.write_with_nonblocking_drain(
+        b"\x03\x00\x00",
+        max_drain_reads=64,
+        ack_timeout_ms=25,
+        drain_budget_ms=8,
+    )
+
+    assert timing["read_calls"] >= 1
+    assert timing["flush_or_wait_ms"] < 80.0
+
+
+def test_write_with_nonblocking_drain_phase1_not_capped_by_phase2_budget() -> None:
+    class _LateAckHandle(FakeHIDHandle):
+        def __init__(self) -> None:
+            super().__init__(reads=[])
+            self._calls = 0
+
+        def read(self, _size: int, timeout_ms: int):
+            self._calls += 1
+            if self._calls == 1:
+                assert timeout_ms >= 20
+                return list(b"\x00\x83\x00\x03\x00\x00\x0a" + b"\x00" * 58)
+            return []
+
+    fake = _LateAckHandle()
+    transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
+    transport._handle = fake
+
+    timing = transport.write_with_nonblocking_drain(
+        b"\x03\x00\x00",
+        ack_timeout_ms=25,
+        drain_budget_ms=1,
+    )
+
+    assert timing["read_calls"] == 1
+
+
 def test_transceive_times_out_on_empty_read() -> None:
     fake = FakeHIDHandle([])
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)

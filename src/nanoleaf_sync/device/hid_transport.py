@@ -438,16 +438,19 @@ class HIDTransport:
         self,
         report: bytes | bytearray | memoryview | Sequence[int],
         *,
-        max_drain_reads: int = 64,
-        ack_timeout_ms: int = 8,
+        max_drain_reads: int = 8,
+        ack_timeout_ms: int = 25,
+        drain_budget_ms: int | None = None,
     ) -> dict[str, int | float | list[int] | list[float] | bool | str]:
         """Write a HID report and drain pending input to prevent kernel-buffer
-        back-pressure.  The first drain read blocks for *ack_timeout_ms* (default
-        8 ms — fits within the 120 fps frame budget of ~8.3 ms) to capture the
-        device ACK; subsequent reads use a 0 ms timeout until the input buffer
-        is empty or *max_drain_reads* is reached.
+        back-pressure.
 
-        Returns timing metadata including flush/wait duration and read count.
+        Phase 1 always waits up to *ack_timeout_ms* (default 25 ms) for the
+        device ACK so live zone-color frames are applied reliably.  Phase 2
+        performs short 1 ms poll reads until the extra drain budget expires,
+        *max_drain_reads* is reached, or the input buffer is empty.  Phase 2
+        never uses a 0 ms timeout because that can block indefinitely on Linux
+        hidapi after the first ACK.
         """
         if self._handle is None:
             raise RuntimeError("HID transport not opened.")
@@ -456,14 +459,18 @@ class HIDTransport:
         drain_start = time.perf_counter()
         drain_reads = 0
         max_reads = max(0, int(max_drain_reads))
-        ack_ms = max(0, int(ack_timeout_ms))
+        ack_ms = max(1, int(ack_timeout_ms))
+        extra_budget_ms = max(1, int(drain_budget_ms)) if drain_budget_ms is not None else 8
+        read_size = self.report_size + (1 if self.use_report_id_prefix else 0)
         try:
-            for i in range(max_reads):
-                timeout_ms = ack_ms if i == 0 else 0
-                raw_chunk = self._handle.read(
-                    self.report_size + (1 if self.use_report_id_prefix else 0),
-                    timeout_ms,
-                )
+            raw_chunk = self._handle.read(read_size, ack_ms)
+            if raw_chunk:
+                drain_reads += 1
+            deadline = time.perf_counter() + (extra_budget_ms / 1000.0)
+            for _ in range(max(0, max_reads - 1)):
+                if time.perf_counter() >= deadline:
+                    break
+                raw_chunk = self._handle.read(read_size, 1)
                 if not raw_chunk:
                     break
                 drain_reads += 1
