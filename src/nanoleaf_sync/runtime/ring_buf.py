@@ -3,7 +3,7 @@
 Payloads flow through two ring buffers:
 
 * **Capture → Process**: non-blocking push; drops when full (logged at DEBUG).
-* **Process → Send**: blocking push with a short timeout.
+* **Process → Send**: latest-preserving push; replaces stale queued work.
 
 This design decouples the capture, processing, and HID-write stages so that
 a slow device does not back-pressure the capture backend, while zone
@@ -71,6 +71,21 @@ class SPSCRingBuffer(Generic[T]):
             self._not_empty.notify()
             return True
 
+    def push_latest(self, item: T) -> bool:
+        """Push *item*, replacing the oldest queued item when full.
+
+        Returns ``True`` when an older item was replaced. This is intended for
+        low-latency handoffs where stale work is worse than a skipped frame.
+        """
+        with self._lock:
+            replaced = len(self._deque) >= self._deque.maxlen
+            if replaced:
+                self._deque.popleft()
+                self._dropped_count += 1
+            self._deque.append(item)
+            self._not_empty.notify()
+            return replaced
+
     # ------------------------------------------------------------------
     # Pop (consumer) side
     # ------------------------------------------------------------------
@@ -86,7 +101,9 @@ class SPSCRingBuffer(Generic[T]):
                 timeout=max(0.0, float(timeout)),
             ):
                 return None
-            return self._deque.popleft()
+            item = self._deque.popleft()
+            self._not_full.notify()
+            return item
 
     def pop_latest(self, timeout: float = 0.01) -> T | None:
         """Return the newest queued item, discarding older entries."""
@@ -108,7 +125,9 @@ class SPSCRingBuffer(Generic[T]):
         with self._lock:
             if len(self._deque) == 0:
                 return None
-            return self._deque.popleft()
+            item = self._deque.popleft()
+            self._not_full.notify()
+            return item
 
     # ------------------------------------------------------------------
     # Introspection

@@ -262,6 +262,9 @@ def test_latency_samples_reset_on_runtime_start() -> None:
 
 def test_latency_export_includes_new_stage_fields() -> None:
     state = RuntimeState()
+    state.predictive_sync_active = True
+    state.predictive_lookahead_frames = 1.25
+    state.predictive_scene_cut_suppressed = True
     state.latency_probe.add_stage_sample(
         FrameTimingSample(stage_ms={STAGE_ACTUAL_WORK: 9.0, STAGE_LOOP_GAP: 12.0})
     )
@@ -278,3 +281,5 @@ def test_latency_export_includes_new_stage_fields() -> None:
     payload = out.read_text(encoding="utf-8")
     assert "stage,available,sample_count,median_ms,p95_ms,max_ms" in payload
     assert "actual_work_ms,True,1,9.0,9.0,9.0" in payload
+    assert "predictive_sync_active,predictive_lookahead_frames" in payload
+    assert "True,1.25,True" in payload

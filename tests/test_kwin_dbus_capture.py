@@ -300,9 +300,10 @@ def test_kwin_backend_applies_hdr_conversion_when_configured(monkeypatch) -> Non
     assert int(frame[0, 0, 0]) == 9
     assert captured["shape"] == (1, 2, 3)
     meta = captured["metadata"]
-    assert meta.transfer == "srgb"
-    assert meta.primaries == "bt709"
-    assert float(meta.max_nits) == 1200.0
+    assert meta["transfer"] == "srgb"
+    assert meta["primaries"] == "bt709"
+    assert meta["source"] == "kwin display-referred"
+    assert float(meta["max_nits"]) == 1200.0
     assert "display-referred" in str(backend.last_hdr_diagnostics.get("assumption", ""))
 
 

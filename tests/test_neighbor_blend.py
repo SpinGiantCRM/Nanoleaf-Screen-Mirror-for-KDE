@@ -13,6 +13,13 @@ def test_dark_zones_unaffected_by_bright_neighbor() -> None:
         assert float(np.max(out[idx])) < 1.0
 
 
+def test_dim_neutral_zones_unaffected_by_bright_neighbor() -> None:
+    colors = np.full((24, 3), np.array([32.0, 31.0, 33.0], dtype=np.float32))
+    colors[0] = np.array([240.0, 40.0, 220.0], dtype=np.float32)
+    out = apply_neighbor_blend(colors, spread_mode="soft")
+    np.testing.assert_allclose(out[1:], colors[1:], atol=0.01)
+
+
 def test_no_wrap_from_last_index_into_first() -> None:
     colors = np.zeros((24, 3), dtype=np.float32)
     colors[-1] = np.array([240.0, 40.0, 220.0], dtype=np.float32)

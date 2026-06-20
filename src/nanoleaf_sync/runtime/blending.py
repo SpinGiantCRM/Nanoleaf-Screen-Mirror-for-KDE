@@ -19,6 +19,8 @@ class AdaptiveSmoothingDiagnostics:
 
 _DARK_ISOLATION_PEAK = 18.0
 _BRIGHT_NEIGHBOR_DELTA = 24.0
+_LOW_LIGHT_HOLD_PEAK = 35.0
+_LOW_LIGHT_NEUTRAL_ISOLATION_PEAK = 40.0
 
 
 def apply_neighbor_blend(mapped: np.ndarray, *, spread_mode: str) -> np.ndarray:
@@ -30,7 +32,9 @@ def apply_neighbor_blend(mapped: np.ndarray, *, spread_mode: str) -> np.ndarray:
 
     mapped_f = np.asarray(mapped, dtype=np.float32)
     peaks = np.max(mapped_f, axis=1)
-    dark_mask = peaks < _DARK_ISOLATION_PEAK
+    chroma = peaks - np.min(mapped_f, axis=1)
+    low_light_neutral_mask = (peaks < _LOW_LIGHT_NEUTRAL_ISOLATION_PEAK) & (chroma < 6.0)
+    dark_mask = (peaks < _DARK_ISOLATION_PEAK) | low_light_neutral_mask
     out = mapped_f.copy()
 
     prev_neighbor = np.empty_like(mapped_f)
@@ -160,24 +164,54 @@ def adaptive_one_euro_blend(
     current_peak = np.max(current, axis=1)
     previous_peak = np.max(previous, axis=1)
     chroma_spread = current_peak - np.min(current, axis=1)
+    previous_chroma = previous_peak - np.min(previous, axis=1)
     achromatic = chroma_spread < 4.0
     black_cut_mask = (current_peak < 8.0) & (previous_peak > 64.0)
     if black_cut_mask.any():
         alpha_zone = np.where(black_cut_mask, 1.0, alpha_zone)
 
-    dark_release_mask = (current_peak < 15.0) & (
-        (previous_peak > current_peak + 8.0) | (chroma_spread >= 4.0)
+    dark_release_mask = (current_peak < 20.0) & (
+        (previous_peak >= current_peak + 8.0)
+        | (
+            (previous_chroma >= 4.0)
+            & (previous_peak >= 14.0)
+            & (previous_peak > current_peak + 4.0)
+        )
     )
     if dark_release_mask.any():
         alpha_zone = np.where(dark_release_mask, 1.0, alpha_zone)
 
+    low_light_neutral_release_mask = (
+        (current_peak < _LOW_LIGHT_NEUTRAL_ISOLATION_PEAK)
+        & (chroma_spread < 8.0)
+        & (previous_chroma >= 8.0)
+        & (previous_peak > current_peak + 4.0)
+    )
+    if low_light_neutral_release_mask.any():
+        alpha_zone = np.where(low_light_neutral_release_mask, 1.0, alpha_zone)
+
     tiny_mask = zone_delta < deadband
-    dark_hold_mask = (current_peak < 15.0) & (previous_peak < 15.0) & tiny_mask & achromatic
+    dark_hold_mask = (
+        (current_peak < _LOW_LIGHT_HOLD_PEAK)
+        & (previous_peak < _LOW_LIGHT_HOLD_PEAK)
+        & tiny_mask
+        & achromatic
+    )
     if dark_hold_mask.any():
         alpha_zone = np.where(dark_hold_mask, 0.0, alpha_zone)
-    elif tiny_mask.any():
-        skip_tiny = (current_peak < 15.0) & ((previous_peak >= 15.0) | (chroma_spread >= 4.0))
-        apply_tiny = tiny_mask & ~skip_tiny
+    low_light_damp = (
+        (current_peak < _LOW_LIGHT_HOLD_PEAK)
+        & achromatic
+        & (zone_delta < deadband * 2.0)
+        & ~dark_hold_mask
+    )
+    if low_light_damp.any():
+        alpha_zone = np.where(low_light_damp, np.minimum(alpha_zone, tiny_blend), alpha_zone)
+    if tiny_mask.any():
+        skip_tiny = (current_peak < 20.0) & (
+            (previous_peak >= 20.0) | (chroma_spread >= 4.0) | (previous_chroma >= 6.0)
+        )
+        apply_tiny = tiny_mask & ~skip_tiny & ~dark_hold_mask & ~low_light_damp
         if apply_tiny.any():
             alpha_zone = np.where(apply_tiny, np.minimum(alpha_zone, tiny_blend), alpha_zone)
 

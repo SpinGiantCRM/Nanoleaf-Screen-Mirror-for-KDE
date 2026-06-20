@@ -26,7 +26,7 @@ def test_settings_dialog_source_uses_preset_ui_labels() -> None:
     )
     assert "Raw device→source mapping" in text
     assert "HDR colour path" in text
-    assert "Runtime Status" in text
+    assert "Runtime status (technical)" in text
     assert "Backend & Probing" in text
     assert "Diagnostics Actions" in text
     assert "Quality Diagnostics" in text
@@ -149,7 +149,7 @@ def test_save_applies_without_closing_dialog() -> None:
     assert "buttons.accepted.connect(self._apply_settings)" in text
     assert "buttons.rejected.connect(self.reject)" in text
     assert "def _apply_settings(self) -> None:" in text
-    assert "apply_fn(self.updated_config())" in text
+    assert "updated = self.updated_config()" in text
 
 
 def test_settings_dialog_surfaces_latest_auto_and_manual_probe_results() -> None:

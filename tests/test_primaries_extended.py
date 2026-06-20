@@ -137,12 +137,16 @@ def test_adaptation_dcip3_to_srgb() -> None:
     M = build_adaptation_matrix(CHROMATICITIES_DCIP3, CHROMATICITIES_SRGB)
     assert M.shape == (3, 3)
     assert np.isfinite(M).all()
+    assert not np.allclose(M, np.eye(3), atol=1e-3)
+    white = np.array([1.0, 1.0, 1.0], dtype=np.float32) @ M
+    np.testing.assert_allclose(white, np.ones(3, dtype=np.float32), atol=1e-4)
 
 
 def test_adaptation_srgb_to_bt2020() -> None:
     M = build_adaptation_matrix(CHROMATICITIES_SRGB, CHROMATICITIES_BT2020)
     assert M.shape == (3, 3)
     assert np.isfinite(M).all()
+    assert not np.allclose(M, np.eye(3), atol=1e-3)
 
 
 def test_adaptation_default_target_is_srgb() -> None:

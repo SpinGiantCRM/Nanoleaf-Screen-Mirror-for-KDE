@@ -2,6 +2,21 @@ from nanoleaf_sync.ui.calibration_state import CalibrationState
 from tests.repo_text import read_repo_text
 
 
+def test_settings_advanced_runtime_status_collapsed_by_default() -> None:
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
+    assert 'QGroupBox("Runtime status (technical)")' in text
+    assert "runtime_status.setChecked(False)" in text
+    assert "stretch_all_combo_popups" in text
+    assert "mark_compact" in text
+
+
+def test_layout_helpers_exist() -> None:
+    text = read_repo_text("src/nanoleaf_sync/ui/layout_helpers.py")
+    assert "def stretch_menu_width" in text
+    assert "def stretch_combo_popup" in text
+    assert "def mark_compact" in text
+
+
 def test_calibration_state_has_minimal_fields() -> None:
     fields = CalibrationState.__dataclass_fields__
     assert "corner_anchor_top_left" in fields
@@ -41,7 +56,7 @@ def test_wizard_and_settings_use_canonical_preset_vocabulary() -> None:
         assert token in settings
     for label in ("Layout", "Edge locality", "Quality", "Motion", "Color style"):
         assert label in wizard
-    for label in ("Edge locality", "Quality", "Motion", "Color style"):
+    for label in ("Edge locality", "Quality", "Motion", "Colour style"):
         assert label in settings
 
 

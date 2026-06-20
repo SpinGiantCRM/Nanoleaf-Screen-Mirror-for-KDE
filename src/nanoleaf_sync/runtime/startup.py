@@ -13,24 +13,35 @@ from nanoleaf_sync.runtime.state import RuntimeState
 
 logger = logging.getLogger(__name__)
 
+_PRIORITY_TARGET_BY_MODE = {
+    "normal": None,
+    "high": -5,
+    "very_high_experimental": -10,
+}
 
-def _current_nice_value() -> int | None:
+
+def _current_nice_value(who: int = 0) -> int | None:
     try:
-        return int(os.getpriority(os.PRIO_PROCESS, 0))
+        return int(os.getpriority(os.PRIO_PROCESS, int(who)))
     except Exception:
         logger.debug("Unable to read process nice value", exc_info=True)
         return None
 
 
-def apply_process_priority(*, config: AppConfig, state: RuntimeState) -> None:
+def _normalized_priority_mode(config: AppConfig) -> str:
     mode = str(getattr(config, "performance_priority", "normal") or "normal").strip().lower()
-    target_by_mode = {
-        "normal": None,
-        "high": -5,
-        "very_high_experimental": -10,
-    }
-    target = target_by_mode.get(mode)
-    state.configured_priority_mode = mode if mode in target_by_mode else "normal"
+    return mode if mode in _PRIORITY_TARGET_BY_MODE else "normal"
+
+
+def _desired_nice_value(target: int, *, who: int = 0) -> int:
+    current_nice = _current_nice_value(who)
+    return int(target) if current_nice is None else min(int(current_nice), int(target))
+
+
+def apply_process_priority(*, config: AppConfig, state: RuntimeState) -> None:
+    mode = _normalized_priority_mode(config)
+    target = _PRIORITY_TARGET_BY_MODE.get(mode)
+    state.configured_priority_mode = mode
     state.effective_nice_value = _current_nice_value()
     state.priority_apply_error = ""
 
@@ -38,8 +49,7 @@ def apply_process_priority(*, config: AppConfig, state: RuntimeState) -> None:
         state.priority_apply_status = "not_requested"
         return
 
-    current_nice = _current_nice_value()
-    desired_nice = target if current_nice is None else min(int(current_nice), int(target))
+    desired_nice = _desired_nice_value(int(target))
     try:
         os.setpriority(os.PRIO_PROCESS, 0, int(desired_nice))
         state.priority_apply_status = "applied"
@@ -47,6 +57,28 @@ def apply_process_priority(*, config: AppConfig, state: RuntimeState) -> None:
     except Exception as exc:
         state.priority_apply_status = "failed"
         state.priority_apply_error = str(exc)
+        state.effective_nice_value = _current_nice_value()
+
+
+def apply_current_thread_priority(
+    *, config: AppConfig, state: RuntimeState, thread_label: str
+) -> None:
+    mode = _normalized_priority_mode(config)
+    target = _PRIORITY_TARGET_BY_MODE.get(mode)
+    if target is None or state.priority_apply_status == "failed":
+        return
+
+    native_id = getattr(threading, "get_native_id", lambda: 0)()
+    who = int(native_id or 0)
+    desired_nice = _desired_nice_value(int(target), who=who)
+    try:
+        os.setpriority(os.PRIO_PROCESS, who, int(desired_nice))
+        state.effective_nice_value = _current_nice_value()
+        if state.priority_apply_status not in {"applied", "partial_failed"}:
+            state.priority_apply_status = "applied"
+    except Exception as exc:
+        state.priority_apply_status = "partial_failed"
+        state.priority_apply_error = f"{thread_label}: {exc}"
         state.effective_nice_value = _current_nice_value()
 
 

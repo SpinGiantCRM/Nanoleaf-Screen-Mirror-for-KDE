@@ -30,6 +30,20 @@ from nanoleaf_sync.config.presets import (
     sampling_quality_to_zone_stride as sampling_quality_to_zone_stride_impl,
 )
 
+ALLOWED_NANOLEAF_USB_IDS: dict[int, set[int]] = {0x37FA: {0x8201, 0x8202}}
+
+
+def _normalize_device_usb_ids(
+    *, device_vid: int, device_pid: int, allow_custom_device_ids: bool
+) -> tuple[int, int]:
+    if allow_custom_device_ids:
+        return device_vid, device_pid
+    allowed_pids = ALLOWED_NANOLEAF_USB_IDS.get(device_vid)
+    if allowed_pids and device_pid in allowed_pids:
+        return device_vid, device_pid
+    return 0x37FA, 0x8202
+
+
 logger = logging.getLogger(__name__)
 SCHEMA_VERSION = 1
 CURRENT_CALIBRATION_SCHEMA_VERSION = 1
@@ -313,6 +327,15 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         minimum=1,
         maximum=0xFFFF,
     )
+    allow_custom_device_ids = coerce_bool(
+        getattr(cfg, "allow_custom_device_ids", False),
+        False,
+    )
+    device_vid, device_pid = _normalize_device_usb_ids(
+        device_vid=device_vid,
+        device_pid=device_pid,
+        allow_custom_device_ids=allow_custom_device_ids,
+    )
 
     raw_calibration = cfg.calibration or CalibrationConfig()
     calibration_schema_version = max(
@@ -497,6 +520,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         start_on_launch=coerce_bool(getattr(cfg, "start_on_launch", False), False),
         device_vid=device_vid,
         device_pid=device_pid,
+        allow_custom_device_ids=allow_custom_device_ids,
         use_mock_capture=use_mock_capture,
         auto_probe_enabled=coerce_bool(
             getattr(cfg, "auto_probe_enabled", AppConfig.auto_probe_enabled),

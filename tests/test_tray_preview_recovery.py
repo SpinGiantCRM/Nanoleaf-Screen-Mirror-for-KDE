@@ -166,7 +166,7 @@ def test_send_calibration_preview_notifies_after_retry_exhausted(monkeypatch) ->
 
     NanoleafTrayApp._send_calibration_preview(fake_tray, [(255, 0, 0)])
 
-    assert any("Calibration test pattern failed: read error" in message for message in messages)
+    assert any("strip not reachable over USB" in message for message in messages)
 
 
 def test_send_calibration_preview_never_promotes_manual_zone_count_from_detected() -> None:

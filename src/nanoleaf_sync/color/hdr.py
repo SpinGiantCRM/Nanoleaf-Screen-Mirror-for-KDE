@@ -49,6 +49,8 @@ _BT2020_TO_XYZ = np.array(
 )
 _LINEAR_BT709_TO_SRGB = _XYZ_TO_SRGB @ _BT709_TO_XYZ
 _LINEAR_BT2020_TO_SRGB = _XYZ_TO_SRGB @ _BT2020_TO_XYZ
+_HDR_DIFFUSE_WHITE_NITS = 100.0
+_PQ_REFERENCE_WHITE_NITS = 10000.0
 
 
 @dataclass(frozen=True)
@@ -135,7 +137,9 @@ def _hlg_eotf_to_linear(c: np.ndarray) -> np.ndarray:
 def _apply_tonemap_hable(linear: np.ndarray, max_nits: float) -> np.ndarray:
     # Hable / Uncharted 2 filmic curve:
     # better shoulder roll-off and colorfulness retention than Reinhard.
-    scale = max(1.0, float(max_nits)) / 100.0
+    scale = (_PQ_REFERENCE_WHITE_NITS / _HDR_DIFFUSE_WHITE_NITS) * (
+        max(1.0, float(max_nits)) / 1000.0
+    )
     x = np.clip(linear * scale, 0.0, None).astype(np.float32, copy=False)
 
     a = 0.15
@@ -151,6 +155,21 @@ def _apply_tonemap_hable(linear: np.ndarray, max_nits: float) -> np.ndarray:
 
     white_scale = 1.0 / max(float(_hable_curve(np.array([white], dtype=np.float32))[0]), 1e-6)
     return np.clip(_hable_curve(x) * white_scale, 0.0, 1.0)
+
+
+def _apply_tonemap_hable_luminance_preserving(
+    linear_rgb: np.ndarray, max_nits: float
+) -> np.ndarray:
+    rgb = np.clip(np.asarray(linear_rgb, dtype=np.float32), 0.0, None)
+    y = np.clip(
+        (0.2126 * rgb[..., 0]) + (0.7152 * rgb[..., 1]) + (0.0722 * rgb[..., 2]),
+        0.0,
+        None,
+    )
+    tone_y = _apply_tonemap_hable(y[..., None], max_nits=max_nits)[..., 0]
+    scale = np.divide(tone_y, y, out=np.zeros_like(tone_y, dtype=np.float32), where=y > 1e-8)
+    mapped = rgb * scale[..., None]
+    return np.clip(mapped, 0.0, 1.0)
 
 
 def _looks_sdr_encoded(enc: np.ndarray, *, transfer: str) -> bool:
@@ -181,11 +200,17 @@ def analyze_hdr_path(rgb: np.ndarray, metadata: Any | None = None) -> dict[str, 
 
     enc = _to_float01(rgb)
     tone_map_planned = assumed_transfer in {"pq", "hlg"}
-    if tone_map_planned and _looks_sdr_encoded(enc, transfer=assumed_transfer):
+    if (
+        tone_map_planned
+        and source != "backend metadata"
+        and _looks_sdr_encoded(enc, transfer=assumed_transfer)
+    ):
         tone_map_planned = False
+        assumed_transfer = "srgb"
+        assumed_primaries = "bt709"
         assumption_note = (
             assumption_note + "; " if assumption_note else ""
-        ) + "input appears SDR-like; skipping extra HDR tone mapping"
+        ) + "input appears SDR-like; treating as display-referred sRGB"
     if assumed_transfer in {"srgb", "linear"}:
         tone_map_planned = False
 
@@ -279,7 +304,7 @@ def convert_frame_to_srgb8(
     # Step 3: Tone-map into SDR-ish range, then sRGB encode.
     # (Nanoleaf HID expects 8-bit sRGB-like payloads.)
     if bool(path["tone_mapping_applied"]):
-        ldr = _apply_tonemap_hable(linear_srgb, max_nits=meta.max_nits)
+        ldr = _apply_tonemap_hable_luminance_preserving(linear_srgb, max_nits=meta.max_nits)
     else:
         ldr = np.clip(linear_srgb, 0.0, 1.0)
     srgb = _linear_to_srgb_encoded(ldr)

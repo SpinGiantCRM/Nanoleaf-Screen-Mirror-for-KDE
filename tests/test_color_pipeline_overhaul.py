@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import threading
+import time
+
 import numpy as np
 import pytest
 
@@ -113,6 +116,46 @@ def test_sdr_boost_applied_before_style_mapping_in_pipeline() -> None:
     assert int(final[0, 0]) <= int(sampled[0, 0]) + 8
 
 
+def test_sdr_boost_compensation_can_be_suppressed_for_tone_mapped_hdr() -> None:
+    raw = np.asarray([[128, 128, 128]], dtype=np.uint8)
+    zones_px = [(0, 0, 120, 80)]
+    enabled = ColorPipelineParams(
+        compositor_hdr_mode=True,
+        sdr_boost_nits=200.0,
+        sdr_boost_compensation_enabled=True,
+        color_style="reference",
+        return_diagnostics=True,
+    )
+    suppressed = ColorPipelineParams(
+        compositor_hdr_mode=True,
+        sdr_boost_nits=200.0,
+        sdr_boost_compensation_enabled=False,
+        color_style="reference",
+        return_diagnostics=True,
+    )
+    enabled_out = process_zone_colors(
+        frame=None,
+        precomputed_zone_colors=raw,
+        prev_smoothed_colors=[],
+        zones_px=zones_px,
+        device_zone_indices=[0],
+        params=enabled,
+    )
+    suppressed_out = process_zone_colors(
+        frame=None,
+        precomputed_zone_colors=raw,
+        prev_smoothed_colors=[],
+        zones_px=zones_px,
+        device_zone_indices=[0],
+        params=suppressed,
+    )
+    enabled_colors, _sampled, _pre, _final, enabled_timings, _history = enabled_out  # type: ignore[misc]
+    suppressed_colors, _sampled2, _pre2, _final2, suppressed_timings, _history2 = suppressed_out  # type: ignore[misc]
+    assert enabled_timings.per_zone_sdr_boost_undo_ratio
+    assert suppressed_timings.per_zone_sdr_boost_undo_ratio == ()
+    assert int(suppressed_colors[0][0]) > int(enabled_colors[0][0]) + 20
+
+
 def test_process_frame_reference_style_neutral_grey() -> None:
     width, height, zone_count = 240, 140, 24
     zones_px = zones_from_config(
@@ -152,6 +195,42 @@ def test_ring_buffer_pop_latest_coalesces_older_items() -> None:
         assert buf.try_push(value)
     assert buf.pop_latest(timeout=0.01) == 3
     assert buf.last_pop_coalesced == 2
+
+
+def test_ring_buffer_push_latest_replaces_oldest_when_full() -> None:
+    buf: SPSCRingBuffer[int] = SPSCRingBuffer(capacity=2)
+    assert buf.try_push(1)
+    assert buf.try_push(2)
+
+    assert buf.push_latest(3) is True
+
+    assert buf.dropped_count() == 1
+    assert buf.pop(timeout=0.01) == 2
+    assert buf.pop(timeout=0.01) == 3
+
+
+def test_ring_buffer_blocking_push_wakes_when_consumer_pops() -> None:
+    buf: SPSCRingBuffer[int] = SPSCRingBuffer(capacity=1)
+    assert buf.try_push(1)
+    result: dict[str, float | bool] = {}
+    ready = threading.Event()
+
+    def _producer() -> None:
+        ready.set()
+        started = time.perf_counter()
+        result["pushed"] = buf.push(2, timeout=0.5)
+        result["elapsed"] = time.perf_counter() - started
+
+    thread = threading.Thread(target=_producer)
+    thread.start()
+    assert ready.wait(timeout=0.2)
+    time.sleep(0.03)
+    assert buf.pop(timeout=0.01) == 1
+    thread.join(timeout=0.2)
+
+    assert not thread.is_alive()
+    assert result["pushed"] is True
+    assert float(result["elapsed"]) < 0.2
 
 
 def test_is_accuracy_mode_from_reference_style() -> None:

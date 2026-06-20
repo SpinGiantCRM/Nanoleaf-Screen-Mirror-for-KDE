@@ -109,15 +109,14 @@ def test_drm_device_present(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     reset_capability_check_cache()
     card0 = tmp_path / "card0"
     card0.touch()
-    monkeypatch.setenv("NANOLEAF_DRM_CARD", str(card0))
-    # Also ensure capability cache is cleared so this path is checked
+    monkeypatch.setenv("NANOLEAF_DRM_CARD", "/dev/dri/card0")
     reset_capability_check_cache()
     from pathlib import Path as RealPath
 
     class _FakePath(type(card0)):
         def __new__(cls, *args, **kwargs):
             path_str = args[0] if args else ""
-            if str(path_str) == str(card0):
+            if str(path_str) == "/dev/dri/card0":
                 return card0
             return RealPath(*args, **kwargs)
 

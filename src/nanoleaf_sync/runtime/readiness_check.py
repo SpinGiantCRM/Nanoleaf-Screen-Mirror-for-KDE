@@ -271,7 +271,7 @@ def run_readiness_check(
             ReadinessIssue(
                 check="wizard-draft",
                 reason="A stale wizard draft is still present after setup completion.",
-                fix="Reset wizard draft by completing Display Setup again",
+                fix="Reset wizard draft by completing Set up strip… again",
                 category=CONFIG_PROBLEM_STATUS,
             )
         )

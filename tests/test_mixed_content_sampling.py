@@ -92,6 +92,31 @@ def test_konsole_like_top_left_blue_sky_green_text_stable() -> None:
     assert float(delta) <= 35.0
 
 
+def test_low_light_vivid_mode_uses_area_average_per_zone() -> None:
+    frame = np.full((80, 120, 3), np.array([24, 25, 23], dtype=np.uint8), dtype=np.uint8)
+    frame[10:70, 10:110, 0] = 28
+    frame[10:70, 10:110, 2] = 20
+    zones_px = [(0, 0, 120, 80)]
+    colors, meta = zone_colors_array_with_meta(
+        frame, zones_px, sampling_mode="vivid_weighted", mode="balanced"
+    )
+    assert meta.per_zone_effective_mode[0] == "area_average"
+    assert int(np.max(colors[0])) < 32
+
+
+def test_low_light_dynamic_mode_does_not_pick_vivid_specks() -> None:
+    frame = np.full((80, 120, 3), np.array([24, 24, 24], dtype=np.uint8), dtype=np.uint8)
+    frame[20:28, 48:56, :] = np.array([39, 4, 38], dtype=np.uint8)
+    zones_px = [(0, 0, 120, 80)]
+    colors, meta = zone_colors_array_with_meta(
+        frame, zones_px, sampling_mode="area_average", mode="dynamic"
+    )
+    area = zone_colors_array(frame, zones_px, sampling_mode="area_average", mode="balanced")
+    assert meta.per_zone_effective_mode[0] == "area_average"
+    assert int(np.max(colors[0]) - np.min(colors[0])) <= 3
+    assert int(np.mean(np.abs(colors.astype(np.int32) - area.astype(np.int32)))) <= 2
+
+
 def test_luminance_adaptive_sdr_boost_preserves_bright_highlights() -> None:
     from nanoleaf_sync.runtime.compositor import apply_zone_sdr_boost_float, effective_sdr_boost
 

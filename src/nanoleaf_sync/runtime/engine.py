@@ -81,7 +81,11 @@ from nanoleaf_sync.runtime.ring_buf import (
     ProcessedPayload,
     SPSCRingBuffer,
 )
-from nanoleaf_sync.runtime.startup import reinitialize_backends, should_reinitialize
+from nanoleaf_sync.runtime.startup import (
+    apply_current_thread_priority,
+    reinitialize_backends,
+    should_reinitialize,
+)
 from nanoleaf_sync.runtime.state import (
     DeviceZoneMappingSignature,
     RuntimeState,
@@ -119,6 +123,17 @@ def _no_pending_frame_rate_per_second(events: int, started_at: float) -> str:
     return f"{events / elapsed:.2f}"
 
 
+def _estimate_processing_staleness_ms(
+    *,
+    captured_at: float,
+    now: float,
+    hid_output_work_ewma_ms: float | None,
+) -> float:
+    frame_age_ms = max(0.0, (float(now) - float(captured_at)) * 1000.0)
+    expected_output_ms = max(0.0, float(hid_output_work_ewma_ms or 0.0))
+    return frame_age_ms + expected_output_ms
+
+
 @dataclass
 class PendingFrame:
     frame: np.ndarray | None
@@ -141,6 +156,9 @@ class FrameProcessingTimings:
     per_zone_sampling_mode: tuple[str, ...] = ()
     per_zone_mixed_fallback: tuple[bool, ...] = ()
     per_zone_sdr_boost_undo_ratio: tuple[float, ...] = ()
+    predictive_sync_active: bool = False
+    predictive_lookahead_frames: float = 0.0
+    predictive_scene_cut_suppressed: bool = False
 
 
 class PendingFrameSlot:
@@ -411,6 +429,7 @@ def process_frame(
     compositor_hdr_mode: bool = False,
     sdr_boost_nits: float = 80.0,
     hdr_max_nits: float = 1000.0,
+    sdr_boost_compensation_enabled: bool = True,
     accuracy_mode: bool = False,
     skip_display_gamut_adaptation: bool = False,
     precomputed_zone_colors: np.ndarray | None = None,
@@ -465,6 +484,7 @@ def process_frame(
         compositor_hdr_mode=compositor_hdr_mode,
         sdr_boost_nits=sdr_boost_nits,
         hdr_max_nits=hdr_max_nits,
+        sdr_boost_compensation_enabled=sdr_boost_compensation_enabled,
         accuracy_mode=accuracy_mode,
         skip_display_gamut_adaptation=skip_display_gamut_adaptation,
         led_calibration=calibration,
@@ -514,6 +534,7 @@ def _run_loop_legacy(
     sent_any_frame = False
     ewma_capture_to_send_ms = 0.0
     last_send_done_ts: float | None = None
+    last_output_work_ms: float | None = None
     last_pacing_wait_ms: float | None = None
     last_replaced_count = 0
     frame_seq: int = 0
@@ -546,6 +567,9 @@ def _run_loop_legacy(
             last_capture_completed_ts, \
             last_capture_success_ts
         nonlocal latest_capture_backend_name, latest_capture_backend_method
+        apply_current_thread_priority(
+            config=config, state=state, thread_label="legacy capture worker"
+        )
         with capture_worker_lock:
             capture_worker_active = True
         while not state.stop_event.is_set():
@@ -761,6 +785,11 @@ def _run_loop_legacy(
                     else getattr(config, "led_calibration_profile_hdr", None)
                 )
                 frame_seq += 1
+                estimated_staleness_ms = _estimate_processing_staleness_ms(
+                    captured_at=captured_at,
+                    now=time.perf_counter(),
+                    hid_output_work_ewma_ms=last_output_work_ms,
+                )
                 processed = process_frame(
                     frame=frame,
                     prev_smoothed_colors=state.prev_smoothed_colors,
@@ -828,7 +857,7 @@ def _run_loop_legacy(
                         getattr(config, "predictive_sync_strength", 0.6)
                     ),
                     effective_target_fps=float(getattr(config, "fps", 60)),
-                    staleness_ms=float(state.latest_staleness_ms),
+                    staleness_ms=estimated_staleness_ms,
                     sampling_quality=str(getattr(config, "sampling_quality", "high")),
                     prev_sampled_zone_colors=state.prev_sampled_zone_colors,
                     prior_zone_sample_motion=float(state.prior_zone_sample_motion),
@@ -845,6 +874,15 @@ def _run_loop_legacy(
                 ) = processed
                 processing_end = time.perf_counter()
                 state.prev_smoothed_colors = history_smoothed_colors
+                state.predictive_sync_active = bool(
+                    getattr(processing_timings, "predictive_sync_active", False)
+                )
+                state.predictive_lookahead_frames = float(
+                    getattr(processing_timings, "predictive_lookahead_frames", 0.0) or 0.0
+                )
+                state.predictive_scene_cut_suppressed = bool(
+                    getattr(processing_timings, "predictive_scene_cut_suppressed", False)
+                )
                 state.prior_area_average_mode = bool(
                     getattr(processing_timings, "area_average_active", False)
                 )
@@ -1029,6 +1067,7 @@ def _run_loop_legacy(
                     driver.send_frame(smoothed_colors)
                 send_done = time.perf_counter()
                 hid_write_ms = (send_done - hid_write_start) * 1000.0
+                last_output_work_ms = (send_done - start) * 1000.0
                 if hid_device_write_ms is None:
                     hid_device_write_ms = hid_write_ms
                 frame_processing_ms = (processing_end - start) * 1000.0
@@ -1271,7 +1310,8 @@ def _run_loop_pipeline(
     startup_frame_timeout_s = max(0.1, float(getattr(config, "startup_frame_timeout_s", 5.0)))
     startup_started_at = time.perf_counter()
 
-    # Capacity 4 on process buffer: capture can run ahead of HID without losing as many frames.
+    # Process buffer keeps a small latest-frame window so HID pressure does not
+    # force the processing worker to wait behind stale frames.
     capture_buf: SPSCRingBuffer[CapturePayload] = SPSCRingBuffer(capacity=2)
     process_buf: SPSCRingBuffer[ProcessedPayload] = SPSCRingBuffer(capacity=4)
 
@@ -1307,6 +1347,7 @@ def _run_loop_pipeline(
         nonlocal process_worker_error_count
         nonlocal hid_output_work_ewma_ms
 
+        apply_current_thread_priority(config=config, state=state, thread_label="capture worker")
         with metrics_lock:
             capture_worker_active = True
         while not state.stop_event.is_set():
@@ -1408,6 +1449,7 @@ def _run_loop_pipeline(
 
     def _process_worker() -> None:
         nonlocal process_worker_error, process_worker_error_count, frame_seq
+        apply_current_thread_priority(config=config, state=state, thread_label="process worker")
         while not state.stop_event.is_set():
             state.reinit_pause.wait(timeout=0.001)
             try:
@@ -1516,6 +1558,12 @@ def _run_loop_pipeline(
                 with metrics_lock:
                     frame_seq += 1
                     governor_target_fps = float(governor.target_fps)
+                    expected_hid_work_ms = hid_output_work_ewma_ms
+                estimated_staleness_ms = _estimate_processing_staleness_ms(
+                    captured_at=captured_at,
+                    now=time.perf_counter(),
+                    hid_output_work_ewma_ms=expected_hid_work_ms,
+                )
                 cap_backend = get_capture()
                 if cap_backend is not None:
                     hdr_diag = getattr(cap_backend, "last_hdr_diagnostics", None) or {}
@@ -1523,14 +1571,18 @@ def _run_loop_pipeline(
                         state.skip_display_gamut_adaptation = bool(
                             hdr_diag.get("skip_display_gamut_adaptation", False)
                         )
+                        state.sdr_boost_compensation_enabled = not bool(
+                            hdr_diag.get("tone_mapping_applied", False)
+                        )
                 pipeline_params = build_pipeline_params_from_config(
                     config,
                     return_diagnostics=True,
                     build_zone_diagnostics=build_diagnostics,
                     skip_display_gamut_adaptation=state.skip_display_gamut_adaptation,
+                    sdr_boost_compensation_enabled=state.sdr_boost_compensation_enabled,
                     effective_target_fps=governor_target_fps,
                     config_fps=float(getattr(config, "fps", 60)),
-                    staleness_ms=float(state.latest_staleness_ms),
+                    staleness_ms=estimated_staleness_ms,
                     output_healthy=bool(state.output_healthy),
                     prev_sampled_zone_colors=state.prev_sampled_zone_colors,
                     prior_zone_sample_motion=float(state.prior_zone_sample_motion),
@@ -1548,6 +1600,7 @@ def _run_loop_pipeline(
                     compositor_hdr_mode=pipeline_params.compositor_hdr_mode,
                     sdr_boost_nits=pipeline_params.sdr_boost_nits,
                     hdr_max_nits=pipeline_params.hdr_max_nits,
+                    sdr_boost_compensation_enabled=(pipeline_params.sdr_boost_compensation_enabled),
                     accuracy_mode=pipeline_params.accuracy_mode,
                     skip_display_gamut_adaptation=pipeline_params.skip_display_gamut_adaptation,
                     brightness=pipeline_params.brightness,
@@ -1585,6 +1638,15 @@ def _run_loop_pipeline(
                 ) = processed
 
                 state.prev_smoothed_colors = history_smoothed_colors  # type: ignore[assignment]
+                state.predictive_sync_active = bool(
+                    getattr(processing_timings, "predictive_sync_active", False)
+                )
+                state.predictive_lookahead_frames = float(
+                    getattr(processing_timings, "predictive_lookahead_frames", 0.0) or 0.0
+                )
+                state.predictive_scene_cut_suppressed = bool(
+                    getattr(processing_timings, "predictive_scene_cut_suppressed", False)
+                )
                 state.prior_area_average_mode = bool(
                     getattr(processing_timings, "area_average_active", False)
                 )
@@ -1684,7 +1746,7 @@ def _run_loop_pipeline(
                     side_var = {}
                     state.flattening_mitigation_active = False
 
-                pushed = process_buf.push(
+                replaced_queued_processed_frame = process_buf.push_latest(
                     ProcessedPayload(
                         smoothed_colors=smoothed_colors,  # type: ignore[arg-type]
                         captured_at=captured_at,
@@ -1696,14 +1758,13 @@ def _run_loop_pipeline(
                         processing_timings=processing_timings,
                         zone_diagnostics=zone_diagnostics,
                         side_var=side_var,
-                    ),
-                    timeout=_WORKER_POLL_INTERVAL_S,
-                )
-                if not pushed:
-                    logger.warning(
-                        "process worker: process_buf push timed out; dropping frame "
-                        "(HID writer may be stalled)"
                     )
+                )
+                if replaced_queued_processed_frame:
+                    logger.debug(
+                        "process worker: replaced stale processed frame queued for HID writer"
+                    )
+                    time.sleep(0)
                 process_worker_error = None
                 with metrics_lock:
                     process_worker_error_count = 0
@@ -1719,6 +1780,7 @@ def _run_loop_pipeline(
     def _hid_writer() -> None:
         nonlocal last_sent_zone_count, ewma_capture_to_send_ms, frame_seq, governor
         nonlocal hid_loop_gap_ewma_ms, hid_output_work_ewma_ms
+        apply_current_thread_priority(config=config, state=state, thread_label="hid writer")
         sent_in_window = 0
         last_log = time.perf_counter()
         last_send_done_ts: float | None = None
@@ -1916,8 +1978,11 @@ def _run_loop_pipeline(
 
                 with metrics_lock:
                     no_pending_events = no_pending_frame_events
-                dropped_delta = capture_buf.dropped_count()
+                capture_dropped_delta = capture_buf.dropped_count()
                 capture_buf.reset_dropped()
+                process_dropped_delta = process_buf.dropped_count()
+                process_buf.reset_dropped()
+                dropped_delta = capture_dropped_delta + process_dropped_delta + coalesced_sends
 
                 state.latency_probe.add_stage_sample(
                     FrameTimingSample(
@@ -1956,6 +2021,8 @@ def _run_loop_pipeline(
                         dropped_or_skipped_frames_delta=dropped_delta,
                         counters_delta={
                             "capture_worker_error_count": max(0, cap_error_now),
+                            "capture_buffer_dropped_frames": capture_dropped_delta,
+                            "process_buffer_dropped_frames": process_dropped_delta,
                             "coalesced_sends": coalesced_sends,
                         },
                         flags={"capture_worker_active": cap_active},

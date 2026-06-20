@@ -56,6 +56,64 @@ def test_pipeline_history_matches_sent_output() -> None:
     assert float(np.max(out_arr)) <= float(np.max(final)) + 1.0
 
 
+def test_pipeline_timings_report_predictive_sync_activation() -> None:
+    zone_count = 8
+    raw = np.full((zone_count, 3), 120, dtype=np.uint8)
+    prev = [(100.0, 100.0, 100.0)] * zone_count
+    zones_px = [(0, 0, 120, 80)] * zone_count
+    params = ColorPipelineParams(
+        sync_mode=SYNC_MODE_4D,
+        color_style="ambient",
+        accuracy_mode=False,
+        predictive_sync_strength=0.8,
+        effective_target_fps=60.0,
+        config_fps=120.0,
+        staleness_ms=24.0,
+        smoothing=0.35,
+        return_diagnostics=True,
+    )
+    _out, _sampled, _pre, _final, timings, _history = process_zone_colors(
+        frame=None,
+        precomputed_zone_colors=raw,
+        prev_smoothed_colors=prev,
+        zones_px=zones_px,
+        device_zone_indices=list(range(zone_count)),
+        params=params,
+    )
+    assert timings.predictive_sync_active is True
+    assert timings.predictive_lookahead_frames > 0.0
+    assert timings.predictive_scene_cut_suppressed is False
+
+
+def test_pipeline_timings_report_prediction_inactive_when_fresh() -> None:
+    zone_count = 8
+    raw = np.full((zone_count, 3), 120, dtype=np.uint8)
+    prev = [(100.0, 100.0, 100.0)] * zone_count
+    zones_px = [(0, 0, 120, 80)] * zone_count
+    params = ColorPipelineParams(
+        sync_mode=SYNC_MODE_4D,
+        color_style="ambient",
+        accuracy_mode=False,
+        predictive_sync_strength=0.8,
+        effective_target_fps=60.0,
+        config_fps=120.0,
+        staleness_ms=8.0,
+        smoothing=0.35,
+        return_diagnostics=True,
+    )
+    _out, _sampled, _pre, _final, timings, _history = process_zone_colors(
+        frame=None,
+        precomputed_zone_colors=raw,
+        prev_smoothed_colors=prev,
+        zones_px=zones_px,
+        device_zone_indices=list(range(zone_count)),
+        params=params,
+    )
+    assert timings.predictive_sync_active is False
+    assert timings.predictive_lookahead_frames == 0.0
+    assert timings.predictive_scene_cut_suppressed is False
+
+
 def test_dark_grey_frame_zones_stay_neutral_in_pipeline() -> None:
     frame = np.full((80, 120, 3), 14, dtype=np.uint8)
     frame[10:20, 10:30, :] = np.array([16, 12, 15], dtype=np.uint8)

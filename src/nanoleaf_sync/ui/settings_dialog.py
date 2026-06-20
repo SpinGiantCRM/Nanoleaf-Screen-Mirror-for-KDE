@@ -42,6 +42,7 @@ from nanoleaf_sync.ui.calibration_state import (
     should_auto_run_latency_probe,
 )
 from nanoleaf_sync.ui.calibration_widget import SimpleCalibrationWidget
+from nanoleaf_sync.ui.layout_helpers import mark_compact, mark_muted, stretch_all_combo_popups
 from nanoleaf_sync.ui.led_color_calibration_dialog import LedColorCalibrationDialog
 from nanoleaf_sync.ui.preset_ui import (
     COLOR_STYLE_LABELS,
@@ -379,6 +380,12 @@ class SettingsDialog:
                 )
                 self.device_pid_combo.setCurrentIndex(
                     max(0, self.device_pid_combo.findText(pid_hex))
+                )
+                self.allow_custom_device_ids_checkbox = QCheckBox(
+                    "Allow custom USB device IDs (advanced)"
+                )
+                self.allow_custom_device_ids_checkbox.setChecked(
+                    bool(getattr(cfg, "allow_custom_device_ids", False))
                 )
                 if pid_hex == "0x8201":
                     self.device_model_combo.setCurrentIndex(1)
@@ -725,6 +732,49 @@ class SettingsDialog:
                 else:
                     section_nav.setCurrentRow(0)
 
+                self._compact_action_buttons = [
+                    self.detect_sdr_white_button,
+                    self.use_detected_sdr_white_button,
+                    self.use_detected_count_button,
+                    self.keep_configured_count_button,
+                    self.reset_recalibrate_button,
+                    self.run_latency_button,
+                    self.retest_backends_button,
+                    self.test_xdg_portal_button,
+                    self.benchmark_xdg_portal_button,
+                    self.reset_led_calibration_button,
+                    self.reference_test_colours_button,
+                    self.guided_led_calibration_button,
+                    self.save_led_calibration_profile_button,
+                    self.edge_locality_diagnostic_button,
+                    self.color_accuracy_diagnostic_button,
+                    self.run_self_check_button,
+                    self.capture_one_diagnostic_frame_button,
+                    self.export_live_sampling_overlay_button,
+                    self.export_synthetic_sampling_overlay_button,
+                    self.export_zone_report_button,
+                    self.export_latency_report_button,
+                ]
+                for button in self._compact_action_buttons:
+                    mark_compact(button)
+                for label in (
+                    self.latency_label,
+                    self.self_check_label,
+                    self.sampling_export_label,
+                    self.zone_report_label,
+                    self.latency_report_label,
+                    self.edge_locality_diagnostic_label,
+                    self.color_accuracy_diagnostic_label,
+                    self.backend_info_label,
+                    self.diagnostics_mapping_label,
+                    self.hdr_colour_path_label,
+                    self.xdg_hint_label,
+                    self.recovery_tools_hint_label,
+                ):
+                    mark_muted(label)
+                stretch_all_combo_popups(self)
+                self._baseline_config = self.updated_config()
+
             def _apply_tooltips(self) -> None:
                 self.brightness_slider.setToolTip(
                     "Overall output intensity. Lower values reduce LED brightness."
@@ -840,6 +890,7 @@ class SettingsDialog:
                 set_column_stretch = getattr(layout, "setColumnStretch", None)
                 if callable(set_column_stretch):
                     set_column_stretch(1, 1)
+                    set_column_stretch(2, 0)
                 set_column_minimum_width = getattr(layout, "setColumnMinimumWidth", None)
                 if callable(set_column_minimum_width):
                     set_column_minimum_width(2, 120)
@@ -903,7 +954,7 @@ class SettingsDialog:
                 grid.addWidget(self.display_preset_combo, 1, 1, 1, 2)
                 grid.addWidget(QLabel("Motion"), 2, 0)
                 grid.addWidget(self.motion_preset_combo, 2, 1, 1, 2)
-                grid.addWidget(QLabel("Color style"), 3, 0)
+                grid.addWidget(QLabel("Colour style"), 3, 0)
                 grid.addWidget(self.color_style_combo, 3, 1, 1, 2)
                 grid.addWidget(
                     self._help_text_label(
@@ -1160,47 +1211,59 @@ class SettingsDialog:
                 device_layout.addWidget(self.device_vid_combo, 2, 1, 1, 2)
                 device_layout.addWidget(QLabel("Device PID"), 3, 0)
                 device_layout.addWidget(self.device_pid_combo, 3, 1, 1, 2)
+                device_layout.addWidget(self.allow_custom_device_ids_checkbox, 4, 0, 1, 3)
                 device_group.setLayout(device_layout)
                 layout.addWidget(device_group)
 
                 troubleshooting = QGroupBox("Advanced / Troubleshooting")
+                troubleshooting.setObjectName("diagnosticsGroup")
                 grid = QGridLayout()
                 self._configure_section_layout(grid)
                 grid.addWidget(QLabel("Capture backend"), 0, 0)
                 grid.addWidget(self.capture_backend_combo, 0, 1, 1, 2)
-                grid.addWidget(self._section_heading(QLabel, "Runtime Status"), 1, 0, 1, 3)
-                grid.addWidget(self.backend_info_label, 2, 0, 1, 3)
-                grid.addWidget(self.diagnostics_mapping_label, 3, 0, 1, 3)
-                grid.addWidget(self.hdr_colour_path_label, 4, 0, 1, 3)
-                grid.addWidget(self._section_heading(QLabel, "Backend & Probing"), 5, 0, 1, 3)
-                grid.addWidget(QLabel("Auto-probe policy"), 6, 0)
-                grid.addWidget(self.auto_probe_policy_combo, 6, 1, 1, 2)
-                grid.addWidget(QLabel("Latency auto-run policy"), 7, 0)
-                grid.addWidget(self.auto_latency_policy_combo, 7, 1, 1, 2)
-                grid.addWidget(self.run_latency_button, 8, 0, 1, 1)
-                grid.addWidget(self.retest_backends_button, 8, 1, 1, 1)
-                grid.addWidget(self.test_xdg_portal_button, 8, 2, 1, 1)
-                grid.addWidget(self.benchmark_xdg_portal_button, 9, 0, 1, 3)
-                grid.addWidget(self.latency_label, 10, 0, 1, 3)
-                grid.addWidget(self.xdg_hint_label, 11, 0, 1, 3)
-                grid.addWidget(self._section_heading(QLabel, "Diagnostics Actions"), 12, 0, 1, 3)
-                grid.addWidget(self.run_self_check_button, 13, 0, 1, 3)
-                grid.addWidget(self.self_check_label, 14, 0, 1, 3)
-                grid.addWidget(self.capture_one_diagnostic_frame_button, 15, 0, 1, 3)
-                grid.addWidget(self.export_live_sampling_overlay_button, 16, 0, 1, 3)
-                grid.addWidget(self.export_synthetic_sampling_overlay_button, 17, 0, 1, 3)
-                grid.addWidget(self.sampling_export_label, 18, 0, 1, 3)
-                grid.addWidget(self.export_zone_report_button, 19, 0, 1, 3)
-                grid.addWidget(self.zone_report_label, 20, 0, 1, 3)
-                grid.addWidget(self.export_latency_report_button, 21, 0, 1, 3)
-                grid.addWidget(self.latency_report_label, 22, 0, 1, 3)
-                grid.addWidget(self._section_heading(QLabel, "Quality Diagnostics"), 23, 0, 1, 3)
-                grid.addWidget(self.edge_locality_diagnostic_button, 24, 0, 1, 3)
-                grid.addWidget(self.edge_locality_diagnostic_label, 25, 0, 1, 3)
-                grid.addWidget(self.color_accuracy_diagnostic_button, 26, 0, 1, 3)
-                grid.addWidget(self.color_accuracy_diagnostic_label, 27, 0, 1, 3)
-                grid.addWidget(self._section_heading(QLabel, "Recovery Tools"), 28, 0, 1, 3)
-                grid.addWidget(self.recovery_tools_hint_label, 29, 0, 1, 3)
+
+                runtime_status = QGroupBox("Runtime status (technical)")
+                runtime_status.setCheckable(True)
+                runtime_status.setChecked(False)
+                runtime_layout = QVBoxLayout()
+                runtime_layout.addWidget(self.backend_info_label)
+                runtime_layout.addWidget(self.diagnostics_mapping_label)
+                runtime_layout.addWidget(self.hdr_colour_path_label)
+                runtime_status.setLayout(runtime_layout)
+                grid.addWidget(runtime_status, 1, 0, 1, 3)
+
+                grid.addWidget(self._section_heading(QLabel, "Backend & Probing"), 2, 0, 1, 3)
+                grid.addWidget(QLabel("Auto-probe policy"), 3, 0)
+                grid.addWidget(self.auto_probe_policy_combo, 3, 1, 1, 2)
+                grid.addWidget(QLabel("Latency auto-run policy"), 4, 0)
+                grid.addWidget(self.auto_latency_policy_combo, 4, 1, 1, 2)
+                grid.addWidget(self.run_latency_button, 5, 0)
+                grid.addWidget(self.retest_backends_button, 5, 1)
+                grid.addWidget(self.test_xdg_portal_button, 5, 2)
+                grid.addWidget(self.benchmark_xdg_portal_button, 6, 0, 1, 3)
+                grid.addWidget(self.latency_label, 7, 0, 1, 3)
+                grid.addWidget(self.xdg_hint_label, 8, 0, 1, 3)
+
+                grid.addWidget(self._section_heading(QLabel, "Diagnostics Actions"), 9, 0, 1, 3)
+                grid.addWidget(self.run_self_check_button, 10, 0)
+                grid.addWidget(self.capture_one_diagnostic_frame_button, 10, 1)
+                grid.addWidget(self.export_live_sampling_overlay_button, 11, 0)
+                grid.addWidget(self.export_synthetic_sampling_overlay_button, 11, 1)
+                grid.addWidget(self.export_zone_report_button, 12, 0)
+                grid.addWidget(self.export_latency_report_button, 12, 1)
+                grid.addWidget(self.self_check_label, 13, 0, 1, 3)
+                grid.addWidget(self.sampling_export_label, 14, 0, 1, 3)
+                grid.addWidget(self.zone_report_label, 15, 0, 1, 3)
+                grid.addWidget(self.latency_report_label, 16, 0, 1, 3)
+
+                grid.addWidget(self._section_heading(QLabel, "Quality Diagnostics"), 17, 0, 1, 3)
+                grid.addWidget(self.edge_locality_diagnostic_button, 18, 0)
+                grid.addWidget(self.color_accuracy_diagnostic_button, 18, 1)
+                grid.addWidget(self.edge_locality_diagnostic_label, 19, 0, 1, 3)
+                grid.addWidget(self.color_accuracy_diagnostic_label, 20, 0, 1, 3)
+
+                grid.addWidget(self._section_heading(QLabel, "Recovery Tools"), 21, 0, 1, 3)
+                grid.addWidget(self.recovery_tools_hint_label, 22, 0, 1, 3)
                 troubleshooting.setLayout(grid)
                 layout.addWidget(troubleshooting)
                 layout.addStretch(1)
@@ -1215,6 +1278,24 @@ class SettingsDialog:
 
             def reject(self) -> None:
                 self._stop_calibration_preview_timer()
+                baseline = getattr(self, "_baseline_config", None)
+                if baseline is not None and self.updated_config() != baseline:
+                    box = qt["QMessageBox"](self)
+                    box.setWindowTitle("Unsaved settings")
+                    box.setText("Settings were changed but not saved.")
+                    save_btn = box.addButton("Save", qt["QMessageBox"].ButtonRole.AcceptRole)
+                    discard_btn = box.addButton(
+                        "Discard", qt["QMessageBox"].ButtonRole.DestructiveRole
+                    )
+                    box.addButton("Cancel", qt["QMessageBox"].ButtonRole.RejectRole)
+                    box.exec()
+                    clicked = box.clickedButton()
+                    if clicked == save_btn:
+                        self._apply_settings()
+                        super().reject()
+                    elif clicked == discard_btn:
+                        super().reject()
+                    return
                 super().reject()
 
             def accept(self) -> None:
@@ -1469,6 +1550,11 @@ class SettingsDialog:
                 sdr_compensation_applied = (
                     "yes" if bool(hdr_path.get("sdr_compensation_applied", False)) else "no"
                 )
+                sdr_compensation_suppressed = (
+                    "yes"
+                    if bool(hdr_path.get("sdr_compensation_suppressed_for_hdr", False))
+                    else "no"
+                )
                 neutral_grey_verdict = "pass" if neutral_ok else "warn"
                 self.hdr_colour_path_label.setText(
                     "\n".join(
@@ -1484,6 +1570,8 @@ class SettingsDialog:
                             f"{float(hdr_path.get('effective_sdr_boost_scalar', 1.0)):.3f}",
                             f"tone mapper: {tone_mapping_applied}",
                             f"SDR compensation: {sdr_compensation_applied}",
+                            f"SDR compensation suppressed (HDR tone-map): "
+                            f"{sdr_compensation_suppressed}",
                             f"chroma ratio diagnostic: max={max(ratios):.3f}",
                             f"neutral grey verdict: {neutral_grey_verdict}",
                             f"metadata source: "
@@ -2306,7 +2394,9 @@ class SettingsDialog:
                 apply_fn = self._on_apply
                 if not callable(apply_fn):
                     return
-                apply_fn(self.updated_config())
+                updated = self.updated_config()
+                apply_fn(updated)
+                self._baseline_config = updated
                 self._settings_applied_in_session = True
 
             def settings_applied_in_session(self) -> bool:
@@ -2503,6 +2593,7 @@ class SettingsDialog:
                     ),
                     device_vid=int(vid_value),
                     device_pid=int(pid_value),
+                    allow_custom_device_ids=bool(self.allow_custom_device_ids_checkbox.isChecked()),
                     calibration_schema_version=calibration_schema_version,
                     calibration_model="corner_anchored",
                     calibration=calibration_payload,

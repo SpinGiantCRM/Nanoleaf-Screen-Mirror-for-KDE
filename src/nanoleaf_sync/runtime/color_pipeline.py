@@ -62,6 +62,7 @@ class ColorPipelineParams:
     compositor_hdr_mode: bool = False
     sdr_boost_nits: float = 80.0
     hdr_max_nits: float = 1000.0
+    sdr_boost_compensation_enabled: bool = True
     accuracy_mode: bool = False
     skip_display_gamut_adaptation: bool = False
     led_calibration: LedCalibration | None = None
@@ -125,9 +126,7 @@ def _resolve_robust_sampling_mode(
         prev = np.asarray(prev_sampled_zone_colors, dtype=np.float32)
         if prev.size:
             median_peak = float(np.median(np.max(prev, axis=1)))
-            if median_peak < 20.0:
-                return SAMPLING_MODE_AREA_AVERAGE, True
-            if median_peak < 32.0:
+            if median_peak < 40.0:
                 return SAMPLING_MODE_AREA_AVERAGE, True
     return mode, area_average_active
 
@@ -298,7 +297,11 @@ def process_zone_colors(
 
     sdr_undo_ratio: np.ndarray | None = None
     boost = effective_sdr_boost(sdr_boost_nits=params.sdr_boost_nits)
-    if params.compositor_hdr_mode and abs(boost - 1.0) > 1e-6:
+    if (
+        params.compositor_hdr_mode
+        and params.sdr_boost_compensation_enabled
+        and abs(boost - 1.0) > 1e-6
+    ):
         pre_boost = raw_colors.astype(np.float32, copy=False)
         sdr_undo_ratio = zone_sdr_boost_undo_ratio(pre_boost, sdr_boost_nits=params.sdr_boost_nits)
         mapped = apply_zone_sdr_boost_float(
@@ -350,6 +353,9 @@ def process_zone_colors(
     led_calibration_done = time.perf_counter()
 
     sampled_median_peak = float(np.median(np.max(raw_colors.astype(np.float32), axis=1)))
+    predictive_active = False
+    predictive_lookahead_frames = 0.0
+    predictive_scene_cut_suppressed = False
     if predictive_sync_enabled_for_sync(
         sync_mode=params.sync_mode,
         accuracy_mode=params.accuracy_mode,
@@ -389,6 +395,9 @@ def process_zone_colors(
             ),
         )
         mapped = pred_result.colors.astype(np.float32, copy=False)
+        predictive_active = bool(pred_result.active)
+        predictive_lookahead_frames = float(pred_result.lookahead_frames)
+        predictive_scene_cut_suppressed = bool(pred_result.scene_cut_suppressed)
 
     feedback_float = np.array(mapped, copy=True)
     np.clip(feedback_float, 0.0, 255.0, out=feedback_float)
@@ -423,6 +432,9 @@ def process_zone_colors(
             per_zone_sdr_boost_undo_ratio=tuple(float(v) for v in sdr_undo_ratio.tolist())
             if sdr_undo_ratio is not None
             else (),
+            predictive_sync_active=predictive_active,
+            predictive_lookahead_frames=predictive_lookahead_frames,
+            predictive_scene_cut_suppressed=predictive_scene_cut_suppressed,
         )
         pre_led_arr = (
             pre_led_calibration.astype(np.uint8, copy=False)
@@ -501,6 +513,7 @@ def build_pipeline_params_from_config(
     return_diagnostics: bool = False,
     build_zone_diagnostics: bool = False,
     skip_display_gamut_adaptation: bool = False,
+    sdr_boost_compensation_enabled: bool = True,
     effective_target_fps: float | None = None,
     config_fps: float | None = None,
     staleness_ms: float | None = None,
@@ -536,6 +549,7 @@ def build_pipeline_params_from_config(
         compositor_hdr_mode=compositor_hdr_mode,
         sdr_boost_nits=sdr_boost_nits,
         hdr_max_nits=float(getattr(config, "hdr_max_nits", 1000.0)),
+        sdr_boost_compensation_enabled=bool(sdr_boost_compensation_enabled),
         accuracy_mode=bool(getattr(config, "accuracy_mode", False)),
         skip_display_gamut_adaptation=skip_display_gamut_adaptation,
         led_calibration=build_led_calibration_from_profile(active_profile),

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import os
+
 import numpy as np
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.diagnostics_exports import latency_breakdown_lines
 from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
-from nanoleaf_sync.runtime.startup import apply_process_priority
+from nanoleaf_sync.runtime.startup import apply_current_thread_priority, apply_process_priority
 from nanoleaf_sync.runtime.state import RuntimeState
 from nanoleaf_sync.runtime.zones import (
     _AUTO_ENGINE_CACHE,
@@ -218,6 +220,49 @@ def test_priority_modes_map_to_expected_targets(monkeypatch) -> None:
         config=AppConfig(performance_priority="very_high_experimental"), state=state
     )
     assert calls[-2:] == [-5, -10]
+
+
+def test_worker_priority_applies_existing_mode_to_native_thread(monkeypatch) -> None:
+    calls: list[tuple[int, int, int]] = []
+    monkeypatch.setattr("threading.get_native_id", lambda: 12345)
+    monkeypatch.setattr("os.getpriority", lambda *_args, **_kwargs: 0)
+    monkeypatch.setattr(
+        "os.setpriority",
+        lambda which, who, value: calls.append((int(which), int(who), int(value))),
+    )
+
+    state = RuntimeState()
+    state.priority_apply_status = "applied"
+    apply_current_thread_priority(
+        config=AppConfig(performance_priority="high"),
+        state=state,
+        thread_label="capture worker",
+    )
+
+    assert calls == [(os.PRIO_PROCESS, 12345, -5)]
+    assert state.priority_apply_status == "applied"
+
+
+def test_worker_priority_failure_is_non_fatal_and_labeled(monkeypatch) -> None:
+    monkeypatch.setattr("threading.get_native_id", lambda: 12345)
+    monkeypatch.setattr("os.getpriority", lambda *_args, **_kwargs: 0)
+
+    def _raise_perm(*_args, **_kwargs):
+        raise PermissionError("permission denied")
+
+    monkeypatch.setattr("os.setpriority", _raise_perm)
+
+    state = RuntimeState()
+    state.priority_apply_status = "applied"
+    apply_current_thread_priority(
+        config=AppConfig(performance_priority="very_high_experimental"),
+        state=state,
+        thread_label="hid writer",
+    )
+
+    assert state.priority_apply_status == "partial_failed"
+    assert "hid writer" in state.priority_apply_error
+    assert "permission denied" in state.priority_apply_error.lower()
 
 
 def test_latency_diagnostics_recommend_60_and_warn_120_over_budget() -> None:

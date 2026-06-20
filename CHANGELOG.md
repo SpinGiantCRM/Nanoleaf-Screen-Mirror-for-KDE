@@ -1,5 +1,30 @@
 # Changelog
 
+## v1.4.0 — UI polish, pipeline hardening, and security
+
+### Fixes
+
+- HDR tone-map respects **Max nits** again; Settings shows when SDR compensation is suppressed under HDR tone-map
+- Low-light and gamut handling refinements; predictive sync and ring-buffer drop accounting improved
+- Tray copy: **Advanced → Troubleshooting Guide**, **Set up strip…**; simplified status tooltip
+- Calibration preview surfaces USB/HID guidance instead of raw diagnostic blobs
+
+### UX
+
+- Tray menu stretches to content width; About/Status technical details collapsible
+- **Command results** dialog for Doctor/Smoke output (Copy/Close)
+- Settings unsaved-changes guard on Close; Advanced decluttered; tighter button/menu styling
+- Live Diagnostics: priority status, optional advanced counters, stale-refresh banner
+- Advanced: optional custom USB VID/PID when explicitly enabled
+
+### Security
+
+- KWin capture: dimension/byte caps; screenshot paths confined to `$XDG_RUNTIME_DIR` / `/tmp`
+- KMS grab: DRM card path must match `/dev/dri/cardN`
+- USB VID/PID allowlist with opt-in custom IDs; wizard session path confined unless env override
+- Portal token file written with `0600` permissions
+- Diagnostics exports use per-export temp dirs; status export strips live frame RGB
+
 ## v1.3.0 — Colour stability, spatial isolation, and runtime polish
 
 ### Fixes

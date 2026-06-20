@@ -34,16 +34,71 @@ def test_prediction_inactive_when_staleness_within_budget() -> None:
     np.testing.assert_array_equal(result.colors, current)
 
 
-def test_prediction_inactive_when_output_healthy() -> None:
+def test_prediction_inactive_when_output_healthy_and_frame_is_only_mildly_stale() -> None:
     current = np.full((4, 3), 100.0, dtype=np.float32)
     previous = np.full((4, 3), 90.0, dtype=np.float32)
     result = apply_predictive_sync(
         smoothed=current,
         previous=previous,
-        params=_params(staleness_ms=20.0, output_healthy=True),
+        params=_params(staleness_ms=14.0, output_healthy=True),
     )
     assert not result.active
     np.testing.assert_array_equal(result.colors, current)
+
+
+def test_prediction_uses_governor_cadence_not_configured_fps() -> None:
+    current = np.full((4, 3), 120.0, dtype=np.float32)
+    previous = np.full((4, 3), 100.0, dtype=np.float32)
+    result = apply_predictive_sync(
+        smoothed=current,
+        previous=previous,
+        params=_params(
+            config_fps=120.0,
+            effective_target_fps=60.0,
+            governor_target_fps=60.0,
+            staleness_ms=20.0,
+            strength=0.8,
+        ),
+        median_zone_delta=20.0,
+        max_zone_delta=20.0,
+    )
+    assert not result.active
+    np.testing.assert_array_equal(result.colors, current)
+
+
+def test_prediction_reports_lookahead_in_active_output_frames() -> None:
+    current = np.full((4, 3), 120.0, dtype=np.float32)
+    previous = np.full((4, 3), 100.0, dtype=np.float32)
+    result = apply_predictive_sync(
+        smoothed=current,
+        previous=previous,
+        params=_params(
+            config_fps=120.0,
+            effective_target_fps=60.0,
+            governor_target_fps=60.0,
+            staleness_ms=34.0,
+            strength=0.8,
+        ),
+        median_zone_delta=20.0,
+        max_zone_delta=20.0,
+    )
+    assert result.active
+    assert 1.0 < result.lookahead_frames < 1.1
+
+
+def test_prediction_runs_when_output_healthy_but_frame_is_stale() -> None:
+    current = np.full((4, 3), 120.0, dtype=np.float32)
+    previous = np.full((4, 3), 100.0, dtype=np.float32)
+    result = apply_predictive_sync(
+        smoothed=current,
+        previous=previous,
+        params=_params(staleness_ms=34.0, output_healthy=True, strength=0.8),
+        median_zone_delta=20.0,
+        max_zone_delta=20.0,
+    )
+    assert result.active
+    assert float(np.max(result.colors)) <= 120.0
+    assert float(np.min(result.colors)) >= 100.0
 
 
 def test_prediction_inactive_when_staleness_too_high() -> None:
@@ -52,7 +107,7 @@ def test_prediction_inactive_when_staleness_too_high() -> None:
     result = apply_predictive_sync(
         smoothed=current,
         previous=previous,
-        params=_params(staleness_ms=40.0, strength=1.0),
+        params=_params(staleness_ms=50.0, strength=1.0),
     )
     assert not result.active
     np.testing.assert_array_equal(result.colors, current)
@@ -64,7 +119,7 @@ def test_staleness_polish_moves_toward_current_without_overshoot() -> None:
     result = apply_predictive_sync(
         smoothed=current,
         previous=previous,
-        params=_params(staleness_ms=20.0, strength=0.8, config_fps=120.0),
+        params=_params(staleness_ms=24.0, strength=0.8, config_fps=120.0),
     )
     assert result.active
     assert float(np.max(result.colors)) <= 120.0
@@ -80,7 +135,7 @@ def test_scene_cut_suppresses_prediction() -> None:
     result = apply_predictive_sync(
         smoothed=current,
         previous=previous,
-        params=_params(staleness_ms=20.0),
+        params=_params(staleness_ms=24.0),
         max_zone_delta=50.0,
     )
     assert result.scene_cut_suppressed
@@ -105,7 +160,7 @@ def test_static_scene_skips_prediction() -> None:
     result = apply_predictive_sync(
         smoothed=current,
         previous=previous,
-        params=_params(staleness_ms=20.0, strength=1.0),
+        params=_params(staleness_ms=24.0, strength=1.0),
         median_zone_delta=1.0,
     )
     assert not result.active
@@ -121,7 +176,24 @@ def test_median_dark_zones_skip_prediction() -> None:
     result = apply_predictive_sync(
         smoothed=current,
         previous=previous,
-        params=_params(staleness_ms=20.0, strength=1.0),
+        params=_params(staleness_ms=24.0, strength=1.0),
+    )
+    assert not result.active
+    np.testing.assert_array_equal(result.colors, current)
+
+
+def test_low_light_neutral_scene_skips_prediction() -> None:
+    previous = np.full((4, 3), 28.0, dtype=np.float32)
+    current = np.array(
+        [[32.0, 31.0, 33.0], [30.0, 32.0, 31.0], [34.0, 33.0, 32.0], [31.0, 30.0, 32.0]],
+        dtype=np.float32,
+    )
+    result = apply_predictive_sync(
+        smoothed=current,
+        previous=previous,
+        params=_params(staleness_ms=24.0, strength=1.0),
+        median_zone_delta=4.0,
+        max_zone_delta=6.0,
     )
     assert not result.active
     np.testing.assert_array_equal(result.colors, current)
@@ -133,7 +205,7 @@ def test_near_black_scene_skips_prediction() -> None:
     result = apply_predictive_sync(
         smoothed=current,
         previous=previous,
-        params=_params(staleness_ms=20.0, strength=1.0),
+        params=_params(staleness_ms=24.0, strength=1.0),
     )
     assert not result.active
     np.testing.assert_array_equal(result.colors, current)
@@ -161,7 +233,7 @@ def test_per_zone_dark_guard_leaves_dark_zones_unchanged() -> None:
     result = apply_predictive_sync(
         smoothed=current,
         previous=previous,
-        params=_params(staleness_ms=20.0, strength=0.8),
+        params=_params(staleness_ms=24.0, strength=0.8),
         max_zone_delta=15.0,
         median_zone_delta=8.0,
     )

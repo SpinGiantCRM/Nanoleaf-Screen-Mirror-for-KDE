@@ -120,8 +120,12 @@ def test_adaptation_same_to_same_is_identity() -> None:
 def test_adaptation_dcip3_to_srgb() -> None:
     m = build_adaptation_matrix(CHROMATICITIES_DCIP3, CHROMATICITIES_SRGB)
     assert np.all(np.isfinite(m))
-    # DCI-P3 red is wider than sRGB; adapting should compress red channel
-    # (we just check finiteness — correctness verified by known math)
+    assert not np.allclose(m, np.eye(3), atol=1e-3)
+    white = np.array([1.0, 1.0, 1.0], dtype=np.float32) @ m
+    np.testing.assert_allclose(white, np.ones(3, dtype=np.float32), atol=1e-4)
+    p3_red = np.array([1.0, 0.0, 0.0], dtype=np.float32) @ m
+    assert float(p3_red[0]) > 1.0
+    assert float(p3_red[1]) < 0.0
 
 
 # ---------------------------------------------------------------------------

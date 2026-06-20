@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 
+from nanoleaf_sync.ui.layout_helpers import mark_compact
 from nanoleaf_sync.ui.qt_lazy import load_qt
 
 _log = logging.getLogger(__name__)
@@ -10,6 +11,7 @@ _log = logging.getLogger(__name__)
 REFRESH_INTERVAL_MS = 500
 
 _qt = load_qt()
+QCheckBox = _qt["QCheckBox"]
 QDialog = _qt["QDialog"]
 QGridLayout = _qt["QGridLayout"]
 QGroupBox = _qt["QGroupBox"]
@@ -35,12 +37,20 @@ class LiveDiagnosticsDialog(QDialog):
         super().__init__(parent)
         self._refresh_fn = refresh_fn
         self._live_only = live_only
+        self._last_refresh_ok = True
 
         self.setWindowTitle("Live Diagnostics — nanoleaf-kde-sync")
         self.resize(520, 520)
         self.setMinimumSize(360, 300)
 
         root = QVBoxLayout(self)
+        self._stale_banner = QLabel("")
+        set_prop = getattr(self._stale_banner, "setProperty", None)
+        if callable(set_prop):
+            set_prop("muted", True)
+        self._stale_banner.setVisible(False)
+        root.addWidget(self._stale_banner)
+
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         content = QWidget()
@@ -57,7 +67,7 @@ class LiveDiagnosticsDialog(QDialog):
             ("Black frames (consecutive)", "_cap_black_conc"),
             ("Black frames (total)", "_cap_black_total"),
         ]
-        self._cap_labels = {}
+        self._cap_labels: dict[str, QLabel] = {}
         for row, (label, key) in enumerate(cap_fields):
             self._cap_grid.addWidget(QLabel(label + ":"), row, 0)
             val = QLabel("\u2014")
@@ -75,14 +85,36 @@ class LiveDiagnosticsDialog(QDialog):
             ("Effective output FPS", "_pipe_eff_fps"),
             ("Lifecycle state", "_pipe_lifecycle"),
             ("Priority mode", "_pipe_priority"),
+            ("Priority apply status", "_pipe_priority_status"),
+            ("Priority apply error", "_pipe_priority_error"),
         ]
-        self._pipe_labels = {}
+        self._pipe_labels: dict[str, QLabel] = {}
         for row, (label, key) in enumerate(pipe_fields):
             self._pipe_grid.addWidget(QLabel(label + ":"), row, 0)
             val = QLabel("\u2014")
             self._pipe_grid.addWidget(val, row, 1)
             self._pipe_labels[key] = val
         self._content_layout.addWidget(self._pipe_group)
+
+        self._advanced_group = QGroupBox("Advanced counters")
+        self._advanced_grid = QGridLayout()
+        self._advanced_group.setLayout(self._advanced_grid)
+        advanced_fields = [
+            ("Predictive sync active", "_adv_pred_active"),
+            ("Predictive lookahead (frames)", "_adv_pred_lookahead"),
+            ("Scene cut suppressed", "_adv_pred_scene"),
+            ("Capture buffer drops", "_adv_cap_drops"),
+            ("Process buffer drops", "_adv_proc_drops"),
+            ("Coalesced sends", "_adv_coalesced"),
+        ]
+        self._advanced_labels: dict[str, QLabel] = {}
+        for row, (label, key) in enumerate(advanced_fields):
+            self._advanced_grid.addWidget(QLabel(label + ":"), row, 0)
+            val = QLabel("\u2014")
+            self._advanced_grid.addWidget(val, row, 1)
+            self._advanced_labels[key] = val
+        self._advanced_group.setVisible(False)
+        self._content_layout.addWidget(self._advanced_group)
 
         self._dev_group = QGroupBox("Device")
         self._dev_grid = QGridLayout()
@@ -93,7 +125,7 @@ class LiveDiagnosticsDialog(QDialog):
             ("Calibration status", "_dev_cal"),
             ("Calibration message", "_dev_cal_msg"),
         ]
-        self._dev_labels = {}
+        self._dev_labels: dict[str, QLabel] = {}
         for row, (label, key) in enumerate(dev_fields):
             self._dev_grid.addWidget(QLabel(label + ":"), row, 0)
             val = QLabel("\u2014")
@@ -110,7 +142,7 @@ class LiveDiagnosticsDialog(QDialog):
             ("Guidance", "_err_guide"),
             ("Startup elapsed (ms)", "_err_startup_ms"),
         ]
-        self._err_labels = {}
+        self._err_labels: dict[str, QLabel] = {}
         for row, (label, key) in enumerate(err_fields):
             self._err_grid.addWidget(QLabel(label + ":"), row, 0)
             val = QLabel("\u2014")
@@ -121,7 +153,7 @@ class LiveDiagnosticsDialog(QDialog):
         self._zone_group = QGroupBox("Per-Zone Colors")
         self._zone_layout = QVBoxLayout()
         self._zone_group.setLayout(self._zone_layout)
-        self._zone_grid = None
+        self._zone_grid: QGridLayout | None = None
         self._content_layout.addWidget(self._zone_group)
 
         self._content_layout.addStretch(1)
@@ -129,11 +161,16 @@ class LiveDiagnosticsDialog(QDialog):
         root.addWidget(scroll)
 
         btn_row = QHBoxLayout()
+        self._show_advanced_checkbox = QCheckBox("Show advanced counters")
+        self._show_advanced_checkbox.toggled.connect(self._advanced_group.setVisible)
+        btn_row.addWidget(self._show_advanced_checkbox)
         self._refresh_now_btn = QPushButton("Refresh Now")
+        mark_compact(self._refresh_now_btn)
         self._refresh_now_btn.clicked.connect(self._do_refresh)
         btn_row.addWidget(self._refresh_now_btn)
         btn_row.addStretch(1)
         close_btn = QPushButton("Close")
+        mark_compact(close_btn)
         close_btn.clicked.connect(self.accept)
         btn_row.addWidget(close_btn)
         root.addLayout(btn_row)
@@ -156,8 +193,13 @@ class LiveDiagnosticsDialog(QDialog):
     def _do_refresh(self) -> None:
         try:
             s = self._refresh_fn()
+            self._last_refresh_ok = True
+            self._stale_banner.setVisible(False)
         except Exception:
             _log.debug("Live diagnostics refresh failed", exc_info=True)
+            self._last_refresh_ok = False
+            self._stale_banner.setText("Refresh failed — showing stale data.")
+            self._stale_banner.setVisible(True)
             return
 
         running = bool(s.get("running", False))
@@ -175,17 +217,42 @@ class LiveDiagnosticsDialog(QDialog):
         self._pipe_labels["_pipe_frames_sent"].setText(str(s.get("frames_sent", 0)))
         self._pipe_labels["_pipe_errors"].setText(str(s.get("consecutive_errors", 0)))
         lm = s.get("latency_measurement")
-        if lm:
-            tgt = lm.get("target_fps", 0)
-            eff = lm.get("effective_output_fps", 0)
+        if isinstance(lm, dict):
+            tgt = float(lm.get("target_fps", 0) or 0)
+            eff = float(lm.get("effective_output_fps", 0) or 0)
+            counters = lm.get("counters") if isinstance(lm.get("counters"), dict) else {}
         else:
-            tgt = 0
-            eff = 0
+            tgt = 0.0
+            eff = 0.0
+            counters = {}
         self._pipe_labels["_pipe_target_fps"].setText(f"{tgt:.0f}" if tgt else "\u2014")
         self._pipe_labels["_pipe_eff_fps"].setText(f"{eff:.1f}" if eff else "\u2014")
         self._pipe_labels["_pipe_lifecycle"].setText(str(s.get("lifecycle_state") or "\u2014"))
         self._pipe_labels["_pipe_priority"].setText(
             str(s.get("configured_priority_mode") or "\u2014")
+        )
+        self._pipe_labels["_pipe_priority_status"].setText(
+            str(s.get("priority_apply_status") or "\u2014")
+        )
+        priority_error = str(s.get("priority_apply_error") or "").strip()
+        self._pipe_labels["_pipe_priority_error"].setText(priority_error or "\u2014")
+
+        pred_active = bool(s.get("predictive_sync_active", False))
+        self._advanced_labels["_adv_pred_active"].setText("yes" if pred_active else "no")
+        self._advanced_labels["_adv_pred_lookahead"].setText(
+            f"{float(s.get('predictive_lookahead_frames', 0.0) or 0.0):.2f}"
+        )
+        self._advanced_labels["_adv_pred_scene"].setText(
+            "yes" if bool(s.get("predictive_scene_cut_suppressed", False)) else "no"
+        )
+        self._advanced_labels["_adv_cap_drops"].setText(
+            str(int(counters.get("capture_buffer_dropped_frames", 0) or 0))
+        )
+        self._advanced_labels["_adv_proc_drops"].setText(
+            str(int(counters.get("process_buffer_dropped_frames", 0) or 0))
+        )
+        self._advanced_labels["_adv_coalesced"].setText(
+            str(int(counters.get("coalesced_sends", 0) or 0))
         )
 
         self._dev_labels["_dev_driver"].setText("yes" if s.get("driver_ready") else "no")
@@ -219,7 +286,8 @@ class LiveDiagnosticsDialog(QDialog):
                 row = zi + 1
                 self._zone_grid.addWidget(QLabel(str(z.get("zone_index", zi))), row, 0)
                 self._zone_grid.addWidget(QLabel(str(z.get("side", "?"))), row, 1)
-                self._zone_grid.addWidget(QLabel(str(z.get("rgb", "?"))), row, 2)
+                rgb = z.get("final_output_rgb") or z.get("sampled_rgb") or z.get("rgb")
+                self._zone_grid.addWidget(QLabel(str(rgb or "?")), row, 2)
 
         if self._live_only and not running and self._timer.isActive():
             self._timer.stop()

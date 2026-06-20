@@ -394,6 +394,25 @@ def detect_zone_patch_mixed_content(patch: np.ndarray) -> bool:
     return hue_spread < 0.85
 
 
+_LOW_LIGHT_VIVID_PEAK = 32.0
+_LOW_LIGHT_PROFILE_PEAK = 40.0
+_LOW_LIGHT_PROFILE_CHROMA = 8.0
+
+
+def _low_light_patch_mean(patch_u8: np.ndarray) -> np.ndarray:
+    return np.clip(np.rint(patch_u8.mean(axis=(0, 1))), 0.0, 255.0).astype(np.uint8)
+
+
+def _patch_peak_and_chroma(patch_u8: np.ndarray) -> tuple[float, float]:
+    if patch_u8.size == 0:
+        return 0.0, 0.0
+    patch_f = np.asarray(patch_u8, dtype=np.float32)
+    peak = float(np.max(patch_f))
+    mean_rgb = patch_f.reshape(-1, 3).mean(axis=0)
+    chroma = float(np.max(mean_rgb) - np.min(mean_rgb))
+    return peak, chroma
+
+
 def _dark_biased_patch_mean(patch_u8: np.ndarray) -> np.ndarray:
     patch_f = np.asarray(patch_u8, dtype=np.float32)
     if patch_f.size == 0:
@@ -549,6 +568,11 @@ def zone_colors_array(
                     per_zone_modes[idx] = "area_average"
                     means[idx] = _dark_biased_patch_mean(patch_u8)
                     continue
+                patch_peak, _patch_chroma = _patch_peak_and_chroma(patch_u8)
+                if patch_peak < _LOW_LIGHT_VIVID_PEAK:
+                    per_zone_modes[idx] = "area_average"
+                    means[idx] = _low_light_patch_mean(patch_u8)
+                    continue
                 if normalized_sampling_mode == "peak_luma":
                     means[idx] = _peak_luma_zone_mean(patch_linear)
                 else:
@@ -588,6 +612,11 @@ def zone_colors_array(
             continue
         patch = img[y0[idx] : y1[idx], x0[idx] : x1[idx]]
         if patch.size == 0:
+            continue
+        patch_peak, patch_chroma = _patch_peak_and_chroma(patch)
+        if patch_peak < _LOW_LIGHT_PROFILE_PEAK and patch_chroma < _LOW_LIGHT_PROFILE_CHROMA:
+            per_zone_modes[idx] = "area_average"
+            out[idx] = _low_light_patch_mean(patch).astype(np.float32)
             continue
         patch_f = patch.astype(np.float32)
         max_c = patch_f.max(axis=2)

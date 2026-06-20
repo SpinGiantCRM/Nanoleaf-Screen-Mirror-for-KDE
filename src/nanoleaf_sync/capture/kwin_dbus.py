@@ -38,6 +38,45 @@ class KWinDBusCaptureError(RuntimeError):
     """Raised when KWin D-Bus screenshot capture is unavailable or fails."""
 
 
+_MAX_CAPTURE_DIMENSION = 16384
+_MAX_CAPTURE_BYTES = 64 * 1024 * 1024
+
+
+def _validate_capture_dimensions(*, width: int, height: int, stride: int | None = None) -> None:
+    for name, value in (("width", width), ("height", height)):
+        if value <= 0 or value > _MAX_CAPTURE_DIMENSION:
+            raise KWinDBusCaptureError(
+                f"KWin screenshot {name} out of bounds: {value} (max {_MAX_CAPTURE_DIMENSION})."
+            )
+    if stride is not None and (stride <= 0 or stride > _MAX_CAPTURE_DIMENSION * 4):
+        raise KWinDBusCaptureError(f"KWin screenshot stride out of bounds: {stride}.")
+
+
+def _validate_capture_byte_size(size: int) -> None:
+    if size <= 0 or size > _MAX_CAPTURE_BYTES:
+        raise KWinDBusCaptureError(
+            f"KWin screenshot payload size out of bounds: {size} bytes (max {_MAX_CAPTURE_BYTES})."
+        )
+
+
+def _allowed_screenshot_path(path: Path) -> Path:
+    resolved = path.resolve()
+    allowed_roots: list[Path] = []
+    runtime_dir = os.environ.get("XDG_RUNTIME_DIR", "").strip()
+    if runtime_dir:
+        allowed_roots.append(Path(runtime_dir).resolve())
+    allowed_roots.append(Path("/tmp").resolve())
+    for root in allowed_roots:
+        try:
+            resolved.relative_to(root)
+            if resolved.is_file():
+                _validate_capture_byte_size(resolved.stat().st_size)
+            return resolved
+        except ValueError:
+            continue
+    raise KWinDBusCaptureError(f"KWin screenshot path is outside allowed directories: {path}")
+
+
 @dataclass(frozen=True)
 class _ScreenShot2Payload:
     data: bytes
@@ -156,7 +195,15 @@ class KWinDBusScreenshotCapture:
         }
         if frame.dtype == np.uint8 and meta.transfer == "srgb" and meta.primaries == "bt709":
             return frame
-        return convert_frame_to_srgb8(frame, metadata=meta)
+        return convert_frame_to_srgb8(
+            frame,
+            metadata={
+                "transfer": meta.transfer,
+                "primaries": meta.primaries,
+                "max_nits": meta.max_nits,
+                "source": user_meta.source,
+            },
+        )
 
     def _run_async(self, coro, *, timeout: float = 2.0):
         """Run async DBus calls in a dedicated loop for sync capture API.
@@ -646,7 +693,7 @@ class KWinDBusScreenshotCapture:
             return None
 
         if isinstance(payload, str):
-            path = Path(payload)
+            path = _allowed_screenshot_path(Path(payload))
             if not path.exists():
                 raise KWinDBusCaptureError(
                     f"KWin screenshot returned a non-existent file path: {path}"
@@ -694,7 +741,9 @@ class KWinDBusScreenshotCapture:
                 "(type/width/height/stride/format)."
             ) from exc
 
+        _validate_capture_dimensions(width=width, height=height, stride=stride)
         expected_bytes = stride * height
+        _validate_capture_byte_size(expected_bytes)
         if len(reply.data) < expected_bytes:
             raise KWinDBusCaptureError(
                 "KWin ScreenShot2 raw payload shorter than expected from stride/height."
@@ -717,6 +766,7 @@ class KWinDBusScreenshotCapture:
     def _decode_ppm_path(self, path: Path) -> np.ndarray | None:
         if path.suffix.lower() not in {".ppm", ".pnm"}:
             return None
+        _validate_capture_byte_size(path.stat().st_size)
         return self._decode_ppm_bytes(path.read_bytes())
 
     def _decode_ppm_bytes(self, data: bytes) -> np.ndarray | None:
@@ -746,6 +796,7 @@ class KWinDBusScreenshotCapture:
         width = int(tokens[0])
         height = int(tokens[1])
         maxval = int(tokens[2])
+        _validate_capture_dimensions(width=width, height=height)
         if maxval != 255:
             raise KWinDBusCaptureError("Unsupported PPM maxval (expected 255).")
 
@@ -754,6 +805,7 @@ class KWinDBusScreenshotCapture:
 
         raw = data[idx:]
         expected = width * height * 3
+        _validate_capture_byte_size(expected)
         if len(raw) < expected:
             raise KWinDBusCaptureError("Incomplete PPM screenshot pixel payload.")
 

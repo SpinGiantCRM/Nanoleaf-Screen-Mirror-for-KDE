@@ -8,6 +8,7 @@ from nanoleaf_sync.runtime.color_processing import (
     LedCalibration,
     apply_color_style_mapping,
     apply_color_style_mapping_with_diagnostics,
+    apply_display_gamut_adaptation,
     apply_led_calibration,
     apply_near_black_zone_output,
     color_pipeline_diagnostics,
@@ -15,6 +16,7 @@ from nanoleaf_sync.runtime.color_processing import (
     init_gamut_adaptation,
     oklch_to_rgb_u8,
     rgb_u8_to_oklch,
+    set_skip_display_gamut_adaptation,
 )
 
 # ---------------------------------------------------------------------------
@@ -58,6 +60,24 @@ def test_init_gamut_adaptation_srgb_identity() -> None:
     """srgb gamut should produce identity (same primaries)."""
     init_gamut_adaptation("srgb")
     # Should not crash
+
+
+def test_display_p3_gamut_adaptation_preserves_neutral_and_converts_color() -> None:
+    set_skip_display_gamut_adaptation(False)
+    init_gamut_adaptation("display-p3")
+    colors = np.asarray(
+        [
+            [128.0, 128.0, 128.0],
+            [220.0, 64.0, 64.0],
+            [64.0, 220.0, 64.0],
+        ],
+        dtype=np.float32,
+    )
+    out = apply_display_gamut_adaptation(colors)
+    np.testing.assert_allclose(out[0], colors[0], atol=1.0)
+    assert float(np.max(np.abs(out[1:] - colors[1:]))) > 8.0
+    assert int(np.max(out[0]) - np.min(out[0])) <= 1
+    init_gamut_adaptation("srgb")
 
 
 # ---------------------------------------------------------------------------

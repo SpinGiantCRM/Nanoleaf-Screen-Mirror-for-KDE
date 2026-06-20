@@ -216,10 +216,12 @@ def test_kmsgrab_converts_hdr_before_any_resizing(monkeypatch) -> None:
     backend = KMSGrabCapture(width=1920, height=1080)
     rgb = np.zeros((1080, 1920, 3), dtype=np.uint16)
     captured_shape = None
+    captured_metadata: dict[str, object] | None = None
 
     def _fake_convert(frame: np.ndarray, metadata):
-        nonlocal captured_shape
+        nonlocal captured_shape, captured_metadata
         captured_shape = frame.shape
+        captured_metadata = dict(metadata)
         return np.zeros_like(frame, dtype=np.uint8)
 
     monkeypatch.setattr("nanoleaf_sync.capture.kmsgrab.convert_frame_to_srgb8", _fake_convert)
@@ -231,6 +233,9 @@ def test_kmsgrab_converts_hdr_before_any_resizing(monkeypatch) -> None:
     )
     assert out.dtype == np.uint8
     assert captured_shape == (1080, 1920, 3)
+    assert captured_metadata is not None
+    assert captured_metadata["source"] == "backend metadata"
+    assert captured_metadata["transfer"] == "pq"
     assert out.shape == (1080, 1920, 3)
 
 

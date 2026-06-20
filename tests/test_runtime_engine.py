@@ -6,6 +6,7 @@ import numpy as np
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.runtime.engine import (
     _ensure_runtime_artifacts,
+    _estimate_processing_staleness_ms,
     _mapping_signature,
     process_frame,
     run_loop,
@@ -31,6 +32,24 @@ def test_mapping_signature_tracks_reverse_and_model() -> None:
     sig = _mapping_signature(source_zone_count=10, config=cfg, detected_device_zone_count=10)
     assert sig[0] == 10
     assert isinstance(sig[3], bool)
+
+
+def test_processing_staleness_estimate_includes_frame_age_and_expected_output_work() -> None:
+    estimate = _estimate_processing_staleness_ms(
+        captured_at=10.0,
+        now=10.012,
+        hid_output_work_ewma_ms=6.5,
+    )
+    assert 18.4 <= estimate <= 18.6
+
+
+def test_processing_staleness_estimate_clamps_clock_reversal() -> None:
+    estimate = _estimate_processing_staleness_ms(
+        captured_at=10.1,
+        now=10.0,
+        hid_output_work_ewma_ms=None,
+    )
+    assert estimate == 0.0
 
 
 def test_no_global_zone_offset_reintroduced() -> None:
@@ -261,8 +280,16 @@ def test_run_loop_records_live_send_policy_without_response_wait_penalty() -> No
 
     state = RuntimeState()
     cfg = _cfg_with_valid_calibration(48, fps=60)
+
+    def _stop_after_first_send_or_timeout() -> None:
+        deadline = time.perf_counter() + 0.5
+        while time.perf_counter() < deadline and not state.first_frame_sent:
+            time.sleep(0.005)
+        state.stop_event.set()
+
     stopper = threading.Thread(
-        target=lambda: (time.sleep(0.08), state.stop_event.set()), daemon=True
+        target=_stop_after_first_send_or_timeout,
+        daemon=True,
     )
     stopper.start()
     run_loop(
@@ -435,3 +462,54 @@ def test_run_loop_does_not_stream_when_calibration_incomplete() -> None:
     assert state.lifecycle_state == "calibration_incomplete"
     assert state.last_error_kind == "calibration_incomplete"
     assert "calibration_incomplete" in state.start_failure_reason
+
+
+def test_run_loop_pipeline_records_process_buffer_drops_when_hid_is_slow() -> None:
+    class _Capture:
+        name = "kwin-dbus"
+        last_capture_path = "kwin-dbus:test"
+
+        def __init__(self) -> None:
+            self._frames = 0
+
+        def capture(self):
+            self._frames += 1
+            frame = np.zeros((24, 32, 3), dtype=np.uint8)
+            frame[:, :] = [80, 20, 10]
+            if self._frames >= 40:
+                state.stop_event.set()
+            return frame
+
+    class _Driver:
+        reported_zone_count = 48
+        zone_count = 48
+
+        def send_frame(self, _colors) -> None:
+            time.sleep(0.025)
+
+    state = RuntimeState()
+    capture = _Capture()
+    cfg = _cfg_with_valid_calibration(48, fps=60)
+    thread = threading.Thread(
+        target=run_loop,
+        kwargs={
+            "config": cfg,
+            "state": state,
+            "get_capture": lambda: capture,
+            "get_driver": lambda: _Driver(),
+            "install_drivers": lambda: True,
+            "close_backends": lambda: None,
+        },
+        daemon=True,
+    )
+    thread.start()
+    thread.join(timeout=8.0)
+    assert not thread.is_alive()
+
+    measurement = state.latency_probe.measurement()
+    assert measurement is not None
+    counters = measurement.counters
+    dropped_total = int(counters.get("process_buffer_dropped_frames", 0)) + int(
+        counters.get("capture_buffer_dropped_frames", 0)
+    )
+    assert dropped_total >= 1

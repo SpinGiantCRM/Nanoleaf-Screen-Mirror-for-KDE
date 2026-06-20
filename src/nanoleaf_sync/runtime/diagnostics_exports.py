@@ -15,6 +15,18 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.state import ZoneRect
 
 
+def _create_export_dir() -> Path:
+    path = Path(tempfile.mkdtemp(prefix="nanoleaf-kde-sync-", dir=tempfile.gettempdir()))
+    os.chmod(path, 0o700)
+    return path
+
+
+def _export_safe_status(status: dict) -> dict:
+    safe = dict(status)
+    safe.pop("_latest_frame_rgb", None)
+    return safe
+
+
 def _format_latency_metric(value: object, *, precision: int = 1) -> str:
     if isinstance(value, (int, float)):
         return f"{float(value):.{precision}f}"
@@ -238,6 +250,9 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
     _stage("inferred_unattributed_gap_ms")
     no_pending_frame_ticks = int(counters.get("no_pending_frame_ticks", 0) or 0)
     capture_worker_error_count = int(counters.get("capture_worker_error_count", 0) or 0)
+    capture_buffer_dropped_frames = int(counters.get("capture_buffer_dropped_frames", 0) or 0)
+    process_buffer_dropped_frames = int(counters.get("process_buffer_dropped_frames", 0) or 0)
+    coalesced_sends = int(counters.get("coalesced_sends", 0) or 0)
     capture_worker_active = bool(flags.get("capture_worker_active", False))
     latest_capture_backend_name = str(
         labels.get("latest_capture_backend_name", "unavailable") or "unavailable"
@@ -263,6 +278,9 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
         labels.get("hid_live_send_policy", "response_required") or "response_required"
     )
     hid_response_wait_skipped = str(labels.get("hid_response_wait_skipped", "no") or "no")
+    predictive_sync_active = bool(status.get("predictive_sync_active", False))
+    predictive_lookahead_frames = float(status.get("predictive_lookahead_frames") or 0.0)
+    predictive_scene_cut_suppressed = bool(status.get("predictive_scene_cut_suppressed", False))
 
     target_met_threshold = max(1.0, target_fps * 0.95)
     target_met = target_fps > 0.0 and effective_output_fps >= target_met_threshold
@@ -426,6 +444,9 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
         f"no_pending_frame_rate_per_second: {no_pending_rate or 'unavailable'}",
         f"no_pending_frame_ticks: {no_pending_frame_ticks}",
         f"capture_worker_error_count: {capture_worker_error_count}",
+        f"capture_buffer_dropped_frames: {capture_buffer_dropped_frames}",
+        f"process_buffer_dropped_frames: {process_buffer_dropped_frames}",
+        f"coalesced_sends: {coalesced_sends}",
         f"configured_priority_mode: {status.get('configured_priority_mode', 'normal')}",
         f"effective_nice_value: {status.get('effective_nice_value', 'unavailable')}",
         f"priority_apply_status: {status.get('priority_apply_status', 'not_attempted')}",
@@ -434,6 +455,9 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
             if str(status.get("priority_apply_error", "")).strip()
             else "priority_apply_error: none"
         ),
+        f"predictive_sync_active: {'yes' if predictive_sync_active else 'no'}",
+        f"predictive_lookahead_frames: {predictive_lookahead_frames:.2f}",
+        f"predictive_scene_cut_suppressed: {'yes' if predictive_scene_cut_suppressed else 'no'}",
         (
             f"hid_frame_build_ms: unavailable "
             f"({labels.get('hid_frame_build_reason', 'not instrumented')})"
@@ -598,10 +622,7 @@ def export_sampling_overlay(
         side = _zone_side_for_index(idx, side_counts)
         _draw_rect(base, rect, side_palette[side], thickness=2)
 
-    out_dir = Path(tempfile.gettempdir()) / "nanoleaf-kde-sync"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    # nosemgrep: python.lang.security.audit.insecure-file-permissions.insecure-file-permissions
-    os.chmod(out_dir, 0o700)
+    out_dir = _create_export_dir()
     stamp = int(time.time())
     mode = "synthetic-test" if synthetic else "live-captured"
     path = out_dir / f"sampling-overlay-{mode}-{stamp}.png"
@@ -615,10 +636,7 @@ def export_zone_report(*, rows: Sequence[dict[str, object]]) -> Path:
         raise ValueError(
             "No per-zone diagnostics available. Start mirroring or capture one diagnostic frame."
         )
-    out_dir = Path(tempfile.gettempdir()) / "nanoleaf-kde-sync"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    # nosemgrep: python.lang.security.audit.insecure-file-permissions.insecure-file-permissions
-    os.chmod(out_dir, 0o700)
+    out_dir = _create_export_dir()
     path = out_dir / f"zone-report-{int(time.time())}.csv"
     base_fields = [
         "zone_index",
@@ -670,10 +688,7 @@ def export_latency_report(*, status: dict) -> Path:
     if not isinstance(stages, dict):
         raise ValueError("Latency diagnostics payload is malformed.")
 
-    out_dir = Path(tempfile.gettempdir()) / "nanoleaf-kde-sync"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    # nosemgrep: python.lang.security.audit.insecure-file-permissions.insecure-file-permissions
-    os.chmod(out_dir, 0o700)
+    out_dir = _create_export_dir()
     path = out_dir / f"latency-breakdown-{int(time.time())}.csv"
     with path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(
@@ -691,6 +706,9 @@ def export_latency_report(*, status: dict) -> Path:
                 "fps_cap_reason",
                 "effective_output_fps",
                 "dropped_or_skipped_frames",
+                "predictive_sync_active",
+                "predictive_lookahead_frames",
+                "predictive_scene_cut_suppressed",
             ],
         )
         writer.writeheader()
@@ -741,6 +759,13 @@ def export_latency_report(*, status: dict) -> Path:
                     ),
                     "dropped_or_skipped_frames": int(
                         measurement.get("dropped_or_skipped_frames", 0) or 0
+                    ),
+                    "predictive_sync_active": bool(status.get("predictive_sync_active", False)),
+                    "predictive_lookahead_frames": float(
+                        status.get("predictive_lookahead_frames", 0.0) or 0.0
+                    ),
+                    "predictive_scene_cut_suppressed": bool(
+                        status.get("predictive_scene_cut_suppressed", False)
                     ),
                 }
             )

@@ -149,7 +149,13 @@ def _status_with_measurement(
                     "sample_count": 60,
                 },
             },
-            "counters": {"no_pending_frame_ticks": 0, "capture_worker_error_count": 0},
+            "counters": {
+                "no_pending_frame_ticks": 0,
+                "capture_worker_error_count": 0,
+                "capture_buffer_dropped_frames": 1,
+                "process_buffer_dropped_frames": 2,
+                "coalesced_sends": 3,
+            },
             "flags": {"capture_worker_active": True},
             "labels": {
                 "latest_capture_backend_name": "kwin-dbus",
@@ -300,3 +306,25 @@ def test_hid_report_metadata_is_emitted_in_latency_breakdown() -> None:
     assert any("hid_write_retry_policy: none" in line for line in lines)
     assert any("live_send_policy: nonblocking_drain" in line for line in lines)
     assert any("response_wait_skipped: yes" in line for line in lines)
+
+
+def test_buffer_skip_counters_are_emitted_in_latency_breakdown() -> None:
+    lines = latency_breakdown_lines(
+        status=_status_with_measurement(target_fps=120.0, effective_fps=92.0)
+    )
+    assert any("capture_buffer_dropped_frames: 1" in line for line in lines)
+    assert any("process_buffer_dropped_frames: 2" in line for line in lines)
+    assert any("coalesced_sends: 3" in line for line in lines)
+
+
+def test_predictive_sync_state_is_emitted_in_latency_breakdown() -> None:
+    status = _status_with_measurement(target_fps=120.0, effective_fps=83.0)
+    status["predictive_sync_active"] = True
+    status["predictive_lookahead_frames"] = 1.375
+    status["predictive_scene_cut_suppressed"] = True
+
+    lines = latency_breakdown_lines(status=status)
+
+    assert any("predictive_sync_active: yes" in line for line in lines)
+    assert any("predictive_lookahead_frames: 1.38" in line for line in lines)
+    assert any("predictive_scene_cut_suppressed: yes" in line for line in lines)

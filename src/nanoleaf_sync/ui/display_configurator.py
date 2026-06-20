@@ -42,10 +42,28 @@ WIZARD_SESSION_ENV = "NANOLEAF_WIZARD_SESSION_PATH"
 
 
 def _wizard_session_storage_path() -> Path:
+    default_root = Path.home() / ".local" / "state" / "nanoleaf-kde-sync"
+    default_path = default_root / "wizard-session.json"
     configured = os.environ.get(WIZARD_SESSION_ENV, "").strip()
-    if configured:
-        return Path(configured).expanduser()
-    return Path.home() / ".local" / "state" / "nanoleaf-sync" / "wizard-session.json"
+    if not configured:
+        return default_path
+    candidate = Path(configured).expanduser().resolve()
+    if os.environ.get("NANOLEAF_ALLOW_UNSAFE_WIZARD_PATH", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }:
+        return candidate
+    try:
+        candidate.relative_to(default_root.resolve())
+        return candidate
+    except ValueError:
+        _log.warning(
+            "Ignoring unsafe wizard session path override %s; using %s",
+            candidate,
+            default_path,
+        )
+        return default_path
 
 
 class _FallbackStackedWidget:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 import logging
 import os
+import re
 from dataclasses import dataclass
 from importlib import import_module
 
@@ -16,6 +17,15 @@ from nanoleaf_sync.color.capture_metadata import resolve_capture_metadata
 from nanoleaf_sync.color.hdr import HDRMetadata, analyze_hdr_path, convert_frame_to_srgb8
 
 _log = logging.getLogger(__name__)
+
+_DRM_CARD_PATH_RE = re.compile(r"^/dev/dri/card\d+$")
+
+
+def validated_drm_card_path(raw: str | None = None) -> str:
+    path = str(raw or os.environ.get("NANOLEAF_DRM_CARD", "/dev/dri/card0")).strip()
+    if not _DRM_CARD_PATH_RE.match(path):
+        raise KMSGrabError(f"Invalid DRM card path: {path!r}")
+    return path
 
 
 @dataclass(frozen=True)
@@ -47,7 +57,7 @@ class KMSGrabCapture:
         self.params = KMSGrabParams(
             width=width,
             height=height,
-            card_path=card_path or os.environ.get("NANOLEAF_DRM_CARD", "/dev/dri/card0"),
+            card_path=validated_drm_card_path(card_path),
         )
         self._drm_zone_patch_capture = bool(drm_zone_patch_capture)
         self._fallback = KWinDBusScreenshotCapture(
@@ -299,7 +309,15 @@ class KMSGrabCapture:
             "assumption": resolved.assumption,
             "skip_display_gamut_adaptation": resolved.skip_display_gamut_adaptation,
         }
-        return convert_frame_to_srgb8(rgb, metadata=meta)
+        return convert_frame_to_srgb8(
+            rgb,
+            metadata={
+                "transfer": meta.transfer,
+                "primaries": meta.primaries,
+                "max_nits": meta.max_nits,
+                "source": resolved.source,
+            },
+        )
 
     def _resize_to_target(
         self, *, frame: np.ndarray, target_height: int, target_width: int

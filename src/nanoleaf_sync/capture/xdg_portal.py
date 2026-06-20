@@ -942,5 +942,6 @@ class XDGPortalCapture:
         try:
             self._token_path.parent.mkdir(parents=True, exist_ok=True)
             self._token_path.write_text(token, encoding="utf-8")
+            os.chmod(self._token_path, 0o600)
         except OSError:
             pass

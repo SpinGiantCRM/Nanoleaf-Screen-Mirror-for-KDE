@@ -368,6 +368,7 @@ class NanoleafSyncService:
             "capture_metadata_source": metadata_source,
             "tone_mapping_applied": tone_mapping_applied,
             "sdr_compensation_applied": bool(getattr(self.config, "compositor_hdr_mode", False))
+            and bool(self._runtime.sdr_boost_compensation_enabled)
             and abs(
                 effective_sdr_boost(
                     sdr_boost_nits=float(getattr(self.config, "sdr_boost_nits", 80.0))
@@ -375,6 +376,10 @@ class NanoleafSyncService:
                 - 1.0
             )
             > 1e-6,
+            "sdr_compensation_suppressed_for_hdr": bool(
+                getattr(self.config, "compositor_hdr_mode", False)
+            )
+            and not bool(self._runtime.sdr_boost_compensation_enabled),
             "assumption": str(capture_hdr.get("assumption", "unknown")),
             "warnings": [
                 "HDR preset active but capture metadata unavailable; using user preset assumptions."
@@ -531,6 +536,26 @@ class NanoleafSyncService:
                 "Real device mode requires non-zero device_vid/device_pid. "
                 "Configure Nanoleaf USB IDs (for example 0x37fa:0x8201 or 0x37fa:0x8202)."
             )
+        from nanoleaf_sync.config.normalize import ALLOWED_NANOLEAF_USB_IDS
+
+        allowed_pids = ALLOWED_NANOLEAF_USB_IDS.get(int(ids.vid))
+        if not getattr(self.config, "allow_custom_device_ids", False) and (
+            not allowed_pids or int(ids.pid) not in allowed_pids
+        ):
+            logger.warning(
+                "Non-default USB device IDs without allow_custom_device_ids; "
+                "opening vid=0x%04x pid=0x%04x (normalization should clamp).",
+                int(ids.vid),
+                int(ids.pid),
+            )
+        elif getattr(self.config, "allow_custom_device_ids", False):
+            allowed_pids = ALLOWED_NANOLEAF_USB_IDS.get(int(ids.vid))
+            if not allowed_pids or int(ids.pid) not in allowed_pids:
+                logger.warning(
+                    "Opening custom USB device IDs vid=0x%04x pid=0x%04x",
+                    int(ids.vid),
+                    int(ids.pid),
+                )
         return NanoleafUSBDriver(
             ids=ids,
             output_channel_order=self.config.output_channel_order,

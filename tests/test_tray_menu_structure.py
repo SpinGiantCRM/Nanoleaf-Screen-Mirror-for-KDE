@@ -26,12 +26,19 @@ def test_tray_top_level_is_focused_for_daily_use() -> None:
     assert "def on_open_advanced_settings" not in text
 
 
-def test_tray_tooltip_includes_backend_resolution_and_state_label() -> None:
+def test_tray_tooltip_is_simplified_for_daily_use() -> None:
     text = Path("src/nanoleaf_sync/ui/tray_app.py").read_text(encoding="utf-8")
-    assert "Requested backend policy:" in text
-    assert "Selected backend:" in text
-    assert "Effective backend:" in text
-    assert "About / Status (" in text
+    assert "Last issue:" in text
+    assert "Requested backend policy:" not in text
+    assert "Effective backend:" not in text
+
+
+def test_tray_copy_points_to_advanced_troubleshooting_guide() -> None:
+    text = Path("src/nanoleaf_sync/ui/tray_app.py").read_text(encoding="utf-8")
+    assert "Advanced → Troubleshooting Guide" in text
+    assert "Help → Troubleshooting" not in text
+    assert "Help / Troubleshooting" not in text
+    assert "Opening Set up strip…" in text
 
 
 def test_tray_status_label_includes_app_version() -> None:

@@ -21,7 +21,8 @@ class PredictiveSyncParams:
     max_polish_strength: float = 0.35
     base_blend_alpha: float = 0.65
     static_scene_delta_threshold: float = 3.0
-    dark_zone_peak_threshold: float = 20.0
+    dark_zone_peak_threshold: float = 40.0
+    dark_zone_chroma_threshold: float = 8.0
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,17 @@ class PredictiveSyncResult:
     lookahead_frames: float
     active: bool
     scene_cut_suppressed: bool
+
+
+def _active_frame_ms(params: PredictiveSyncParams) -> float:
+    fps_candidates = [
+        float(params.config_fps),
+        float(params.effective_target_fps),
+        float(params.governor_target_fps),
+    ]
+    usable_fps = [fps for fps in fps_candidates if fps > 0.0]
+    active_fps = min(usable_fps) if usable_fps else 1.0
+    return 1000.0 / max(1.0, active_fps)
 
 
 def apply_predictive_sync(
@@ -59,11 +71,10 @@ def apply_predictive_sync(
             scene_cut_suppressed=False,
         )
 
-    config_fps = max(1.0, float(params.config_fps))
-    frame_ms = 1000.0 / config_fps
+    frame_ms = _active_frame_ms(params)
     staleness_ms = max(0.0, float(params.staleness_ms))
     strength = max(0.0, min(1.0, float(params.strength)))
-    if params.output_healthy or strength <= 0.0:
+    if strength <= 0.0:
         return PredictiveSyncResult(
             colors=smoothed,
             lookahead_frames=0.0,
@@ -79,7 +90,15 @@ def apply_predictive_sync(
             active=False,
             scene_cut_suppressed=False,
         )
-    if staleness_ms > float(params.max_staleness_ms):
+    if params.output_healthy and staleness_ms <= frame_ms * 1.75:
+        return PredictiveSyncResult(
+            colors=smoothed,
+            lookahead_frames=0.0,
+            active=False,
+            scene_cut_suppressed=False,
+        )
+    max_staleness_ms = max(float(params.max_staleness_ms), frame_ms * 2.5)
+    if staleness_ms > max_staleness_ms:
         return PredictiveSyncResult(
             colors=smoothed,
             lookahead_frames=0.0,
@@ -87,14 +106,30 @@ def apply_predictive_sync(
             scene_cut_suppressed=False,
         )
 
-    zone_peak = np.max(smoothed, axis=1) if smoothed.ndim == 2 else np.asarray([], dtype=np.float32)
-    if zone_peak.size and float(np.median(zone_peak)) < float(params.dark_zone_peak_threshold):
+    if smoothed.ndim == 2:
+        zone_peak = np.max(smoothed, axis=1)
+        zone_chroma = zone_peak - np.min(smoothed, axis=1)
+    else:
+        zone_peak = np.asarray([], dtype=np.float32)
+        zone_chroma = np.asarray([], dtype=np.float32)
+    if zone_peak.size and float(np.median(zone_peak)) < float(params.near_black_threshold):
         return PredictiveSyncResult(
             colors=smoothed,
             lookahead_frames=0.0,
             active=False,
             scene_cut_suppressed=False,
         )
+    if zone_peak.size and zone_chroma.size:
+        low_light_neutral = (zone_peak < float(params.dark_zone_peak_threshold)) & (
+            zone_chroma < float(params.dark_zone_chroma_threshold)
+        )
+        if float(np.mean(low_light_neutral)) >= 0.5:
+            return PredictiveSyncResult(
+                colors=smoothed,
+                lookahead_frames=0.0,
+                active=False,
+                scene_cut_suppressed=False,
+            )
     if (
         vivid_weighted_active
         and sampled_median_peak is not None
@@ -187,9 +222,13 @@ def apply_predictive_sync(
         smoothed_peak = np.asarray([], dtype=np.float32)
         prev_peak = np.asarray([], dtype=np.float32)
     if smoothed_peak.size and prev_peak.size == smoothed_peak.size:
-        dark_guard = smoothed_peak < float(params.dark_zone_peak_threshold)
+        smoothed_chroma = smoothed_peak - np.min(smoothed, axis=1)
+        dark_guard = smoothed_peak < float(params.near_black_threshold)
+        low_light_neutral_guard = (smoothed_peak < float(params.dark_zone_peak_threshold)) & (
+            smoothed_chroma < float(params.dark_zone_chroma_threshold)
+        )
         darkening_guard = (prev_peak - smoothed_peak) > 12.0
-        leave_unchanged = dark_guard | darkening_guard
+        leave_unchanged = dark_guard | low_light_neutral_guard | darkening_guard
         polished = np.where(leave_unchanged[:, None], smoothed, polished)
 
     polish_frames = excess_ms / frame_ms if frame_ms > 0.0 else 0.0

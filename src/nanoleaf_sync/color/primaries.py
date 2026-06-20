@@ -157,13 +157,15 @@ def build_adaptation_matrix(
     src_primaries: Chromaticities,
     target_primaries: Chromaticities = CHROMATICITIES_SRGB,
 ) -> np.ndarray:
-    """Build a 3×3 Bradford adaptation matrix from *src* to *target* primaries.
+    """Build a 3×3 RGB conversion matrix from *src* to *target* primaries.
 
     Returns ``(3, 3)`` ``float32`` matrix: ``rgb_target = rgb_src @ M``
-    (applied to linear RGB values, row-vector convention).
+    (applied to linear RGB values, row-vector convention).  The conversion
+    includes a Bradford white-point adaptation before projecting into the
+    target RGB primaries.
     """
-    src_xyz = chromaticities_to_xyz_matrix(src_primaries)
-    tgt_xyz = chromaticities_to_xyz_matrix(target_primaries)
+    src_xyz = chromaticities_to_xyz_matrix(src_primaries).astype(np.float64)
+    tgt_xyz = chromaticities_to_xyz_matrix(target_primaries).astype(np.float64)
 
     # Extract white points as XYZ (white = R+G+B at equal intensity).
     # With row-major matrices, [1,1,1] @ M = sum of rows (axis=0) = W_xyz.
@@ -171,8 +173,8 @@ def build_adaptation_matrix(
     tgt_white = np.sum(tgt_xyz, axis=0)
 
     # Cone responses for white points.
-    src_cone = _BFD @ src_white
-    tgt_cone = _BFD @ tgt_white
+    src_cone = src_white @ _BFD
+    tgt_cone = tgt_white @ _BFD
 
     # Diagonal scaling matrix (tgt_cone / src_cone).
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -180,8 +182,10 @@ def build_adaptation_matrix(
 
     D = np.diag(scale)
 
-    # Full Bradford: BFD⁻¹ @ D @ BFD.
-    M = _BFD_INV @ D @ _BFD
+    # Full row-vector path:
+    # rgb_src @ src_xyz -> xyz_src @ BFD -> cone @ D -> xyz_tgt @ tgt_xyz⁻¹.
+    bradford_xyz = _BFD @ D @ _BFD_INV
+    M = src_xyz @ bradford_xyz @ np.linalg.inv(tgt_xyz)
     return M.astype(np.float32)
 
 

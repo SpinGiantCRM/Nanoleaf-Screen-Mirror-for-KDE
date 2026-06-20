@@ -84,7 +84,7 @@ def init_gamut_adaptation(
         return
 
     new_matrix = build_adaptation_matrix(src, CHROMATICITIES_SRGB)
-    new_matrix_t = np.ascontiguousarray(new_matrix.T)
+    new_matrix_t = np.ascontiguousarray(new_matrix)
     with _GAMUT_LOCK:
         _GAMUT_ADAPTATION_MATRIX = new_matrix
         _GAMUT_ADAPTATION_MATRIX_T = new_matrix_t
@@ -233,8 +233,8 @@ def oklch_to_rgb_u8(lum: np.ndarray, c: np.ndarray, h: np.ndarray) -> np.ndarray
     return linear01_to_srgb_u8(linear)
 
 
-_NEAR_BLACK_OFF_LOW = 0.0
-_NEAR_BLACK_OFF_HIGH = 12.0
+_NEAR_BLACK_OFF_LOW = 4.0
+_NEAR_BLACK_OFF_HIGH = 16.0
 _NEAR_BLACK_ACHRO_FULL_BELOW = 20.0
 _DARK_SAMPLE_STABILIZE_LOW = 0.008
 _DARK_SAMPLE_STABILIZE_HIGH = 0.025

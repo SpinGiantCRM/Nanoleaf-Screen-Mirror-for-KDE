@@ -41,7 +41,9 @@ from nanoleaf_sync.runtime.readiness_check import (
 )
 from nanoleaf_sync.service import NanoleafSyncService
 from nanoleaf_sync.tools.output_format import describe_mode, summarize_command_output
+from nanoleaf_sync.ui.command_results_dialog import show_command_results
 from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog
+from nanoleaf_sync.ui.layout_helpers import stretch_menu_width
 from nanoleaf_sync.ui.live_diagnostics import LiveDiagnosticsDialog
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.settings_dialog import SettingsDialog
@@ -55,12 +57,24 @@ SELF_CHECK_IMPORTS: tuple[str, ...] = (
 _log = logging.getLogger(__name__)
 
 
+def calibration_preview_user_message(exc: Exception) -> str:
+    text = str(exc).lower()
+    if "hid" in text or "hidraw" in text or "usb" in text or "read error" in text:
+        return (
+            "Calibration test pattern failed: strip not reachable over USB.\n"
+            "Check the cable, udev rules, and close apps (e.g. Steam/Wine) "
+            "that may hold hidraw."
+        )
+    return f"Calibration test pattern failed: {exc}"
+
+
 def first_run_message(mode: str) -> str:
     normalized = (mode or "").strip().lower()
     if normalized == "full-real":
         return (
             "Real hardware mode is now selected.\n"
-            "If the light is not detected, open Help → Troubleshooting from the tray menu."
+            "If the light is not detected, open Advanced → Troubleshooting Guide "
+            "from the tray menu."
         )
     return (
         "Diagnostic mock-capture mode is enabled. Screen capture is simulated, "
@@ -162,6 +176,7 @@ class NanoleafTrayApp:
         self.QPushButton = qt["QPushButton"]
         self.QVBoxLayout = qt["QVBoxLayout"]
         self.QHBoxLayout = qt["QHBoxLayout"]
+        self.QGroupBox = qt["QGroupBox"]
         self.QTimer = qt["QTimer"]
         self.QMessageBox = qt["QMessageBox"]
         self.Qt = qt["Qt"]
@@ -413,12 +428,16 @@ class NanoleafTrayApp:
                     self._restart_mirroring_service(was_running=True)
                 if attempt < max_attempts:
                     continue
+                user_message = calibration_preview_user_message(exc)
                 self.tray_icon.showMessage(
                     "nanoleaf-kde-sync",
-                    f"Calibration test pattern failed: {exc} | diagnostics={diagnostics}",
+                    user_message,
                     self.QSystemTrayIcon.MessageIcon.Warning,
                     5000,
                 )
+
+    def _calibration_preview_user_message(self, exc: Exception) -> str:
+        return calibration_preview_user_message(exc)
 
     def _build_calibration_preview_diagnostics(
         self, *, frame_color_count: int, driver=None
@@ -625,6 +644,7 @@ class NanoleafTrayApp:
         menu.addMenu(advanced_menu)
         menu.addSeparator()
         menu.addAction(self.action_quit)
+        stretch_menu_width(menu)
         return menu
 
     def _refresh_mode_labels(self) -> None:
@@ -654,18 +674,14 @@ class NanoleafTrayApp:
             device_discovered=bool(status.get("device_discovered")),
             device_model=str(status.get("device_model") or ""),
         )
-        effective_backend = status.get("effective_capture_backend") or (
-            "not-started" if not running else "unresolved"
-        )
-        selected_backend = status.get("selected_capture_backend") or "unresolved"
-        unresolved_reason = status.get("backend_unresolved_reason") or ""
+        _ = capture_mode
+        last_error = status.get("last_error") or ""
+        last_error_line = str(last_error).splitlines()[0] if last_error else "None"
         self.tray_icon.setToolTip(
             "nanoleaf-kde-sync\n"
-            f"State: {startup_state}\n{capture_mode}\n{device_mode}\n"
-            f"Requested backend policy: {self.config.prefer_backend}\n"
-            f"Selected backend: {selected_backend}\n"
-            f"Effective backend: {effective_backend}"
-            + (f"\nBackend note: {unresolved_reason}" if unresolved_reason else "")
+            f"State: {'Running' if running else startup_state.replace('_', ' ').title()}\n"
+            f"{device_mode}\n"
+            f"Last issue: {last_error_line}"
         )
         self.action_status.setText(
             f"About / Status ({startup_state.replace('_', ' ').title()} · v{self._app_version})"
@@ -724,10 +740,10 @@ class NanoleafTrayApp:
         ):
             issue = preflight.issues[0] if preflight.issues else None
             reason = issue.reason if issue else preflight.status
-            fix = issue.fix if issue else "Open Display Setup or Settings"
+            fix = issue.fix if issue else "Open Set up strip… or Settings"
             message = f"Cannot start mirroring yet.\n{reason}\n{fix}"
             if preflight.status == NEEDS_CALIBRATION_STATUS:
-                message = f"{message}\n\nOpening Display Setup…"
+                message = f"{message}\n\nOpening Set up strip…"
                 self.tray_icon.showMessage(
                     "nanoleaf-kde-sync",
                     message,
@@ -1066,7 +1082,7 @@ class NanoleafTrayApp:
         )
         last_error = status.get("last_error")
         help_guidance = status.get("last_error_guidance") or (
-            "Open Help / Troubleshooting from the tray menu."
+            "Open Advanced → Troubleshooting Guide from the tray menu."
         )
         summary = "\n".join(
             [
@@ -1094,8 +1110,17 @@ class NanoleafTrayApp:
         dialog.setMinimumWidth(420)
         layout = self.QVBoxLayout()
         layout.addWidget(self.QLabel(summary))
-        details_label = self.QLabel(f"Technical details:\n{details}")
-        layout.addWidget(details_label)
+        technical_group = self.QGroupBox("Show technical details")
+        technical_group.setCheckable(True)
+        technical_group.setChecked(False)
+        technical_layout = self.QVBoxLayout()
+        details_label = self.QLabel(details)
+        set_word_wrap = getattr(details_label, "setWordWrap", None)
+        if callable(set_word_wrap):
+            set_word_wrap(True)
+        technical_layout.addWidget(details_label)
+        technical_group.setLayout(technical_layout)
+        layout.addWidget(technical_group)
         docs_url = user_doc_url("USER_GUIDE.md") or (
             "https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE"
         )
@@ -1281,11 +1306,23 @@ class NanoleafTrayApp:
                 result = subprocess.run(
                     argv, capture_output=True, text=True, check=False, timeout=30
                 )
+                combined = (result.stdout or "").strip()
+                err = (result.stderr or "").strip()
+                if err:
+                    combined = f"{combined}\n{err}".strip() if combined else err
+                if not combined:
+                    combined = "No command output captured."
                 preview, rc = summarize_command_output(
                     result.stdout, result.stderr, result.returncode
                 )
                 self.QTimer.singleShot(
-                    0, lambda: self._handle_tool_result(label=label, preview=preview, rc=rc)
+                    0,
+                    lambda: self._handle_tool_result(
+                        label=label,
+                        preview=preview,
+                        rc=rc,
+                        full_output=combined,
+                    ),
                 )
             except subprocess.TimeoutExpired:
                 self.QTimer.singleShot(
@@ -1302,17 +1339,29 @@ class NanoleafTrayApp:
 
         threading.Thread(target=worker, name="tool-runner", daemon=True).start()
 
-    def _handle_tool_result(self, label: str, preview: str, rc: int) -> None:
+    def _handle_tool_result(
+        self, label: str, preview: str, rc: int, *, full_output: str = ""
+    ) -> None:
         self.action_doctor.setEnabled(True)
         self.action_smoke.setEnabled(True)
         is_ok = rc == 0
+        body = full_output or preview
         self.tray_icon.showMessage(
             f"nanoleaf-kde-sync {label}",
-            f"{'Completed successfully' if is_ok else f'Finished with exit code {rc}'}.\n{preview}",
+            (
+                f"{'Completed successfully' if is_ok else f'Finished with exit code {rc}'}.\n"
+                f"{preview}\n\nOpen the results window for full output."
+            ),
             self.QSystemTrayIcon.MessageIcon.Information
             if is_ok
             else self.QSystemTrayIcon.MessageIcon.Warning,
-            10000,
+            8000,
+        )
+        show_command_results(
+            None,
+            title=f"nanoleaf-kde-sync · {label}",
+            body=body,
+            returncode=rc,
         )
 
     def _handle_tool_error(self, label: str, error: Exception) -> None:

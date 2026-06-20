@@ -218,3 +218,60 @@ def test_partial_bright_strip_isolates_dark_zones() -> None:
     for idx in range(8, zone_count):
         assert float(np.max(out_arr[idx])) < 8.0
     _ = history
+
+
+def test_first_led_vivid_history_releases_to_dim_neutral() -> None:
+    zone_count = 24
+    raw = np.full((zone_count, 3), 28, dtype=np.uint8)
+    prev: list[tuple[float, float, float]] = [(230.0, 30.0, 210.0)] * 8
+    prev.extend([(28.0, 28.0, 28.0)] * (zone_count - 8))
+
+    out, history = _run_full_pipeline(
+        raw_zone_rgb=raw,
+        prev_smoothed=prev,
+        color_style="ambient",
+        accuracy_mode=False,
+    )
+
+    out_arr = np.asarray(out, dtype=np.int32)
+    hist_arr = np.asarray(history, dtype=np.float32)
+    first_eight_chroma = np.max(out_arr[:8], axis=1) - np.min(out_arr[:8], axis=1)
+    assert int(np.max(first_eight_chroma)) <= 6
+    assert float(np.max(hist_arr[:8]) - np.min(hist_arr[:8])) <= 6.0
+    assert 8.0 <= float(np.mean(out_arr[:8])) <= 40.0
+
+
+def test_low_light_grey_sequence_limited_level_transitions() -> None:
+    seq = [
+        np.full((8, 3), rgb, dtype=np.uint8)
+        for rgb in (
+            (24, 25, 23),
+            (26, 24, 25),
+            (23, 26, 24),
+            (25, 23, 26),
+            (24, 26, 23),
+            (26, 23, 25),
+            (23, 25, 26),
+            (25, 24, 24),
+            (24, 23, 25),
+            (26, 25, 23),
+        )
+    ]
+    prev: list[tuple[float, float, float]] = [(24.0, 24.0, 24.0)] * 8
+    level_changes = 0
+    last_levels: list[int] | None = None
+    for frame in seq:
+        out, history = _run_full_pipeline(
+            raw_zone_rgb=frame,
+            prev_smoothed=prev,
+            color_style="ambient",
+            accuracy_mode=False,
+        )
+        levels = [int(round(float(np.max(row)))) for row in np.asarray(out, dtype=np.float32)]
+        if last_levels is not None:
+            level_changes += sum(
+                1 for a, b in zip(last_levels, levels, strict=True) if abs(a - b) > 1
+            )
+        last_levels = levels
+        prev = history
+    assert level_changes <= 8

@@ -83,11 +83,13 @@ class RuntimeState:
     latest_zone_rects_display: list[tuple[int, int, int, int]] = field(default_factory=list)
     flattening_mitigation_active: bool = False
     skip_display_gamut_adaptation: bool = False
+    sdr_boost_compensation_enabled: bool = True
     latest_staleness_ms: float = 0.0
     output_healthy: bool = False
     governor_p95_latency_ms: float = 0.0
     predictive_sync_active: bool = False
     predictive_lookahead_frames: float = 0.0
+    predictive_scene_cut_suppressed: bool = False
 
     def _assert_locked(self) -> None:
         if not self._lock.locked():
@@ -139,11 +141,13 @@ class RuntimeState:
         self.consecutive_black_frames = 0
         self.total_black_frames = 0
         self.latest_frame_mean_brightness = 0.0
+        self.sdr_boost_compensation_enabled = True
         self.latest_staleness_ms = 0.0
         self.output_healthy = False
         self.governor_p95_latency_ms = 0.0
         self.predictive_sync_active = False
         self.predictive_lookahead_frames = 0.0
+        self.predictive_scene_cut_suppressed = False
 
     def mark_calibration_incomplete(self, message: str) -> None:
         self.calibration_status = CALIBRATION_INCOMPLETE_STATUS
@@ -259,6 +263,7 @@ class RuntimeState:
             "latest_staleness_ms": float(self.latest_staleness_ms),
             "predictive_sync_active": bool(self.predictive_sync_active),
             "predictive_lookahead_frames": float(self.predictive_lookahead_frames),
+            "predictive_scene_cut_suppressed": bool(self.predictive_scene_cut_suppressed),
         }
 
 

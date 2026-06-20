@@ -20,7 +20,7 @@ from nanoleaf_sync.capture.backend_selection import (
 )
 from nanoleaf_sync.capture.errors import CaptureBackendInitializationError
 from nanoleaf_sync.capture.interfaces import CaptureBackend
-from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture
+from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture, validated_drm_card_path
 from nanoleaf_sync.capture.kwin_dbus import KWinDBusScreenshotCapture
 from nanoleaf_sync.capture.mock_capture import MockScreenCapture
 from nanoleaf_sync.capture.xdg_portal import XDGPortalCapture
@@ -167,7 +167,10 @@ def kmsgrab_bindings_available() -> bool:
 
 
 def _has_drm_device() -> bool:
-    card_path = os.environ.get("NANOLEAF_DRM_CARD", "/dev/dri/card0")
+    try:
+        card_path = validated_drm_card_path(os.environ.get("NANOLEAF_DRM_CARD"))
+    except Exception:
+        return False
     return _capability_cache_get_or_refresh("has_drm_device", lambda: Path(card_path).exists())
 
 

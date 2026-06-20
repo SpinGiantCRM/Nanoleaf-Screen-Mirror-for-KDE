@@ -136,6 +136,7 @@ class AppConfig:
     # USB / device
     device_vid: int = 0x37FA
     device_pid: int = 0x8202
+    allow_custom_device_ids: bool = False
 
     # Capture backend toggle.
     # Default to real capture (kwin-dbus) for KDE Plasma; set True for diagnostics mode.
