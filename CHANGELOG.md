@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.7.3 — HID Drain Mirroring Fix
+
+**Fixes mirroring stall (no LED output) and live flicker caused by the HID post-write drain loop on Linux.**
+
+### Fix
+- **`hid_transport.py`**: two-phase `write_with_nonblocking_drain` — mandatory 25 ms device ACK wait, then 8 ms bounded 1 ms poll drain; never uses 0 ms read timeout (blocks indefinitely on some hidapi/Linux paths)
+- Prevents pipeline startup timeout and `process_buf` push stalls when the HID writer never completes the first frame
+- Restores reliable zone-color application without the flicker from missed device ACKs
+
+### Tests
+- Drain wall-clock budget cap under continuous device input
+- Phase-1 ACK wait is not capped by phase-2 drain budget
+
 ## v1.7.2 — Mirroring Fix, Stale kmsgrab Cache, Arch Packaging
 
 **Fixes screen mirroring when a stale kmsgrab auto-probe cache survives without DRM bindings; migrates install path to pacman/AUR.**
