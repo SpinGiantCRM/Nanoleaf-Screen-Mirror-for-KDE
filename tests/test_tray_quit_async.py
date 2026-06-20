@@ -47,7 +47,7 @@ def test_on_quit_is_non_blocking_and_idempotent() -> None:
         _shutdown_poll_interval_s=0.05,
         _shutdown_timeout_s=1.5,
         _quit_finalized=False,
-        _close_preview_driver=lambda *, resume_service=False: None,
+        _close_preview_driver=lambda: False,
     )
     fake_tray._request_stop = lambda: NanoleafTrayApp._request_stop(fake_tray)
     fake_tray._safe_refresh_mode_labels = lambda: NanoleafTrayApp._safe_refresh_mode_labels(
@@ -217,7 +217,7 @@ def test_on_start_failure_stays_alive_and_stop_after_failure_is_safe() -> None:
         app=SimpleNamespace(quit=lambda: quit_calls.append("quit")),
         _idle_icon="idle",
         _running_icon="running",
-        _close_preview_driver=lambda *, resume_service=False: None,
+        _close_preview_driver=lambda: False,
         _refresh_mode_labels=lambda: None,
         _shutdown_in_progress=False,
         _shutdown_timeout_s=0.1,
@@ -260,7 +260,7 @@ def test_on_start_contains_status_exceptions_at_callback_boundary() -> None:
         ),
         _idle_icon="idle",
         _running_icon="running",
-        _close_preview_driver=lambda *, resume_service=False: None,
+        _close_preview_driver=lambda: False,
         _refresh_mode_labels=lambda: (_ for _ in ()).throw(RuntimeError("ui unavailable")),
         QSystemTrayIcon=SimpleNamespace(
             MessageIcon=SimpleNamespace(Warning=2, Information=1),

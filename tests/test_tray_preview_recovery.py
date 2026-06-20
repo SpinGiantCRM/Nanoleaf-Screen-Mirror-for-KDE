@@ -16,8 +16,14 @@ class _FailingPreviewDriver:
 
 
 class _FakeService:
-    def __init__(self, config: AppConfig | None = None, *, detected_zone_count: int = 48) -> None:
-        self._running = True
+    def __init__(
+        self,
+        config: AppConfig | None = None,
+        *,
+        detected_zone_count: int = 48,
+        running: bool = True,
+    ) -> None:
+        self._running = running
         self.start_calls = 0
         self.stop_calls = 0
         self.config = config or AppConfig(device_zone_count=8)
@@ -64,13 +70,15 @@ def _fake_tray(service: _FakeService, *, messages: list[str], make_driver):
         cfg_mgr=cfg_mgr,
         _preview_driver=None,
         _preview_paused_service=False,
+        _preview_pause_notified=False,
         _output_session=OutputSessionController(),
         _make_preview_driver=make_driver,
         on_stop=lambda: service.stop(),
         tray_icon=SimpleNamespace(
             showMessage=lambda _title, message, _icon, _ms: messages.append(message)
         ),
-        QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Warning=1)),
+        QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Warning=1, Information=2)),
+        _refresh_mode_labels=lambda: None,
     )
     tray._build_calibration_preview_diagnostics = lambda *, frame_color_count, driver=None: (
         NanoleafTrayApp._build_calibration_preview_diagnostics(
@@ -85,26 +93,27 @@ def _fake_tray(service: _FakeService, *, messages: list[str], make_driver):
             diagnostics=diagnostics,
         )
     )
+    tray._restart_mirroring_service = lambda *, was_running: (
+        NanoleafTrayApp._restart_mirroring_service(tray, was_running=was_running)
+    )
+    tray.on_start = lambda: tray.service.start()
     return tray
 
 
-def test_send_calibration_preview_recovers_service_when_preview_driver_acquire_fails() -> None:
+def test_send_calibration_preview_recovers_service_when_preview_driver_acquire_fails(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.NanoleafSyncService", _FakeService)
     service = _FakeService()
     messages: list[str] = []
     fake_tray = _fake_tray(service, messages=messages, make_driver=lambda: _FailingPreviewDriver())
     fake_tray._acquire_preview_driver = lambda: NanoleafTrayApp._acquire_preview_driver(fake_tray)
-    fake_tray._close_preview_driver = lambda *, resume_service=True: (
-        NanoleafTrayApp._close_preview_driver(
-            fake_tray,
-            resume_service=resume_service,
-        )
-    )
+    fake_tray._close_preview_driver = lambda: NanoleafTrayApp._close_preview_driver(fake_tray)
 
     NanoleafTrayApp._send_calibration_preview(fake_tray, [(255, 0, 0)])
 
-    assert service.stop_calls == 2
-    assert service.start_calls == 2
-    assert service.is_running() is True
+    assert service.stop_calls == 1
+    assert fake_tray.service.is_running() is True
     assert any("Calibration test pattern failed" in message for message in messages)
 
 
@@ -123,7 +132,8 @@ class _FlakyPreviewDriver:
         return None
 
 
-def test_send_calibration_preview_retries_once_before_notifying_failure() -> None:
+def test_send_calibration_preview_retries_once_before_notifying_failure(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.NanoleafSyncService", _FakeService)
     service = _FakeService()
     messages: list[str] = []
     attempts = {"count": 0}
@@ -134,20 +144,16 @@ def test_send_calibration_preview_retries_once_before_notifying_failure() -> Non
 
     fake_tray = _fake_tray(service, messages=messages, make_driver=make_driver)
     fake_tray._acquire_preview_driver = lambda: NanoleafTrayApp._acquire_preview_driver(fake_tray)
-    fake_tray._close_preview_driver = lambda *, resume_service=True: (
-        NanoleafTrayApp._close_preview_driver(
-            fake_tray,
-            resume_service=resume_service,
-        )
-    )
+    fake_tray._close_preview_driver = lambda: NanoleafTrayApp._close_preview_driver(fake_tray)
 
     NanoleafTrayApp._send_calibration_preview(fake_tray, [(255, 0, 0)])
 
     assert attempts["count"] == 2
-    assert messages == []
+    assert not any("Calibration test pattern failed" in message for message in messages)
 
 
-def test_send_calibration_preview_notifies_after_retry_exhausted() -> None:
+def test_send_calibration_preview_notifies_after_retry_exhausted(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.NanoleafSyncService", _FakeService)
     service = _FakeService()
     messages: list[str] = []
 
@@ -155,12 +161,7 @@ def test_send_calibration_preview_notifies_after_retry_exhausted() -> None:
         service, messages=messages, make_driver=lambda: _FlakyPreviewDriver(should_fail=True)
     )
     fake_tray._acquire_preview_driver = lambda: NanoleafTrayApp._acquire_preview_driver(fake_tray)
-    fake_tray._close_preview_driver = lambda *, resume_service=True: (
-        NanoleafTrayApp._close_preview_driver(
-            fake_tray,
-            resume_service=resume_service,
-        )
-    )
+    fake_tray._close_preview_driver = lambda: NanoleafTrayApp._close_preview_driver(fake_tray)
 
     NanoleafTrayApp._send_calibration_preview(fake_tray, [(255, 0, 0)])
 
@@ -177,12 +178,7 @@ def test_send_calibration_preview_never_promotes_manual_zone_count_from_detected
         service, messages=messages, make_driver=lambda: _FlakyPreviewDriver(should_fail=False)
     )
     fake_tray._acquire_preview_driver = lambda: NanoleafTrayApp._acquire_preview_driver(fake_tray)
-    fake_tray._close_preview_driver = lambda *, resume_service=True: (
-        NanoleafTrayApp._close_preview_driver(
-            fake_tray,
-            resume_service=resume_service,
-        )
-    )
+    fake_tray._close_preview_driver = lambda: NanoleafTrayApp._close_preview_driver(fake_tray)
 
     NanoleafTrayApp._send_calibration_preview(fake_tray, [(255, 0, 0)] * 48)
 

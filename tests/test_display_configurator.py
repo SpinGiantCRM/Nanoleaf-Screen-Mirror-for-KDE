@@ -27,9 +27,15 @@ def test_display_configurator_source_uses_new_preset_controls() -> None:
 def test_step1_primary_flow_hides_mapping_and_model_text() -> None:
     text = read_repo_text("src/nanoleaf_sync/ui/display_configurator.py")
     assert 'self.preview_visual.setText("")' in text
-    assert 'self.calibration_diagnostics_group = QGroupBox("Diagnostics")' in text
+    assert 'self.technical_details_group = QGroupBox("Technical details")' in text
+    assert "How many addressable lighting zones does your strip have?" in text
     assert "Calibration model/internal resolver mode" in text
     assert "Device→source mapping list" in text
+
+
+def test_wizard_finish_enables_real_screen_capture() -> None:
+    text = read_repo_text("src/nanoleaf_sync/ui/display_configurator.py")
+    assert "use_mock_capture=False" in text
 
 
 def test_step2_advanced_display_details_include_hdr_compositor_controls() -> None:

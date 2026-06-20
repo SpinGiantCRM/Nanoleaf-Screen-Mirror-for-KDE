@@ -92,5 +92,5 @@ def test_raw_mapping_text_is_diagnostics_only() -> None:
 
 def test_settings_sections_present() -> None:
     text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    for section in ("Display & Color", "Performance", "Calibration", "Device", "Diagnostics"):
+    for section in ("Everyday", "Strip setup", "Fine-tuning", "Colour", "Advanced"):
         assert section in text

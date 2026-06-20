@@ -156,6 +156,9 @@ class DisplayConfiguratorDialog:
             def __init__(self):
                 super().__init__(parent)
                 self.setWindowTitle("Setup Wizard")
+                set_quit_attr = getattr(self, "setAttribute", None)
+                if callable(set_quit_attr):
+                    set_quit_attr(qt["Qt"].WidgetAttribute.WA_QuitOnClose, False)
                 resize = getattr(self, "resize", None)
                 if callable(resize):
                     resize(700, 440)
@@ -331,10 +334,13 @@ class DisplayConfiguratorDialog:
                 self.preview_visual = self.simple_calibration_widget.preview_visual_label
                 self.calibration_test_label = QLabel("")
                 self.anchor_validation_label = self.simple_calibration_widget.validation_label
-                self.calibration_diagnostics_group = QGroupBox("Diagnostics")
-                _set_checkable(self.calibration_diagnostics_group, True)
-                _set_checked(self.calibration_diagnostics_group, False)
-                self.calibration_diagnostics_label = QLabel("")
+                self.technical_details_group = QGroupBox("Technical details")
+                _set_checkable(self.technical_details_group, True)
+                _set_checked(self.technical_details_group, False)
+                self.technical_details_label = QLabel("")
+                self.strip_count_hint = QLabel(
+                    "How many addressable lighting zones does your strip have?"
+                )
                 self.calibration_next_button = self.simple_calibration_widget.next_zone_button
                 self.calibration_prev_button = self.simple_calibration_widget.prev_zone_button
                 self.calibration_send_button = QPushButton("Send test pattern")
@@ -391,9 +397,9 @@ class DisplayConfiguratorDialog:
                         self.advanced_details_group, bool(checked)
                     )
                 )
-                self.calibration_diagnostics_group.toggled.connect(
+                self.technical_details_group.toggled.connect(
                     lambda checked: self._set_group_contents_visible(
-                        self.calibration_diagnostics_group, bool(checked)
+                        self.technical_details_group, bool(checked)
                     )
                 )
 
@@ -531,23 +537,25 @@ class DisplayConfiguratorDialog:
                 layout = QGridLayout()
                 if hasattr(layout, "setVerticalSpacing"):
                     layout.setVerticalSpacing(4)
-                layout.addWidget(QLabel("Calibration"), 0, 0, 1, 3)
-                layout.addWidget(self.calibration_hint, 1, 0, 1, 3)
+                layout.addWidget(QLabel("Strip LED count"), 0, 0, 1, 3)
+                layout.addWidget(self.strip_count_hint, 1, 0, 1, 3)
+                layout.addWidget(QLabel("Zones on your strip"), 2, 0)
+                layout.addWidget(self.device_zone_count_slider, 2, 1)
+                layout.addWidget(self.device_zone_count_value, 2, 2)
+                layout.addWidget(self.device_zone_status, 3, 0, 1, 3)
+                layout.addWidget(QLabel("Corner calibration"), 4, 0, 1, 3)
+                layout.addWidget(self.calibration_hint, 5, 0, 1, 3)
                 row = self.simple_calibration_widget.add_to_layout(
-                    layout, row=2, include_header=False
+                    layout, row=6, include_header=False
                 )
                 layout.addWidget(self.calibration_send_button, row, 0, 1, 3)
                 row += 1
                 layout.addWidget(self.zone_change_notice, row, 0, 1, 3)
                 row += 1
-                diagnostics_layout = QGridLayout()
-                diagnostics_layout.addWidget(QLabel("Strip LED zone count"), 0, 0)
-                diagnostics_layout.addWidget(self.device_zone_count_slider, 0, 1)
-                diagnostics_layout.addWidget(self.device_zone_count_value, 0, 2)
-                diagnostics_layout.addWidget(self.device_zone_status, 1, 0, 1, 3)
-                diagnostics_layout.addWidget(self.calibration_diagnostics_label, 2, 0, 1, 3)
-                self.calibration_diagnostics_group.setLayout(diagnostics_layout)
-                layout.addWidget(self.calibration_diagnostics_group, row, 0, 1, 3)
+                technical_layout = QGridLayout()
+                technical_layout.addWidget(self.technical_details_label, 0, 0, 1, 3)
+                self.technical_details_group.setLayout(technical_layout)
+                layout.addWidget(self.technical_details_group, row, 0, 1, 3)
                 page.setLayout(layout)
                 return page
 
@@ -1003,7 +1011,7 @@ class DisplayConfiguratorDialog:
                         )
                     )
                 )
-                self.calibration_diagnostics_label.setText(
+                self.technical_details_label.setText(
                     "\n".join(
                         (
                             f"Backend policy/effective backend: "
@@ -1024,8 +1032,8 @@ class DisplayConfiguratorDialog:
                     self.advanced_details_group, bool(self.advanced_details_group.isChecked())
                 )
                 self._set_group_contents_visible(
-                    self.calibration_diagnostics_group,
-                    bool(self.calibration_diagnostics_group.isChecked()),
+                    self.technical_details_group,
+                    bool(self.technical_details_group.isChecked()),
                 )
                 self._last_preview_refresh_ms = (perf_counter() - refresh_started) * 1000.0
                 if self._flow.index >= 1 and self._calibration_sender is not None:
@@ -1146,6 +1154,7 @@ class DisplayConfiguratorDialog:
                     calibration=calibration_payload,
                     wizard_in_progress_state="",
                     wizard_completed=True,
+                    use_mock_capture=False,
                 )
 
             def _serialize_wizard_draft(self) -> str:

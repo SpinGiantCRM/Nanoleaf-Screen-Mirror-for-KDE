@@ -44,7 +44,7 @@ def _tray_shell(service) -> SimpleNamespace:
         setIcon=lambda icon: icon_updates.append(str(icon)),
         showMessage=lambda _title, text, _icon, _ms: messages.append(text),
     )
-    return SimpleNamespace(
+    tray = SimpleNamespace(
         service=service,
         config=AppConfig(),
         tray_icon=fake_icon,
@@ -59,7 +59,13 @@ def _tray_shell(service) -> SimpleNamespace:
         _app_version="test",
         _messages=messages,
         _icon_updates=icon_updates,
+        _preview_driver=None,
+        _preview_paused_service=False,
+        _preview_pause_notified=False,
+        _output_session=SimpleNamespace(release=lambda _owner: None),
     )
+    tray._close_preview_driver = lambda: NanoleafTrayApp._close_preview_driver(tray)
+    return tray
 
 
 class _FakeServiceWaitingStart:

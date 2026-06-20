@@ -28,6 +28,33 @@ class _FakeService:
     def get_status(self) -> dict:
         return {}
 
+    def start(self) -> bool:
+        self._running = True
+        return True
+
+    def stop(self) -> bool:
+        self._running = False
+        return True
+
+
+def _wire_preview_helpers(fake_tray: SimpleNamespace) -> None:
+    fake_tray._close_preview_driver = lambda: NanoleafTrayApp._close_preview_driver(fake_tray)
+    fake_tray._restart_mirroring_service = lambda *, was_running: (
+        NanoleafTrayApp._restart_mirroring_service(fake_tray, was_running=was_running)
+    )
+    fake_tray._preview_driver = getattr(fake_tray, "_preview_driver", None)
+    fake_tray._preview_paused_service = getattr(fake_tray, "_preview_paused_service", False)
+    fake_tray._preview_pause_notified = getattr(fake_tray, "_preview_pause_notified", False)
+    fake_tray._output_session = getattr(
+        fake_tray, "_output_session", SimpleNamespace(release=lambda _owner: None)
+    )
+    if not hasattr(fake_tray, "tray_icon"):
+        fake_tray.tray_icon = SimpleNamespace(showMessage=lambda *_a, **_k: None)
+    if not hasattr(fake_tray, "QSystemTrayIcon"):
+        fake_tray.QSystemTrayIcon = SimpleNamespace(
+            MessageIcon=SimpleNamespace(Warning=1, Information=1)
+        )
+
 
 class _FakeDialogSaveThenClose:
     def __init__(self, parent, cfg, **_kwargs) -> None:
@@ -73,8 +100,8 @@ def test_on_settings_save_then_close_starts_once(monkeypatch: pytest.MonkeyPatch
         _send_calibration_preview=lambda _colors: None,
         on_stop=lambda: None,
         on_start=lambda: starts.__setitem__("count", starts["count"] + 1),
-        _close_preview_driver=None,
     )
+    _wire_preview_helpers(fake_tray)
 
     NanoleafTrayApp.on_settings(fake_tray)
 

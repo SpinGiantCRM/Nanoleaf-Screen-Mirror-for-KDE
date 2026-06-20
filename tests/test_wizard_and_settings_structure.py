@@ -41,6 +41,7 @@ def test_wizard_and_settings_use_canonical_preset_vocabulary() -> None:
         assert token in settings
     for label in ("Layout", "Edge locality", "Quality", "Motion", "Color style"):
         assert label in wizard
+    for label in ("Edge locality", "Quality", "Motion", "Color style"):
         assert label in settings
 
 

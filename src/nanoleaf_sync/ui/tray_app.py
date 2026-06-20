@@ -196,6 +196,7 @@ class NanoleafTrayApp:
         self._startup_warning: str | None = None
         self._preview_driver = None
         self._preview_paused_service = False
+        self._preview_pause_notified = False
         self._output_session = OutputSessionController()
         try:
             self._config_created = self.cfg_mgr.initialize(mode="full-real", force=False)
@@ -296,7 +297,22 @@ class NanoleafTrayApp:
                     7000,
                 )
 
-    def _close_preview_driver(self, *, resume_service: bool = True) -> None:
+    def _send_preview_black_frame(self) -> None:
+        driver = self._preview_driver
+        if driver is None:
+            return
+        zone_count = int(
+            getattr(driver, "zone_count", 0) or getattr(self.config, "device_zone_count", 0) or 0
+        )
+        if zone_count <= 0:
+            return
+        try:
+            driver.send_frame([(0, 0, 0)] * zone_count)
+        except Exception as exc:
+            _log.debug("Preview black frame failed: %s", exc, exc_info=True)
+
+    def _close_preview_driver(self) -> bool:
+        NanoleafTrayApp._send_preview_black_frame(self)
         if self._preview_driver is not None:
             try:
                 self._preview_driver.close()
@@ -306,9 +322,25 @@ class NanoleafTrayApp:
 
         was_paused = self._preview_paused_service
         self._preview_paused_service = False
+        self._preview_pause_notified = False
         self._output_session.release("setup")
-        if was_paused and resume_service and not self.service.is_running():
-            self.service.start()
+        return was_paused
+
+    def _restart_mirroring_service(self, *, was_running: bool) -> None:
+        if self.service.is_running():
+            self.on_stop()
+        self.service = NanoleafSyncService(config=self.config)
+        self._refresh_mode_labels()
+        if not was_running:
+            return
+        self.on_start()
+        if not self.service.is_running():
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                "Mirroring did not resume after closing Settings. Use Start from the tray menu.",
+                self.QSystemTrayIcon.MessageIcon.Warning,
+                7000,
+            )
 
     def _acquire_preview_driver(self):
         if self._preview_driver is not None:
@@ -319,6 +351,15 @@ class NanoleafTrayApp:
             self._preview_paused_service = True
             self.service.stop()
             self.service.join(timeout=1.2)
+            if not getattr(self, "_preview_pause_notified", False):
+                self._preview_pause_notified = True
+                self.tray_icon.showMessage(
+                    "nanoleaf-kde-sync",
+                    "Mirroring paused for strip test — will resume when you "
+                    "close Settings or Setup.",
+                    self.QSystemTrayIcon.MessageIcon.Information,
+                    5000,
+                )
         driver = self._make_preview_driver()
         driver.initialize()
         self._preview_driver = driver
@@ -357,7 +398,9 @@ class NanoleafTrayApp:
                     exc,
                     exc_info=True,
                 )
-                self._close_preview_driver(resume_service=True)
+                was_paused = self._close_preview_driver()
+                if was_paused:
+                    self._restart_mirroring_service(was_running=True)
                 if attempt < max_attempts:
                     continue
                 self.tray_icon.showMessage(
@@ -512,14 +555,13 @@ class NanoleafTrayApp:
             self.QIcon.fromTheme("preferences-system"), "Settings…", menu
         )
         self.action_display_wizard = self.QAction(
-            self.QIcon.fromTheme("preferences-desktop-display"), "Calibration / Setup…", menu
+            self.QIcon.fromTheme("preferences-desktop-display"), "Set up strip…", menu
         )
         self.action_status = self.QAction(
             self.QIcon.fromTheme("help-about"), "About / Status", menu
         )
 
         # ── Advanced submenu actions ──
-        self.action_advanced_settings = self.QAction("Advanced Settings", menu)
         self.action_troubleshooting_guide = self.QAction("Troubleshooting Guide", menu)
         self.action_live_diagnostics = self.QAction("Live Diagnostics", menu)
         self.action_doctor = self.QAction("Run Doctor", menu)
@@ -536,7 +578,6 @@ class NanoleafTrayApp:
         self.action_stop.triggered.connect(self.on_stop)
         self.action_settings.triggered.connect(self.on_settings)
         self.action_display_wizard.triggered.connect(self.on_display_configurator)
-        self.action_advanced_settings.triggered.connect(self.on_open_advanced_settings)
         self.action_troubleshooting_guide.triggered.connect(self.on_open_troubleshooting_guide)
         self.action_live_diagnostics.triggered.connect(self.on_live_diagnostics)
         self.action_status.triggered.connect(self.on_status)
@@ -551,7 +592,6 @@ class NanoleafTrayApp:
 
         # ── Build Advanced submenu ──
         advanced_menu = self.QMenu("Advanced", menu)
-        advanced_menu.addAction(self.action_advanced_settings)
         advanced_menu.addAction(self.action_troubleshooting_guide)
         advanced_menu.addAction(self.action_live_diagnostics)
         advanced_menu.addSeparator()
@@ -662,9 +702,7 @@ class NanoleafTrayApp:
             ):
                 schedule_refresh()
             return
-        close_preview = getattr(self, "_close_preview_driver", None)
-        if callable(close_preview):
-            close_preview(resume_service=False)
+        self._close_preview_driver()
 
         readiness_fn = getattr(self, "_quick_setup_readiness", None)
         preflight = readiness_fn() if callable(readiness_fn) else None
@@ -862,25 +900,18 @@ class NanoleafTrayApp:
             else self.service.is_running() or bool(getattr(self, "_preview_paused_service", False))
         )
         accepted = dlg.exec() == self.QDialog.DialogCode.Accepted
-        close_preview = getattr(self, "_close_preview_driver", None)
-        if callable(close_preview):
-            close_preview(resume_service=False)
+        self._close_preview_driver()
         if not accepted:
             self.config = dlg.in_progress_config()
             self.cfg_mgr.save(self.config)
             if was_running:
-                self.on_start()
+                self._restart_mirroring_service(was_running=True)
             return
 
         was_first_run = not bool(getattr(self.config, "wizard_completed", False))
-        if was_running and self.service.is_running():
-            self.on_stop()
         self.config = dlg.updated_config()
         self.cfg_mgr.save(self.config)
-        self.service = NanoleafSyncService(config=self.config)
-        self._refresh_mode_labels()
-        if was_running:
-            self.on_start()
+        self._restart_mirroring_service(was_running=was_running)
         message = "Display setup saved."
         if was_first_run:
             mode = (
@@ -894,47 +925,61 @@ class NanoleafTrayApp:
         )
 
     def on_settings(self, *, initial_section: str | None = None):
-        def _apply_settings_dialog_config(new_cfg) -> None:
-            self.cfg_mgr.save(new_cfg)
-            self.config = new_cfg
-            if was_running and self.service.is_running():
-                self.on_stop()
-            self.service = NanoleafSyncService(config=self.config)
-            self._refresh_mode_labels()
-            if was_running:
-                self.on_start()
-
-        dlg = SettingsDialog(
-            parent=None,
-            cfg=self.config,
-            calibration_sender=self._send_calibration_preview,
-            diagnostic_capture=getattr(self.service, "capture_one_diagnostic_frame", None),
-            runtime_status=self.service.get_status(),
-            initial_section=initial_section,
-            on_apply=_apply_settings_dialog_config,
-            dialog_geometry=getattr(self, "_saved_settings_geometry", None),
-        )
         was_running = self.service.is_running() or bool(
             getattr(self, "_preview_paused_service", False)
         )
-        accepted = dlg.exec() == self.QDialog.DialogCode.Accepted
-        close_preview = getattr(self, "_close_preview_driver", None)
-        if callable(close_preview):
-            close_preview(resume_service=False)
-        if not accepted:
-            if was_running and not dlg.settings_applied_in_session():
-                self.on_start()
+
+        def _persist_settings_config(new_cfg) -> None:
+            self.cfg_mgr.save(new_cfg)
+            self.config = new_cfg
+
+        try:
+            dlg = SettingsDialog(
+                parent=None,
+                cfg=self.config,
+                calibration_sender=self._send_calibration_preview,
+                diagnostic_capture=getattr(self.service, "capture_one_diagnostic_frame", None),
+                runtime_status=self.service.get_status(),
+                initial_section=initial_section,
+                on_apply=_persist_settings_config,
+                dialog_geometry=getattr(self, "_saved_settings_geometry", None),
+            )
+            accepted = dlg.exec() == self.QDialog.DialogCode.Accepted
+        except Exception as exc:
+            _log.exception("Settings dialog failed")
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                f"Settings failed to open: {exc}",
+                self.QSystemTrayIcon.MessageIcon.Warning,
+                8000,
+            )
+            was_paused_by_preview = self._close_preview_driver()
+            if was_running and was_paused_by_preview:
+                self._restart_mirroring_service(was_running=True)
             return
+
+        was_paused_by_preview = self._close_preview_driver()
 
         save_geom = getattr(dlg, "saved_geometry", None)
         if callable(save_geom):
             self._saved_settings_geometry = save_geom()
-        if dlg.wants_display_configurator():
+
+        if accepted and dlg.wants_display_configurator():
             self.config = dlg.updated_config()
             self.cfg_mgr.save(self.config)
+            if dlg.settings_applied_in_session():
+                self._restart_mirroring_service(was_running=was_running)
             self.on_display_configurator(was_running_intent=was_running)
             return
-        _apply_settings_dialog_config(dlg.updated_config())
+
+        settings_saved = dlg.settings_applied_in_session()
+        if accepted:
+            self.config = dlg.updated_config()
+            self.cfg_mgr.save(self.config)
+            settings_saved = True
+
+        if was_running and (settings_saved or was_paused_by_preview):
+            self._restart_mirroring_service(was_running=True)
 
     def on_open_troubleshooting_guide(self) -> None:
         guide_path = resolve_user_doc("TROUBLESHOOTING.md")
@@ -1072,15 +1117,6 @@ class NanoleafTrayApp:
         dialog.setLayout(layout)
         dialog.exec()
         self._refresh_mode_labels()
-
-    def on_open_advanced_settings(self) -> None:
-        self.on_settings(initial_section="Diagnostics")
-        self.tray_icon.showMessage(
-            "nanoleaf-kde-sync",
-            "Opened Advanced Settings.",
-            self.QSystemTrayIcon.MessageIcon.Information,
-            3000,
-        )
 
     def on_doctor(self):
         self._run_command_async(
@@ -1310,7 +1346,7 @@ class NanoleafTrayApp:
 
         self._shutdown_in_progress = True
         self._shutdown_deadline = time.monotonic() + self._shutdown_timeout_s
-        self._close_preview_driver(resume_service=False)
+        self._close_preview_driver()
         try:
             self._request_stop(timeout_s=0.0)
         except TypeError:
