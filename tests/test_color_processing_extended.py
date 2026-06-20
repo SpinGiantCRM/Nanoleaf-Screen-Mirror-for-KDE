@@ -9,6 +9,7 @@ from nanoleaf_sync.runtime.color_processing import (
     apply_color_style_mapping,
     apply_color_style_mapping_with_diagnostics,
     apply_led_calibration,
+    apply_near_black_zone_output,
     color_pipeline_diagnostics,
     get_last_color_process_ms,
     init_gamut_adaptation,
@@ -195,6 +196,36 @@ def test_color_pipeline_diagnostics_neutral_input() -> None:
     out = np.array([128, 128, 128], dtype=np.float32)
     diag = color_pipeline_diagnostics(input_rgb=inp, output_rgb=out)
     assert diag["grey_neutrality_verdict"] == "pass"
+
+
+def test_near_black_greenish_noise_becomes_neutral_grey() -> None:
+    noisy = np.array(
+        [[3, 8, 2], [4, 9, 3], [2, 7, 2], [5, 10, 4]],
+        dtype=np.float32,
+    )
+    out = apply_near_black_zone_output(noisy)
+    channel_spread = np.max(out, axis=1) - np.min(out, axis=1)
+    assert float(np.max(channel_spread)) <= 1.5
+    assert float(np.max(out[:, 1]) - np.max(out[:, 0])) <= 2.0
+
+
+def test_near_black_noisy_grey_sequence_stays_stable() -> None:
+    seq = [
+        np.array([[12, 12, 12], [11, 13, 11], [12, 11, 12]], dtype=np.float32),
+        np.array([[13, 12, 12], [12, 12, 11], [11, 12, 13]], dtype=np.float32),
+        np.array([[12, 11, 12], [13, 12, 12], [12, 12, 11]], dtype=np.float32),
+    ]
+    outs = [apply_near_black_zone_output(frame) for frame in seq]
+    deltas = [float(np.max(np.abs(outs[i] - outs[i - 1]))) for i in range(1, len(outs))]
+    assert max(deltas) <= 4.0
+    for out in outs:
+        spread = np.max(out, axis=1) - np.min(out, axis=1)
+        assert float(np.max(spread)) <= 2.0
+
+
+def test_near_black_true_black_maps_to_off() -> None:
+    out = apply_near_black_zone_output(np.array([[0, 0, 0], [1, 1, 1]], dtype=np.float32))
+    assert float(np.max(out)) <= 1.0
 
 
 # ---------------------------------------------------------------------------

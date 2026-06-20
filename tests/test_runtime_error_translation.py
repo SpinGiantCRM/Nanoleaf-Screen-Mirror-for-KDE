@@ -12,6 +12,17 @@ def test_translate_hid_permission_error() -> None:
     assert "udev" in translated.guidance
 
 
+def test_translate_hid_busy_device_error() -> None:
+    translated = translate_runtime_error(
+        RuntimeError(
+            "Failed to open Nanoleaf HID device after enumeration. "
+            "Diagnostic classification: device held by /dev/hidraw3: PID 123 (winedevice.exe)."
+        )
+    )
+    assert translated.kind == "hid-permission"
+    assert "Steam" in translated.guidance or "Wine" in translated.guidance
+
+
 def test_runtime_state_records_translated_error() -> None:
     state = RuntimeState()
     state.record_error(RuntimeError("Nanoleaf device not found VID=0x37fa PID=0x8202"))

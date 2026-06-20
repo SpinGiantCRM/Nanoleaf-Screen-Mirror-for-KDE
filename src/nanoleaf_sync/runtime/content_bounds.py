@@ -4,7 +4,7 @@ import numpy as np
 
 from nanoleaf_sync.runtime.state import ZoneRect
 
-_CONTENT_LUMA_THRESHOLD = 8.0
+_CONTENT_LUMA_THRESHOLD = 4.0
 _MARGIN_SCAN_STEP = 8
 
 

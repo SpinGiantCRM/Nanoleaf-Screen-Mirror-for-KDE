@@ -109,6 +109,8 @@ class AppConfig:
     sampling_quality: str = "high"
     sampling_mode: str = "auto"
     motion_preset: str = "responsive"
+    sync_mode: str = "standard"
+    predictive_sync_strength: float = 0.35
     color_style: str = "ambient"
     layout_inset: float = 0.0
     layout_scale: float = 1.0

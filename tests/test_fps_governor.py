@@ -41,11 +41,25 @@ def test_warmup_accumulation_triggers_transition() -> None:
     # triggers a step-down.  Verify the transition fires once window ≥ 5.
     for _ in range(14):  # 10 warmup + 4 active: at frame 11, window≥5 triggers transition
         g.record_frame(25.0)
-    assert g.target_fps <= 30  # stepped down by frame 11 due to warmup-accumulated entries
+    assert g.target_fps <= 45  # stepped down by frame 11 due to warmup-accumulated entries
     # Now at min tier, feed very low-latency frames to step back up
     for _ in range(200):
         g.record_frame(0.5)
     assert g.target_fps >= 60  # stepped back up with 200 consecutive low-util frames
+
+
+def test_governor_respects_60fps_floor() -> None:
+    g = FPSGovernor(initial_fps=120, min_fps_floor=60)
+    for _ in range(200):
+        g.record_frame(25.0)
+    assert g.target_fps >= 60
+
+
+def test_governor_min_fps_floor_helper() -> None:
+    from nanoleaf_sync.runtime.fps_governor import governor_min_fps_floor
+
+    assert governor_min_fps_floor(120) == 60
+    assert governor_min_fps_floor(45) == 30
 
 
 def test_step_down_under_high_utilisation() -> None:
@@ -55,7 +69,7 @@ def test_step_down_under_high_utilisation() -> None:
     # Feed 30 frames at 14ms (84% utilisation); p95 will be >=14ms
     for _ in range(50):
         g.record_frame(14.0)
-    assert g.target_fps == 30  # stepped down from 60 → 30
+    assert g.target_fps == 45  # stepped down from 60 → 45
 
 
 def test_step_down_multiple_tiers() -> None:

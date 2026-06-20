@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
+import subprocess
 import sys
 import time
 from collections.abc import Sequence
@@ -46,6 +47,7 @@ class HIDTransport:
         self.read_timeout_ms = int(read_timeout_ms)
         self.use_report_id_prefix = bool(use_report_id_prefix)
         self._handle: object | None = None
+        self._ack_latency_ewma_ms: float = 0.0
 
     @staticmethod
     def _fmt_path(value: Any) -> str:
@@ -117,6 +119,42 @@ class HIDTransport:
         except Exception:
             logger.debug("Unable to read sysfs text from %s", path, exc_info=True)
             return None
+
+    @staticmethod
+    def _linux_hidraw_holders(device_path: str) -> list[str]:
+        if not sys.platform.startswith("linux"):
+            return []
+        path = str(device_path or "").strip()
+        if not path.startswith("/dev/hidraw"):
+            return []
+        try:
+            completed = subprocess.run(
+                ["fuser", "-v", path],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+                check=False,
+            )
+            text = f"{completed.stdout or ''}\n{completed.stderr or ''}"
+        except Exception:
+            logger.debug("Unable to inspect hidraw holders for %s", path, exc_info=True)
+            return []
+        holders: list[str] = []
+        for line in text.splitlines():
+            stripped = line.strip()
+            if (
+                not stripped
+                or stripped.startswith("/dev/")
+                or ("USER" in stripped and "PID" in stripped)
+            ):
+                continue
+            parts = stripped.split()
+            if len(parts) < 2:
+                continue
+            pid = parts[1] if parts[1].isdigit() else parts[0]
+            command = parts[-1] if len(parts) >= 4 else "unknown"
+            holders.append(f"PID {pid} ({command})")
+        return holders
 
     @classmethod
     def _linux_hidraw_candidates_for_ids(
@@ -318,6 +356,15 @@ class HIDTransport:
                 diagnosis.append("candidate path format is not directly openable")
             if "busy" in lowered or "resource busy" in lowered:
                 diagnosis.append("another process may hold the device")
+            if sys.platform.startswith("linux"):
+                holder_notes: list[str] = []
+                for path_text in sorted(seen_paths):
+                    if not path_text.startswith("/dev/hidraw"):
+                        continue
+                    for holder in self._linux_hidraw_holders(path_text):
+                        holder_notes.append(f"{path_text}: {holder}")
+                if holder_notes:
+                    diagnosis.append("device held by " + "; ".join(holder_notes))
             if "open failed" in lowered or "access denied" in lowered:
                 diagnosis.append("device enumerates but hid backend cannot open it")
             if interface_numbers and "/dev/hidraw" not in lowered:
@@ -439,18 +486,17 @@ class HIDTransport:
         report: bytes | bytearray | memoryview | Sequence[int],
         *,
         max_drain_reads: int = 8,
-        ack_timeout_ms: int = 25,
+        ack_timeout_ms: int | None = None,
         drain_budget_ms: int | None = None,
+        target_fps: int | None = None,
     ) -> dict[str, int | float | list[int] | list[float] | bool | str]:
         """Write a HID report and drain pending input to prevent kernel-buffer
         back-pressure.
 
-        Phase 1 always waits up to *ack_timeout_ms* (default 25 ms) for the
-        device ACK so live zone-color frames are applied reliably.  Phase 2
-        performs short 1 ms poll reads until the extra drain budget expires,
-        *max_drain_reads* is reached, or the input buffer is empty.  Phase 2
-        never uses a 0 ms timeout because that can block indefinitely on Linux
-        hidapi after the first ACK.
+        Phase 1 polls for the device ACK using an adaptive timeout derived from
+        recent successful drain latency. Phase 2 performs short 1 ms poll reads
+        until the extra drain budget expires, *max_drain_reads* is reached, or
+        the input buffer is empty.
         """
         if self._handle is None:
             raise RuntimeError("HID transport not opened.")
@@ -458,26 +504,67 @@ class HIDTransport:
         timing = dict(self._write_payload(payload))
         drain_start = time.perf_counter()
         drain_reads = 0
+        ack_arrival_ms: float | None = None
         max_reads = max(0, int(max_drain_reads))
-        ack_ms = max(1, int(ack_timeout_ms))
+        ack_ms = self._resolve_ack_timeout_ms(
+            ack_timeout_ms=ack_timeout_ms,
+            target_fps=target_fps,
+        )
         extra_budget_ms = max(1, int(drain_budget_ms)) if drain_budget_ms is not None else 8
         read_size = self.report_size + (1 if self.use_report_id_prefix else 0)
         try:
-            raw_chunk = self._handle.read(read_size, ack_ms)
-            if raw_chunk:
-                drain_reads += 1
-            deadline = time.perf_counter() + (extra_budget_ms / 1000.0)
-            for _ in range(max(0, max_reads - 1)):
+            deadline = time.perf_counter() + (ack_ms / 1000.0)
+            while drain_reads == 0:
                 if time.perf_counter() >= deadline:
+                    break
+                raw_chunk = self._handle.read(read_size, 1)
+                if raw_chunk:
+                    drain_reads += 1
+                    ack_arrival_ms = (time.perf_counter() - drain_start) * 1000.0
+                    break
+            extra_deadline = time.perf_counter() + (extra_budget_ms / 1000.0)
+            for _ in range(max(0, max_reads - 1)):
+                if time.perf_counter() >= extra_deadline:
                     break
                 raw_chunk = self._handle.read(read_size, 1)
                 if not raw_chunk:
                     break
                 drain_reads += 1
         finally:
-            timing["flush_or_wait_ms"] = (time.perf_counter() - drain_start) * 1000.0
+            flush_ms = (time.perf_counter() - drain_start) * 1000.0
+            timing["flush_or_wait_ms"] = flush_ms
             timing["read_calls"] = int(drain_reads)
+            if ack_arrival_ms is not None:
+                timing["ack_arrival_ms"] = float(ack_arrival_ms)
+            if drain_reads > 0:
+                sample_ms = float(ack_arrival_ms if ack_arrival_ms is not None else flush_ms)
+                if self._ack_latency_ewma_ms > 0.0:
+                    self._ack_latency_ewma_ms = (0.9 * self._ack_latency_ewma_ms) + (
+                        0.1 * sample_ms
+                    )
+                else:
+                    self._ack_latency_ewma_ms = sample_ms
+            timing["ack_timeout_ms"] = float(ack_ms)
         return timing
+
+    def _resolve_ack_timeout_ms(
+        self,
+        *,
+        ack_timeout_ms: int | None,
+        target_fps: int | None,
+    ) -> int:
+        if ack_timeout_ms is not None:
+            return max(1, int(ack_timeout_ms))
+        if self._ack_latency_ewma_ms > 0.0:
+            if target_fps is not None and int(target_fps) <= 60:
+                resolved = int(max(6.0, min(15.0, self._ack_latency_ewma_ms * 1.15)))
+            else:
+                resolved = int(max(6.0, min(20.0, self._ack_latency_ewma_ms * 1.3)))
+        else:
+            resolved = 25
+        if target_fps is not None and int(target_fps) >= 120:
+            resolved = min(resolved, 15)
+        return max(1, resolved)
 
     def transceive_with_timing(
         self, request: bytes, *, target_fps: int | None = None

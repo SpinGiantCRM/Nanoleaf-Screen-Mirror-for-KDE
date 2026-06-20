@@ -39,6 +39,11 @@ SAMPLING_MODE_EDGE_DIRECT = "edge_direct"
 SAMPLING_MODE_VIVID_WEIGHTED = "vivid_weighted"
 SAMPLING_MODE_PEAK_LUMA = "peak_luma"
 
+SYNC_MODE_STANDARD = "standard"
+SYNC_MODE_4D = "4d"
+
+SYNC_MODES = (SYNC_MODE_STANDARD, SYNC_MODE_4D)
+
 LAYOUT_PRESETS = (
     LAYOUT_PRESET_EDGE_STRIP,
     LAYOUT_PRESET_HORIZONTAL_DEBUG,
@@ -200,6 +205,125 @@ def effective_zone_sampling_engine(
     return "auto"
 
 
+def is_four_d_sync(sync_mode: str) -> bool:
+    return (
+        normalize_preset(sync_mode, allowed=SYNC_MODES, default=SYNC_MODE_STANDARD) == SYNC_MODE_4D
+    )
+
+
+def effective_sync_mode(sync_mode: str) -> str:
+    return normalize_preset(sync_mode, allowed=SYNC_MODES, default=SYNC_MODE_STANDARD)
+
+
+def effective_edge_locality_for_sync(*, edge_locality: str, sync_mode: str) -> str:
+    if is_four_d_sync(sync_mode):
+        return EDGE_LOCALITY_TIGHT
+    return normalize_preset(
+        edge_locality, allowed=EDGE_LOCALITY_PRESETS, default=EDGE_LOCALITY_BALANCED
+    )
+
+
+def effective_light_spread_for_sync(
+    *,
+    light_spread: str,
+    accuracy_mode: bool,
+    color_style: str,
+    sync_mode: str,
+) -> str:
+    if is_four_d_sync(sync_mode):
+        spread = effective_light_spread(
+            light_spread=LIGHT_SPREAD_PRECISE,
+            accuracy_mode=accuracy_mode,
+            color_style=color_style,
+        )
+        if spread == LIGHT_SPREAD_BALANCED:
+            return LIGHT_SPREAD_PRECISE
+        return spread
+    return effective_light_spread(
+        light_spread=light_spread,
+        accuracy_mode=accuracy_mode,
+        color_style=color_style,
+    )
+
+
+def effective_motion_preset_for_sync(*, motion_preset: str, sync_mode: str) -> str:
+    if is_four_d_sync(sync_mode):
+        return MOTION_PRESET_RESPONSIVE
+    return normalize_preset(motion_preset, allowed=MOTION_PRESETS, default=MOTION_PRESET_RESPONSIVE)
+
+
+def effective_sampling_quality_for_sync(
+    *, sampling_quality: str, sync_mode: str, config_fps: int = 60
+) -> str:
+    if is_four_d_sync(sync_mode):
+        target_fps = max(1, int(config_fps))
+        if target_fps >= 120:
+            return SAMPLING_QUALITY_LOW
+        if target_fps >= 60:
+            current = normalize_preset(
+                sampling_quality,
+                allowed=SAMPLING_QUALITY_PRESETS,
+                default=SAMPLING_QUALITY_BALANCED,
+            )
+            if current == SAMPLING_QUALITY_HIGH:
+                return SAMPLING_QUALITY_BALANCED
+            return current
+        current = normalize_preset(
+            sampling_quality,
+            allowed=SAMPLING_QUALITY_PRESETS,
+            default=SAMPLING_QUALITY_HIGH,
+        )
+        if current == SAMPLING_QUALITY_HIGH:
+            return SAMPLING_QUALITY_BALANCED
+        return current
+    return normalize_preset(
+        sampling_quality,
+        allowed=SAMPLING_QUALITY_PRESETS,
+        default=SAMPLING_QUALITY_BALANCED,
+    )
+
+
+def effective_zone_sampling_stride_for_sync(
+    *, sampling_quality: str, sync_mode: str, config_fps: int = 60
+) -> int:
+    quality = effective_sampling_quality_for_sync(
+        sampling_quality=sampling_quality,
+        sync_mode=sync_mode,
+        config_fps=config_fps,
+    )
+    return sampling_quality_to_zone_stride(quality)
+
+
+def effective_zone_sampling_engine_for_sync(
+    *,
+    zone_sampling_engine: str,
+    accuracy_mode: bool,
+    color_style: str,
+    sync_mode: str,
+) -> str:
+    if is_four_d_sync(sync_mode) and not is_accuracy_mode(accuracy_mode, color_style):
+        return "optimized"
+    return effective_zone_sampling_engine(
+        zone_sampling_engine=zone_sampling_engine,
+        accuracy_mode=accuracy_mode,
+        color_style=color_style,
+    )
+
+
+def effective_drm_zone_patch_capture(*, drm_zone_patch_capture: bool, sync_mode: str) -> bool:
+    if bool(drm_zone_patch_capture):
+        return True
+    return is_four_d_sync(sync_mode)
+
+
+def predictive_sync_enabled_for_sync(
+    *, sync_mode: str, accuracy_mode: bool, color_style: str
+) -> bool:
+    if not is_four_d_sync(sync_mode):
+        return False
+    return not is_accuracy_mode(accuracy_mode, color_style)
+
+
 def effective_motion_and_smoothing(
     *,
     motion_preset: str,
@@ -207,7 +331,12 @@ def effective_motion_and_smoothing(
     smoothing_speed: float,
     accuracy_mode: bool,
     color_style: str,
+    sync_mode: str = SYNC_MODE_STANDARD,
 ) -> tuple[str, float, float]:
+    motion_preset = effective_motion_preset_for_sync(
+        motion_preset=motion_preset,
+        sync_mode=sync_mode,
+    )
     if not is_accuracy_mode(accuracy_mode, color_style):
         profile = motion_profile(motion_preset)
         return (

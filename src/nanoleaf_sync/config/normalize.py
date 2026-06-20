@@ -22,6 +22,7 @@ from nanoleaf_sync.config.presets import (
     LIGHT_SPREAD_PRESETS,
     MOTION_PRESETS,
     SAMPLING_QUALITY_PRESETS,
+    SYNC_MODES,
     normalize_layout_preset,
     normalize_preset,
 )
@@ -250,6 +251,14 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         allowed=MOTION_PRESETS,
         default=AppConfig.motion_preset,
     )
+    sync_mode = normalize_preset(
+        getattr(cfg, "sync_mode", AppConfig.sync_mode),
+        allowed=SYNC_MODES,
+        default=AppConfig.sync_mode,
+    )
+    predictive_sync_strength = max(
+        0.0, min(1.0, float(getattr(cfg, "predictive_sync_strength", 0.35) or 0.35))
+    )
     color_style = normalize_preset(
         getattr(cfg, "color_style", AppConfig.color_style),
         allowed=COLOR_STYLE_PRESETS,
@@ -472,6 +481,8 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         light_spread=light_spread,
         sampling_quality=sampling_quality,
         motion_preset=motion_preset,
+        sync_mode=sync_mode,
+        predictive_sync_strength=predictive_sync_strength,
         color_style=color_style,
         sampling_mode=sampling_mode,
         layout_inset=layout_inset,

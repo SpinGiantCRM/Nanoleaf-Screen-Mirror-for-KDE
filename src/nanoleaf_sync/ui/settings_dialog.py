@@ -291,6 +291,12 @@ class SettingsDialog:
                 self.start_on_launch_checkbox.setChecked(
                     bool(getattr(cfg, "start_on_launch", False))
                 )
+                self.four_d_sync_checkbox = QCheckBox(
+                    "4D sync (120fps edge mirroring + prediction)"
+                )
+                self.four_d_sync_checkbox.setChecked(
+                    str(getattr(cfg, "sync_mode", "standard")).strip().lower() == "4d"
+                )
                 self.display_gamut_combo = QComboBox()
                 self.display_gamut_combo.addItems(["Auto", "sRGB", "DCI-P3", "BT.2020", "Custom"])
                 gamut_text = str(getattr(cfg, "display_gamut", "auto")).strip().lower()
@@ -794,6 +800,10 @@ class SettingsDialog:
                 self.start_on_launch_checkbox.setToolTip(
                     "Start syncing automatically right after tray launch."
                 )
+                self.four_d_sync_checkbox.setToolTip(
+                    "Low-latency edge mirroring for high FPS: faster HID send, "
+                    "balanced zone sampling, tight edge locality, and predictive colour sync."
+                )
                 self.compositor_hdr_mode_checkbox.setToolTip(
                     "Enable compensation when KDE Plasma is running SDR content on HDR."
                 )
@@ -907,6 +917,7 @@ class SettingsDialog:
                     3,
                 )
                 grid.addWidget(self.start_on_launch_checkbox, 5, 0, 1, 3)
+                grid.addWidget(self.four_d_sync_checkbox, 6, 0, 1, 3)
                 group.setLayout(grid)
                 layout.addWidget(group)
                 layout.addStretch(1)
@@ -2442,6 +2453,7 @@ class SettingsDialog:
                         default="hdr",
                     ),
                     start_on_launch=bool(self.start_on_launch_checkbox.isChecked()),
+                    sync_mode="4d" if self.four_d_sync_checkbox.isChecked() else "standard",
                     device_zone_count=self._state.device_zone_count,
                     output_channel_order=str(self.output_channel_order_combo.currentText()),
                     reverse_zones=self._state.reverse_zones,

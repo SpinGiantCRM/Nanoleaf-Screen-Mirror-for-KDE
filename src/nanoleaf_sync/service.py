@@ -35,6 +35,7 @@ from nanoleaf_sync.compat.version_snapshot import (
     upgrade_notification_message,
 )
 from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.config.presets import effective_drm_zone_patch_capture, is_four_d_sync
 from nanoleaf_sync.config.store import ConfigManager
 from nanoleaf_sync.device.interfaces import DeviceDriver, NanoleafUSBIds
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
@@ -417,8 +418,11 @@ class NanoleafSyncService:
                         auto_probe_enabled=getattr(self.config, "auto_probe_enabled", None),
                         cached_probe_winner=self._cached_probe_winner
                         or self.config.auto_selected_backend,
-                        drm_zone_patch_capture=bool(
-                            getattr(self.config, "drm_zone_patch_capture", False)
+                        drm_zone_patch_capture=effective_drm_zone_patch_capture(
+                            drm_zone_patch_capture=bool(
+                                getattr(self.config, "drm_zone_patch_capture", False)
+                            ),
+                            sync_mode=str(getattr(self.config, "sync_mode", "standard")),
                         ),
                     )
                     created_capture = True
@@ -462,7 +466,9 @@ class NanoleafSyncService:
                 hdr_max_nits=getattr(self.config, "hdr_max_nits", 1000.0),
                 return_diagnostics=True,
             )
-            _, sampled_zone_colors, pre_led_colors, final_zone_colors, _timings = processed
+            _, sampled_zone_colors, pre_led_colors, final_zone_colors, _timings, _history = (
+                processed
+            )
             self._runtime.latest_frame_rgb = frame
             self._runtime.last_frame_width = int(img_w)
             self._runtime.last_frame_height = int(img_h)
@@ -529,7 +535,10 @@ class NanoleafSyncService:
             ids=ids,
             output_channel_order=self.config.output_channel_order,
             configured_zone_count=int(getattr(self.config, "device_zone_count", 0) or 0),
-            enable_live_frame_write_optimization=enable_live_frame_write_optimization,
+            enable_live_frame_write_optimization=True,
+            prefer_write_only_live_send=is_four_d_sync(
+                str(getattr(self.config, "sync_mode", "standard"))
+            ),
             auto_turn_on=bool(getattr(self.config, "auto_turn_on", True)),
         )
 
@@ -633,8 +642,11 @@ class NanoleafSyncService:
                     hdr_primaries=self.config.hdr_primaries,
                     auto_probe_enabled=self.config.auto_probe_enabled,
                     cached_probe_winner=selected_cache,
-                    drm_zone_patch_capture=bool(
-                        getattr(self.config, "drm_zone_patch_capture", False)
+                    drm_zone_patch_capture=effective_drm_zone_patch_capture(
+                        drm_zone_patch_capture=bool(
+                            getattr(self.config, "drm_zone_patch_capture", False)
+                        ),
+                        sync_mode=str(getattr(self.config, "sync_mode", "standard")),
                     ),
                 )
                 if normalized_preference != "auto":

@@ -718,6 +718,7 @@ def export_latency_report(*, status: dict) -> Path:
             "hid_frame_build_ms",
             "hid_device_write_ms",
             "hid_flush_or_wait_ms",
+            "hid_ack_arrival_ms",
             "loop_gap_ms",
             "inferred_unattributed_gap_ms",
             "end_to_end_live_ms",

@@ -36,6 +36,7 @@ class SPSCRingBuffer(Generic[T]):
         self._not_empty = Condition(self._lock)
         self._not_full = Condition(self._lock)
         self._dropped_count: int = 0
+        self._last_pop_coalesced: int = 0
 
     # ------------------------------------------------------------------
     # Push (producer) side
@@ -91,11 +92,15 @@ class SPSCRingBuffer(Generic[T]):
         """Return the newest queued item, discarding older entries."""
         item = self.pop(timeout=timeout)
         if item is None:
+            self._last_pop_coalesced = 0
             return None
+        coalesced = 0
         while True:
             newer = self.try_pop()
             if newer is None:
+                self._last_pop_coalesced = coalesced
                 return item
+            coalesced += 1
             item = newer
 
     def try_pop(self) -> T | None:
@@ -117,6 +122,10 @@ class SPSCRingBuffer(Generic[T]):
     def reset_dropped(self) -> None:
         with self._lock:
             self._dropped_count = 0
+
+    @property
+    def last_pop_coalesced(self) -> int:
+        return self._last_pop_coalesced
 
     @property
     def capacity(self) -> int:

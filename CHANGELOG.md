@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.3.0 — Colour stability, spatial isolation, and runtime polish
+
+### Fixes
+
+- Partial-bright scenes no longer tint the whole strip: dark zones skip neighbour spread, achromatic-only dark hold, and faster dark release
+- UI overlay / mixed-content zones use area-average or dark-biased sampling instead of vivid peak-pick flicker
+- HDR dark flicker: pipeline reorder, letterbox-aware sampling, linear SDR boost undo, and near-black output gating
+- Hue-oscillation hold and predictive-sync guards reduce indecisive colour flipping on static UI
+- HID open failures now detect when another process (e.g. Steam/Wine) holds `/dev/hidrawN` and surface clearer guidance
+- Linux HID open resolves sysfs `hidraw` paths when enumeration returns USB interface tokens
+
+### Runtime
+
+- Predictive sync for 4D mode when frames are stale (with dark-zone and UI guards)
+- Capture worker poll interval tuned for lower handoff latency
+- FPS governor and latency export diagnostics extended
+- Expanded regression tests for neighbour blend, dark output, mixed sampling, and colour pipeline
+
+## v1.2.0 — Pixel sampling accuracy
+
+### Fixes
+
+- Improved edge/zone pixel sampling accuracy for screen mirroring
+
 ## v1.1.0 — Settings UX and mirroring resume
 
 ### Fixes

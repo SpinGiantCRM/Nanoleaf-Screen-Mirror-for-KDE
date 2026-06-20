@@ -27,6 +27,7 @@ STAGE_HID_WRITE = "hid_write_ms"
 STAGE_HID_FRAME_BUILD = "hid_frame_build_ms"
 STAGE_HID_DEVICE_WRITE = "hid_device_write_ms"
 STAGE_HID_FLUSH_OR_WAIT = "hid_flush_or_wait_ms"
+STAGE_HID_ACK_ARRIVAL = "hid_ack_arrival_ms"
 STAGE_LOOP_GAP = "loop_gap_ms"
 STAGE_INFERRED_UNATTRIBUTED_GAP = "inferred_unattributed_gap_ms"
 STAGE_END_TO_END_LIVE = "end_to_end_live_ms"
@@ -56,6 +57,7 @@ ALL_STAGE_NAMES = (
     STAGE_HID_FRAME_BUILD,
     STAGE_HID_DEVICE_WRITE,
     STAGE_HID_FLUSH_OR_WAIT,
+    STAGE_HID_ACK_ARRIVAL,
     STAGE_END_TO_END_LIVE,
     STAGE_INFERRED_UNATTRIBUTED_GAP,
 )

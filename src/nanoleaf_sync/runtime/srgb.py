@@ -47,3 +47,13 @@ def linear01_to_srgb_u8(linear: np.ndarray) -> np.ndarray:
     """Convert linear-light floats to uint8 sRGB values."""
     encoded = linear01_to_srgb_encoded(linear)
     return np.clip(np.rint(encoded * 255.0), 0.0, 255.0).astype(np.uint8, copy=False)
+
+
+def srgb_encoded_float_to_linear01(rgb: np.ndarray) -> np.ndarray:
+    encoded = np.clip(np.asarray(rgb, dtype=np.float32), 0.0, 255.0) / 255.0
+    return srgb_eotf_to_linear01(encoded)
+
+
+def linear01_to_srgb_float(linear: np.ndarray) -> np.ndarray:
+    encoded = linear01_to_srgb_encoded(linear)
+    return (np.clip(encoded, 0.0, 1.0) * 255.0).astype(np.float32, copy=False)

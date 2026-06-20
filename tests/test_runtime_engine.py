@@ -176,7 +176,7 @@ def test_process_frame_reports_zone_sampling_timing_after_optimisation() -> None
         img_h=90,
         detected_device_zone_count=48,
     )
-    _out, _sampled, _pre, _final, timings = process_frame(
+    _out, _sampled, _pre, _final, timings, _history = process_frame(
         frame=frame,
         prev_smoothed_colors=[],
         zones_px=zones_px,

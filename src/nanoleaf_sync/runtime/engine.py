@@ -21,10 +21,12 @@ from nanoleaf_sync.capture.latency_probe import (
     STAGE_CAPTURE_WAIT,
     STAGE_CAPTURE_WORKER_LOOP_GAP,
     STAGE_COLOUR_PROCESSING,
+    STAGE_END_TO_END_LIVE,
     STAGE_FRAME_AVAILABLE_WAIT,
     STAGE_FRAME_CONVERT,
     STAGE_FRAME_HANDOFF_WAIT,
     STAGE_FRAME_PROCESSING,
+    STAGE_HID_ACK_ARRIVAL,
     STAGE_HID_DEVICE_WRITE,
     STAGE_HID_FLUSH_OR_WAIT,
     STAGE_HID_FRAME_BUILD,
@@ -44,6 +46,7 @@ from nanoleaf_sync.capture.latency_probe import (
 )
 from nanoleaf_sync.color._types import RGBTuple
 from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.config.presets import effective_drm_zone_patch_capture
 from nanoleaf_sync.runtime.blending import (
     AdaptiveSmoothingDiagnostics,
     adaptive_one_euro_blend,
@@ -60,13 +63,18 @@ from nanoleaf_sync.runtime.color_pipeline import (
     build_pipeline_params_from_config,
     process_zone_colors,
     zone_centers_from_zones_px,
+    zone_sample_motion,
 )
 from nanoleaf_sync.runtime.color_processing import (
     LedCalibration,
     color_pipeline_diagnostics,
     init_gamut_adaptation,
 )
-from nanoleaf_sync.runtime.fps_governor import FPSGovernor
+from nanoleaf_sync.runtime.fps_governor import (
+    FPSGovernor,
+    capture_interval_budget_ms,
+    governor_min_fps_floor,
+)
 from nanoleaf_sync.runtime.processing import scale_zones_to_display, zones_from_config
 from nanoleaf_sync.runtime.ring_buf import (
     CapturePayload,
@@ -82,6 +90,13 @@ from nanoleaf_sync.runtime.state import (
 from nanoleaf_sync.runtime.zone_derivation import derive_source_zone_artifacts
 
 logger = logging.getLogger(__name__)
+
+_WORKER_POLL_INTERVAL_S = 0.002
+
+
+def _make_fps_governor(config: AppConfig) -> FPSGovernor:
+    fps = max(1, int(config.fps))
+    return FPSGovernor(initial_fps=fps, min_fps_floor=governor_min_fps_floor(fps))
 
 
 def _gamut_init_from_config(config: AppConfig) -> None:
@@ -119,6 +134,13 @@ class FrameProcessingTimings:
     smoothing_ms: float | None = None
     led_calibration_ms: float | None = None
     output_prepare_ms: float | None = None
+    area_average_active: bool = False
+    letterbox_active: bool = False
+    raw_sample_rects: tuple[tuple[int, int, int, int], ...] = ()
+    effective_sample_rects: tuple[tuple[int, int, int, int], ...] = ()
+    per_zone_sampling_mode: tuple[str, ...] = ()
+    per_zone_mixed_fallback: tuple[bool, ...] = ()
+    per_zone_sdr_boost_undo_ratio: tuple[float, ...] = ()
 
 
 class PendingFrameSlot:
@@ -174,6 +196,42 @@ def _adaptive_one_euro_blend(
         smoothing_speed=smoothing_speed,
         motion_preset=motion_preset,
     )
+
+
+def _zone_sampling_diagnostic_fields(
+    *,
+    zone_index: int,
+    default_rect: tuple[int, int, int, int],
+    proc_timings: FrameProcessingTimings | None,
+) -> dict[str, object]:
+    raw_rect = default_rect
+    effective_rect = default_rect
+    sampling_mode_effective = ""
+    mixed_content_fallback = False
+    sdr_boost_undo_ratio: float | None = None
+    if proc_timings is not None:
+        raw_rects = getattr(proc_timings, "raw_sample_rects", ()) or ()
+        eff_rects = getattr(proc_timings, "effective_sample_rects", ()) or ()
+        if zone_index < len(raw_rects):
+            raw_rect = raw_rects[zone_index]
+        if zone_index < len(eff_rects):
+            effective_rect = eff_rects[zone_index]
+        modes = getattr(proc_timings, "per_zone_sampling_mode", ()) or ()
+        if zone_index < len(modes):
+            sampling_mode_effective = str(modes[zone_index])
+        mixed_flags = getattr(proc_timings, "per_zone_mixed_fallback", ()) or ()
+        if zone_index < len(mixed_flags):
+            mixed_content_fallback = bool(mixed_flags[zone_index])
+        undo_ratios = getattr(proc_timings, "per_zone_sdr_boost_undo_ratio", ()) or ()
+        if zone_index < len(undo_ratios):
+            sdr_boost_undo_ratio = float(undo_ratios[zone_index])
+    return {
+        "raw_pixel_rect": raw_rect,
+        "effective_sample_rect": effective_rect,
+        "sampling_mode_effective": sampling_mode_effective,
+        "mixed_content_fallback": mixed_content_fallback,
+        "sdr_boost_undo_ratio": sdr_boost_undo_ratio,
+    }
 
 
 def _zones_signature(
@@ -359,9 +417,26 @@ def process_frame(
     return_diagnostics: bool = False,
     build_zone_diagnostics: bool = False,
     led_calibration: LedCalibration | None = None,
+    sync_mode: str = "standard",
+    predictive_sync_strength: float = 0.35,
+    effective_target_fps: float = 60.0,
+    config_fps: float = 60.0,
+    staleness_ms: float = 0.0,
+    output_healthy: bool = False,
+    sampling_quality: str = "high",
+    prev_sampled_zone_colors: Sequence[RGBTuple] = (),
+    prior_zone_sample_motion: float = 0.0,
+    prior_area_average_mode: bool = False,
 ) -> (
     list[RGBTuple]
-    | tuple[list[RGBTuple], np.ndarray, np.ndarray, np.ndarray, FrameProcessingTimings]
+    | tuple[
+        list[RGBTuple],
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        FrameProcessingTimings,
+        list[RGBTuple],
+    ]
 ):
     """Hot-path frame processing via the unified color pipeline contract."""
     calibration = led_calibration or LedCalibration(
@@ -395,6 +470,16 @@ def process_frame(
         led_calibration=calibration,
         return_diagnostics=return_diagnostics,
         build_zone_diagnostics=build_zone_diagnostics,
+        sync_mode=sync_mode,
+        predictive_sync_strength=predictive_sync_strength,
+        effective_target_fps=effective_target_fps,
+        config_fps=config_fps,
+        staleness_ms=staleness_ms,
+        output_healthy=output_healthy,
+        sampling_quality=sampling_quality,
+        prev_sampled_zone_colors=prev_sampled_zone_colors,
+        prior_zone_sample_motion=prior_zone_sample_motion,
+        prior_area_average_mode=prior_area_average_mode,
     )
     return process_zone_colors(
         frame=frame if precomputed_zone_colors is None else None,
@@ -417,7 +502,7 @@ def _run_loop_legacy(
 ) -> None:
     _gamut_init_from_config(config)
     fps = max(1, int(config.fps))
-    governor = FPSGovernor(initial_fps=fps)
+    governor = _make_fps_governor(config)
     state.target_fps = governor.target_fps
     interval_s = 1.0 / fps
 
@@ -738,6 +823,16 @@ def _run_loop_legacy(
                     compositor_hdr_mode=getattr(config, "compositor_hdr_mode", False),
                     sdr_boost_nits=getattr(config, "sdr_boost_nits", 80.0),
                     hdr_max_nits=getattr(config, "hdr_max_nits", 1000.0),
+                    sync_mode=str(getattr(config, "sync_mode", "standard")),
+                    predictive_sync_strength=float(
+                        getattr(config, "predictive_sync_strength", 0.6)
+                    ),
+                    effective_target_fps=float(getattr(config, "fps", 60)),
+                    staleness_ms=float(state.latest_staleness_ms),
+                    sampling_quality=str(getattr(config, "sampling_quality", "high")),
+                    prev_sampled_zone_colors=state.prev_sampled_zone_colors,
+                    prior_zone_sample_motion=float(state.prior_zone_sample_motion),
+                    prior_area_average_mode=bool(state.prior_area_average_mode),
                     return_diagnostics=True,
                 )
                 (
@@ -746,15 +841,26 @@ def _run_loop_legacy(
                     pre_led_colors,
                     final_zone_colors,
                     processing_timings,
+                    history_smoothed_colors,
                 ) = processed
                 processing_end = time.perf_counter()
-                state.prev_smoothed_colors = smoothed_colors
+                state.prev_smoothed_colors = history_smoothed_colors
+                state.prior_area_average_mode = bool(
+                    getattr(processing_timings, "area_average_active", False)
+                )
+                state.prior_zone_sample_motion = zone_sample_motion(
+                    sampled_zone_colors, state.prev_sampled_zone_colors
+                )
+                state.prev_sampled_zone_colors = [
+                    tuple(int(c) for c in row) for row in sampled_zone_colors.tolist()
+                ]
                 state.first_frame_processed = True
                 state.last_frame_width = int(img_w)
                 state.last_frame_height = int(img_h)
                 state.latest_frame_rgb = frame
                 state.latest_zones_px = list(zones_px)
                 zone_diagnostics: list[dict[str, object]] = []
+                proc_timings = processing_timings
                 for zone_index, rect in enumerate(zones_px):
                     sampled_rgb = tuple(int(c) for c in sampled_zone_colors[zone_index].tolist())
                     mapped_led_index = None
@@ -783,11 +889,39 @@ def _run_loop_legacy(
                         side = "left"
                     else:
                         side = "unknown"
+                    raw_rect = rect
+                    effective_rect = rect
+                    sampling_mode_effective = ""
+                    mixed_content_fallback = False
+                    sdr_boost_undo_ratio: float | None = None
+                    if proc_timings is not None:
+                        raw_rects = getattr(proc_timings, "raw_sample_rects", ()) or ()
+                        eff_rects = getattr(proc_timings, "effective_sample_rects", ()) or ()
+                        if zone_index < len(raw_rects):
+                            raw_rect = raw_rects[zone_index]
+                        if zone_index < len(eff_rects):
+                            effective_rect = eff_rects[zone_index]
+                        modes = getattr(proc_timings, "per_zone_sampling_mode", ()) or ()
+                        if zone_index < len(modes):
+                            sampling_mode_effective = str(modes[zone_index])
+                        mixed_flags = getattr(proc_timings, "per_zone_mixed_fallback", ()) or ()
+                        if zone_index < len(mixed_flags):
+                            mixed_content_fallback = bool(mixed_flags[zone_index])
+                        undo_ratios = (
+                            getattr(proc_timings, "per_zone_sdr_boost_undo_ratio", ()) or ()
+                        )
+                        if zone_index < len(undo_ratios):
+                            sdr_boost_undo_ratio = float(undo_ratios[zone_index])
                     zone_diagnostics.append(
                         {
                             "zone_index": zone_index,
                             "side": side,
                             "pixel_rect": rect,
+                            "raw_pixel_rect": raw_rect,
+                            "effective_sample_rect": effective_rect,
+                            "sampling_mode_effective": sampling_mode_effective,
+                            "mixed_content_fallback": mixed_content_fallback,
+                            "sdr_boost_undo_ratio": sdr_boost_undo_ratio,
                             "sampled_rgb": sampled_rgb,
                             "output_rgb_before_led_calibration": pre_led_rgb,
                             "final_output_rgb": final_rgb,
@@ -821,6 +955,7 @@ def _run_loop_legacy(
                 hid_frame_build_ms: float | None = None
                 hid_device_write_ms: float | None = None
                 hid_flush_or_wait_ms: float | None = None
+                hid_ack_arrival_ms: float | None = None
                 hid_flush_or_wait_reason = "Not instrumented by current driver path."
                 hid_frame_build_reason = (
                     "Frame-build timing not separated from send_frame() in driver path."
@@ -853,6 +988,11 @@ def _run_loop_legacy(
                     hid_flush_or_wait_ms = (
                         float(timing.get("flush_or_wait_ms"))
                         if isinstance(timing, dict) and timing.get("flush_or_wait_ms") is not None
+                        else None
+                    )
+                    hid_ack_arrival_ms = (
+                        float(timing.get("ack_arrival_ms"))
+                        if isinstance(timing, dict) and timing.get("ack_arrival_ms") is not None
                         else None
                     )
                     hid_flush_or_wait_reason = str(
@@ -902,6 +1042,7 @@ def _run_loop_legacy(
                     max(0.0, loop_gap_ms - actual_work_ms) if loop_gap_ms is not None else None
                 )
                 last_send_done_ts = send_done
+                capture_to_send_ms = (send_done - captured_at) * 1000.0
                 with capture_worker_lock:
                     capture_worker_active_now = bool(capture_worker_active)
                     capture_worker_error_count_now = int(capture_worker_error_count)
@@ -934,9 +1075,10 @@ def _run_loop_legacy(
                             STAGE_HID_FRAME_BUILD: hid_frame_build_ms,
                             STAGE_HID_DEVICE_WRITE: hid_device_write_ms,
                             STAGE_HID_FLUSH_OR_WAIT: hid_flush_or_wait_ms,
+                            STAGE_HID_ACK_ARRIVAL: hid_ack_arrival_ms,
                             STAGE_LOOP_GAP: loop_gap_ms,
                             STAGE_INFERRED_UNATTRIBUTED_GAP: inferred_unattributed_gap_ms,
-                            "end_to_end_live_ms": None,
+                            STAGE_END_TO_END_LIVE: capture_to_send_ms,
                         },
                         target_fps=float(governor.target_fps),
                         fps_cap=float(governor.target_fps),
@@ -981,7 +1123,6 @@ def _run_loop_legacy(
                 )
                 last_reported_capture_worker_error_count = capture_worker_error_count_now
                 no_pending_frame_ticks = 0
-                capture_to_send_ms = (send_done - captured_at) * 1000.0
                 ewma_capture_to_send_ms = (
                     (0.9 * ewma_capture_to_send_ms) + (0.1 * capture_to_send_ms)
                     if ewma_capture_to_send_ms > 0.0
@@ -1005,6 +1146,10 @@ def _run_loop_legacy(
                 previous_target = governor.target_fps
                 governor.record_frame(actual_work_ms)
                 state.target_fps = governor.target_fps
+                state.governor_p95_latency_ms = float(
+                    governor.get_metrics().get("p95_latency_ms", 0.0) or 0.0
+                )
+                state.latest_staleness_ms = float(capture_to_send_ms)
                 if governor.target_fps != previous_target:
                     direction = "up" if governor.target_fps > previous_target else "down"
                     logger.info(
@@ -1117,7 +1262,7 @@ def _run_loop_pipeline(
 ) -> None:
     _gamut_init_from_config(config)
     fps = max(1, int(config.fps))
-    governor = FPSGovernor(initial_fps=fps)
+    governor = _make_fps_governor(config)
     state.target_fps = governor.target_fps
     gov_lock = threading.Lock()
     1.0 / fps
@@ -1126,9 +1271,9 @@ def _run_loop_pipeline(
     startup_frame_timeout_s = max(0.1, float(getattr(config, "startup_frame_timeout_s", 5.0)))
     startup_started_at = time.perf_counter()
 
-    # Capacity 2 per buffer: latest-frame semantics with minimal stale buffering.
+    # Capacity 4 on process buffer: capture can run ahead of HID without losing as many frames.
     capture_buf: SPSCRingBuffer[CapturePayload] = SPSCRingBuffer(capacity=2)
-    process_buf: SPSCRingBuffer[ProcessedPayload] = SPSCRingBuffer(capacity=2)
+    process_buf: SPSCRingBuffer[ProcessedPayload] = SPSCRingBuffer(capacity=4)
 
     # ---- shared cross-thread metrics (lock-protected) -------------------
     metrics_lock = threading.Lock()
@@ -1147,6 +1292,8 @@ def _run_loop_pipeline(
     no_pending_started_at = time.perf_counter()
     last_sent_zone_count = 0
     ewma_capture_to_send_ms = 0.0
+    hid_loop_gap_ewma_ms: float | None = None
+    hid_output_work_ewma_ms: float | None = None
     frame_seq: int = 0
 
     # ---- capture worker -------------------------------------------------
@@ -1158,6 +1305,7 @@ def _run_loop_pipeline(
         nonlocal capture_worker_error_count, capture_worker_failures
         nonlocal no_pending_frame_events
         nonlocal process_worker_error_count
+        nonlocal hid_output_work_ewma_ms
 
         with metrics_lock:
             capture_worker_active = True
@@ -1167,6 +1315,21 @@ def _run_loop_pipeline(
                 if state.is_reinitializing:
                     time.sleep(0.001)
                     continue
+                with metrics_lock:
+                    gap_ewma = hid_output_work_ewma_ms
+                    target_fps_now = min(
+                        max(1, int(getattr(config, "fps", 60))),
+                        max(1, int(state.target_fps)),
+                    )
+                capture_interval_ms = capture_interval_budget_ms(
+                    target_fps=target_fps_now,
+                    hid_output_work_ewma_ms=gap_ewma,
+                )
+                if capture_interval_ms is not None and last_capture_success_ts is not None:
+                    elapsed_ms = (time.perf_counter() - last_capture_success_ts) * 1000.0
+                    if elapsed_ms < capture_interval_ms * 0.95:
+                        time.sleep(0.001)
+                        continue
                 cap = get_capture()
                 if cap is None:
                     time.sleep(0.001)
@@ -1176,9 +1339,10 @@ def _run_loop_pipeline(
                 capture_start = time.perf_counter()
                 zone_rects = list(state.latest_zone_rects_display)
                 capture_result = None
-                use_drm_rects = bool(getattr(config, "drm_zone_patch_capture", False)) and bool(
-                    zone_rects
-                )
+                use_drm_rects = effective_drm_zone_patch_capture(
+                    drm_zone_patch_capture=bool(getattr(config, "drm_zone_patch_capture", False)),
+                    sync_mode=str(getattr(config, "sync_mode", "standard")),
+                ) and bool(zone_rects)
                 if use_drm_rects:
                     try:
                         capture_result = cap.capture(zone_rects=zone_rects)
@@ -1250,7 +1414,7 @@ def _run_loop_pipeline(
                 if state.is_reinitializing:
                     time.sleep(0.001)
                     continue
-                payload = capture_buf.pop_latest(timeout=0.01)
+                payload = capture_buf.pop_latest(timeout=_WORKER_POLL_INTERVAL_S)
                 if payload is None:
                     continue
 
@@ -1351,6 +1515,7 @@ def _run_loop_pipeline(
                 )
                 with metrics_lock:
                     frame_seq += 1
+                    governor_target_fps = float(governor.target_fps)
                 cap_backend = get_capture()
                 if cap_backend is not None:
                     hdr_diag = getattr(cap_backend, "last_hdr_diagnostics", None) or {}
@@ -1363,6 +1528,13 @@ def _run_loop_pipeline(
                     return_diagnostics=True,
                     build_zone_diagnostics=build_diagnostics,
                     skip_display_gamut_adaptation=state.skip_display_gamut_adaptation,
+                    effective_target_fps=governor_target_fps,
+                    config_fps=float(getattr(config, "fps", 60)),
+                    staleness_ms=float(state.latest_staleness_ms),
+                    output_healthy=bool(state.output_healthy),
+                    prev_sampled_zone_colors=state.prev_sampled_zone_colors,
+                    prior_zone_sample_motion=float(state.prior_zone_sample_motion),
+                    prior_area_average_mode=bool(state.prior_area_average_mode),
                 )
                 light_spread = pipeline_params.light_spread
                 if state.flattening_mitigation_active:
@@ -1390,6 +1562,16 @@ def _run_loop_pipeline(
                     sampling_mode=pipeline_params.sampling_mode,
                     letterbox_detection=pipeline_params.letterbox_detection,
                     led_calibration=pipeline_params.led_calibration,
+                    sync_mode=pipeline_params.sync_mode,
+                    predictive_sync_strength=pipeline_params.predictive_sync_strength,
+                    effective_target_fps=pipeline_params.effective_target_fps,
+                    config_fps=pipeline_params.config_fps,
+                    staleness_ms=pipeline_params.staleness_ms,
+                    output_healthy=pipeline_params.output_healthy,
+                    sampling_quality=pipeline_params.sampling_quality,
+                    prev_sampled_zone_colors=pipeline_params.prev_sampled_zone_colors,
+                    prior_zone_sample_motion=pipeline_params.prior_zone_sample_motion,
+                    prior_area_average_mode=pipeline_params.prior_area_average_mode,
                     return_diagnostics=True,
                     build_zone_diagnostics=build_diagnostics,
                 )
@@ -1399,9 +1581,21 @@ def _run_loop_pipeline(
                     pre_led_colors,
                     final_zone_colors,
                     processing_timings,
+                    history_smoothed_colors,
                 ) = processed
 
-                state.prev_smoothed_colors = smoothed_colors  # type: ignore[assignment]
+                state.prev_smoothed_colors = history_smoothed_colors  # type: ignore[assignment]
+                state.prior_area_average_mode = bool(
+                    getattr(processing_timings, "area_average_active", False)
+                )
+                state.prior_zone_sample_motion = zone_sample_motion(
+                    sampled_zone_colors,
+                    state.prev_sampled_zone_colors,  # type: ignore[arg-type]
+                )
+                state.prev_sampled_zone_colors = [
+                    tuple(int(c) for c in row)
+                    for row in sampled_zone_colors.tolist()  # type: ignore[union-attr]
+                ]
                 state.first_frame_processed = True
                 state.last_frame_width = int(img_w)
                 state.last_frame_height = int(img_h)
@@ -1449,6 +1643,11 @@ def _run_loop_pipeline(
                                 "zone_index": zone_index,
                                 "side": side,
                                 "pixel_rect": rect,
+                                **_zone_sampling_diagnostic_fields(
+                                    zone_index=zone_index,
+                                    default_rect=rect,
+                                    proc_timings=processing_timings,
+                                ),
                                 "sampled_rgb": sampled_rgb,
                                 "output_rgb_before_led_calibration": pre_led_rgb,
                                 "final_output_rgb": final_rgb,
@@ -1498,7 +1697,7 @@ def _run_loop_pipeline(
                         zone_diagnostics=zone_diagnostics,
                         side_var=side_var,
                     ),
-                    timeout=0.01,
+                    timeout=_WORKER_POLL_INTERVAL_S,
                 )
                 if not pushed:
                     logger.warning(
@@ -1519,9 +1718,11 @@ def _run_loop_pipeline(
     # ---- HID writer -----------------------------------------------------
     def _hid_writer() -> None:
         nonlocal last_sent_zone_count, ewma_capture_to_send_ms, frame_seq, governor
+        nonlocal hid_loop_gap_ewma_ms, hid_output_work_ewma_ms
         sent_in_window = 0
         last_log = time.perf_counter()
         last_send_done_ts: float | None = None
+        idle_poll_ms = _WORKER_POLL_INTERVAL_S * 1000.0
 
         while not state.stop_event.is_set():
             state.reinit_pause.wait(timeout=0.001)
@@ -1529,7 +1730,8 @@ def _run_loop_pipeline(
                 if state.is_reinitializing:
                     time.sleep(0.001)
                     continue
-                payload = process_buf.pop_latest(timeout=0.01)
+                payload = process_buf.pop_latest(timeout=_WORKER_POLL_INTERVAL_S)
+                coalesced_sends = int(process_buf.last_pop_coalesced)
                 now = time.perf_counter()
 
                 if payload is None:
@@ -1545,9 +1747,9 @@ def _run_loop_pipeline(
                                 STAGE_CAPTURE_WORKER_LOOP_GAP: capture_worker_loop_gap_ms_latest,
                                 STAGE_CAPTURE_SUCCESS_INTERVAL: capture_success_interval_ms_latest,
                                 STAGE_FRAME_HANDOFF_WAIT: None,
-                                STAGE_FRAME_AVAILABLE_WAIT: 10.0,
-                                STAGE_IDLE_WAIT: 10.0,  # poll interval
-                                STAGE_RUNTIME_IDLE_WAIT: 10.0,
+                                STAGE_FRAME_AVAILABLE_WAIT: idle_poll_ms,
+                                STAGE_IDLE_WAIT: idle_poll_ms,
+                                STAGE_RUNTIME_IDLE_WAIT: idle_poll_ms,
                                 STAGE_FRAME_PROCESSING: None,
                                 STAGE_ACTUAL_WORK: None,
                                 STAGE_LOOP_GAP: None,
@@ -1574,12 +1776,15 @@ def _run_loop_pipeline(
                 driver = get_driver()
                 if driver is None:
                     continue
+                if hasattr(driver, "_live_target_fps"):
+                    driver._live_target_fps = int(governor.target_fps)
 
                 # HID write
                 hid_write_start = time.perf_counter()
                 hid_frame_build_ms: float | None = None
                 hid_device_write_ms: float | None = None
                 hid_flush_or_wait_ms: float | None = None
+                hid_ack_arrival_ms: float | None = None
                 hid_flush_or_wait_reason = "Not instrumented by current driver path."
                 hid_frame_build_reason = (
                     "Frame-build timing not separated from send_frame() in driver path."
@@ -1613,6 +1818,11 @@ def _run_loop_pipeline(
                     hid_flush_or_wait_ms = (
                         float(timing.get("flush_or_wait_ms"))  # type: ignore[arg-type]
                         if isinstance(timing, dict) and timing.get("flush_or_wait_ms") is not None
+                        else None
+                    )
+                    hid_ack_arrival_ms = (
+                        float(timing.get("ack_arrival_ms"))  # type: ignore[arg-type]
+                        if isinstance(timing, dict) and timing.get("ack_arrival_ms") is not None
                         else None
                     )
                     hid_flush_or_wait_reason = str(
@@ -1667,10 +1877,27 @@ def _run_loop_pipeline(
                     if last_send_done_ts is not None
                     else None
                 )
+                if loop_gap_ms is not None:
+                    hid_loop_gap_ewma_ms = (
+                        (0.9 * hid_loop_gap_ewma_ms) + (0.1 * loop_gap_ms)
+                        if hid_loop_gap_ewma_ms is not None
+                        else float(loop_gap_ms)
+                    )
                 inferred_unattributed_gap_ms = (
                     max(0.0, loop_gap_ms - actual_work_ms) if loop_gap_ms is not None else None
                 )
-                last_send_done_ts = send_done
+
+                pace_fps = min(
+                    max(1, int(getattr(config, "fps", 60))),
+                    max(1, int(governor.target_fps)),
+                )
+                frame_budget_ms = 1000.0 / float(pace_fps)
+                output_cycle_ms = float(actual_work_ms)
+                hid_output_work_ewma_ms = (
+                    (0.9 * hid_output_work_ewma_ms) + (0.1 * output_cycle_ms)
+                    if hid_output_work_ewma_ms is not None
+                    else float(output_cycle_ms)
+                )
 
                 with metrics_lock:
                     cap_active = bool(capture_worker_active)
@@ -1718,9 +1945,10 @@ def _run_loop_pipeline(
                             STAGE_HID_FRAME_BUILD: hid_frame_build_ms,
                             STAGE_HID_DEVICE_WRITE: hid_device_write_ms,
                             STAGE_HID_FLUSH_OR_WAIT: hid_flush_or_wait_ms,
+                            STAGE_HID_ACK_ARRIVAL: hid_ack_arrival_ms,
                             STAGE_LOOP_GAP: loop_gap_ms,
                             STAGE_INFERRED_UNATTRIBUTED_GAP: inferred_unattributed_gap_ms,
-                            "end_to_end_live_ms": None,
+                            STAGE_END_TO_END_LIVE: capture_to_send_ms,
                         },
                         target_fps=float(governor.target_fps),
                         fps_cap=float(governor.target_fps),
@@ -1728,6 +1956,7 @@ def _run_loop_pipeline(
                         dropped_or_skipped_frames_delta=dropped_delta,
                         counters_delta={
                             "capture_worker_error_count": max(0, cap_error_now),
+                            "coalesced_sends": coalesced_sends,
                         },
                         flags={"capture_worker_active": cap_active},
                         labels={
@@ -1769,9 +1998,14 @@ def _run_loop_pipeline(
 
                 # ---- adaptive FPS governor -----------------------------
                 previous_target = governor.target_fps
-                governor.record_frame(capture_to_send_ms)
+                governor.record_frame(output_cycle_ms)
                 with gov_lock:
                     state.target_fps = governor.target_fps
+                state.governor_p95_latency_ms = float(
+                    governor.get_metrics().get("p95_latency_ms", 0.0) or 0.0
+                )
+                state.latest_staleness_ms = float(capture_to_send_ms)
+                state.output_healthy = output_cycle_ms <= (frame_budget_ms * 1.1)
                 if governor.target_fps != previous_target:
                     direction = "up" if governor.target_fps > previous_target else "down"
                     logger.info(
@@ -1789,10 +2023,11 @@ def _run_loop_pipeline(
                         )
 
                 # ---- adaptive pacing -----------------------------------
-                budget_ms = 1000.0 / max(1, governor.target_fps)
+                budget_ms = frame_budget_ms
                 pacing_wait_s = max(0.0, budget_ms / 1000.0 - actual_work_ms)
                 if pacing_wait_s > 0.0:
                     time.sleep(pacing_wait_s)
+                last_send_done_ts = time.perf_counter()
 
                 # Periodic status log
                 if now - last_log > log_interval_s:

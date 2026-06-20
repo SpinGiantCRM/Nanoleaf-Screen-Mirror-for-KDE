@@ -42,6 +42,7 @@ class NanoleafUSBDriver(DeviceDriver):
         output_channel_order: str = "grb",
         configured_zone_count: int = 0,
         enable_live_frame_write_optimization: bool = True,
+        prefer_write_only_live_send: bool = False,
         auto_turn_on: bool = True,
     ) -> None:
         self.ids = ids
@@ -53,6 +54,7 @@ class NanoleafUSBDriver(DeviceDriver):
         self._min_nonzero_brightness = max(1, min(255, int(min_nonzero_brightness)))
         self._configured_zone_count = max(0, int(configured_zone_count))
         self._enable_live_frame_write_optimization = bool(enable_live_frame_write_optimization)
+        self._prefer_write_only_live_send = bool(prefer_write_only_live_send)
         self._auto_turn_on = bool(auto_turn_on)
         order = str(output_channel_order or "grb").strip().lower()
         if sorted(order) != ["b", "g", "r"]:
@@ -72,6 +74,8 @@ class NanoleafUSBDriver(DeviceDriver):
         self._cached_brightness: int | None = None
         self.last_send_timing: dict[str, Any] = {}
         self._live_payload_buffer: bytearray | None = None
+        self._live_target_fps: int = 60
+        self._probed_report_size: int | None = None
 
     def _request(self, cmd: int, payload: bytes = b"") -> bytes:
         request = self._protocol.build_request(cmd, payload)
@@ -182,6 +186,8 @@ class NanoleafUSBDriver(DeviceDriver):
             # first set_zone_colors call doesn't add extra HID round-trips.
             self._cached_on_state = self.get_on_off_state()
             self._cached_brightness = self.get_brightness()
+            if self._prefer_write_only_live_send:
+                self._apply_live_report_size_probe()
             self._initialized = True
         except Exception:
             self.close()
@@ -214,6 +220,27 @@ class NanoleafUSBDriver(DeviceDriver):
         value = self._protocol.parse_u8(payload, field_name="brightness")
         self._cached_brightness = value
         return value
+
+    def _apply_live_report_size_probe(self) -> None:
+        zone_count = int(self.zone_count or self._configured_zone_count or 0)
+        if zone_count <= 0:
+            return
+        request_len = 3 + (zone_count * 3)
+        for candidate in (256, 128, 64):
+            report_count = max(1, (request_len + candidate - 1) // candidate)
+            if report_count == 1:
+                if candidate != self.report_size:
+                    self._logger.info(
+                        "USB live report-size probe selected report_size=%d "
+                        "for zone_count=%d request_len=%d",
+                        candidate,
+                        zone_count,
+                        request_len,
+                    )
+                self.report_size = int(candidate)
+                self._transport.report_size = int(candidate)
+                self._probed_report_size = int(candidate)
+                return
 
     def set_brightness(self, value: int) -> None:
         clamped = max(0, min(255, int(value)))
@@ -297,6 +324,7 @@ class NanoleafUSBDriver(DeviceDriver):
         live_send_policy = "response_required"
         response_wait_skipped = False
         send_err: Exception | None = None
+        requires_frame_ack = report_count > 1 or self._prefer_write_only_live_send
         if (
             self._is_live_frame_command(CMD_SET_ZONE_COLORS)
             and self._enable_live_frame_write_optimization
@@ -305,11 +333,56 @@ class NanoleafUSBDriver(DeviceDriver):
                 self._transport, "write_with_nonblocking_drain", None
             )
             write_with_timing = getattr(self._transport, "write_with_timing", None)
-            if callable(write_with_nonblocking_drain):
+            if (
+                callable(write_with_timing)
+                and self._prefer_write_only_live_send
+                and not requires_frame_ack
+            ):
+                live_send_policy = "write_only"
+                response_wait_skipped = True
+                try:
+                    maybe_timing = write_with_timing(request)
+                    if isinstance(maybe_timing, dict):
+                        transport_timing = maybe_timing
+                    transport_timing.setdefault("flush_or_wait_ms", 0.0)
+                    transport_timing.setdefault("read_calls", 0)
+                except Exception as exc:
+                    if self._write_failed_before_any_bytes(exc):
+                        send_err = exc
+                        live_send_policy = "response_required"
+                        response_wait_skipped = False
+                    else:
+                        frame_build_ms = (frame_build_end - frame_build_start) * 1000.0
+                        self._mark_live_frame_write_failed(
+                            exc=exc,
+                            frame_build_ms=frame_build_ms,
+                            request_len=request_len,
+                            report_size=report_size,
+                            report_count=report_count,
+                            chunk_sizes=chunk_sizes,
+                            live_send_policy=live_send_policy,
+                            response_wait_skipped=response_wait_skipped,
+                        )
+                        self._close_after_uncertain_live_write(exc)
+                        raise RuntimeError(
+                            "Live frame write failed with uncertain HID write status; "
+                            "closed transport and skipped immediate fallback "
+                            "to avoid duplicate frame send."
+                        ) from exc
+            elif callable(write_with_nonblocking_drain):
                 live_send_policy = "nonblocking_drain"
                 response_wait_skipped = True
                 try:
-                    maybe_timing = write_with_nonblocking_drain(request)
+                    drain_call = write_with_nonblocking_drain
+                    try:
+                        maybe_timing = drain_call(
+                            request,
+                            target_fps=int(self._live_target_fps),
+                            drain_budget_ms=2,
+                            max_drain_reads=2,
+                        )
+                    except TypeError:
+                        maybe_timing = drain_call(request)
                     if isinstance(maybe_timing, dict):
                         transport_timing = maybe_timing
                         drain_reads = int(transport_timing.get("read_calls", 0))
@@ -393,8 +466,14 @@ class NanoleafUSBDriver(DeviceDriver):
         report_data_sizes = transport_timing.get("report_data_sizes")
         per_report_write_ms = transport_timing.get("per_report_write_ms")
         total_bytes = int(transport_timing.get("total_frame_bytes") or request_len)
-        reports_per_frame = int(transport_timing.get("report_count") or report_count)
-        bytes_per_report = int(transport_timing.get("bytes_per_report") or report_size)
+        if live_send_policy in {"write_only", "nonblocking_drain"}:
+            reports_per_frame = report_count
+            bytes_per_report = report_size
+            if not isinstance(report_data_sizes, list):
+                report_data_sizes = chunk_sizes
+        else:
+            reports_per_frame = int(transport_timing.get("report_count") or report_count)
+            bytes_per_report = int(transport_timing.get("bytes_per_report") or report_size)
         if isinstance(report_data_sizes, list) and isinstance(per_report_write_ms, list):
             self._logger.debug(
                 "USB HID write timing: reports_per_frame=%d bytes_per_report=%d "
@@ -435,8 +514,14 @@ class NanoleafUSBDriver(DeviceDriver):
             "write_retry_policy": str(transport_timing.get("retry_policy", "none")),
             "write_rate_limit_policy": str(transport_timing.get("rate_limit_policy", "none")),
             "write_read_calls": int(transport_timing.get("read_calls") or 0),
+            "ack_arrival_ms": (
+                float(transport_timing.get("ack_arrival_ms"))
+                if transport_timing.get("ack_arrival_ms") is not None
+                else None
+            ),
             "live_send_policy": live_send_policy,
             "response_wait_skipped": response_wait_skipped,
+            "probed_report_size": self._probed_report_size,
         }
         if send_err is not None:
             timing["write_only_failure_reason"] = f"{type(send_err).__name__}: {send_err}"

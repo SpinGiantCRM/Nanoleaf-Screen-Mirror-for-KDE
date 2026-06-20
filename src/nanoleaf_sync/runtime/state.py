@@ -29,6 +29,9 @@ class RuntimeState:
     startup_succeeded: bool = False
 
     prev_smoothed_colors: list[RGBTuple] = field(default_factory=list)
+    prev_sampled_zone_colors: list[RGBTuple] = field(default_factory=list)
+    prior_zone_sample_motion: float = 0.0
+    prior_area_average_mode: bool = False
 
     cached_zone_rects: list[ZoneRect] | None = None
     zone_rects_signature: tuple[int, int, tuple[tuple[float, float, float, float], ...]] | None = (
@@ -80,6 +83,11 @@ class RuntimeState:
     latest_zone_rects_display: list[tuple[int, int, int, int]] = field(default_factory=list)
     flattening_mitigation_active: bool = False
     skip_display_gamut_adaptation: bool = False
+    latest_staleness_ms: float = 0.0
+    output_healthy: bool = False
+    governor_p95_latency_ms: float = 0.0
+    predictive_sync_active: bool = False
+    predictive_lookahead_frames: float = 0.0
 
     def _assert_locked(self) -> None:
         if not self._lock.locked():
@@ -88,6 +96,9 @@ class RuntimeState:
     def reset_for_start(self) -> None:
         self.reinit_pause.clear()
         self.prev_smoothed_colors = []
+        self.prev_sampled_zone_colors = []
+        self.prior_zone_sample_motion = 0.0
+        self.prior_area_average_mode = False
         self.cached_zone_rects = None
         self.zone_rects_signature = None
         self.cached_device_zone_indices = None
@@ -128,6 +139,11 @@ class RuntimeState:
         self.consecutive_black_frames = 0
         self.total_black_frames = 0
         self.latest_frame_mean_brightness = 0.0
+        self.latest_staleness_ms = 0.0
+        self.output_healthy = False
+        self.governor_p95_latency_ms = 0.0
+        self.predictive_sync_active = False
+        self.predictive_lookahead_frames = 0.0
 
     def mark_calibration_incomplete(self, message: str) -> None:
         self.calibration_status = CALIBRATION_INCOMPLETE_STATUS
@@ -239,6 +255,10 @@ class RuntimeState:
             "consecutive_black_frames": self.consecutive_black_frames,
             "total_black_frames": self.total_black_frames,
             "latest_frame_mean_brightness": self.latest_frame_mean_brightness,
+            "governor_p95_latency_ms": float(self.governor_p95_latency_ms),
+            "latest_staleness_ms": float(self.latest_staleness_ms),
+            "predictive_sync_active": bool(self.predictive_sync_active),
+            "predictive_lookahead_frames": float(self.predictive_lookahead_frames),
         }
 
 

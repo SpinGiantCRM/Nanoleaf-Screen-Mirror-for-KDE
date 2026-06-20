@@ -9,7 +9,17 @@ from collections import deque
 
 import numpy as np
 
-FPS_TIERS = [120, 90, 60, 30]
+FPS_TIERS = [120, 90, 60, 45, 30]
+
+
+def governor_min_fps_floor(config_fps: int) -> int:
+    fps = max(1, int(config_fps))
+    if fps >= 60:
+        return 60
+    if fps >= 30:
+        return 30
+    return 30
+
 
 _UP_THRESHOLD = 0.60  # utilisation below this for N consecutive frames → step up
 _DOWN_THRESHOLD = 0.80  # utilisation above this → step down
@@ -32,8 +42,9 @@ class FPSGovernor:
         exactly.
     """
 
-    def __init__(self, initial_fps: int = 60) -> None:
+    def __init__(self, initial_fps: int = 60, *, min_fps_floor: int = 30) -> None:
         self._target_fps = int(initial_fps)
+        self._min_fps_floor = max(1, int(min_fps_floor))
         self._latency_window: deque[float] = deque(maxlen=_WINDOW_SIZE)
         self._frame_count = 0
         self._consecutive_low = 0
@@ -60,7 +71,8 @@ class FPSGovernor:
         if utilisation > _DOWN_THRESHOLD:
             self._consecutive_low = 0
             current = self._tier_index()
-            if current < len(FPS_TIERS) - 1:
+            floor_index = self._floor_tier_index()
+            if current < floor_index:
                 old = self._target_fps
                 self._target_fps = FPS_TIERS[current + 1]
                 self._transitions.append((self._frame_count, old, self._target_fps))
@@ -114,3 +126,24 @@ class FPSGovernor:
                 if self._target_fps >= tier:
                     return i
             return len(FPS_TIERS) - 1
+
+    def _floor_tier_index(self) -> int:
+        for index in range(len(FPS_TIERS) - 1, -1, -1):
+            if FPS_TIERS[index] >= self._min_fps_floor:
+                return index
+        return len(FPS_TIERS) - 1
+
+
+def capture_interval_budget_ms(
+    *,
+    target_fps: int,
+    hid_output_work_ewma_ms: float | None,
+) -> float | None:
+    if hid_output_work_ewma_ms is None:
+        return None
+    fps = max(1, int(target_fps))
+    output_budget_ms = 1000.0 / float(fps)
+    work = float(hid_output_work_ewma_ms)
+    if work <= output_budget_ms * 0.75:
+        return output_budget_ms
+    return max(output_budget_ms, work * 1.05)

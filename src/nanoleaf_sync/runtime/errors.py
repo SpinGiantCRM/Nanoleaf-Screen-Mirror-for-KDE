@@ -73,13 +73,21 @@ def translate_runtime_error(error: Exception) -> UserFacingError:
         )
 
     if "failed to open nanoleaf hid device" in normalized or "permission" in normalized:
+        if "device held by" in normalized or "another process may hold" in normalized:
+            guidance = (
+                "Another process has the USB strip open exclusively. Close Steam/Proton games, "
+                "Wine apps, or other LED tools, then run `fuser -v /dev/hidrawN` to confirm "
+                "the node is free. Reconnect the strip if the handle does not release."
+            )
+        else:
+            guidance = (
+                "Install the provided udev rule, reload udev, reconnect the device, "
+                "and confirm your user can access the HID node without sudo."
+            )
         return UserFacingError(
             kind="hid-permission",
             summary=message,
-            guidance=(
-                "Install the provided udev rule, reload udev, reconnect the device, "
-                "and confirm your user can access the HID node without sudo."
-            ),
+            guidance=guidance,
         )
 
     if "screen" in normalized and ("access denied" in normalized or "notauthorized" in normalized):

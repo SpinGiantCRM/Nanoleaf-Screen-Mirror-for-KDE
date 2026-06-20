@@ -151,8 +151,8 @@ class StyleProfile:
 
 
 STYLE_PROFILES = {
-    "reference": StyleProfile(1.0, 1.05, 0.0, 0.0032, 0.0024, 0.028, 0.010, 0.0, 1.00),
-    "natural": StyleProfile(1.0, 1.05, 0.0, 0.0032, 0.0024, 0.028, 0.010, 0.0, 1.00),
+    "reference": StyleProfile(1.0, 1.05, 0.0, 0.0032, 0.0024, 0.016, 0.006, 0.0, 1.00),
+    "natural": StyleProfile(1.0, 1.05, 0.0, 0.0032, 0.0024, 0.016, 0.006, 0.0, 1.00),
     "ambient": StyleProfile(1.0, 1.08, 0.0, 0.0028, 0.0028, 0.032, 0.012, 0.0, 1.08),
     "vivid": StyleProfile(1.10, 1.28, 0.07, 0.0018, 0.0018, 0.024, 0.010, 0.0, 1.04),
     "punchy": StyleProfile(1.20, 1.42, 0.05, 0.0018, 0.0018, 0.022, 0.010, 0.0, 1.06),
@@ -231,6 +231,59 @@ def oklch_to_rgb_u8(lum: np.ndarray, c: np.ndarray, h: np.ndarray) -> np.ndarray
     oklab = np.stack((lum, a, b), axis=-1)
     linear = _oklab_to_linear(oklab)
     return linear01_to_srgb_u8(linear)
+
+
+_NEAR_BLACK_OFF_LOW = 0.0
+_NEAR_BLACK_OFF_HIGH = 12.0
+_NEAR_BLACK_ACHRO_FULL_BELOW = 20.0
+_DARK_SAMPLE_STABILIZE_LOW = 0.008
+_DARK_SAMPLE_STABILIZE_HIGH = 0.025
+
+
+def stabilize_dark_zone_samples(colors: np.ndarray) -> np.ndarray:
+    rgb = np.asarray(colors, dtype=np.float32)
+    if rgb.size == 0:
+        return rgb
+    u8 = np.clip(np.rint(rgb), 0.0, 255.0).astype(np.uint8, copy=False)
+    linear = srgb_u8_to_linear01(u8)
+    y = np.clip(
+        (0.2126 * linear[:, 0]) + (0.7152 * linear[:, 1]) + (0.0722 * linear[:, 2]),
+        0.0,
+        1.0,
+    )
+    grey = (0.2126 * rgb[:, 0]) + (0.7152 * rgb[:, 1]) + (0.0722 * rgb[:, 2])
+    blend = 1.0 - _smoothstep(
+        np.full_like(y, _DARK_SAMPLE_STABILIZE_LOW),
+        np.full_like(y, _DARK_SAMPLE_STABILIZE_HIGH),
+        y,
+    )
+    neutral = np.stack((grey, grey, grey), axis=1)
+    return (rgb * (1.0 - blend[:, None])) + (neutral * blend[:, None])
+
+
+def apply_dark_zone_output(colors: np.ndarray) -> np.ndarray:
+    rgb = np.asarray(colors, dtype=np.float32)
+    if rgb.size == 0:
+        return rgb
+    peak = np.max(rgb, axis=1)
+    grey = (0.2126 * rgb[:, 0]) + (0.7152 * rgb[:, 1]) + (0.0722 * rgb[:, 2])
+    achro_blend = 1.0 - _smoothstep(
+        np.full_like(peak, 12.0),
+        np.full_like(peak, _NEAR_BLACK_ACHRO_FULL_BELOW),
+        peak,
+    )
+    neutral = np.stack((grey, grey, grey), axis=1)
+    out = (rgb * (1.0 - achro_blend[:, None])) + (neutral * achro_blend[:, None])
+    off_gate = _smoothstep(
+        np.full_like(peak, _NEAR_BLACK_OFF_LOW),
+        np.full_like(peak, _NEAR_BLACK_OFF_HIGH),
+        peak,
+    )
+    return out * off_gate[:, None]
+
+
+def apply_near_black_zone_output(colors: np.ndarray) -> np.ndarray:
+    return apply_dark_zone_output(colors)
 
 
 def apply_color_style_mapping_with_diagnostics(
@@ -330,7 +383,11 @@ def apply_led_calibration(colors: np.ndarray, calibration: LedCalibration) -> np
 
     cutoff = np.clip(float(calibration.black_luminance_cutoff), 0.0, 0.03)
     knee = np.clip(float(calibration.black_luminance_knee), 0.0005, 0.03)
-    if cutoff > 0.0:
+    zone_peak = (
+        np.max(out, axis=1) if out.ndim == 2 and out.shape[0] else np.asarray([], dtype=np.float32)
+    )
+    skip_near_black_gate = zone_peak.size > 0 and float(np.max(zone_peak)) < 20.0
+    if cutoff > 0.0 and not skip_near_black_gate:
         out_linear = srgb_u8_to_linear01(
             np.clip(np.rint(out), 0.0, 255.0).astype(np.uint8, copy=False)
         )

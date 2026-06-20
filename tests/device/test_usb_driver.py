@@ -432,6 +432,33 @@ def test_send_frame_with_timing_reports_hid_report_breakdown() -> None:
     assert timing["write_read_calls"] == 1
 
 
+def test_prefer_write_only_uses_drain_after_single_report_probe() -> None:
+    transport = FakeTransport(
+        [
+            _rsp(0x0C, b"\x00NL82K2"),
+            _rsp(0x03, b"\x00\x08"),
+            _rsp(0x06, b"\x00\x01"),
+            _rsp(0x08, b"\x00\x64"),
+            _rsp(0x02, b"\x00"),
+        ]
+    )
+    driver = NanoleafUSBDriver(
+        ids=NanoleafUSBIds(0x37FA, 0x8202),
+        transport=transport,
+        configured_zone_count=48,
+        prefer_write_only_live_send=True,
+    )
+    driver.initialize()
+
+    timing = driver.send_frame_with_timing([(0, 0, 0)] * 48)
+
+    assert timing["reports_per_frame"] == 1
+    assert timing["live_send_policy"] == "nonblocking_drain"
+    assert timing["response_wait_skipped"] is True
+    assert timing["probed_report_size"] == 256
+    assert float(timing.get("flush_or_wait_ms") or 0.0) > 0.0
+
+
 def test_send_frame_falls_back_to_response_required_when_live_write_fails_before_write() -> None:
     transport = PreWriteFailingTransport(
         [

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Sequence
+from dataclasses import dataclass
 from functools import lru_cache
 
 import numpy as np
@@ -324,6 +325,106 @@ def zone_colors(
     return [tuple(int(c) for c in row) for row in zone_arr]
 
 
+@dataclass(frozen=True)
+class ZoneSamplingMeta:
+    effective_sample_rects: tuple[ZoneRect, ...]
+    per_zone_effective_mode: tuple[str, ...]
+    per_zone_mixed_fallback: tuple[bool, ...]
+
+
+def detect_zone_patch_mixed_content(patch: np.ndarray) -> bool:
+    if patch.size == 0:
+        return False
+    patch_f = np.asarray(patch, dtype=np.float32)
+    if patch_f.ndim != 3 or patch_f.shape[2] != 3:
+        return False
+    max_c = patch_f.max(axis=2)
+    min_c = patch_f.min(axis=2)
+    lum = (0.2126 * patch_f[:, :, 0]) + (0.7152 * patch_f[:, :, 1]) + (0.0722 * patch_f[:, :, 2])
+    luma_std = float(np.std(lum))
+    if luma_std > 20.0:
+        return True
+    sat = (max_c - min_c) / np.clip(max_c, 1.0, None)
+    zone_lum = float(np.mean(lum))
+    zone_lum_norm = np.clip(zone_lum / 255.0, 0.0, 1.0)
+    required_delta = 10.0 + (55.0 * zone_lum_norm)
+    prominence = np.clip((lum - zone_lum) / required_delta, 0.0, 1.0)
+    prominence_coverage = float(np.mean(prominence > 0.5))
+    max_sat = float(np.max(sat))
+    if prominence_coverage < 0.15 and max_sat > 0.25 and luma_std > 8.0:
+        return True
+    sat_mask = sat > 0.2
+    if int(np.count_nonzero(sat_mask)) < 8:
+        return False
+    sat_pixels = patch_f[sat_mask]
+    r = sat_pixels[:, 0]
+    g = sat_pixels[:, 1]
+    b = sat_pixels[:, 2]
+    mx = np.maximum(np.maximum(r, g), b)
+    mn = np.minimum(np.minimum(r, g), b)
+    dv = mx - mn
+    valid = dv > 1.0
+    if not bool(valid.any()):
+        return False
+    rv = r[valid]
+    gv = g[valid]
+    bv = b[valid]
+    dvv = dv[valid]
+    mxv = mx[valid]
+    hue_valid = np.zeros_like(mxv, dtype=np.float32)
+    red_dominant = mxv == rv
+    green_dominant = (mxv == gv) & ~red_dominant
+    blue_dominant = ~red_dominant & ~green_dominant
+    if bool(red_dominant.any()):
+        hue_valid[red_dominant] = ((gv[red_dominant] - bv[red_dominant]) / dvv[red_dominant]) % 6.0
+    if bool(green_dominant.any()):
+        hue_valid[green_dominant] = (
+            2.0 + ((bv[green_dominant] - rv[green_dominant]) / dvv[green_dominant]) % 6.0
+        )
+    if bool(blue_dominant.any()):
+        hue_valid[blue_dominant] = (
+            4.0 + ((rv[blue_dominant] - gv[blue_dominant]) / dvv[blue_dominant]) % 6.0
+        )
+    hue_valid *= np.pi / 3.0
+    sin_h = np.sin(hue_valid)
+    cos_h = np.cos(hue_valid)
+    mean_sin = float(np.mean(sin_h))
+    mean_cos = float(np.mean(cos_h))
+    hue_spread = float(np.sqrt((mean_sin * mean_sin) + (mean_cos * mean_cos)))
+    return hue_spread < 0.85
+
+
+def _dark_biased_patch_mean(patch_u8: np.ndarray) -> np.ndarray:
+    patch_f = np.asarray(patch_u8, dtype=np.float32)
+    if patch_f.size == 0:
+        return np.zeros(3, dtype=np.uint8)
+    flat_rgb = patch_f.reshape(-1, 3)
+    flat_lum = (0.2126 * flat_rgb[:, 0]) + (0.7152 * flat_rgb[:, 1]) + (0.0722 * flat_rgb[:, 2])
+    median_lum = float(np.median(flat_lum))
+    if median_lum >= 25.0:
+        return np.clip(np.rint(flat_rgb.mean(axis=0)), 0.0, 255.0).astype(np.uint8)
+    weights = 255.0 - flat_lum
+    weight_sum = float(np.sum(weights))
+    if weight_sum <= 1e-6:
+        return np.clip(np.rint(flat_rgb.mean(axis=0)), 0.0, 255.0).astype(np.uint8)
+    weighted = np.sum(flat_rgb * weights[:, None], axis=0) / weight_sum
+    return np.clip(np.rint(weighted), 0.0, 255.0).astype(np.uint8)
+
+
+def _sampling_meta_from_plan(
+    *,
+    zones: Sequence[ZoneRect],
+    per_zone_modes: list[str],
+    per_zone_mixed: list[bool],
+) -> ZoneSamplingMeta:
+    rects = tuple((int(z[0]), int(z[1]), int(z[2]), int(z[3])) for z in zones)
+    return ZoneSamplingMeta(
+        effective_sample_rects=rects,
+        per_zone_effective_mode=tuple(per_zone_modes),
+        per_zone_mixed_fallback=tuple(per_zone_mixed),
+    )
+
+
 def zone_colors_array(
     image: np.ndarray,
     zones: Sequence[ZoneRect],
@@ -334,7 +435,8 @@ def zone_colors_array(
     edge_locality: str = "balanced",
     engine: str = "auto",
     sampling_mode: str = "area_average",
-) -> np.ndarray:
+    return_meta: bool = False,
+) -> np.ndarray | tuple[np.ndarray, ZoneSamplingMeta]:
     """
     Given a list of screen regions and an image, return average RGB per zone.
 
@@ -346,7 +448,10 @@ def zone_colors_array(
     orig_h, orig_w = h, w
 
     if not zones:
-        return np.zeros((0, 3), dtype=np.uint8)
+        empty = np.zeros((0, 3), dtype=np.uint8)
+        if return_meta:
+            return empty, ZoneSamplingMeta((), (), ())
+        return empty
 
     step = max(1, int(sample_step))
     normalized_sampling_mode = str(sampling_mode or "area_average").strip().lower()
@@ -367,6 +472,9 @@ def zone_colors_array(
     weighted_indices = {plan[0] for plan in weight_plans}
 
     means = np.zeros((len(zones), 3), dtype=np.uint8)
+    mode_name = normalized_sampling_mode
+    per_zone_modes: list[str] = [mode_name] * len(zones)
+    per_zone_mixed: list[bool] = [False] * len(zones)
     if valid.any():
         normalized_engine = str(engine or "auto").strip().lower()
         selected_engine = normalized_engine
@@ -427,23 +535,46 @@ def zone_colors_array(
 
         if normalized_sampling_mode in {"vivid_weighted", "peak_luma"}:
             linear_img = srgb_u8_to_linear01(img)
+            per_zone_modes: list[str] = [normalized_sampling_mode] * len(zones)
+            per_zone_mixed: list[bool] = [False] * len(zones)
             for idx in range(len(zones)):
                 if not valid[idx]:
                     continue
+                patch_u8 = img[y0[idx] : y1[idx], x0[idx] : x1[idx]]
                 patch_linear = linear_img[y0[idx] : y1[idx], x0[idx] : x1[idx]]
                 if patch_linear.size == 0:
+                    continue
+                if detect_zone_patch_mixed_content(patch_u8):
+                    per_zone_mixed[idx] = True
+                    per_zone_modes[idx] = "area_average"
+                    means[idx] = _dark_biased_patch_mean(patch_u8)
                     continue
                 if normalized_sampling_mode == "peak_luma":
                     means[idx] = _peak_luma_zone_mean(patch_linear)
                 else:
                     means[idx] = _vivid_weighted_zone_mean(patch_linear)
+    else:
+        per_zone_modes = [mode_name] * len(zones)
+        per_zone_mixed = [False] * len(zones)
 
     normalized_mode = str(mode).strip().lower()
     if normalized_mode == "balanced":
+        if return_meta:
+            return means, _sampling_meta_from_plan(
+                zones=zones,
+                per_zone_modes=per_zone_modes,
+                per_zone_mixed=per_zone_mixed,
+            )
         return means
 
     profile = _COLOR_MODE_PROFILES.get(normalized_mode)
     if profile is None:
+        if return_meta:
+            return means, _sampling_meta_from_plan(
+                zones=zones,
+                per_zone_modes=per_zone_modes,
+                per_zone_mixed=per_zone_mixed,
+            )
         return means
 
     out = means.astype(np.float32)
@@ -509,7 +640,40 @@ def zone_colors_array(
             candidate = ((1.0 - profile["blend"]) * prev[idx]) + (profile["blend"] * candidate)
         out[idx] = np.clip(candidate, 0.0, 255.0)
 
-    return np.clip(np.rint(out), 0.0, 255.0).astype(np.uint8)
+    result = np.clip(np.rint(out), 0.0, 255.0).astype(np.uint8)
+    if return_meta:
+        return result, _sampling_meta_from_plan(
+            zones=zones,
+            per_zone_modes=per_zone_modes,
+            per_zone_mixed=per_zone_mixed,
+        )
+    return result
+
+
+def zone_colors_array_with_meta(
+    image: np.ndarray,
+    zones: Sequence[ZoneRect],
+    *,
+    sample_step: int = 1,
+    mode: str = "balanced",
+    previous_zone_colors: Sequence[RGBTuple] | None = None,
+    edge_locality: str = "balanced",
+    engine: str = "auto",
+    sampling_mode: str = "area_average",
+) -> tuple[np.ndarray, ZoneSamplingMeta]:
+    out = zone_colors_array(
+        image,
+        zones,
+        sample_step=sample_step,
+        mode=mode,
+        previous_zone_colors=previous_zone_colors,
+        edge_locality=edge_locality,
+        engine=engine,
+        sampling_mode=sampling_mode,
+        return_meta=True,
+    )
+    assert isinstance(out, tuple)
+    return out
 
 
 def _peak_luma_zone_mean(patch_linear: np.ndarray, *, top_fraction: float = 0.25) -> np.ndarray:

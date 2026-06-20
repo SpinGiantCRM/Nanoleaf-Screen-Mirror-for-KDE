@@ -116,6 +116,20 @@ def _plasma_sdr_white_nits() -> float | None:
         return None
 
 
+def resolve_compositor_hdr_runtime(
+    *,
+    compositor_hdr_mode: bool,
+    sdr_boost_nits: float,
+) -> tuple[bool, float]:
+    if compositor_hdr_mode:
+        return True, float(sdr_boost_nits)
+    hdr_enabled = _plasma_hdr_enabled()
+    plasma_sdr_nits = _plasma_sdr_white_nits()
+    if hdr_enabled is True and plasma_sdr_nits is not None and float(plasma_sdr_nits) > 80.0:
+        return True, float(plasma_sdr_nits)
+    return False, float(sdr_boost_nits)
+
+
 def resolve_display_preset(
     *,
     display_preset: str,

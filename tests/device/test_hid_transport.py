@@ -201,7 +201,7 @@ def test_write_with_nonblocking_drain_respects_wall_clock_budget() -> None:
     assert timing["flush_or_wait_ms"] < 80.0
 
 
-def test_write_with_nonblocking_drain_phase1_not_capped_by_phase2_budget() -> None:
+def test_write_with_nonblocking_drain_phase1_uses_one_ms_poll_loop() -> None:
     class _LateAckHandle(FakeHIDHandle):
         def __init__(self) -> None:
             super().__init__(reads=[])
@@ -209,8 +209,8 @@ def test_write_with_nonblocking_drain_phase1_not_capped_by_phase2_budget() -> No
 
         def read(self, _size: int, timeout_ms: int):
             self._calls += 1
-            if self._calls == 1:
-                assert timeout_ms >= 20
+            assert timeout_ms == 1
+            if self._calls >= 20:
                 return list(b"\x00\x83\x00\x03\x00\x00\x0a" + b"\x00" * 58)
             return []
 
@@ -222,9 +222,11 @@ def test_write_with_nonblocking_drain_phase1_not_capped_by_phase2_budget() -> No
         b"\x03\x00\x00",
         ack_timeout_ms=25,
         drain_budget_ms=1,
+        max_drain_reads=1,
     )
 
     assert timing["read_calls"] == 1
+    assert float(timing.get("ack_arrival_ms", 0.0)) >= 0.0
 
 
 def test_transceive_times_out_on_empty_read() -> None:

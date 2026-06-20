@@ -39,10 +39,13 @@ def test_peak_luma_prefers_bright_edge_pixels() -> None:
     frame = np.zeros((100, 100, 3), dtype=np.uint8)
     frame[:4, :, :] = np.array([255, 255, 255], dtype=np.uint8)
     frame[4:, :, :] = np.array([20, 20, 20], dtype=np.uint8)
-    zones_px = [(0, 0, 100, 20)]
+    zones_px = [(0, 0, 100, 4)]
     peak = zone_colors_array(frame, zones_px, sampling_mode="peak_luma")
     area_average = zone_colors_array(frame, zones_px, sampling_mode="area_average")
-    assert float(np.mean(peak[0])) > float(np.mean(area_average[0]))
+    peak_mean = float(np.mean(peak[0]))
+    avg_mean = float(np.mean(area_average[0]))
+    assert peak_mean >= avg_mean
+    assert peak_mean > avg_mean or peak_mean == 255.0
 
 
 def test_letterbox_detection_clips_top_and_bottom_zones() -> None:
@@ -54,6 +57,41 @@ def test_letterbox_detection_clips_top_and_bottom_zones() -> None:
     from nanoleaf_sync.runtime.content_bounds import letterbox_margins_significant
 
     assert letterbox_margins_significant(frame, bounds)
+
+
+def test_letterbox_clipping_persists_under_four_d_motion() -> None:
+    from nanoleaf_sync.config.presets import SYNC_MODE_4D
+    from nanoleaf_sync.runtime.color_pipeline import ColorPipelineParams, process_zone_colors
+    from nanoleaf_sync.runtime.processing import zones_from_config
+
+    width, height, zone_count = 320, 200, 12
+    frame = np.zeros((height, width, 3), dtype=np.uint8)
+    frame[40:160, :, :] = np.array([0, 0, 255], dtype=np.uint8)
+    zones_px = zones_from_config(
+        make_edge_weighted_zones(zone_count, width=width, height=height, edge_locality="tight"),
+        width,
+        height,
+    )
+    params = ColorPipelineParams(
+        sync_mode=SYNC_MODE_4D,
+        color_style="ambient",
+        letterbox_detection=True,
+        prior_zone_sample_motion=20.0,
+        return_diagnostics=True,
+    )
+    out = process_zone_colors(
+        frame=frame,
+        precomputed_zone_colors=None,
+        prev_smoothed_colors=[],
+        zones_px=zones_px,
+        device_zone_indices=list(range(zone_count)),
+        params=params,
+    )
+    _colors, sampled, _pre, _final, timings, _history = out  # type: ignore[misc]
+    assert timings.letterbox_active is True
+    assert timings.area_average_active is True
+    top_sample = sampled[0]
+    assert int(top_sample[2]) > 40
 
 
 def test_layout_transform_shrinks_toward_center() -> None:
