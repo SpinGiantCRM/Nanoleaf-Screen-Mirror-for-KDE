@@ -144,6 +144,14 @@ class SPSCRingBuffer(Generic[T]):
         with self._lock:
             self._dropped_count = 0
 
+    def clear(self) -> int:
+        with self._lock:
+            cleared = len(self._deque)
+            self._deque.clear()
+            self._last_pop_coalesced = 0
+            self._not_full.notify_all()
+            return cleared
+
     @property
     def last_pop_coalesced(self) -> int:
         return self._last_pop_coalesced

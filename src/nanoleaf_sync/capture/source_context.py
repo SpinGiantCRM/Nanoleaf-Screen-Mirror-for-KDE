@@ -46,10 +46,7 @@ def build_kwin_display_source_context(
     hdr_diag = getattr(backend, "last_hdr_diagnostics", None) or {}
     metadata = resolve_capture_metadata(
         backend_metadata=hdr_diag if isinstance(hdr_diag, dict) else None,
-        kwin_display_referred=bool(
-            isinstance(hdr_diag, dict)
-            and str(hdr_diag.get("source", "")).strip().lower() == "kwin display-referred"
-        ),
+        kwin_display_referred=True,
     )
     if monitor_id:
         source_confidence: SourceConfidence = "explicit"

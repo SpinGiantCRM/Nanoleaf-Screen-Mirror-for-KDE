@@ -808,7 +808,10 @@ class SettingsDialog:
                 self.reverse_checkbox.setToolTip(
                     "Flip strip direction if the mapping appears mirrored."
                 )
-                self.display_preset_combo.setToolTip("Select SDR, HDR, or Auto display behavior.")
+                self.display_preset_combo.setToolTip(
+                    "Select SDR, HDR, or Auto display behavior. "
+                    "Changing this while mirroring may need a restart for full effect."
+                )
                 self.motion_preset_combo.setToolTip(
                     "Calm: smoother fades for video and desktop. "
                     "Responsive: adaptive default for games and general use. "
@@ -859,7 +862,8 @@ class SettingsDialog:
                     "balanced zone sampling, tight edge locality, and predictive colour sync."
                 )
                 self.compositor_hdr_mode_checkbox.setToolTip(
-                    "Enable compensation when KDE Plasma is running SDR content on HDR."
+                    "Enable compensation when KDE Plasma is running SDR content on HDR. "
+                    "Restart mirroring after changing for full effect."
                 )
                 self.sdr_boost_nits_slider.setToolTip(
                     "Plasma SDR white reference in nits when compositor HDR mode is enabled."

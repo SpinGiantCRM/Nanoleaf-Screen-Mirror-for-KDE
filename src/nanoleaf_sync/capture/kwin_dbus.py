@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import logging
 import os
 import sys
@@ -85,49 +84,12 @@ class _ScreenShot2Payload:
 
 
 def _parse_screenshot2_color_metadata(results: dict[str, Any]) -> dict[str, object] | None:
-    transfer_raw = (
-        results.get("transferFunction") or results.get("transfer") or results.get("colorTransfer")
-    )
-    primaries_raw = (
-        results.get("colorSpace") or results.get("primaries") or results.get("colorPrimaries")
-    )
-    max_nits_raw = (
-        results.get("maxLuminance")
-        or results.get("max_nits")
-        or results.get("masteringDisplayMaxLuminance")
-    )
-    if transfer_raw is None and primaries_raw is None and max_nits_raw is None:
-        return None
+    """Reserved for future KWin ScreenShot2 colour metadata.
 
-    transfer_map = {
-        "srgb": "srgb",
-        "bt709": "srgb",
-        "pq": "pq",
-        "st2084": "pq",
-        "perceptualquantizer": "pq",
-        "hlg": "hlg",
-        "linear": "linear",
-    }
-    primaries_map = {
-        "srgb": "bt709",
-        "bt709": "bt709",
-        "rec709": "bt709",
-        "bt2020": "bt2020",
-        "rec2020": "bt2020",
-        "bt.2020": "bt2020",
-    }
-
-    metadata: dict[str, object] = {"source": "kwin screenshot2 metadata"}
-    if transfer_raw is not None:
-        normalized_transfer = str(transfer_raw).strip().lower().replace(" ", "")
-        metadata["transfer"] = transfer_map.get(normalized_transfer, str(transfer_raw))
-    if primaries_raw is not None:
-        normalized_primaries = str(primaries_raw).strip().lower().replace(" ", "")
-        metadata["primaries"] = primaries_map.get(normalized_primaries, str(primaries_raw))
-    if max_nits_raw is not None:
-        with contextlib.suppress(TypeError, ValueError):
-            metadata["max_nits"] = float(max_nits_raw)
-    return metadata
+    Current Plasma ScreenShot2 replies do not include transfer/primaries/nits fields.
+    """
+    _ = results
+    return None
 
 
 class KWinDBusScreenshotCapture:
@@ -221,14 +183,13 @@ class KWinDBusScreenshotCapture:
         return frame
 
     def _convert_if_needed(self, frame: np.ndarray) -> np.ndarray:
-        backend_meta = self._last_screenshot2_color_metadata
         user_meta = resolve_capture_metadata(
-            backend_metadata=backend_meta,
+            backend_metadata=None,
             user_transfer=self._hdr_defaults.transfer,
             user_primaries=self._hdr_defaults.primaries,
             user_max_nits=float(self._hdr_defaults.max_nits),
             display_preset="hdr",
-            kwin_display_referred=backend_meta is None,
+            kwin_display_referred=True,
         )
         meta = user_meta.to_hdr_metadata()
         self.last_hdr_diagnostics = {
@@ -244,6 +205,7 @@ class KWinDBusScreenshotCapture:
             "hdr_max_nits": float(meta.max_nits),
             "assumption": user_meta.assumption,
             "skip_display_gamut_adaptation": user_meta.skip_display_gamut_adaptation,
+            "tone_mapping_applied": True,
         }
         if frame.dtype == np.uint8 and meta.transfer == "srgb" and meta.primaries == "bt709":
             return frame

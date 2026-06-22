@@ -112,6 +112,8 @@ class LiveDiagnosticsDialog(QDialog):
             ("Process buffer drops", "_pipe_proc_drops"),
             ("Coalesced sends", "_pipe_coalesced"),
             ("Frame staleness (ms)", "_pipe_staleness"),
+            ("HID send policy", "_pipe_hid_policy"),
+            ("Stale output drop rate (/s)", "_pipe_stale_drop_rate"),
             ("SDR boost undo", "_pipe_sdr_boost"),
             ("Lifecycle state", "_pipe_lifecycle"),
             ("Priority mode", "_pipe_priority"),
@@ -305,6 +307,11 @@ class LiveDiagnosticsDialog(QDialog):
         self._pipe_labels["_pipe_coalesced"].setText(str(coalesced))
         staleness = float(s.get("latest_staleness_ms", 0.0) or 0.0)
         self._pipe_labels["_pipe_staleness"].setText(f"{staleness:.1f}")
+        self._pipe_labels["_pipe_hid_policy"].setText(
+            str(s.get("hid_live_send_policy") or "\u2014")
+        )
+        stale_rate = float(s.get("stale_output_drop_rate_per_second", 0.0) or 0.0)
+        self._pipe_labels["_pipe_stale_drop_rate"].setText(f"{stale_rate:.2f}")
         sdr_boost = "on" if bool(s.get("sdr_boost_compensation_enabled", False)) else "off"
         self._pipe_labels["_pipe_sdr_boost"].setText(sdr_boost)
         self._pipe_labels["_pipe_lifecycle"].setText(str(s.get("lifecycle_state") or "\u2014"))

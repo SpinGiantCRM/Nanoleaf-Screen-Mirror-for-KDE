@@ -25,6 +25,7 @@ from nanoleaf_sync.device.protocol import (
 )
 from nanoleaf_sync.device.send_policy import (
     LiveSendPolicy,
+    apply_periodic_ack_check,
     degrade_policy_on_missed_acks,
     select_live_send_policy,
 )
@@ -54,7 +55,7 @@ class NanoleafUSBDriver(DeviceDriver):
         self.ids = ids
         self.report_size = int(report_size)
         self._transport = transport or HIDTransport(
-            ids=ids, report_size=report_size, read_timeout_ms=50
+            ids=ids, report_size=report_size, read_timeout_ms=100
         )
         self._protocol = protocol or NanoleafTLVProtocol()
         self._min_nonzero_brightness = max(1, min(255, int(min_nonzero_brightness)))
@@ -84,6 +85,7 @@ class NanoleafUSBDriver(DeviceDriver):
         self._live_target_fps: int = 60
         self._probed_report_size: int | None = None
         self._live_frames_sent_after_open: int = 0
+        self._total_live_frames_sent: int = 0
         self.ack_expected_count: int = 0
         self.ack_received_count: int = 0
         self.ack_missed_count: int = 0
@@ -362,6 +364,10 @@ class NanoleafUSBDriver(DeviceDriver):
             first_frame_after_reopen=self._live_frames_sent_after_open <= 0,
             probed_report_size=self._probed_report_size,
         )
+        policy_decision = apply_periodic_ack_check(
+            policy_decision,
+            live_frame_index=self._total_live_frames_sent + 1,
+        )
         missed_rate = float(self.ack_missed_count) / float(max(1, self.ack_expected_count))
         policy_decision = degrade_policy_on_missed_acks(
             policy_decision,
@@ -532,6 +538,7 @@ class NanoleafUSBDriver(DeviceDriver):
                 self.ack_missed_count += 1
                 self.last_ack_status = "missed"
             self._live_frames_sent_after_open += 1
+            self._total_live_frames_sent += 1
             timing["ack_expected_count"] = self.ack_expected_count
             timing["ack_received_count"] = self.ack_received_count
             timing["ack_missed_count"] = self.ack_missed_count

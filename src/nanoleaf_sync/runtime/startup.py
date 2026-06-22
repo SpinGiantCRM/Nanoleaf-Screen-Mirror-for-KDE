@@ -145,6 +145,8 @@ def reinitialize_backends(
     state.is_reinitializing = True
     state.reinit_pause.set()
     invalidate_plasma_hdr_cache()
+    state.clear_smoothing_history()
+    state.smoothing_dimension_signature = None
     # Brief grace period to let workers that are mid-operation finish
     # before we tear down the backends they hold references to.
     time.sleep(0.05)

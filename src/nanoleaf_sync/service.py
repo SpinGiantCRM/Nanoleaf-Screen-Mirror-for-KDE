@@ -386,7 +386,26 @@ class NanoleafSyncService:
             getattr(self._capture, "last_hdr_diagnostics", {}) if self._capture is not None else {}
         )
         tone_mapping_applied = bool(capture_hdr.get("tone_mapping_applied", False))
-        metadata_source = str(capture_hdr.get("metadata_source", "unknown"))
+        effective_backend = str(
+            status.get("effective_capture_backend") or capture_backend_name or ""
+        )
+        is_kwin_backend = effective_backend == "kwin-dbus"
+        metadata_source = str(
+            capture_hdr.get("metadata_source")
+            or capture_hdr.get("source")
+            or ("kwin display-referred" if is_kwin_backend else "unknown")
+        )
+        display_preset = str(getattr(self.config, "display_preset", "hdr")).strip().lower()
+        hdr_notes: list[str] = []
+        hdr_warnings: list[str] = []
+        if is_kwin_backend and display_preset == "hdr":
+            hdr_notes.append(
+                "KWin ScreenShot2 captures are display-referred SDR; using safe sRGB defaults."
+            )
+        elif display_preset == "hdr" and metadata_source == "unknown":
+            hdr_warnings.append(
+                "HDR preset active but capture metadata unavailable; using user preset assumptions."
+            )
         status["hdr_colour_path"] = {
             "display_preset": str(getattr(self.config, "display_preset", "hdr")),
             "compositor_hdr_mode": bool(getattr(self.config, "compositor_hdr_mode", False)),
@@ -421,13 +440,26 @@ class NanoleafSyncService:
             )
             and not bool(self._runtime.sdr_boost_compensation_enabled),
             "assumption": str(capture_hdr.get("assumption", "unknown")),
-            "warnings": [
-                "HDR preset active but capture metadata unavailable; using user preset assumptions."
-            ]
-            if str(getattr(self.config, "display_preset", "hdr")).strip().lower() == "hdr"
-            and metadata_source == "unknown"
-            else [],
+            "notes": hdr_notes,
+            "warnings": hdr_warnings,
         }
+        status["hid_live_send_policy"] = str(
+            getattr(self._driver, "last_live_send_policy", "") or ""
+        )
+        status["stale_output_drop_rate_per_second"] = float(
+            self._runtime.stale_drop_rate_per_second()
+        )
+        if startup_state == "waiting_for_screen_selection":
+            if self._runtime.portal_selection_started_at is None:
+                self._runtime.portal_selection_started_at = time.perf_counter()
+            elapsed = max(
+                0.0,
+                time.perf_counter() - float(self._runtime.portal_selection_started_at),
+            )
+            status["portal_selection_elapsed_s"] = elapsed
+        else:
+            self._runtime.portal_selection_started_at = None
+            status["portal_selection_elapsed_s"] = 0.0
         if self._driver is not None:
             from nanoleaf_sync.device.transport_profiler import build_usb_transport_profile
 
@@ -677,20 +709,17 @@ class NanoleafSyncService:
         from nanoleaf_sync.config.normalize import ALLOWED_NANOLEAF_USB_IDS
 
         allowed_pids = ALLOWED_NANOLEAF_USB_IDS.get(int(ids.vid))
-        if not getattr(self.config, "allow_custom_device_ids", False) and (
-            not allowed_pids or int(ids.pid) not in allowed_pids
-        ):
-            logger.warning(
-                "Non-default USB device IDs without allow_custom_device_ids; "
-                "opening vid=0x%04x pid=0x%04x (normalization should clamp).",
-                int(ids.vid),
-                int(ids.pid),
-            )
-        elif getattr(self.config, "allow_custom_device_ids", False):
-            allowed_pids = ALLOWED_NANOLEAF_USB_IDS.get(int(ids.vid))
-            if not allowed_pids or int(ids.pid) not in allowed_pids:
+        if not allowed_pids or int(ids.pid) not in allowed_pids:
+            if getattr(self.config, "allow_custom_device_ids", False):
                 logger.warning(
                     "Opening custom USB device IDs vid=0x%04x pid=0x%04x",
+                    int(ids.vid),
+                    int(ids.pid),
+                )
+            else:
+                logger.warning(
+                    "Non-default USB device IDs without allow_custom_device_ids; "
+                    "opening vid=0x%04x pid=0x%04x (normalization should clamp).",
                     int(ids.vid),
                     int(ids.pid),
                 )

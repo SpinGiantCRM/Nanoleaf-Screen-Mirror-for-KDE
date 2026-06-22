@@ -258,14 +258,18 @@ def oklch_to_rgb_u8(lum: np.ndarray, c: np.ndarray, h: np.ndarray) -> np.ndarray
 _NEAR_BLACK_OFF_LOW = 4.0
 _NEAR_BLACK_OFF_HIGH = 16.0
 _NEAR_BLACK_ACHRO_FULL_BELOW = 20.0
-_DARK_SAMPLE_STABILIZE_LOW = 0.008
-_DARK_SAMPLE_STABILIZE_HIGH = 0.025
+_DARK_SAMPLE_STABILIZE_ON = 0.008
+_DARK_SAMPLE_STABILIZE_OFF = 0.025
 
 
-def stabilize_dark_zone_samples(colors: np.ndarray) -> np.ndarray:
+def stabilize_dark_zone_samples(
+    colors: np.ndarray,
+    *,
+    hold_mask: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
     rgb = np.asarray(colors, dtype=np.float32)
     if rgb.size == 0:
-        return rgb
+        return rgb, np.zeros(0, dtype=bool)
     u8 = np.clip(np.rint(rgb), 0.0, 255.0).astype(np.uint8, copy=False)
     linear = srgb_u8_to_linear01(u8)
     y = np.clip(
@@ -275,12 +279,18 @@ def stabilize_dark_zone_samples(colors: np.ndarray) -> np.ndarray:
     )
     grey_u8 = linear01_to_srgb_u8(y)
     neutral = np.stack((grey_u8, grey_u8, grey_u8), axis=1).astype(np.float32, copy=False)
-    blend = 1.0 - _smoothstep(
-        np.full_like(y, _DARK_SAMPLE_STABILIZE_LOW),
-        np.full_like(y, _DARK_SAMPLE_STABILIZE_HIGH),
-        y,
-    )
-    return (rgb * (1.0 - blend[:, None])) + (neutral * blend[:, None])
+    if hold_mask is None or hold_mask.shape[0] != y.shape[0]:
+        hold = y < _DARK_SAMPLE_STABILIZE_ON
+    else:
+        prev_hold = np.asarray(hold_mask, dtype=bool)
+        hold = np.where(
+            prev_hold,
+            y <= _DARK_SAMPLE_STABILIZE_OFF,
+            y < _DARK_SAMPLE_STABILIZE_ON,
+        )
+    blend = hold.astype(np.float32)[:, None]
+    stabilized = (rgb * (1.0 - blend)) + (neutral * blend)
+    return stabilized, hold
 
 
 def apply_output_quantization_hold(
@@ -288,12 +298,15 @@ def apply_output_quantization_hold(
     previous_sent: np.ndarray | None,
     *,
     threshold: float = 1.25,
+    effective_target_fps: float = 60.0,
 ) -> np.ndarray:
     rgb = np.asarray(colors, dtype=np.float32)
     if previous_sent is None or previous_sent.shape != rgb.shape:
         return rgb
+    fps = max(1.0, float(effective_target_fps))
+    scaled_threshold = max(float(threshold), 60.0 / fps)
     prev = np.asarray(previous_sent, dtype=np.float32)
-    hold = np.max(np.abs(rgb - prev), axis=1) < float(threshold)
+    hold = np.max(np.abs(rgb - prev), axis=1) < scaled_threshold
     if not hold.any():
         return rgb
     out = rgb.copy()

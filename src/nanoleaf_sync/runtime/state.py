@@ -113,6 +113,9 @@ class RuntimeState:
     capture_source_change_count: int = 0
     metadata_hysteresis_transitions: int = 0
     sampling_mode_dwell_remaining: int = 0
+    smoothing_dimension_signature: tuple[int, int] | None = None
+    dark_zone_stabilize_hold: list[bool] = field(default_factory=list)
+    portal_selection_started_at: float | None = None
 
     def _assert_locked(self) -> None:
         if not self._lock.locked():
@@ -193,6 +196,19 @@ class RuntimeState:
         self.capture_source_change_count = 0
         self.metadata_hysteresis_transitions = 0
         self.sampling_mode_dwell_remaining = 0
+        self.smoothing_dimension_signature = None
+        self.dark_zone_stabilize_hold = []
+        self.portal_selection_started_at = None
+
+    def clear_smoothing_history(self) -> None:
+        self.prev_smoothed_colors = []
+        self.prev_smooth_float_colors = []
+        self.prev_sent_colors = []
+        self.prev_sampled_zone_colors = []
+        self.prior_zone_sample_motion = 0.0
+        self.prior_area_average_mode = False
+        self.sampling_mode_dwell_remaining = 0
+        self.dark_zone_stabilize_hold = []
 
     def mark_calibration_incomplete(self, message: str) -> None:
         self.calibration_status = CALIBRATION_INCOMPLETE_STATUS

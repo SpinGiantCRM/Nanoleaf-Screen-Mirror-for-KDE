@@ -265,7 +265,11 @@ class XDGPortalCapture:
             handle_token=handle_token2,
         )
         if msg2.body[0] != 0:
-            self.portal_restore_token_state = "failed"  # nosec B105
+            if restore_token:
+                self._clear_restore_token()
+                self.portal_restore_token_state = "invalidated"  # nosec B105
+            else:
+                self.portal_restore_token_state = "failed"  # nosec B105
             raise XDGPortalError(f"SelectSources denied (response={msg2.body[0]}).")
         if restore_token and self.portal_restore_token_state == "submitted":  # nosec B105
             self.portal_restore_token_accepted = True
@@ -281,13 +285,21 @@ class XDGPortalCapture:
             handle_token=handle_token3,
         )
         if msg3.body[0] != 0:
-            self.portal_restore_token_state = "failed"  # nosec B105
+            if restore_token:
+                self._clear_restore_token()
+                self.portal_restore_token_state = "invalidated"  # nosec B105
+            else:
+                self.portal_restore_token_state = "failed"  # nosec B105
             raise XDGPortalError(f"Start denied (response={msg3.body[0]}).")
 
         results = msg3.body[1]
         streams = results.get("streams")
         if not streams:
-            self.portal_restore_token_state = "failed"  # nosec B105
+            if restore_token:
+                self._clear_restore_token()
+                self.portal_restore_token_state = "invalidated"  # nosec B105
+            else:
+                self.portal_restore_token_state = "failed"  # nosec B105
             raise XDGPortalError("Portal Start returned no streams.")
 
         new_restore = results.get("restore_token")
@@ -982,6 +994,16 @@ class XDGPortalCapture:
         from nanoleaf_sync.capture.source_context import parse_portal_stream_properties
 
         return parse_portal_stream_properties(stream_entry)
+
+    def _clear_restore_token(self) -> None:
+        try:
+            if self._token_path.exists():
+                self._token_path.unlink()
+        except OSError:
+            pass
+        self.portal_restore_token_loaded = False
+        self.portal_restore_token_accepted = False
+        self.portal_restore_token_refreshed = False
 
     def _load_restore_token(self) -> str | None:
         try:

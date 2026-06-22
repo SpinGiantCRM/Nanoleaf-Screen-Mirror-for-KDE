@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
+_PERIODIC_ACK_INTERVAL = 30
+
 
 class LiveSendPolicy(StrEnum):
     RESPONSE_REQUIRED = "response_required"
@@ -92,6 +94,27 @@ def select_live_send_policy(
         policy=LiveSendPolicy.RESPONSE_REQUIRED,
         response_wait_skipped=False,
         transition_reason="no optimized transport path available",
+        requires_frame_ack=True,
+    )
+
+
+def apply_periodic_ack_check(
+    decision: LiveSendPolicyDecision,
+    *,
+    live_frame_index: int,
+    interval: int = _PERIODIC_ACK_INTERVAL,
+) -> LiveSendPolicyDecision:
+    if decision.policy not in {
+        LiveSendPolicy.WRITE_ONLY,
+        LiveSendPolicy.NONBLOCKING_DRAIN,
+    }:
+        return decision
+    if live_frame_index <= 0 or live_frame_index % max(1, int(interval)) != 0:
+        return decision
+    return LiveSendPolicyDecision(
+        policy=LiveSendPolicy.RESPONSE_REQUIRED,
+        response_wait_skipped=False,
+        transition_reason=f"periodic ACK health check every {interval} frames",
         requires_frame_ack=True,
     )
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import logging
 import re
 import subprocess
@@ -24,11 +25,20 @@ class HIDWriteError(RuntimeError):
         write_status: str = "uncertain",
         completed_reports: int = 0,
         attempted_report_index: int | None = None,
+        device_disconnected: bool = False,
     ) -> None:
         super().__init__(message)
         self.write_status = write_status
         self.completed_reports = int(completed_reports)
         self.attempted_report_index = attempted_report_index
+        self.device_disconnected = bool(device_disconnected)
+
+
+def _is_enodev_error(exc: BaseException) -> bool:
+    if isinstance(exc, OSError) and getattr(exc, "errno", None) in {errno.ENODEV, 19}:
+        return True
+    message = str(exc).lower()
+    return "enodev" in message or "no such device" in message
 
 
 class HIDTransport:
@@ -428,11 +438,14 @@ class HIDTransport:
             try:
                 self._handle.write(report_buffer)
             except Exception as exc:
+                if _is_enodev_error(exc):
+                    self.close()
                 raise HIDWriteError(
                     "HID report write failed; device write progress is uncertain",
                     write_status="uncertain",
                     completed_reports=len(per_report_write_ms),
                     attempted_report_index=len(per_report_write_ms),
+                    device_disconnected=_is_enodev_error(exc),
                 ) from exc
             write_end = time.perf_counter()
             per_report_write_ms.append((write_end - write_start) * 1000.0)
@@ -467,9 +480,14 @@ class HIDTransport:
     def read(self) -> bytes:
         if self._handle is None:
             raise RuntimeError("HID transport not opened.")
-        data = self._handle.read(
-            self.report_size + (1 if self.use_report_id_prefix else 0), self.read_timeout_ms
-        )
+        try:
+            data = self._handle.read(
+                self.report_size + (1 if self.use_report_id_prefix else 0), self.read_timeout_ms
+            )
+        except Exception as exc:
+            if _is_enodev_error(exc):
+                self.close()
+            raise
         if not data:
             return b""
         raw = bytes(data)

@@ -307,7 +307,9 @@ def test_kwin_backend_applies_hdr_conversion_when_configured(monkeypatch) -> Non
     assert "display-referred" in str(backend.last_hdr_diagnostics.get("assumption", ""))
 
 
-def test_screenshot2_color_metadata_overrides_display_referred_assumption(monkeypatch) -> None:
+def test_screenshot2_ignores_speculative_metadata_and_stays_display_referred(
+    monkeypatch,
+) -> None:
     backend = KWinDBusScreenshotCapture(
         width=2,
         height=1,
@@ -335,10 +337,11 @@ def test_screenshot2_color_metadata_overrides_display_referred_assumption(monkey
 
     assert frame.dtype == np.uint8
     meta = captured["metadata"]
-    assert meta["transfer"] == "pq"
-    assert meta["primaries"] == "bt2020"
-    assert meta["source"] == "kwin screenshot2 metadata"
-    assert "display-referred" not in str(backend.last_hdr_diagnostics.get("assumption", ""))
+    assert meta["transfer"] == "srgb"
+    assert meta["primaries"] == "bt709"
+    assert meta["source"] == "kwin display-referred"
+    assert backend.last_hdr_diagnostics.get("tone_mapping_applied") is True
+    assert "display-referred" in str(backend.last_hdr_diagnostics.get("assumption", ""))
 
 
 def test_screenshot2_attempts_capture_screen_when_monitor_id_is_set() -> None:

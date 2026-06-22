@@ -81,6 +81,7 @@ class ColorPipelineParams:
     sampling_mode_dwell_remaining: int = 0
     prev_smooth_float_colors: Sequence[RGBTuple] = ()
     prev_sent_colors: Sequence[RGBTuple] = ()
+    dark_zone_stabilize_hold: Sequence[bool] = ()
 
 
 _SAMPLING_MODE_DWELL_FRAMES = 3
@@ -324,7 +325,12 @@ def process_zone_colors(
         )
 
     mapped = raw_colors[zone_indices].astype(np.float32, copy=False)
-    mapped = stabilize_dark_zone_samples(mapped)
+    hold_mask = (
+        np.asarray(params.dark_zone_stabilize_hold, dtype=bool)
+        if params.dark_zone_stabilize_hold
+        else None
+    )
+    mapped, dark_hold = stabilize_dark_zone_samples(mapped, hold_mask=hold_mask)
 
     sdr_undo_ratio: np.ndarray | None = None
     boost = effective_sdr_boost(sdr_boost_nits=params.sdr_boost_nits)
@@ -427,22 +433,28 @@ def process_zone_colors(
         predictive_lookahead_frames = float(pred_result.lookahead_frames)
         predictive_scene_cut_suppressed = bool(pred_result.scene_cut_suppressed)
 
-    smooth_float_history = [
-        tuple(float(c) for c in row) for row in mapped.astype(np.float32, copy=False).tolist()
-    ]
+    smooth_float_history = (
+        [tuple(float(c) for c in row) for row in mapped.astype(np.float32, copy=False).tolist()]
+        if params.return_diagnostics
+        else []
+    )
 
     prev_sent_arr: np.ndarray | None = None
     if prev_sent:
         n = min(len(prev_sent), mapped.shape[0])
         if n:
             prev_sent_arr = np.asarray(prev_sent[:n], dtype=np.float32)
-            mapped[:n] = apply_output_quantization_hold(mapped[:n], prev_sent_arr)
+            mapped[:n] = apply_output_quantization_hold(
+                mapped[:n],
+                prev_sent_arr,
+                effective_target_fps=float(params.effective_target_fps),
+            )
 
     np.clip(mapped, 0.0, 255.0, out=mapped)
     np.rint(mapped, out=mapped)
     out = mapped.astype(np.uint8, copy=False)
     out_list = [tuple(int(c) for c in row) for row in out.tolist()]
-    sent_history = [tuple(float(c) for c in row) for row in out_list]
+    sent_history = out_list if params.return_diagnostics else []
     output_prepare_done = time.perf_counter()
 
     if params.return_diagnostics:
@@ -472,6 +484,7 @@ def process_zone_colors(
             predictive_lookahead_frames=predictive_lookahead_frames,
             predictive_scene_cut_suppressed=predictive_scene_cut_suppressed,
             sampling_mode_dwell_remaining=int(sampling_dwell),
+            dark_zone_stabilize_hold=tuple(bool(v) for v in dark_hold.tolist()),
         )
         pre_led_arr = (
             pre_led_calibration.astype(np.uint8, copy=False)
@@ -569,6 +582,7 @@ def build_pipeline_params_from_config(
     prior_area_average_mode: bool = False,
     sampling_mode_dwell_remaining: int = 0,
     color_context: object | None = None,
+    dark_zone_stabilize_hold: Sequence[bool] = (),
 ) -> ColorPipelineParams:
     active_profile = resolve_active_led_profile(
         config,
@@ -617,4 +631,5 @@ def build_pipeline_params_from_config(
         prior_area_average_mode=bool(prior_area_average_mode),
         sampling_mode_dwell_remaining=int(sampling_mode_dwell_remaining),
         color_context=color_context,
+        dark_zone_stabilize_hold=tuple(bool(v) for v in dark_zone_stabilize_hold),
     )

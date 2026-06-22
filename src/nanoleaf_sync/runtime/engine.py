@@ -54,7 +54,6 @@ from nanoleaf_sync.runtime.blending import (
     apply_neighbor_blend,
 )
 from nanoleaf_sync.runtime.calibration_resolver import (
-    CALIBRATION_INCOMPLETE_MESSAGE,
     CALIBRATION_INCOMPLETE_STATUS,
     CALIBRATION_READY_STATUS,
     evaluate_device_zone_authority,
@@ -226,6 +225,7 @@ class FrameProcessingTimings:
     predictive_lookahead_frames: float = 0.0
     predictive_scene_cut_suppressed: bool = False
     sampling_mode_dwell_remaining: int = 0
+    dark_zone_stabilize_hold: tuple[bool, ...] = ()
 
 
 class PendingFrameSlot:
@@ -486,6 +486,24 @@ def _resolve_capture_frame_dimensions(
 
 
 _SHORT_BLACK_HOLD_MAX_FRAMES = 5
+_CAPTURE_CONTINUITY_GAP_S = 0.5
+
+
+def _clear_pipeline_temporal_state(
+    *,
+    state: RuntimeState,
+    capture_buf: SPSCRingBuffer[CapturePayload] | None = None,
+    process_buf: SPSCRingBuffer[ProcessedPayload] | None = None,
+    metadata_tracker: MetadataHysteresisTracker | None = None,
+) -> None:
+    state.clear_smoothing_history()
+    state.smoothing_dimension_signature = None
+    if capture_buf is not None:
+        capture_buf.clear()
+    if process_buf is not None:
+        process_buf.clear()
+    if metadata_tracker is not None:
+        metadata_tracker.reset()
 
 
 def process_frame(
@@ -741,6 +759,15 @@ def _run_loop_pipeline(
                     fallback_width=int(state.last_frame_width or 0),
                     fallback_height=int(state.last_frame_height or 0),
                 )
+                if last_capture_success_ts is not None:
+                    capture_gap_s = capture_end - last_capture_success_ts
+                    if capture_gap_s > _CAPTURE_CONTINUITY_GAP_S:
+                        _clear_pipeline_temporal_state(
+                            state=state,
+                            capture_buf=capture_buf,
+                            process_buf=process_buf,
+                            metadata_tracker=metadata_tracker,
+                        )
                 with metrics_lock:
                     frame_seq += 1
                     current_frame_seq = frame_seq
@@ -830,7 +857,6 @@ def _run_loop_pipeline(
                 if mean_brightness < 2.0:
                     state.consecutive_black_frames += 1
                     state.total_black_frames += 1
-                    # Log warning periodically (every ~1s at 60fps) instead of just once
                     if state.consecutive_black_frames % 60 == 0:
                         logger.warning(
                             "All-black frames: %d consecutive, "
@@ -841,7 +867,17 @@ def _run_loop_pipeline(
                             mean_brightness,
                         )
                 else:
+                    if state.consecutive_black_frames > _SHORT_BLACK_HOLD_MAX_FRAMES:
+                        state.clear_smoothing_history()
                     state.consecutive_black_frames = 0
+
+                dimension_signature = (int(img_w), int(img_h))
+                if (
+                    state.smoothing_dimension_signature is not None
+                    and state.smoothing_dimension_signature != dimension_signature
+                ):
+                    state.clear_smoothing_history()
+                state.smoothing_dimension_signature = dimension_signature
 
                 driver = get_driver()
                 if driver is None:
@@ -892,7 +928,12 @@ def _run_loop_pipeline(
                     state.calibration_status == CALIBRATION_INCOMPLETE_STATUS
                     or len(device_zone_indices) <= 0
                 ):
-                    message = state.calibration_status_message or CALIBRATION_INCOMPLETE_MESSAGE
+                    mapping_snapshot = resolve_calibration_mapping_from_config(
+                        config=config,
+                        source_zone_count=len(zones_px),
+                        detected_device_zone_count=detected_zones,
+                    )
+                    message = mapping_snapshot.status_message
                     if len(device_zone_indices) <= 0 and "empty" not in message.lower():
                         message = f"{message} Derived device-zone mapping is empty."
                     state.mark_calibration_incomplete(message)
@@ -942,11 +983,13 @@ def _run_loop_pipeline(
                     hid_output_work_ewma_ms=expected_hid_work_ms,
                 )
                 cap_backend = get_capture()
-                capture_display_referred = False
+                capture_backend_name = str(getattr(cap_backend, "name", "") or "")
+                capture_display_referred = capture_backend_name == "kwin-dbus"
                 skip_gamut = state.skip_display_gamut_adaptation
                 color_context = None
                 if frame_context is not None:
                     source = frame_context.source
+                    prev_metadata_transitions = int(metadata_tracker.transitions)
                     stabilized_meta = metadata_tracker.update(source.hdr_metadata)
                     if stabilized_meta is not source.hdr_metadata:
                         source = replace(source, hdr_metadata=stabilized_meta)
@@ -954,7 +997,9 @@ def _run_loop_pipeline(
                     color_context = color_context_from_display_source(source)
                     skip_gamut = bool(color_context.skip_display_gamut_adaptation)
                     state.skip_display_gamut_adaptation = skip_gamut
-                    capture_display_referred = bool(color_context.display_referred)
+                    capture_display_referred = capture_display_referred or bool(
+                        color_context.display_referred
+                    )
                     identity, identity_changed = source_identity_tracker.observe(
                         source,
                         hdr_metadata_confidence=color_context.confidence,
@@ -965,8 +1010,15 @@ def _run_loop_pipeline(
                         "change_count": source_identity_tracker.change_count,
                     }
                     state.metadata_hysteresis_transitions = int(metadata_tracker.transitions)
+                    if metadata_tracker.transitions > prev_metadata_transitions:
+                        state.clear_smoothing_history()
                     if identity_changed:
                         logger.warning("Capture source identity changed during mirroring session")
+                        _clear_pipeline_temporal_state(
+                            state=state,
+                            capture_buf=capture_buf,
+                            process_buf=process_buf,
+                        )
                     state.latest_frame_context = frame_context
                     state.latest_color_context = color_context
                     if state.first_frame_seen and not state.first_frame_sent:
@@ -977,15 +1029,14 @@ def _run_loop_pipeline(
                         state.skip_display_gamut_adaptation = bool(
                             hdr_diag.get("skip_display_gamut_adaptation", False)
                         )
-                        capture_display_referred = (
-                            str(hdr_diag.get("source", "")).strip().lower()
-                            == "kwin display-referred"
-                        )
-                        state.sdr_boost_compensation_enabled = (
-                            not bool(hdr_diag.get("tone_mapping_applied", False))
-                            and not capture_display_referred
+                        capture_display_referred = capture_display_referred or bool(
+                            hdr_diag.get("tone_mapping_applied", False)
                         )
                         skip_gamut = bool(state.skip_display_gamut_adaptation)
+                state.sdr_boost_compensation_enabled = (
+                    bool(getattr(config, "compositor_hdr_mode", False))
+                    and not capture_display_referred
+                )
                 pipeline_params = build_pipeline_params_from_config(
                     config,
                     return_diagnostics=True,
@@ -1002,6 +1053,7 @@ def _run_loop_pipeline(
                     prior_area_average_mode=bool(state.prior_area_average_mode),
                     sampling_mode_dwell_remaining=int(state.sampling_mode_dwell_remaining),
                     color_context=color_context,
+                    dark_zone_stabilize_hold=state.dark_zone_stabilize_hold,
                 )
                 light_spread = pipeline_params.light_spread
                 if state.flattening_mitigation_active:
@@ -1080,6 +1132,9 @@ def _run_loop_pipeline(
                 state.sampling_mode_dwell_remaining = int(
                     getattr(processing_timings, "sampling_mode_dwell_remaining", 0) or 0
                 )
+                dark_hold = getattr(processing_timings, "dark_zone_stabilize_hold", ())
+                if dark_hold:
+                    state.dark_zone_stabilize_hold = [bool(v) for v in dark_hold]
                 state.prior_zone_sample_motion = zone_sample_motion(
                     sampled_zone_colors,
                     state.prev_sampled_zone_colors,  # type: ignore[arg-type]
@@ -1698,6 +1753,12 @@ def _run_loop_pipeline(
                         close_backends=close_backends,
                         state=state,
                     )
+                    _clear_pipeline_temporal_state(
+                        state=state,
+                        capture_buf=capture_buf,
+                        process_buf=process_buf,
+                        metadata_tracker=metadata_tracker,
+                    )
                     with metrics_lock:
                         capture_worker_failures = 0
                         capture_worker_error_count = 0
@@ -1725,6 +1786,12 @@ def _run_loop_pipeline(
                         install_drivers=install_drivers,
                         close_backends=close_backends,
                         state=state,
+                    )
+                    _clear_pipeline_temporal_state(
+                        state=state,
+                        capture_buf=capture_buf,
+                        process_buf=process_buf,
+                        metadata_tracker=metadata_tracker,
                     )
                     state.consecutive_black_frames = 0
     for t in threads:
