@@ -341,25 +341,25 @@ def test_screenshot2_color_metadata_overrides_display_referred_assumption(monkey
     assert "display-referred" not in str(backend.last_hdr_diagnostics.get("assumption", ""))
 
 
-def test_screenshot2_attempts_capture_screen_before_capture_area_with_monitor_id() -> None:
+def test_screenshot2_attempts_capture_screen_when_monitor_id_is_set() -> None:
     backend = KWinDBusScreenshotCapture(width=480, height=270, monitor_id="DP-1")
 
     attempts = backend._screenshot2_method_attempts()
 
     assert attempts[0][0] == "CaptureScreen"
-    assert attempts[1][0] == "CaptureScreen"
-    assert len(attempts) == 2
+    assert attempts[0][2][0] == "DP-1"
+    assert len(attempts) == 1
     backend.close()
 
 
-def test_screenshot2_attempts_capture_area_when_monitor_id_is_not_set() -> None:
+def test_screenshot2_attempts_capture_screen_when_monitor_id_is_not_set() -> None:
     backend = KWinDBusScreenshotCapture(width=480, height=270, monitor_id=None)
 
     attempts = backend._screenshot2_method_attempts()
 
-    assert attempts[0][0] == "CaptureArea"
-    assert attempts[1][0] == "CaptureScreen"
-    assert len(attempts) == 2
+    assert attempts[0][0] == "CaptureScreen"
+    assert attempts[0][2][0] == ""
+    assert len(attempts) == 1
     backend.close()
 
 

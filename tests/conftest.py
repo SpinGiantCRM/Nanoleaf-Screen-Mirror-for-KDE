@@ -18,6 +18,19 @@ from nanoleaf_sync.capture.factory import (  # noqa: E402
     reset_capability_check_cache,
 )
 from nanoleaf_sync.capture.kmsgrab import reset_cached_drm_probe  # noqa: E402
+from nanoleaf_sync.runtime.color_processing import (  # noqa: E402
+    init_gamut_adaptation,
+    set_skip_display_gamut_adaptation,
+)
+
+
+@pytest.fixture(autouse=True)
+def _reset_color_processing_globals() -> None:
+    set_skip_display_gamut_adaptation(False)
+    init_gamut_adaptation("srgb")
+    yield
+    set_skip_display_gamut_adaptation(False)
+    init_gamut_adaptation("srgb")
 
 
 @pytest.fixture(autouse=True)

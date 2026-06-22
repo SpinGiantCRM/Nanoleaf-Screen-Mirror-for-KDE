@@ -28,6 +28,7 @@ class CaptureMetadata:
     capture_primaries_converted: bool = False
     skip_display_gamut_adaptation: bool = False
     assumption: str = ""
+    confidence: str = "unknown"
 
     def to_hdr_metadata(self) -> HDRMetadata:
         return HDRMetadata(
@@ -46,6 +47,7 @@ class CaptureMetadata:
             "capture_primaries_converted": self.capture_primaries_converted,
             "skip_display_gamut_adaptation": self.skip_display_gamut_adaptation,
             "assumption": self.assumption,
+            "confidence": self.confidence,
         }
 
 
@@ -261,6 +263,7 @@ def resolve_capture_metadata(
     assumption = preset_resolution.assumption
     capture_primaries_converted = False
     skip_display_gamut = False
+    confidence = "user" if preset_resolution.source == "user preset" else "fallback"
 
     if backend_metadata is not None:
         if isinstance(backend_metadata, HDRMetadata):
@@ -271,6 +274,7 @@ def resolve_capture_metadata(
             source = str(backend_metadata.get("source", "backend"))
         else:
             source = "backend"
+        confidence = "backend"
         transfer = _normalize_transfer(meta.transfer)
         primaries = _normalize_primaries(meta.primaries)
         max_nits = float(meta.max_nits)
@@ -283,9 +287,11 @@ def resolve_capture_metadata(
         source = "kwin display-referred"
         assumption = "KWin screenshot is display-referred sRGB; skipping HDR tone map at capture"
         skip_display_gamut = True
+        confidence = "heuristic"
 
     elif preset_resolution.source == "plasma auto":
         source = preset_resolution.source
+        confidence = "compositor"
         if assumption:
             assumption = assumption
 
@@ -301,6 +307,7 @@ def resolve_capture_metadata(
         capture_primaries_converted=capture_primaries_converted,
         skip_display_gamut_adaptation=skip_display_gamut,
         assumption=assumption,
+        confidence=confidence,
     )
 
 

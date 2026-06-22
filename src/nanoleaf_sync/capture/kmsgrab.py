@@ -75,6 +75,11 @@ class KMSGrabCapture:
         self._use_kwin_only = False
         self.last_capture_path: str | None = "drm-kms"
         self.last_hdr_diagnostics: dict[str, object] = {}
+        self.last_drm_diagnostics: dict[str, object] = {
+            "card_path": self.params.card_path,
+            "width": width,
+            "height": height,
+        }
 
         self._hdr_defaults = HDRMetadata(
             transfer=hdr_transfer
@@ -158,6 +163,12 @@ class KMSGrabCapture:
                 raise KMSGrabError("DRM/KMS capture bindings are unavailable.")
             frame = self._capture_drm_rgb()
             self.last_capture_path = "drm-kms"
+            self.last_drm_diagnostics = {
+                "card_path": self.params.card_path,
+                "width": int(frame.shape[1]),
+                "height": int(frame.shape[0]),
+                "capture_impl": getattr(self._drm_capture_impl, "__name__", "unknown"),
+            }
             return frame
         except KMSGrabError:
             if not self._allow_fallback:

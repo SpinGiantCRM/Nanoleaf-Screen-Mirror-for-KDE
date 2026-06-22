@@ -62,6 +62,8 @@ class LiveDiagnosticsDialog(QDialog):
         cap_fields = [
             ("Backend", "_cap_backend"),
             ("Method", "_cap_method"),
+            ("Frame seq", "_cap_frame_seq"),
+            ("Source monitor", "_cap_source_monitor"),
             ("Frame size", "_cap_frame_size"),
             ("Mean brightness", "_cap_brightness"),
             ("Black frames (consecutive)", "_cap_black_conc"),
@@ -211,6 +213,15 @@ class LiveDiagnosticsDialog(QDialog):
 
         self._cap_labels["_cap_backend"].setText(str(s.get("capture_backend") or "\u2014"))
         self._cap_labels["_cap_method"].setText(str(s.get("capture_path") or "\u2014"))
+        frame_ctx = s.get("latest_frame_context")
+        if isinstance(frame_ctx, dict):
+            self._cap_labels["_cap_frame_seq"].setText(str(frame_ctx.get("frame_seq") or "\u2014"))
+            source = frame_ctx.get("source") if isinstance(frame_ctx.get("source"), dict) else {}
+            monitor = source.get("monitor_id") or source.get("backend_source_id")
+            self._cap_labels["_cap_source_monitor"].setText(str(monitor or "\u2014"))
+        else:
+            self._cap_labels["_cap_frame_seq"].setText("\u2014")
+            self._cap_labels["_cap_source_monitor"].setText("\u2014")
         w = s.get("captured_frame_width", 0) or 0
         h = s.get("captured_frame_height", 0) or 0
         self._cap_labels["_cap_frame_size"].setText(f"{w}\u00d7{h}" if w and h else "\u2014")

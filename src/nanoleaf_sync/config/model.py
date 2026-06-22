@@ -222,6 +222,12 @@ class AppConfig:
     # Maximum seconds to wait for the first frame on startup before timing out.
     # Increase if kwin-dbus authorization is slow (e.g. first launch from terminal).
     startup_frame_timeout_s: float = 5.0
+    # Drop processed frames older than max(min_max_send_age_ms, frame_budget * multiplier).
+    stale_frame_drop_enabled: bool = True
+    max_send_age_frame_budget_multiplier: float = 2.0
+    min_max_send_age_ms: float = 60.0
+    # Permit configured strip zone count to override USB-reported count (shows warning).
+    allow_zone_count_override: bool = False
 
     def __post_init__(self) -> None:
         """Sync calibration field to ensure single source of truth.

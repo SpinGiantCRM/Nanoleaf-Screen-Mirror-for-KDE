@@ -8,7 +8,11 @@ from typing import Any
 
 import numpy as np
 
-from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
+from nanoleaf_sync.runtime.srgb import (
+    linear01_to_srgb_u8,
+    srgb_encoded_float_to_linear01,
+    srgb_u8_to_linear01,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -173,15 +177,37 @@ class LedCalibration:
     color_matrix: tuple[float, ...] = ()
 
 
-def apply_display_gamut_adaptation(colors: np.ndarray) -> np.ndarray:
-    if _SKIP_DISPLAY_GAMUT:
-        return colors
-    rgb = np.clip(np.rint(colors), 0.0, 255.0).astype(np.uint8, copy=False)
-    linear = srgb_u8_to_linear01(rgb)
+def get_gamut_adaptation_matrix() -> np.ndarray | None:
     with _GAMUT_LOCK:
-        matrix_t = _GAMUT_ADAPTATION_MATRIX_T
+        return _GAMUT_ADAPTATION_MATRIX_T
+
+
+def apply_display_gamut_adaptation(
+    colors: np.ndarray,
+    *,
+    color_context: object | None = None,
+) -> np.ndarray:
+    from nanoleaf_sync.runtime.color_context import ColorContext
+
+    skip = _SKIP_DISPLAY_GAMUT
+    matrix_t: np.ndarray | None = None
+    if isinstance(color_context, ColorContext):
+        skip = bool(color_context.skip_display_gamut_adaptation)
+        matrix_t = color_context.gamut_matrix
+    if skip:
+        return np.asarray(colors, dtype=np.float32, copy=False)
+    rgb = np.asarray(colors, dtype=np.float32)
+    if rgb.size == 0:
+        return rgb
+    if float(np.max(rgb)) <= 1.0:
+        linear = np.clip(rgb, 0.0, 1.0)
+    else:
+        linear = srgb_encoded_float_to_linear01(np.clip(rgb, 0.0, 255.0))
     if matrix_t is None:
-        return colors.astype(np.float32, copy=False)
+        with _GAMUT_LOCK:
+            matrix_t = _GAMUT_ADAPTATION_MATRIX_T
+    if matrix_t is None:
+        return rgb
     linear = np.clip(linear @ matrix_t, 0.0, 1.0)
     return linear01_to_srgb_u8(linear).astype(np.float32, copy=False)
 

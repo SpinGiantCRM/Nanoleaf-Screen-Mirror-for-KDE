@@ -241,6 +241,7 @@ def test_standard_mode_single_report_uses_drain_when_live_optimization_enabled()
     driver._initialized = True
     driver._cached_on_state = True
     driver._cached_brightness = 128
+    driver._live_frames_sent_after_open = 1
     driver.set_zone_colors([(10, 20, 30)] * 8)
     transport.write_with_nonblocking_drain.assert_called_once()
     transport.write_with_timing.assert_not_called()

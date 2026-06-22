@@ -195,10 +195,16 @@ def test_make_preview_driver_disables_live_write_optimization_for_setup_paths() 
     captured: dict[str, bool] = {}
 
     class _Service:
-        def make_device_driver(self, *, enable_live_frame_write_optimization: bool = True):
+        def make_device_driver(
+            self,
+            *,
+            enable_live_frame_write_optimization: bool = True,
+            allow_live_zone_padding: bool = False,
+        ):
             captured["enable_live_frame_write_optimization"] = bool(
                 enable_live_frame_write_optimization
             )
+            captured["allow_live_zone_padding"] = bool(allow_live_zone_padding)
             return object()
 
     tray = SimpleNamespace(service=_Service())
@@ -206,3 +212,4 @@ def test_make_preview_driver_disables_live_write_optimization_for_setup_paths() 
     NanoleafTrayApp._make_preview_driver(tray)
 
     assert captured["enable_live_frame_write_optimization"] is False
+    assert captured["allow_live_zone_padding"] is True

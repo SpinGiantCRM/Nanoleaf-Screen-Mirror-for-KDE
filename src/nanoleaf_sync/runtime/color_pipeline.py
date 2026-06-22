@@ -30,7 +30,6 @@ from nanoleaf_sync.runtime.color_processing import (
     apply_display_gamut_adaptation,
     apply_led_calibration,
     apply_output_quantization_hold,
-    set_skip_display_gamut_adaptation,
     stabilize_dark_zone_samples,
 )
 from nanoleaf_sync.runtime.compositor import (
@@ -66,6 +65,7 @@ class ColorPipelineParams:
     sdr_boost_compensation_enabled: bool = True
     accuracy_mode: bool = False
     skip_display_gamut_adaptation: bool = False
+    color_context: object | None = None
     led_calibration: LedCalibration | None = None
     return_diagnostics: bool = False
     build_zone_diagnostics: bool = False
@@ -318,8 +318,7 @@ def process_zone_colors(
         )
     sdr_boost_done = time.perf_counter()
 
-    set_skip_display_gamut_adaptation(params.skip_display_gamut_adaptation)
-    mapped = apply_display_gamut_adaptation(mapped)
+    mapped = apply_display_gamut_adaptation(mapped, color_context=params.color_context)
     mapped = apply_color_style_mapping(mapped, color_style=params.color_style).astype(
         np.float32, copy=False
     )
@@ -543,6 +542,7 @@ def build_pipeline_params_from_config(
     prev_sampled_zone_colors: Sequence[RGBTuple] = (),
     prior_zone_sample_motion: float = 0.0,
     prior_area_average_mode: bool = False,
+    color_context: object | None = None,
 ) -> ColorPipelineParams:
     active_profile = resolve_active_led_profile(
         config,
@@ -589,4 +589,5 @@ def build_pipeline_params_from_config(
         prev_sampled_zone_colors=prev_sampled_zone_colors,
         prior_zone_sample_motion=float(prior_zone_sample_motion),
         prior_area_average_mode=bool(prior_area_average_mode),
+        color_context=color_context,
     )

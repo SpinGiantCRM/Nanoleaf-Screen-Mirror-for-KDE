@@ -98,6 +98,10 @@ class XDGPortalCapture:
         self._empty_first_buffers = 0
         self._non_empty_first_buffers = 0
         self._last_frame_diag: dict[str, object] = {}
+        self.last_stream_properties: dict[str, object] = {}
+        self.portal_restore_token_loaded: bool = False
+        self.portal_restore_token_accepted: bool = False
+        self.portal_restore_token_refreshed: bool = False
         self._caps_video_info_cache: dict[str, int] = {}
         self._caps_video_info_cache_max = 8
         self._empty_capture_streak = 0
@@ -238,6 +242,9 @@ class XDGPortalCapture:
         self._session_handle = str(session_handle)
 
         restore_token = self._load_restore_token()
+        self.portal_restore_token_loaded = bool(restore_token)
+        self.portal_restore_token_accepted = False
+        self.portal_restore_token_refreshed = False
         handle_token2 = random_token("h")
         src_options: dict[str, Variant] = {
             "handle_token": Variant("s", handle_token2),
@@ -257,6 +264,7 @@ class XDGPortalCapture:
         )
         if msg2.body[0] != 0:
             raise XDGPortalError(f"SelectSources denied (response={msg2.body[0]}).")
+        self.portal_restore_token_accepted = bool(restore_token)
 
         handle_token3 = random_token("h")
         start_options: dict[str, Variant] = {
@@ -279,9 +287,13 @@ class XDGPortalCapture:
         new_restore = results.get("restore_token")
         if new_restore:
             self._save_restore_token(str(unwrap_variant(new_restore)))
+            self.portal_restore_token_refreshed = True
 
         first_stream = unwrap_variant(streams)[0]
         node_id = int(first_stream[0])
+        self.last_stream_properties = self._parse_stream_properties(first_stream)
+        if self.last_stream_properties.get("pipewire-serial") is not None:
+            node_id = int(self.last_stream_properties.get("id", node_id))
 
         pw_reply = await bus.call(
             Message(
@@ -954,6 +966,11 @@ class XDGPortalCapture:
                 "Portal session close failed (non-critical)",
                 exc_info=True,
             )
+
+    def _parse_stream_properties(self, stream_entry: object) -> dict[str, object]:
+        from nanoleaf_sync.capture.source_context import parse_portal_stream_properties
+
+        return parse_portal_stream_properties(stream_entry)
 
     def _load_restore_token(self) -> str | None:
         try:

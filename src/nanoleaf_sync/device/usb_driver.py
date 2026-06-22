@@ -23,6 +23,7 @@ from nanoleaf_sync.device.protocol import (
     SUPPORTED_MODEL_NUMBERS,
     NanoleafTLVProtocol,
 )
+from nanoleaf_sync.device.send_policy import LiveSendPolicy, select_live_send_policy
 
 
 class NanoleafUSBDriver(DeviceDriver):
@@ -44,6 +45,7 @@ class NanoleafUSBDriver(DeviceDriver):
         enable_live_frame_write_optimization: bool = True,
         prefer_write_only_live_send: bool = False,
         auto_turn_on: bool = True,
+        allow_live_zone_padding: bool = False,
     ) -> None:
         self.ids = ids
         self.report_size = int(report_size)
@@ -56,6 +58,7 @@ class NanoleafUSBDriver(DeviceDriver):
         self._enable_live_frame_write_optimization = bool(enable_live_frame_write_optimization)
         self._prefer_write_only_live_send = bool(prefer_write_only_live_send)
         self._auto_turn_on = bool(auto_turn_on)
+        self._allow_live_zone_padding = bool(allow_live_zone_padding)
         order = str(output_channel_order or "grb").strip().lower()
         if sorted(order) != ["b", "g", "r"]:
             raise ValueError(
@@ -76,6 +79,14 @@ class NanoleafUSBDriver(DeviceDriver):
         self._live_payload_buffer: bytearray | None = None
         self._live_target_fps: int = 60
         self._probed_report_size: int | None = None
+        self._live_frames_sent_after_open: int = 0
+        self.ack_expected_count: int = 0
+        self.ack_received_count: int = 0
+        self.ack_missed_count: int = 0
+        self.last_ack_status: str = ""
+        self.last_ack_age_ms: float | None = None
+        self.last_send_policy_transition_reason: str = ""
+        self.uncertain_write_failures: int = 0
 
     def _request(self, cmd: int, payload: bytes = b"") -> bytes:
         request = self._protocol.build_request(cmd, payload)
@@ -273,8 +284,17 @@ class NanoleafUSBDriver(DeviceDriver):
             for r, g, b in colors
         ]
 
-        # Host policy (not protocol requirement): pad with black/off zones when short.
         if len(normalized) < self.zone_count:
+            if not self._allow_live_zone_padding:
+                raise RuntimeError(
+                    "Refusing to silently pad short live zone colors: "
+                    f"frame_colors={len(normalized)} is below "
+                    f"effective_zone_count={self.zone_count} "
+                    f"(reported_zone_count={self.reported_zone_count}, "
+                    f"configured_zone_count={self._configured_zone_count}). "
+                    "Update device_zone_count calibration/config so runtime mapping "
+                    "matches the physical strip."
+                )
             normalized.extend([(0, 0, 0)] * (self.zone_count - len(normalized)))
         elif len(normalized) > self.zone_count:
             raise RuntimeError(
@@ -321,133 +341,98 @@ class NanoleafUSBDriver(DeviceDriver):
         )
         request = self._protocol.build_request(CMD_SET_ZONE_COLORS, payload)
         transport_timing: dict[str, float | int | bool | str | list[int] | list[float]] = {}
-        live_send_policy = "response_required"
-        response_wait_skipped = False
+        write_with_nonblocking_drain = getattr(
+            self._transport,
+            "write_with_nonblocking_drain",
+            None,
+        )
+        write_with_timing = getattr(self._transport, "write_with_timing", None)
+        policy_decision = select_live_send_policy(
+            report_count=report_count,
+            prefer_write_only_live_send=self._prefer_write_only_live_send,
+            enable_live_frame_write_optimization=self._enable_live_frame_write_optimization,
+            is_live_frame=self._is_live_frame_command(CMD_SET_ZONE_COLORS),
+            has_write_with_timing=callable(write_with_timing),
+            has_nonblocking_drain=callable(write_with_nonblocking_drain),
+            first_frame_after_reopen=self._live_frames_sent_after_open <= 0,
+            probed_report_size=self._probed_report_size,
+        )
+        live_send_policy = policy_decision.policy.value
+        response_wait_skipped = policy_decision.response_wait_skipped
+        self.last_send_policy_transition_reason = policy_decision.transition_reason
         send_err: Exception | None = None
-        requires_frame_ack = report_count > 1 or self._prefer_write_only_live_send
-        if (
-            self._is_live_frame_command(CMD_SET_ZONE_COLORS)
-            and self._enable_live_frame_write_optimization
+        if policy_decision.policy == LiveSendPolicy.WRITE_ONLY and callable(write_with_timing):
+            try:
+                maybe_timing = write_with_timing(request)
+                if isinstance(maybe_timing, dict):
+                    transport_timing = maybe_timing
+                transport_timing.setdefault("flush_or_wait_ms", 0.0)
+                transport_timing.setdefault("read_calls", 0)
+            except Exception as exc:
+                if self._write_failed_before_any_bytes(exc):
+                    send_err = exc
+                    live_send_policy = LiveSendPolicy.RESPONSE_REQUIRED.value
+                    response_wait_skipped = False
+                else:
+                    self.uncertain_write_failures += 1
+                    frame_build_ms = (frame_build_end - frame_build_start) * 1000.0
+                    self._mark_live_frame_write_failed(
+                        exc=exc,
+                        frame_build_ms=frame_build_ms,
+                        request_len=request_len,
+                        report_size=report_size,
+                        report_count=report_count,
+                        chunk_sizes=chunk_sizes,
+                        live_send_policy=live_send_policy,
+                        response_wait_skipped=response_wait_skipped,
+                    )
+                    self._close_after_uncertain_live_write(exc)
+                    raise RuntimeError(
+                        "Live frame write failed with uncertain HID write status; "
+                        "closed transport and skipped immediate fallback "
+                        "to avoid duplicate frame send."
+                    ) from exc
+        elif policy_decision.policy == LiveSendPolicy.NONBLOCKING_DRAIN and callable(
+            write_with_nonblocking_drain
         ):
-            write_with_nonblocking_drain = getattr(
-                self._transport, "write_with_nonblocking_drain", None
-            )
-            write_with_timing = getattr(self._transport, "write_with_timing", None)
-            if (
-                callable(write_with_timing)
-                and self._prefer_write_only_live_send
-                and not requires_frame_ack
-            ):
-                live_send_policy = "write_only"
-                response_wait_skipped = True
+            try:
+                drain_call = write_with_nonblocking_drain
                 try:
-                    maybe_timing = write_with_timing(request)
-                    if isinstance(maybe_timing, dict):
-                        transport_timing = maybe_timing
-                    transport_timing.setdefault("flush_or_wait_ms", 0.0)
-                    transport_timing.setdefault("read_calls", 0)
-                except Exception as exc:
-                    if self._write_failed_before_any_bytes(exc):
-                        send_err = exc
-                        live_send_policy = "response_required"
-                        response_wait_skipped = False
-                    else:
-                        frame_build_ms = (frame_build_end - frame_build_start) * 1000.0
-                        self._mark_live_frame_write_failed(
-                            exc=exc,
-                            frame_build_ms=frame_build_ms,
-                            request_len=request_len,
-                            report_size=report_size,
-                            report_count=report_count,
-                            chunk_sizes=chunk_sizes,
-                            live_send_policy=live_send_policy,
-                            response_wait_skipped=response_wait_skipped,
-                        )
-                        self._close_after_uncertain_live_write(exc)
-                        raise RuntimeError(
-                            "Live frame write failed with uncertain HID write status; "
-                            "closed transport and skipped immediate fallback "
-                            "to avoid duplicate frame send."
-                        ) from exc
-            elif callable(write_with_nonblocking_drain):
-                live_send_policy = "nonblocking_drain"
-                response_wait_skipped = True
-                try:
-                    drain_call = write_with_nonblocking_drain
-                    try:
-                        maybe_timing = drain_call(
-                            request,
-                            target_fps=int(self._live_target_fps),
-                            drain_budget_ms=2,
-                            max_drain_reads=2,
-                        )
-                    except TypeError:
-                        maybe_timing = drain_call(request)
-                    if isinstance(maybe_timing, dict):
-                        transport_timing = maybe_timing
-                        drain_reads = int(transport_timing.get("read_calls", 0))
-                        drain_ms = transport_timing.get("flush_or_wait_ms", 0.0)
-                        self._logger.debug(
-                            "nonblocking drain: read_calls=%d flush_or_wait_ms=%.2f",
-                            drain_reads,
-                            float(drain_ms) if drain_ms is not None else 0.0,
-                        )
-                except Exception as exc:
-                    if self._write_failed_before_any_bytes(exc):
-                        send_err = exc
-                        live_send_policy = "response_required"
-                        response_wait_skipped = False
-                    else:
-                        frame_build_ms = (frame_build_end - frame_build_start) * 1000.0
-                        self._mark_live_frame_write_failed(
-                            exc=exc,
-                            frame_build_ms=frame_build_ms,
-                            request_len=request_len,
-                            report_size=report_size,
-                            report_count=report_count,
-                            chunk_sizes=chunk_sizes,
-                            live_send_policy=live_send_policy,
-                            response_wait_skipped=response_wait_skipped,
-                        )
-                        self._close_after_uncertain_live_write(exc)
-                        raise RuntimeError(
-                            "Live frame write failed with uncertain HID write status; "
-                            "closed transport and skipped immediate fallback "
-                            "to avoid duplicate frame send."
-                        ) from exc
-            elif callable(write_with_timing):
-                live_send_policy = "write_only"
-                response_wait_skipped = True
-                try:
-                    maybe_timing = write_with_timing(request)
-                    if isinstance(maybe_timing, dict):
-                        transport_timing = maybe_timing
-                    transport_timing.setdefault("flush_or_wait_ms", 0.0)
-                    transport_timing.setdefault("read_calls", 0)
-                except Exception as exc:
-                    if self._write_failed_before_any_bytes(exc):
-                        send_err = exc
-                        live_send_policy = "response_required"
-                        response_wait_skipped = False
-                    else:
-                        frame_build_ms = (frame_build_end - frame_build_start) * 1000.0
-                        self._mark_live_frame_write_failed(
-                            exc=exc,
-                            frame_build_ms=frame_build_ms,
-                            request_len=request_len,
-                            report_size=report_size,
-                            report_count=report_count,
-                            chunk_sizes=chunk_sizes,
-                            live_send_policy=live_send_policy,
-                            response_wait_skipped=response_wait_skipped,
-                        )
-                        self._close_after_uncertain_live_write(exc)
-                        raise RuntimeError(
-                            "Live frame write failed with uncertain HID write status; "
-                            "closed transport and skipped immediate fallback "
-                            "to avoid duplicate frame send."
-                        ) from exc
-        if live_send_policy == "response_required":
+                    maybe_timing = drain_call(
+                        request,
+                        target_fps=int(self._live_target_fps),
+                        drain_budget_ms=2,
+                        max_drain_reads=2,
+                    )
+                except TypeError:
+                    maybe_timing = drain_call(request)
+                if isinstance(maybe_timing, dict):
+                    transport_timing = maybe_timing
+            except Exception as exc:
+                if self._write_failed_before_any_bytes(exc):
+                    send_err = exc
+                    live_send_policy = LiveSendPolicy.RESPONSE_REQUIRED.value
+                    response_wait_skipped = False
+                else:
+                    self.uncertain_write_failures += 1
+                    frame_build_ms = (frame_build_end - frame_build_start) * 1000.0
+                    self._mark_live_frame_write_failed(
+                        exc=exc,
+                        frame_build_ms=frame_build_ms,
+                        request_len=request_len,
+                        report_size=report_size,
+                        report_count=report_count,
+                        chunk_sizes=chunk_sizes,
+                        live_send_policy=live_send_policy,
+                        response_wait_skipped=response_wait_skipped,
+                    )
+                    self._close_after_uncertain_live_write(exc)
+                    raise RuntimeError(
+                        "Live frame write failed with uncertain HID write status; "
+                        "closed transport and skipped immediate fallback "
+                        "to avoid duplicate frame send."
+                    ) from exc
+        if live_send_policy == LiveSendPolicy.RESPONSE_REQUIRED.value:
             try:
                 _, transport_timing = self._request_with_timing(CMD_SET_ZONE_COLORS, payload)
             except Exception:
@@ -521,8 +506,31 @@ class NanoleafUSBDriver(DeviceDriver):
             ),
             "live_send_policy": live_send_policy,
             "response_wait_skipped": response_wait_skipped,
+            "send_policy_transition_reason": self.last_send_policy_transition_reason,
             "probed_report_size": self._probed_report_size,
         }
+        if self._is_live_frame_command(CMD_SET_ZONE_COLORS):
+            if live_send_policy == LiveSendPolicy.RESPONSE_REQUIRED.value:
+                self.ack_expected_count += 1
+            ack_arrival = timing.get("ack_arrival_ms")
+            if ack_arrival is not None:
+                self.ack_received_count += 1
+                self.last_ack_status = "received"
+                self.last_ack_age_ms = float(ack_arrival)
+            elif live_send_policy == LiveSendPolicy.RESPONSE_REQUIRED.value:
+                self.ack_missed_count += 1
+                self.last_ack_status = "missed"
+            self._live_frames_sent_after_open += 1
+            timing["ack_expected_count"] = self.ack_expected_count
+            timing["ack_received_count"] = self.ack_received_count
+            timing["ack_missed_count"] = self.ack_missed_count
+            timing["ack_backlog_estimate"] = max(
+                0,
+                self.ack_expected_count - self.ack_received_count,
+            )
+            timing["last_ack_status"] = self.last_ack_status
+            timing["last_ack_age_ms"] = self.last_ack_age_ms
+            timing["uncertain_write_failures"] = self.uncertain_write_failures
         if send_err is not None:
             timing["write_only_failure_reason"] = f"{type(send_err).__name__}: {send_err}"
         self.last_send_timing = timing
@@ -564,3 +572,6 @@ class NanoleafUSBDriver(DeviceDriver):
             self.reported_zone_count = None
             self._cached_on_state = None
             self._cached_brightness = None
+            self._live_frames_sent_after_open = 0
+            self.last_ack_status = ""
+            self.last_ack_age_ms = None

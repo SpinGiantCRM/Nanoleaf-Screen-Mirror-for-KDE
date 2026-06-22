@@ -8,6 +8,11 @@ from nanoleaf_sync.runtime.anchor_calibration import derive_anchor_zone_map, val
 
 CALIBRATION_INCOMPLETE_STATUS = "calibration_incomplete"
 CALIBRATION_READY_STATUS = "ready"
+DEVICE_ZONE_MISMATCH_STATUS = "device_zone_mismatch"
+DEVICE_ZONE_MISMATCH_MESSAGE = (
+    "device_zone_mismatch: USB strip reported a different LED zone count than "
+    "calibration/config. Rerun calibration or enable allow_zone_count_override."
+)
 CALIBRATION_INCOMPLETE_MESSAGE = (
     "calibration_incomplete: Corner calibration is incomplete; "
     "assign all four unique corner anchors before starting screen mirroring."
@@ -56,6 +61,78 @@ class CalibrationResolverContext:
     source_zone_count: int
     effective_device_zone_count: int
     detected_device_zone_count: int | None = None
+
+
+@dataclass(frozen=True)
+class DeviceZoneAuthorityResult:
+    configured_device_zone_count: int
+    detected_device_zone_count: int | None
+    effective_device_zone_count: int
+    device_zone_count_source: str
+    device_zone_count_mismatch: bool
+    mapping_repair_required: bool
+    override_active: bool
+    blocked: bool
+    status: str
+    message: str
+
+
+def _configured_device_zone_count(config: AppConfig) -> int:
+    calibration = config.effective_calibration()
+    configured = int(getattr(calibration, "device_zone_count", 0))
+    if configured <= 0:
+        configured = int(getattr(config, "device_zone_count", 0) or 0)
+    return configured
+
+
+def evaluate_device_zone_authority(
+    *,
+    config: AppConfig,
+    detected_device_zone_count: int | None,
+) -> DeviceZoneAuthorityResult:
+    configured = _configured_device_zone_count(config)
+    detected = (
+        int(detected_device_zone_count)
+        if detected_device_zone_count is not None and int(detected_device_zone_count) > 0
+        else None
+    )
+    override_active = bool(getattr(config, "allow_zone_count_override", False))
+    mismatch = detected is not None and configured > 0 and int(detected) != int(configured)
+    if detected is not None and not override_active:
+        effective = int(detected)
+        source = "detected-usb"
+    elif configured > 0:
+        effective = int(configured)
+        source = "configured" if detected is None else "configured-override"
+    elif detected is not None:
+        effective = int(detected)
+        source = "detected-usb"
+    else:
+        effective = 1
+        source = "fallback"
+    blocked = bool(mismatch and not override_active)
+    status = CALIBRATION_READY_STATUS
+    message = ""
+    if blocked:
+        status = DEVICE_ZONE_MISMATCH_STATUS
+        message = f"{DEVICE_ZONE_MISMATCH_MESSAGE} detected={detected} configured={configured}."
+    elif mismatch and override_active:
+        message = (
+            f"device_zone_override_active: using configured={configured} "
+            f"instead of detected={detected}."
+        )
+    return DeviceZoneAuthorityResult(
+        configured_device_zone_count=configured,
+        detected_device_zone_count=detected,
+        effective_device_zone_count=effective,
+        device_zone_count_source=source,
+        device_zone_count_mismatch=mismatch,
+        mapping_repair_required=blocked,
+        override_active=override_active and mismatch,
+        blocked=blocked,
+        status=status,
+        message=message,
+    )
 
 
 def _normalize_anchor(value: int | None) -> int | None:
@@ -153,16 +230,13 @@ def resolve_calibration_mapping_from_config(
     detected_device_zone_count: int | None = None,
     source_side_counts: tuple[int, int, int, int] | None = None,
 ) -> CalibrationMappingSnapshot:
-    calibration = config.effective_calibration()
-    configured_device_zone_count = int(getattr(calibration, "device_zone_count", 0))
-    if configured_device_zone_count <= 0:
-        configured_device_zone_count = int(getattr(config, "device_zone_count", 0) or 0)
-    _ = detected_device_zone_count
+    authority = evaluate_device_zone_authority(
+        config=config,
+        detected_device_zone_count=detected_device_zone_count,
+    )
     context = CalibrationResolverContext(
         source_zone_count=int(source_zone_count),
-        effective_device_zone_count=(
-            configured_device_zone_count if configured_device_zone_count > 0 else 1
-        ),
+        effective_device_zone_count=max(1, int(authority.effective_device_zone_count)),
         detected_device_zone_count=detected_device_zone_count,
     )
     return resolve_calibration_mapping_with_context(
@@ -179,12 +253,7 @@ def resolve_calibration_mapping_with_context(
     source_side_counts: tuple[int, int, int, int] | None = None,
 ) -> CalibrationMappingSnapshot:
     calibration = config.effective_calibration()
-    configured_device_zone_count = int(getattr(calibration, "device_zone_count", 0))
-    if configured_device_zone_count <= 0:
-        configured_device_zone_count = int(getattr(config, "device_zone_count", 0) or 0)
     device_zone_count = max(1, int(context.effective_device_zone_count))
-    if configured_device_zone_count > 0:
-        device_zone_count = configured_device_zone_count
     return resolve_calibration_mapping(
         zone_count=int(context.source_zone_count),
         device_zone_count=device_zone_count,

@@ -165,6 +165,7 @@ class CapturePayload:
     captured_at: float
     frame: np.ndarray | None = None
     precomputed_zone_colors: np.ndarray | None = None
+    frame_context: object | None = None
 
 
 @dataclass
@@ -184,3 +185,5 @@ class ProcessedPayload:
     frame: np.ndarray | None = None
     zone_diagnostics: list = field(default_factory=list)
     side_var: dict = field(default_factory=dict)
+    frame_context: object | None = None
+    color_context: object | None = None

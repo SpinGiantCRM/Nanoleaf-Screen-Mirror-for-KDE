@@ -42,6 +42,7 @@ from nanoleaf_sync.capture.latency_probe import (
     STAGE_ZONE_SAMPLING,
     FrameTimingSample,
 )
+from nanoleaf_sync.capture.source_context import build_display_source_context
 from nanoleaf_sync.color._types import RGBTuple
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.presets import effective_drm_zone_patch_capture
@@ -54,8 +55,10 @@ from nanoleaf_sync.runtime.calibration_resolver import (
     CALIBRATION_INCOMPLETE_MESSAGE,
     CALIBRATION_INCOMPLETE_STATUS,
     CALIBRATION_READY_STATUS,
+    evaluate_device_zone_authority,
     resolve_calibration_mapping_from_config,
 )
+from nanoleaf_sync.runtime.color_context import color_context_from_display_source
 from nanoleaf_sync.runtime.color_pipeline import (
     ColorPipelineParams,
     build_pipeline_params_from_config,
@@ -73,6 +76,7 @@ from nanoleaf_sync.runtime.fps_governor import (
     capture_interval_budget_ms,
     governor_min_fps_floor,
 )
+from nanoleaf_sync.runtime.frame_context import FrameContext, build_frame_context
 from nanoleaf_sync.runtime.processing import scale_zones_to_display, zones_from_config
 from nanoleaf_sync.runtime.ring_buf import (
     CapturePayload,
@@ -133,6 +137,65 @@ def _estimate_processing_staleness_ms(
     frame_age_ms = max(0.0, (float(now) - float(captured_at)) * 1000.0)
     expected_output_ms = max(0.0, float(hid_output_work_ewma_ms or 0.0))
     return frame_age_ms + expected_output_ms
+
+
+def compute_max_send_age_ms(
+    *,
+    target_fps: float,
+    min_max_send_age_ms: float = 60.0,
+    budget_multiplier: float = 2.0,
+) -> float:
+    pace_fps = max(1.0, float(target_fps))
+    frame_budget_ms = 1000.0 / pace_fps
+    return max(float(min_max_send_age_ms), frame_budget_ms * float(budget_multiplier))
+
+
+def _frame_context_latency_labels(payload: ProcessedPayload) -> dict[str, str]:
+    frame_context_obj = getattr(payload, "frame_context", None)
+    if frame_context_obj is None or not isinstance(frame_context_obj, FrameContext):
+        return {
+            "frame_seq": "unavailable",
+            "capture_source_backend": "unavailable",
+            "capture_source_id": "unavailable",
+            "capture_source_confidence": "unavailable",
+            "frame_age_ms": "unavailable",
+        }
+    frame_age_ms = max(
+        0.0,
+        (time.perf_counter() - float(frame_context_obj.captured_at_monotonic)) * 1000.0,
+    )
+    source = frame_context_obj.source
+    return {
+        "frame_seq": str(frame_context_obj.frame_seq),
+        "capture_source_backend": str(source.backend),
+        "capture_source_id": str(source.backend_source_id or source.monitor_id or ""),
+        "capture_source_confidence": str(source.source_confidence),
+        "capture_method": str(frame_context_obj.capture_method),
+        "frame_age_ms": f"{frame_age_ms:.1f}",
+    }
+
+
+def evaluate_stale_output_drop(
+    *,
+    captured_at: float,
+    now: float,
+    target_fps: float,
+    stale_frame_drop_enabled: bool,
+    min_max_send_age_ms: float,
+    max_send_age_frame_budget_multiplier: float,
+) -> tuple[bool, float, float, str]:
+    frame_age_ms = max(0.0, (float(now) - float(captured_at)) * 1000.0)
+    max_send_age_ms = compute_max_send_age_ms(
+        target_fps=target_fps,
+        min_max_send_age_ms=min_max_send_age_ms,
+        budget_multiplier=max_send_age_frame_budget_multiplier,
+    )
+    if not stale_frame_drop_enabled:
+        return False, frame_age_ms, max_send_age_ms, ""
+    if frame_age_ms > max_send_age_ms:
+        reason = f"frame_age_ms={frame_age_ms:.1f}>{max_send_age_ms:.1f}"
+        return True, frame_age_ms, max_send_age_ms, reason
+    return False, frame_age_ms, max_send_age_ms, ""
 
 
 @dataclass
@@ -572,6 +635,7 @@ def _run_loop_pipeline(
         nonlocal latest_capture_backend_name, latest_capture_backend_method
         nonlocal capture_worker_error_count, capture_worker_failures
         nonlocal no_pending_frame_events
+        nonlocal frame_seq
         nonlocal process_worker_error_count
         nonlocal hid_output_work_ewma_ms
 
@@ -644,11 +708,31 @@ def _run_loop_pipeline(
                     precomputed = capture_result.astype(np.uint8, copy=False)
                 else:
                     frame = capture_result
+                frame_w = int(precomputed.shape[1] if precomputed is not None else frame.shape[1])
+                frame_h = int(precomputed.shape[0] if precomputed is not None else frame.shape[0])
+                with metrics_lock:
+                    frame_seq += 1
+                    current_frame_seq = frame_seq
+                display_source = build_display_source_context(
+                    cap,
+                    frame_width=frame_w,
+                    frame_height=frame_h,
+                )
+                frame_context = build_frame_context(
+                    frame_seq=current_frame_seq,
+                    captured_at=capture_end,
+                    source=display_source,
+                    frame_width=frame_w,
+                    frame_height=frame_h,
+                    precomputed_zone_colors=precomputed is not None,
+                    capture_duration_ms=call_ms,
+                )
                 if not capture_buf.try_push(
                     CapturePayload(
                         captured_at=capture_end,
                         frame=frame,
                         precomputed_zone_colors=precomputed,
+                        frame_context=frame_context,
                     )
                 ):
                     logger.debug("capture worker: ring buffer full; dropping frame")
@@ -691,6 +775,10 @@ def _run_loop_pipeline(
 
                 frame = payload.frame
                 precomputed_zone_colors = payload.precomputed_zone_colors
+                frame_context_obj = getattr(payload, "frame_context", None)
+                frame_context = (
+                    frame_context_obj if isinstance(frame_context_obj, FrameContext) else None
+                )
                 captured_at = payload.captured_at
                 state.first_frame_seen = True
 
@@ -727,16 +815,45 @@ def _run_loop_pipeline(
                 if driver is None:
                     continue
 
+                detected_zones = getattr(
+                    driver,
+                    "reported_zone_count",
+                    getattr(driver, "zone_count", None),
+                )
+                zone_authority = evaluate_device_zone_authority(
+                    config=config,
+                    detected_device_zone_count=detected_zones,
+                )
+                state.device_zone_count_source = zone_authority.device_zone_count_source
+                state.configured_device_zone_count = zone_authority.configured_device_zone_count
+                state.detected_device_zone_count = zone_authority.detected_device_zone_count
+                state.effective_device_zone_count = zone_authority.effective_device_zone_count
+                state.device_zone_count_mismatch = zone_authority.device_zone_count_mismatch
+                state.mapping_repair_required = zone_authority.mapping_repair_required
+                state.device_zone_override_active = zone_authority.override_active
+                if zone_authority.blocked:
+                    state.mark_device_zone_mismatch(
+                        zone_authority.message,
+                        authority=zone_authority,
+                    )
+                    state.startup_elapsed_ms = max(
+                        0.0,
+                        (time.perf_counter() - startup_started_at) * 1000.0,
+                    )
+                    state.mark_startup(False)
+                    state.stop_event.set()
+                    logger.warning(
+                        "device zone mismatch; screen mirroring will not stream frames: %s",
+                        zone_authority.message,
+                    )
+                    break
+
                 zones_px, device_zone_indices = _ensure_runtime_artifacts(
                     state=state,
                     config=config,
                     img_w=img_w,
                     img_h=img_h,
-                    detected_device_zone_count=getattr(
-                        driver,
-                        "reported_zone_count",
-                        getattr(driver, "zone_count", None),
-                    ),
+                    detected_device_zone_count=detected_zones,
                 )
 
                 if (
@@ -785,7 +902,6 @@ def _run_loop_pipeline(
                     or getattr(config, "live_diagnostics_enabled", False)
                 )
                 with metrics_lock:
-                    frame_seq += 1
                     governor_target_fps = float(governor.target_fps)
                     expected_hid_work_ms = hid_output_work_ewma_ms
                 estimated_staleness_ms = _estimate_processing_staleness_ms(
@@ -795,7 +911,16 @@ def _run_loop_pipeline(
                 )
                 cap_backend = get_capture()
                 capture_display_referred = False
-                if cap_backend is not None:
+                skip_gamut = state.skip_display_gamut_adaptation
+                color_context = None
+                if frame_context is not None:
+                    color_context = color_context_from_display_source(frame_context.source)
+                    skip_gamut = bool(color_context.skip_display_gamut_adaptation)
+                    state.skip_display_gamut_adaptation = skip_gamut
+                    capture_display_referred = bool(color_context.display_referred)
+                    state.latest_frame_context = frame_context
+                    state.latest_color_context = color_context
+                elif cap_backend is not None:
                     hdr_diag = getattr(cap_backend, "last_hdr_diagnostics", None) or {}
                     if isinstance(hdr_diag, dict):
                         state.skip_display_gamut_adaptation = bool(
@@ -809,11 +934,12 @@ def _run_loop_pipeline(
                             not bool(hdr_diag.get("tone_mapping_applied", False))
                             and not capture_display_referred
                         )
+                        skip_gamut = bool(state.skip_display_gamut_adaptation)
                 pipeline_params = build_pipeline_params_from_config(
                     config,
                     return_diagnostics=True,
                     build_zone_diagnostics=build_diagnostics,
-                    skip_display_gamut_adaptation=state.skip_display_gamut_adaptation,
+                    skip_display_gamut_adaptation=skip_gamut,
                     sdr_boost_compensation_enabled=state.sdr_boost_compensation_enabled,
                     capture_display_referred=capture_display_referred,
                     effective_target_fps=governor_target_fps,
@@ -823,6 +949,7 @@ def _run_loop_pipeline(
                     prev_sampled_zone_colors=state.prev_sampled_zone_colors,
                     prior_zone_sample_motion=float(state.prior_zone_sample_motion),
                     prior_area_average_mode=bool(state.prior_area_average_mode),
+                    color_context=color_context,
                 )
                 light_spread = pipeline_params.light_spread
                 if state.flattening_mitigation_active:
@@ -1000,6 +1127,8 @@ def _run_loop_pipeline(
                         processing_timings=processing_timings,
                         zone_diagnostics=zone_diagnostics,
                         side_var=side_var,
+                        frame_context=frame_context,
+                        color_context=color_context,
                     )
                 )
                 if replaced_queued_processed_frame:
@@ -1086,6 +1215,53 @@ def _run_loop_pipeline(
                     continue
                 if hasattr(driver, "_live_target_fps"):
                     driver._live_target_fps = int(governor.target_fps)
+
+                pace_fps = min(
+                    max(1, int(getattr(config, "fps", 60))),
+                    max(1, int(governor.target_fps)),
+                )
+                should_drop_stale, frame_age_ms, max_send_age_ms, stale_reason = (
+                    evaluate_stale_output_drop(
+                        captured_at=payload.captured_at,
+                        now=now,
+                        target_fps=float(pace_fps),
+                        stale_frame_drop_enabled=bool(
+                            getattr(config, "stale_frame_drop_enabled", True)
+                        ),
+                        min_max_send_age_ms=float(getattr(config, "min_max_send_age_ms", 60.0)),
+                        max_send_age_frame_budget_multiplier=float(
+                            getattr(config, "max_send_age_frame_budget_multiplier", 2.0)
+                        ),
+                    )
+                )
+                if should_drop_stale:
+                    state.record_stale_output_drop(
+                        frame_age_ms=frame_age_ms,
+                        max_send_age_ms=max_send_age_ms,
+                        reason=stale_reason,
+                    )
+                    with metrics_lock:
+                        cap_active = bool(capture_worker_active)
+                    state.latency_probe.add_stage_sample(
+                        FrameTimingSample(
+                            stage_ms={
+                                STAGE_PENDING_FRAME_AGE: frame_age_ms,
+                            },
+                            target_fps=float(governor.target_fps),
+                            fps_cap=float(governor.target_fps),
+                            fps_cap_reason="FPS governor dynamic cap",
+                            dropped_or_skipped_frames_delta=1,
+                            counters_delta={
+                                "stale_output_dropped_frames": 1,
+                            },
+                            flags={"capture_worker_active": cap_active},
+                            labels={
+                                "stale_drop_reason": stale_reason,
+                                "max_send_age_ms": f"{max_send_age_ms:.1f}",
+                            },
+                        )
+                    )
+                    continue
 
                 # HID write
                 hid_write_start = time.perf_counter()
@@ -1275,6 +1451,7 @@ def _run_loop_pipeline(
                         labels={
                             "latest_capture_backend_name": latest_capture_backend_name,
                             "capture_backend_method": latest_capture_backend_method,
+                            **_frame_context_latency_labels(payload),
                             "no_pending_frame_rate_per_second": _no_pending_frame_rate_per_second(
                                 no_pending_events, no_pending_started_at
                             ),

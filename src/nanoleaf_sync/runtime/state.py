@@ -12,6 +12,7 @@ from nanoleaf_sync.color._types import RGBTuple
 from nanoleaf_sync.runtime.calibration_resolver import (
     CALIBRATION_INCOMPLETE_STATUS,
     CALIBRATION_READY_STATUS,
+    DEVICE_ZONE_MISMATCH_STATUS,
 )
 
 ZoneRect = tuple[int, int, int, int]
@@ -92,6 +93,21 @@ class RuntimeState:
     predictive_sync_active: bool = False
     predictive_lookahead_frames: float = 0.0
     predictive_scene_cut_suppressed: bool = False
+    stale_output_dropped_frames: int = 0
+    last_stale_frame_age_ms: float = 0.0
+    max_send_age_ms: float = 0.0
+    stale_drop_reason: str = ""
+    stale_drop_window_started_at: float = 0.0
+    stale_drop_window_events: int = 0
+    device_zone_count_source: str = ""
+    configured_device_zone_count: int = 0
+    detected_device_zone_count: int | None = None
+    effective_device_zone_count: int = 0
+    device_zone_count_mismatch: bool = False
+    mapping_repair_required: bool = False
+    device_zone_override_active: bool = False
+    latest_frame_context: object | None = None
+    latest_color_context: object | None = None
 
     def _assert_locked(self) -> None:
         if not self._lock.locked():
@@ -152,6 +168,21 @@ class RuntimeState:
         self.predictive_sync_active = False
         self.predictive_lookahead_frames = 0.0
         self.predictive_scene_cut_suppressed = False
+        self.stale_output_dropped_frames = 0
+        self.last_stale_frame_age_ms = 0.0
+        self.max_send_age_ms = 0.0
+        self.stale_drop_reason = ""
+        self.stale_drop_window_started_at = 0.0
+        self.stale_drop_window_events = 0
+        self.device_zone_count_source = ""
+        self.configured_device_zone_count = 0
+        self.detected_device_zone_count = None
+        self.effective_device_zone_count = 0
+        self.device_zone_count_mismatch = False
+        self.mapping_repair_required = False
+        self.device_zone_override_active = False
+        self.latest_frame_context = None
+        self.latest_color_context = None
 
     def mark_calibration_incomplete(self, message: str) -> None:
         self.calibration_status = CALIBRATION_INCOMPLETE_STATUS
@@ -164,6 +195,56 @@ class RuntimeState:
         )
         self.start_failure_reason = self.calibration_status_message
         self.lifecycle_state = CALIBRATION_INCOMPLETE_STATUS
+
+    def mark_device_zone_mismatch(self, message: str, *, authority: object | None = None) -> None:
+        self.calibration_status = DEVICE_ZONE_MISMATCH_STATUS
+        self.calibration_status_message = str(message or DEVICE_ZONE_MISMATCH_STATUS)
+        self.last_error = self.calibration_status_message
+        self.last_error_kind = DEVICE_ZONE_MISMATCH_STATUS
+        self.last_error_guidance = (
+            "Open Settings > Corner calibration, confirm the physical strip LED count, "
+            "then rerun calibration. If you intentionally use a non-standard profile, "
+            "enable allow_zone_count_override in advanced settings."
+        )
+        self.start_failure_reason = self.calibration_status_message
+        self.lifecycle_state = DEVICE_ZONE_MISMATCH_STATUS
+        self.mapping_repair_required = True
+        self.device_zone_count_mismatch = True
+        if authority is not None:
+            self.device_zone_count_source = str(
+                getattr(authority, "device_zone_count_source", "") or ""
+            )
+            self.configured_device_zone_count = int(
+                getattr(authority, "configured_device_zone_count", 0) or 0
+            )
+            self.detected_device_zone_count = getattr(authority, "detected_device_zone_count", None)
+            self.effective_device_zone_count = int(
+                getattr(authority, "effective_device_zone_count", 0) or 0
+            )
+            self.device_zone_override_active = bool(getattr(authority, "override_active", False))
+
+    def record_stale_output_drop(
+        self,
+        *,
+        frame_age_ms: float,
+        max_send_age_ms: float,
+        reason: str,
+    ) -> None:
+        now = time.perf_counter()
+        self.stale_output_dropped_frames += 1
+        self.last_stale_frame_age_ms = float(frame_age_ms)
+        self.max_send_age_ms = float(max_send_age_ms)
+        self.stale_drop_reason = str(reason or "")
+        if self.stale_drop_window_started_at <= 0.0:
+            self.stale_drop_window_started_at = now
+        self.stale_drop_window_events += 1
+
+    def stale_drop_rate_per_second(self) -> float:
+        started = float(self.stale_drop_window_started_at or 0.0)
+        if started <= 0.0:
+            return 0.0
+        elapsed = max(0.001, time.perf_counter() - started)
+        return float(self.stale_drop_window_events) / elapsed
 
     def mark_startup(self, succeeded: bool) -> None:
         self.startup_succeeded = succeeded
@@ -292,6 +373,30 @@ class RuntimeState:
             "predictive_scene_cut_suppressed": bool(self.predictive_scene_cut_suppressed),
             "sdr_boost_compensation_enabled": bool(self.sdr_boost_compensation_enabled),
             "skip_display_gamut_adaptation": bool(self.skip_display_gamut_adaptation),
+            "stale_output_dropped_frames": int(self.stale_output_dropped_frames),
+            "last_stale_frame_age_ms": float(self.last_stale_frame_age_ms),
+            "max_send_age_ms": float(self.max_send_age_ms),
+            "stale_drop_reason": str(self.stale_drop_reason or ""),
+            "stale_drop_rate_per_second": float(self.stale_drop_rate_per_second()),
+            "device_zone_count_source": str(self.device_zone_count_source or ""),
+            "configured_device_zone_count": int(self.configured_device_zone_count),
+            "detected_device_zone_count": self.detected_device_zone_count,
+            "effective_device_zone_count": int(self.effective_device_zone_count),
+            "device_zone_count_mismatch": bool(self.device_zone_count_mismatch),
+            "mapping_repair_required": bool(self.mapping_repair_required),
+            "device_zone_override_active": bool(self.device_zone_override_active),
+            "latest_frame_context": (
+                self.latest_frame_context.as_dict()
+                if self.latest_frame_context is not None
+                and hasattr(self.latest_frame_context, "as_dict")
+                else None
+            ),
+            "latest_color_context": (
+                self.latest_color_context.as_dict()
+                if self.latest_color_context is not None
+                and hasattr(self.latest_color_context, "as_dict")
+                else None
+            ),
         }
 
 

@@ -49,12 +49,18 @@ class FakeDriver:
     frames_sent: int = 0
     closed: bool = False
     initialized: bool = False
+    reported_zone_count: int = 48
+    zone_count: int = 48
 
     def initialize(self) -> None:
         self.initialized = True
 
     def send_frame(self, colors: Sequence[RGB]) -> None:
         self.frames_sent += 1
+
+    def send_frame_with_timing(self, colors: Sequence[RGB]):
+        self.frames_sent += 1
+        return {"device_write_ms": 1.0, "live_send_policy": "response_required"}
 
     def close(self) -> None:
         self.closed = True

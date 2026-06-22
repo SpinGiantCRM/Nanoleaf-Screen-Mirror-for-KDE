@@ -490,7 +490,10 @@ class NanoleafTrayApp:
             )
 
     def _make_preview_driver(self):
-        return self.service.make_device_driver(enable_live_frame_write_optimization=False)
+        return self.service.make_device_driver(
+            enable_live_frame_write_optimization=False,
+            allow_live_zone_padding=True,
+        )
 
     def _set_qt_desktop_identity(self) -> None:
         for method_name in ("setDesktopFileName", "setApplicationName"):

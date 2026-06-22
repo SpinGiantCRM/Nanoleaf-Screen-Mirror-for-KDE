@@ -18,7 +18,10 @@ from nanoleaf_sync.config.presets import (
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
 from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
-from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping
+from nanoleaf_sync.runtime.calibration_resolver import (
+    evaluate_device_zone_authority,
+    resolve_calibration_mapping,
+)
 from nanoleaf_sync.runtime.zone_derivation import source_side_counts_from_config
 from nanoleaf_sync.service import _resolve_capture_dims
 
@@ -126,6 +129,27 @@ def run_readiness_check(
                 ),
                 fix="Match source zone count to strip LED zone count",
                 category=NEEDS_CALIBRATION_STATUS,
+            )
+        )
+
+    detected_from_status = status.get("detected_device_zone_count")
+    if detected_from_status is None:
+        detected_from_status = status.get("device_zone_count")
+    zone_authority = evaluate_device_zone_authority(
+        config=normalized,
+        detected_device_zone_count=detected_from_status,
+    )
+    if zone_authority.blocked:
+        issues.append(
+            ReadinessIssue(
+                check="device-zone-count",
+                reason=(
+                    "USB strip zone count does not match calibration/config "
+                    f"(detected={zone_authority.detected_device_zone_count}, "
+                    f"configured={zone_authority.configured_device_zone_count})."
+                ),
+                fix="Rerun calibration or enable allow_zone_count_override",
+                category=DEVICE_PROBLEM_STATUS,
             )
         )
 

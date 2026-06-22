@@ -216,7 +216,7 @@ def test_send_frame_rejects_when_too_many_colors_for_effective_zone_count() -> N
         driver.send_frame([(1, 1, 1), (2, 2, 2), (3, 3, 3)])
 
 
-def test_send_frame_pads_black_when_too_few_colors() -> None:
+def test_send_frame_pads_black_when_too_few_colors_and_padding_allowed() -> None:
     transport = FakeTransport(
         [
             _rsp(0x0C, b"\x00NL82K2"),
@@ -226,7 +226,11 @@ def test_send_frame_pads_black_when_too_few_colors() -> None:
             _rsp(0x02, b"\x00"),
         ]
     )
-    driver = NanoleafUSBDriver(ids=NanoleafUSBIds(0x37FA, 0x8202), transport=transport)
+    driver = NanoleafUSBDriver(
+        ids=NanoleafUSBIds(0x37FA, 0x8202),
+        transport=transport,
+        allow_live_zone_padding=True,
+    )
     driver.initialize()
 
     driver.send_frame([(9, 8, 7)])
@@ -234,6 +238,22 @@ def test_send_frame_pads_black_when_too_few_colors() -> None:
     req = transport.requests[-1]
     assert req[1:3] == b"\x00\x09"
     assert req[3:] == b"\x08\x09\x07\x00\x00\x00\x00\x00\x00"
+
+
+def test_send_frame_raises_when_too_few_colors_in_strict_live_mode() -> None:
+    transport = FakeTransport(
+        [
+            _rsp(0x0C, b"\x00NL82K2"),
+            _rsp(0x03, b"\x00\x03"),
+            _rsp(0x06, b"\x00\x01"),
+            _rsp(0x08, b"\x00\x14"),
+        ]
+    )
+    driver = NanoleafUSBDriver(ids=NanoleafUSBIds(0x37FA, 0x8202), transport=transport)
+    driver.initialize()
+
+    with pytest.raises(RuntimeError, match="Refusing to silently pad short live zone colors"):
+        driver.send_frame([(9, 8, 7)])
 
 
 def test_send_frame_uses_configured_channel_order() -> None:
@@ -470,9 +490,14 @@ def test_send_frame_falls_back_to_response_required_when_live_write_fails_before
         ]
     )
     driver = NanoleafUSBDriver(
-        ids=NanoleafUSBIds(0x37FA, 0x8202), transport=transport, configured_zone_count=8
+        ids=NanoleafUSBIds(0x37FA, 0x8202),
+        transport=transport,
+        configured_zone_count=8,
+        enable_live_frame_write_optimization=True,
     )
     driver.initialize()
+    driver._live_frames_sent_after_open = 1
+    driver._probed_report_size = 256
 
     timing = driver.send_frame_with_timing([(10, 20, 30)] * 8)
 
@@ -494,9 +519,14 @@ def test_send_frame_does_not_fallback_after_uncertain_live_write_failure() -> No
         ]
     )
     driver = NanoleafUSBDriver(
-        ids=NanoleafUSBIds(0x37FA, 0x8202), transport=transport, configured_zone_count=8
+        ids=NanoleafUSBIds(0x37FA, 0x8202),
+        transport=transport,
+        configured_zone_count=8,
+        enable_live_frame_write_optimization=True,
     )
     driver.initialize()
+    driver._live_frames_sent_after_open = 1
+    driver._probed_report_size = 256
 
     with pytest.raises(RuntimeError, match="skipped immediate fallback"):
         driver.send_frame_with_timing([(10, 20, 30)] * 8)
@@ -518,9 +548,14 @@ def test_uncertain_live_write_failure_records_failed_timing() -> None:
         ]
     )
     driver = NanoleafUSBDriver(
-        ids=NanoleafUSBIds(0x37FA, 0x8202), transport=transport, configured_zone_count=8
+        ids=NanoleafUSBIds(0x37FA, 0x8202),
+        transport=transport,
+        configured_zone_count=8,
+        enable_live_frame_write_optimization=True,
     )
     driver.initialize()
+    driver._live_frames_sent_after_open = 1
+    driver._probed_report_size = 256
 
     with pytest.raises(RuntimeError, match="uncertain HID write status"):
         driver.send_frame_with_timing([(10, 20, 30)] * 8)

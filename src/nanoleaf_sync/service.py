@@ -40,7 +40,10 @@ from nanoleaf_sync.config.presets import effective_drm_zone_patch_capture, is_fo
 from nanoleaf_sync.config.store import ConfigManager
 from nanoleaf_sync.device.interfaces import DeviceDriver, NanoleafUSBIds
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
-from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping_from_config
+from nanoleaf_sync.runtime.calibration_resolver import (
+    evaluate_device_zone_authority,
+    resolve_calibration_mapping_from_config,
+)
 from nanoleaf_sync.runtime.compositor import effective_sdr_boost
 from nanoleaf_sync.runtime.diagnostics_exports import default_kde_display_metadata
 from nanoleaf_sync.runtime.startup import (
@@ -324,6 +327,25 @@ class NanoleafSyncService:
         status["configured_device_zone_count"] = configured_device_zone_count
         status["effective_runtime_zone_count"] = effective_runtime_zone_count
         status["calibration_device_zone_count"] = calibration_device_zone_count
+        zone_authority = evaluate_device_zone_authority(
+            config=self.config,
+            detected_device_zone_count=detected_device_zone_count,
+        )
+        status["device_zone_count_source"] = (
+            self._runtime.device_zone_count_source or zone_authority.device_zone_count_source
+        )
+        status["effective_device_zone_count"] = (
+            self._runtime.effective_device_zone_count or zone_authority.effective_device_zone_count
+        )
+        status["device_zone_count_mismatch"] = bool(
+            self._runtime.device_zone_count_mismatch or zone_authority.device_zone_count_mismatch
+        )
+        status["mapping_repair_required"] = bool(
+            self._runtime.mapping_repair_required or zone_authority.mapping_repair_required
+        )
+        status["device_zone_override_active"] = bool(
+            self._runtime.device_zone_override_active or zone_authority.override_active
+        )
         status["source_zone_count"] = len(self._runtime.latest_zones_px)
         status["source_zone_side_counts"] = tuple(
             int(i) for i in self._runtime.latest_zone_side_counts
@@ -549,7 +571,10 @@ class NanoleafSyncService:
                     logger.warning("Error closing diagnostic capture backend", exc_info=True)
 
     def make_device_driver(
-        self, *, enable_live_frame_write_optimization: bool = True
+        self,
+        *,
+        enable_live_frame_write_optimization: bool = True,
+        allow_live_zone_padding: bool = False,
     ) -> DeviceDriver:
         ids = NanoleafUSBIds(vid=self.config.device_vid, pid=self.config.device_pid)
         if int(ids.vid) == 0 or int(ids.pid) == 0:
@@ -586,6 +611,7 @@ class NanoleafSyncService:
                 str(getattr(self.config, "sync_mode", "standard"))
             ),
             auto_turn_on=bool(getattr(self.config, "auto_turn_on", True)),
+            allow_live_zone_padding=allow_live_zone_padding,
         )
 
     def _clear_backends(self) -> None:
@@ -752,11 +778,37 @@ class NanoleafSyncService:
                 self._driver = self.make_device_driver()
 
             self._driver.initialize()
+            reported_zone_count = getattr(self._driver, "reported_zone_count", None)
+            if reported_zone_count is None:
+                reported_zone_count = getattr(self._driver, "zone_count", None)
+            zone_authority = evaluate_device_zone_authority(
+                config=self.config,
+                detected_device_zone_count=reported_zone_count,
+            )
+            if zone_authority.blocked:
+                self._runtime.mark_device_zone_mismatch(
+                    zone_authority.message,
+                    authority=zone_authority,
+                )
+                raise RuntimeError(zone_authority.message)
+            if zone_authority.override_active and zone_authority.message:
+                logger.warning(zone_authority.message)
             self._runtime.driver_ready = True
             with self._status_lock:
                 self._device_discovered = True
                 self._device_model = getattr(self._driver, "model_number", None)
-                self._device_zone_count = getattr(self._driver, "zone_count", None)
+                self._device_zone_count = reported_zone_count
+                self._runtime.device_zone_count_source = zone_authority.device_zone_count_source
+                self._runtime.configured_device_zone_count = (
+                    zone_authority.configured_device_zone_count
+                )
+                self._runtime.detected_device_zone_count = zone_authority.detected_device_zone_count
+                self._runtime.effective_device_zone_count = (
+                    zone_authority.effective_device_zone_count
+                )
+                self._runtime.device_zone_count_mismatch = zone_authority.device_zone_count_mismatch
+                self._runtime.mapping_repair_required = zone_authority.mapping_repair_required
+                self._runtime.device_zone_override_active = zone_authority.override_active
             if claimed_each_boot_probe:
                 self._finish_each_boot_probe(success=True)
         except Exception as exc:

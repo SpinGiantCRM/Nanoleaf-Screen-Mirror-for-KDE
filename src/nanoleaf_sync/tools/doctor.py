@@ -647,7 +647,24 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Open a pre-filled GitHub issue with compatibility and doctor diagnostics",
     )
+    parser.add_argument(
+        "--bundle",
+        metavar="PATH",
+        help="Export a redacted diagnostic bundle zip to PATH",
+    )
     args = parser.parse_args(argv)
+
+    if args.bundle:
+        from nanoleaf_sync.tools.diagnostic_bundle import create_diagnostic_bundle
+
+        bundle_path = create_diagnostic_bundle(
+            Path(args.bundle),
+            include_device_probe=bool(args.device),
+            include_capture_probe=bool(args.capture),
+        )
+        print(f"Diagnostic bundle written to {bundle_path}")
+        if not args.report_upstream:
+            return 0
 
     include_device = args.device or args.report_upstream
     include_capture = args.capture or args.report_upstream
