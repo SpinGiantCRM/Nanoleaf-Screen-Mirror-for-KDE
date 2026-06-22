@@ -119,6 +119,7 @@ module = [
   "nanoleaf_sync.color.hdr",
   "nanoleaf_sync.color.zone_mapper",
   "nanoleaf_sync.tools.portal_tools",
+  "nanoleaf_sync.tools.color_kmeans",
 ]
 ignore_errors = true
 
