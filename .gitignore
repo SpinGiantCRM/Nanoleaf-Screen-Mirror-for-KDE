@@ -30,7 +30,9 @@ packaging/arch/nanoleaf-kde-sync-*.tar.gz
 
 # AI agent workspace files — local-only, never push to remote
 .agents/
+.cursor/
 .cursorignore
 .opencode/
+AGENTS.md
 docs/ai/
 scripts/ai/
