@@ -67,6 +67,57 @@ def test_resolve_compositor_hdr_runtime_auto_enables_from_plasma(monkeypatch) ->
     assert nits == pytest.approx(203.0)
 
 
+def test_plasma_hdr_helpers_read_kwinrc_before_subprocess(monkeypatch, tmp_path) -> None:
+    from nanoleaf_sync.color import capture_metadata
+
+    config_dir = tmp_path / ".config"
+    config_dir.mkdir()
+    (config_dir / "kwinrc").write_text(
+        "[Compositing]\nHDR=true\nSDRBrightness=203\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(
+        capture_metadata.subprocess,
+        "run",
+        lambda *args, **kwargs: pytest.fail("kwinrc values should avoid kreadconfig6"),
+    )
+    capture_metadata._kwinrc_compositing_values.cache_clear()
+    capture_metadata._plasma_hdr_enabled.cache_clear()
+    capture_metadata._plasma_sdr_white_nits.cache_clear()
+
+    try:
+        assert capture_metadata._plasma_hdr_enabled() is True
+        assert capture_metadata._plasma_sdr_white_nits() == pytest.approx(203.0)
+    finally:
+        capture_metadata._kwinrc_compositing_values.cache_clear()
+        capture_metadata._plasma_hdr_enabled.cache_clear()
+        capture_metadata._plasma_sdr_white_nits.cache_clear()
+
+
+def test_compositor_runtime_skips_sdr_brightness_probe_when_hdr_disabled(
+    monkeypatch,
+) -> None:
+    from nanoleaf_sync.color.capture_metadata import resolve_compositor_hdr_runtime
+
+    monkeypatch.setattr(
+        "nanoleaf_sync.color.capture_metadata._plasma_hdr_enabled",
+        lambda: False,
+    )
+    monkeypatch.setattr(
+        "nanoleaf_sync.color.capture_metadata._plasma_sdr_white_nits",
+        lambda: pytest.fail("SDR brightness is irrelevant when Plasma HDR is disabled"),
+    )
+
+    hdr_mode, nits = resolve_compositor_hdr_runtime(
+        compositor_hdr_mode=False,
+        sdr_boost_nits=80.0,
+    )
+
+    assert hdr_mode is False
+    assert nits == pytest.approx(80.0)
+
+
 def test_accuracy_mode_caps_light_spread() -> None:
     assert (
         effective_light_spread(

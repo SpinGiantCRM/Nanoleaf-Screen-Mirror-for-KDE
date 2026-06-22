@@ -27,8 +27,12 @@ jobs:
           pip install -e .[test] pytest-cov ruff mypy pip-audit
       - name: Version checks
         run: python scripts/check_release_versions.py
+      - name: Runtime install check
+        run: python scripts/verify_runtime_install.py
       - name: Lint
-        run: ruff check src/ tests/
+        run: ruff check src/ tests/ scripts/
+      - name: Format check
+        run: ruff format --check src/ tests/ scripts/
       - name: Type check
         run: mypy src/nanoleaf_sync --ignore-missing-imports --follow-imports=silent
       - name: pip audit

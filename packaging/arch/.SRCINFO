@@ -1,7 +1,7 @@
 pkgbase = nanoleaf-kde-sync
 	pkgdesc = Nanoleaf screen mirroring for KDE Plasma on Linux.
-	pkgver = 1.1.0
-	pkgrel = 1
+	pkgver = 1.4.0
+	pkgrel = 2
 	url = https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE
 	install = nanoleaf-kde-sync.install
 	arch = x86_64
@@ -17,7 +17,7 @@ pkgbase = nanoleaf-kde-sync
 	depends = python-hidapi
 	depends = python-dacite
 	depends = python-tomli-w
-	source = nanoleaf-kde-sync-1.1.0.tar.gz::https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/archive/refs/tags/v1.1.0.tar.gz
-	sha256sums = c3f302add23b098f69f5506fdc9b9f461f162e31769927c9858f70d2404879f5
+	source = nanoleaf-kde-sync-1.4.0.tar.gz::https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/archive/refs/tags/v1.4.0.tar.gz
+	sha256sums = 73ad338a8e67b23d0fedeb2c641ee8c9a3ea3bdbe03e24a05f1b028a25f59146
 
 pkgname = nanoleaf-kde-sync

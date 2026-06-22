@@ -25,7 +25,35 @@ def test_version_snapshot_read_write(tmp_path, monkeypatch) -> None:
     assert stored["last_seen_kwin_version"] == "6.3.1"
     assert stored["last_seen_screenshot2_version"] == 5
     assert "last_updated" in stored
+    assert stored["snapshot_persisted"] is True
+    assert payload["snapshot_persisted"] is True
     assert payload["last_seen_portal_version"] == 6
+
+
+def test_version_snapshot_write_failure_is_nonfatal(tmp_path, monkeypatch) -> None:
+    snapshot_path = tmp_path / "readonly" / "kde-version-snapshot.json"
+    monkeypatch.setattr(
+        version_snapshot,
+        "collect_current_versions",
+        lambda: {
+            "last_seen_kwin_version": "6.3.1",
+            "last_seen_kde_plasma_version": "6.3.1",
+            "last_seen_screenshot2_version": 5,
+            "last_seen_portal_version": 6,
+            "last_seen_python_version": "3.12.7",
+        },
+    )
+
+    def _fail_write_text(*_args, **_kwargs):
+        raise OSError("read-only filesystem")
+
+    monkeypatch.setattr(type(snapshot_path), "write_text", _fail_write_text)
+
+    payload = version_snapshot.update_snapshot(path=snapshot_path)
+
+    assert payload["snapshot_persisted"] is False
+    assert payload["snapshot_write_error"] == str(snapshot_path)
+    assert payload["last_seen_kwin_version"] == "6.3.1"
 
 
 def test_version_diff_detection(tmp_path, monkeypatch) -> None:

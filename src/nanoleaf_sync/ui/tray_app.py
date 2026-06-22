@@ -530,6 +530,13 @@ class NanoleafTrayApp:
 
         fallback_icon = self.QIcon()
         for candidate in (
+            Path(__file__).resolve().parents[1]
+            / "assets"
+            / "icons"
+            / "hicolor"
+            / "scalable"
+            / "apps"
+            / "nanoleaf-kde-sync.svg",
             Path(__file__).resolve().parents[3]
             / "assets"
             / "icons"

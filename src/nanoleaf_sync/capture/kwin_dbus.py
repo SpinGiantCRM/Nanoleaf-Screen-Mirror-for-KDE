@@ -106,6 +106,7 @@ class KWinDBusScreenshotCapture:
         "screenshotScreen",
     )
     _RECONNECT_RETRY_DELAY_SECONDS = 0.05
+    _LOOP_WAKE_INTERVAL_SECONDS = 0.05
 
     def __init__(
         self,
@@ -260,7 +261,16 @@ class KWinDBusScreenshotCapture:
             self._loop = loop
             self._loop_start_error = None
             asyncio.set_event_loop(loop)
-            self._loop_ready.set()
+
+            def _keep_loop_waking() -> None:
+                if loop.is_running():
+                    loop.call_later(self._LOOP_WAKE_INTERVAL_SECONDS, _keep_loop_waking)
+
+            if hasattr(loop, "call_soon"):
+                loop.call_soon(self._loop_ready.set)
+                loop.call_soon(_keep_loop_waking)
+            else:
+                self._loop_ready.set()
             loop.run_forever()
             loop.close()
         except asyncio.CancelledError:

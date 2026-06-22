@@ -5,10 +5,12 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
 
 export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-offscreen}"
+export PYTHONPATH="${ROOT_DIR}/src${PYTHONPATH:+:${PYTHONPATH}}"
 
 python scripts/check_release_versions.py
-ruff check src/ tests/
-ruff format --check src/ tests/
+python scripts/verify_runtime_install.py
+ruff check src/ tests/ scripts/
+ruff format --check src/ tests/ scripts/
 mypy src/nanoleaf_sync --ignore-missing-imports --follow-imports=silent
 bandit -r src/ -c pyproject.toml
 pip-audit --path .

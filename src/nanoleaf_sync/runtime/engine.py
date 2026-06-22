@@ -1300,11 +1300,9 @@ def _run_loop_pipeline(
     close_backends,
 ) -> None:
     _gamut_init_from_config(config)
-    fps = max(1, int(config.fps))
     governor = _make_fps_governor(config)
     state.target_fps = governor.target_fps
     gov_lock = threading.Lock()
-    1.0 / fps
     log_interval_s = float(getattr(config, "status_log_interval_s", 5.0))
     error_limit = max(1, int(getattr(config, "max_consecutive_errors", 5)))
     startup_frame_timeout_s = max(0.1, float(getattr(config, "startup_frame_timeout_s", 5.0)))
@@ -1426,6 +1424,7 @@ def _run_loop_pipeline(
                     logger.debug("capture worker: ring buffer full; dropping frame")
                     with metrics_lock:
                         no_pending_frame_events += 1
+                    time.sleep(0.001)
                 else:
                     with metrics_lock:
                         if last_capture_success_ts is not None:
@@ -1764,7 +1763,9 @@ def _run_loop_pipeline(
                     logger.debug(
                         "process worker: replaced stale processed frame queued for HID writer"
                     )
-                    time.sleep(0)
+                    time.sleep(0.001)
+                else:
+                    time.sleep(0.001)
                 process_worker_error = None
                 with metrics_lock:
                     process_worker_error_count = 0
@@ -2210,6 +2211,26 @@ def _run_loop_pipeline(
                 "it may still be blocked in IO",
                 t.name,
             )
+
+    capture_dropped_delta = capture_buf.dropped_count()
+    capture_buf.reset_dropped()
+    process_dropped_delta = process_buf.dropped_count()
+    process_buf.reset_dropped()
+    dropped_delta = capture_dropped_delta + process_dropped_delta
+    if dropped_delta > 0:
+        state.latency_probe.add_stage_sample(
+            FrameTimingSample(
+                stage_ms={},
+                target_fps=float(governor.target_fps),
+                fps_cap=float(governor.target_fps),
+                fps_cap_reason="FPS governor dynamic cap",
+                dropped_or_skipped_frames_delta=dropped_delta,
+                counters_delta={
+                    "capture_buffer_dropped_frames": capture_dropped_delta,
+                    "process_buffer_dropped_frames": process_dropped_delta,
+                },
+            )
+        )
 
 
 def run_loop(

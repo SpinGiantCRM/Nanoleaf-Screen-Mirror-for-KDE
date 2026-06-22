@@ -50,13 +50,15 @@ Reinstall helper:
 2. Cut a GitHub release tag `vX.Y.Z` and publish release assets.
 3. In `packaging/arch/`:
    ```bash
-   updpkgsums   # pin sha256sums against the published tarball
+   updpkgsums   # refresh sha256sums against the published tarball
    makepkg --printsrcinfo > .SRCINFO
    ```
 4. Clone AUR package repo and copy `PKGBUILD`, `.SRCINFO`, `nanoleaf-kde-sync.install`.
 5. Commit and push to AUR; verify with `paru -S nanoleaf-kde-sync`.
 
-**v1.0.0 note:** `sha256sums` remains `SKIP` until the `v1.0.0` GitHub release tarball exists; run `updpkgsums` immediately after publishing the tag.
+Do not publish AUR metadata with `sha256sums=('SKIP')`; local checkout builds use
+`./scripts/build_arch_package.sh`, which creates a local source tarball and passes
+`--skipchecksums` only for that local workflow.
 
 ### pkgrel vs pkgver
 

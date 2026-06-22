@@ -41,11 +41,14 @@ jobs:
       - name: Validate version metadata
         run: python scripts/check_release_versions.py
 
+      - name: Validate runtime install
+        run: python scripts/verify_runtime_install.py
+
       - name: Lint
-        run: ruff check src/ tests/
+        run: ruff check src/ tests/ scripts/
 
       - name: Format check
-        run: ruff format --check src/ tests/
+        run: ruff format --check src/ tests/ scripts/
 
       - name: Type check
         run: mypy src/nanoleaf_sync --ignore-missing-imports --follow-imports=silent

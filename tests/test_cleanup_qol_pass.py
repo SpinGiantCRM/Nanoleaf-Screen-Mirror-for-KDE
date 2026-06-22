@@ -94,3 +94,21 @@ def test_settings_sections_present() -> None:
     text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     for section in ("Everyday", "Strip setup", "Fine-tuning", "Colour", "Advanced"):
         assert section in text
+
+
+def test_tray_icon_fallback_checks_packaged_assets_before_checkout_assets() -> None:
+    text = read_repo_text("src/nanoleaf_sync/ui/tray_app.py")
+    package_asset_ref = 'Path(__file__).resolve().parents[1]\n            / "assets"'
+    checkout_asset_ref = 'Path(__file__).resolve().parents[3]\n            / "assets"'
+
+    assert package_asset_ref in text
+    assert checkout_asset_ref in text
+    assert text.index(package_asset_ref) < text.index(checkout_asset_ref)
+
+
+def test_pipeline_setup_has_no_dead_fps_expression() -> None:
+    text = read_repo_text("src/nanoleaf_sync/runtime/engine.py")
+    assert "\n    1.0 / fps\n" not in text
+    pipeline_start = text.index("def _run_loop_pipeline(")
+    pipeline_setup = text[pipeline_start : text.index("# Process buffer", pipeline_start)]
+    assert "fps = max(1, int(config.fps))" not in pipeline_setup

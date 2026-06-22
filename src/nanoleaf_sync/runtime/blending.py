@@ -19,8 +19,9 @@ class AdaptiveSmoothingDiagnostics:
 
 _DARK_ISOLATION_PEAK = 18.0
 _BRIGHT_NEIGHBOR_DELTA = 24.0
-_LOW_LIGHT_HOLD_PEAK = 35.0
+_LOW_LIGHT_HOLD_PEAK = 24.0
 _LOW_LIGHT_NEUTRAL_ISOLATION_PEAK = 40.0
+_HUE_STABLE_MIN_CHROMA = 10.0
 
 
 def apply_neighbor_blend(mapped: np.ndarray, *, spread_mode: str) -> np.ndarray:
@@ -222,18 +223,27 @@ def adaptive_one_euro_blend(
         _l_c, _c_c, h_c = rgb_u8_to_oklch(cur_u8)
         _l_p, _c_p, h_p = rgb_u8_to_oklch(prev_u8)
         hue_delta = np.abs(np.arctan2(np.sin(h_c - h_p), np.cos(h_c - h_p)))
-        hue_osc_mask = bright_mask & (hue_delta > 0.35)
+        hue_stable = (chroma_spread >= _HUE_STABLE_MIN_CHROMA) & (
+            previous_chroma >= _HUE_STABLE_MIN_CHROMA
+        )
+        hue_osc_mask = bright_mask & hue_stable & (hue_delta > 0.35)
         if hue_osc_mask.any():
             alpha_zone = np.where(hue_osc_mask, np.minimum(alpha_zone, tiny_blend), alpha_zone)
 
     blended = np.empty_like(current)
+    linear = previous + (alpha_zone[:, None] * (current - previous))
     static_mask = zone_delta < (deadband * 1.5)
     if static_mask.any():
-        oklab = _oklab_blend_rows(current, previous, alpha_zone)
-        linear = previous + (alpha_zone[:, None] * (current - previous))
-        blended = np.where(static_mask[:, None], oklab, linear)
+        chromatic_static = static_mask & (
+            (chroma_spread >= _HUE_STABLE_MIN_CHROMA) & (previous_chroma >= _HUE_STABLE_MIN_CHROMA)
+        )
+        if chromatic_static.any():
+            oklab = _oklab_blend_rows(current, previous, alpha_zone)
+            blended = np.where(chromatic_static[:, None], oklab, linear)
+        else:
+            blended = linear
     else:
-        blended = previous + (alpha_zone[:, None] * (current - previous))
+        blended = linear
     diagnostics = AdaptiveSmoothingDiagnostics(
         scene_activity=scene_activity,
         median_zone_delta=median_delta,

@@ -27,4 +27,5 @@ runs:
         cd "$GITHUB_WORKSPACE/packaging/arch"
         bash -n nanoleaf-kde-sync.install
         # Arch packaging requires makepkg to run as a non-root user.
-        su - builder -c "cd \"$GITHUB_WORKSPACE/packaging/arch\" && makepkg --printsrcinfo >/dev/null"
+        su - builder -c "cd \"$GITHUB_WORKSPACE/packaging/arch\" && makepkg --printsrcinfo > /tmp/nanoleaf-kde-sync.SRCINFO"
+        diff -u .SRCINFO /tmp/nanoleaf-kde-sync.SRCINFO

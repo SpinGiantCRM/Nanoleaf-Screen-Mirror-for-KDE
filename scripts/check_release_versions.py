@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -52,6 +53,55 @@ def parse_pkgbuild_pkgver() -> str:
     return pkgver
 
 
+def _normalized_srcinfo(text: str) -> str:
+    lines = [line.rstrip() for line in text.splitlines()]
+    while lines and not lines[-1]:
+        lines.pop()
+    return "\n".join(lines) + "\n"
+
+
+def _srcinfo_value(text: str, key: str) -> str | None:
+    prefix = f"{key} = "
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(prefix):
+            return stripped.removeprefix(prefix).strip()
+    return None
+
+
+def check_srcinfo_in_sync(version: str) -> None:
+    arch_dir = ROOT / "packaging/arch"
+    srcinfo_path = arch_dir / ".SRCINFO"
+    if not srcinfo_path.is_file():
+        fail("Missing packaging/arch/.SRCINFO")
+    actual_text = srcinfo_path.read_text(encoding="utf-8")
+    srcinfo_pkgver = _srcinfo_value(actual_text, "pkgver")
+    if srcinfo_pkgver != version:
+        fail(f".SRCINFO pkgver ({srcinfo_pkgver}) does not match VERSION ({version}).")
+    srcinfo_source = _srcinfo_value(actual_text, "source")
+    if srcinfo_source is None or f"v{version}.tar.gz" not in srcinfo_source:
+        fail(f".SRCINFO source does not point at v{version}.tar.gz.")
+    srcinfo_checksum = _srcinfo_value(actual_text, "sha256sums")
+    if srcinfo_checksum in {None, "", "SKIP"}:
+        fail(".SRCINFO must pin sha256sums for publishable Arch metadata.")
+
+    if shutil.which("makepkg") is None:
+        print("makepkg unavailable; skipped exact .SRCINFO regeneration check.")
+        return
+
+    completed = subprocess.run(
+        ["makepkg", "--printsrcinfo"],
+        cwd=arch_dir,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    expected = _normalized_srcinfo(completed.stdout)
+    actual = _normalized_srcinfo(actual_text)
+    if actual != expected:
+        fail("packaging/arch/.SRCINFO is stale; run `makepkg --printsrcinfo > .SRCINFO`.")
+
+
 def parse_readme_badge_version() -> str | None:
     readme_text = (ROOT / "README.md").read_text(encoding="utf-8")
     if "img.shields.io/github/v/release/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE" in readme_text:
@@ -85,10 +135,7 @@ def check_artifacts(version: str, *artifact_dirs: Path) -> None:
                 f"{name!r} does not start with one of {expected_prefixes!r}."
             )
     if not saw_expected:
-        fail(
-            "No release artifacts found with canonical version prefix "
-            f"{expected_prefixes!r}."
-        )
+        fail(f"No release artifacts found with canonical version prefix {expected_prefixes!r}.")
 
 
 def main() -> None:
@@ -106,19 +153,16 @@ def main() -> None:
 
     normalized_tag = normalize_tag(args.tag)
     if normalized_tag and normalized_tag != version:
-        fail(
-            f"Release tag version ({normalized_tag}) does not match VERSION ({version})."
-        )
+        fail(f"Release tag version ({normalized_tag}) does not match VERSION ({version}).")
 
     pkgver = parse_pkgbuild_pkgver()
     if pkgver != version:
         fail(f"PKGBUILD pkgver ({pkgver}) does not match VERSION ({version}).")
+    check_srcinfo_in_sync(version)
 
     readme_version = parse_readme_badge_version()
     if readme_version is not None and readme_version != version:
-        fail(
-            f"README version badge ({readme_version}) does not match VERSION ({version})."
-        )
+        fail(f"README version badge ({readme_version}) does not match VERSION ({version}).")
 
     for artifact_dir in args.artifact_dir:
         check_artifacts(version, Path(artifact_dir))

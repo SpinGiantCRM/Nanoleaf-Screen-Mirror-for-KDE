@@ -88,9 +88,20 @@ def update_snapshot(*, path: Path | None = None) -> dict[str, Any]:
     snapshot_path = path or default_snapshot_path()
     payload = collect_current_versions()
     payload["last_updated"] = datetime.now(UTC).isoformat()
-    snapshot_path.parent.mkdir(parents=True, exist_ok=True)
-    snapshot_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    logger.info("Updated KDE version snapshot at %s", snapshot_path)
+    payload["snapshot_persisted"] = False
+    try:
+        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+        payload["snapshot_persisted"] = True
+        snapshot_path.write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    except OSError:
+        payload["snapshot_persisted"] = False
+        payload["snapshot_write_error"] = str(snapshot_path)
+        logger.warning("Failed to update KDE version snapshot at %s", snapshot_path, exc_info=True)
+    else:
+        logger.info("Updated KDE version snapshot at %s", snapshot_path)
     return payload
 
 

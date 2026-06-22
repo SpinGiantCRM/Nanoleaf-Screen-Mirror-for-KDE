@@ -261,6 +261,24 @@ def stabilize_dark_zone_samples(colors: np.ndarray) -> np.ndarray:
     return (rgb * (1.0 - blend[:, None])) + (neutral * blend[:, None])
 
 
+def apply_output_quantization_hold(
+    colors: np.ndarray,
+    previous_sent: np.ndarray | None,
+    *,
+    threshold: float = 1.25,
+) -> np.ndarray:
+    rgb = np.asarray(colors, dtype=np.float32)
+    if previous_sent is None or previous_sent.shape != rgb.shape:
+        return rgb
+    prev = np.asarray(previous_sent, dtype=np.float32)
+    hold = np.max(np.abs(rgb - prev), axis=1) < float(threshold)
+    if not hold.any():
+        return rgb
+    out = rgb.copy()
+    out[hold] = prev[hold]
+    return out
+
+
 def apply_dark_zone_output(colors: np.ndarray) -> np.ndarray:
     rgb = np.asarray(colors, dtype=np.float32)
     if rgb.size == 0:

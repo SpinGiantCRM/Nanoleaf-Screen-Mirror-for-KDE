@@ -29,6 +29,7 @@ from nanoleaf_sync.runtime.color_processing import (
     apply_dark_zone_output,
     apply_display_gamut_adaptation,
     apply_led_calibration,
+    apply_output_quantization_hold,
     set_skip_display_gamut_adaptation,
     stabilize_dark_zone_samples,
 )
@@ -399,14 +400,18 @@ def process_zone_colors(
         predictive_lookahead_frames = float(pred_result.lookahead_frames)
         predictive_scene_cut_suppressed = bool(pred_result.scene_cut_suppressed)
 
-    feedback_float = np.array(mapped, copy=True)
-    np.clip(feedback_float, 0.0, 255.0, out=feedback_float)
-    history_list = [tuple(float(c) for c in row) for row in feedback_float.tolist()]
+    prev_sent_arr: np.ndarray | None = None
+    if prev_smoothed_colors:
+        n = min(len(prev_smoothed_colors), mapped.shape[0])
+        if n:
+            prev_sent_arr = np.asarray(prev_smoothed_colors[:n], dtype=np.float32)
+            mapped[:n] = apply_output_quantization_hold(mapped[:n], prev_sent_arr)
 
     np.clip(mapped, 0.0, 255.0, out=mapped)
     np.rint(mapped, out=mapped)
     out = mapped.astype(np.uint8, copy=False)
     out_list = [tuple(int(c) for c in row) for row in out.tolist()]
+    history_list = [tuple(float(c) for c in row) for row in out_list]
     output_prepare_done = time.perf_counter()
 
     if params.return_diagnostics:

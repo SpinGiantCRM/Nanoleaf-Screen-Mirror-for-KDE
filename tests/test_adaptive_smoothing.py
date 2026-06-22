@@ -110,3 +110,37 @@ def test_saturated_to_dark_releases_in_one_step() -> None:
     current = np.array([[6.0, 6.0, 6.0]], dtype=np.float32)
     blended, _diag = _blend(previous=prev, current=current, motion_preset="responsive")
     assert float(np.max(blended)) < 10.0
+
+
+def test_bright_neutral_sequence_stays_stable() -> None:
+    state = np.full((12, 3), 220.0, dtype=np.float32)
+    noise = np.array(
+        [
+            [0.8, -0.6, 0.4],
+            [-0.6, 0.8, -0.4],
+            [0.4, -0.8, 0.6],
+            [-0.8, 0.4, -0.6],
+        ],
+        dtype=np.float32,
+    )
+    level_changes = 0
+    last_levels: list[int] | None = None
+    for offset in noise * 4:
+        current = state + offset
+        blended, _diag = _blend(previous=state, current=current, motion_preset="calm")
+        levels = [int(round(float(np.max(row)))) for row in blended]
+        if last_levels is not None:
+            level_changes += sum(
+                1 for a, b in zip(last_levels, levels, strict=True) if abs(a - b) > 1
+            )
+        last_levels = levels
+        state = blended
+    assert level_changes <= 4
+
+
+def test_saturated_hue_jitter_is_damped() -> None:
+    prev = np.tile(np.array([[180.0, 40.0, 180.0]], dtype=np.float32), (4, 1))
+    current = np.tile(np.array([[180.0, 42.0, 178.0]], dtype=np.float32), (4, 1))
+    blended, diag = _blend(previous=prev, current=current, motion_preset="responsive")
+    assert diag.deadband_active is True
+    assert float(np.max(np.abs(blended - prev))) < 3.0

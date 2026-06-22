@@ -107,18 +107,20 @@ class SPSCRingBuffer(Generic[T]):
 
     def pop_latest(self, timeout: float = 0.01) -> T | None:
         """Return the newest queued item, discarding older entries."""
-        item = self.pop(timeout=timeout)
-        if item is None:
-            self._last_pop_coalesced = 0
-            return None
-        coalesced = 0
-        while True:
-            newer = self.try_pop()
-            if newer is None:
-                self._last_pop_coalesced = coalesced
-                return item
-            coalesced += 1
-            item = newer
+        with self._not_empty:
+            if not self._not_empty.wait_for(
+                lambda: len(self._deque) > 0,
+                timeout=max(0.0, float(timeout)),
+            ):
+                self._last_pop_coalesced = 0
+                return None
+
+            coalesced = max(0, len(self._deque) - 1)
+            item = self._deque.pop()
+            self._deque.clear()
+            self._last_pop_coalesced = coalesced
+            self._not_full.notify()
+            return item
 
     def try_pop(self) -> T | None:
         """Pop an item without blocking.  Returns ``None`` if empty."""

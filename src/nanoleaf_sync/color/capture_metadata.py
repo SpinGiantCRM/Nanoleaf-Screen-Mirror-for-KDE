@@ -3,12 +3,16 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
+from configparser import ConfigParser
 from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Literal
 
 from nanoleaf_sync.color.hdr import HDRMetadata, Primaries, TransferFn
 
 _log = logging.getLogger(__name__)
+_KREADCONFIG_TIMEOUT_SECONDS = 0.15
 
 ContentMode = Literal["sdr", "hdr", "auto"]
 DisplayPresetResolved = Literal["sdr", "hdr"]
@@ -68,13 +72,43 @@ def _normalize_primaries(value: object) -> Primaries:
     return "bt709"
 
 
+@lru_cache(maxsize=1)
+def _kwinrc_compositing_values() -> dict[str, str]:
+    path = Path.home() / ".config" / "kwinrc"
+    parser = ConfigParser()
+    try:
+        if not path.exists():
+            return {}
+        parser.read(path, encoding="utf-8")
+    except OSError:
+        return {}
+    if not parser.has_section("Compositing"):
+        return {}
+    return {key.strip().lower(): value for key, value in parser.items("Compositing")}
+
+
+def _kwinrc_compositing_value(key: str) -> str | None:
+    value = _kwinrc_compositing_values().get(key.strip().lower())
+    if value is None:
+        return None
+    return str(value).strip()
+
+
+@lru_cache(maxsize=1)
 def _plasma_hdr_enabled() -> bool | None:
+    direct_value = _kwinrc_compositing_value("HDR")
+    if direct_value:
+        value = direct_value.strip().lower()
+        if value in {"true", "1", "yes", "on"}:
+            return True
+        if value in {"false", "0", "no", "off"}:
+            return False
     try:
         result = subprocess.run(
             ["kreadconfig6", "--file", "kwinrc", "--group", "Compositing", "--key", "HDR"],
             capture_output=True,
             text=True,
-            timeout=1.5,
+            timeout=_KREADCONFIG_TIMEOUT_SECONDS,
             check=False,
         )
         if result.returncode != 0:
@@ -89,7 +123,14 @@ def _plasma_hdr_enabled() -> bool | None:
     return None
 
 
+@lru_cache(maxsize=1)
 def _plasma_sdr_white_nits() -> float | None:
+    direct_value = _kwinrc_compositing_value("SDRBrightness")
+    if direct_value:
+        try:
+            return float(direct_value)
+        except ValueError:
+            pass
     try:
         result = subprocess.run(
             [
@@ -103,7 +144,7 @@ def _plasma_sdr_white_nits() -> float | None:
             ],
             capture_output=True,
             text=True,
-            timeout=1.5,
+            timeout=_KREADCONFIG_TIMEOUT_SECONDS,
             check=False,
         )
         if result.returncode != 0:
@@ -124,9 +165,10 @@ def resolve_compositor_hdr_runtime(
     if compositor_hdr_mode:
         return True, float(sdr_boost_nits)
     hdr_enabled = _plasma_hdr_enabled()
-    plasma_sdr_nits = _plasma_sdr_white_nits()
-    if hdr_enabled is True and plasma_sdr_nits is not None and float(plasma_sdr_nits) > 80.0:
-        return True, float(plasma_sdr_nits)
+    if hdr_enabled is True:
+        plasma_sdr_nits = _plasma_sdr_white_nits()
+        if plasma_sdr_nits is not None and float(plasma_sdr_nits) > 80.0:
+            return True, float(plasma_sdr_nits)
     return False, float(sdr_boost_nits)
 
 

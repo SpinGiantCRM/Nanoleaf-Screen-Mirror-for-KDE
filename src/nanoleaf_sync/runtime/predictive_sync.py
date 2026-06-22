@@ -178,6 +178,13 @@ def apply_predictive_sync(
         max_delta = max(max_delta, float(max_zone_delta))
     if median_zone_delta is not None:
         median_delta = max(median_delta, float(median_zone_delta))
+    if zone_peak.size and float(np.median(zone_peak)) > 100.0 and median_delta < 8.0:
+        return PredictiveSyncResult(
+            colors=smoothed,
+            lookahead_frames=0.0,
+            active=False,
+            scene_cut_suppressed=False,
+        )
     if median_delta < float(params.static_scene_delta_threshold):
         return PredictiveSyncResult(
             colors=smoothed,

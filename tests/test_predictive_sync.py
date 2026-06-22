@@ -199,6 +199,20 @@ def test_low_light_neutral_scene_skips_prediction() -> None:
     np.testing.assert_array_equal(result.colors, current)
 
 
+def test_bright_static_scene_skips_prediction() -> None:
+    previous = np.full((4, 3), 180.0, dtype=np.float32)
+    current = np.full((4, 3), 182.0, dtype=np.float32)
+    result = apply_predictive_sync(
+        smoothed=current,
+        previous=previous,
+        params=_params(staleness_ms=24.0, strength=1.0),
+        median_zone_delta=5.0,
+        max_zone_delta=6.0,
+    )
+    assert not result.active
+    np.testing.assert_array_equal(result.colors, current)
+
+
 def test_near_black_scene_skips_prediction() -> None:
     previous = np.full((2, 3), 4.0, dtype=np.float32)
     current = np.full((2, 3), 2.0, dtype=np.float32)

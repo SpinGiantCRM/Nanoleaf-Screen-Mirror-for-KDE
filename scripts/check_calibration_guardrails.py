@@ -65,13 +65,17 @@ def main() -> int:
         return 0
 
     calibration_changes = [
-        file_path for file_path in changed_files if _matches_prefix(file_path, CALIBRATION_PATH_PREFIXES)
+        file_path
+        for file_path in changed_files
+        if _matches_prefix(file_path, CALIBRATION_PATH_PREFIXES)
     ]
     if not calibration_changes:
         print("Calibration guardrails passed: no calibration/runtime calibration files changed.")
         return 0
 
-    has_related_tests = any(_matches_prefix(file_path, TEST_HINT_PREFIXES) for file_path in changed_files)
+    has_related_tests = any(
+        _matches_prefix(file_path, TEST_HINT_PREFIXES) for file_path in changed_files
+    )
     if has_related_tests:
         print("Calibration guardrails passed: calibration changes include related test updates.")
         return 0

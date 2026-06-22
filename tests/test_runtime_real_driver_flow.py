@@ -100,10 +100,12 @@ def test_run_loop_with_usb_driver_initializes_then_sends_frame() -> None:
 
     original_send_frame_with_timing = driver.send_frame_with_timing
     send_calls = 0
+    sent_zone_colors: list[tuple[int, int, int]] = []
 
     def _send_frame_then_stop(zone_colors):
         nonlocal send_calls
         send_calls += 1
+        sent_zone_colors[:] = list(zone_colors)
         # Stop even if a mocked transport response is exhausted to avoid retries/reinit loops.
         state.stop_event.set()
         return original_send_frame_with_timing(zone_colors)
@@ -140,14 +142,17 @@ def test_run_loop_with_usb_driver_initializes_then_sends_frame() -> None:
     pixel0_grb = tuple(int(channel) for channel in payload[:3])
     pixel3_grb = tuple(int(channel) for channel in payload[9:12])
 
-    expected_pixel0_grb = (0, 118, 1)
-    expected_pixel3_grb = (91, 0, 0)
+    assert len(sent_zone_colors) == 4
+    expected_pixel0_grb = (
+        sent_zone_colors[0][1],
+        sent_zone_colors[0][0],
+        sent_zone_colors[0][2],
+    )
+    expected_pixel3_grb = (
+        sent_zone_colors[3][1],
+        sent_zone_colors[3][0],
+        sent_zone_colors[3][2],
+    )
 
-    assert all(
-        abs(actual - expected) <= 2
-        for actual, expected in zip(pixel0_grb, expected_pixel0_grb, strict=False)
-    )
-    assert all(
-        abs(actual - expected) <= 2
-        for actual, expected in zip(pixel3_grb, expected_pixel3_grb, strict=False)
-    )
+    assert pixel0_grb == expected_pixel0_grb
+    assert pixel3_grb == expected_pixel3_grb

@@ -83,7 +83,7 @@ def test_history_aligns_with_sent_output() -> None:
     out, history = _run_full_pipeline(raw_zone_rgb=raw, prev_smoothed=prev)
     out_arr = np.asarray(out, dtype=np.float32)
     hist_arr = np.asarray(history, dtype=np.float32)
-    assert float(np.max(np.abs(out_arr - np.rint(hist_arr)))) <= 1.0
+    assert float(np.max(np.abs(out_arr - hist_arr))) == 0.0
 
 
 def test_alternating_dark_grey_does_not_flip_off_and_green() -> None:
@@ -239,6 +239,42 @@ def test_first_led_vivid_history_releases_to_dim_neutral() -> None:
     assert int(np.max(first_eight_chroma)) <= 6
     assert float(np.max(hist_arr[:8]) - np.min(hist_arr[:8])) <= 6.0
     assert 8.0 <= float(np.mean(out_arr[:8])) <= 40.0
+
+
+def test_bright_grey_quantization_does_not_toggle_levels() -> None:
+    seq = [
+        np.full((8, 3), rgb, dtype=np.uint8)
+        for rgb in (
+            (220, 221, 219),
+            (219, 220, 221),
+            (221, 219, 220),
+            (220, 220, 219),
+            (219, 221, 220),
+            (220, 219, 221),
+            (221, 220, 219),
+            (219, 220, 220),
+            (220, 221, 219),
+            (219, 219, 220),
+        )
+    ]
+    prev: list[tuple[float, float, float]] = [(220.0, 220.0, 220.0)] * 8
+    level_changes = 0
+    last_levels: list[int] | None = None
+    for frame in seq:
+        out, history = _run_full_pipeline(
+            raw_zone_rgb=frame,
+            prev_smoothed=prev,
+            color_style="reference",
+            accuracy_mode=True,
+        )
+        levels = [int(round(float(np.max(row)))) for row in np.asarray(out, dtype=np.float32)]
+        if last_levels is not None:
+            level_changes += sum(
+                1 for a, b in zip(last_levels, levels, strict=True) if abs(a - b) > 1
+            )
+        last_levels = levels
+        prev = history
+    assert level_changes <= 4
 
 
 def test_low_light_grey_sequence_limited_level_transitions() -> None:
