@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.5.0 — Audit reliability, HDR correctness, and flicker fixes
+
+### Fixes
+
+- KWin captures always treated as display-referred SDR; SDR boost compensation disabled for `kwin-dbus`
+- USB HID: no fallback on closed transport after uncertain writes; periodic ACK health checks every 30 frames
+- Clear smoothing history on reinit, capture gaps, resolution changes, and source identity shifts
+- KWin compositor restart: detect D-Bus owner changes and reset capture bus state before capture
+- Skip duplicate unchanged HID frames on static desktops to reduce stop-motion flicker
+- Schmidt-trigger near-black stabilization and FPS-scaled output quantization hold
+- XDG Portal restore token cleared when reuse is denied
+
+### Diagnostics
+
+- Live diagnostics: HID send policy, stale-output drop rate, and duplicate-output skip count
+- KWin-specific HDR informational notes instead of false-positive metadata warnings
+- Settings tooltips note when display/HDR options need mirroring restart for full effect
+
 ## v1.4.0 — UI polish, pipeline hardening, and security
 
 ### Fixes

@@ -1,7 +1,7 @@
 # Maintainer: nanoleaf-kde-sync contributors
 pkgname=nanoleaf-kde-sync
-pkgver=1.4.0
-pkgrel=2
+pkgver=1.5.0
+pkgrel=1
 pkgdesc='Nanoleaf screen mirroring for KDE Plasma on Linux.'
 arch=('x86_64')
 url='https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE'
