@@ -248,12 +248,12 @@ def _cached_sampling_plan(
     zw = zones_arr[:, 2]
     zh = zones_arr[:, 3]
     if step > 1:
-        h = max(1, h // step + (1 if (h % step) else 0))
-        w = max(1, w // step + (1 if (w % step) else 0))
-        x = x // step
-        y = y // step
-        zw = (zw + (step - 1)) // step
-        zh = (zh + (step - 1)) // step
+        h = max(1, int(round(float(h) / float(step))))
+        w = max(1, int(round(float(w) / float(step))))
+        x = np.clip(np.rint(x.astype(np.float64) / float(step)).astype(np.intp), 0, w)
+        y = np.clip(np.rint(y.astype(np.float64) / float(step)).astype(np.intp), 0, h)
+        zw = np.maximum(1, np.ceil(zw.astype(np.float64) / float(step)).astype(np.intp))
+        zh = np.maximum(1, np.ceil(zh.astype(np.float64) / float(step)).astype(np.intp))
     x0 = np.clip(x, 0, w)
     y0 = np.clip(y, 0, h)
     x1 = np.clip(x0 + zw, 0, w)

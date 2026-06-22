@@ -134,10 +134,23 @@ def create_diagnostic_bundle(
         "detected_zones": status.get("detected_device_zone_count"),
         "configured_zones": status.get("configured_device_zone_count"),
         "startup_blocked": status.get("calibration_status") or status.get("lifecycle_state"),
+        "capture_source_identity": status.get("latest_capture_source_identity"),
+        "usb_transport_profile": status.get("usb_transport_profile"),
+        "runtime_warnings": status.get("runtime_warnings"),
     }
     with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("bundle.json", json.dumps(bundle_meta, indent=2, sort_keys=True))
         archive.writestr("runtime_status.json", json.dumps(status, indent=2, sort_keys=True))
+        if status.get("usb_transport_profile") is not None:
+            archive.writestr(
+                "usb_transport_profile.json",
+                json.dumps(status.get("usb_transport_profile"), indent=2, sort_keys=True),
+            )
+        if status.get("latest_capture_source_identity") is not None:
+            archive.writestr(
+                "capture_source_identity.json",
+                json.dumps(status.get("latest_capture_source_identity"), indent=2, sort_keys=True),
+            )
         archive.writestr(
             "backend_probe.json",
             json.dumps(redact_object(checks_to_dict(checks)), indent=2),

@@ -42,6 +42,7 @@ from nanoleaf_sync.runtime.readiness_check import (
 from nanoleaf_sync.service import NanoleafSyncService
 from nanoleaf_sync.tools.output_format import describe_mode, summarize_command_output
 from nanoleaf_sync.ui.command_results_dialog import show_command_results
+from nanoleaf_sync.ui.diagnostic_hub_dialog import DiagnosticHubDialog
 from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog
 from nanoleaf_sync.ui.layout_helpers import stretch_menu_width
 from nanoleaf_sync.ui.live_diagnostics import LiveDiagnosticsDialog
@@ -216,7 +217,7 @@ class NanoleafTrayApp:
 
         def _create_service() -> NanoleafSyncService:
             service = NanoleafSyncService(config=self.config)
-            service.set_output_session_guard(self._output_session.can_mirroring_write)
+            self._bind_output_session_guard(service)
             return service
 
         self._create_service = _create_service
@@ -357,6 +358,18 @@ class NanoleafTrayApp:
         self.config = updated
         self.cfg_mgr.save(updated)
 
+    def _bind_output_session_guard(self, service: NanoleafSyncService) -> None:
+        generation = self._output_session.begin_mirroring_generation()
+        service.bind_mirroring_generation(generation)
+        service.set_output_session_guard(
+            lambda gen=generation: self._output_session.can_mirroring_write(gen)
+        )
+
+    def _revoke_mirroring_generation(self) -> None:
+        generation = int(getattr(self.service, "mirroring_generation", 0) or 0)
+        if generation > 0:
+            self._output_session.revoke_mirroring_generation(generation)
+
     def _restart_mirroring_service(self, *, was_running: bool) -> None:
         self._sync_config_for_mirroring()
         if self.service.is_running():
@@ -366,10 +379,14 @@ class NanoleafTrayApp:
             self.service = create_service()
         else:
             self.service = NanoleafSyncService(config=self.config)
-            guard = getattr(self, "_output_session", None)
-            setter = getattr(self.service, "set_output_session_guard", None)
-            if guard is not None and callable(setter):
-                setter(guard.can_mirroring_write)
+            bind_guard = getattr(self, "_bind_output_session_guard", None)
+            if callable(bind_guard):
+                bind_guard(self.service)
+            else:
+                guard = getattr(self, "_output_session", None)
+                setter = getattr(self.service, "set_output_session_guard", None)
+                if guard is not None and callable(setter):
+                    setter(guard.can_mirroring_write)
         self._refresh_mode_labels()
         if not was_running:
             return
@@ -616,6 +633,7 @@ class NanoleafTrayApp:
         )
 
         # ── Advanced submenu actions ──
+        self.action_diagnostic_hub = self.QAction("Help & Diagnostics…", menu)
         self.action_troubleshooting_guide = self.QAction("Troubleshooting Guide", menu)
         self.action_live_diagnostics = self.QAction("Live Diagnostics", menu)
         self.action_doctor = self.QAction("Run Doctor", menu)
@@ -633,6 +651,7 @@ class NanoleafTrayApp:
         self.action_settings.triggered.connect(self.on_settings)
         self.action_display_wizard.triggered.connect(self.on_display_configurator)
         self.action_troubleshooting_guide.triggered.connect(self.on_open_troubleshooting_guide)
+        self.action_diagnostic_hub.triggered.connect(self.on_diagnostic_hub)
         self.action_live_diagnostics.triggered.connect(self.on_live_diagnostics)
         self.action_status.triggered.connect(self.on_status)
         self.action_enable_autostart.triggered.connect(self.on_enable_autostart)
@@ -646,6 +665,7 @@ class NanoleafTrayApp:
 
         # ── Build Advanced submenu ──
         advanced_menu = self.QMenu("Advanced", menu)
+        advanced_menu.addAction(self.action_diagnostic_hub)
         advanced_menu.addAction(self.action_troubleshooting_guide)
         advanced_menu.addAction(self.action_live_diagnostics)
         advanced_menu.addSeparator()
@@ -798,10 +818,9 @@ class NanoleafTrayApp:
                 self.service = create_service()
             else:
                 self.service = NanoleafSyncService(config=self.config)
-                guard = getattr(self, "_output_session", None)
-                setter = getattr(self.service, "set_output_session_guard", None)
-                if guard is not None and callable(setter):
-                    setter(guard.can_mirroring_write)
+                bind_guard = getattr(self, "_bind_output_session_guard", None)
+                if callable(bind_guard):
+                    bind_guard(self.service)
             self.tray_icon.showMessage(
                 "nanoleaf-kde-sync",
                 f"Start failed with exception: {exc}",
@@ -834,14 +853,22 @@ class NanoleafTrayApp:
             )
 
     def _request_stop(self, *, timeout_s: float | None = None) -> bool:
+        revoke = getattr(self, "_revoke_mirroring_generation", None)
+
+        def _revoke() -> None:
+            if callable(revoke):
+                revoke()
+
         try:
             if timeout_s is None:
                 result = self.service.stop()
             else:
                 result = self.service.stop(timeout=timeout_s)
+            _revoke()
             return bool(result) if result is not None else (not self.service.is_running())
         except TypeError:
             self.service.stop()
+            _revoke()
             return not self.service.is_running()
         except Exception as exc:
             _log.warning("Service stop request failed: %s", exc, exc_info=True)
@@ -1100,6 +1127,19 @@ class NanoleafTrayApp:
                 f"{guide_url or 'https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE'}"
             ),
         )
+
+    def on_diagnostic_hub(self) -> None:
+        dlg = DiagnosticHubDialog(
+            parent=None,
+            status_fn=self.service.get_status,
+            forget_portal_token_fn=self.service.forget_portal_restore_token,
+            colour_probe_fn=self.service.run_colour_path_probe,
+            flicker_lab_fn=self.service.run_flicker_lab,
+            portal_pick_fn=self.service.request_portal_pick_color,
+            export_bundle_fn=self.service.export_diagnostic_bundle,
+            open_live_diagnostics_fn=self.on_live_diagnostics,
+        )
+        dlg.exec()
 
     def on_live_diagnostics(self) -> None:
         dlg = LiveDiagnosticsDialog(

@@ -23,7 +23,11 @@ from nanoleaf_sync.device.protocol import (
     SUPPORTED_MODEL_NUMBERS,
     NanoleafTLVProtocol,
 )
-from nanoleaf_sync.device.send_policy import LiveSendPolicy, select_live_send_policy
+from nanoleaf_sync.device.send_policy import (
+    LiveSendPolicy,
+    degrade_policy_on_missed_acks,
+    select_live_send_policy,
+)
 
 
 class NanoleafUSBDriver(DeviceDriver):
@@ -86,6 +90,7 @@ class NanoleafUSBDriver(DeviceDriver):
         self.last_ack_status: str = ""
         self.last_ack_age_ms: float | None = None
         self.last_send_policy_transition_reason: str = ""
+        self.last_live_send_policy: str = "response_required"
         self.uncertain_write_failures: int = 0
 
     def _request(self, cmd: int, payload: bytes = b"") -> bytes:
@@ -357,9 +362,15 @@ class NanoleafUSBDriver(DeviceDriver):
             first_frame_after_reopen=self._live_frames_sent_after_open <= 0,
             probed_report_size=self._probed_report_size,
         )
+        missed_rate = float(self.ack_missed_count) / float(max(1, self.ack_expected_count))
+        policy_decision = degrade_policy_on_missed_acks(
+            policy_decision,
+            missed_ack_rate=missed_rate,
+        )
         live_send_policy = policy_decision.policy.value
         response_wait_skipped = policy_decision.response_wait_skipped
         self.last_send_policy_transition_reason = policy_decision.transition_reason
+        self.last_live_send_policy = live_send_policy
         send_err: Exception | None = None
         if policy_decision.policy == LiveSendPolicy.WRITE_ONLY and callable(write_with_timing):
             try:

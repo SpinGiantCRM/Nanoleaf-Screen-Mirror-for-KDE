@@ -102,6 +102,7 @@ class XDGPortalCapture:
         self.portal_restore_token_loaded: bool = False
         self.portal_restore_token_accepted: bool = False
         self.portal_restore_token_refreshed: bool = False
+        self.portal_restore_token_state: str = "none"
         self._caps_video_info_cache: dict[str, int] = {}
         self._caps_video_info_cache_max = 8
         self._empty_capture_streak = 0
@@ -245,6 +246,7 @@ class XDGPortalCapture:
         self.portal_restore_token_loaded = bool(restore_token)
         self.portal_restore_token_accepted = False
         self.portal_restore_token_refreshed = False
+        self.portal_restore_token_state = "submitted" if restore_token else "none"
         handle_token2 = random_token("h")
         src_options: dict[str, Variant] = {
             "handle_token": Variant("s", handle_token2),
@@ -263,8 +265,10 @@ class XDGPortalCapture:
             handle_token=handle_token2,
         )
         if msg2.body[0] != 0:
+            self.portal_restore_token_state = "failed"  # nosec B105
             raise XDGPortalError(f"SelectSources denied (response={msg2.body[0]}).")
-        self.portal_restore_token_accepted = bool(restore_token)
+        if restore_token and self.portal_restore_token_state == "submitted":  # nosec B105
+            self.portal_restore_token_accepted = True
 
         handle_token3 = random_token("h")
         start_options: dict[str, Variant] = {
@@ -277,17 +281,24 @@ class XDGPortalCapture:
             handle_token=handle_token3,
         )
         if msg3.body[0] != 0:
+            self.portal_restore_token_state = "failed"  # nosec B105
             raise XDGPortalError(f"Start denied (response={msg3.body[0]}).")
 
         results = msg3.body[1]
         streams = results.get("streams")
         if not streams:
+            self.portal_restore_token_state = "failed"  # nosec B105
             raise XDGPortalError("Portal Start returned no streams.")
 
         new_restore = results.get("restore_token")
         if new_restore:
             self._save_restore_token(str(unwrap_variant(new_restore)))
             self.portal_restore_token_refreshed = True
+            self.portal_restore_token_state = "refreshed"  # nosec B105
+        elif restore_token:
+            self.portal_restore_token_state = "restored_confirmed"  # nosec B105
+        else:
+            self.portal_restore_token_state = "restored_confirmed"  # nosec B105
 
         first_stream = unwrap_variant(streams)[0]
         node_id = int(first_stream[0])

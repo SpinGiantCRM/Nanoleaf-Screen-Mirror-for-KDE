@@ -94,6 +94,7 @@ class RuntimeState:
     predictive_lookahead_frames: float = 0.0
     predictive_scene_cut_suppressed: bool = False
     stale_output_dropped_frames: int = 0
+    output_owner_dropped_frames: int = 0
     last_stale_frame_age_ms: float = 0.0
     max_send_age_ms: float = 0.0
     stale_drop_reason: str = ""
@@ -108,6 +109,10 @@ class RuntimeState:
     device_zone_override_active: bool = False
     latest_frame_context: object | None = None
     latest_color_context: object | None = None
+    latest_capture_source_identity: dict[str, object] | None = None
+    capture_source_change_count: int = 0
+    metadata_hysteresis_transitions: int = 0
+    sampling_mode_dwell_remaining: int = 0
 
     def _assert_locked(self) -> None:
         if not self._lock.locked():
@@ -169,6 +174,7 @@ class RuntimeState:
         self.predictive_lookahead_frames = 0.0
         self.predictive_scene_cut_suppressed = False
         self.stale_output_dropped_frames = 0
+        self.output_owner_dropped_frames = 0
         self.last_stale_frame_age_ms = 0.0
         self.max_send_age_ms = 0.0
         self.stale_drop_reason = ""
@@ -183,6 +189,10 @@ class RuntimeState:
         self.device_zone_override_active = False
         self.latest_frame_context = None
         self.latest_color_context = None
+        self.latest_capture_source_identity = None
+        self.capture_source_change_count = 0
+        self.metadata_hysteresis_transitions = 0
+        self.sampling_mode_dwell_remaining = 0
 
     def mark_calibration_incomplete(self, message: str) -> None:
         self.calibration_status = CALIBRATION_INCOMPLETE_STATUS
@@ -374,6 +384,7 @@ class RuntimeState:
             "sdr_boost_compensation_enabled": bool(self.sdr_boost_compensation_enabled),
             "skip_display_gamut_adaptation": bool(self.skip_display_gamut_adaptation),
             "stale_output_dropped_frames": int(self.stale_output_dropped_frames),
+            "output_owner_dropped_frames": int(self.output_owner_dropped_frames),
             "last_stale_frame_age_ms": float(self.last_stale_frame_age_ms),
             "max_send_age_ms": float(self.max_send_age_ms),
             "stale_drop_reason": str(self.stale_drop_reason or ""),
@@ -397,6 +408,10 @@ class RuntimeState:
                 and hasattr(self.latest_color_context, "as_dict")
                 else None
             ),
+            "latest_capture_source_identity": self.latest_capture_source_identity,
+            "capture_source_change_count": int(self.capture_source_change_count),
+            "metadata_hysteresis_transitions": int(self.metadata_hysteresis_transitions),
+            "sampling_mode_dwell_remaining": int(self.sampling_mode_dwell_remaining),
         }
 
 

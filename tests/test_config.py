@@ -113,14 +113,15 @@ def test_validate_config_rejects_non_integer_usb_ids(field_name: str, value: obj
         ("device_pid", "1.5"),
     ],
 )
-def test_config_load_rejects_non_integer_usb_ids(
+def test_config_load_recovers_from_non_integer_usb_ids(
     field_name: str, toml_value: str, tmp_path
 ) -> None:
     path = tmp_path / "config.toml"
     path.write_text(f"{field_name} = {toml_value}\n", encoding="utf-8")
 
-    with pytest.raises(ConfigValidationError, match=field_name):
-        ConfigManager(path=path).load()
+    loaded = ConfigManager(path=path).load()
+    assert loaded.device_vid == AppConfig.device_vid
+    assert path.with_suffix(path.suffix + ".invalid").exists()
 
 
 def test_validate_config_accepts_valid_device_zone_count_bound() -> None:
@@ -169,12 +170,13 @@ def test_validate_config_rejects_too_large_device_zone_count(
         validate_config(cfg)
 
 
-def test_config_load_rejects_invalid_zone_count_without_defaulting(tmp_path) -> None:
+def test_config_load_recovers_from_invalid_zone_count_without_defaulting(tmp_path) -> None:
     path = tmp_path / "config.toml"
     path.write_text("device_zone_count = 999999\n", encoding="utf-8")
 
-    with pytest.raises(ConfigValidationError, match="device_zone_count"):
-        ConfigManager(path=path).load()
+    loaded = ConfigManager(path=path).load()
+    assert loaded.device_zone_count == 0
+    assert path.with_suffix(path.suffix + ".invalid").exists()
 
 
 def test_normalize_layout_preset_maps_edge_weighted_alias_to_canonical() -> None:

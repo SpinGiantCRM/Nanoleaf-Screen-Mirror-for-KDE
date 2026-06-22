@@ -178,6 +178,12 @@ QLabel[muted="true"] {
     font-size: 11px;
 }
 
+QLabel[warning="true"] {
+    color: #e9a03d;
+    font-size: 12px;
+    padding: 4px 0;
+}
+
 /* ── Scroll area ──────────────────────────────────────────────────────── */
 QScrollArea {
     border: none;

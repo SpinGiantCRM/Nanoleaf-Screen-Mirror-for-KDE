@@ -168,6 +168,10 @@ class KMSGrabCapture:
                 "width": int(frame.shape[1]),
                 "height": int(frame.shape[0]),
                 "capture_impl": getattr(self._drm_capture_impl, "__name__", "unknown"),
+                "connector_id": getattr(self._drm_capture_impl, "connector_id", None),
+                "connector_name": getattr(self._drm_capture_impl, "connector_name", None),
+                "crtc_id": getattr(self._drm_capture_impl, "crtc_id", None),
+                "framebuffer_id": getattr(self._drm_capture_impl, "framebuffer_id", None),
             }
             return frame
         except KMSGrabError:

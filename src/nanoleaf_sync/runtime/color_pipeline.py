@@ -78,8 +78,12 @@ class ColorPipelineParams:
     prev_sampled_zone_colors: Sequence[RGBTuple] = ()
     prior_zone_sample_motion: float = 0.0
     prior_area_average_mode: bool = False
+    sampling_mode_dwell_remaining: int = 0
     prev_smooth_float_colors: Sequence[RGBTuple] = ()
     prev_sent_colors: Sequence[RGBTuple] = ()
+
+
+_SAMPLING_MODE_DWELL_FRAMES = 3
 
 
 def _resolve_live_sampling_mode(
@@ -89,18 +93,30 @@ def _resolve_live_sampling_mode(
     prior_area_average_mode: bool = False,
     enter_motion: float = 12.0,
     exit_motion: float = 7.0,
-) -> tuple[str, bool]:
+    dwell_remaining: int = 0,
+) -> tuple[str, bool, int]:
     mode = str(resolved_sampling_mode or "area_average").strip().lower()
     if mode != SAMPLING_MODE_EDGE_DIRECT:
-        return mode, False
+        return mode, False, 0
     motion = float(prior_zone_sample_motion)
     if prior_area_average_mode:
-        if motion < exit_motion:
-            return SAMPLING_MODE_EDGE_DIRECT, False
-        return SAMPLING_MODE_AREA_AVERAGE, True
-    if motion >= enter_motion:
-        return SAMPLING_MODE_AREA_AVERAGE, True
-    return SAMPLING_MODE_EDGE_DIRECT, False
+        desired_mode = (
+            SAMPLING_MODE_EDGE_DIRECT if motion < exit_motion else SAMPLING_MODE_AREA_AVERAGE
+        )
+        desired_area = desired_mode == SAMPLING_MODE_AREA_AVERAGE
+    else:
+        desired_mode = (
+            SAMPLING_MODE_AREA_AVERAGE if motion >= enter_motion else SAMPLING_MODE_EDGE_DIRECT
+        )
+        desired_area = desired_mode == SAMPLING_MODE_AREA_AVERAGE
+    if desired_area == prior_area_average_mode:
+        return desired_mode, desired_area, 0
+    if dwell_remaining > 0:
+        held_mode = (
+            SAMPLING_MODE_AREA_AVERAGE if prior_area_average_mode else SAMPLING_MODE_EDGE_DIRECT
+        )
+        return held_mode, prior_area_average_mode, max(0, int(dwell_remaining) - 1)
+    return desired_mode, desired_area, _SAMPLING_MODE_DWELL_FRAMES
 
 
 def _resolve_robust_sampling_mode(
@@ -110,11 +126,13 @@ def _resolve_robust_sampling_mode(
     prior_area_average_mode: bool,
     prev_sampled_zone_colors: Sequence[RGBTuple],
     letterbox_active: bool,
-) -> tuple[str, bool]:
-    mode, area_average_active = _resolve_live_sampling_mode(
+    dwell_remaining: int = 0,
+) -> tuple[str, bool, int]:
+    mode, area_average_active, dwell = _resolve_live_sampling_mode(
         resolved_sampling_mode=resolved_sampling_mode,
         prior_zone_sample_motion=prior_zone_sample_motion,
         prior_area_average_mode=prior_area_average_mode,
+        dwell_remaining=dwell_remaining,
     )
     peak_pick_modes = {SAMPLING_MODE_VIVID_WEIGHTED, "peak_luma"}
     uses_peak_pick = (
@@ -122,16 +140,16 @@ def _resolve_robust_sampling_mode(
         or str(mode).strip().lower() in peak_pick_modes
     )
     if not uses_peak_pick:
-        return mode, area_average_active
+        return mode, area_average_active, dwell
     if letterbox_active:
-        return SAMPLING_MODE_AREA_AVERAGE, True
+        return SAMPLING_MODE_AREA_AVERAGE, True, dwell
     if prev_sampled_zone_colors:
         prev = np.asarray(prev_sampled_zone_colors, dtype=np.float32)
         if prev.size:
             median_peak = float(np.median(np.max(prev, axis=1)))
             if median_peak < 40.0:
-                return SAMPLING_MODE_AREA_AVERAGE, True
-    return mode, area_average_active
+                return SAMPLING_MODE_AREA_AVERAGE, True, dwell
+    return mode, area_average_active, dwell
 
 
 _resolve_dark_aware_sampling_mode = _resolve_robust_sampling_mode
@@ -223,12 +241,13 @@ def process_zone_colors(
         color_style=params.color_style,
         accuracy_mode=params.accuracy_mode,
     )
-    live_sampling_mode, area_average_active = _resolve_robust_sampling_mode(
+    live_sampling_mode, area_average_active, sampling_dwell = _resolve_robust_sampling_mode(
         resolved_sampling_mode=resolved_sampling_mode,
         prior_zone_sample_motion=float(params.prior_zone_sample_motion),
         prior_area_average_mode=bool(params.prior_area_average_mode),
         prev_sampled_zone_colors=params.prev_sampled_zone_colors,
         letterbox_active=False,
+        dwell_remaining=int(getattr(params, "sampling_mode_dwell_remaining", 0) or 0),
     )
 
     letterbox_active = False
@@ -265,12 +284,17 @@ def process_zone_colors(
                     frame_width=int(frame.shape[1]),
                     frame_height=int(frame.shape[0]),
                 )
-                live_sampling_mode, area_average_active = _resolve_robust_sampling_mode(
+                (
+                    live_sampling_mode,
+                    area_average_active,
+                    sampling_dwell,
+                ) = _resolve_robust_sampling_mode(
                     resolved_sampling_mode=resolved_sampling_mode,
                     prior_zone_sample_motion=float(params.prior_zone_sample_motion),
                     prior_area_average_mode=bool(params.prior_area_average_mode),
                     prev_sampled_zone_colors=params.prev_sampled_zone_colors,
                     letterbox_active=True,
+                    dwell_remaining=sampling_dwell,
                 )
 
         raw_colors, sampling_meta = zone_colors_array_with_meta(
@@ -447,6 +471,7 @@ def process_zone_colors(
             predictive_sync_active=predictive_active,
             predictive_lookahead_frames=predictive_lookahead_frames,
             predictive_scene_cut_suppressed=predictive_scene_cut_suppressed,
+            sampling_mode_dwell_remaining=int(sampling_dwell),
         )
         pre_led_arr = (
             pre_led_calibration.astype(np.uint8, copy=False)
@@ -542,6 +567,7 @@ def build_pipeline_params_from_config(
     prev_sampled_zone_colors: Sequence[RGBTuple] = (),
     prior_zone_sample_motion: float = 0.0,
     prior_area_average_mode: bool = False,
+    sampling_mode_dwell_remaining: int = 0,
     color_context: object | None = None,
 ) -> ColorPipelineParams:
     active_profile = resolve_active_led_profile(
@@ -589,5 +615,6 @@ def build_pipeline_params_from_config(
         prev_sampled_zone_colors=prev_sampled_zone_colors,
         prior_zone_sample_motion=float(prior_zone_sample_motion),
         prior_area_average_mode=bool(prior_area_average_mode),
+        sampling_mode_dwell_remaining=int(sampling_mode_dwell_remaining),
         color_context=color_context,
     )

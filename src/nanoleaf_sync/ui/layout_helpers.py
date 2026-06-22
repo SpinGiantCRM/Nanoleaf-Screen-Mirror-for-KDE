@@ -75,6 +75,18 @@ def mark_primary(button: Any) -> None:
         polish(button)
 
 
+def mark_heading(label: Any) -> None:
+    set_prop = getattr(label, "setProperty", None)
+    if callable(set_prop):
+        set_prop("heading", True)
+    style = getattr(label, "style", lambda: None)()
+    unpolish = getattr(style, "unpolish", None) if style is not None else None
+    polish = getattr(style, "polish", None) if style is not None else None
+    if callable(unpolish) and callable(polish):
+        unpolish(label)
+        polish(label)
+
+
 def mark_muted(label: Any) -> None:
     set_prop = getattr(label, "setProperty", None)
     if callable(set_prop):

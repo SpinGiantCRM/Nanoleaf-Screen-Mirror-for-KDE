@@ -21,6 +21,12 @@ CaptureMethodConfidence = Literal[
     "portal-prompt",
     "unknown",
 ]
+ScaleConfidence = Literal[
+    "pixel-exact",
+    "compositor-layout",
+    "fractional-unknown",
+    "fallback",
+]
 
 
 @dataclass(frozen=True)
@@ -40,6 +46,7 @@ class DisplaySourceContext:
     source_confidence: SourceConfidence
     capture_method: str = ""
     capture_method_confidence: CaptureMethodConfidence = "unknown"
+    scale_confidence: ScaleConfidence = "pixel-exact"
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -49,6 +56,7 @@ class DisplaySourceContext:
             "pipewire_serial": self.pipewire_serial,
             "compositor_position": self.compositor_position,
             "compositor_size": self.compositor_size,
+            "compositor_layout_size": self.compositor_size,
             "stream_pixel_size": self.stream_pixel_size,
             "display_pixel_size": self.display_pixel_size,
             "scale_x": self.scale_x,
@@ -58,6 +66,7 @@ class DisplaySourceContext:
             "source_confidence": self.source_confidence,
             "capture_method": self.capture_method,
             "capture_method_confidence": self.capture_method_confidence,
+            "scale_confidence": self.scale_confidence,
         }
 
 
@@ -105,6 +114,7 @@ def default_display_source_context(
         source_confidence="unknown",
         capture_method="",
         capture_method_confidence="unknown",
+        scale_confidence="fallback",
     )
 
 

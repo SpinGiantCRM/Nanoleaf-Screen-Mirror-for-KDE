@@ -94,3 +94,23 @@ def select_live_send_policy(
         transition_reason="no optimized transport path available",
         requires_frame_ack=True,
     )
+
+
+def degrade_policy_on_missed_acks(
+    decision: LiveSendPolicyDecision,
+    *,
+    missed_ack_rate: float,
+    threshold: float = 0.25,
+) -> LiveSendPolicyDecision:
+    if decision.policy in {LiveSendPolicy.WRITE_ONLY, LiveSendPolicy.NONBLOCKING_DRAIN} and float(
+        missed_ack_rate
+    ) >= float(threshold):
+        return LiveSendPolicyDecision(
+            policy=LiveSendPolicy.RESPONSE_REQUIRED,
+            response_wait_skipped=False,
+            transition_reason=(
+                f"missed ACK rate {missed_ack_rate:.0%} exceeded {threshold:.0%} threshold"
+            ),
+            requires_frame_ack=True,
+        )
+    return decision

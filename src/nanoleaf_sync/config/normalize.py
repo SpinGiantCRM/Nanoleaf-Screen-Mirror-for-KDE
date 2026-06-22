@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import replace
 from typing import Any
 
 from nanoleaf_sync.capture.backend_selection import (
@@ -410,7 +411,11 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         },
         default="grb",
     )
-    calibration_model = "corner_anchored"
+    calibration_model = normalize_enum(
+        getattr(raw_calibration, "calibration_model", "corner_anchored"),
+        allowed={"corner_anchored": "corner_anchored"},
+        default="corner_anchored",
+    )
     corner_anchor_top_left = int(getattr(raw_calibration, "corner_anchor_top_left", -1))
     corner_anchor_top_right = int(getattr(raw_calibration, "corner_anchor_top_right", -1))
     corner_anchor_bottom_right = int(getattr(raw_calibration, "corner_anchor_bottom_right", -1))
@@ -472,6 +477,21 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         default=AppConfig.zone_sampling_engine,
     )
 
+    def _normalize_color_matrix(raw: object) -> list[float]:
+        if not isinstance(raw, (list, tuple)):
+            return []
+        if len(raw) == 0:
+            return []
+        if len(raw) != 9:
+            return []
+        out: list[float] = []
+        for value in raw:
+            try:
+                out.append(max(-4.0, min(4.0, float(value))))
+            except (TypeError, ValueError):
+                return []
+        return out
+
     def _normalize_profile(profile: object) -> LedCalibrationProfile:
         p = profile if isinstance(profile, LedCalibrationProfile) else LedCalibrationProfile()
         return LedCalibrationProfile(
@@ -492,6 +512,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
             black_luminance_knee=max(
                 0.0005, min(0.03, float(getattr(p, "black_luminance_knee", 0.0024)))
             ),
+            color_matrix=_normalize_color_matrix(getattr(p, "color_matrix", ())),
         )
 
     sdr_profile = _normalize_profile(
@@ -514,7 +535,25 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     if sum(source_side_counts) <= 0:
         source_side_counts = []
 
-    return AppConfig(
+    display_gamut = normalize_enum(
+        getattr(cfg, "display_gamut", AppConfig.display_gamut),
+        allowed={
+            "auto": "auto",
+            "srgb": "srgb",
+            "dci-p3": "dci-p3",
+            "bt.2020": "bt.2020",
+            "custom": "custom",
+        },
+        default=AppConfig.display_gamut,
+    )
+    wizard_state_version = max(
+        1,
+        _coerce_int(getattr(cfg, "wizard_state_version", CURRENT_WIZARD_STATE_VERSION), 1),
+    )
+
+    return replace(
+        cfg,
+        schema_version=SCHEMA_VERSION,
         fps=fps,
         prefer_backend=prefer_backend,
         brightness=brightness,
@@ -548,11 +587,25 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         letterbox_detection=letterbox_detection,
         drm_zone_patch_capture=drm_zone_patch_capture,
         display_preset=display_preset,
+        display_gamut=display_gamut,
+        custom_gamut_red_x=max(0.0, min(1.0, float(getattr(cfg, "custom_gamut_red_x", 0.64)))),
+        custom_gamut_red_y=max(0.0, min(1.0, float(getattr(cfg, "custom_gamut_red_y", 0.33)))),
+        custom_gamut_green_x=max(0.0, min(1.0, float(getattr(cfg, "custom_gamut_green_x", 0.3)))),
+        custom_gamut_green_y=max(0.0, min(1.0, float(getattr(cfg, "custom_gamut_green_y", 0.6)))),
+        custom_gamut_blue_x=max(0.0, min(1.0, float(getattr(cfg, "custom_gamut_blue_x", 0.15)))),
+        custom_gamut_blue_y=max(0.0, min(1.0, float(getattr(cfg, "custom_gamut_blue_y", 0.06)))),
+        accuracy_mode=coerce_bool(getattr(cfg, "accuracy_mode", False), False),
+        live_diagnostics_enabled=coerce_bool(
+            getattr(cfg, "live_diagnostics_enabled", False),
+            False,
+        ),
         wizard_completed=wizard_completed,
+        wizard_state_version=wizard_state_version,
         wizard_in_progress_state=normalize_wizard_in_progress_state(
             getattr(cfg, "wizard_in_progress_state", "")
         ),
         start_on_launch=coerce_bool(getattr(cfg, "start_on_launch", False), False),
+        auto_turn_on=coerce_bool(getattr(cfg, "auto_turn_on", True), True),
         device_vid=device_vid,
         device_pid=device_pid,
         allow_custom_device_ids=allow_custom_device_ids,
@@ -613,6 +666,22 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         status_log_interval_s=max(0.5, float(cfg.status_log_interval_s)),
         verbose=coerce_bool(getattr(cfg, "verbose", False), False),
         performance_priority=performance_priority,
+        startup_frame_timeout_s=max(
+            0.5, min(120.0, float(getattr(cfg, "startup_frame_timeout_s", 5.0)))
+        ),
+        stale_frame_drop_enabled=coerce_bool(
+            getattr(cfg, "stale_frame_drop_enabled", True),
+            True,
+        ),
+        max_send_age_frame_budget_multiplier=max(
+            1.0,
+            float(getattr(cfg, "max_send_age_frame_budget_multiplier", 2.0)),
+        ),
+        min_max_send_age_ms=max(1.0, float(getattr(cfg, "min_max_send_age_ms", 60.0))),
+        allow_zone_count_override=coerce_bool(
+            getattr(cfg, "allow_zone_count_override", False),
+            False,
+        ),
         capture_monitor=capture_monitor,
         source_side_counts=source_side_counts,
     )

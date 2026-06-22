@@ -10,7 +10,7 @@ import logging
 import threading
 import time
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 
@@ -43,7 +43,9 @@ from nanoleaf_sync.capture.latency_probe import (
     FrameTimingSample,
 )
 from nanoleaf_sync.capture.source_context import build_display_source_context
+from nanoleaf_sync.capture.source_identity import SourceIdentityTracker
 from nanoleaf_sync.color._types import RGBTuple
+from nanoleaf_sync.color.metadata_hysteresis import MetadataHysteresisTracker
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.presets import effective_drm_zone_patch_capture
 from nanoleaf_sync.runtime.blending import (
@@ -223,6 +225,7 @@ class FrameProcessingTimings:
     predictive_sync_active: bool = False
     predictive_lookahead_frames: float = 0.0
     predictive_scene_cut_suppressed: bool = False
+    sampling_mode_dwell_remaining: int = 0
 
 
 class PendingFrameSlot:
@@ -464,6 +467,27 @@ def _side_variance_diagnostics(
     return out
 
 
+def _resolve_capture_frame_dimensions(
+    *,
+    frame: np.ndarray | None,
+    precomputed: np.ndarray | None,
+    capture_backend: object | None,
+    fallback_width: int,
+    fallback_height: int,
+) -> tuple[int, int]:
+    if precomputed is not None:
+        cap_params = getattr(capture_backend, "params", None)
+        width = int(getattr(cap_params, "width", 0) or fallback_width or 480)
+        height = int(getattr(cap_params, "height", 0) or fallback_height or 270)
+        return width, height
+    if frame is not None:
+        return int(frame.shape[1]), int(frame.shape[0])
+    return int(fallback_width or 480), int(fallback_height or 270)
+
+
+_SHORT_BLACK_HOLD_MAX_FRAMES = 5
+
+
 def process_frame(
     *,
     frame,
@@ -626,6 +650,8 @@ def _run_loop_pipeline(
     hid_loop_gap_ewma_ms: float | None = None
     hid_output_work_ewma_ms: float | None = None
     frame_seq: int = 0
+    metadata_tracker = MetadataHysteresisTracker()
+    source_identity_tracker = SourceIdentityTracker()
 
     # ---- capture worker -------------------------------------------------
     def _capture_worker() -> None:
@@ -708,8 +734,13 @@ def _run_loop_pipeline(
                     precomputed = capture_result.astype(np.uint8, copy=False)
                 else:
                     frame = capture_result
-                frame_w = int(precomputed.shape[1] if precomputed is not None else frame.shape[1])
-                frame_h = int(precomputed.shape[0] if precomputed is not None else frame.shape[0])
+                frame_w, frame_h = _resolve_capture_frame_dimensions(
+                    frame=frame,
+                    precomputed=precomputed,
+                    capture_backend=cap,
+                    fallback_width=int(state.last_frame_width or 0),
+                    fallback_height=int(state.last_frame_height or 0),
+                )
                 with metrics_lock:
                     frame_seq += 1
                     current_frame_seq = frame_seq
@@ -752,6 +783,7 @@ def _run_loop_pipeline(
                 with metrics_lock:
                     capture_worker_failures += 1
                     capture_worker_error_count += 1
+                state.record_error(exc)
                 logger.debug("capture worker error: %s", exc)
                 time.sleep(0.005)
         with metrics_lock:
@@ -914,12 +946,31 @@ def _run_loop_pipeline(
                 skip_gamut = state.skip_display_gamut_adaptation
                 color_context = None
                 if frame_context is not None:
-                    color_context = color_context_from_display_source(frame_context.source)
+                    source = frame_context.source
+                    stabilized_meta = metadata_tracker.update(source.hdr_metadata)
+                    if stabilized_meta is not source.hdr_metadata:
+                        source = replace(source, hdr_metadata=stabilized_meta)
+                        frame_context = replace(frame_context, source=source)
+                    color_context = color_context_from_display_source(source)
                     skip_gamut = bool(color_context.skip_display_gamut_adaptation)
                     state.skip_display_gamut_adaptation = skip_gamut
                     capture_display_referred = bool(color_context.display_referred)
+                    identity, identity_changed = source_identity_tracker.observe(
+                        source,
+                        hdr_metadata_confidence=color_context.confidence,
+                    )
+                    state.capture_source_change_count = int(source_identity_tracker.change_count)
+                    state.latest_capture_source_identity = {
+                        **identity.as_dict(),
+                        "change_count": source_identity_tracker.change_count,
+                    }
+                    state.metadata_hysteresis_transitions = int(metadata_tracker.transitions)
+                    if identity_changed:
+                        logger.warning("Capture source identity changed during mirroring session")
                     state.latest_frame_context = frame_context
                     state.latest_color_context = color_context
+                    if state.first_frame_seen and not state.first_frame_sent:
+                        state.lifecycle_state = "waiting_for_first_frame"
                 elif cap_backend is not None:
                     hdr_diag = getattr(cap_backend, "last_hdr_diagnostics", None) or {}
                     if isinstance(hdr_diag, dict):
@@ -949,6 +1000,7 @@ def _run_loop_pipeline(
                     prev_sampled_zone_colors=state.prev_sampled_zone_colors,
                     prior_zone_sample_motion=float(state.prior_zone_sample_motion),
                     prior_area_average_mode=bool(state.prior_area_average_mode),
+                    sampling_mode_dwell_remaining=int(state.sampling_mode_dwell_remaining),
                     color_context=color_context,
                 )
                 light_spread = pipeline_params.light_spread
@@ -1005,6 +1057,14 @@ def _run_loop_pipeline(
                     sent_history,
                 ) = processed
 
+                if (
+                    mean_brightness < 2.0
+                    and 0 < state.consecutive_black_frames <= _SHORT_BLACK_HOLD_MAX_FRAMES
+                    and state.prev_sent_colors
+                    and state.first_frame_sent
+                ):
+                    smoothed_colors = [list(row) for row in state.prev_sent_colors]
+
                 state.predictive_sync_active = bool(
                     getattr(processing_timings, "predictive_sync_active", False)
                 )
@@ -1016,6 +1076,9 @@ def _run_loop_pipeline(
                 )
                 state.prior_area_average_mode = bool(
                     getattr(processing_timings, "area_average_active", False)
+                )
+                state.sampling_mode_dwell_remaining = int(
+                    getattr(processing_timings, "sampling_mode_dwell_remaining", 0) or 0
                 )
                 state.prior_zone_sample_motion = zone_sample_motion(
                     sampled_zone_colors,
@@ -1031,6 +1094,16 @@ def _run_loop_pipeline(
                 if frame is not None:
                     state.latest_frame_rgb = frame
                 state.latest_zones_px = list(zones_px)
+
+                side_var = _side_variance_diagnostics(
+                    sampled=sampled_zone_colors,  # type: ignore[arg-type]
+                    final=final_zone_colors,  # type: ignore[arg-type]
+                    side_counts=state.latest_zone_side_counts,
+                )
+                state.latest_side_variance_diagnostics = side_var
+                state.flattening_mitigation_active = any(
+                    bool(side.get("processing_flattened", False)) for side in side_var.values()
+                )
 
                 zone_diagnostics: list[dict[str, object]] = []
                 if build_diagnostics:
@@ -1094,24 +1167,12 @@ def _run_loop_pipeline(
                                 "led_calibration_applied": pre_led_rgb != final_rgb,
                             }
                         )
-                    side_var = _side_variance_diagnostics(
-                        sampled=sampled_zone_colors,  # type: ignore[arg-type]
-                        final=final_zone_colors,  # type: ignore[arg-type]
-                        side_counts=state.latest_zone_side_counts,
-                    )
                     for row in zone_diagnostics:
                         row["side_variance"] = side_var.get(str(row.get("side")), {})  # type: ignore[attr-defined]
                         row["processing_flattened_side"] = bool(
                             row["side_variance"].get("processing_flattened", False)  # type: ignore[attr-defined]
                         )
                     state.latest_zone_diagnostics = zone_diagnostics
-                    state.latest_side_variance_diagnostics = side_var
-                    state.flattening_mitigation_active = any(
-                        bool(side.get("processing_flattened", False)) for side in side_var.values()
-                    )
-                else:
-                    side_var = {}
-                    state.flattening_mitigation_active = False
 
                 replaced_queued_processed_frame = process_buf.push_latest(
                     ProcessedPayload(
@@ -1157,6 +1218,7 @@ def _run_loop_pipeline(
         sent_in_window = 0
         last_log = time.perf_counter()
         last_send_done_ts: float | None = None
+        next_send_deadline_ts: float | None = None
         idle_poll_ms = _WORKER_POLL_INTERVAL_S * 1000.0
 
         while not state.stop_event.is_set():
@@ -1212,14 +1274,22 @@ def _run_loop_pipeline(
                 if driver is None:
                     continue
                 if can_mirroring_write is not None and not can_mirroring_write():
+                    state.output_owner_dropped_frames += 1
                     continue
-                if hasattr(driver, "_live_target_fps"):
-                    driver._live_target_fps = int(governor.target_fps)
 
                 pace_fps = min(
                     max(1, int(getattr(config, "fps", 60))),
                     max(1, int(governor.target_fps)),
                 )
+                if next_send_deadline_ts is not None and now < next_send_deadline_ts:
+                    wait_s = next_send_deadline_ts - now
+                    if wait_s > 0.0005:
+                        time.sleep(min(wait_s, _WORKER_POLL_INTERVAL_S))
+                    continue
+
+                if hasattr(driver, "_live_target_fps"):
+                    driver._live_target_fps = int(governor.target_fps)
+
                 should_drop_stale, frame_age_ms, max_send_age_ms, stale_reason = (
                     evaluate_stale_output_drop(
                         captured_at=payload.captured_at,
@@ -1344,6 +1414,8 @@ def _run_loop_pipeline(
 
                 send_done = time.perf_counter()
                 hid_write_ms = (send_done - hid_write_start) * 1000.0
+                send_interval_s = 1.0 / float(pace_fps)
+                next_send_deadline_ts = send_done + send_interval_s
                 if hid_device_write_ms is None:
                     hid_device_write_ms = hid_write_ms
 

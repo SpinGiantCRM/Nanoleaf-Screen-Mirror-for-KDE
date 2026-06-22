@@ -192,10 +192,18 @@ class NanoleafSyncService:
         self._device_zone_count: int | None = None
         self._status_lock = threading.Lock()
         self._can_mirroring_write: Callable[[], bool] | None = None
+        self._mirroring_generation = 0
         self._kde_upgrade_report = self._check_kde_upgrade_on_startup()
 
     def set_output_session_guard(self, fn: Callable[[], bool] | None) -> None:
         self._can_mirroring_write = fn
+
+    def bind_mirroring_generation(self, generation: int) -> None:
+        self._mirroring_generation = int(generation)
+
+    @property
+    def mirroring_generation(self) -> int:
+        return self._mirroring_generation
 
     @property
     def kde_upgrade_notice(self) -> str | None:
@@ -220,7 +228,11 @@ class NanoleafSyncService:
         return self._runtime.frames_sent
 
     def start(self) -> bool:
-        return self._lifecycle.start(startup_timeout_s=1.0)
+        startup_timeout_s = max(
+            0.5,
+            float(getattr(self.config, "startup_frame_timeout_s", 5.0)),
+        )
+        return self._lifecycle.start(startup_timeout_s=startup_timeout_s)
 
     def stop(self, timeout: float | None = 1.5) -> bool:
         join_timeout = max(0.0, float(timeout)) if timeout is not None else None
@@ -416,6 +428,17 @@ class NanoleafSyncService:
             and metadata_source == "unknown"
             else [],
         }
+        if self._driver is not None:
+            from nanoleaf_sync.device.transport_profiler import build_usb_transport_profile
+
+            status["usb_transport_profile"] = build_usb_transport_profile(self._driver).as_dict()
+        if self._capture is not None:
+            status["portal_restore_token_state"] = str(
+                getattr(self._capture, "portal_restore_token_state", "") or ""
+            )
+        from nanoleaf_sync.runtime.status_warnings import build_runtime_warnings
+
+        status["runtime_warnings"] = build_runtime_warnings(status=status)
         return status
 
     def capture_one_diagnostic_frame(self) -> dict[str, object]:
@@ -570,6 +593,75 @@ class NanoleafSyncService:
                 except Exception:
                     logger.warning("Error closing diagnostic capture backend", exc_info=True)
 
+    def forget_portal_restore_token(self) -> dict[str, object]:
+        from nanoleaf_sync.tools.portal_tools import forget_portal_restore_token
+
+        return forget_portal_restore_token()
+
+    def run_colour_path_probe(self, *, zone_index: int = 0) -> dict[str, object]:
+        from nanoleaf_sync.tools.colour_path_probe import compare_colour_path_stages
+
+        zone_diag = list(getattr(self._runtime, "latest_zone_diagnostics", None) or [])
+        if not zone_diag:
+            capture = self.capture_one_diagnostic_frame()
+            if not capture.get("ok"):
+                return capture
+            zone_diag = list(getattr(self._runtime, "latest_zone_diagnostics", None) or [])
+        if not zone_diag:
+            return {"ok": False, "message": "No zone diagnostics are available yet."}
+        if zone_index < 0 or zone_index >= len(zone_diag):
+            return {
+                "ok": False,
+                "message": f"Zone index {zone_index} is out of range (0–{len(zone_diag) - 1}).",
+            }
+        row = zone_diag[zone_index]
+        sampled = tuple(int(v) for v in row.get("sampled_rgb", (0, 0, 0)))  # type: ignore[arg-type]
+        pre_led = tuple(int(v) for v in row.get("output_rgb_before_led_calibration", sampled))  # type: ignore[arg-type]
+        final = tuple(int(v) for v in row.get("final_output_rgb", pre_led))  # type: ignore[arg-type]
+        comparison = compare_colour_path_stages(
+            captured_rgb=sampled,
+            staged_outputs={
+                "sampled_zone": sampled,
+                "pre_led_calibration": pre_led,
+                "final_output": final,
+            },
+        )
+        return {
+            "ok": True,
+            "zone_index": zone_index,
+            "side": str(row.get("side", "")),
+            "comparison": comparison,
+            "message": f"Compared colour path for zone {zone_index}.",
+        }
+
+    def run_flicker_lab(self, *, scenario_key: str = "all") -> dict[str, object]:
+        from nanoleaf_sync.tools.flicker_lab import run_flicker_lab
+
+        return run_flicker_lab(config=self.config, scenario_key=str(scenario_key or "all"))
+
+    def request_portal_pick_color(self) -> dict[str, object]:
+        from nanoleaf_sync.tools.portal_tools import request_portal_pick_color
+
+        return request_portal_pick_color()
+
+    def export_diagnostic_bundle(self, output_path: str) -> dict[str, object]:
+        from pathlib import Path
+
+        from nanoleaf_sync.tools.diagnostic_bundle import create_diagnostic_bundle
+
+        try:
+            bundle = create_diagnostic_bundle(
+                Path(output_path),
+                runtime_status=self.get_status(),
+            )
+            return {
+                "ok": True,
+                "path": str(bundle),
+                "message": f"Saved diagnostic bundle to {bundle}",
+            }
+        except Exception as exc:
+            return {"ok": False, "message": f"Could not create diagnostic bundle: {exc}"}
+
     def make_device_driver(
         self,
         *,
@@ -606,7 +698,7 @@ class NanoleafSyncService:
             ids=ids,
             output_channel_order=self.config.output_channel_order,
             configured_zone_count=int(getattr(self.config, "device_zone_count", 0) or 0),
-            enable_live_frame_write_optimization=True,
+            enable_live_frame_write_optimization=bool(enable_live_frame_write_optimization),
             prefer_write_only_live_send=is_four_d_sync(
                 str(getattr(self.config, "sync_mode", "standard"))
             ),

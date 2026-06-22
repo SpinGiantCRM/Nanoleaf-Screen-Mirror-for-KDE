@@ -3,6 +3,7 @@ from __future__ import annotations
 import fcntl
 import logging
 import os
+import shutil
 import tempfile
 import tomllib
 from dataclasses import asdict, replace
@@ -16,6 +17,7 @@ from dacite import from_dict
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.config.normalize import (
+    ConfigValidationError,
     migrate_config_dict,
     validate_config,
     validate_raw_config_values,
@@ -82,7 +84,27 @@ class ConfigManager:
             self._config = AppConfig()
             return self._config
 
-        validate_raw_config_values(data)
+        try:
+            validate_raw_config_values(data)
+        except ConfigValidationError as exc:
+            backup_path = self.path.with_suffix(self.path.suffix + ".invalid")
+            try:
+                shutil.copy2(self.path, backup_path)
+                logger.warning(
+                    "Config validation failed at %s; backed up to %s and using defaults: %s",
+                    self.path,
+                    backup_path,
+                    exc,
+                )
+            except OSError as copy_exc:
+                logger.warning(
+                    "Config validation failed at %s; could not back up (%s); using defaults: %s",
+                    self.path,
+                    copy_exc,
+                    exc,
+                )
+            self._config = AppConfig()
+            return self._config
         raw_use_mock_capture = bool(data.get("use_mock_capture", False))
         migrated_data = migrate_config_dict(data)
         try:

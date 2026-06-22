@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 
-from nanoleaf_sync.ui.layout_helpers import mark_compact
+from nanoleaf_sync.ui.layout_helpers import mark_compact, mark_muted
 from nanoleaf_sync.ui.qt_lazy import load_qt
 
 _log = logging.getLogger(__name__)
@@ -45,11 +45,17 @@ class LiveDiagnosticsDialog(QDialog):
 
         root = QVBoxLayout(self)
         self._stale_banner = QLabel("")
-        set_prop = getattr(self._stale_banner, "setProperty", None)
-        if callable(set_prop):
-            set_prop("muted", True)
+        mark_muted(self._stale_banner)
         self._stale_banner.setVisible(False)
         root.addWidget(self._stale_banner)
+
+        self._warnings_banner = QLabel("")
+        self._warnings_banner.setWordWrap(True)
+        set_warn = getattr(self._warnings_banner, "setProperty", None)
+        if callable(set_warn):
+            set_warn("warning", True)
+        self._warnings_banner.setVisible(False)
+        root.addWidget(self._warnings_banner)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -76,6 +82,23 @@ class LiveDiagnosticsDialog(QDialog):
             self._cap_grid.addWidget(val, row, 1)
             self._cap_labels[key] = val
         self._content_layout.addWidget(self._cap_group)
+
+        self._source_group = QGroupBox("Source integrity")
+        self._source_grid = QGridLayout()
+        self._source_group.setLayout(self._source_grid)
+        source_fields = [
+            ("Fingerprint", "_src_fingerprint"),
+            ("Confidence", "_src_confidence"),
+            ("Scale confidence", "_src_scale_confidence"),
+            ("Source changes", "_src_change_count"),
+        ]
+        self._source_labels: dict[str, QLabel] = {}
+        for row, (label, key) in enumerate(source_fields):
+            self._source_grid.addWidget(QLabel(label + ":"), row, 0)
+            val = QLabel("\u2014")
+            self._source_grid.addWidget(val, row, 1)
+            self._source_labels[key] = val
+        self._content_layout.addWidget(self._source_group)
 
         self._pipe_group = QGroupBox("Pipeline")
         self._pipe_grid = QGridLayout()
@@ -210,6 +233,37 @@ class LiveDiagnosticsDialog(QDialog):
             return
 
         running = bool(s.get("running", False))
+
+        warnings = s.get("runtime_warnings")
+        warning_rows = warnings if isinstance(warnings, list) else []
+        if warning_rows:
+            summary = "; ".join(
+                str(row.get("message", row)) if isinstance(row, dict) else str(row)
+                for row in warning_rows[:4]
+            )
+            self._warnings_banner.setText(f"Warnings: {summary}")
+            self._warnings_banner.setVisible(True)
+        else:
+            self._warnings_banner.setVisible(False)
+
+        identity = s.get("latest_capture_source_identity")
+        if isinstance(identity, dict):
+            self._source_labels["_src_fingerprint"].setText(
+                str(identity.get("fingerprint") or "\u2014")
+            )
+            self._source_labels["_src_confidence"].setText(
+                str(identity.get("confidence") or "\u2014")
+            )
+            self._source_labels["_src_scale_confidence"].setText(
+                str(identity.get("scale_confidence") or "\u2014")
+            )
+        else:
+            self._source_labels["_src_fingerprint"].setText("\u2014")
+            self._source_labels["_src_confidence"].setText("\u2014")
+            self._source_labels["_src_scale_confidence"].setText("\u2014")
+        self._source_labels["_src_change_count"].setText(
+            str(int(s.get("capture_source_change_count", 0) or 0))
+        )
 
         self._cap_labels["_cap_backend"].setText(str(s.get("capture_backend") or "\u2014"))
         self._cap_labels["_cap_method"].setText(str(s.get("capture_path") or "\u2014"))

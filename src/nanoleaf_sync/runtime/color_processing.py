@@ -8,11 +8,8 @@ from typing import Any
 
 import numpy as np
 
-from nanoleaf_sync.runtime.srgb import (
-    linear01_to_srgb_u8,
-    srgb_encoded_float_to_linear01,
-    srgb_u8_to_linear01,
-)
+from nanoleaf_sync.runtime.color_domain import ColorDomain, infer_color_domain, to_linear_srgb
+from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
 
 _log = logging.getLogger(__name__)
 
@@ -186,6 +183,7 @@ def apply_display_gamut_adaptation(
     colors: np.ndarray,
     *,
     color_context: object | None = None,
+    input_domain: ColorDomain | None = None,
 ) -> np.ndarray:
     from nanoleaf_sync.runtime.color_context import ColorContext
 
@@ -199,10 +197,8 @@ def apply_display_gamut_adaptation(
     rgb = np.asarray(colors, dtype=np.float32)
     if rgb.size == 0:
         return rgb
-    if float(np.max(rgb)) <= 1.0:
-        linear = np.clip(rgb, 0.0, 1.0)
-    else:
-        linear = srgb_encoded_float_to_linear01(np.clip(rgb, 0.0, 255.0))
+    domain = input_domain or infer_color_domain(rgb)
+    linear = to_linear_srgb(rgb, domain=domain)
     if matrix_t is None:
         with _GAMUT_LOCK:
             matrix_t = _GAMUT_ADAPTATION_MATRIX_T
@@ -399,20 +395,22 @@ def apply_color_style_mapping(colors: np.ndarray, *, color_style: str) -> np.nda
 
 def apply_led_calibration(colors: np.ndarray, calibration: LedCalibration) -> np.ndarray:
     rgb = np.clip(np.asarray(colors, dtype=np.float32), 0.0, 255.0)
+    domain = infer_color_domain(rgb)
+    linear = to_linear_srgb(rgb, domain=domain)
     gains = np.asarray(
         [calibration.red_gain, calibration.green_gain, calibration.blue_gain], dtype=np.float32
     )
-    rgb *= np.clip(gains, 0.5, 1.5)
+    linear *= np.clip(gains, 0.5, 1.5)
 
     matrix_values = tuple(float(v) for v in (calibration.color_matrix or ()))
     if len(matrix_values) == 9:
-        linear = srgb_u8_to_linear01(np.clip(np.rint(rgb), 0.0, 255.0).astype(np.uint8, copy=False))
         matrix = np.asarray(matrix_values, dtype=np.float32).reshape(3, 3)
         linear = np.clip(linear @ matrix.T, 0.0, 1.0)
-        rgb = linear01_to_srgb_u8(linear).astype(np.float32)
 
     wb_gain = _planckian_white_balance_gains(float(calibration.white_balance_temperature))
-    rgb *= wb_gain
+    linear *= wb_gain
+    linear = np.clip(linear, 0.0, 1.0)
+    rgb = linear01_to_srgb_u8(linear).astype(np.float32)
 
     rgb8 = np.clip(np.rint(rgb), 0.0, 255.0).astype(np.uint8, copy=False)
     lum, c, h = rgb_u8_to_oklch(rgb8)
@@ -427,11 +425,7 @@ def apply_led_calibration(colors: np.ndarray, calibration: LedCalibration) -> np
 
     cutoff = np.clip(float(calibration.black_luminance_cutoff), 0.0, 0.03)
     knee = np.clip(float(calibration.black_luminance_knee), 0.0005, 0.03)
-    zone_peak = (
-        np.max(out, axis=1) if out.ndim == 2 and out.shape[0] else np.asarray([], dtype=np.float32)
-    )
-    skip_near_black_gate = zone_peak.size > 0 and float(np.max(zone_peak)) < 20.0
-    if cutoff > 0.0 and not skip_near_black_gate:
+    if cutoff > 0.0:
         out_linear = srgb_u8_to_linear01(
             np.clip(np.rint(out), 0.0, 255.0).astype(np.uint8, copy=False)
         )

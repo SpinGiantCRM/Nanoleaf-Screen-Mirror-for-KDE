@@ -86,6 +86,23 @@ def _oklab_blend_rows(
     return oklch_to_rgb_u8(l_out, c_out, h_out).astype(np.float32, copy=False)
 
 
+def adaptive_delta_blend(
+    *,
+    current: np.ndarray,
+    previous: np.ndarray,
+    smoothing: float,
+    smoothing_speed: float = 0.75,
+    motion_preset: str = "responsive",
+) -> tuple[np.ndarray, AdaptiveSmoothingDiagnostics]:
+    return adaptive_one_euro_blend(
+        current=current,
+        previous=previous,
+        smoothing=smoothing,
+        smoothing_speed=smoothing_speed,
+        motion_preset=motion_preset,
+    )
+
+
 def adaptive_one_euro_blend(
     *,
     current: np.ndarray,

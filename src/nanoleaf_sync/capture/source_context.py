@@ -54,9 +54,11 @@ def build_kwin_display_source_context(
     if monitor_id:
         source_confidence: SourceConfidence = "explicit"
         method_confidence: CaptureMethodConfidence = "explicit-monitor"
+        scale_confidence = "pixel-exact"
     else:
         source_confidence = "primary-default"
         method_confidence = "plasma-primary-empty-name"
+        scale_confidence = "fallback"
     display_w = int(getattr(params, "width", frame_width) or frame_width)
     display_h = int(getattr(params, "height", frame_height) or frame_height)
     return DisplaySourceContext(
@@ -75,6 +77,7 @@ def build_kwin_display_source_context(
         source_confidence=source_confidence,
         capture_method=capture_method,
         capture_method_confidence=method_confidence,
+        scale_confidence=scale_confidence,
     )
 
 
@@ -98,19 +101,25 @@ def build_portal_display_source_context(
         backend_source_id = str(mapping_id)
     elif node_id is not None:
         backend_source_id = str(node_id)
+    token_state = str(getattr(backend, "portal_restore_token_state", "") or "")
     token_loaded = bool(getattr(backend, "portal_restore_token_loaded", False))
     token_accepted = bool(getattr(backend, "portal_restore_token_accepted", False))
-    if token_accepted:
+    if token_state == "restored_confirmed" or token_accepted:  # nosec B105
         source_confidence: SourceConfidence = "restored"
         method_confidence: CaptureMethodConfidence = "portal-restored"
-    elif token_loaded:
+    elif token_state in {"submitted", "refreshed"} or token_loaded:
         source_confidence = "restored"
         method_confidence = "portal-restored"
     else:
         source_confidence = "explicit"
         method_confidence = "portal-prompt"
     serial_int = int(pipewire_serial) if pipewire_serial is not None else None
-    display_size = size or (int(frame_width), int(frame_height))
+    stream_size = (max(1, int(frame_width)), max(1, int(frame_height)))
+    if size is not None and size != stream_size:
+        scale_confidence = "compositor-layout"
+    else:
+        scale_confidence = "pixel-exact"
+    display_size = stream_size
     return DisplaySourceContext(
         backend="xdg-portal",
         monitor_id=str(source_type) if source_type is not None else None,
@@ -118,15 +127,16 @@ def build_portal_display_source_context(
         pipewire_serial=serial_int,
         compositor_position=position,
         compositor_size=size,
-        stream_pixel_size=(max(1, int(frame_width)), max(1, int(frame_height))),
+        stream_pixel_size=stream_size,
         display_pixel_size=display_size,
-        scale_x=float(display_size[0]) / max(1.0, float(frame_width)),
-        scale_y=float(display_size[1]) / max(1.0, float(frame_height)),
+        scale_x=1.0,
+        scale_y=1.0,
         refresh_hz=None,
         hdr_metadata=CaptureMetadata(source="xdg-portal"),
         source_confidence=source_confidence,
         capture_method=str(getattr(backend, "last_capture_path", "") or "xdg-portal"),
         capture_method_confidence=method_confidence,
+        scale_confidence=scale_confidence,
     )
 
 
@@ -150,9 +160,15 @@ def build_drm_display_source_context(
         backend_source_id = f"crtc={crtc_id};fb={fb_id}"
     elif crtc_id is not None:
         backend_source_id = f"crtc={crtc_id}"
+    connector_id = drm_diag.get("connector_id")
+    connector_name = drm_diag.get("connector_name")
+    if connector_id is not None:
+        backend_source_id = f"connector={connector_id};{backend_source_id or ''}".rstrip(";")
+    elif connector_name:
+        backend_source_id = str(connector_name)
     return DisplaySourceContext(
         backend=str(getattr(backend, "name", "kmsgrab") or "kmsgrab"),
-        monitor_id=None,
+        monitor_id=str(connector_name) if connector_name else None,
         backend_source_id=backend_source_id,
         pipewire_serial=None,
         compositor_position=None,
@@ -171,6 +187,7 @@ def build_drm_display_source_context(
         source_confidence="fallback",
         capture_method=str(getattr(backend, "last_capture_path", "") or "drm-kms"),
         capture_method_confidence="legacy-fallback",
+        scale_confidence="pixel-exact",
     )
 
 
