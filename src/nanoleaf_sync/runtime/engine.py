@@ -1388,6 +1388,29 @@ def _run_loop_pipeline(
                     )
                     continue
 
+                outgoing_colors = [tuple(int(c) for c in row) for row in payload.smoothed_colors]
+                if (
+                    state.first_frame_sent
+                    and state.prev_sent_colors
+                    and outgoing_colors == state.prev_sent_colors
+                ):
+                    state.duplicate_output_skipped_frames += 1
+                    with metrics_lock:
+                        cap_active = bool(capture_worker_active)
+                    state.latency_probe.add_stage_sample(
+                        FrameTimingSample(
+                            stage_ms={},
+                            target_fps=float(governor.target_fps),
+                            fps_cap=float(governor.target_fps),
+                            fps_cap_reason="FPS governor dynamic cap",
+                            dropped_or_skipped_frames_delta=1,
+                            counters_delta={"duplicate_output_skipped_frames": 1},
+                            flags={"capture_worker_active": cap_active},
+                            labels={"duplicate_output_skip": "unchanged_zone_colors"},
+                        )
+                    )
+                    continue
+
                 # HID write
                 hid_write_start = time.perf_counter()
                 hid_frame_build_ms: float | None = None

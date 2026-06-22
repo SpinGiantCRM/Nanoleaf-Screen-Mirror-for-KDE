@@ -152,6 +152,8 @@ class KWinDBusScreenshotCapture:
         self._resize_index_cache_limit = 8
         self._legacy_introspection_cache: dict[tuple[str, str], object] = {}
         self._legacy_introspection_cache_max = 4
+        self._kwin_owner: str | None = None
+        self.kwin_owner_change_count: int = 0
 
     def capture(self) -> np.ndarray:
         """Return an RGB frame as a numpy array or raise ``KWinDBusCaptureError``."""
@@ -425,6 +427,37 @@ class KWinDBusScreenshotCapture:
         self._legacy_bus = None
         self._legacy_introspection_cache.clear()
 
+    async def _sync_kwin_owner(self, bus: object) -> None:
+        from dbus_next import Message
+
+        reply = await bus.call(  # type: ignore[union-attr]
+            Message(
+                destination="org.freedesktop.DBus",
+                path="/org/freedesktop/DBus",
+                interface="org.freedesktop.DBus",
+                member="GetNameOwner",
+                signature="s",
+                body=["org.kde.KWin"],
+            )
+        )
+        owner = str(reply.body[0] or "").strip()
+        if not owner:
+            await self._reset_bus_connections()
+            raise KWinDBusCaptureError(
+                "KWin is not available on the session D-Bus bus. "
+                "Compositor may be restarting or the Plasma session is unavailable."
+            )
+        previous = self._kwin_owner
+        if previous is not None and previous != owner:
+            self.kwin_owner_change_count += 1
+            logger.info(
+                "Detected KWin D-Bus owner change (%s -> %s); resetting capture bus state",
+                previous,
+                owner,
+            )
+            await self._reset_bus_connections()
+        self._kwin_owner = owner
+
     async def _connect_screenshot2_bus(self):
         from dbus_next.aio import MessageBus
 
@@ -457,6 +490,7 @@ class KWinDBusScreenshotCapture:
 
         bus_name, path, interface_name = self._SCREENSHOT2_API
         bus = await self._get_screenshot2_bus()
+        await self._sync_kwin_owner(bus)
         await self._get_screenshot2_introspection()
 
         attempt_errors: list[tuple[str, str, Exception]] = []
@@ -523,6 +557,7 @@ class KWinDBusScreenshotCapture:
 
     async def _capture_reply_via_legacy_interfaces(self):
         bus = await self._get_legacy_bus()
+        await self._sync_kwin_owner(bus)
         last_exc: Exception | None = None
 
         for bus_name, path, interface_name in self._LEGACY_API_CANDIDATES:

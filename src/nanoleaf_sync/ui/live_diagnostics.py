@@ -111,6 +111,7 @@ class LiveDiagnosticsDialog(QDialog):
             ("Capture buffer drops", "_pipe_cap_drops"),
             ("Process buffer drops", "_pipe_proc_drops"),
             ("Coalesced sends", "_pipe_coalesced"),
+            ("Duplicate output skips", "_pipe_duplicate_skips"),
             ("Frame staleness (ms)", "_pipe_staleness"),
             ("HID send policy", "_pipe_hid_policy"),
             ("Stale output drop rate (/s)", "_pipe_stale_drop_rate"),
@@ -305,6 +306,9 @@ class LiveDiagnosticsDialog(QDialog):
         self._pipe_labels["_pipe_cap_drops"].setText(str(cap_drops))
         self._pipe_labels["_pipe_proc_drops"].setText(str(proc_drops))
         self._pipe_labels["_pipe_coalesced"].setText(str(coalesced))
+        self._pipe_labels["_pipe_duplicate_skips"].setText(
+            str(int(s.get("duplicate_output_skipped_frames", 0) or 0))
+        )
         staleness = float(s.get("latest_staleness_ms", 0.0) or 0.0)
         self._pipe_labels["_pipe_staleness"].setText(f"{staleness:.1f}")
         self._pipe_labels["_pipe_hid_policy"].setText(

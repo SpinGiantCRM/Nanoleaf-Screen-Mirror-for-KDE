@@ -195,6 +195,52 @@ def test_run_loop_sends_fresh_frame(monkeypatch: pytest.MonkeyPatch) -> None:
     assert state.frames_sent >= 1
 
 
+def test_run_loop_skips_duplicate_unchanged_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    from tests.test_audit_stage1 import _cfg_with_valid_calibration
+
+    class _StaticCapture:
+        name = "kwin-dbus"
+        last_capture_path = "kwin-dbus:test"
+
+        def capture(self):
+            frame = np.zeros((24, 32, 3), dtype=np.uint8)
+            frame[:, :] = [30, 40, 50]
+            return frame
+
+    class _CountingDriver:
+        reported_zone_count = 48
+        zone_count = 48
+        sends = 0
+
+        def send_frame_with_timing(self, _colors):
+            self.sends += 1
+            return {"device_write_ms": 1.0, "live_send_policy": "response_required"}
+
+    driver = _CountingDriver()
+    state = RuntimeState()
+    cfg = _cfg_with_valid_calibration(48, fps=60)
+
+    def _stop_after_duplicate_skip() -> None:
+        deadline = time.perf_counter() + 0.6
+        while time.perf_counter() < deadline and state.duplicate_output_skipped_frames < 1:
+            time.sleep(0.005)
+        state.stop_event.set()
+
+    stopper = threading.Thread(target=_stop_after_duplicate_skip, daemon=True)
+    stopper.start()
+    run_loop(
+        config=cfg,
+        state=state,
+        get_capture=lambda: _StaticCapture(),
+        get_driver=lambda: driver,
+        install_drivers=lambda: True,
+        close_backends=lambda: None,
+    )
+
+    assert driver.sends >= 1
+    assert state.duplicate_output_skipped_frames >= 1
+
+
 def test_run_loop_zone_mismatch_blocks_startup() -> None:
     class _FastCapture:
         name = "kwin-dbus"

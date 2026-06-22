@@ -94,6 +94,7 @@ class RuntimeState:
     predictive_lookahead_frames: float = 0.0
     predictive_scene_cut_suppressed: bool = False
     stale_output_dropped_frames: int = 0
+    duplicate_output_skipped_frames: int = 0
     output_owner_dropped_frames: int = 0
     last_stale_frame_age_ms: float = 0.0
     max_send_age_ms: float = 0.0
@@ -177,6 +178,7 @@ class RuntimeState:
         self.predictive_lookahead_frames = 0.0
         self.predictive_scene_cut_suppressed = False
         self.stale_output_dropped_frames = 0
+        self.duplicate_output_skipped_frames = 0
         self.output_owner_dropped_frames = 0
         self.last_stale_frame_age_ms = 0.0
         self.max_send_age_ms = 0.0
@@ -400,6 +402,7 @@ class RuntimeState:
             "sdr_boost_compensation_enabled": bool(self.sdr_boost_compensation_enabled),
             "skip_display_gamut_adaptation": bool(self.skip_display_gamut_adaptation),
             "stale_output_dropped_frames": int(self.stale_output_dropped_frames),
+            "duplicate_output_skipped_frames": int(self.duplicate_output_skipped_frames),
             "output_owner_dropped_frames": int(self.output_owner_dropped_frames),
             "last_stale_frame_age_ms": float(self.last_stale_frame_age_ms),
             "max_send_age_ms": float(self.max_send_age_ms),

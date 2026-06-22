@@ -562,6 +562,50 @@ def test_loop_worker_ordinary_exception_sets_error_state(monkeypatch) -> None:
     backend.close()
 
 
+def test_sync_kwin_owner_change_resets_bus_state() -> None:
+    import asyncio
+
+    backend = KWinDBusScreenshotCapture(width=16, height=9)
+    backend._screenshot2_bus = object()
+    backend._legacy_bus = object()
+    owners = iter([":1.50", ":1.51"])
+
+    class _Reply:
+        def __init__(self, owner: str) -> None:
+            self.body = [owner]
+
+    class _Bus:
+        async def call(self, _msg: object) -> _Reply:
+            return _Reply(next(owners))
+
+    asyncio.run(backend._sync_kwin_owner(_Bus()))
+    assert backend._kwin_owner == ":1.50"
+    assert backend.kwin_owner_change_count == 0
+
+    asyncio.run(backend._sync_kwin_owner(_Bus()))
+    assert backend.kwin_owner_change_count == 1
+    assert backend._screenshot2_bus is None
+    assert backend._legacy_bus is None
+    backend.close()
+
+
+def test_sync_kwin_owner_missing_raises_clear_error() -> None:
+    import asyncio
+
+    backend = KWinDBusScreenshotCapture(width=16, height=9)
+
+    class _Reply:
+        body = [""]
+
+    class _Bus:
+        async def call(self, _msg: object) -> _Reply:
+            return _Reply()
+
+    with pytest.raises(KWinDBusCaptureError, match="KWin is not available"):
+        asyncio.run(backend._sync_kwin_owner(_Bus()))
+    backend.close()
+
+
 def test_close_clears_loop_so_reinit_uses_fresh_loop(monkeypatch) -> None:
     """After close/reinit, the asyncio loop object must not be reused."""
     backend = KWinDBusScreenshotCapture(width=2, height=1)
