@@ -78,6 +78,8 @@ class ColorPipelineParams:
     prev_sampled_zone_colors: Sequence[RGBTuple] = ()
     prior_zone_sample_motion: float = 0.0
     prior_area_average_mode: bool = False
+    prev_smooth_float_colors: Sequence[RGBTuple] = ()
+    prev_sent_colors: Sequence[RGBTuple] = ()
 
 
 def _resolve_live_sampling_mode(
@@ -163,6 +165,7 @@ def process_zone_colors(
         np.ndarray,
         FrameProcessingTimings,
         list[RGBTuple],
+        list[RGBTuple],
     ]
 ):
     if precomputed_zone_colors is None:
@@ -180,6 +183,9 @@ def process_zone_colors(
     timings = FrameProcessingTimings()
     stage_start = time.perf_counter()
     frame_convert_done = stage_start
+
+    prev_smooth = params.prev_smooth_float_colors or prev_smoothed_colors
+    prev_sent = params.prev_sent_colors or prev_smoothed_colors
 
     motion_preset, smoothing, smoothing_speed = effective_motion_and_smoothing(
         motion_preset=params.motion_preset,
@@ -335,10 +341,10 @@ def process_zone_colors(
     )
 
     adaptive_diag = None
-    if prev_smoothed_colors:
-        n = min(len(prev_smoothed_colors), mapped.shape[0])
+    if prev_smooth:
+        n = min(len(prev_smooth), mapped.shape[0])
         if n:
-            prev_arr = np.asarray(prev_smoothed_colors[:n], dtype=np.float32)
+            prev_arr = np.asarray(prev_smooth[:n], dtype=np.float32)
             mapped[:n], adaptive_diag = adaptive_one_euro_blend(
                 current=mapped[:n],
                 previous=prev_arr,
@@ -363,9 +369,7 @@ def process_zone_colors(
         color_style=params.color_style,
     ):
         prev_for_pred = (
-            np.asarray(prev_smoothed_colors[: mapped.shape[0]], dtype=np.float32)
-            if prev_smoothed_colors
-            else None
+            np.asarray(prev_smooth[: mapped.shape[0]], dtype=np.float32) if prev_smooth else None
         )
         max_zone_delta = float(adaptive_diag.max_zone_delta) if adaptive_diag is not None else None
         median_zone_delta = (
@@ -400,18 +404,22 @@ def process_zone_colors(
         predictive_lookahead_frames = float(pred_result.lookahead_frames)
         predictive_scene_cut_suppressed = bool(pred_result.scene_cut_suppressed)
 
+    smooth_float_history = [
+        tuple(float(c) for c in row) for row in mapped.astype(np.float32, copy=False).tolist()
+    ]
+
     prev_sent_arr: np.ndarray | None = None
-    if prev_smoothed_colors:
-        n = min(len(prev_smoothed_colors), mapped.shape[0])
+    if prev_sent:
+        n = min(len(prev_sent), mapped.shape[0])
         if n:
-            prev_sent_arr = np.asarray(prev_smoothed_colors[:n], dtype=np.float32)
+            prev_sent_arr = np.asarray(prev_sent[:n], dtype=np.float32)
             mapped[:n] = apply_output_quantization_hold(mapped[:n], prev_sent_arr)
 
     np.clip(mapped, 0.0, 255.0, out=mapped)
     np.rint(mapped, out=mapped)
     out = mapped.astype(np.uint8, copy=False)
     out_list = [tuple(int(c) for c in row) for row in out.tolist()]
-    history_list = [tuple(float(c) for c in row) for row in out_list]
+    sent_history = [tuple(float(c) for c in row) for row in out_list]
     output_prepare_done = time.perf_counter()
 
     if params.return_diagnostics:
@@ -452,7 +460,8 @@ def process_zone_colors(
             pre_led_arr,
             out,
             timings,
-            history_list,
+            smooth_float_history,
+            sent_history,
         )
     return out_list
 
@@ -493,7 +502,14 @@ def build_led_calibration_from_profile(profile: object | None) -> LedCalibration
     )
 
 
-def resolve_active_led_profile(config: object) -> object | None:
+def resolve_active_led_profile(
+    config: object,
+    *,
+    capture_display_referred: bool = False,
+) -> object | None:
+    if capture_display_referred:
+        return getattr(config, "led_calibration_profile_sdr", None)
+
     from nanoleaf_sync.color.capture_metadata import (
         effective_led_profile_key,
         resolve_display_preset,
@@ -519,6 +535,7 @@ def build_pipeline_params_from_config(
     build_zone_diagnostics: bool = False,
     skip_display_gamut_adaptation: bool = False,
     sdr_boost_compensation_enabled: bool = True,
+    capture_display_referred: bool = False,
     effective_target_fps: float | None = None,
     config_fps: float | None = None,
     staleness_ms: float | None = None,
@@ -527,7 +544,10 @@ def build_pipeline_params_from_config(
     prior_zone_sample_motion: float = 0.0,
     prior_area_average_mode: bool = False,
 ) -> ColorPipelineParams:
-    active_profile = resolve_active_led_profile(config)
+    active_profile = resolve_active_led_profile(
+        config,
+        capture_display_referred=capture_display_referred,
+    )
     sync_mode = str(getattr(config, "sync_mode", "standard") or "standard")
     compositor_hdr_mode, sdr_boost_nits = resolve_compositor_hdr_runtime(
         compositor_hdr_mode=bool(getattr(config, "compositor_hdr_mode", False)),

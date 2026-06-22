@@ -548,6 +548,7 @@ def create_capture_backend(
     auto_probe_enabled: bool | None = None,
     cached_probe_winner: str | None = None,
     drm_zone_patch_capture: bool = False,
+    capture_monitor: str = "",
 ) -> CaptureBackend:
     """Create capture backend for the runtime.
 
@@ -566,6 +567,7 @@ def create_capture_backend(
         cached_probe_winner=cached_probe_winner,
     )
     if normalized == KWIN_DBUS_BACKEND:
+        monitor_id = str(capture_monitor or "").strip() or None
         try:
             return KWinDBusScreenshotCapture(
                 width=width,
@@ -573,6 +575,7 @@ def create_capture_backend(
                 hdr_max_nits=hdr_max_nits,
                 hdr_transfer=hdr_transfer,
                 hdr_primaries=hdr_primaries,
+                monitor_id=monitor_id,
             )
         except Exception as exc:  # noqa: BLE001
             raise CaptureBackendInitializationError(KWIN_DBUS_BACKEND, str(exc)) from exc

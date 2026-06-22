@@ -87,6 +87,42 @@ def derive_source_zones(
     ).zones
 
 
+def _resolve_persisted_side_counts(
+    config: AppConfig,
+    *,
+    frame_width: int | None,
+    frame_height: int | None,
+) -> tuple[int, int, int, int] | None:
+    raw = getattr(config, "source_side_counts", None) or []
+    if len(raw) == 4:
+        counts = tuple(max(0, int(v)) for v in raw)
+        if sum(counts) > 0:
+            return counts
+    zone_count = len(config.zones) if config.zones else 0
+    if zone_count > 0 and frame_width and frame_height:
+        layout = edge_weighted_layout(
+            zone_count=zone_count,
+            width=frame_width,
+            height=frame_height,
+            edge_locality=str(getattr(config, "edge_locality", "balanced")),
+        )
+        return layout.side_counts
+    return None
+
+
+def source_side_counts_from_config(
+    config: AppConfig,
+    *,
+    frame_width: int | None = None,
+    frame_height: int | None = None,
+) -> tuple[int, int, int, int] | None:
+    return _resolve_persisted_side_counts(
+        config,
+        frame_width=frame_width,
+        frame_height=frame_height,
+    )
+
+
 def derive_source_zone_artifacts(
     *,
     config: AppConfig,
@@ -105,13 +141,20 @@ def derive_source_zone_artifacts(
                 source_count,
                 device_count,
             )
+        side_counts = _resolve_persisted_side_counts(
+            config,
+            frame_width=frame_width,
+            frame_height=frame_height,
+        )
         return SourceZoneArtifacts(
             zones=config.zones,
-            side_counts=None,
-            zone_order_mode=None,
+            side_counts=side_counts,
+            zone_order_mode="edge_strip" if side_counts is not None else None,
             edge_sampling_thickness=None,
-            localized_edge_sampling_active=False,
-            edge_locality=None,
+            localized_edge_sampling_active=side_counts is not None,
+            edge_locality=str(getattr(config, "edge_locality", "balanced"))
+            if side_counts is not None
+            else None,
             frame_width=frame_width,
             frame_height=frame_height,
         )

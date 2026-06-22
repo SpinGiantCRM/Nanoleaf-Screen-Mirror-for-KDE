@@ -60,6 +60,8 @@ def test_governor_min_fps_floor_helper() -> None:
 
     assert governor_min_fps_floor(120) == 60
     assert governor_min_fps_floor(45) == 30
+    assert governor_min_fps_floor(24) == 24
+    assert governor_min_fps_floor(20) == 20
 
 
 def test_step_down_under_high_utilisation() -> None:

@@ -167,6 +167,10 @@ def corner_anchor_steps(
         device_zone_count=device_zone_count,
         reverse_zones=reverse_zones,
         calibration_model=calibration_model,
+        corner_anchor_top_left=corner_anchor_top_left,
+        corner_anchor_top_right=corner_anchor_top_right,
+        corner_anchor_bottom_right=corner_anchor_bottom_right,
+        corner_anchor_bottom_left=corner_anchor_bottom_left,
     )
     steps: list[CalibrationStep] = []
     for i, device_idx in enumerate(indices):

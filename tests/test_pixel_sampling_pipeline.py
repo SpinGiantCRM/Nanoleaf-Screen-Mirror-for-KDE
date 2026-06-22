@@ -87,7 +87,7 @@ def test_letterbox_clipping_persists_under_four_d_motion() -> None:
         device_zone_indices=list(range(zone_count)),
         params=params,
     )
-    _colors, sampled, _pre, _final, timings, _history = out  # type: ignore[misc]
+    _colors, sampled, _pre, _final, timings, _smooth, _history = out  # type: ignore[misc]
     assert timings.letterbox_active is True
     assert timings.area_average_active is True
     top_sample = sampled[0]

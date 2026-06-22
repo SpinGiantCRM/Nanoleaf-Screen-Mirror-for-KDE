@@ -328,3 +328,67 @@ def test_on_settings_rerun_display_setup_restarts_when_running_before_settings(m
     NanoleafTrayApp.on_settings(fake_tray)
 
     assert starts["count"] == 1
+
+
+def test_save_while_stopped_applies_on_start(monkeypatch) -> None:
+    class _TrackingService(_FakeService):
+        def __init__(self, *, config, running=False):
+            super().__init__(config=config, running=running)
+
+    class _Dialog(_FakeDialogSaveThenClose):
+        def updated_config(self):
+            return AppConfig(device_zone_count=3, fps=90)
+
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.SettingsDialog", _Dialog)
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.NanoleafSyncService", _TrackingService)
+
+    original_cfg = AppConfig(device_zone_count=3, fps=30)
+    fake_tray = SimpleNamespace(
+        config=original_cfg,
+        cfg_mgr=_FakeCfgMgr(),
+        service=_TrackingService(config=original_cfg, running=False),
+        _calibration_dialog=None,
+        QDialog=SimpleNamespace(DialogCode=SimpleNamespace(Accepted=1)),
+        _refresh_mode_labels=lambda: None,
+        _send_calibration_preview=lambda _colors: None,
+        on_stop=lambda: None,
+        on_start=lambda: None,
+        _create_service=lambda: _TrackingService(config=fake_tray.config),
+    )
+    _wire_preview_helpers(fake_tray)
+
+    NanoleafTrayApp.on_settings(fake_tray)
+
+    assert fake_tray.config.fps == 90
+    assert fake_tray.service.config.fps == 90
+
+
+def test_fps_change_while_running_restarts(monkeypatch) -> None:
+    stops = {"count": 0}
+    starts = {"count": 0}
+
+    class _RunningService(_FakeService):
+        def __init__(self, *, config, running=True):
+            super().__init__(config=config, running=running)
+
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.SettingsDialog", _FakeDialog)
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.NanoleafSyncService", _RunningService)
+
+    fake_tray = SimpleNamespace(
+        config=AppConfig(device_zone_count=4, fps=30),
+        cfg_mgr=_FakeCfgMgr(),
+        service=_RunningService(config=AppConfig(device_zone_count=4, fps=30)),
+        _calibration_dialog=None,
+        QDialog=SimpleNamespace(DialogCode=SimpleNamespace(Accepted=1)),
+        _refresh_mode_labels=lambda: None,
+        _send_calibration_preview=lambda _colors: None,
+        on_stop=lambda: stops.__setitem__("count", stops["count"] + 1),
+        on_start=lambda: starts.__setitem__("count", starts["count"] + 1),
+        _create_service=lambda: _RunningService(config=fake_tray.config),
+    )
+    _wire_preview_helpers(fake_tray)
+
+    NanoleafTrayApp.on_settings(fake_tray)
+
+    assert stops["count"] >= 1
+    assert starts["count"] >= 1

@@ -19,10 +19,24 @@ def derive_corner_anchor_device_indices(
     reverse_zones: bool,
     calibration_model: str = "corner_anchored",
     source_side_counts: tuple[int, int, int, int] | None = None,
+    corner_anchor_top_left: int = -1,
+    corner_anchor_top_right: int = -1,
+    corner_anchor_bottom_right: int = -1,
+    corner_anchor_bottom_left: int = -1,
 ) -> list[int]:
     total = max(1, int(device_zone_count))
     if total == 1:
         return [0]
+
+    max_idx = total - 1
+    anchors = [
+        int(corner_anchor_top_left),
+        int(corner_anchor_top_right),
+        int(corner_anchor_bottom_right),
+        int(corner_anchor_bottom_left),
+    ]
+    if all(0 <= int(a) <= max_idx for a in anchors) and len(set(anchors)) == 4:
+        return anchors
 
     mapping = mapping_indices(
         zone_count=zone_count,

@@ -13,6 +13,7 @@ import os
 import signal
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -39,6 +40,7 @@ from nanoleaf_sync.config.presets import effective_drm_zone_patch_capture, is_fo
 from nanoleaf_sync.config.store import ConfigManager
 from nanoleaf_sync.device.interfaces import DeviceDriver, NanoleafUSBIds
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
+from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping_from_config
 from nanoleaf_sync.runtime.compositor import effective_sdr_boost
 from nanoleaf_sync.runtime.diagnostics_exports import default_kde_display_metadata
 from nanoleaf_sync.runtime.startup import (
@@ -186,7 +188,11 @@ class NanoleafSyncService:
         self._device_model: str | None = None
         self._device_zone_count: int | None = None
         self._status_lock = threading.Lock()
+        self._can_mirroring_write: Callable[[], bool] | None = None
         self._kde_upgrade_report = self._check_kde_upgrade_on_startup()
+
+    def set_output_session_guard(self, fn: Callable[[], bool] | None) -> None:
+        self._can_mirroring_write = fn
 
     @property
     def kde_upgrade_notice(self) -> str | None:
@@ -429,6 +435,7 @@ class NanoleafSyncService:
                             ),
                             sync_mode=str(getattr(self.config, "sync_mode", "standard")),
                         ),
+                        capture_monitor=str(getattr(self.config, "capture_monitor", "") or ""),
                     )
                     created_capture = True
                 init = getattr(capture, "initialize", None)
@@ -451,7 +458,23 @@ class NanoleafSyncService:
                 frame_height=img_h,
             )
             zones_px = zones_from_config(artifacts.zones, img_w, img_h)
-            device_zone_indices = list(range(len(zones_px)))
+            mapping_snapshot = resolve_calibration_mapping_from_config(
+                config=self.config,
+                source_zone_count=len(zones_px),
+                detected_device_zone_count=self._device_zone_count,
+                source_side_counts=artifacts.side_counts,
+            )
+            device_zone_indices = list(mapping_snapshot.device_to_source_indices)
+            if not device_zone_indices:
+                target_count = max(
+                    1,
+                    int(getattr(self.config, "device_zone_count", 0) or len(zones_px)),
+                )
+                source_count = len(zones_px)
+                if source_count > 0:
+                    device_zone_indices = [
+                        int((idx * source_count) // target_count) for idx in range(target_count)
+                    ]
             processed = process_frame(
                 frame=frame,
                 prev_smoothed_colors=[],
@@ -471,9 +494,7 @@ class NanoleafSyncService:
                 hdr_max_nits=getattr(self.config, "hdr_max_nits", 1000.0),
                 return_diagnostics=True,
             )
-            _, sampled_zone_colors, pre_led_colors, final_zone_colors, _timings, _history = (
-                processed
-            )
+            _, sampled_zone_colors, pre_led_colors, final_zone_colors, _timings, _, _ = processed
             self._runtime.latest_frame_rgb = frame
             self._runtime.last_frame_width = int(img_w)
             self._runtime.last_frame_height = int(img_h)
@@ -673,6 +694,7 @@ class NanoleafSyncService:
                         ),
                         sync_mode=str(getattr(self.config, "sync_mode", "standard")),
                     ),
+                    capture_monitor=str(getattr(self.config, "capture_monitor", "") or ""),
                 )
                 if normalized_preference != "auto":
                     self._selection_reason = "explicit"
@@ -798,6 +820,7 @@ class NanoleafSyncService:
             close_backends=self._close_backends,
             clear_backends=self._clear_backends,
             send_final_frame=self._send_stop_black_frame,
+            can_mirroring_write=self._can_mirroring_write,
         )
 
     def install_signal_handlers(self) -> None:

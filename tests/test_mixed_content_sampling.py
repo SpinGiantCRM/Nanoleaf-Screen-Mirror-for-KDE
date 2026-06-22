@@ -64,7 +64,7 @@ def test_overwatch_like_bottom_left_zone_stable_across_icon_toggle() -> None:
             device_zone_indices=[0],
             params=params,
         )
-        _colors, sampled, _pre, _final, _timings, history = out  # type: ignore[misc]
+        _colors, sampled, _pre, _final, _timings, _smooth, history = out  # type: ignore[misc]
         sampled_rows.append(np.asarray(sampled[0], dtype=np.int32))
         prev = history
     assert int(abs(sampled_rows[0][2] - sampled_rows[1][2])) <= 5

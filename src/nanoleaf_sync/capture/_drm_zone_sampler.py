@@ -245,6 +245,9 @@ class DRMZoneSampler:
         self._g_byte: int = 1
         self._b_byte: int = 0
         self._libc: Any = None
+        self._crtc_id: int = 0
+        self._fb_id: int = 0
+        self._remount_count: int = 0
 
         try:
             self._init()
@@ -333,12 +336,31 @@ class DRMZoneSampler:
         if fb_id == 0:
             raise KMSGrabError("CRTC has no active framebuffer")
 
+        self._crtc_id = int(crtc_id)
+        self._fb_id = int(fb_id)
+        self._attach_framebuffer(crtc=crtc, fb_id=int(fb_id))
+
+    def _unmap_framebuffer(self) -> None:
+        if self._mapped_ptr is not None and self._mapped_ptr != 0 and self._mapped_size > 0:
+            libc = self._libc
+            if libc is None:
+                libc = ctypes.CDLL("libc.so.6")
+                libc.munmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
+                libc.munmap.restype = ctypes.c_int
+            with contextlib.suppress(Exception):
+                libc.munmap(
+                    ctypes.c_void_p(self._mapped_ptr),
+                    ctypes.c_size_t(self._mapped_size),
+                )
+            self._mapped_ptr = None
+            self._mapped_size = 0
+
+    def _attach_framebuffer(self, *, crtc: _DrmModeCrtc, fb_id: int) -> None:
         self._width = int(crtc.mode.hdisplay)
         self._height = int(crtc.mode.vdisplay)
         if self._width <= 0 or self._height <= 0:
             raise KMSGrabError(f"invalid CRTC mode dimensions: {self._width}x{self._height}")
 
-        # 4. Get framebuffer metadata (fourcc, pitch, handle)
         fb2 = _DrmModeFbCmd2()
         fb2.fb_id = fb_id
         try:
@@ -351,7 +373,6 @@ class DRMZoneSampler:
         handle = int(fb2.handles[0])
         buff_offset = int(fb2.offsets[0])
 
-        # 5. Validate pixel format
         if self._fourcc not in (
             _FOURCC_XR24,
             _FOURCC_AR24,
@@ -362,15 +383,11 @@ class DRMZoneSampler:
                 f"unsupported DRM fourcc 0x{self._fourcc:08X}; expected XR24/AR24/XB24/AB24"
             )
 
-        # Byte order for R/G/B extraction:
-        # XR24 / AR24: LE bytes [0]=B, [1]=G, [2]=R, [3]=X/A
-        # XB24 / AB24: LE bytes [0]=R, [1]=G, [2]=B, [3]=X/A
         if self._fourcc in (_FOURCC_XR24, _FOURCC_AR24):
             self._b_byte, self._g_byte, self._r_byte = 0, 1, 2
         else:
             self._r_byte, self._g_byte, self._b_byte = 0, 1, 2
 
-        # 6. Map the dumb/GEM buffer
         _map_dumb = _DrmModeMapDumb()
         _map_dumb.handle = handle
         try:
@@ -396,6 +413,40 @@ class DRMZoneSampler:
             raise KMSGrabError("mmap of DRM framebuffer failed")
 
         self._mapped_ptr = _ptr_addr
+        self._fb_id = int(fb_id)
+
+    def _ensure_framebuffer_current(self) -> None:
+        if self._fd < 0:
+            raise KMSGrabError("DRMZoneSampler: device not open")
+        crtc = _DrmModeCrtc()
+        crtc.crtc_id = int(self._crtc_id)
+        try:
+            fcntl.ioctl(self._fd, DRM_IOCTL_MODE_GETCRTC, crtc)
+        except OSError as exc:
+            raise KMSGrabError(f"DRM_IOCTL_MODE_GETCRTC failed for CRTC {self._crtc_id}") from exc
+        fb_id = int(crtc.fb_id)
+        if fb_id == 0:
+            raise KMSGrabError("CRTC has no active framebuffer")
+        width = int(crtc.mode.hdisplay)
+        height = int(crtc.mode.vdisplay)
+        if (
+            fb_id == self._fb_id
+            and width == self._width
+            and height == self._height
+            and self._mapped_ptr is not None
+            and self._mapped_ptr != 0
+        ):
+            return
+        self._unmap_framebuffer()
+        self._attach_framebuffer(crtc=crtc, fb_id=fb_id)
+        self._remount_count += 1
+        _log.debug(
+            "DRMZoneSampler: remounted framebuffer fb_id=%s size=%dx%d remounts=%s",
+            self._fb_id,
+            self._width,
+            self._height,
+            self._remount_count,
+        )
 
     def _find_active_crtc(
         self,
@@ -482,6 +533,7 @@ class DRMZoneSampler:
         ``(x, y)`` coordinate (clamped to the framebuffer bounds).  The
         patch is read directly from the mmap'd framebuffer.
         """
+        self._ensure_framebuffer_current()
         if self._mapped_ptr is None or self._mapped_ptr == 0:
             raise KMSGrabError("DRMZoneSampler: framebuffer not mapped")
 
@@ -533,6 +585,7 @@ class DRMZoneSampler:
 
     def capture_zone_rects(self, rects: list[tuple[int, int, int, int]]) -> np.ndarray:
         """Return ``(N, 3) uint8`` zone colours averaged over each display rectangle."""
+        self._ensure_framebuffer_current()
         if self._mapped_ptr is None or self._mapped_ptr == 0:
             raise KMSGrabError("DRMZoneSampler: framebuffer not mapped")
 
@@ -594,28 +647,21 @@ class DRMZoneSampler:
         """Framebuffer height in pixels (from the current mode)."""
         return self._height
 
+    @property
+    def active_fb_id(self) -> int:
+        return int(self._fb_id)
+
+    @property
+    def remount_count(self) -> int:
+        return int(self._remount_count)
+
     # ------------------------------------------------------------------
     # Cleanup
     # ------------------------------------------------------------------
 
     def close(self) -> None:
         """Release mmap and close the DRM file descriptor."""
-        if self._mapped_ptr is not None and self._mapped_ptr != 0 and self._mapped_size > 0:
-            libc = self._libc
-            if libc is None:
-                libc = ctypes.CDLL("libc.so.6")
-                libc.munmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
-                libc.munmap.restype = ctypes.c_int
-            try:
-                libc.munmap(
-                    ctypes.c_void_p(self._mapped_ptr),
-                    ctypes.c_size_t(self._mapped_size),
-                )
-            except Exception:
-                _log.debug("DRM mmap munmap failed during close", exc_info=True)
-            self._mapped_ptr = None
-            self._mapped_size = 0
-
+        self._unmap_framebuffer()
         if self._fd >= 0:
             with contextlib.suppress(OSError):
                 os.close(self._fd)

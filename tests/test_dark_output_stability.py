@@ -35,7 +35,7 @@ def _run_full_pipeline(
         light_spread="precise",
         return_diagnostics=True,
     )
-    out, _sampled, _pre, _final, _timings, history = process_zone_colors(
+    out, _sampled, _pre, _final, _timings, _smooth, history = process_zone_colors(
         frame=None,
         precomputed_zone_colors=raw_zone_rgb.astype(np.uint8),
         prev_smoothed_colors=prev_smoothed,
@@ -185,7 +185,7 @@ def test_hdr_compositor_dark_grey_stays_neutral() -> None:
         light_spread="precise",
         return_diagnostics=True,
     )
-    out, _sampled, _pre, _final, _timings, _history = process_zone_colors(
+    out, _sampled, _pre, _final, _timings, _smooth, _history = process_zone_colors(
         frame=None,
         precomputed_zone_colors=raw,
         prev_smoothed_colors=[(45.0, 45.0, 45.0)] * zone_count,

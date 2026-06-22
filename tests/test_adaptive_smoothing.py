@@ -144,3 +144,13 @@ def test_saturated_hue_jitter_is_damped() -> None:
     blended, diag = _blend(previous=prev, current=current, motion_preset="responsive")
     assert diag.deadband_active is True
     assert float(np.max(np.abs(blended - prev))) < 3.0
+
+
+def test_strobe_scene_stability() -> None:
+    state = np.full((6, 3), 200.0, dtype=np.float32)
+    peak_delta = 0.0
+    for toggle in range(24):
+        current = np.full((6, 3), 220.0 if toggle % 2 == 0 else 180.0, dtype=np.float32)
+        state, _diag = _blend(previous=state, current=current, motion_preset="responsive")
+        peak_delta = max(peak_delta, float(np.max(np.abs(state - current))))
+    assert peak_delta < 25.0

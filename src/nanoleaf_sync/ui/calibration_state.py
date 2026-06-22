@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from nanoleaf_sync.config.model import AppConfig
@@ -94,6 +94,7 @@ class CalibrationState:
     corner_anchor_bottom_left: int = -1
     detected_device_zone_count: int = 0
     source_zones_user_configured: bool = False
+    source_side_counts: list[int] = field(default_factory=list)
 
     calibration_model: str = "corner_anchored"
 
@@ -130,6 +131,9 @@ class CalibrationState:
             corner_anchor_bottom_left=int(getattr(calibration, "corner_anchor_bottom_left", -1)),
             detected_device_zone_count=detected if detected > 0 else 0,
             source_zones_user_configured=source_zones_user_configured,
+            source_side_counts=[
+                int(v) for v in (getattr(cfg, "source_side_counts", None) or [])[:4]
+            ],
             calibration_model="corner_anchored",
         )
 
@@ -183,6 +187,10 @@ class CalibrationState:
         return max(1, int(self.device_zone_count))
 
     def resolved_mapping_snapshot(self) -> CalibrationMappingSnapshot:
+        raw_counts = list(self.source_side_counts or [])
+        side_counts: tuple[int, int, int, int] | None = None
+        if len(raw_counts) == 4 and sum(int(v) for v in raw_counts) > 0:
+            side_counts = tuple(int(v) for v in raw_counts)
         return resolve_calibration_mapping(
             zone_count=self.zone_count,
             device_zone_count=self.effective_device_zone_count(),
@@ -192,6 +200,7 @@ class CalibrationState:
             corner_anchor_bottom_right=self.corner_anchor_bottom_right,
             corner_anchor_bottom_left=self.corner_anchor_bottom_left,
             calibration_model="corner_anchored",
+            source_side_counts=side_counts,
         )
 
     def mapping_preview_text(self) -> str:

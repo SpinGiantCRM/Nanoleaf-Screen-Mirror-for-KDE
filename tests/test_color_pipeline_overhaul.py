@@ -151,7 +151,7 @@ def test_sdr_boost_applied_before_style_mapping_in_pipeline() -> None:
         device_zone_indices=list(range(zone_count)),
         params=params,
     )
-    colors, sampled, _pre, final, _timings, _history = out  # type: ignore[misc]
+    colors, sampled, _pre, final, _timings, _smooth, _history = out  # type: ignore[misc]
     assert colors
     flat_expected = apply_zone_sdr_boost(
         sampled[0:1].astype(np.uint8),
@@ -200,8 +200,10 @@ def test_sdr_boost_compensation_can_be_suppressed_for_tone_mapped_hdr() -> None:
         device_zone_indices=[0],
         params=suppressed,
     )
-    enabled_colors, _sampled, _pre, _final, enabled_timings, _history = enabled_out  # type: ignore[misc]
-    suppressed_colors, _sampled2, _pre2, _final2, suppressed_timings, _history2 = suppressed_out  # type: ignore[misc]
+    enabled_colors, _sampled, _pre, _final, enabled_timings, _smooth, _history = enabled_out  # type: ignore[misc]
+    suppressed_colors, _sampled2, _pre2, _final2, suppressed_timings, _smooth2, _history2 = (
+        suppressed_out  # type: ignore[misc]
+    )
     assert enabled_timings.per_zone_sdr_boost_undo_ratio
     assert suppressed_timings.per_zone_sdr_boost_undo_ratio == ()
     assert int(suppressed_colors[0][0]) > int(enabled_colors[0][0]) + 20

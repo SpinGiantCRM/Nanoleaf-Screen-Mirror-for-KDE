@@ -7,6 +7,7 @@ import time
 from collections.abc import Callable
 from threading import Thread
 
+from nanoleaf_sync.color.capture_metadata import invalidate_plasma_hdr_cache
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.errors import translate_runtime_error
 from nanoleaf_sync.runtime.state import RuntimeState
@@ -143,6 +144,7 @@ def reinitialize_backends(
 ) -> None:
     state.is_reinitializing = True
     state.reinit_pause.set()
+    invalidate_plasma_hdr_cache()
     # Brief grace period to let workers that are mid-operation finish
     # before we tear down the backends they hold references to.
     time.sleep(0.05)
@@ -151,10 +153,10 @@ def reinitialize_backends(
         now_ts = time.perf_counter()
         install_drivers()
         state.last_reinit_ts = now_ts
+        state.consecutive_errors = 0
     except Exception:
         logger.exception("backend reinitialization failed")
     finally:
-        state.consecutive_errors = 0
         state.is_reinitializing = False
         state.reinit_pause.clear()
 
@@ -195,6 +197,7 @@ def run_runtime_engine(
     close_backends: Callable[[], None],
     clear_backends: Callable[[], None],
     send_final_frame: Callable[[], None] | None = None,
+    can_mirroring_write: Callable[[], bool] | None = None,
 ) -> None:
     try:
         from nanoleaf_sync.runtime.engine import run_loop
@@ -217,6 +220,7 @@ def run_runtime_engine(
             install_drivers=install_drivers,
             close_backends=close_backends,
             use_legacy_pipeline=bool(getattr(config, "use_legacy_pipeline", False)),
+            can_mirroring_write=can_mirroring_write,
         )
     except Exception as e:
         translated = translate_runtime_error(e)

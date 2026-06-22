@@ -251,13 +251,13 @@ def stabilize_dark_zone_samples(colors: np.ndarray) -> np.ndarray:
         0.0,
         1.0,
     )
-    grey = (0.2126 * rgb[:, 0]) + (0.7152 * rgb[:, 1]) + (0.0722 * rgb[:, 2])
+    grey_u8 = linear01_to_srgb_u8(y)
+    neutral = np.stack((grey_u8, grey_u8, grey_u8), axis=1).astype(np.float32, copy=False)
     blend = 1.0 - _smoothstep(
         np.full_like(y, _DARK_SAMPLE_STABILIZE_LOW),
         np.full_like(y, _DARK_SAMPLE_STABILIZE_HIGH),
         y,
     )
-    neutral = np.stack((grey, grey, grey), axis=1)
     return (rgb * (1.0 - blend[:, None])) + (neutral * blend[:, None])
 
 

@@ -57,7 +57,7 @@ from nanoleaf_sync.ui.preset_ui import (
     value_for_label,
 )
 from nanoleaf_sync.ui.qt_lazy import load_qt
-from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones
+from nanoleaf_sync.ui.zone_presets import edge_weighted_layout, make_edge_weighted_zones
 
 FPS_MIN = 1
 FPS_MAX = 120
@@ -140,6 +140,7 @@ class SettingsDialog:
         QGridLayout = qt["QGridLayout"]
         QCheckBox = qt["QCheckBox"]
         QComboBox = qt["QComboBox"]
+        QLineEdit = qt["QLineEdit"]
         QLabel = qt["QLabel"]
         QSlider = qt["QSlider"]
         QPushButton = qt["QPushButton"]
@@ -403,6 +404,9 @@ class SettingsDialog:
                         ),
                     )
                 )
+                self.capture_monitor_edit = QLineEdit()
+                self.capture_monitor_edit.setPlaceholderText("empty = Plasma primary output")
+                self.capture_monitor_edit.setText(str(getattr(cfg, "capture_monitor", "") or ""))
                 self.auto_probe_policy_combo = QComboBox()
                 self.auto_probe_policy_combo.addItems(["on-change", "first-run", "each-boot"])
                 self.auto_probe_policy_combo.setCurrentIndex(
@@ -1221,6 +1225,8 @@ class SettingsDialog:
                 self._configure_section_layout(grid)
                 grid.addWidget(QLabel("Capture backend"), 0, 0)
                 grid.addWidget(self.capture_backend_combo, 0, 1, 1, 2)
+                grid.addWidget(QLabel("Capture monitor"), 2, 0)
+                grid.addWidget(self.capture_monitor_edit, 2, 1, 1, 2)
 
                 runtime_status = QGroupBox("Runtime status (technical)")
                 runtime_status.setCheckable(True)
@@ -2439,14 +2445,32 @@ class SettingsDialog:
                         pid_value = int(str(self.device_pid_combo.currentText()), 0)
                     except (ValueError, TypeError):
                         pid_value = 0x8202
-                new_zones = make_edge_weighted_zones(
-                    self._state.zone_count,
-                    edge_locality=value_for_label(
-                        EDGE_LOCALITY_LABELS,
-                        str(self.edge_locality_combo.currentText()),
-                        default="tight",
-                    ),
+                new_edge_locality = value_for_label(
+                    EDGE_LOCALITY_LABELS,
+                    str(self.edge_locality_combo.currentText()),
+                    default="balanced",
                 )
+                zone_count = int(self._state.zone_count)
+                layout_changed = (
+                    zone_count != len(cfg.zones)
+                    or new_edge_locality != str(getattr(cfg, "edge_locality", "balanced"))
+                    or str(getattr(cfg, "layout_preset", "edge_strip")) != "edge_strip"
+                )
+                if layout_changed or not cfg.zones:
+                    layout = edge_weighted_layout(
+                        zone_count=zone_count,
+                        edge_locality=new_edge_locality,
+                    )
+                    new_zones = make_edge_weighted_zones(
+                        zone_count,
+                        edge_locality=new_edge_locality,
+                    )
+                    source_side_counts = [int(v) for v in layout.side_counts]
+                else:
+                    new_zones = list(cfg.zones)
+                    source_side_counts = [
+                        int(v) for v in (getattr(cfg, "source_side_counts", None) or [])
+                    ]
                 calibration_schema_version = int(getattr(cfg, "calibration_schema_version", 1) or 1)
                 calibration_payload = CalibrationConfig(
                     schema_version=calibration_schema_version,
@@ -2516,12 +2540,9 @@ class SettingsDialog:
                         else getattr(cfg, "led_calibration_profile_hdr", LedCalibrationProfile())
                     ),
                     zones=new_zones,
+                    source_side_counts=source_side_counts,
                     layout_preset="edge_strip",
-                    edge_locality=value_for_label(
-                        EDGE_LOCALITY_LABELS,
-                        str(self.edge_locality_combo.currentText()),
-                        default="tight",
-                    ),
+                    edge_locality=new_edge_locality,
                     light_spread=value_for_label(
                         LIGHT_SPREAD_LABELS,
                         str(self.light_spread_combo.currentText()),
@@ -2557,6 +2578,7 @@ class SettingsDialog:
                         else bool(getattr(cfg, "use_mock_capture", False))
                     ),
                     prefer_backend=str(self.capture_backend_combo.currentText()),
+                    capture_monitor=str(self.capture_monitor_edit.text() or "").strip(),
                     auto_probe_policy=str(self.auto_probe_policy_combo.currentText()),
                     auto_latency_policy=str(self.auto_latency_policy_combo.currentText()),
                     latency_last_backend=(

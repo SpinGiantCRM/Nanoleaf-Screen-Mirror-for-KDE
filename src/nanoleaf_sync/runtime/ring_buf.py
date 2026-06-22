@@ -179,6 +179,8 @@ class ProcessedPayload:
     pre_led_colors: np.ndarray
     final_zone_colors: np.ndarray
     processing_timings: object
+    smooth_float_history: list = field(default_factory=list)
+    sent_history: list = field(default_factory=list)
     frame: np.ndarray | None = None
     zone_diagnostics: list = field(default_factory=list)
     side_var: dict = field(default_factory=dict)

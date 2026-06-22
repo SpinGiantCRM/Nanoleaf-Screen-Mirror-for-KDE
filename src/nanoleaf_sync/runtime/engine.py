@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -18,7 +18,6 @@ from nanoleaf_sync.capture.latency_probe import (
     STAGE_ACTUAL_WORK,
     STAGE_CAPTURE_CALL,
     STAGE_CAPTURE_SUCCESS_INTERVAL,
-    STAGE_CAPTURE_WAIT,
     STAGE_CAPTURE_WORKER_LOOP_GAP,
     STAGE_COLOUR_PROCESSING,
     STAGE_END_TO_END_LIVE,
@@ -36,7 +35,6 @@ from nanoleaf_sync.capture.latency_probe import (
     STAGE_LED_CALIBRATION,
     STAGE_LOOP_GAP,
     STAGE_OUTPUT_PREPARE,
-    STAGE_PACING_WAIT,
     STAGE_PENDING_FRAME_AGE,
     STAGE_RUNTIME_CAPTURE_CALL,
     STAGE_RUNTIME_IDLE_WAIT,
@@ -104,6 +102,9 @@ def _make_fps_governor(config: AppConfig) -> FPSGovernor:
 
 
 def _gamut_init_from_config(config: AppConfig) -> None:
+    from nanoleaf_sync.color.primaries import invalidate_primaries_cache
+
+    invalidate_primaries_cache()
     gamut = str(getattr(config, "display_gamut", "auto")).strip().lower()
     custom = None
     if gamut == "custom":
@@ -446,6 +447,8 @@ def process_frame(
     prev_sampled_zone_colors: Sequence[RGBTuple] = (),
     prior_zone_sample_motion: float = 0.0,
     prior_area_average_mode: bool = False,
+    prev_smooth_float_colors: Sequence[RGBTuple] = (),
+    prev_sent_colors: Sequence[RGBTuple] = (),
 ) -> (
     list[RGBTuple]
     | tuple[
@@ -454,6 +457,7 @@ def process_frame(
         np.ndarray,
         np.ndarray,
         FrameProcessingTimings,
+        list[RGBTuple],
         list[RGBTuple],
     ]
 ):
@@ -469,6 +473,8 @@ def process_frame(
         black_luminance_cutoff=black_luminance_cutoff,
         black_luminance_knee=black_luminance_knee,
     )
+    smooth_history = prev_smooth_float_colors if prev_smooth_float_colors else prev_smoothed_colors
+    sent_history = prev_sent_colors if prev_sent_colors else prev_smoothed_colors
     params = ColorPipelineParams(
         brightness=brightness,
         smoothing=smoothing,
@@ -500,794 +506,17 @@ def process_frame(
         prev_sampled_zone_colors=prev_sampled_zone_colors,
         prior_zone_sample_motion=prior_zone_sample_motion,
         prior_area_average_mode=prior_area_average_mode,
+        prev_smooth_float_colors=smooth_history,
+        prev_sent_colors=sent_history,
     )
     return process_zone_colors(
         frame=frame if precomputed_zone_colors is None else None,
         precomputed_zone_colors=precomputed_zone_colors,
-        prev_smoothed_colors=prev_smoothed_colors,
+        prev_smoothed_colors=sent_history,
         zones_px=zones_px,
         device_zone_indices=device_zone_indices,
         params=params,
     )
-
-
-def _run_loop_legacy(
-    *,
-    config: AppConfig,
-    state: RuntimeState,
-    get_capture,
-    get_driver,
-    install_drivers,
-    close_backends,
-) -> None:
-    _gamut_init_from_config(config)
-    fps = max(1, int(config.fps))
-    governor = _make_fps_governor(config)
-    state.target_fps = governor.target_fps
-    interval_s = 1.0 / fps
-
-    next_deadline = time.perf_counter()
-    last_log = 0.0
-    log_interval_s = float(getattr(config, "status_log_interval_s", 5.0))
-    last_sent_zone_count = 0
-    sent_in_window = 0
-    sent_any_frame = False
-    ewma_capture_to_send_ms = 0.0
-    last_send_done_ts: float | None = None
-    last_output_work_ms: float | None = None
-    last_pacing_wait_ms: float | None = None
-    last_replaced_count = 0
-    frame_seq: int = 0
-
-    pending_slot = PendingFrameSlot()
-    capture_worker_lock = threading.Lock()
-    capture_worker_error: Exception | None = None
-    capture_worker_failures = 0
-    capture_worker_error_count = 0
-    capture_worker_active = False
-    capture_call_ms_latest: float | None = None
-    capture_worker_loop_gap_ms_latest: float | None = None
-    capture_success_interval_ms_latest: float | None = None
-    last_capture_completed_ts: float | None = None
-    last_capture_success_ts: float | None = None
-    latest_capture_backend_name = "unavailable"
-    latest_capture_backend_method = ""
-    no_pending_frame_ticks = 0
-    no_pending_frame_events = 0
-    no_pending_started_at = time.perf_counter()
-    last_reported_capture_worker_error_count = 0
-    startup_started_at = time.perf_counter()
-    startup_frame_timeout_s = max(0.1, float(getattr(config, "startup_frame_timeout_s", 5.0)))
-
-    def _capture_worker() -> None:
-        nonlocal capture_worker_error, capture_worker_failures, capture_worker_error_count
-        nonlocal capture_worker_active, capture_call_ms_latest, capture_worker_loop_gap_ms_latest
-        nonlocal \
-            capture_success_interval_ms_latest, \
-            last_capture_completed_ts, \
-            last_capture_success_ts
-        nonlocal latest_capture_backend_name, latest_capture_backend_method
-        apply_current_thread_priority(
-            config=config, state=state, thread_label="legacy capture worker"
-        )
-        with capture_worker_lock:
-            capture_worker_active = True
-        while not state.stop_event.is_set():
-            state.reinit_pause.wait(timeout=0.001)
-            try:
-                if state.is_reinitializing:
-                    time.sleep(0.001)
-                    continue
-                capture = get_capture()
-                if capture is None:
-                    time.sleep(0.001)
-                    continue
-                if pending_slot.has_pending():
-                    time.sleep(0.0005)
-                    continue
-                latest_capture_backend_name = str(getattr(capture, "name", "unknown"))
-                latest_capture_backend_method = str(getattr(capture, "last_capture_path", "") or "")
-                capture_start = time.perf_counter()
-                frame = capture.capture()
-                capture_end = time.perf_counter()
-                call_ms = (capture_end - capture_start) * 1000.0
-                with capture_worker_lock:
-                    capture_call_ms_latest = call_ms
-                    if last_capture_completed_ts is not None:
-                        capture_worker_loop_gap_ms_latest = (
-                            capture_end - last_capture_completed_ts
-                        ) * 1000.0
-                    last_capture_completed_ts = capture_end
-                if frame is None:
-                    continue
-                with capture_worker_lock:
-                    if last_capture_success_ts is not None:
-                        capture_success_interval_ms_latest = (
-                            capture_end - last_capture_success_ts
-                        ) * 1000.0
-                    last_capture_success_ts = capture_end
-                pending_slot.put_latest(frame=frame, captured_at=capture_end)
-                with capture_worker_lock:
-                    capture_worker_error = None
-                    capture_worker_failures = 0
-            except Exception as exc:
-                with capture_worker_lock:
-                    capture_worker_failures += 1
-                    capture_worker_error_count += 1
-                    capture_worker_error = exc
-                logger.debug("capture worker error", exc_info=True)
-                time.sleep(0.005)
-        with capture_worker_lock:
-            capture_worker_active = False
-
-    capture_thread = threading.Thread(target=_capture_worker, name="capture-worker", daemon=True)
-    capture_thread.start()
-
-    while True:
-        stop_requested = state.stop_event.is_set()
-        start = time.perf_counter()
-        processing_end = start
-        send_done = start
-        skip_tick = False
-        capture_wait_ms: float | None = None
-        idle_wait_ms: float | None = None
-        pacing_wait_ms: float | None = last_pacing_wait_ms
-        frame_handoff_wait_ms: float | None = None
-        pending_frame_age_ms: float | None = None
-        frame = None
-        pending = None
-
-        try:
-            if stop_requested:
-                break
-            error_limit = max(1, int(getattr(config, "max_consecutive_errors", 5)))
-
-            if state.is_reinitializing:
-                if stop_requested:
-                    break
-                skip_tick = True
-            else:
-                with capture_worker_lock:
-                    worker_error = capture_worker_error
-                    worker_failures = capture_worker_failures
-                    if worker_error is not None and worker_failures >= error_limit:
-                        capture_worker_error = None
-                        capture_worker_failures = 0
-                if worker_error is not None and worker_failures >= error_limit:
-                    raise RuntimeError(
-                        f"capture worker failed {worker_failures} consecutive attempts"
-                    ) from worker_error
-
-                driver = get_driver()
-                if driver is None:
-                    if stop_requested:
-                        break
-                    skip_tick = True
-                else:
-                    if stop_requested and sent_any_frame:
-                        break
-                    pending = pending_slot.pop()
-                    if pending is None and not stop_requested:
-                        wait_budget = max(
-                            0.0,
-                            min(interval_s, next_deadline - time.perf_counter()),
-                        )
-                        wait_start = time.perf_counter()
-                        pending_slot.wait(timeout=min(0.005, wait_budget))
-                        wait_end = time.perf_counter()
-                        idle_wait_ms = (wait_end - wait_start) * 1000.0
-                        frame_handoff_wait_ms = idle_wait_ms
-                        pending = pending_slot.pop()
-                    if pending is None:
-                        no_pending_frame_ticks += 1
-                        no_pending_frame_events += 1
-                        if stop_requested:
-                            break
-                        skip_tick = True
-                        frame_handoff_wait_ms = idle_wait_ms
-                    else:
-                        frame = pending.frame
-                        captured_at = pending.captured_at
-                        state.first_frame_seen = True
-                        pending_frame_age_ms = max(
-                            0.0, (time.perf_counter() - captured_at) * 1000.0
-                        )
-
-            if skip_tick:
-                with capture_worker_lock:
-                    capture_worker_active_now = bool(capture_worker_active)
-                    capture_worker_error_count_now = int(capture_worker_error_count)
-                state.latency_probe.add_stage_sample(
-                    FrameTimingSample(
-                        stage_ms={
-                            STAGE_CAPTURE_WAIT: capture_wait_ms,
-                            STAGE_CAPTURE_CALL: capture_call_ms_latest,
-                            STAGE_RUNTIME_CAPTURE_CALL: capture_call_ms_latest,
-                            STAGE_CAPTURE_WORKER_LOOP_GAP: capture_worker_loop_gap_ms_latest,
-                            STAGE_CAPTURE_SUCCESS_INTERVAL: capture_success_interval_ms_latest,
-                            STAGE_FRAME_HANDOFF_WAIT: frame_handoff_wait_ms,
-                            STAGE_FRAME_AVAILABLE_WAIT: frame_handoff_wait_ms,
-                            STAGE_PENDING_FRAME_AGE: pending_frame_age_ms,
-                            STAGE_PACING_WAIT: pacing_wait_ms,
-                            STAGE_IDLE_WAIT: idle_wait_ms,
-                            STAGE_RUNTIME_IDLE_WAIT: idle_wait_ms,
-                            STAGE_FRAME_PROCESSING: None,
-                            STAGE_ACTUAL_WORK: None,
-                            STAGE_LOOP_GAP: None,
-                        },
-                        target_fps=float(governor.target_fps),
-                        fps_cap=float(governor.target_fps),
-                        fps_cap_reason="FPS governor dynamic cap",
-                        dropped_or_skipped_frames_delta=0,
-                        counters_delta={
-                            "no_pending_frame_ticks": no_pending_frame_ticks,
-                            "capture_errors_retries": max(
-                                0,
-                                capture_worker_error_count_now
-                                - last_reported_capture_worker_error_count,
-                            ),
-                            "capture_worker_error_count": max(
-                                0,
-                                capture_worker_error_count_now
-                                - last_reported_capture_worker_error_count,
-                            ),
-                        },
-                        flags={"capture_worker_active": capture_worker_active_now},
-                        labels={
-                            "latest_capture_backend_name": latest_capture_backend_name,
-                            "capture_backend_method": latest_capture_backend_method,
-                            "no_pending_frame_rate_per_second": _no_pending_frame_rate_per_second(
-                                no_pending_frame_events, no_pending_started_at
-                            ),
-                        },
-                    )
-                )
-                last_reported_capture_worker_error_count = capture_worker_error_count_now
-                no_pending_frame_ticks = 0
-            else:
-                if frame is None:
-                    raise ValueError("capture returned None frame")
-                img_h, img_w, _ = frame.shape
-                zones_px, device_zone_indices = _ensure_runtime_artifacts(
-                    state=state,
-                    config=config,
-                    img_w=img_w,
-                    img_h=img_h,
-                    detected_device_zone_count=getattr(
-                        driver,
-                        "reported_zone_count",
-                        getattr(driver, "zone_count", None),
-                    ),
-                )
-
-                if (
-                    state.calibration_status == CALIBRATION_INCOMPLETE_STATUS
-                    or len(device_zone_indices) <= 0
-                ):
-                    message = state.calibration_status_message or CALIBRATION_INCOMPLETE_MESSAGE
-                    if len(device_zone_indices) <= 0 and "empty" not in message.lower():
-                        message = f"{message} Derived device-zone mapping is empty."
-                    state.mark_calibration_incomplete(message)
-                    state.startup_elapsed_ms = max(
-                        0.0, (time.perf_counter() - startup_started_at) * 1000.0
-                    )
-                    state.mark_startup(False)
-                    state.stop_event.set()
-                    logger.warning(
-                        "calibration incomplete; screen mirroring will not stream frames: %s",
-                        message,
-                    )
-                    break
-
-                active_profile = (
-                    getattr(config, "led_calibration_profile_sdr", None)
-                    if str(getattr(config, "display_preset", "hdr")).strip().lower() == "sdr"
-                    else getattr(config, "led_calibration_profile_hdr", None)
-                )
-                frame_seq += 1
-                estimated_staleness_ms = _estimate_processing_staleness_ms(
-                    captured_at=captured_at,
-                    now=time.perf_counter(),
-                    hid_output_work_ewma_ms=last_output_work_ms,
-                )
-                processed = process_frame(
-                    frame=frame,
-                    prev_smoothed_colors=state.prev_smoothed_colors,
-                    zones_px=zones_px,
-                    device_zone_indices=device_zone_indices,
-                    brightness=config.brightness,
-                    smoothing=config.smoothing,
-                    smoothing_speed=config.smoothing_speed,
-                    zone_sampling_stride=config.zone_sampling_stride,
-                    zone_sampling_engine=getattr(config, "zone_sampling_engine", "auto"),
-                    led_gamma=float(getattr(active_profile, "led_gamma", config.led_gamma)),
-                    motion_preset=getattr(config, "motion_preset", "responsive"),
-                    light_spread=getattr(config, "light_spread", "balanced"),
-                    red_gain=float(
-                        getattr(active_profile, "red_gain", getattr(config, "red_gain", 1.0))
-                    ),
-                    green_gain=float(
-                        getattr(active_profile, "green_gain", getattr(config, "green_gain", 1.0))
-                    ),
-                    blue_gain=float(
-                        getattr(active_profile, "blue_gain", getattr(config, "blue_gain", 1.0))
-                    ),
-                    white_balance_temperature=float(
-                        getattr(
-                            active_profile,
-                            "white_balance_temperature",
-                            getattr(config, "white_balance_temperature", 0.0),
-                        )
-                    ),
-                    chroma_compression=float(
-                        getattr(
-                            active_profile,
-                            "chroma_compression",
-                            getattr(config, "chroma_compression", 0.0),
-                        )
-                    ),
-                    neutral_luminance_gain=float(
-                        getattr(
-                            active_profile,
-                            "neutral_luminance_gain",
-                            getattr(config, "neutral_luminance_gain", 1.0),
-                        )
-                    ),
-                    black_luminance_cutoff=float(
-                        getattr(
-                            active_profile,
-                            "black_luminance_cutoff",
-                            getattr(config, "black_luminance_cutoff", 0.0032),
-                        )
-                    ),
-                    black_luminance_knee=float(
-                        getattr(
-                            active_profile,
-                            "black_luminance_knee",
-                            getattr(config, "black_luminance_knee", 0.0024),
-                        )
-                    ),
-                    color_style=getattr(config, "color_style", "natural"),
-                    edge_locality=getattr(config, "edge_locality", "balanced"),
-                    compositor_hdr_mode=getattr(config, "compositor_hdr_mode", False),
-                    sdr_boost_nits=getattr(config, "sdr_boost_nits", 80.0),
-                    hdr_max_nits=getattr(config, "hdr_max_nits", 1000.0),
-                    sync_mode=str(getattr(config, "sync_mode", "standard")),
-                    predictive_sync_strength=float(
-                        getattr(config, "predictive_sync_strength", 0.6)
-                    ),
-                    effective_target_fps=float(getattr(config, "fps", 60)),
-                    staleness_ms=estimated_staleness_ms,
-                    sampling_quality=str(getattr(config, "sampling_quality", "high")),
-                    prev_sampled_zone_colors=state.prev_sampled_zone_colors,
-                    prior_zone_sample_motion=float(state.prior_zone_sample_motion),
-                    prior_area_average_mode=bool(state.prior_area_average_mode),
-                    return_diagnostics=True,
-                )
-                (
-                    smoothed_colors,
-                    sampled_zone_colors,
-                    pre_led_colors,
-                    final_zone_colors,
-                    processing_timings,
-                    history_smoothed_colors,
-                ) = processed
-                processing_end = time.perf_counter()
-                state.prev_smoothed_colors = history_smoothed_colors
-                state.predictive_sync_active = bool(
-                    getattr(processing_timings, "predictive_sync_active", False)
-                )
-                state.predictive_lookahead_frames = float(
-                    getattr(processing_timings, "predictive_lookahead_frames", 0.0) or 0.0
-                )
-                state.predictive_scene_cut_suppressed = bool(
-                    getattr(processing_timings, "predictive_scene_cut_suppressed", False)
-                )
-                state.prior_area_average_mode = bool(
-                    getattr(processing_timings, "area_average_active", False)
-                )
-                state.prior_zone_sample_motion = zone_sample_motion(
-                    sampled_zone_colors, state.prev_sampled_zone_colors
-                )
-                state.prev_sampled_zone_colors = [
-                    tuple(int(c) for c in row) for row in sampled_zone_colors.tolist()
-                ]
-                state.first_frame_processed = True
-                state.last_frame_width = int(img_w)
-                state.last_frame_height = int(img_h)
-                state.latest_frame_rgb = frame
-                state.latest_zones_px = list(zones_px)
-                zone_diagnostics: list[dict[str, object]] = []
-                proc_timings = processing_timings
-                for zone_index, rect in enumerate(zones_px):
-                    sampled_rgb = tuple(int(c) for c in sampled_zone_colors[zone_index].tolist())
-                    mapped_led_index = None
-                    for led_idx, src_idx in enumerate(device_zone_indices.tolist()):
-                        if int(src_idx) == int(zone_index):
-                            mapped_led_index = led_idx
-                            break
-                    if mapped_led_index is None:
-                        pre_led_rgb = sampled_rgb
-                        final_rgb = sampled_rgb
-                    else:
-                        pre_led_rgb = tuple(
-                            int(c) for c in pre_led_colors[mapped_led_index].tolist()
-                        )
-                        final_rgb = tuple(
-                            int(c) for c in final_zone_colors[mapped_led_index].tolist()
-                        )
-                    top, right, bottom, left = state.latest_zone_side_counts
-                    if zone_index < top:
-                        side = "top"
-                    elif zone_index < top + right:
-                        side = "right"
-                    elif zone_index < top + right + bottom:
-                        side = "bottom"
-                    elif zone_index < top + right + bottom + left:
-                        side = "left"
-                    else:
-                        side = "unknown"
-                    raw_rect = rect
-                    effective_rect = rect
-                    sampling_mode_effective = ""
-                    mixed_content_fallback = False
-                    sdr_boost_undo_ratio: float | None = None
-                    if proc_timings is not None:
-                        raw_rects = getattr(proc_timings, "raw_sample_rects", ()) or ()
-                        eff_rects = getattr(proc_timings, "effective_sample_rects", ()) or ()
-                        if zone_index < len(raw_rects):
-                            raw_rect = raw_rects[zone_index]
-                        if zone_index < len(eff_rects):
-                            effective_rect = eff_rects[zone_index]
-                        modes = getattr(proc_timings, "per_zone_sampling_mode", ()) or ()
-                        if zone_index < len(modes):
-                            sampling_mode_effective = str(modes[zone_index])
-                        mixed_flags = getattr(proc_timings, "per_zone_mixed_fallback", ()) or ()
-                        if zone_index < len(mixed_flags):
-                            mixed_content_fallback = bool(mixed_flags[zone_index])
-                        undo_ratios = (
-                            getattr(proc_timings, "per_zone_sdr_boost_undo_ratio", ()) or ()
-                        )
-                        if zone_index < len(undo_ratios):
-                            sdr_boost_undo_ratio = float(undo_ratios[zone_index])
-                    zone_diagnostics.append(
-                        {
-                            "zone_index": zone_index,
-                            "side": side,
-                            "pixel_rect": rect,
-                            "raw_pixel_rect": raw_rect,
-                            "effective_sample_rect": effective_rect,
-                            "sampling_mode_effective": sampling_mode_effective,
-                            "mixed_content_fallback": mixed_content_fallback,
-                            "sdr_boost_undo_ratio": sdr_boost_undo_ratio,
-                            "sampled_rgb": sampled_rgb,
-                            "output_rgb_before_led_calibration": pre_led_rgb,
-                            "final_output_rgb": final_rgb,
-                            "mapped_physical_led_index": mapped_led_index,
-                            "input_luminance": color_pipeline_diagnostics(
-                                input_rgb=sampled_rgb,
-                                output_rgb=sampled_rgb,
-                                color_style=str(getattr(config, "color_style", "reference")),
-                            )["sampled_luminance"],
-                            **color_pipeline_diagnostics(
-                                input_rgb=sampled_rgb,
-                                output_rgb=final_rgb,
-                                color_style=str(getattr(config, "color_style", "reference")),
-                            ),
-                            "led_calibration_applied": pre_led_rgb != final_rgb,
-                        }
-                    )
-                side_var = _side_variance_diagnostics(
-                    sampled=sampled_zone_colors,
-                    final=final_zone_colors,
-                    side_counts=state.latest_zone_side_counts,
-                )
-                for row in zone_diagnostics:
-                    row["side_variance"] = side_var.get(str(row.get("side")), {})
-                    row["processing_flattened_side"] = bool(
-                        row["side_variance"].get("processing_flattened", False)
-                    )
-                state.latest_zone_diagnostics = zone_diagnostics
-                state.latest_side_variance_diagnostics = side_var
-                hid_write_start = time.perf_counter()
-                hid_frame_build_ms: float | None = None
-                hid_device_write_ms: float | None = None
-                hid_flush_or_wait_ms: float | None = None
-                hid_ack_arrival_ms: float | None = None
-                hid_flush_or_wait_reason = "Not instrumented by current driver path."
-                hid_frame_build_reason = (
-                    "Frame-build timing not separated from send_frame() in driver path."
-                )
-                hid_device_limited_label = "unknown"
-                hid_reports_per_frame = "unavailable"
-                hid_bytes_per_report = "unavailable"
-                hid_total_frame_bytes = "unavailable"
-                hid_report_data_sizes = "unavailable"
-                hid_per_report_write_ms = "unavailable"
-                hid_write_blocking = "unknown"
-                hid_write_retry_policy = "unknown"
-                hid_write_rate_limit_policy = "unknown"
-                hid_write_read_calls = "unavailable"
-                hid_live_send_policy = "response_required"
-                hid_response_wait_skipped = "no"
-                send_with_timing = getattr(driver, "send_frame_with_timing", None)
-                if callable(send_with_timing):
-                    timing = send_with_timing(smoothed_colors)
-                    hid_frame_build_ms = (
-                        float(timing.get("frame_build_ms"))
-                        if isinstance(timing, dict) and timing.get("frame_build_ms") is not None
-                        else None
-                    )
-                    hid_device_write_ms = (
-                        float(timing.get("device_write_ms"))
-                        if isinstance(timing, dict) and timing.get("device_write_ms") is not None
-                        else None
-                    )
-                    hid_flush_or_wait_ms = (
-                        float(timing.get("flush_or_wait_ms"))
-                        if isinstance(timing, dict) and timing.get("flush_or_wait_ms") is not None
-                        else None
-                    )
-                    hid_ack_arrival_ms = (
-                        float(timing.get("ack_arrival_ms"))
-                        if isinstance(timing, dict) and timing.get("ack_arrival_ms") is not None
-                        else None
-                    )
-                    hid_flush_or_wait_reason = str(
-                        timing.get("flush_or_wait_reason", hid_flush_or_wait_reason)
-                    )
-                    hid_frame_build_reason = "Measured inside driver send path."
-                    hid_device_limited_label = (
-                        "yes" if bool(timing.get("device_limited", False)) else "no"
-                    )
-                    hid_reports_per_frame = str(timing.get("reports_per_frame", "unavailable"))
-                    hid_bytes_per_report = str(timing.get("bytes_per_report", "unavailable"))
-                    hid_total_frame_bytes = str(timing.get("total_frame_bytes", "unavailable"))
-                    report_data_sizes = timing.get("report_data_sizes")
-                    hid_report_data_sizes = (
-                        ",".join(str(int(v)) for v in report_data_sizes)
-                        if isinstance(report_data_sizes, list)
-                        else "unavailable"
-                    )
-                    per_report_write_ms = timing.get("per_report_write_ms")
-                    hid_per_report_write_ms = (
-                        ",".join(f"{float(v):.3f}" for v in per_report_write_ms)
-                        if isinstance(per_report_write_ms, list)
-                        else "unavailable"
-                    )
-                    hid_write_blocking = "yes" if bool(timing.get("write_blocking", True)) else "no"
-                    hid_write_retry_policy = str(timing.get("write_retry_policy", "none"))
-                    hid_write_rate_limit_policy = str(timing.get("write_rate_limit_policy", "none"))
-                    hid_write_read_calls = str(timing.get("write_read_calls", "unavailable"))
-                    hid_live_send_policy = str(timing.get("live_send_policy", "response_required"))
-                    hid_response_wait_skipped = (
-                        "yes" if bool(timing.get("response_wait_skipped", False)) else "no"
-                    )
-                else:
-                    driver.send_frame(smoothed_colors)
-                send_done = time.perf_counter()
-                hid_write_ms = (send_done - hid_write_start) * 1000.0
-                last_output_work_ms = (send_done - start) * 1000.0
-                if hid_device_write_ms is None:
-                    hid_device_write_ms = hid_write_ms
-                frame_processing_ms = (processing_end - start) * 1000.0
-                actual_work_ms = (send_done - start) * 1000.0
-                loop_gap_ms = (
-                    ((send_done - last_send_done_ts) * 1000.0)
-                    if last_send_done_ts is not None
-                    else None
-                )
-                inferred_unattributed_gap_ms = (
-                    max(0.0, loop_gap_ms - actual_work_ms) if loop_gap_ms is not None else None
-                )
-                last_send_done_ts = send_done
-                capture_to_send_ms = (send_done - captured_at) * 1000.0
-                with capture_worker_lock:
-                    capture_worker_active_now = bool(capture_worker_active)
-                    capture_worker_error_count_now = int(capture_worker_error_count)
-                replaced_count = pending_slot.get_replaced_count()
-                dropped_delta = max(0, replaced_count - last_replaced_count)
-                last_replaced_count = replaced_count
-                state.latency_probe.add_stage_sample(
-                    FrameTimingSample(
-                        stage_ms={
-                            STAGE_CAPTURE_WAIT: capture_wait_ms,
-                            STAGE_CAPTURE_CALL: capture_call_ms_latest,
-                            STAGE_RUNTIME_CAPTURE_CALL: capture_call_ms_latest,
-                            STAGE_CAPTURE_WORKER_LOOP_GAP: capture_worker_loop_gap_ms_latest,
-                            STAGE_CAPTURE_SUCCESS_INTERVAL: capture_success_interval_ms_latest,
-                            STAGE_FRAME_HANDOFF_WAIT: frame_handoff_wait_ms,
-                            STAGE_FRAME_AVAILABLE_WAIT: frame_handoff_wait_ms,
-                            STAGE_PENDING_FRAME_AGE: pending_frame_age_ms,
-                            STAGE_PACING_WAIT: pacing_wait_ms,
-                            STAGE_IDLE_WAIT: idle_wait_ms,
-                            STAGE_RUNTIME_IDLE_WAIT: idle_wait_ms,
-                            STAGE_FRAME_PROCESSING: frame_processing_ms,
-                            STAGE_FRAME_CONVERT: processing_timings.frame_convert_ms,  # type: ignore[union-attr]
-                            STAGE_ZONE_SAMPLING: processing_timings.zone_sampling_ms,  # type: ignore[union-attr]
-                            STAGE_COLOUR_PROCESSING: processing_timings.colour_processing_ms,  # type: ignore[union-attr]
-                            STAGE_SMOOTHING: processing_timings.smoothing_ms,  # type: ignore[union-attr]
-                            STAGE_LED_CALIBRATION: processing_timings.led_calibration_ms,  # type: ignore[union-attr]
-                            STAGE_OUTPUT_PREPARE: processing_timings.output_prepare_ms,  # type: ignore[union-attr]
-                            STAGE_ACTUAL_WORK: actual_work_ms,
-                            STAGE_HID_WRITE: hid_write_ms,
-                            STAGE_HID_FRAME_BUILD: hid_frame_build_ms,
-                            STAGE_HID_DEVICE_WRITE: hid_device_write_ms,
-                            STAGE_HID_FLUSH_OR_WAIT: hid_flush_or_wait_ms,
-                            STAGE_HID_ACK_ARRIVAL: hid_ack_arrival_ms,
-                            STAGE_LOOP_GAP: loop_gap_ms,
-                            STAGE_INFERRED_UNATTRIBUTED_GAP: inferred_unattributed_gap_ms,
-                            STAGE_END_TO_END_LIVE: capture_to_send_ms,
-                        },
-                        target_fps=float(governor.target_fps),
-                        fps_cap=float(governor.target_fps),
-                        fps_cap_reason="FPS governor dynamic cap",
-                        dropped_or_skipped_frames_delta=dropped_delta,
-                        counters_delta={
-                            "no_pending_frame_ticks": no_pending_frame_ticks,
-                            "capture_errors_retries": max(
-                                0,
-                                capture_worker_error_count_now
-                                - last_reported_capture_worker_error_count,
-                            ),
-                            "capture_worker_error_count": max(
-                                0,
-                                capture_worker_error_count_now
-                                - last_reported_capture_worker_error_count,
-                            ),
-                        },
-                        flags={"capture_worker_active": capture_worker_active_now},
-                        labels={
-                            "latest_capture_backend_name": latest_capture_backend_name,
-                            "capture_backend_method": latest_capture_backend_method,
-                            "no_pending_frame_rate_per_second": _no_pending_frame_rate_per_second(
-                                no_pending_frame_events, no_pending_started_at
-                            ),
-                            "hid_flush_or_wait_reason": hid_flush_or_wait_reason,
-                            "hid_frame_build_reason": hid_frame_build_reason,
-                            "hid_device_write_limited": hid_device_limited_label,
-                            "hid_reports_per_frame": hid_reports_per_frame,
-                            "hid_bytes_per_report": hid_bytes_per_report,
-                            "hid_total_frame_bytes": hid_total_frame_bytes,
-                            "hid_report_data_sizes": hid_report_data_sizes,
-                            "hid_per_report_write_ms": hid_per_report_write_ms,
-                            "hid_write_blocking": hid_write_blocking,
-                            "hid_write_retry_policy": hid_write_retry_policy,
-                            "hid_write_rate_limit_policy": hid_write_rate_limit_policy,
-                            "hid_write_read_calls": hid_write_read_calls,
-                            "hid_live_send_policy": hid_live_send_policy,
-                            "hid_response_wait_skipped": hid_response_wait_skipped,
-                        },
-                    )
-                )
-                last_reported_capture_worker_error_count = capture_worker_error_count_now
-                no_pending_frame_ticks = 0
-                ewma_capture_to_send_ms = (
-                    (0.9 * ewma_capture_to_send_ms) + (0.1 * capture_to_send_ms)
-                    if ewma_capture_to_send_ms > 0.0
-                    else capture_to_send_ms
-                )
-
-                state.record_success()
-                sent_any_frame = True
-                state.first_frame_sent = True
-                state.startup_elapsed_ms = max(
-                    0.0, (time.perf_counter() - startup_started_at) * 1000.0
-                )
-                if not state.startup_complete.is_set():
-                    state.start_failure_reason = ""
-                    state.lifecycle_state = "running"
-                    state.mark_startup(True)
-                last_sent_zone_count = len(smoothed_colors)
-                sent_in_window += 1
-
-                # ---- adaptive FPS governor ------------------------------------
-                previous_target = governor.target_fps
-                governor.record_frame(actual_work_ms)
-                state.target_fps = governor.target_fps
-                state.governor_p95_latency_ms = float(
-                    governor.get_metrics().get("p95_latency_ms", 0.0) or 0.0
-                )
-                state.latest_staleness_ms = float(capture_to_send_ms)
-                if governor.target_fps != previous_target:
-                    direction = "up" if governor.target_fps > previous_target else "down"
-                    logger.info(
-                        "FPS governor: stepped %s %d → %d (p95_latency_ms=%.2f)",
-                        direction,
-                        previous_target,
-                        governor.target_fps,
-                        governor.get_metrics()["p95_latency_ms"],
-                    )
-                    if config.verbose:
-                        print(
-                            f"[service] FPS governor: stepped {direction} "
-                            f"{previous_target} → {governor.target_fps} "
-                            f"(p95_latency_ms={governor.get_metrics()['p95_latency_ms']:.2f})"
-                        )
-        except Exception as e:
-            state.record_error(e)
-            logger.warning("frame processing failed seq=%s", frame_seq, exc_info=config.verbose)
-            if config.verbose:
-                print(f"[service] frame error #{state.consecutive_errors} seq={frame_seq}: {e}")
-
-            backoff_s = max(0.0, float(getattr(config, "reinit_backoff_ms", 500)) / 1000.0)
-            now_ts = time.perf_counter()
-            if should_reinitialize(
-                state=state,
-                error_limit=error_limit,
-                backoff_s=backoff_s,
-                now_ts=now_ts,
-            ):
-                reinitialize_backends(
-                    install_drivers=install_drivers,
-                    close_backends=close_backends,
-                    state=state,
-                )
-
-        if (not sent_any_frame) and (not state.startup_complete.is_set()):
-            startup_elapsed = time.perf_counter() - startup_started_at
-            state.startup_elapsed_ms = max(0.0, startup_elapsed * 1000.0)
-            if startup_elapsed >= startup_frame_timeout_s:
-                backend_name = latest_capture_backend_name or "unavailable"
-                backend_method = latest_capture_backend_method or "unavailable"
-                reason = (
-                    "Start failed before first frame: capture backend produced no frame "
-                    f"within {startup_frame_timeout_s:.1f}s "
-                    f"(backend={backend_name}, method={backend_method})."
-                )
-                state.last_error = reason
-                state.last_error_kind = "capture-timeout"
-                state.last_error_guidance = "Check capture backend readiness and retry."
-                state.start_failure_reason = reason
-                state.lifecycle_state = "failed"
-                state.mark_startup(False)
-                break
-
-        # ---- adaptive pacing (governor-driven) -------------------------
-        budget_ms = 1000.0 / max(1, governor.target_fps)
-        pacing_wait_s = max(0.0, budget_ms / 1000.0 - (time.perf_counter() - send_done))
-        if pacing_wait_s > 0.0:
-            last_pacing_wait_ms = pacing_wait_s * 1000.0
-            time.sleep(pacing_wait_s)
-        else:
-            last_pacing_wait_ms = None
-        next_deadline = time.perf_counter() + budget_ms / 1000.0
-
-        now = time.perf_counter()
-        if now - last_log > log_interval_s:
-            window_s = max(0.001, now - last_log)
-            send_fps = sent_in_window / window_s
-            replaced_frames = pending_slot.get_replaced_count()
-            last_log = now
-            sent_in_window = 0
-            elapsed_ms = (processing_end - start) * 1000.0
-            logger.info(
-                "service_tick seq=%s fps=%s elapsed_ms=%.2f zones=%s errors=%s "
-                "send_fps=%.1f capture_to_send_ms=%.2f replaced_frames=%s",
-                frame_seq,
-                governor.target_fps,
-                elapsed_ms,
-                last_sent_zone_count,
-                state.consecutive_errors,
-                send_fps,
-                ewma_capture_to_send_ms,
-                replaced_frames,
-            )
-            if config.verbose:
-                print(
-                    f"[service] tick fps={governor.target_fps} elapsed_ms={elapsed_ms:.2f} "
-                    f"zones={last_sent_zone_count} send_fps={send_fps:.1f} "
-                    f"capture_to_send_ms={ewma_capture_to_send_ms:.2f} "
-                    f"replaced_frames={replaced_frames}"
-                )
-
-    if capture_thread.is_alive():
-        capture_thread.join(timeout=2.0)
-        if capture_thread.is_alive():
-            logger.warning(
-                "capture worker thread did not exit within shutdown timeout; "
-                "it may still be blocked in capture backend IO"
-            )
 
 
 def _run_loop_pipeline(
@@ -1298,6 +527,7 @@ def _run_loop_pipeline(
     get_driver,
     install_drivers,
     close_backends,
+    can_mirroring_write: Callable[[], bool] | None = None,
 ) -> None:
     _gamut_init_from_config(config)
     governor = _make_fps_governor(config)
@@ -1564,14 +794,20 @@ def _run_loop_pipeline(
                     hid_output_work_ewma_ms=expected_hid_work_ms,
                 )
                 cap_backend = get_capture()
+                capture_display_referred = False
                 if cap_backend is not None:
                     hdr_diag = getattr(cap_backend, "last_hdr_diagnostics", None) or {}
                     if isinstance(hdr_diag, dict):
                         state.skip_display_gamut_adaptation = bool(
                             hdr_diag.get("skip_display_gamut_adaptation", False)
                         )
-                        state.sdr_boost_compensation_enabled = not bool(
-                            hdr_diag.get("tone_mapping_applied", False)
+                        capture_display_referred = (
+                            str(hdr_diag.get("source", "")).strip().lower()
+                            == "kwin display-referred"
+                        )
+                        state.sdr_boost_compensation_enabled = (
+                            not bool(hdr_diag.get("tone_mapping_applied", False))
+                            and not capture_display_referred
                         )
                 pipeline_params = build_pipeline_params_from_config(
                     config,
@@ -1579,6 +815,7 @@ def _run_loop_pipeline(
                     build_zone_diagnostics=build_diagnostics,
                     skip_display_gamut_adaptation=state.skip_display_gamut_adaptation,
                     sdr_boost_compensation_enabled=state.sdr_boost_compensation_enabled,
+                    capture_display_referred=capture_display_referred,
                     effective_target_fps=governor_target_fps,
                     config_fps=float(getattr(config, "fps", 60)),
                     staleness_ms=estimated_staleness_ms,
@@ -1593,7 +830,11 @@ def _run_loop_pipeline(
                 processed = process_frame(
                     frame=frame,
                     precomputed_zone_colors=precomputed_zone_colors,
-                    prev_smoothed_colors=state.prev_smoothed_colors,
+                    prev_smoothed_colors=state.prev_sent_colors or state.prev_smoothed_colors,
+                    prev_smooth_float_colors=(
+                        state.prev_smooth_float_colors or state.prev_smoothed_colors
+                    ),
+                    prev_sent_colors=state.prev_sent_colors or state.prev_smoothed_colors,
                     zones_px=zones_px,
                     device_zone_indices=device_zone_indices,  # type: ignore[arg-type]
                     compositor_hdr_mode=pipeline_params.compositor_hdr_mode,
@@ -1633,10 +874,10 @@ def _run_loop_pipeline(
                     pre_led_colors,
                     final_zone_colors,
                     processing_timings,
-                    history_smoothed_colors,
+                    smooth_float_history,
+                    sent_history,
                 ) = processed
 
-                state.prev_smoothed_colors = history_smoothed_colors  # type: ignore[assignment]
                 state.predictive_sync_active = bool(
                     getattr(processing_timings, "predictive_sync_active", False)
                 )
@@ -1748,6 +989,8 @@ def _run_loop_pipeline(
                 replaced_queued_processed_frame = process_buf.push_latest(
                     ProcessedPayload(
                         smoothed_colors=smoothed_colors,  # type: ignore[arg-type]
+                        smooth_float_history=smooth_float_history,  # type: ignore[arg-type]
+                        sent_history=sent_history,  # type: ignore[arg-type]
                         captured_at=captured_at,
                         zones_px=list(zones_px),
                         device_zone_indices=device_zone_indices,
@@ -1838,6 +1081,8 @@ def _run_loop_pipeline(
 
                 driver = get_driver()
                 if driver is None:
+                    continue
+                if can_mirroring_write is not None and not can_mirroring_write():
                     continue
                 if hasattr(driver, "_live_target_fps"):
                     driver._live_target_fps = int(governor.target_fps)
@@ -2052,6 +1297,14 @@ def _run_loop_pipeline(
                 )
 
                 state.record_success()
+                if payload.smooth_float_history:
+                    state.prev_smooth_float_colors = [
+                        tuple(float(c) for c in row) for row in payload.smooth_float_history
+                    ]
+                state.prev_sent_colors = [
+                    tuple(int(c) for c in row) for row in payload.smoothed_colors
+                ]
+                state.prev_smoothed_colors = list(state.prev_sent_colors)
                 state.first_frame_sent = True
                 state.startup_elapsed_ms = max(
                     0.0,
@@ -2066,7 +1319,7 @@ def _run_loop_pipeline(
 
                 # ---- adaptive FPS governor -----------------------------
                 previous_target = governor.target_fps
-                governor.record_frame(output_cycle_ms)
+                governor.record_frame(capture_to_send_ms)
                 with gov_lock:
                     state.target_fps = governor.target_fps
                 state.governor_p95_latency_ms = float(
@@ -2200,9 +1453,31 @@ def _run_loop_pipeline(
                         capture_worker_failures = 0
                         capture_worker_error_count = 0
                         process_worker_error_count = 0
-                    state.consecutive_errors = 0
-
-    # ---- shutdown -------------------------------------------------------
+            sustained_black_frames = 120
+            if (
+                state.consecutive_black_frames >= sustained_black_frames
+                and state.consecutive_black_frames % sustained_black_frames == 0
+            ):
+                backoff_s = max(
+                    0.0,
+                    float(getattr(config, "reinit_backoff_ms", 500)) / 1000.0,
+                )
+                if should_reinitialize(
+                    state=state,
+                    error_limit=error_limit,
+                    backoff_s=backoff_s,
+                    now_ts=now,
+                ):
+                    logger.warning(
+                        "Sustained all-black capture (%d frames); reinitializing backends",
+                        state.consecutive_black_frames,
+                    )
+                    reinitialize_backends(
+                        install_drivers=install_drivers,
+                        close_backends=close_backends,
+                        state=state,
+                    )
+                    state.consecutive_black_frames = 0
     for t in threads:
         t.join(timeout=3.0)
         if t.is_alive():
@@ -2242,27 +1517,19 @@ def run_loop(
     install_drivers,
     close_backends,
     use_legacy_pipeline: bool = False,
+    can_mirroring_write: Callable[[], bool] | None = None,
 ) -> None:
-    """Entry point for the mirroring runtime loop.
-
-    Dispatches to either the legacy single-threaded path or the 3-stage
-    pipeline (default) based on *use_legacy_pipeline*.
-    """
+    """Entry point for the mirroring 3-stage pipeline runtime loop."""
     if use_legacy_pipeline:
-        _run_loop_legacy(
-            config=config,
-            state=state,
-            get_capture=get_capture,
-            get_driver=get_driver,
-            install_drivers=install_drivers,
-            close_backends=close_backends,
+        logger.warning(
+            "use_legacy_pipeline is deprecated and ignored; the 3-stage pipeline is always used."
         )
-    else:
-        _run_loop_pipeline(
-            config=config,
-            state=state,
-            get_capture=get_capture,
-            get_driver=get_driver,
-            install_drivers=install_drivers,
-            close_backends=close_backends,
-        )
+    _run_loop_pipeline(
+        config=config,
+        state=state,
+        get_capture=get_capture,
+        get_driver=get_driver,
+        install_drivers=install_drivers,
+        close_backends=close_backends,
+        can_mirroring_write=can_mirroring_write,
+    )

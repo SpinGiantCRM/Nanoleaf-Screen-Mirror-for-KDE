@@ -275,7 +275,7 @@ def test_one_shot_diagnostic_capture_populates_zone_rows_without_starting_runtim
         config=cfg, capture_backend_override=capture, driver_override=FakeDriver()
     )
     result = svc.capture_one_diagnostic_frame()
-    assert result["ok"] is True
+    assert result["ok"] is True, result.get("message")
     status = svc.get_status()
     assert status["running"] is False
     assert len(status["_latest_zone_diagnostics"]) > 0

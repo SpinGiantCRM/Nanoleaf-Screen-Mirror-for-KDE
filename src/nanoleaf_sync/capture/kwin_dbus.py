@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
 import sys
@@ -83,6 +84,52 @@ class _ScreenShot2Payload:
     results: dict[str, Any]
 
 
+def _parse_screenshot2_color_metadata(results: dict[str, Any]) -> dict[str, object] | None:
+    transfer_raw = (
+        results.get("transferFunction") or results.get("transfer") or results.get("colorTransfer")
+    )
+    primaries_raw = (
+        results.get("colorSpace") or results.get("primaries") or results.get("colorPrimaries")
+    )
+    max_nits_raw = (
+        results.get("maxLuminance")
+        or results.get("max_nits")
+        or results.get("masteringDisplayMaxLuminance")
+    )
+    if transfer_raw is None and primaries_raw is None and max_nits_raw is None:
+        return None
+
+    transfer_map = {
+        "srgb": "srgb",
+        "bt709": "srgb",
+        "pq": "pq",
+        "st2084": "pq",
+        "perceptualquantizer": "pq",
+        "hlg": "hlg",
+        "linear": "linear",
+    }
+    primaries_map = {
+        "srgb": "bt709",
+        "bt709": "bt709",
+        "rec709": "bt709",
+        "bt2020": "bt2020",
+        "rec2020": "bt2020",
+        "bt.2020": "bt2020",
+    }
+
+    metadata: dict[str, object] = {"source": "kwin screenshot2 metadata"}
+    if transfer_raw is not None:
+        normalized_transfer = str(transfer_raw).strip().lower().replace(" ", "")
+        metadata["transfer"] = transfer_map.get(normalized_transfer, str(transfer_raw))
+    if primaries_raw is not None:
+        normalized_primaries = str(primaries_raw).strip().lower().replace(" ", "")
+        metadata["primaries"] = primaries_map.get(normalized_primaries, str(primaries_raw))
+    if max_nits_raw is not None:
+        with contextlib.suppress(TypeError, ValueError):
+            metadata["max_nits"] = float(max_nits_raw)
+    return metadata
+
+
 class KWinDBusScreenshotCapture:
     """KWin D-Bus screenshot capture backend."""
 
@@ -120,6 +167,7 @@ class KWinDBusScreenshotCapture:
     ) -> None:
         self.last_capture_path: str | None = None
         self.last_hdr_diagnostics: dict[str, object] = {}
+        self._last_screenshot2_color_metadata: dict[str, object] | None = None
         self.params = KWinDBusCaptureParams(width=width, height=height, monitor_id=monitor_id)
         self._loop: asyncio.AbstractEventLoop | None = None
         self._loop_thread: threading.Thread | None = None
@@ -145,6 +193,7 @@ class KWinDBusScreenshotCapture:
 
     def capture(self) -> np.ndarray:
         """Return an RGB frame as a numpy array or raise ``KWinDBusCaptureError``."""
+        self._last_screenshot2_color_metadata = None
 
         try:
             frame = self._try_capture_via_dbus()
@@ -172,12 +221,14 @@ class KWinDBusScreenshotCapture:
         return frame
 
     def _convert_if_needed(self, frame: np.ndarray) -> np.ndarray:
+        backend_meta = self._last_screenshot2_color_metadata
         user_meta = resolve_capture_metadata(
+            backend_metadata=backend_meta,
             user_transfer=self._hdr_defaults.transfer,
             user_primaries=self._hdr_defaults.primaries,
             user_max_nits=float(self._hdr_defaults.max_nits),
             display_preset="hdr",
-            kwin_display_referred=True,
+            kwin_display_referred=backend_meta is None,
         )
         meta = user_meta.to_hdr_metadata()
         self.last_hdr_diagnostics = {
@@ -737,6 +788,7 @@ class KWinDBusScreenshotCapture:
 
     def _decode_screenshot2_payload(self, reply: _ScreenShot2Payload) -> np.ndarray:
         results = self._normalize_variant_dict(reply.results)
+        self._last_screenshot2_color_metadata = _parse_screenshot2_color_metadata(results)
         image_type = results.get("type")
         if image_type != "raw":
             raise KWinDBusCaptureError(f"Unsupported KWin ScreenShot2 result type: {image_type!r}")

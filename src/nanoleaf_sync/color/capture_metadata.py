@@ -157,6 +157,12 @@ def _plasma_sdr_white_nits() -> float | None:
         return None
 
 
+def invalidate_plasma_hdr_cache() -> None:
+    _kwinrc_compositing_values.cache_clear()
+    _plasma_hdr_enabled.cache_clear()
+    _plasma_sdr_white_nits.cache_clear()
+
+
 def resolve_compositor_hdr_runtime(
     *,
     compositor_hdr_mode: bool,
@@ -276,6 +282,7 @@ def resolve_capture_metadata(
         primaries = "bt709"
         source = "kwin display-referred"
         assumption = "KWin screenshot is display-referred sRGB; skipping HDR tone map at capture"
+        skip_display_gamut = True
 
     elif preset_resolution.source == "plasma auto":
         source = preset_resolution.source

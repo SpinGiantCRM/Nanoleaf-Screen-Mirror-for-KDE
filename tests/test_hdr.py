@@ -160,3 +160,10 @@ def test_hable_tonemap_responds_to_max_nits_setting() -> None:
     low_nits = _apply_tonemap_hable_luminance_preserving(linear, max_nits=400.0)
     high_nits = _apply_tonemap_hable_luminance_preserving(linear, max_nits=1000.0)
     assert float(np.mean(high_nits)) > float(np.mean(low_nits))
+
+
+def test_missing_metadata_defaults_srgb() -> None:
+    img = np.full((2, 2, 3), 128, dtype=np.uint8)
+    out = convert_frame_to_srgb8(img, metadata={})
+    assert out.dtype == np.uint8
+    assert int(out[0, 0, 0]) > 0

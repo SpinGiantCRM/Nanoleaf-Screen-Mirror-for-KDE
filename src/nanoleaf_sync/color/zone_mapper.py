@@ -32,6 +32,8 @@ def resolve_device_zone_indices(
                     orig,
                     src_n,
                 )
+        if reverse:
+            result = list(reversed(result))
         return result
 
     out = [i % src_n for i in range(dst_n)]

@@ -307,6 +307,40 @@ def test_kwin_backend_applies_hdr_conversion_when_configured(monkeypatch) -> Non
     assert "display-referred" in str(backend.last_hdr_diagnostics.get("assumption", ""))
 
 
+def test_screenshot2_color_metadata_overrides_display_referred_assumption(monkeypatch) -> None:
+    backend = KWinDBusScreenshotCapture(
+        width=2,
+        height=1,
+        hdr_max_nits=1200.0,
+        hdr_transfer="pq",
+        hdr_primaries="bt2020",
+    )
+    source = np.zeros((1, 2, 3), dtype=np.uint16)
+    backend._last_screenshot2_color_metadata = {
+        "transfer": "pq",
+        "primaries": "bt2020",
+        "max_nits": 1000.0,
+        "source": "kwin screenshot2 metadata",
+    }
+
+    captured: dict[str, object] = {}
+
+    def _fake_convert(frame: np.ndarray, metadata):
+        captured["metadata"] = metadata
+        return np.ones((1, 2, 3), dtype=np.uint8)
+
+    monkeypatch.setattr("nanoleaf_sync.capture.kwin_dbus.convert_frame_to_srgb8", _fake_convert)
+
+    frame = backend._convert_if_needed(source)
+
+    assert frame.dtype == np.uint8
+    meta = captured["metadata"]
+    assert meta["transfer"] == "pq"
+    assert meta["primaries"] == "bt2020"
+    assert meta["source"] == "kwin screenshot2 metadata"
+    assert "display-referred" not in str(backend.last_hdr_diagnostics.get("assumption", ""))
+
+
 def test_screenshot2_attempts_capture_screen_before_capture_area_with_monitor_id() -> None:
     backend = KWinDBusScreenshotCapture(width=480, height=270, monitor_id="DP-1")
 

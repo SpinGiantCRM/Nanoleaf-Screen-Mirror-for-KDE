@@ -526,6 +526,13 @@ class NanoleafUSBDriver(DeviceDriver):
         if send_err is not None:
             timing["write_only_failure_reason"] = f"{type(send_err).__name__}: {send_err}"
         self.last_send_timing = timing
+        if bool(timing.get("device_limited")):
+            live_fps = int(getattr(self, "_live_target_fps", 0) or 0)
+            if live_fps > 0:
+                budget_ms = 1000.0 / float(live_fps)
+                wait_ms = max(0.0, budget_ms - device_write_ms)
+                if wait_ms >= 0.5:
+                    time.sleep(wait_ms / 1000.0)
         if return_timing:
             return timing
         return None

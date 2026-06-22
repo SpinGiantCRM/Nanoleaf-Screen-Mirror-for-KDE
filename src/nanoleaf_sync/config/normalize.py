@@ -204,7 +204,36 @@ def migrate_config_dict(data: dict[str, Any]) -> dict[str, Any]:
     if bool(migrated.get("wizard_completed")) and bool(migrated.get("use_mock_capture")):
         migrated["use_mock_capture"] = False
 
+    migrated.setdefault("capture_monitor", "")
+    migrated.setdefault("source_side_counts", [])
+    migrated.pop("use_legacy_pipeline", None)
+    _consolidate_calibration_fields(migrated)
+
     return migrated
+
+
+def _consolidate_calibration_fields(migrated: dict[str, Any]) -> None:
+    calibration_payload = migrated.get("calibration")
+    calibration = dict(calibration_payload) if isinstance(calibration_payload, dict) else {}
+    for key in (
+        "corner_anchor_top_left",
+        "corner_anchor_top_right",
+        "corner_anchor_bottom_right",
+        "corner_anchor_bottom_left",
+        "reverse_zones",
+        "calibration_model",
+    ):
+        if key not in migrated:
+            continue
+        value = migrated.pop(key)
+        if key.startswith("corner_anchor"):
+            existing = calibration.get(key, -1)
+            if int(existing) < 0 and int(value) >= 0:
+                calibration[key] = int(value)
+        else:
+            calibration.setdefault(key, value)
+    if calibration:
+        migrated["calibration"] = calibration
 
 
 _MIGRATIONS: dict[int, Any] = {
@@ -479,6 +508,12 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     if wizard_completed:
         use_mock_capture = False
 
+    capture_monitor = str(getattr(cfg, "capture_monitor", "") or "").strip()
+    raw_side_counts = list(getattr(cfg, "source_side_counts", None) or [])
+    source_side_counts = [max(0, int(v)) for v in raw_side_counts[:4]]
+    if sum(source_side_counts) <= 0:
+        source_side_counts = []
+
     return AppConfig(
         fps=fps,
         prefer_backend=prefer_backend,
@@ -578,4 +613,6 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         status_log_interval_s=max(0.5, float(cfg.status_log_interval_s)),
         verbose=coerce_bool(getattr(cfg, "verbose", False), False),
         performance_priority=performance_priority,
+        capture_monitor=capture_monitor,
+        source_side_counts=source_side_counts,
     )

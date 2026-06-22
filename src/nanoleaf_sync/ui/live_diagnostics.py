@@ -83,6 +83,11 @@ class LiveDiagnosticsDialog(QDialog):
             ("Consecutive errors", "_pipe_errors"),
             ("Target FPS", "_pipe_target_fps"),
             ("Effective output FPS", "_pipe_eff_fps"),
+            ("Capture buffer drops", "_pipe_cap_drops"),
+            ("Process buffer drops", "_pipe_proc_drops"),
+            ("Coalesced sends", "_pipe_coalesced"),
+            ("Frame staleness (ms)", "_pipe_staleness"),
+            ("SDR boost undo", "_pipe_sdr_boost"),
             ("Lifecycle state", "_pipe_lifecycle"),
             ("Priority mode", "_pipe_priority"),
             ("Priority apply status", "_pipe_priority_status"),
@@ -227,6 +232,16 @@ class LiveDiagnosticsDialog(QDialog):
             counters = {}
         self._pipe_labels["_pipe_target_fps"].setText(f"{tgt:.0f}" if tgt else "\u2014")
         self._pipe_labels["_pipe_eff_fps"].setText(f"{eff:.1f}" if eff else "\u2014")
+        cap_drops = int(counters.get("capture_buffer_dropped_frames", 0) or 0)
+        proc_drops = int(counters.get("process_buffer_dropped_frames", 0) or 0)
+        coalesced = int(counters.get("coalesced_sends", 0) or 0)
+        self._pipe_labels["_pipe_cap_drops"].setText(str(cap_drops))
+        self._pipe_labels["_pipe_proc_drops"].setText(str(proc_drops))
+        self._pipe_labels["_pipe_coalesced"].setText(str(coalesced))
+        staleness = float(s.get("latest_staleness_ms", 0.0) or 0.0)
+        self._pipe_labels["_pipe_staleness"].setText(f"{staleness:.1f}")
+        sdr_boost = "on" if bool(s.get("sdr_boost_compensation_enabled", False)) else "off"
+        self._pipe_labels["_pipe_sdr_boost"].setText(sdr_boost)
         self._pipe_labels["_pipe_lifecycle"].setText(str(s.get("lifecycle_state") or "\u2014"))
         self._pipe_labels["_pipe_priority"].setText(
             str(s.get("configured_priority_mode") or "\u2014")

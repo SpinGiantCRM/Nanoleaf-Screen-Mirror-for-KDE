@@ -19,6 +19,7 @@ from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
 from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
 from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping
+from nanoleaf_sync.runtime.zone_derivation import source_side_counts_from_config
 from nanoleaf_sync.service import _resolve_capture_dims
 
 READY_STATUS = "Ready"
@@ -158,6 +159,7 @@ def run_readiness_check(
         corner_anchor_bottom_right=int(getattr(calibration, "corner_anchor_bottom_right", -1)),
         corner_anchor_bottom_left=int(getattr(calibration, "corner_anchor_bottom_left", -1)),
         calibration_model="corner_anchored",
+        source_side_counts=source_side_counts_from_config(normalized),
     )
     if mapping.validation_warnings or len(mapping.device_to_source_indices) != max(
         1, manual_strip_count

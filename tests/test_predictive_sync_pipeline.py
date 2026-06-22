@@ -31,7 +31,7 @@ def _run_pipeline(
         color_style="natural",
         return_diagnostics=True,
     )
-    out, _sampled, _pre, final, _timings, history = process_zone_colors(
+    out, _sampled, _pre, final, _timings, _smooth, history = process_zone_colors(
         frame=frame,
         precomputed_zone_colors=None,
         prev_smoothed_colors=prev_smoothed_colors,
@@ -72,7 +72,7 @@ def test_pipeline_timings_report_predictive_sync_activation() -> None:
         smoothing=0.35,
         return_diagnostics=True,
     )
-    _out, _sampled, _pre, _final, timings, _history = process_zone_colors(
+    _out, _sampled, _pre, _final, timings, _smooth, _history = process_zone_colors(
         frame=None,
         precomputed_zone_colors=raw,
         prev_smoothed_colors=prev,
@@ -101,7 +101,7 @@ def test_pipeline_timings_report_prediction_inactive_when_fresh() -> None:
         smoothing=0.35,
         return_diagnostics=True,
     )
-    _out, _sampled, _pre, _final, timings, _history = process_zone_colors(
+    _out, _sampled, _pre, _final, timings, _smooth, _history = process_zone_colors(
         frame=None,
         precomputed_zone_colors=raw,
         prev_smoothed_colors=prev,

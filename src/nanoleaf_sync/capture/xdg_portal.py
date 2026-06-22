@@ -100,6 +100,9 @@ class XDGPortalCapture:
         self._last_frame_diag: dict[str, object] = {}
         self._caps_video_info_cache: dict[str, int] = {}
         self._caps_video_info_cache_max = 8
+        self._empty_capture_streak = 0
+        self._stream_recoveries = 0
+        self._STREAM_RECOVER_AFTER_EMPTY = 3
 
     def initialize(self) -> None:
         """Negotiate portal session and open PipeWire stream."""
@@ -115,8 +118,28 @@ class XDGPortalCapture:
             self.initialize()
         frame = self._read_pipewire_frame()
         if frame is None:
+            self._empty_capture_streak += 1
+            if self._empty_capture_streak >= self._STREAM_RECOVER_AFTER_EMPTY:
+                self._recover_stream(reason="empty pipewire frame streak")
+                frame = self._read_pipewire_frame()
+        else:
+            self._empty_capture_streak = 0
+        if frame is None:
             raise XDGPortalError("PipeWire stream returned no frame.")
         return frame
+
+    def _recover_stream(self, *, reason: str) -> None:
+        logger.warning("xdg-portal: recovering stream (%s)", reason)
+        self._close_pipewire_stream()
+        if self._pw_fd is not None:
+            with contextlib.suppress(OSError):
+                os.close(self._pw_fd)
+            self._pw_fd = None
+        self._close_portal_session_sync()
+        self._initialized = False
+        self._empty_capture_streak = 0
+        self._stream_recoveries += 1
+        self.initialize()
 
     def close(self) -> None:
         self._close_pipewire_stream()

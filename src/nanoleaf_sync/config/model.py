@@ -116,6 +116,10 @@ class AppConfig:
     layout_scale: float = 1.0
     letterbox_detection: bool = True
     drm_zone_patch_capture: bool = False
+    # Empty string mirrors Plasma primary; set a KWin output name for another display.
+    capture_monitor: str = ""
+    # Persisted top/right/bottom/left source zone counts for corner-anchor mapping.
+    source_side_counts: list[int] = field(default_factory=list)
     display_preset: str = "hdr"
     # Tracks whether the first-run display configurator has been completed.
     wizard_completed: bool = False

@@ -213,10 +213,17 @@ class NanoleafTrayApp:
         self._preview_paused_service = False
         self._preview_pause_notified = False
         self._output_session = OutputSessionController()
+
+        def _create_service() -> NanoleafSyncService:
+            service = NanoleafSyncService(config=self.config)
+            service.set_output_session_guard(self._output_session.can_mirroring_write)
+            return service
+
+        self._create_service = _create_service
         try:
             self._config_created = self.cfg_mgr.initialize(mode="full-real", force=False)
             self.config = self.cfg_mgr.load()
-            self.service = NanoleafSyncService(config=self.config)
+            self.service = self._create_service()
         except Exception as exc:
             self._startup_warning = (
                 f"Failed to load config/service: {exc}. Using safe defaults; "
@@ -224,7 +231,7 @@ class NanoleafTrayApp:
             )
             self._config_created = False
             self.config = mode_config("diagnostic")
-            self.service = NanoleafSyncService(config=self.config)
+            self.service = self._create_service()
 
         self._idle_icon, self._running_icon = self._load_tray_icons()
         self.tray_icon = self.QSystemTrayIcon(self._idle_icon)
@@ -354,7 +361,15 @@ class NanoleafTrayApp:
         self._sync_config_for_mirroring()
         if self.service.is_running():
             self.on_stop()
-        self.service = NanoleafSyncService(config=self.config)
+        create_service = getattr(self, "_create_service", None)
+        if callable(create_service):
+            self.service = create_service()
+        else:
+            self.service = NanoleafSyncService(config=self.config)
+            guard = getattr(self, "_output_session", None)
+            setter = getattr(self.service, "set_output_session_guard", None)
+            if guard is not None and callable(setter):
+                setter(guard.can_mirroring_write)
         self._refresh_mode_labels()
         if not was_running:
             return
@@ -775,9 +790,15 @@ class NanoleafTrayApp:
         except Exception as exc:
             _log.exception("Unhandled exception while starting service from tray action")
             running = False
-            # Recreate service instance so a failed start attempt does not leave
-            # runtime lifecycle objects in a broken/unreopenable state.
-            self.service = NanoleafSyncService(config=self.config)
+            create_service = getattr(self, "_create_service", None)
+            if callable(create_service):
+                self.service = create_service()
+            else:
+                self.service = NanoleafSyncService(config=self.config)
+                guard = getattr(self, "_output_session", None)
+                setter = getattr(self.service, "set_output_session_guard", None)
+                if guard is not None and callable(setter):
+                    setter(guard.can_mirroring_write)
             self.tray_icon.showMessage(
                 "nanoleaf-kde-sync",
                 f"Start failed with exception: {exc}",
@@ -1011,9 +1032,15 @@ class NanoleafTrayApp:
             self.config = dlg.updated_config()
             self.cfg_mgr.save(self.config)
             settings_saved = True
+        elif settings_saved:
+            self.config = dlg.updated_config()
+            self.cfg_mgr.save(self.config)
 
         if was_running and (settings_saved or was_paused_by_preview):
             self._restart_mirroring_service(was_running=True)
+        elif settings_saved and not self.service.is_running():
+            self.service = self._create_service()
+            self._refresh_mode_labels()
 
     def on_open_troubleshooting_guide(self) -> None:
         guide_path = resolve_user_doc("TROUBLESHOOTING.md")
@@ -1276,10 +1303,10 @@ class NanoleafTrayApp:
             self.config = self.cfg_mgr.reset_auto_probe_cache()
             if self.service.is_running():
                 self.on_stop()
-                self.service = NanoleafSyncService(config=self.config)
+                self.service = self._create_service()
                 self.on_start()
             else:
-                self.service = NanoleafSyncService(config=self.config)
+                self.service = self._create_service()
             self._refresh_mode_labels()
             self.tray_icon.showMessage(
                 "nanoleaf-kde-sync",

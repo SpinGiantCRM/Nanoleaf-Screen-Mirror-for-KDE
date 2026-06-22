@@ -185,6 +185,7 @@ class DisplayConfiguratorDialog:
                 self._flow = WizardFlowState()
                 self._initial_calibration = cfg.effective_calibration()
                 status = runtime_status or {}
+                self._runtime_status = status
                 self._state = CalibrationState.from_config(cfg, status)
                 int(status.get("device_zone_count") or 0)
                 self._requires_manual_device_zone_count = (
@@ -1102,14 +1103,42 @@ class DisplayConfiguratorDialog:
                 anchor_bottom_right = int(self._state.corner_anchor_bottom_right)
                 anchor_bottom_left = int(self._state.corner_anchor_bottom_left)
                 zone_count = self._state.zone_count
+                frame_w = int(
+                    self._runtime_status.get("captured_frame_width")
+                    or self._runtime_status.get("capture_width")
+                    or 0
+                )
+                frame_h = int(
+                    self._runtime_status.get("captured_frame_height")
+                    or self._runtime_status.get("capture_height")
+                    or 0
+                )
+                if frame_w <= 0 or frame_h <= 0:
+                    from nanoleaf_sync.capture.dimensions import detect_primary_screen_dims
+
+                    dims = detect_primary_screen_dims()
+                    if dims is not None:
+                        frame_w, frame_h = dims
+                    else:
+                        frame_w, frame_h = 1920, 1080
+                edge_locality = value_for_label(
+                    EDGE_LOCALITY_LABELS,
+                    str(self.edge_locality_combo.currentText()),
+                    default="balanced",
+                )
+                layout = edge_weighted_layout(
+                    zone_count=zone_count,
+                    width=frame_w,
+                    height=frame_h,
+                    edge_locality=edge_locality,
+                )
                 new_zones = make_edge_weighted_zones(
                     zone_count,
-                    edge_locality=value_for_label(
-                        EDGE_LOCALITY_LABELS,
-                        str(self.edge_locality_combo.currentText()),
-                        default="tight",
-                    ),
+                    edge_locality=edge_locality,
+                    width=frame_w,
+                    height=frame_h,
                 )
+                source_side_counts = [int(v) for v in layout.side_counts]
                 calibration_payload = CalibrationConfig(
                     schema_version=int(getattr(cfg, "calibration_schema_version", 1) or 1),
                     calibration_model="corner_anchored",
@@ -1161,6 +1190,7 @@ class DisplayConfiguratorDialog:
                     ),
                     led_gamma=cfg.led_gamma,
                     zones=new_zones,
+                    source_side_counts=source_side_counts,
                     device_zone_count=self._state.device_zone_count,
                     reverse_zones=self._state.reverse_zones,
                     corner_anchor_top_left=anchor_top_left,

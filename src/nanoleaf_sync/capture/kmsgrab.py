@@ -21,6 +21,10 @@ _log = logging.getLogger(__name__)
 _DRM_CARD_PATH_RE = re.compile(r"^/dev/dri/card\d+$")
 
 
+def _wayland_session_active() -> bool:
+    return bool(os.environ.get("WAYLAND_DISPLAY", "").strip())
+
+
 def validated_drm_card_path(raw: str | None = None) -> str:
     path = str(raw or os.environ.get("NANOLEAF_DRM_CARD", "/dev/dri/card0")).strip()
     if not _DRM_CARD_PATH_RE.match(path):
@@ -86,7 +90,7 @@ class KMSGrabCapture:
         self._resize_index_cache_limit = 8
         self._drm_capture_impl = self._resolve_drm_capture_impl()
         self._drm_zone_sampler: DRMZoneSampler | None = None
-        if self._drm_capture_impl is None:
+        if self._drm_capture_impl is None and not _wayland_session_active():
             try:
                 self._drm_zone_sampler = DRMZoneSampler(
                     card_path=self.params.card_path,
@@ -102,6 +106,8 @@ class KMSGrabCapture:
                     "kmsgrab: DRMZoneSampler unavailable on %s; zone-patch capture disabled",
                     self.params.card_path,
                 )
+        elif self._drm_capture_impl is None and _wayland_session_active():
+            _log.debug("kmsgrab: skipping DRM zone sampler on Wayland; use kwin-dbus capture")
 
     def close(self) -> None:
         """Release D-Bus event-loop resources and DRM zone sampler."""
