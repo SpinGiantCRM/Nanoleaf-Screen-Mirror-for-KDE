@@ -1733,14 +1733,27 @@ def _run_loop_pipeline(
             if startup_elapsed >= startup_frame_timeout_s:
                 backend = latest_capture_backend_name or "unavailable"
                 method = latest_capture_backend_method or "unavailable"
-                reason = (
-                    "Start failed before first frame: capture backend "
-                    f"produced no frame within {startup_frame_timeout_s:.1f}s "
-                    f"(backend={backend}, method={method})."
-                )
+                if state.first_frame_seen and int(state.output_owner_dropped_frames) > 0:
+                    reason = (
+                        "Start failed before first frame: mirroring output is blocked "
+                        f"(backend={backend}, method={method}). "
+                        "Close Settings/setup preview and retry Start."
+                    )
+                    guidance = (
+                        "Another exclusive LED output session is active, or mirroring "
+                        "authorization expired after Stop. Press Start again after "
+                        "closing setup tools."
+                    )
+                else:
+                    reason = (
+                        "Start failed before first frame: capture backend "
+                        f"produced no frame within {startup_frame_timeout_s:.1f}s "
+                        f"(backend={backend}, method={method})."
+                    )
+                    guidance = "Check capture backend readiness and retry."
                 state.last_error = reason
                 state.last_error_kind = "capture-timeout"
-                state.last_error_guidance = "Check capture backend readiness and retry."
+                state.last_error_guidance = guidance
                 state.start_failure_reason = reason
                 state.lifecycle_state = "failed"
                 state.mark_startup(False)

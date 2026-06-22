@@ -89,12 +89,12 @@ def test_zone_mismatch_allows_override() -> None:
     assert authority.override_active is True
 
 
-def test_kwin_no_monitor_uses_capture_screen_only() -> None:
+def test_kwin_no_monitor_uses_capture_active_screen() -> None:
     backend = KWinDBusScreenshotCapture(width=480, height=270, monitor_id="")
     attempts = backend._screenshot2_method_attempts()
     assert len(attempts) == 1
-    assert attempts[0][0] == "CaptureScreen"
-    assert attempts[0][2][0] == ""
+    assert attempts[0][0] == "CaptureActiveScreen"
+    assert attempts[0][1] == "a{sv}h"
     backend.close()
 
 

@@ -28,7 +28,7 @@ from nanoleaf_sync.desktop_entry import (
 class KWinDBusCaptureParams:
     width: int
     height: int
-    # If None, the implementation will use the primary screen.
+    # If None, CaptureActiveScreen is used to capture the compositor's active output.
     # Monitor selection is intentionally left flexible because KDE/KWin
     # export different identifiers depending on version/compositor.
     monitor_id: str | None = None
@@ -606,7 +606,7 @@ class KWinDBusScreenshotCapture:
         if self.params.monitor_id:
             attempts.append(("CaptureScreen", "sa{sv}h", [self.params.monitor_id, options]))
         else:
-            attempts.append(("CaptureScreen", "sa{sv}h", ["", options]))
+            attempts.append(("CaptureActiveScreen", "a{sv}h", [options]))
         return tuple(attempts)
 
     def _raise_screenshot2_error(self, reply: Any) -> None:

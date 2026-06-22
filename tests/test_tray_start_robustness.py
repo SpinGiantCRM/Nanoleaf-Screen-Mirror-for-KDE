@@ -3,10 +3,21 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.runtime.output_session import OutputSessionController
 from nanoleaf_sync.ui.tray_app import NanoleafTrayApp
 
 
-class _FakeServiceRaises:
+class _FakeServiceOutputGuardMixin:
+    mirroring_generation = 0
+
+    def bind_mirroring_generation(self, generation: int) -> None:
+        self.mirroring_generation = generation
+
+    def set_output_session_guard(self, guard) -> None:
+        self._output_session_guard = guard
+
+
+class _FakeServiceRaises(_FakeServiceOutputGuardMixin):
     last_error = None
 
     def __init__(self) -> None:
@@ -23,7 +34,7 @@ class _FakeServiceRaises:
         return {}
 
 
-class _FakeServiceFailedStart:
+class _FakeServiceFailedStart(_FakeServiceOutputGuardMixin):
     def __init__(self) -> None:
         self.last_error = "device open failed"
 
@@ -63,14 +74,17 @@ def _tray_shell(service) -> SimpleNamespace:
         _preview_driver=None,
         _preview_paused_service=False,
         _preview_pause_notified=False,
-        _output_session=SimpleNamespace(release=lambda _owner: None),
+        _output_session=OutputSessionController(),
     )
     tray._close_preview_driver = lambda: NanoleafTrayApp._close_preview_driver(tray)
     tray._sync_config_for_mirroring = lambda: NanoleafTrayApp._sync_config_for_mirroring(tray)
+    tray._bind_output_session_guard = lambda svc: NanoleafTrayApp._bind_output_session_guard(
+        tray, svc
+    )
     return tray
 
 
-class _FakeServiceWaitingStart:
+class _FakeServiceWaitingStart(_FakeServiceOutputGuardMixin):
     last_error = None
 
     def __init__(self) -> None:

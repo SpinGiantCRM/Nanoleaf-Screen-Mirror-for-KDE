@@ -355,13 +355,13 @@ def test_screenshot2_attempts_capture_screen_when_monitor_id_is_set() -> None:
     backend.close()
 
 
-def test_screenshot2_attempts_capture_screen_when_monitor_id_is_not_set() -> None:
+def test_screenshot2_attempts_capture_active_screen_when_monitor_id_is_not_set() -> None:
     backend = KWinDBusScreenshotCapture(width=480, height=270, monitor_id=None)
 
     attempts = backend._screenshot2_method_attempts()
 
-    assert attempts[0][0] == "CaptureScreen"
-    assert attempts[0][2][0] == ""
+    assert attempts[0][0] == "CaptureActiveScreen"
+    assert attempts[0][1] == "a{sv}h"
     assert len(attempts) == 1
     backend.close()
 

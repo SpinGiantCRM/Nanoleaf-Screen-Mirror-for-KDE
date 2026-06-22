@@ -16,9 +16,7 @@ from nanoleaf_sync.runtime.state import ZoneRect
 
 
 def _create_export_dir() -> Path:
-    path = Path(tempfile.mkdtemp(prefix="nanoleaf-kde-sync-", dir=tempfile.gettempdir()))
-    os.chmod(path, 0o700)
-    return path
+    return Path(tempfile.mkdtemp(prefix="nanoleaf-kde-sync-", dir=tempfile.gettempdir()))
 
 
 def _export_safe_status(status: dict) -> dict:

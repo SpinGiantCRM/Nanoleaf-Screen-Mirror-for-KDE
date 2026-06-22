@@ -775,6 +775,7 @@ class NanoleafTrayApp:
             return
         self._close_preview_driver()
         self._sync_config_for_mirroring()
+        self._bind_output_session_guard(self.service)
 
         readiness_fn = getattr(self, "_quick_setup_readiness", None)
         preflight = readiness_fn() if callable(readiness_fn) else None
@@ -939,6 +940,7 @@ class NanoleafTrayApp:
     def _start_after_launch(self) -> None:
         def worker() -> None:
             try:
+                self._bind_output_session_guard(self.service)
                 started = self.service.start()
                 running = started and self.service.is_running()
             except Exception:

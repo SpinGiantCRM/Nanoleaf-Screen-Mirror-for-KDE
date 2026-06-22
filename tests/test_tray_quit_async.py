@@ -4,6 +4,7 @@ import time
 from types import SimpleNamespace
 
 from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.runtime.output_session import OutputSessionController
 from nanoleaf_sync.ui.tray_app import NanoleafTrayApp
 
 
@@ -180,11 +181,19 @@ def test_on_stop_handles_service_state_query_errors_without_exiting() -> None:
 
 
 class _FakeServiceStartFailure:
+    mirroring_generation = 0
+
     def __init__(self) -> None:
         self.stop_calls = 0
         self.start_calls = 0
         self._running = False
         self.last_error = "simulated start failure"
+
+    def bind_mirroring_generation(self, generation: int) -> None:
+        self.mirroring_generation = generation
+
+    def set_output_session_guard(self, guard) -> None:
+        self._output_session_guard = guard
 
     def start(self) -> bool:
         self.start_calls += 1
@@ -221,6 +230,7 @@ def test_on_start_failure_stays_alive_and_stop_after_failure_is_safe() -> None:
         _idle_icon="idle",
         _running_icon="running",
         _close_preview_driver=lambda: False,
+        _output_session=OutputSessionController(),
         _refresh_mode_labels=lambda: None,
         _shutdown_in_progress=False,
         _shutdown_timeout_s=0.1,
@@ -238,6 +248,9 @@ def test_on_start_failure_stays_alive_and_stop_after_failure_is_safe() -> None:
     fake_tray._set_idle_ui_state = lambda: NanoleafTrayApp._set_idle_ui_state(fake_tray)
     fake_tray._sync_config_for_mirroring = lambda: NanoleafTrayApp._sync_config_for_mirroring(
         fake_tray
+    )
+    fake_tray._bind_output_session_guard = lambda svc: NanoleafTrayApp._bind_output_session_guard(
+        fake_tray, svc
     )
 
     NanoleafTrayApp.on_start(fake_tray)
@@ -269,6 +282,7 @@ def test_on_start_contains_status_exceptions_at_callback_boundary() -> None:
         _idle_icon="idle",
         _running_icon="running",
         _close_preview_driver=lambda: False,
+        _output_session=OutputSessionController(),
         _refresh_mode_labels=lambda: (_ for _ in ()).throw(RuntimeError("ui unavailable")),
         QSystemTrayIcon=SimpleNamespace(
             MessageIcon=SimpleNamespace(Warning=2, Information=1),
@@ -280,6 +294,9 @@ def test_on_start_contains_status_exceptions_at_callback_boundary() -> None:
     )
     fake_tray._sync_config_for_mirroring = lambda: NanoleafTrayApp._sync_config_for_mirroring(
         fake_tray
+    )
+    fake_tray._bind_output_session_guard = lambda svc: NanoleafTrayApp._bind_output_session_guard(
+        fake_tray, svc
     )
 
     NanoleafTrayApp.on_start(fake_tray)

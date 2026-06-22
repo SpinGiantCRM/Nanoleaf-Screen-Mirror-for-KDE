@@ -102,7 +102,7 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
 line-ending = "lf"
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 ignore_missing_imports = true
 warn_redundant_casts = true
 warn_unused_ignores = true
@@ -118,6 +118,7 @@ module = [
   "nanoleaf_sync.desktop_entry",
   "nanoleaf_sync.color.hdr",
   "nanoleaf_sync.color.zone_mapper",
+  "nanoleaf_sync.tools.portal_tools",
 ]
 ignore_errors = true
 
