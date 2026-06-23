@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.7.0 — KWin-first auto backend, performance profile, balanced defaults
+
+### Features
+
+- Auto capture keeps `kwin-dbus` as the KDE primary backend; `kmsgrab` remains an explicit benchmark option
+- Settings performance profile control (`performance` / `balanced` / `quality`) with live preview updates
+- Balanced defaults for target FPS (60), sampling quality, and edge locality
+
+### Fixes
+
+- Accuracy mode forces zone sampling stride 1 for tighter colour fidelity
+- Stale cached `kmsgrab` probe winners are no longer treated as viable auto selections
+- Settings layout widened for calibration and diagnostics labels on compact displays
+
 ## v1.6.0 — Colour path diagnostics, portal/KWin capture reliability, palette stability
 
 ### Features
