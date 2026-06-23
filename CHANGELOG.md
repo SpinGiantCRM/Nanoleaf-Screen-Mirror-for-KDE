@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.8.0 — Stable 60 FPS capture, colour, and HID mirroring
+
+### Features
+
+- KWin ScreenShot2 pipe reads run on a dedicated executor with timeout handling for smoother capture at 60 FPS
+- Hybrid OKLab colour reconstruction and tunable dark-zone sample stabilization for cleaner neutrals and blacks
+- USB autosuspend disabled via udev for Nanoleaf HID devices to reduce resume latency
+- Extended Settings controls and config normalization for performance and calibration workflows
+
+### Fixes
+
+- HID transport and USB driver write paths hardened with clearer timing diagnostics and safer recovery
+- Auto backend probe no longer rejects valid dark captures as marginal failures
+- Runtime loop tests relaxed for slow py3.12 CI runners (stale-frame age budget)
+
 ## v1.7.0 — KWin-first auto backend, performance profile, balanced defaults
 
 ### Features
