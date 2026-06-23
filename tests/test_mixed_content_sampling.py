@@ -49,6 +49,7 @@ def test_overwatch_like_bottom_left_zone_stable_across_icon_toggle() -> None:
     params = ColorPipelineParams(
         sync_mode=SYNC_MODE_4D,
         color_style="ambient",
+        sampling_mode="vivid_weighted",
         smoothing=0.35,
         motion_preset="responsive",
         return_diagnostics=True,

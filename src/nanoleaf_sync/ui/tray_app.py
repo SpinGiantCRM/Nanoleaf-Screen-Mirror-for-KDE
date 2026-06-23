@@ -1472,6 +1472,12 @@ class NanoleafTrayApp:
             return
         self._quit_finalized = True
         self._shutdown_in_progress = False
+        turn_off_lights = getattr(self.service, "turn_off_lights", None)
+        if callable(turn_off_lights):
+            try:
+                turn_off_lights()
+            except Exception:
+                _log.debug("turn_off_lights failed during quit", exc_info=True)
         hide_tray_icon = getattr(self.tray_icon, "hide", None)
         if callable(hide_tray_icon):
             hide_tray_icon()

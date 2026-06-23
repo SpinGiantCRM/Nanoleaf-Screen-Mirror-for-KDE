@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.6.0 — Colour path diagnostics, portal/KWin capture reliability, palette stability
+
+### Features
+
+- `palette_adaptive` zone sampling with confidence-scored candidates for better highlight handling
+- Focused colour-path diagnostics: capture source, portal/KWin backend details, and per-zone pipeline stages
+- One-shot colour debug snapshot export (thumbnail, zones JSON, config, backend status, colour context)
+- Live diagnostics colour-path panel and expanded per-zone candidate/final columns
+
+### Fixes
+
+- XDG portal captures treated as display-referred sRGB (same safe path as KWin)
+- KWin `InvalidScreen` falls back to active screen; stale `kwin-dbus` probe cache invalidated after repeated failures
+- Palette algorithm temporal stabilization to reduce frame-to-frame LED flicker
+- Output quantization hold diagnostics and per-zone stage RGB tracing when diagnostics enabled
+
 ## v1.5.0 — Audit reliability, HDR correctness, and flicker fixes
 
 ### Fixes

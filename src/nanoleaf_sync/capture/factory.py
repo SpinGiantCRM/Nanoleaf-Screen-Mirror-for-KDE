@@ -244,6 +244,7 @@ def _resolve_auto_backend_with_probe(
     height: int,
     auto_probe_enabled: bool | None,
     cached_probe_winner: str | None,
+    capture_monitor: str = "",
 ) -> str:
     global _cached_probe_winner
 
@@ -298,7 +299,23 @@ def _resolve_auto_backend_with_probe(
     try:
         from nanoleaf_sync.capture.auto_probe import ProbeConfig, probe_backends
 
-        result = probe_backends(width, height, candidates, ProbeConfig())
+        monitor = str(capture_monitor or "").strip()
+
+        def _probe_factory(candidate: str, probe_width: int, probe_height: int) -> CaptureBackend:
+            return create_capture_backend(
+                width=probe_width,
+                height=probe_height,
+                use_mock_capture=False,
+                prefer_backend=candidate,
+                capture_monitor=monitor,
+            )
+
+        result = probe_backends(
+            width,
+            height,
+            candidates,
+            ProbeConfig(backend_factory=_probe_factory),
+        )
         probe_rows = _probe_rows_from_result(result=result, mode="fresh-probe")
         _set_last_auto_probe_report(probe_rows)
         tested = ", ".join(item.candidate for item in result.candidates)
@@ -522,6 +539,7 @@ def _resolve_prefer_backend(
     height: int,
     auto_probe_enabled: bool | None,
     cached_probe_winner: str | None,
+    capture_monitor: str = "",
 ) -> str:
     _log_compat_probe_results(prefer_backend=prefer_backend)
     normalized = normalize_backend_preference(prefer_backend)
@@ -531,6 +549,7 @@ def _resolve_prefer_backend(
             height=height,
             auto_probe_enabled=auto_probe_enabled,
             cached_probe_winner=cached_probe_winner,
+            capture_monitor=capture_monitor,
         )
     logger.info("capture backend explicitly configured=%s; probe bypassed", normalized)
     return normalized
@@ -565,6 +584,7 @@ def create_capture_backend(
         height=height,
         auto_probe_enabled=auto_probe_enabled,
         cached_probe_winner=cached_probe_winner,
+        capture_monitor=capture_monitor,
     )
     if normalized == KWIN_DBUS_BACKEND:
         monitor_id = str(capture_monitor or "").strip() or None

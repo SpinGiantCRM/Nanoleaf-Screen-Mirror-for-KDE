@@ -33,6 +33,9 @@ class RuntimeState:
     prev_smooth_float_colors: list[RGBTuple] = field(default_factory=list)
     prev_sent_colors: list[RGBTuple] = field(default_factory=list)
     prev_sampled_zone_colors: list[RGBTuple] = field(default_factory=list)
+    prev_palette_algorithms: list[str] = field(default_factory=list)
+    zone_palette_temporal_states: list[dict[str, object]] = field(default_factory=list)
+    palette_frame_index: int = 0
     prior_zone_sample_motion: float = 0.0
     prior_area_average_mode: bool = False
 
@@ -128,6 +131,9 @@ class RuntimeState:
         self.prev_smooth_float_colors = []
         self.prev_sent_colors = []
         self.prev_sampled_zone_colors = []
+        self.prev_palette_algorithms = []
+        self.zone_palette_temporal_states = []
+        self.palette_frame_index = 0
         self.prior_zone_sample_motion = 0.0
         self.prior_area_average_mode = False
         self.cached_zone_rects = None
@@ -207,6 +213,9 @@ class RuntimeState:
         self.prev_smooth_float_colors = []
         self.prev_sent_colors = []
         self.prev_sampled_zone_colors = []
+        self.prev_palette_algorithms = []
+        self.zone_palette_temporal_states = []
+        self.palette_frame_index = 0
         self.prior_zone_sample_motion = 0.0
         self.prior_area_average_mode = False
         self.sampling_mode_dwell_remaining = 0

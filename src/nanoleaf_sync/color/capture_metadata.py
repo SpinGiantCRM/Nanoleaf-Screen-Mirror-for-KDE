@@ -247,6 +247,7 @@ def resolve_capture_metadata(
     compositor_hdr_mode: bool = False,
     sdr_boost_nits: float = 80.0,
     kwin_display_referred: bool = False,
+    portal_display_referred: bool = False,
 ) -> CaptureMetadata:
     preset_resolution = resolve_display_preset(
         display_preset=display_preset,
@@ -286,6 +287,17 @@ def resolve_capture_metadata(
         primaries = "bt709"
         source = "kwin display-referred"
         assumption = "KWin screenshot is display-referred sRGB; skipping HDR tone map at capture"
+        skip_display_gamut = True
+        confidence = "heuristic"
+
+    elif portal_display_referred:
+        transfer = "srgb"
+        primaries = "bt709"
+        source = "xdg-portal display-referred"
+        assumption = (
+            "XDG portal PipeWire stream is compositor/display-referred; "
+            "avoid HDR/gamut double correction."
+        )
         skip_display_gamut = True
         confidence = "heuristic"
 

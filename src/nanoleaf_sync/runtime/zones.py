@@ -9,6 +9,11 @@ import numpy as np
 
 from nanoleaf_sync.color._types import RGBTuple
 from nanoleaf_sync.config.presets import edge_locality_profile
+from nanoleaf_sync.runtime.palette_adaptive import (
+    palette_adaptive_zone_color,
+    palette_adaptive_zone_frame,
+)
+from nanoleaf_sync.runtime.palette_temporal import ZonePaletteTemporalState
 from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
 
 ZoneRect = tuple[int, int, int, int]
@@ -330,6 +335,8 @@ class ZoneSamplingMeta:
     effective_sample_rects: tuple[ZoneRect, ...]
     per_zone_effective_mode: tuple[str, ...]
     per_zone_mixed_fallback: tuple[bool, ...]
+    per_zone_palette_diagnostics: tuple[dict[str, object], ...] = ()
+    per_zone_palette_temporal_states: tuple[dict[str, object], ...] = ()
 
 
 def detect_zone_patch_mixed_content(patch: np.ndarray) -> bool:
@@ -435,12 +442,18 @@ def _sampling_meta_from_plan(
     zones: Sequence[ZoneRect],
     per_zone_modes: list[str],
     per_zone_mixed: list[bool],
+    per_zone_palette: list[dict[str, object]] | None = None,
+    per_zone_temporal: list[dict[str, object]] | None = None,
 ) -> ZoneSamplingMeta:
     rects = tuple((int(z[0]), int(z[1]), int(z[2]), int(z[3])) for z in zones)
+    palette_rows = tuple(per_zone_palette or ())
+    temporal_rows = tuple(per_zone_temporal or ())
     return ZoneSamplingMeta(
         effective_sample_rects=rects,
         per_zone_effective_mode=tuple(per_zone_modes),
         per_zone_mixed_fallback=tuple(per_zone_mixed),
+        per_zone_palette_diagnostics=palette_rows,
+        per_zone_palette_temporal_states=temporal_rows,
     )
 
 
@@ -454,6 +467,11 @@ def zone_colors_array(
     edge_locality: str = "balanced",
     engine: str = "auto",
     sampling_mode: str = "area_average",
+    previous_palette_algorithms: Sequence[str] | None = None,
+    palette_temporal_states: Sequence[dict[str, object]] | None = None,
+    stabilize_palette: bool = True,
+    global_scene_cut: bool = False,
+    palette_frame_index: int = 0,
     return_meta: bool = False,
 ) -> np.ndarray | tuple[np.ndarray, ZoneSamplingMeta]:
     """
@@ -494,6 +512,11 @@ def zone_colors_array(
     mode_name = normalized_sampling_mode
     per_zone_modes: list[str] = [mode_name] * len(zones)
     per_zone_mixed: list[bool] = [False] * len(zones)
+    per_zone_palette: list[dict[str, object]] = [{} for _ in zones]
+    per_zone_temporal: list[dict[str, object]] = [{} for _ in zones]
+    temporal_states = [
+        ZonePaletteTemporalState.from_dict(dict(row)) for row in (palette_temporal_states or ())
+    ]
     if valid.any():
         normalized_engine = str(engine or "auto").strip().lower()
         selected_engine = normalized_engine
@@ -577,6 +600,82 @@ def zone_colors_array(
                     means[idx] = _peak_luma_zone_mean(patch_linear)
                 else:
                     means[idx] = _vivid_weighted_zone_mean(patch_linear)
+        elif normalized_sampling_mode == "palette_adaptive":
+            per_zone_modes = [normalized_sampling_mode] * len(zones)
+            per_zone_mixed = [False] * len(zones)
+            for idx in range(len(zones)):
+                if not valid[idx]:
+                    continue
+                patch_u8 = img[y0[idx] : y1[idx], x0[idx] : x1[idx]]
+                if patch_u8.size == 0:
+                    continue
+                if detect_zone_patch_mixed_content(patch_u8):
+                    per_zone_mixed[idx] = True
+                    per_zone_modes[idx] = "area_mean"
+                    means[idx] = _dark_biased_patch_mean(patch_u8)
+                    mean_rgb = means[idx]
+                    per_zone_palette[idx] = {
+                        "selected_sampling_algorithm": "area_mean",
+                        "selected_candidate_rgb": (
+                            int(mean_rgb[0]),
+                            int(mean_rgb[1]),
+                            int(mean_rgb[2]),
+                        ),
+                        "candidate_confidence": 1.0,
+                        "saturated_coverage": 0.0,
+                        "neutral_white_coverage": 0.0,
+                        "highlight_coverage": 0.0,
+                        "dominant_hue_degrees": 0.0,
+                        "hue_coherence": 0.0,
+                        "rejected_neutral_candidate": False,
+                        "fallback_reason": "mixed_content",
+                        "final_reason": "mixed_content_area_mean",
+                        "switch_reason": "mixed_content",
+                    }
+                    prev_temporal = temporal_states[idx] if idx < len(temporal_states) else None
+                    held = (
+                        float(mean_rgb[0]),
+                        float(mean_rgb[1]),
+                        float(mean_rgb[2]),
+                    )
+                    per_zone_temporal[idx] = ZonePaletteTemporalState(
+                        selected_algorithm="area_mean",
+                        selected_rgb=(int(mean_rgb[0]), int(mean_rgb[1]), int(mean_rgb[2])),
+                        held_rgb=held,
+                        selected_confidence=1.0,
+                        dominant_hue_degrees=float(
+                            prev_temporal.dominant_hue_degrees if prev_temporal else 0.0
+                        ),
+                    ).to_dict()
+                    continue
+                prev_state = temporal_states[idx] if idx < len(temporal_states) else None
+                if stabilize_palette:
+                    color, palette_diag, new_state, merged = palette_adaptive_zone_color(
+                        patch_u8,
+                        prev_state=prev_state,
+                        global_scene_cut=global_scene_cut,
+                        frame_index=palette_frame_index,
+                    )
+                    per_zone_temporal[idx] = new_state.to_dict()
+                    per_zone_palette[idx] = merged
+                else:
+                    frame = palette_adaptive_zone_frame(patch_u8)
+                    color = np.clip(np.rint(frame.current_best_rgb), 0.0, 255.0).astype(np.uint8)
+                    palette_diag = frame.diagnostics
+                    per_zone_palette[idx] = palette_diag.as_dict()
+                    per_zone_temporal[idx] = ZonePaletteTemporalState(
+                        selected_algorithm=frame.current_best_algorithm,
+                        selected_confidence=frame.current_best_confidence,
+                        selected_rgb=palette_diag.selected_candidate_rgb,
+                        dominant_hue_degrees=palette_diag.dominant_hue_degrees,
+                        held_rgb=(
+                            float(color[0]),
+                            float(color[1]),
+                            float(color[2]),
+                        ),
+                    ).to_dict()
+                means[idx] = color
+                per_zone_modes[idx] = palette_diag.selected_sampling_algorithm
     else:
         per_zone_modes = [mode_name] * len(zones)
         per_zone_mixed = [False] * len(zones)
@@ -588,6 +687,8 @@ def zone_colors_array(
                 zones=zones,
                 per_zone_modes=per_zone_modes,
                 per_zone_mixed=per_zone_mixed,
+                per_zone_palette=per_zone_palette,
+                per_zone_temporal=per_zone_temporal,
             )
         return means
 
@@ -598,6 +699,8 @@ def zone_colors_array(
                 zones=zones,
                 per_zone_modes=per_zone_modes,
                 per_zone_mixed=per_zone_mixed,
+                per_zone_palette=per_zone_palette,
+                per_zone_temporal=per_zone_temporal,
             )
         return means
 
@@ -675,6 +778,8 @@ def zone_colors_array(
             zones=zones,
             per_zone_modes=per_zone_modes,
             per_zone_mixed=per_zone_mixed,
+            per_zone_palette=per_zone_palette,
+            per_zone_temporal=per_zone_temporal,
         )
     return result
 
@@ -689,6 +794,11 @@ def zone_colors_array_with_meta(
     edge_locality: str = "balanced",
     engine: str = "auto",
     sampling_mode: str = "area_average",
+    previous_palette_algorithms: Sequence[str] | None = None,
+    palette_temporal_states: Sequence[dict[str, object]] | None = None,
+    stabilize_palette: bool = True,
+    global_scene_cut: bool = False,
+    palette_frame_index: int = 0,
 ) -> tuple[np.ndarray, ZoneSamplingMeta]:
     out = zone_colors_array(
         image,
@@ -699,6 +809,11 @@ def zone_colors_array_with_meta(
         edge_locality=edge_locality,
         engine=engine,
         sampling_mode=sampling_mode,
+        previous_palette_algorithms=previous_palette_algorithms,
+        palette_temporal_states=palette_temporal_states,
+        stabilize_palette=stabilize_palette,
+        global_scene_cut=global_scene_cut,
+        palette_frame_index=palette_frame_index,
         return_meta=True,
     )
     assert isinstance(out, tuple)

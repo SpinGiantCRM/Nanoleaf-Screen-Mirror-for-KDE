@@ -271,7 +271,39 @@ def test_status_includes_hdr_colour_path_diagnostics() -> None:
     assert hdr["display_preset"] == "hdr"
     assert hdr["effective_sdr_boost_scalar"] > 1.0
     assert hdr["capture_metadata_source"] == "unknown"
-    assert hdr["warnings"]
+    assert hdr["display_referred"] is True
+    assert any("kwin" in note.lower() for note in hdr["notes"])
+
+
+def test_status_includes_portal_hdr_colour_path_diagnostics() -> None:
+    cfg = AppConfig(
+        fps=30,
+        display_preset="hdr",
+        compositor_hdr_mode=True,
+        sdr_boost_nits=203.0,
+    )
+    capture = FakeCapture(name="xdg-portal")
+    capture._last_frame_diag = {
+        "format": "RGB",
+        "stride": 7680,
+        "caps": "video/x-raw,format=RGB,width=2560,height=1440",
+    }
+    svc = NanoleafSyncService(
+        config=cfg, capture_backend_override=capture, driver_override=FakeDriver()
+    )
+    status = svc.get_status()
+    hdr = status["hdr_colour_path"]
+    assert hdr["backend"] == "xdg-portal"
+    assert hdr["transfer"] == "srgb"
+    assert hdr["primaries"] == "bt709"
+    assert hdr["display_referred"] is True
+    assert hdr["skip_display_gamut_adaptation"] is True
+    assert hdr["sdr_boost_compensation_enabled"] is False
+    assert hdr["portal_negotiated_format"] == "RGB"
+    assert hdr["portal_stride"] == 7680
+    assert hdr["portal_caps"] == "video/x-raw,format=RGB,width=2560,height=1440"
+    assert hdr["source"] == "xdg-portal display-referred"
+    assert any("portal" in note.lower() for note in hdr["notes"])
 
 
 def test_one_shot_diagnostic_capture_populates_zone_rows_without_starting_runtime() -> None:
@@ -397,7 +429,9 @@ def test_service_each_boot_policy_probes_once_per_process_under_concurrent_start
         def close(self) -> None:
             pass
 
-    def _fake_build_auto_probe_signature(_width: int, _height: int) -> str:
+    def _fake_build_auto_probe_signature(
+        _width: int, _height: int, *, capture_monitor: str = ""
+    ) -> str:
         start_barrier.wait(timeout=2.0)
         return "stable-sig"
 
@@ -487,7 +521,10 @@ def test_service_first_run_policy_creates_cache_and_persists_metadata(monkeypatc
         "nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend
     )
     monkeypatch.setattr("nanoleaf_sync.service.ConfigManager", _FakeConfigManager)
-    monkeypatch.setattr("nanoleaf_sync.service._build_auto_probe_signature", lambda _w, _h: "sig-a")
+    monkeypatch.setattr(
+        "nanoleaf_sync.service._build_auto_probe_signature",
+        lambda _w, _h, *, capture_monitor="": "sig-a",
+    )
     monkeypatch.setattr(service, "make_device_driver", lambda **kwargs: FakeDriver())
 
     service._install_drivers()
@@ -528,7 +565,7 @@ def test_service_on_change_policy_reuses_cache_when_signature_matches(monkeypatc
     )
     monkeypatch.setattr(
         "nanoleaf_sync.service._build_auto_probe_signature",
-        lambda _w, _h: "stable-sig",
+        lambda _w, _h, *, capture_monitor="": "stable-sig",
     )
 
     service._install_drivers()
@@ -563,7 +600,8 @@ def test_service_on_change_policy_reprobes_when_signature_changes(monkeypatch) -
         "nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend
     )
     monkeypatch.setattr(
-        "nanoleaf_sync.service._build_auto_probe_signature", lambda _w, _h: "new-sig"
+        "nanoleaf_sync.service._build_auto_probe_signature",
+        lambda _w, _h, *, capture_monitor="": "new-sig",
     )
 
     service._install_drivers()

@@ -300,18 +300,34 @@ def apply_output_quantization_hold(
     threshold: float = 1.25,
     effective_target_fps: float = 60.0,
 ) -> np.ndarray:
+    held, _ = apply_output_quantization_hold_with_mask(
+        colors,
+        previous_sent,
+        threshold=threshold,
+        effective_target_fps=effective_target_fps,
+    )
+    return held
+
+
+def apply_output_quantization_hold_with_mask(
+    colors: np.ndarray,
+    previous_sent: np.ndarray | None,
+    *,
+    threshold: float = 1.25,
+    effective_target_fps: float = 60.0,
+) -> tuple[np.ndarray, np.ndarray]:
     rgb = np.asarray(colors, dtype=np.float32)
     if previous_sent is None or previous_sent.shape != rgb.shape:
-        return rgb
+        return rgb, np.zeros(rgb.shape[0], dtype=bool)
     fps = max(1.0, float(effective_target_fps))
     scaled_threshold = max(float(threshold), 60.0 / fps)
     prev = np.asarray(previous_sent, dtype=np.float32)
     hold = np.max(np.abs(rgb - prev), axis=1) < scaled_threshold
     if not hold.any():
-        return rgb
+        return rgb, hold
     out = rgb.copy()
     out[hold] = prev[hold]
-    return out
+    return out, hold
 
 
 def apply_dark_zone_output(colors: np.ndarray) -> np.ndarray:

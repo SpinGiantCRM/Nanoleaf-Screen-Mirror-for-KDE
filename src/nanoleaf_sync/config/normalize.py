@@ -316,6 +316,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
             "edge_direct",
             "vivid_weighted",
             "peak_luma",
+            "palette_adaptive",
         ),
         default=AppConfig.sampling_mode,
     )

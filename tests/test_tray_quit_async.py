@@ -60,6 +60,8 @@ def test_on_quit_is_non_blocking_and_idempotent() -> None:
         fake_tray
     )
     fake_tray._finalize_quit = lambda: NanoleafTrayApp._finalize_quit(fake_tray)
+    turn_off_calls: list[str] = []
+    service.turn_off_lights = lambda: turn_off_calls.append("off") or True
 
     NanoleafTrayApp.on_quit(fake_tray)
 
@@ -81,6 +83,7 @@ def test_on_quit_is_non_blocking_and_idempotent() -> None:
     callback()
 
     assert quit_calls == ["quit"]
+    assert turn_off_calls == ["off"]
 
 
 class _FakeServiceStopTimeout(_FakeService):

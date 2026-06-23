@@ -297,11 +297,42 @@ def test_stop_black_frame_requires_ready_existing_driver() -> None:
     service._send_stop_black_frame()
     assert driver.frames_sent == 0
 
+    service.turn_off_lights()
+    assert driver.frames_sent == 1
+    assert driver.last_colors == [(0, 0, 0)] * 4
+
     service._runtime.driver_ready = True
     service._send_stop_black_frame()
 
-    assert driver.frames_sent == 1
+    assert driver.frames_sent == 2
     assert driver.last_colors == [(0, 0, 0)] * 4
+
+
+def test_turn_off_lights_uses_ephemeral_driver_when_runtime_driver_cleared() -> None:
+    cfg = _valid_runtime_cfg(device_zone_count=4, use_mock_capture=False)
+    service = NanoleafSyncService(config=cfg)
+    ephemeral = FakeDriver(zone_count=4)
+
+    def _make_driver(**_kwargs):
+        return ephemeral
+
+    service.make_device_driver = _make_driver  # type: ignore[method-assign]
+
+    assert service.turn_off_lights() is True
+    assert ephemeral.frames_sent == 1
+    assert ephemeral.last_colors == [(0, 0, 0)] * 4
+    assert ephemeral.close_calls == 1
+
+
+def test_turn_off_lights_skips_ephemeral_driver_for_injected_overrides() -> None:
+    driver = FakeDriver(zone_count=4)
+    service = NanoleafSyncService(
+        config=_valid_runtime_cfg(device_zone_count=4, use_mock_capture=False),
+        driver_override=driver,
+    )
+
+    assert service.turn_off_lights() is False
+    assert driver.frames_sent == 0
 
 
 def test_runtime_shutdown_sends_final_black_only_after_driver_ready() -> None:

@@ -6,6 +6,7 @@ backend construction, and status reporting consumed by tray and CLI tools.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import logging
@@ -28,8 +29,13 @@ from nanoleaf_sync.capture.dimensions import (
     detect_primary_screen_dims,
     resolve_capture_dims,
 )
-from nanoleaf_sync.capture.factory import create_capture_backend, last_auto_probe_report
+from nanoleaf_sync.capture.factory import (
+    create_capture_backend,
+    last_auto_probe_report,
+    reset_cached_probe_winner,
+)
 from nanoleaf_sync.capture.interfaces import CaptureBackend
+from nanoleaf_sync.capture.kwin_dbus import is_kwin_invalid_screen_error
 from nanoleaf_sync.compat.version_snapshot import (
     check_for_upgrade,
     update_snapshot,
@@ -90,7 +96,12 @@ def _is_valid_auto_probe_winner(value: str | None) -> bool:
     return value in _AUTO_PROBE_WINNERS
 
 
-def _build_auto_probe_signature(capture_width: int, capture_height: int) -> str:
+def _build_auto_probe_signature(
+    capture_width: int,
+    capture_height: int,
+    *,
+    capture_monitor: str = "",
+) -> str:
     try:
         from nanoleaf_sync.capture import factory as capture_factory
 
@@ -125,6 +136,7 @@ def _build_auto_probe_signature(capture_width: int, capture_height: int) -> str:
             "primary_height": int(dims[1]) if dims else None,
             "capture_width": int(capture_width),
             "capture_height": int(capture_height),
+            "capture_monitor": str(capture_monitor or "").strip(),
             "scale_hint": scale,
         },
         "env": {name: os.environ.get(name, "") for name in _AUTO_PROBE_ENV_VARS},
@@ -187,6 +199,7 @@ class NanoleafSyncService:
         self._effective_capture_backend: str | None = None
         self._kmsgrab_fallback_streak = 0
         self._probe_heal_last_frames = 0
+        self._kwin_invalid_screen_invalidation_done = False
         self._device_discovered = False
         self._device_model: str | None = None
         self._device_zone_count: int | None = None
@@ -262,6 +275,11 @@ class NanoleafSyncService:
         capture_path = (
             getattr(self._capture, "last_capture_path", None) if self._capture is not None else None
         )
+        active_capture = self._capture
+        if active_capture is None and self._capture_backend_override is not None:
+            active_capture = self._capture_backend_override
+            capture_backend_name = getattr(active_capture, "name", None)
+            capture_path = getattr(active_capture, "last_capture_path", None)
 
         status = self._runtime.status_snapshot(
             running=self.is_running(),
@@ -369,6 +387,7 @@ class NanoleafSyncService:
         status["display_preset"] = str(getattr(self.config, "display_preset", "hdr"))
         status["edge_sampling_thickness"] = self._runtime.latest_edge_sampling_thickness
         status["zone_diagnostics_preview"] = self._runtime.latest_zone_diagnostics[:8]
+        status["zone_diagnostics"] = list(self._runtime.latest_zone_diagnostics)
         status["side_variance_diagnostics"] = self._runtime.latest_side_variance_diagnostics
         status["_latest_zone_diagnostics"] = self._runtime.latest_zone_diagnostics
         status["_latest_frame_rgb"] = self._runtime.latest_frame_rgb
@@ -378,23 +397,84 @@ class NanoleafSyncService:
         status["kde_upgrade_report"] = self._kde_upgrade_report
         status["kde_upgrade_notice"] = self.kde_upgrade_notice or ""
         self._maybe_heal_stale_probe_cache()
+        self._maybe_invalidate_kwin_probe_cache_for_invalid_screen()
         detected_display = detect_primary_screen_dims()
         if detected_display is not None:
             status["kde_display_width"] = int(detected_display[0])
             status["kde_display_height"] = int(detected_display[1])
         capture_hdr = (
-            getattr(self._capture, "last_hdr_diagnostics", {}) if self._capture is not None else {}
+            getattr(active_capture, "last_hdr_diagnostics", {})
+            if active_capture is not None
+            else {}
         )
         tone_mapping_applied = bool(capture_hdr.get("tone_mapping_applied", False))
         effective_backend = str(
             status.get("effective_capture_backend") or capture_backend_name or ""
         )
         is_kwin_backend = effective_backend == "kwin-dbus"
-        metadata_source = str(
-            capture_hdr.get("metadata_source")
+        is_portal_backend = effective_backend == "xdg-portal"
+        color_ctx_snapshot = status.get("latest_color_context")
+        color_ctx_dict = color_ctx_snapshot if isinstance(color_ctx_snapshot, dict) else {}
+        frame_ctx_snapshot = status.get("latest_frame_context")
+        frame_source = (
+            frame_ctx_snapshot.get("source")
+            if isinstance(frame_ctx_snapshot, dict)
+            and isinstance(frame_ctx_snapshot.get("source"), dict)
+            else {}
+        )
+        color_backend = str(
+            color_ctx_dict.get("backend")
+            or frame_source.get("backend")
+            or effective_backend
+            or "unknown"
+        )
+        color_transfer = str(
+            color_ctx_dict.get("transfer")
+            or capture_hdr.get("input_transfer")
+            or getattr(self.config, "hdr_transfer", "srgb")
+        )
+        color_primaries = str(
+            color_ctx_dict.get("primaries")
+            or capture_hdr.get("input_primaries")
+            or getattr(self.config, "hdr_primaries", "bt709")
+        )
+        color_source = str(
+            color_ctx_dict.get("source")
+            or capture_hdr.get("metadata_source")
             or capture_hdr.get("source")
             or ("kwin display-referred" if is_kwin_backend else "unknown")
         )
+        if is_portal_backend and color_source == "unknown":
+            color_source = "xdg-portal display-referred"
+        display_referred = bool(color_ctx_dict.get("display_referred", False))
+        if not display_referred and is_kwin_backend:
+            display_referred = True
+        if (
+            not display_referred
+            and is_portal_backend
+            and color_source == "xdg-portal display-referred"
+        ):
+            display_referred = True
+        skip_display_gamut = bool(
+            color_ctx_dict.get("skip_display_gamut_adaptation", False)
+            or self._runtime.skip_display_gamut_adaptation
+        )
+        if display_referred and not color_ctx_dict:
+            color_transfer = "srgb"
+            color_primaries = "bt709"
+            skip_display_gamut = True
+        elif display_referred and not skip_display_gamut:
+            skip_display_gamut = True
+        portal_frame_diag: dict[str, object] = {}
+        if is_portal_backend and active_capture is not None:
+            raw_diag = getattr(active_capture, "_last_frame_diag", None)
+            if isinstance(raw_diag, dict):
+                portal_frame_diag = raw_diag
+        metadata_source = color_source
+        compositor_hdr_mode = bool(getattr(self.config, "compositor_hdr_mode", False))
+        effective_sdr_boost_compensation = compositor_hdr_mode and not display_referred
+        if self.is_running():
+            effective_sdr_boost_compensation = bool(self._runtime.sdr_boost_compensation_enabled)
         display_preset = str(getattr(self.config, "display_preset", "hdr")).strip().lower()
         hdr_notes: list[str] = []
         hdr_warnings: list[str] = []
@@ -402,13 +482,27 @@ class NanoleafSyncService:
             hdr_notes.append(
                 "KWin ScreenShot2 captures are display-referred SDR; using safe sRGB defaults."
             )
+        elif is_portal_backend and display_preset == "hdr":
+            hdr_notes.append(
+                "XDG portal PipeWire captures are display-referred SDR; using safe sRGB defaults."
+            )
         elif display_preset == "hdr" and metadata_source == "unknown":
             hdr_warnings.append(
                 "HDR preset active but capture metadata unavailable; using user preset assumptions."
             )
         status["hdr_colour_path"] = {
+            "backend": color_backend,
+            "transfer": color_transfer,
+            "primaries": color_primaries,
+            "source": color_source,
+            "display_referred": display_referred,
+            "skip_display_gamut_adaptation": skip_display_gamut,
+            "sdr_boost_compensation_enabled": effective_sdr_boost_compensation,
+            "portal_negotiated_format": portal_frame_diag.get("format"),
+            "portal_stride": portal_frame_diag.get("stride"),
+            "portal_caps": portal_frame_diag.get("caps"),
             "display_preset": str(getattr(self.config, "display_preset", "hdr")),
-            "compositor_hdr_mode": bool(getattr(self.config, "compositor_hdr_mode", False)),
+            "compositor_hdr_mode": compositor_hdr_mode,
             "sdr_boost_nits": float(getattr(self.config, "sdr_boost_nits", 80.0)),
             "effective_sdr_boost_scalar": float(
                 effective_sdr_boost(
@@ -418,16 +512,12 @@ class NanoleafSyncService:
             "hdr_max_nits": float(
                 capture_hdr.get("hdr_max_nits", getattr(self.config, "hdr_max_nits", 1000.0))
             ),
-            "hdr_transfer": str(
-                capture_hdr.get("input_transfer", getattr(self.config, "hdr_transfer", "srgb"))
-            ),
-            "hdr_primaries": str(
-                capture_hdr.get("input_primaries", getattr(self.config, "hdr_primaries", "bt709"))
-            ),
+            "hdr_transfer": color_transfer,
+            "hdr_primaries": color_primaries,
             "capture_metadata_source": metadata_source,
             "tone_mapping_applied": tone_mapping_applied,
-            "sdr_compensation_applied": bool(getattr(self.config, "compositor_hdr_mode", False))
-            and bool(self._runtime.sdr_boost_compensation_enabled)
+            "sdr_compensation_applied": compositor_hdr_mode
+            and effective_sdr_boost_compensation
             and abs(
                 effective_sdr_boost(
                     sdr_boost_nits=float(getattr(self.config, "sdr_boost_nits", 80.0))
@@ -435,14 +525,30 @@ class NanoleafSyncService:
                 - 1.0
             )
             > 1e-6,
-            "sdr_compensation_suppressed_for_hdr": bool(
-                getattr(self.config, "compositor_hdr_mode", False)
-            )
-            and not bool(self._runtime.sdr_boost_compensation_enabled),
+            "sdr_compensation_suppressed_for_hdr": compositor_hdr_mode
+            and not effective_sdr_boost_compensation,
             "assumption": str(capture_hdr.get("assumption", "unknown")),
             "notes": hdr_notes,
             "warnings": hdr_warnings,
         }
+        latest_color_context = status.get("latest_color_context")
+        if isinstance(latest_color_context, dict):
+            latest_color_context = {
+                **latest_color_context,
+                "backend": color_backend,
+                "sdr_boost_compensation_enabled": effective_sdr_boost_compensation,
+                "portal_negotiated_format": portal_frame_diag.get("format"),
+                "portal_stride": portal_frame_diag.get("stride"),
+                "portal_caps": portal_frame_diag.get("caps"),
+            }
+            status["latest_color_context"] = latest_color_context
+        from nanoleaf_sync.runtime.colour_path_diagnostics import build_capture_colour_diagnostics
+
+        status["capture_colour_diagnostics"] = build_capture_colour_diagnostics(
+            status=status,
+            hdr_colour_path=status["hdr_colour_path"],
+            capture=active_capture,
+        )
         status["hid_live_send_policy"] = str(
             getattr(self._driver, "last_live_send_policy", "") or ""
         )
@@ -468,6 +574,10 @@ class NanoleafSyncService:
             status["portal_restore_token_state"] = str(
                 getattr(self._capture, "portal_restore_token_state", "") or ""
             )
+            kwin_diag = getattr(self._capture, "last_capture_diagnostics", None)
+            if isinstance(kwin_diag, dict) and kwin_diag:
+                status["kwin_capture_diagnostics"] = dict(kwin_diag)
+        status["capture_monitor"] = str(getattr(self.config, "capture_monitor", "") or "")
         from nanoleaf_sync.runtime.status_warnings import build_runtime_warnings
 
         status["runtime_warnings"] = build_runtime_warnings(status=status)
@@ -570,8 +680,17 @@ class NanoleafSyncService:
                 sdr_boost_nits=getattr(self.config, "sdr_boost_nits", 80.0),
                 hdr_max_nits=getattr(self.config, "hdr_max_nits", 1000.0),
                 return_diagnostics=True,
+                build_zone_diagnostics=True,
             )
-            _, sampled_zone_colors, pre_led_colors, final_zone_colors, _timings, _, _ = processed
+            (
+                _,
+                sampled_zone_colors,
+                pre_led_colors,
+                final_zone_colors,
+                processing_timings,
+                _,
+                _,
+            ) = processed
             self._runtime.latest_frame_rgb = frame
             self._runtime.last_frame_width = int(img_w)
             self._runtime.last_frame_height = int(img_h)
@@ -580,32 +699,50 @@ class NanoleafSyncService:
                 int(i) for i in (artifacts.side_counts or (0, 0, 0, 0))
             )  # type: ignore[assignment]
             self._runtime.latest_edge_sampling_thickness = artifacts.edge_sampling_thickness
+            from nanoleaf_sync.runtime.colour_path_diagnostics import (
+                build_zone_colour_path_row,
+                resolve_mapped_led_index,
+                resolve_zone_side,
+            )
+            from nanoleaf_sync.runtime.engine import _zone_sampling_diagnostic_fields
+
+            device_indices = list(device_zone_indices)
             rows: list[dict[str, object]] = []
             for zone_index, rect in enumerate(zones_px):
                 sampled_rgb = tuple(int(c) for c in sampled_zone_colors[zone_index].tolist())  # type: ignore[union-attr]
-                pre_led_rgb = tuple(int(c) for c in pre_led_colors[zone_index].tolist())  # type: ignore[union-attr]
-                final_rgb = tuple(int(c) for c in final_zone_colors[zone_index].tolist())  # type: ignore[union-attr]
-                top, right, bottom, left = self._runtime.latest_zone_side_counts
-                if zone_index < top:
-                    side = "top"
-                elif zone_index < top + right:
-                    side = "right"
-                elif zone_index < top + right + bottom:
-                    side = "bottom"
-                elif zone_index < top + right + bottom + left:
-                    side = "left"
+                mapped_led_index = resolve_mapped_led_index(zone_index, device_indices)
+                if mapped_led_index is None:
+                    pre_led_rgb = sampled_rgb
+                    final_rgb = sampled_rgb
                 else:
-                    side = "unknown"
+                    pre_led_rgb = tuple(
+                        int(c)
+                        for c in pre_led_colors[mapped_led_index].tolist()  # type: ignore[union-attr]
+                    )
+                    final_rgb = tuple(
+                        int(c)
+                        for c in final_zone_colors[mapped_led_index].tolist()  # type: ignore[union-attr]
+                    )
                 rows.append(
-                    {
-                        "zone_index": zone_index,
-                        "side": side,
-                        "pixel_rect": rect,
-                        "sampled_rgb": sampled_rgb,
-                        "output_rgb_before_led_calibration": pre_led_rgb,
-                        "final_output_rgb": final_rgb,
-                        "mapped_physical_led_index": zone_index,
-                    }
+                    build_zone_colour_path_row(
+                        zone_index=zone_index,
+                        rect=rect,
+                        side=resolve_zone_side(
+                            zone_index,
+                            self._runtime.latest_zone_side_counts,
+                        ),
+                        sampled_rgb=sampled_rgb,
+                        mapped_led_index=mapped_led_index,
+                        pre_led_rgb=pre_led_rgb,
+                        final_rgb=final_rgb,
+                        proc_timings=processing_timings,
+                        sampling_fields=_zone_sampling_diagnostic_fields(
+                            zone_index=zone_index,
+                            default_rect=rect,
+                            proc_timings=processing_timings,
+                        ),
+                        color_style=str(getattr(self.config, "color_style", "ambient")),
+                    )
                 )
             self._runtime.latest_zone_diagnostics = rows
             return {
@@ -654,6 +791,26 @@ class NanoleafSyncService:
             captured_rgb=sampled,
             staged_outputs={
                 "sampled_zone": sampled,
+                "before_style_mapping": tuple(
+                    int(v)
+                    for v in row.get("output_rgb_before_style_mapping", sampled)  # type: ignore[arg-type]
+                ),
+                "after_style_mapping": tuple(
+                    int(v)
+                    for v in row.get("output_rgb_after_style_mapping", sampled)  # type: ignore[arg-type]
+                ),
+                "after_light_spread": tuple(
+                    int(v)
+                    for v in row.get("output_rgb_after_light_spread", pre_led)  # type: ignore[arg-type]
+                ),
+                "after_smoothing": tuple(
+                    int(v)
+                    for v in row.get("output_rgb_after_smoothing", pre_led)  # type: ignore[arg-type]
+                ),
+                "after_led_calibration": tuple(
+                    int(v)
+                    for v in row.get("output_rgb_after_led_calibration", pre_led)  # type: ignore[arg-type]
+                ),
                 "pre_led_calibration": pre_led,
                 "final_output": final,
             },
@@ -693,6 +850,23 @@ class NanoleafSyncService:
             }
         except Exception as exc:
             return {"ok": False, "message": f"Could not create diagnostic bundle: {exc}"}
+
+    def export_colour_debug_snapshot(self, output_path: str) -> dict[str, object]:
+        from pathlib import Path
+
+        from nanoleaf_sync.runtime.colour_path_diagnostics import write_colour_debug_snapshot
+
+        try:
+            frame = getattr(self._runtime, "latest_frame_rgb", None)
+            return write_colour_debug_snapshot(
+                Path(output_path),
+                config=self.config,
+                status=self.get_status(),
+                frame=frame,
+                capture=self._capture,
+            )
+        except Exception as exc:
+            return {"ok": False, "message": f"Could not export colour debug snapshot: {exc}"}
 
     def make_device_driver(
         self,
@@ -743,27 +917,88 @@ class NanoleafSyncService:
             self._device_model = None
             self._device_zone_count = None
 
-    def _send_stop_black_frame(self) -> None:
-        if not self._runtime.driver_ready:
-            return
+    def _resolve_shutdown_zone_count(self, driver: object) -> int:
+        zone_count = int(getattr(driver, "zone_count", 0) or 0)
+        if zone_count <= 0:
+            zone_count = int(getattr(driver, "reported_zone_count", 0) or 0)
+        if zone_count <= 0:
+            zone_count = int(getattr(self.config, "device_zone_count", 0) or 0)
+        return max(0, zone_count)
+
+    @staticmethod
+    def _driver_is_initialized(driver: object) -> bool:
+        if bool(getattr(driver, "_initialized", False)):
+            return True
+        return bool(getattr(driver, "initialized", False))
+
+    def _send_shutdown_black_frame(self, *, require_driver_ready: bool) -> bool:
+        if require_driver_ready and not self._runtime.driver_ready:
+            return False
         with self._status_lock:
             driver = self._driver
-            if driver is None:
-                return
-            try:
-                zone_count = int(getattr(driver, "zone_count", 0) or 0)
-                if zone_count <= 0:
-                    zone_count = int(getattr(driver, "reported_zone_count", 0) or 0)
-                if zone_count <= 0:
-                    zone_count = int(getattr(self.config, "device_zone_count", 0) or 0)
-                if zone_count <= 0:
-                    return
-                driver.send_frame([(0, 0, 0)] * zone_count)
-            except Exception:
-                logger.debug(
-                    "Unable to send final stop frame (expected if already off)",
-                    exc_info=True,
-                )
+        if driver is None:
+            return False
+        try:
+            if not self._driver_is_initialized(driver):
+                initialize = getattr(driver, "initialize", None)
+                if not callable(initialize):
+                    return False
+                initialize()
+            zone_count = self._resolve_shutdown_zone_count(driver)
+            if zone_count <= 0:
+                return False
+            driver.send_frame([(0, 0, 0)] * zone_count)
+            return True
+        except Exception:
+            logger.debug(
+                "Unable to send shutdown black frame (expected if already off)",
+                exc_info=True,
+            )
+            return False
+
+    def _should_attempt_ephemeral_shutdown_driver(self) -> bool:
+        if self._capture_backend_override is not None or self._driver_override is not None:
+            return False
+        if bool(getattr(self.config, "use_mock_capture", True)):
+            return False
+        return (
+            int(getattr(self.config, "device_vid", 0) or 0) > 0
+            and int(getattr(self.config, "device_pid", 0) or 0) > 0
+        )
+
+    def _send_ephemeral_shutdown_black_frame(self) -> bool:
+        if not self._should_attempt_ephemeral_shutdown_driver():
+            return False
+        driver = None
+        try:
+            driver = self.make_device_driver(
+                enable_live_frame_write_optimization=False,
+                allow_live_zone_padding=True,
+            )
+            driver.initialize()
+            zone_count = self._resolve_shutdown_zone_count(driver)
+            if zone_count <= 0:
+                return False
+            driver.send_frame([(0, 0, 0)] * zone_count)
+            return True
+        except Exception:
+            logger.debug(
+                "Unable to send ephemeral shutdown black frame",
+                exc_info=True,
+            )
+            return False
+        finally:
+            if driver is not None:
+                with contextlib.suppress(Exception):
+                    driver.close()
+
+    def turn_off_lights(self) -> bool:
+        if self._send_shutdown_black_frame(require_driver_ready=False):
+            return True
+        return self._send_ephemeral_shutdown_black_frame()
+
+    def _send_stop_black_frame(self) -> None:
+        self._send_shutdown_black_frame(require_driver_ready=True)
 
     def _close_backends(self) -> None:
         capture = self._capture
@@ -806,7 +1041,11 @@ class NanoleafSyncService:
                 normalized_preference = normalize_capture_backend(
                     self.config.prefer_backend, default="auto"
                 )
-                signature = _build_auto_probe_signature(width, height)
+                signature = _build_auto_probe_signature(
+                    width,
+                    height,
+                    capture_monitor=str(getattr(self.config, "capture_monitor", "") or ""),
+                )
                 cached_winner = self._cached_probe_winner or self.config.auto_selected_backend
                 should_probe = False
                 policy = str(getattr(self.config, "auto_probe_policy", "on-change")).strip().lower()
@@ -961,7 +1200,11 @@ class NanoleafSyncService:
         if self._capture_backend_override is not None:
             return
 
-        signature = _build_auto_probe_signature(self._capture_width, self._capture_height)
+        signature = _build_auto_probe_signature(
+            self._capture_width,
+            self._capture_height,
+            capture_monitor=str(getattr(self.config, "capture_monitor", "") or ""),
+        )
         healed_winner = "kwin-dbus"
         updated_config = replace(
             self.config,
@@ -983,6 +1226,44 @@ class NanoleafSyncService:
             healed_winner,
         )
 
+    def _maybe_invalidate_kwin_probe_cache_for_invalid_screen(self) -> None:
+        if self._kwin_invalid_screen_invalidation_done:
+            return
+        if normalize_capture_backend(self.config.prefer_backend, default="auto") != "auto":
+            return
+        if str(getattr(self.config, "auto_selected_backend", "") or "") != "kwin-dbus":
+            return
+        if self._capture is not None and getattr(self._capture, "name", None) != "kwin-dbus":
+            return
+        if int(self._runtime.consecutive_errors or 0) < 3:
+            return
+        last_error = str(self._runtime.last_error or "")
+        if not is_kwin_invalid_screen_error(last_error):
+            return
+        if self._capture_backend_override is not None:
+            return
+
+        self._kwin_invalid_screen_invalidation_done = True
+        reset_cached_probe_winner()
+        self._cached_probe_winner = None
+        updated_config = replace(
+            self.config,
+            auto_selected_backend="",
+            auto_probe_signature="",
+            auto_probe_timestamp=datetime.now(UTC).isoformat(),
+        )
+        try:
+            ConfigManager().save(updated_config)
+        except Exception as exc:
+            logger.warning("Failed to persist invalidated kwin-dbus auto-probe cache: %s", exc)
+            return
+        self.config = updated_config
+        self._selection_reason = "fallback"
+        logger.warning(
+            "Invalidated cached kwin-dbus auto-probe winner after repeated InvalidScreen "
+            "runtime failures; fresh probe will run on next install."
+        )
+
     def _run_runtime(self) -> None:
         run_runtime_engine(
             config=self.config,
@@ -1000,6 +1281,7 @@ class NanoleafSyncService:
         def _handler(signum, _frame):
             stop_result = self.stop(timeout=5.0)
             if not stop_result:
+                self.turn_off_lights()
                 logger.warning(
                     "Signal %d handler: clean shutdown timed out; forcing exit",
                     signum,

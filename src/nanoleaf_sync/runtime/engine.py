@@ -47,7 +47,7 @@ from nanoleaf_sync.capture.source_identity import SourceIdentityTracker
 from nanoleaf_sync.color._types import RGBTuple
 from nanoleaf_sync.color.metadata_hysteresis import MetadataHysteresisTracker
 from nanoleaf_sync.config.model import AppConfig
-from nanoleaf_sync.config.presets import effective_drm_zone_patch_capture
+from nanoleaf_sync.config.presets import effective_drm_zone_patch_capture, is_accuracy_mode
 from nanoleaf_sync.runtime.blending import (
     AdaptiveSmoothingDiagnostics,
     adaptive_one_euro_blend,
@@ -69,7 +69,6 @@ from nanoleaf_sync.runtime.color_pipeline import (
 )
 from nanoleaf_sync.runtime.color_processing import (
     LedCalibration,
-    color_pipeline_diagnostics,
     init_gamut_adaptation,
 )
 from nanoleaf_sync.runtime.fps_governor import (
@@ -220,12 +219,21 @@ class FrameProcessingTimings:
     effective_sample_rects: tuple[tuple[int, int, int, int], ...] = ()
     per_zone_sampling_mode: tuple[str, ...] = ()
     per_zone_mixed_fallback: tuple[bool, ...] = ()
+    per_zone_palette_diagnostics: tuple[dict[str, object], ...] = ()
+    per_zone_palette_temporal_states: tuple[dict[str, object], ...] = ()
+    per_zone_output_quantization_hold: tuple[bool, ...] = ()
     per_zone_sdr_boost_undo_ratio: tuple[float, ...] = ()
     predictive_sync_active: bool = False
     predictive_lookahead_frames: float = 0.0
     predictive_scene_cut_suppressed: bool = False
     sampling_mode_dwell_remaining: int = 0
     dark_zone_stabilize_hold: tuple[bool, ...] = ()
+    colour_path_before_style: tuple[tuple[int, int, int], ...] = ()
+    colour_path_after_style: tuple[tuple[int, int, int], ...] = ()
+    colour_path_after_spread: tuple[tuple[int, int, int], ...] = ()
+    colour_path_after_smoothing: tuple[tuple[int, int, int], ...] = ()
+    colour_path_after_led_calibration: tuple[tuple[int, int, int], ...] = ()
+    colour_path_final: tuple[tuple[int, int, int], ...] = ()
 
 
 class PendingFrameSlot:
@@ -293,6 +301,8 @@ def _zone_sampling_diagnostic_fields(
     effective_rect = default_rect
     sampling_mode_effective = ""
     mixed_content_fallback = False
+    palette_diagnostics: dict[str, object] = {}
+    output_quantization_hold_active = False
     sdr_boost_undo_ratio: float | None = None
     if proc_timings is not None:
         raw_rects = getattr(proc_timings, "raw_sample_rects", ()) or ()
@@ -307,6 +317,13 @@ def _zone_sampling_diagnostic_fields(
         mixed_flags = getattr(proc_timings, "per_zone_mixed_fallback", ()) or ()
         if zone_index < len(mixed_flags):
             mixed_content_fallback = bool(mixed_flags[zone_index])
+        palette_rows = getattr(proc_timings, "per_zone_palette_diagnostics", ()) or ()
+        if zone_index < len(palette_rows):
+            palette_diagnostics = dict(palette_rows[zone_index])
+        hold_rows = getattr(proc_timings, "per_zone_output_quantization_hold", ()) or ()
+        output_quantization_hold_active = (
+            bool(hold_rows[zone_index]) if zone_index < len(hold_rows) else False
+        )
         undo_ratios = getattr(proc_timings, "per_zone_sdr_boost_undo_ratio", ()) or ()
         if zone_index < len(undo_ratios):
             sdr_boost_undo_ratio = float(undo_ratios[zone_index])
@@ -316,6 +333,8 @@ def _zone_sampling_diagnostic_fields(
         "sampling_mode_effective": sampling_mode_effective,
         "mixed_content_fallback": mixed_content_fallback,
         "sdr_boost_undo_ratio": sdr_boost_undo_ratio,
+        "output_quantization_hold_active": output_quantization_hold_active,
+        **palette_diagnostics,
     }
 
 
@@ -550,6 +569,7 @@ def process_frame(
     output_healthy: bool = False,
     sampling_quality: str = "high",
     prev_sampled_zone_colors: Sequence[RGBTuple] = (),
+    previous_palette_algorithms: Sequence[str] = (),
     prior_zone_sample_motion: float = 0.0,
     prior_area_average_mode: bool = False,
     prev_smooth_float_colors: Sequence[RGBTuple] = (),
@@ -609,6 +629,7 @@ def process_frame(
         output_healthy=output_healthy,
         sampling_quality=sampling_quality,
         prev_sampled_zone_colors=prev_sampled_zone_colors,
+        previous_palette_algorithms=tuple(str(v) for v in previous_palette_algorithms),
         prior_zone_sample_motion=prior_zone_sample_motion,
         prior_area_average_mode=prior_area_average_mode,
         prev_smooth_float_colors=smooth_history,
@@ -984,7 +1005,10 @@ def _run_loop_pipeline(
                 )
                 cap_backend = get_capture()
                 capture_backend_name = str(getattr(cap_backend, "name", "") or "")
-                capture_display_referred = capture_backend_name == "kwin-dbus"
+                capture_display_referred = capture_backend_name in {
+                    "kwin-dbus",
+                    "xdg-portal",
+                }
                 skip_gamut = state.skip_display_gamut_adaptation
                 color_context = None
                 if frame_context is not None:
@@ -997,9 +1021,7 @@ def _run_loop_pipeline(
                     color_context = color_context_from_display_source(source)
                     skip_gamut = bool(color_context.skip_display_gamut_adaptation)
                     state.skip_display_gamut_adaptation = skip_gamut
-                    capture_display_referred = capture_display_referred or bool(
-                        color_context.display_referred
-                    )
+                    capture_display_referred = bool(color_context.display_referred)
                     identity, identity_changed = source_identity_tracker.observe(
                         source,
                         hdr_metadata_confidence=color_context.confidence,
@@ -1049,6 +1071,13 @@ def _run_loop_pipeline(
                     staleness_ms=estimated_staleness_ms,
                     output_healthy=bool(state.output_healthy),
                     prev_sampled_zone_colors=state.prev_sampled_zone_colors,
+                    previous_palette_algorithms=state.prev_palette_algorithms,
+                    zone_palette_temporal_states=state.zone_palette_temporal_states,
+                    palette_frame_index=int(state.palette_frame_index),
+                    stabilize_palette_selection=not is_accuracy_mode(
+                        bool(getattr(config, "accuracy_mode", False)),
+                        str(getattr(config, "color_style", "natural")),
+                    ),
                     prior_zone_sample_motion=float(state.prior_zone_sample_motion),
                     prior_area_average_mode=bool(state.prior_area_average_mode),
                     sampling_mode_dwell_remaining=int(state.sampling_mode_dwell_remaining),
@@ -1094,6 +1123,7 @@ def _run_loop_pipeline(
                     output_healthy=pipeline_params.output_healthy,
                     sampling_quality=pipeline_params.sampling_quality,
                     prev_sampled_zone_colors=pipeline_params.prev_sampled_zone_colors,
+                    previous_palette_algorithms=pipeline_params.previous_palette_algorithms,
                     prior_zone_sample_motion=pipeline_params.prior_zone_sample_motion,
                     prior_area_average_mode=pipeline_params.prior_area_average_mode,
                     return_diagnostics=True,
@@ -1143,6 +1173,13 @@ def _run_loop_pipeline(
                     tuple(int(c) for c in row)
                     for row in sampled_zone_colors.tolist()  # type: ignore[union-attr]
                 ]
+                palette_modes = getattr(processing_timings, "per_zone_sampling_mode", ()) or ()
+                state.prev_palette_algorithms = [str(v) for v in palette_modes]
+                temporal_states = (
+                    getattr(processing_timings, "per_zone_palette_temporal_states", ()) or ()
+                )
+                state.zone_palette_temporal_states = [dict(row) for row in temporal_states]
+                state.palette_frame_index += 1
                 state.first_frame_processed = True
                 state.last_frame_width = int(img_w)
                 state.last_frame_height = int(img_h)
@@ -1162,16 +1199,21 @@ def _run_loop_pipeline(
 
                 zone_diagnostics: list[dict[str, object]] = []
                 if build_diagnostics:
+                    from nanoleaf_sync.runtime.colour_path_diagnostics import (
+                        build_zone_colour_path_row,
+                        resolve_mapped_led_index,
+                        resolve_zone_side,
+                    )
+
                     for zone_index, rect in enumerate(zones_px):
                         sampled_rgb = tuple(
                             int(c)
                             for c in sampled_zone_colors[zone_index].tolist()  # type: ignore[union-attr]
                         )
-                        mapped_led_index = None
-                        for led_idx, src_idx in enumerate(device_zone_indices.tolist()):
-                            if int(src_idx) == int(zone_index):
-                                mapped_led_index = led_idx
-                                break
+                        mapped_led_index = resolve_mapped_led_index(
+                            zone_index,
+                            device_zone_indices,
+                        )
                         if mapped_led_index is None:
                             pre_led_rgb = sampled_rgb
                             final_rgb = sampled_rgb
@@ -1184,43 +1226,27 @@ def _run_loop_pipeline(
                                 int(c)
                                 for c in final_zone_colors[mapped_led_index].tolist()  # type: ignore[union-attr]
                             )
-                        top, right, bottom, left = state.latest_zone_side_counts
-                        if zone_index < top:
-                            side = "top"
-                        elif zone_index < top + right:
-                            side = "right"
-                        elif zone_index < top + right + bottom:
-                            side = "bottom"
-                        elif zone_index < top + right + bottom + left:
-                            side = "left"
-                        else:
-                            side = "unknown"
+                        side = resolve_zone_side(
+                            zone_index,
+                            state.latest_zone_side_counts,
+                        )
                         zone_diagnostics.append(
-                            {
-                                "zone_index": zone_index,
-                                "side": side,
-                                "pixel_rect": rect,
-                                **_zone_sampling_diagnostic_fields(
+                            build_zone_colour_path_row(
+                                zone_index=zone_index,
+                                rect=rect,
+                                side=side,
+                                sampled_rgb=sampled_rgb,
+                                mapped_led_index=mapped_led_index,
+                                pre_led_rgb=pre_led_rgb,
+                                final_rgb=final_rgb,
+                                proc_timings=processing_timings,
+                                sampling_fields=_zone_sampling_diagnostic_fields(
                                     zone_index=zone_index,
                                     default_rect=rect,
                                     proc_timings=processing_timings,
                                 ),
-                                "sampled_rgb": sampled_rgb,
-                                "output_rgb_before_led_calibration": pre_led_rgb,
-                                "final_output_rgb": final_rgb,
-                                "mapped_physical_led_index": mapped_led_index,
-                                "input_luminance": color_pipeline_diagnostics(
-                                    input_rgb=sampled_rgb,
-                                    output_rgb=sampled_rgb,
-                                    color_style=str(getattr(config, "color_style", "reference")),
-                                )["sampled_luminance"],
-                                **color_pipeline_diagnostics(
-                                    input_rgb=sampled_rgb,
-                                    output_rgb=final_rgb,
-                                    color_style=str(getattr(config, "color_style", "reference")),
-                                ),
-                                "led_calibration_applied": pre_led_rgb != final_rgb,
-                            }
+                                color_style=str(getattr(config, "color_style", "reference")),
+                            )
                         )
                     for row in zone_diagnostics:
                         row["side_variance"] = side_var.get(str(row.get("side")), {})  # type: ignore[attr-defined]

@@ -12,6 +12,7 @@ from nanoleaf_sync.color.capture_metadata import resolve_compositor_hdr_runtime
 from nanoleaf_sync.config.presets import (
     SAMPLING_MODE_AREA_AVERAGE,
     SAMPLING_MODE_EDGE_DIRECT,
+    SAMPLING_MODE_PALETTE_ADAPTIVE,
     SAMPLING_MODE_VIVID_WEIGHTED,
     effective_edge_locality_for_sync,
     effective_light_spread_for_sync,
@@ -29,7 +30,7 @@ from nanoleaf_sync.runtime.color_processing import (
     apply_dark_zone_output,
     apply_display_gamut_adaptation,
     apply_led_calibration,
-    apply_output_quantization_hold,
+    apply_output_quantization_hold_with_mask,
     stabilize_dark_zone_samples,
 )
 from nanoleaf_sync.runtime.compositor import (
@@ -76,6 +77,10 @@ class ColorPipelineParams:
     staleness_ms: float = 0.0
     output_healthy: bool = False
     prev_sampled_zone_colors: Sequence[RGBTuple] = ()
+    previous_palette_algorithms: Sequence[str] = ()
+    zone_palette_temporal_states: Sequence[dict[str, object]] = ()
+    palette_frame_index: int = 0
+    stabilize_palette_selection: bool = True
     prior_zone_sample_motion: float = 0.0
     prior_area_average_mode: bool = False
     sampling_mode_dwell_remaining: int = 0
@@ -135,7 +140,7 @@ def _resolve_robust_sampling_mode(
         prior_area_average_mode=prior_area_average_mode,
         dwell_remaining=dwell_remaining,
     )
-    peak_pick_modes = {SAMPLING_MODE_VIVID_WEIGHTED, "peak_luma"}
+    peak_pick_modes = {SAMPLING_MODE_VIVID_WEIGHTED, "peak_luma", SAMPLING_MODE_PALETTE_ADAPTIVE}
     uses_peak_pick = (
         str(resolved_sampling_mode).strip().lower() in peak_pick_modes
         or str(mode).strip().lower() in peak_pick_modes
@@ -307,6 +312,11 @@ def process_zone_colors(
             edge_locality=edge_locality,
             engine=zone_engine,
             sampling_mode=live_sampling_mode,
+            previous_palette_algorithms=params.previous_palette_algorithms or None,
+            palette_temporal_states=params.zone_palette_temporal_states or None,
+            stabilize_palette=bool(params.stabilize_palette_selection),
+            global_scene_cut=float(params.prior_zone_sample_motion) >= 24.0,
+            palette_frame_index=int(params.palette_frame_index),
         )
     if raw_colors.size == 0:
         return []
@@ -349,9 +359,25 @@ def process_zone_colors(
     sdr_boost_done = time.perf_counter()
 
     mapped = apply_display_gamut_adaptation(mapped, color_context=params.color_context)
+    capture_colour_stages = bool(params.return_diagnostics or params.build_zone_diagnostics)
+    stage_before_style: tuple[tuple[int, int, int], ...] = ()
+    stage_after_style: tuple[tuple[int, int, int], ...] = ()
+    stage_after_spread: tuple[tuple[int, int, int], ...] = ()
+    stage_after_smoothing: tuple[tuple[int, int, int], ...] = ()
+    stage_after_led_calibration: tuple[tuple[int, int, int], ...] = ()
+    stage_final: tuple[tuple[int, int, int], ...] = ()
+    if capture_colour_stages:
+        from nanoleaf_sync.runtime.colour_path_diagnostics import snapshot_device_rgb_rows
+
+        def _stage_snapshot(arr: np.ndarray) -> tuple[tuple[int, int, int], ...]:
+            return snapshot_device_rgb_rows(arr)
+
+        stage_before_style = _stage_snapshot(mapped)
     mapped = apply_color_style_mapping(mapped, color_style=params.color_style).astype(
         np.float32, copy=False
     )
+    if capture_colour_stages:
+        stage_after_style = _stage_snapshot(mapped)
     colour_processing_done = time.perf_counter()
 
     if light_spread != "off":
@@ -362,6 +388,9 @@ def process_zone_colors(
     b = max(0.0, min(1.0, float(params.brightness)))
     if b != 1.0:
         mapped *= b
+
+    if capture_colour_stages:
+        stage_after_spread = _stage_snapshot(mapped)
 
     pre_led_calibration = (
         np.array(mapped, copy=True)
@@ -381,11 +410,15 @@ def process_zone_colors(
                 smoothing_speed=smoothing_speed,
                 motion_preset=motion_preset,
             )
+    if capture_colour_stages:
+        stage_after_smoothing = _stage_snapshot(mapped)
     smoothing_done = time.perf_counter()
 
     calibration = params.led_calibration or LedCalibration()
     mapped = apply_led_calibration(mapped, calibration)
     mapped = apply_dark_zone_output(mapped)
+    if capture_colour_stages:
+        stage_after_led_calibration = _stage_snapshot(mapped)
     led_calibration_done = time.perf_counter()
 
     sampled_median_peak = float(np.median(np.max(raw_colors.astype(np.float32), axis=1)))
@@ -411,7 +444,7 @@ def process_zone_colors(
             median_zone_delta=median_zone_delta,
             sampled_median_peak=sampled_median_peak,
             vivid_weighted_active=str(resolved_sampling_mode).strip().lower()
-            in {SAMPLING_MODE_VIVID_WEIGHTED, "peak_luma"},
+            in {SAMPLING_MODE_VIVID_WEIGHTED, "peak_luma", SAMPLING_MODE_PALETTE_ADAPTIVE},
             sampled_colors=raw_colors.astype(np.float32, copy=False),
             prev_sampled_colors=(
                 np.asarray(params.prev_sampled_zone_colors, dtype=np.float32)
@@ -440,11 +473,12 @@ def process_zone_colors(
     )
 
     prev_sent_arr: np.ndarray | None = None
+    output_quantization_hold_mask: np.ndarray | None = None
     if prev_sent:
         n = min(len(prev_sent), mapped.shape[0])
         if n:
             prev_sent_arr = np.asarray(prev_sent[:n], dtype=np.float32)
-            mapped[:n] = apply_output_quantization_hold(
+            mapped[:n], output_quantization_hold_mask = apply_output_quantization_hold_with_mask(
                 mapped[:n],
                 prev_sent_arr,
                 effective_target_fps=float(params.effective_target_fps),
@@ -453,6 +487,8 @@ def process_zone_colors(
     np.clip(mapped, 0.0, 255.0, out=mapped)
     np.rint(mapped, out=mapped)
     out = mapped.astype(np.uint8, copy=False)
+    if capture_colour_stages:
+        stage_final = _stage_snapshot(out.astype(np.float32, copy=False))
     out_list = [tuple(int(c) for c in row) for row in out.tolist()]
     sent_history = out_list if params.return_diagnostics else []
     output_prepare_done = time.perf_counter()
@@ -463,6 +499,12 @@ def process_zone_colors(
         )
         per_zone_modes = sampling_meta.per_zone_effective_mode if sampling_meta is not None else ()
         per_zone_mixed = sampling_meta.per_zone_mixed_fallback if sampling_meta is not None else ()
+        per_zone_palette = (
+            sampling_meta.per_zone_palette_diagnostics if sampling_meta is not None else ()
+        )
+        per_zone_palette_temporal = (
+            sampling_meta.per_zone_palette_temporal_states if sampling_meta is not None else ()
+        )
         timings = FrameProcessingTimings(
             frame_convert_ms=(frame_convert_done - stage_start) * 1000.0,
             zone_sampling_ms=(sampling_done - frame_convert_done) * 1000.0,
@@ -477,6 +519,13 @@ def process_zone_colors(
             effective_sample_rects=effective_rects,
             per_zone_sampling_mode=per_zone_modes,
             per_zone_mixed_fallback=per_zone_mixed,
+            per_zone_palette_diagnostics=per_zone_palette,
+            per_zone_palette_temporal_states=per_zone_palette_temporal,
+            per_zone_output_quantization_hold=tuple(
+                bool(v) for v in output_quantization_hold_mask.tolist()
+            )
+            if output_quantization_hold_mask is not None
+            else (),
             per_zone_sdr_boost_undo_ratio=tuple(float(v) for v in sdr_undo_ratio.tolist())
             if sdr_undo_ratio is not None
             else (),
@@ -485,6 +534,12 @@ def process_zone_colors(
             predictive_scene_cut_suppressed=predictive_scene_cut_suppressed,
             sampling_mode_dwell_remaining=int(sampling_dwell),
             dark_zone_stabilize_hold=tuple(bool(v) for v in dark_hold.tolist()),
+            colour_path_before_style=stage_before_style,
+            colour_path_after_style=stage_after_style,
+            colour_path_after_spread=stage_after_spread,
+            colour_path_after_smoothing=stage_after_smoothing,
+            colour_path_after_led_calibration=stage_after_led_calibration,
+            colour_path_final=stage_final,
         )
         pre_led_arr = (
             pre_led_calibration.astype(np.uint8, copy=False)
@@ -578,6 +633,10 @@ def build_pipeline_params_from_config(
     staleness_ms: float | None = None,
     output_healthy: bool = False,
     prev_sampled_zone_colors: Sequence[RGBTuple] = (),
+    previous_palette_algorithms: Sequence[str] = (),
+    zone_palette_temporal_states: Sequence[dict[str, object]] = (),
+    palette_frame_index: int = 0,
+    stabilize_palette_selection: bool = True,
     prior_zone_sample_motion: float = 0.0,
     prior_area_average_mode: bool = False,
     sampling_mode_dwell_remaining: int = 0,
@@ -627,6 +686,10 @@ def build_pipeline_params_from_config(
         staleness_ms=stale,
         output_healthy=bool(output_healthy),
         prev_sampled_zone_colors=prev_sampled_zone_colors,
+        previous_palette_algorithms=tuple(str(v) for v in previous_palette_algorithms),
+        zone_palette_temporal_states=tuple(dict(row) for row in zone_palette_temporal_states),
+        palette_frame_index=int(palette_frame_index),
+        stabilize_palette_selection=bool(stabilize_palette_selection),
         prior_zone_sample_motion=float(prior_zone_sample_motion),
         prior_area_average_mode=bool(prior_area_average_mode),
         sampling_mode_dwell_remaining=int(sampling_mode_dwell_remaining),

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from nanoleaf_sync.color.capture_metadata import CaptureMetadata, resolve_capture_metadata
+from nanoleaf_sync.color.capture_metadata import resolve_capture_metadata
 from nanoleaf_sync.runtime.frame_context import (
     CaptureMethodConfidence,
     DisplaySourceContext,
@@ -117,6 +117,12 @@ def build_portal_display_source_context(
     else:
         scale_confidence = "pixel-exact"
     display_size = stream_size
+    hdr_diag = getattr(backend, "last_hdr_diagnostics", None) or {}
+    backend_metadata = hdr_diag if isinstance(hdr_diag, dict) and hdr_diag else None
+    metadata = resolve_capture_metadata(
+        backend_metadata=backend_metadata,
+        portal_display_referred=backend_metadata is None,
+    )
     return DisplaySourceContext(
         backend="xdg-portal",
         monitor_id=str(source_type) if source_type is not None else None,
@@ -129,7 +135,7 @@ def build_portal_display_source_context(
         scale_x=1.0,
         scale_y=1.0,
         refresh_hz=None,
-        hdr_metadata=CaptureMetadata(source="xdg-portal"),
+        hdr_metadata=metadata,
         source_confidence=source_confidence,
         capture_method=str(getattr(backend, "last_capture_path", "") or "xdg-portal"),
         capture_method_confidence=method_confidence,

@@ -24,14 +24,14 @@ def test_effective_sampling_mode_defaults_to_edge_direct_for_reference() -> None
     )
 
 
-def test_effective_sampling_mode_ambient_uses_vivid_weighted() -> None:
+def test_effective_sampling_mode_ambient_uses_palette_adaptive() -> None:
     assert (
         effective_sampling_mode(
             sampling_mode="auto",
             color_style="ambient",
             accuracy_mode=False,
         )
-        == "vivid_weighted"
+        == "palette_adaptive"
     )
 
 

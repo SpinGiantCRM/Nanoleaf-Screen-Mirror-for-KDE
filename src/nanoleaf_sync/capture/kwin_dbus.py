@@ -83,6 +83,13 @@ class _ScreenShot2Payload:
     results: dict[str, Any]
 
 
+def is_kwin_invalid_screen_error(exc: Exception | str | None) -> bool:
+    if exc is None:
+        return False
+    normalized = str(exc).strip().lower().replace("_", "").replace(".", " ")
+    return "invalidscreen" in normalized.replace(" ", "") or "invalid screen" in normalized
+
+
 def _parse_screenshot2_color_metadata(results: dict[str, Any]) -> dict[str, object] | None:
     """Reserved for future KWin ScreenShot2 colour metadata.
 
@@ -129,6 +136,7 @@ class KWinDBusScreenshotCapture:
     ) -> None:
         self.last_capture_path: str | None = None
         self.last_hdr_diagnostics: dict[str, object] = {}
+        self.last_capture_diagnostics: dict[str, object] = {}
         self._last_screenshot2_color_metadata: dict[str, object] | None = None
         self.params = KWinDBusCaptureParams(width=width, height=height, monitor_id=monitor_id)
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -154,10 +162,14 @@ class KWinDBusScreenshotCapture:
         self._legacy_introspection_cache_max = 4
         self._kwin_owner: str | None = None
         self.kwin_owner_change_count: int = 0
+        self._last_invalid_screen_fallback = False
+        self._last_rejected_monitor_id: str | None = None
 
     def capture(self) -> np.ndarray:
         """Return an RGB frame as a numpy array or raise ``KWinDBusCaptureError``."""
         self._last_screenshot2_color_metadata = None
+        self._last_invalid_screen_fallback = False
+        self._last_rejected_monitor_id = None
 
         try:
             frame = self._try_capture_via_dbus()
@@ -373,7 +385,15 @@ class KWinDBusScreenshotCapture:
 
         legacy_exc: Exception | None = None
         try:
-            return await self._call_with_reconnect(self._capture_reply_via_legacy_interfaces)
+            payload = await self._call_with_reconnect(self._capture_reply_via_legacy_interfaces)
+            self._update_capture_diagnostics(
+                screenshot2_method="legacy",
+                legacy_fallback=True,
+                invalid_screen_fallback=bool(self._last_invalid_screen_fallback),
+                rejected_monitor_id=self._last_rejected_monitor_id,
+                detail="legacy KWin screenshot fallback succeeded",
+            )
+            return payload
         except Exception as exc:
             legacy_exc = exc
 
@@ -485,75 +505,198 @@ class KWinDBusScreenshotCapture:
             self._legacy_bus = await self._connect_legacy_bus()
         return self._legacy_bus
 
-    async def _capture_reply_via_screenshot2(self):
+    def _update_capture_diagnostics(
+        self,
+        *,
+        screenshot2_method: str,
+        legacy_fallback: bool = False,
+        invalid_screen_fallback: bool = False,
+        rejected_monitor_id: str | None = None,
+        detail: str = "",
+    ) -> None:
+        path_kind = "legacy" if legacy_fallback else "screenshot2"
+        if invalid_screen_fallback:
+            path_kind = "screenshot2-active-screen-fallback"
+        self.last_capture_diagnostics = {
+            "backend": self.name,
+            "requested_monitor_id": self.params.monitor_id,
+            "rejected_monitor_id": rejected_monitor_id,
+            "screenshot2_method": screenshot2_method,
+            "invalid_screen_fallback_used": bool(invalid_screen_fallback),
+            "legacy_fallback_used": bool(legacy_fallback),
+            "capture_path_kind": path_kind,
+            "detail": detail,
+        }
+
+    def _is_invalid_screen_error(self, exc: Exception) -> bool:
+        return is_kwin_invalid_screen_error(self._format_exception_details(exc))
+
+    def _is_invalid_screen_error_reply(self, reply: Any) -> bool:
+        error_name = str(getattr(reply, "error_name", "") or "")
+        details = ""
+        if getattr(reply, "body", None):
+            details = str(reply.body[0])
+        return is_kwin_invalid_screen_error(f"{error_name} {details}")
+
+    async def _invoke_screenshot2_method(
+        self,
+        *,
+        bus,
+        bus_name: str,
+        path: str,
+        interface_name: str,
+        method_name: str,
+        signature: str,
+        base_args: list[Any],
+    ) -> _ScreenShot2Payload:
         from dbus_next import Message, MessageType
 
+        read_fd, write_fd = os.pipe()
+        try:
+            msg = Message(
+                destination=bus_name,
+                path=path,
+                interface=interface_name,
+                member=method_name,
+                signature=signature,
+                body=[*base_args, 0],
+                unix_fds=[write_fd],
+            )
+            reply = await bus.call(msg)
+            if reply.message_type == MessageType.ERROR:
+                if self._is_invalid_screen_error_reply(reply):
+                    error_name = getattr(reply, "error_name", "org.freedesktop.DBus.Error.Failed")
+                    details = str(reply.body[0] if reply.body else "")
+                    raise KWinDBusCaptureError(f"{error_name} {details}".strip())
+                self._raise_screenshot2_error(reply)
+            os.close(write_fd)
+            write_fd = -1
+
+            results = reply.body[0] if reply.body else {}
+            result_map = self._normalize_variant_dict(results)
+            stride = int(result_map.get("stride", 0) or 0)
+            height = int(result_map.get("height", 0) or 0)
+            expected_bytes = stride * height
+            frame_data = self._read_fd_exact(
+                read_fd,
+                expected_bytes,
+                stride=stride,
+                height=height,
+            )
+            self.last_capture_path = f"kwin-dbus:{method_name}"
+            return _ScreenShot2Payload(data=frame_data, results=results)
+        finally:
+            os.close(read_fd)
+            if write_fd >= 0:
+                os.close(write_fd)
+
+    async def _capture_reply_via_screenshot2(self):
         bus_name, path, interface_name = self._SCREENSHOT2_API
         bus = await self._get_screenshot2_bus()
         await self._sync_kwin_owner(bus)
         await self._get_screenshot2_introspection()
 
-        attempt_errors: list[tuple[str, str, Exception]] = []
-        for method_name, signature, base_args in self._screenshot2_method_attempts():
-            read_fd, write_fd = os.pipe()
-            try:
-                msg = Message(
-                    destination=bus_name,
-                    path=path,
-                    interface=interface_name,
-                    member=method_name,
-                    signature=signature,
-                    # DBus type `h` carries an index into the unix_fds array.
-                    body=[*base_args, 0],
-                    unix_fds=[write_fd],
-                )
-                reply = await bus.call(msg)
-                if reply.message_type == MessageType.ERROR:
-                    self._raise_screenshot2_error(reply)
-                os.close(write_fd)
-                write_fd = -1
+        options: dict[str, Any] = {}
+        monitor_id = self.params.monitor_id
+        attempt_errors: list[tuple[str, Exception]] = []
+        invalid_screen_fallback = False
+        rejected_monitor: str | None = None
 
-                results = reply.body[0] if reply.body else {}
-                result_map = self._normalize_variant_dict(results)
-                stride = int(result_map.get("stride", 0) or 0)
-                height = int(result_map.get("height", 0) or 0)
-                expected_bytes = stride * height
-                frame_data = self._read_fd_exact(
-                    read_fd,
-                    expected_bytes,
-                    stride=stride,
-                    height=height,
+        if monitor_id:
+            try:
+                payload = await self._invoke_screenshot2_method(
+                    bus=bus,
+                    bus_name=bus_name,
+                    path=path,
+                    interface_name=interface_name,
+                    method_name="CaptureScreen",
+                    signature="sa{sv}h",
+                    base_args=[monitor_id, options],
                 )
-                self.last_capture_path = f"kwin-dbus:{method_name}"
-                return _ScreenShot2Payload(data=frame_data, results=results)
+                self._update_capture_diagnostics(
+                    screenshot2_method="CaptureScreen",
+                    detail="monitor capture succeeded",
+                )
+                return payload
             except Exception as exc:
-                attempt_errors.append((method_name, signature, exc))
-            finally:
-                os.close(read_fd)
-                if write_fd >= 0:
-                    os.close(write_fd)
+                if self._is_authorization_error(exc):
+                    raise KWinDBusCaptureError(
+                        "KWin authorization denied for ScreenShot2. "
+                        f"Details: {self._format_exception_details(exc)}"
+                    ) from exc
+                attempt_errors.append(("CaptureScreen", exc))
+                if self._is_invalid_screen_error(exc):
+                    invalid_screen_fallback = True
+                    rejected_monitor = monitor_id
+                    self._last_invalid_screen_fallback = True
+                    self._last_rejected_monitor_id = monitor_id
+                    logger.info(
+                        "KWin ScreenShot2 rejected monitor_id=%r (%s); "
+                        "falling back to CaptureActiveScreen",
+                        monitor_id,
+                        self._format_exception_details(exc),
+                    )
+                else:
+                    raise KWinDBusCaptureError(
+                        "KWin ScreenShot2 CaptureScreen failed for "
+                        f"monitor_id={monitor_id!r}: {self._format_exception_details(exc)}"
+                    ) from exc
+
+        try:
+            payload = await self._invoke_screenshot2_method(
+                bus=bus,
+                bus_name=bus_name,
+                path=path,
+                interface_name=interface_name,
+                method_name="CaptureActiveScreen",
+                signature="a{sv}h",
+                base_args=[options],
+            )
+            if invalid_screen_fallback:
+                detail = (
+                    f"CaptureActiveScreen succeeded after InvalidScreen for "
+                    f"monitor_id={rejected_monitor!r}"
+                )
+            elif monitor_id:
+                detail = "active-screen capture succeeded after monitor rejection"
+            else:
+                detail = "active-screen capture succeeded"
+            self._update_capture_diagnostics(
+                screenshot2_method="CaptureActiveScreen",
+                invalid_screen_fallback=invalid_screen_fallback,
+                rejected_monitor_id=rejected_monitor,
+                detail=detail,
+            )
+            return payload
+        except Exception as exc:
+            if self._is_authorization_error(exc):
+                raise KWinDBusCaptureError(
+                    "KWin authorization denied for ScreenShot2. "
+                    f"Details: {self._format_exception_details(exc)}"
+                ) from exc
+            attempt_errors.append(("CaptureActiveScreen", exc))
 
         if not attempt_errors:
             raise KWinDBusCaptureError(
                 "KWin ScreenShot2 interface was available but no capture methods were callable."
             )
-        if any(self._is_authorization_error(exc) for _, _, exc in attempt_errors):
-            auth_exc = next(
-                exc for _, _, exc in attempt_errors if self._is_authorization_error(exc)
-            )
+        if any(self._is_authorization_error(exc) for _, exc in attempt_errors):
+            auth_exc = next(exc for _, exc in attempt_errors if self._is_authorization_error(exc))
             raise auth_exc
 
-        if all(self._is_signature_or_method_error(exc) for _, _, exc in attempt_errors):
-            attempted = ", ".join(f"{name}({sig})" for name, sig, _ in attempt_errors)
-            raise KWinDBusCaptureError(
-                "KWin ScreenShot2 interface is present but method/signature is incompatible "
-                f"with this Plasma version. Attempted: {attempted}."
-            ) from attempt_errors[-1][2]
-
+        monitor_detail = "not attempted"
+        active_detail = "not attempted"
+        for method_name, exc in attempt_errors:
+            formatted = self._format_exception_details(exc)
+            if method_name == "CaptureScreen":
+                monitor_detail = formatted
+            else:
+                active_detail = formatted
         raise KWinDBusCaptureError(
-            "KWin ScreenShot2 capture failed. "
-            f"Last error: {self._format_exception_details(attempt_errors[-1][2])}"
-        ) from attempt_errors[-1][2]
+            "KWin ScreenShot2 capture failed after monitor and active-screen attempts. "
+            f"CaptureScreen(monitor_id={monitor_id!r}): {monitor_detail}. "
+            f"CaptureActiveScreen: {active_detail}."
+        ) from attempt_errors[-1][1]
 
     async def _capture_reply_via_legacy_interfaces(self):
         bus = await self._get_legacy_bus()
@@ -601,13 +744,12 @@ class KWinDBusScreenshotCapture:
         self,
     ) -> tuple[tuple[str, str, list[Any]], ...]:
         options: dict[str, Any] = {}
-        attempts: list[tuple[str, str, list[Any]]] = []
-
         if self.params.monitor_id:
-            attempts.append(("CaptureScreen", "sa{sv}h", [self.params.monitor_id, options]))
-        else:
-            attempts.append(("CaptureActiveScreen", "a{sv}h", [options]))
-        return tuple(attempts)
+            return (
+                ("CaptureScreen", "sa{sv}h", [self.params.monitor_id, options]),
+                ("CaptureActiveScreen", "a{sv}h", [options]),
+            )
+        return (("CaptureActiveScreen", "a{sv}h", [options]),)
 
     def _raise_screenshot2_error(self, reply: Any) -> None:
         error_name = getattr(reply, "error_name", "org.freedesktop.DBus.Error.Failed")
@@ -715,15 +857,16 @@ class KWinDBusScreenshotCapture:
         return bytes(view[:read_total])
 
     def _candidate_args_for_method(self, method_name: str) -> tuple[tuple[object, ...], ...]:
-        if method_name == "captureScreen" and self.params.monitor_id:
-            return ((self.params.monitor_id,),)
+        if method_name == "captureScreen":
+            if self.params.monitor_id:
+                return ((self.params.monitor_id,), ())
+            return ((),)
 
         if method_name == "screenshotScreen":
             if self.params.monitor_id:
-                return ((self.params.monitor_id,),)
-            return ((0,),)
+                return ((self.params.monitor_id,), (0,), ())
+            return ((0,), ())
 
-        # Most interfaces export a no-arg fullscreen screenshot method.
         return ((),)
 
     def _decode_reply_to_rgb(self, reply: object) -> np.ndarray | None:

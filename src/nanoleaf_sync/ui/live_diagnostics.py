@@ -100,6 +100,25 @@ class LiveDiagnosticsDialog(QDialog):
             self._source_labels[key] = val
         self._content_layout.addWidget(self._source_group)
 
+        self._colour_group = QGroupBox("Colour path")
+        self._colour_grid = QGridLayout()
+        self._colour_group.setLayout(self._colour_grid)
+        colour_fields = [
+            ("Display referred", "_colour_display_referred"),
+            ("Metadata source", "_colour_metadata_source"),
+            ("Gamut adapt skipped", "_colour_skip_gamut"),
+            ("SDR boost compensation", "_colour_sdr_boost"),
+            ("Portal format", "_colour_portal_format"),
+            ("KWin method", "_colour_kwin_method"),
+        ]
+        self._colour_labels: dict[str, QLabel] = {}
+        for row, (label, key) in enumerate(colour_fields):
+            self._colour_grid.addWidget(QLabel(label + ":"), row, 0)
+            val = QLabel("\u2014")
+            self._colour_grid.addWidget(val, row, 1)
+            self._colour_labels[key] = val
+        self._content_layout.addWidget(self._colour_group)
+
         self._pipe_group = QGroupBox("Pipeline")
         self._pipe_grid = QGridLayout()
         self._pipe_group.setLayout(self._pipe_grid)
@@ -287,6 +306,36 @@ class LiveDiagnosticsDialog(QDialog):
         self._cap_labels["_cap_black_conc"].setText(str(s.get("consecutive_black_frames", 0)))
         self._cap_labels["_cap_black_total"].setText(str(s.get("total_black_frames", 0)))
 
+        hdr = s.get("hdr_colour_path")
+        hdr_dict = hdr if isinstance(hdr, dict) else {}
+        colour_diag = s.get("capture_colour_diagnostics")
+        colour_dict = colour_diag if isinstance(colour_diag, dict) else {}
+        capture_source = (
+            colour_dict.get("capture_source")
+            if isinstance(colour_dict.get("capture_source"), dict)
+            else {}
+        )
+        portal_diag = (
+            colour_dict.get("portal") if isinstance(colour_dict.get("portal"), dict) else {}
+        )
+        kwin_diag = colour_dict.get("kwin") if isinstance(colour_dict.get("kwin"), dict) else {}
+        self._colour_labels["_colour_display_referred"].setText(
+            "yes" if bool(hdr_dict.get("display_referred", False)) else "no"
+        )
+        self._colour_labels["_colour_metadata_source"].setText(
+            str(capture_source.get("metadata_source") or hdr_dict.get("source") or "\u2014")
+        )
+        self._colour_labels["_colour_skip_gamut"].setText(
+            "yes" if bool(hdr_dict.get("skip_display_gamut_adaptation", False)) else "no"
+        )
+        self._colour_labels["_colour_sdr_boost"].setText(
+            "on" if bool(hdr_dict.get("sdr_boost_compensation_enabled", False)) else "off"
+        )
+        portal_fmt = portal_diag.get("pixel_format") or hdr_dict.get("portal_negotiated_format")
+        self._colour_labels["_colour_portal_format"].setText(str(portal_fmt or "\u2014"))
+        kwin_method = kwin_diag.get("screenshot2_method") or kwin_diag.get("capture_path_kind")
+        self._colour_labels["_colour_kwin_method"].setText(str(kwin_method or "\u2014"))
+
         self._pipe_labels["_pipe_frames_sent"].setText(str(s.get("frames_sent", 0)))
         self._pipe_labels["_pipe_errors"].setText(str(s.get("consecutive_errors", 0)))
         lm = s.get("latency_measurement")
@@ -362,7 +411,7 @@ class LiveDiagnosticsDialog(QDialog):
             str(s.get("startup_elapsed_ms", 0)) if running else "\u2014"
         )
 
-        zone_diag = s.get("zone_diagnostics", [])
+        zone_diag = s.get("zone_diagnostics") or s.get("zone_diagnostics_preview") or []
         if zone_diag and self._zone_grid is None:
             self._zone_grid = QGridLayout()
             self._zone_layout.insertLayout(0, self._zone_grid)
@@ -371,14 +420,18 @@ class LiveDiagnosticsDialog(QDialog):
                 item = self._zone_grid.takeAt(0)
                 if item and item.widget():
                     item.widget().deleteLater()
-            for col_i, hdr in enumerate(["Zone", "Side", "RGB"]):
+            for col_i, hdr in enumerate(["Zone", "Side", "Candidate", "Sampled", "Final"]):
                 self._zone_grid.addWidget(QLabel(hdr), 0, col_i)
-            for zi, z in enumerate(zone_diag):
+            for zi, z in enumerate(zone_diag[:16]):
                 row = zi + 1
                 self._zone_grid.addWidget(QLabel(str(z.get("zone_index", zi))), row, 0)
                 self._zone_grid.addWidget(QLabel(str(z.get("side", "?"))), row, 1)
-                rgb = z.get("final_output_rgb") or z.get("sampled_rgb") or z.get("rgb")
-                self._zone_grid.addWidget(QLabel(str(rgb or "?")), row, 2)
+                candidate = z.get("selected_candidate") or z.get("selected_algorithm") or "\u2014"
+                self._zone_grid.addWidget(QLabel(str(candidate)), row, 2)
+                sampled = z.get("sampled_rgb")
+                self._zone_grid.addWidget(QLabel(str(sampled or "?")), row, 3)
+                final_rgb = z.get("final_output_rgb") or z.get("rgb")
+                self._zone_grid.addWidget(QLabel(str(final_rgb or "?")), row, 4)
 
         if self._live_only and not running and self._timer.isActive():
             self._timer.stop()

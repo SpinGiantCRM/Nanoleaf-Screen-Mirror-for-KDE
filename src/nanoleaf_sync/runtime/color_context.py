@@ -60,7 +60,7 @@ def _metadata_confidence(metadata: CaptureMetadata) -> MetadataConfidence:
         return "user"
     if source in {"plasma auto", "session fallback"}:
         return "compositor"
-    if source in {"kwin display-referred"}:
+    if source in {"kwin display-referred", "xdg-portal display-referred"}:
         return "heuristic"
     if source:
         return "fallback"

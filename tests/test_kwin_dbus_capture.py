@@ -12,6 +12,7 @@ from nanoleaf_sync.capture.kwin_dbus import (
     KWinDBusCaptureError,
     KWinDBusScreenshotCapture,
     _ScreenShot2Payload,
+    is_kwin_invalid_screen_error,
 )
 
 
@@ -351,11 +352,12 @@ def test_screenshot2_attempts_capture_screen_when_monitor_id_is_set() -> None:
 
     assert attempts[0][0] == "CaptureScreen"
     assert attempts[0][2][0] == "DP-1"
-    assert len(attempts) == 1
+    assert attempts[1][0] == "CaptureActiveScreen"
+    assert len(attempts) == 2
     backend.close()
 
 
-def test_screenshot2_attempts_capture_active_screen_when_monitor_id_is_not_set() -> None:
+def test_screenshot2_attempt_lists_only_active_screen_without_monitor_id() -> None:
     backend = KWinDBusScreenshotCapture(width=480, height=270, monitor_id=None)
 
     attempts = backend._screenshot2_method_attempts()
@@ -625,3 +627,125 @@ def test_close_clears_loop_so_reinit_uses_fresh_loop(monkeypatch) -> None:
         assert backend._loop_thread is not first_thread
     finally:
         backend.close()
+
+
+def test_is_kwin_invalid_screen_error_detects_screenshot2_error_name() -> None:
+    message = "org.kde.KWin.ScreenShot2.Error.InvalidScreen Invalid screen requested"
+    assert is_kwin_invalid_screen_error(message) is True
+
+
+def test_invalid_screen_from_capture_screen_falls_back_to_capture_active_screen(
+    monkeypatch,
+) -> None:
+    backend = KWinDBusScreenshotCapture(width=2, height=1, monitor_id="DP-1")
+    calls: list[str] = []
+
+    async def _fake_invoke(*, method_name: str, **_kwargs):
+        calls.append(method_name)
+        if method_name == "CaptureScreen":
+            raise KWinDBusCaptureError(
+                "org.kde.KWin.ScreenShot2.Error.InvalidScreen Invalid screen requested"
+            )
+        return _ScreenShot2Payload(
+            data=b"\x00" * 8,
+            results={"type": "raw", "width": 2, "height": 1, "stride": 8, "format": 4},
+        )
+
+    monkeypatch.setattr(backend, "_invoke_screenshot2_method", _fake_invoke)
+    monkeypatch.setattr(backend, "_get_screenshot2_bus", lambda: _return(object()))
+    monkeypatch.setattr(backend, "_sync_kwin_owner", lambda _bus: _return(None))
+    monkeypatch.setattr(backend, "_get_screenshot2_introspection", lambda: _return(object()))
+
+    payload = backend._run_async(backend._capture_reply_via_screenshot2())
+
+    assert isinstance(payload, _ScreenShot2Payload)
+    assert calls == ["CaptureScreen", "CaptureActiveScreen"]
+    assert backend.last_capture_diagnostics["invalid_screen_fallback_used"] is True
+    assert backend.last_capture_diagnostics["rejected_monitor_id"] == "DP-1"
+    assert backend.last_capture_diagnostics["screenshot2_method"] == "CaptureActiveScreen"
+    backend.close()
+
+
+def test_capture_screen_non_invalid_error_does_not_fallback_to_active_screen(monkeypatch) -> None:
+    backend = KWinDBusScreenshotCapture(width=2, height=1, monitor_id="DP-1")
+    calls: list[str] = []
+
+    async def _fake_invoke(*, method_name: str, **_kwargs):
+        calls.append(method_name)
+        raise KWinDBusCaptureError("org.freedesktop.DBus.Error.Failed capture failed")
+
+    monkeypatch.setattr(backend, "_invoke_screenshot2_method", _fake_invoke)
+    monkeypatch.setattr(backend, "_get_screenshot2_bus", lambda: _return(object()))
+    monkeypatch.setattr(backend, "_sync_kwin_owner", lambda _bus: _return(None))
+    monkeypatch.setattr(backend, "_get_screenshot2_introspection", lambda: _return(object()))
+
+    with pytest.raises(KWinDBusCaptureError, match="CaptureScreen failed"):
+        backend._run_async(backend._capture_reply_via_screenshot2())
+
+    assert calls == ["CaptureScreen"]
+    backend.close()
+
+
+def test_screenshot2_error_mentions_both_attempts_when_active_screen_also_fails(
+    monkeypatch,
+) -> None:
+    backend = KWinDBusScreenshotCapture(width=2, height=1, monitor_id="DP-1")
+
+    async def _fake_invoke(*, method_name: str, **_kwargs):
+        if method_name == "CaptureScreen":
+            raise KWinDBusCaptureError(
+                "org.kde.KWin.ScreenShot2.Error.InvalidScreen Invalid screen requested"
+            )
+        raise KWinDBusCaptureError("org.freedesktop.DBus.Error.Failed active failed")
+
+    monkeypatch.setattr(backend, "_invoke_screenshot2_method", _fake_invoke)
+    monkeypatch.setattr(backend, "_get_screenshot2_bus", lambda: _return(object()))
+    monkeypatch.setattr(backend, "_sync_kwin_owner", lambda _bus: _return(None))
+    monkeypatch.setattr(backend, "_get_screenshot2_introspection", lambda: _return(object()))
+
+    with pytest.raises(
+        KWinDBusCaptureError, match="monitor and active-screen attempts"
+    ) as exc_info:
+        backend._run_async(backend._capture_reply_via_screenshot2())
+
+    message = str(exc_info.value)
+    assert "CaptureScreen" in message
+    assert "CaptureActiveScreen" in message
+    assert "DP-1" in message
+    backend.close()
+
+
+def test_legacy_capture_retries_without_monitor_args(monkeypatch) -> None:
+    backend = KWinDBusScreenshotCapture(width=2, height=1, monitor_id="DP-1")
+    seen: list[tuple[str, tuple[object, ...]]] = []
+
+    class _Iface:
+        async def call_captureScreen(self, *args):
+            seen.append(("captureScreen", args))
+            if args:
+                raise RuntimeError("invalid screen")
+            return "legacy-ok"
+
+    class _Proxy:
+        def get_interface(self, _name):
+            return _Iface()
+
+    class _Bus:
+        async def introspect(self, _bus_name, _path):
+            return object()
+
+        def get_proxy_object(self, _bus_name, _path, _intro):
+            return _Proxy()
+
+    async def _fake_get_legacy_bus():
+        return _Bus()
+
+    monkeypatch.setattr(backend, "_get_legacy_bus", _fake_get_legacy_bus)
+    monkeypatch.setattr(backend, "_sync_kwin_owner", lambda _bus: _return(None))
+
+    reply = backend._run_async(backend._capture_reply_via_legacy_interfaces())
+
+    assert reply == "legacy-ok"
+    assert ("captureScreen", ("DP-1",)) in seen
+    assert ("captureScreen", ()) in seen
+    backend.close()
