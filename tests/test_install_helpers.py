@@ -26,8 +26,8 @@ def test_arch_publish_metadata_pins_source_checksum() -> None:
 
     assert "sha256sums=('SKIP')" not in pkgbuild
     assert "\tsha256sums = SKIP" not in srcinfo
-    assert "d3dbf610dd258ef591f734219168c32c5da14211a736eaedbd0426687b8f46f2" in pkgbuild
-    assert "d3dbf610dd258ef591f734219168c32c5da14211a736eaedbd0426687b8f46f2" in srcinfo
+    assert "6978f5d242c78fc1d209edb5479e1888a357996fb2525c7eb187b1ccae6da92c" in pkgbuild
+    assert "6978f5d242c78fc1d209edb5479e1888a357996fb2525c7eb187b1ccae6da92c" in srcinfo
     assert "Do not publish AUR metadata with `sha256sums=('SKIP')`" in docs
     assert "v1.0.0 note" not in docs
 
