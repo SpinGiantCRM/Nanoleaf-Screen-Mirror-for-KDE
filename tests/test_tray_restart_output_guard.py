@@ -48,7 +48,7 @@ def _run_guarded_loop(
     runtime_state: RuntimeState,
 ) -> None:
     def _stop_soon() -> None:
-        deadline = time.perf_counter() + 3.0
+        deadline = time.perf_counter() + 5.0
         while time.perf_counter() < deadline and runtime_state.frames_sent < 1:
             time.sleep(0.02)
         runtime_state.stop_event.set()

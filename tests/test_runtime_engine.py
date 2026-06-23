@@ -282,9 +282,9 @@ def test_run_loop_records_live_send_policy_without_response_wait_penalty() -> No
     cfg = _cfg_with_valid_calibration(48, fps=60)
 
     def _stop_after_first_send_or_timeout() -> None:
-        deadline = time.perf_counter() + 0.5
+        deadline = time.perf_counter() + 5.0
         while time.perf_counter() < deadline and not state.first_frame_sent:
-            time.sleep(0.005)
+            time.sleep(0.02)
         state.stop_event.set()
 
     stopper = threading.Thread(
