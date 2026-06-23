@@ -21,7 +21,7 @@ install='nanoleaf-kde-sync.install'
 source=(
   "$pkgname-$pkgver.tar.gz::https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/archive/refs/tags/v$pkgver.tar.gz"
 )
-sha256sums=('98f34391027a80d4e0b11a512ee6cf6d55b8e59b4b3972269dbdc5921f8f794b')
+sha256sums=('d3dbf610dd258ef591f734219168c32c5da14211a736eaedbd0426687b8f46f2')
 
 build() {
   cd "Nanoleaf-Screen-Mirror-for-KDE-$pkgver"
