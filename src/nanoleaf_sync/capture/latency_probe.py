@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections import deque
 from dataclasses import dataclass
 from statistics import median
@@ -136,7 +137,7 @@ class LatencyProbe:
             if value is None:
                 continue
             value_f = float(value)
-            if value_f < 0.0:
+            if math.isnan(value_f) or value_f < 0.0:
                 continue
             self._samples[stage].append(value_f)
             seen_any = True

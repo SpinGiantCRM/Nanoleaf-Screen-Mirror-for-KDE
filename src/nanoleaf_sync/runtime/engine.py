@@ -514,13 +514,12 @@ def _clear_pipeline_temporal_state(
     capture_buf: SPSCRingBuffer[CapturePayload] | None = None,
     process_buf: SPSCRingBuffer[ProcessedPayload] | None = None,
     metadata_tracker: MetadataHysteresisTracker | None = None,
+    from_supervisory: bool = False,
 ) -> None:
+    del capture_buf, process_buf
     state.clear_smoothing_history()
     state.smoothing_dimension_signature = None
-    if capture_buf is not None:
-        capture_buf.clear()
-    if process_buf is not None:
-        process_buf.clear()
+    state.request_pipeline_buffer_clear()
     if metadata_tracker is not None:
         metadata_tracker.reset()
 
@@ -666,8 +665,8 @@ def _run_loop_pipeline(
 
     # Process buffer keeps a small latest-frame window so HID pressure does not
     # force the processing worker to wait behind stale frames.
-    capture_buf: SPSCRingBuffer[CapturePayload] = SPSCRingBuffer(capacity=2)
-    process_buf: SPSCRingBuffer[ProcessedPayload] = SPSCRingBuffer(capacity=4)
+    capture_buf: SPSCRingBuffer[CapturePayload] = SPSCRingBuffer(capacity=4)
+    process_buf: SPSCRingBuffer[ProcessedPayload] = SPSCRingBuffer(capacity=8)
 
     # ---- shared cross-thread metrics (lock-protected) -------------------
     metrics_lock = threading.Lock()
@@ -708,12 +707,15 @@ def _run_loop_pipeline(
         with metrics_lock:
             capture_worker_active = True
         while not state.stop_event.is_set():
-            state.reinit_pause.wait(timeout=0.001)
+            if state.reinit_pause.is_set() or state.is_reinitializing:
+                state.capture_worker_idle.set()
+                time.sleep(0.001)
+                continue
+            state.capture_worker_idle.set()
+            if state.take_capture_buf_clear_request():
+                capture_buf.clear()
             try:
-                if state.is_reinitializing:
-                    time.sleep(0.001)
-                    continue
-                with metrics_lock:
+                with gov_lock:
                     gap_ewma = hid_output_work_ewma_ms
                     target_fps_now = min(
                         max(1, int(getattr(config, "fps", 60))),
@@ -730,8 +732,10 @@ def _run_loop_pipeline(
                         continue
                 cap = get_capture()
                 if cap is None:
+                    state.capture_worker_idle.set()
                     time.sleep(0.001)
                     continue
+                state.capture_worker_idle.clear()
                 backend_name = str(getattr(cap, "name", "unknown"))
                 backend_method = str(getattr(cap, "last_capture_path", "") or "")
                 capture_start = time.perf_counter()
@@ -844,11 +848,14 @@ def _run_loop_pipeline(
         nonlocal process_worker_error, process_worker_error_count, frame_seq
         apply_current_thread_priority(config=config, state=state, thread_label="process worker")
         while not state.stop_event.is_set():
-            state.reinit_pause.wait(timeout=0.001)
+            if state.reinit_pause.is_set() or state.is_reinitializing:
+                state.process_worker_idle.set()
+                time.sleep(0.001)
+                continue
+            state.process_worker_idle.set()
+            if state.take_process_buf_clear_request():
+                process_buf.clear()
             try:
-                if state.is_reinitializing:
-                    time.sleep(0.001)
-                    continue
                 payload = capture_buf.pop_latest(timeout=_WORKER_POLL_INTERVAL_S)
                 if payload is None:
                     continue
@@ -874,23 +881,27 @@ def _run_loop_pipeline(
                 else:
                     continue
 
-                state.latest_frame_mean_brightness = mean_brightness
+                should_clear_smoothing = state.record_frame_brightness(
+                    mean_brightness,
+                    max_short_hold=_SHORT_BLACK_HOLD_MAX_FRAMES,
+                )
                 if mean_brightness < 2.0:
-                    state.consecutive_black_frames += 1
-                    state.total_black_frames += 1
-                    if state.consecutive_black_frames % 60 == 0:
+                    black_count = state.consecutive_black_frame_count()
+                    degrade_level = state.sync_black_frame_degradation(black_count)
+                    if degrade_level >= 1 and state.first_frame_sent:
+                        state.process_worker_idle.set()
+                        continue
+                    if black_count > 0 and black_count % 60 == 0:
                         logger.warning(
                             "All-black frames: %d consecutive, "
                             "backend=%s, method=%s, mean_brightness=%.2f",
-                            state.consecutive_black_frames,
+                            black_count,
                             latest_capture_backend_name,
                             latest_capture_backend_method,
                             mean_brightness,
                         )
-                else:
-                    if state.consecutive_black_frames > _SHORT_BLACK_HOLD_MAX_FRAMES:
-                        state.clear_smoothing_history()
-                    state.consecutive_black_frames = 0
+                elif should_clear_smoothing:
+                    state.clear_smoothing_history()
 
                 dimension_signature = (int(img_w), int(img_h))
                 if (
@@ -902,7 +913,9 @@ def _run_loop_pipeline(
 
                 driver = get_driver()
                 if driver is None:
+                    state.process_worker_idle.set()
                     continue
+                state.process_worker_idle.clear()
 
                 detected_zones = getattr(
                     driver,
@@ -1020,7 +1033,7 @@ def _run_loop_pipeline(
                         frame_context = replace(frame_context, source=source)
                     color_context = color_context_from_display_source(source)
                     skip_gamut = bool(color_context.skip_display_gamut_adaptation)
-                    state.skip_display_gamut_adaptation = skip_gamut
+                    state.set_skip_display_gamut_adaptation(skip_gamut)
                     capture_display_referred = bool(color_context.display_referred)
                     identity, identity_changed = source_identity_tracker.observe(
                         source,
@@ -1048,8 +1061,8 @@ def _run_loop_pipeline(
                 elif cap_backend is not None:
                     hdr_diag = getattr(cap_backend, "last_hdr_diagnostics", None) or {}
                     if isinstance(hdr_diag, dict):
-                        state.skip_display_gamut_adaptation = bool(
-                            hdr_diag.get("skip_display_gamut_adaptation", False)
+                        state.set_skip_display_gamut_adaptation(
+                            bool(hdr_diag.get("skip_display_gamut_adaptation", False))
                         )
                         capture_display_referred = capture_display_referred or bool(
                             hdr_diag.get("tone_mapping_applied", False)
@@ -1087,14 +1100,16 @@ def _run_loop_pipeline(
                 light_spread = pipeline_params.light_spread
                 if state.flattening_mitigation_active:
                     light_spread = "off"
+                with state._lock:
+                    prev_sent_snapshot = list(state.prev_sent_colors)
+                    prev_smooth_snapshot = list(state.prev_smooth_float_colors)
+                    prev_smoothed_snapshot = list(state.prev_smoothed_colors)
                 processed = process_frame(
                     frame=frame,
                     precomputed_zone_colors=precomputed_zone_colors,
-                    prev_smoothed_colors=state.prev_sent_colors or state.prev_smoothed_colors,
-                    prev_smooth_float_colors=(
-                        state.prev_smooth_float_colors or state.prev_smoothed_colors
-                    ),
-                    prev_sent_colors=state.prev_sent_colors or state.prev_smoothed_colors,
+                    prev_smoothed_colors=prev_sent_snapshot or prev_smoothed_snapshot,
+                    prev_smooth_float_colors=prev_smooth_snapshot or prev_smoothed_snapshot,
+                    prev_sent_colors=prev_sent_snapshot or prev_smoothed_snapshot,
                     zones_px=zones_px,
                     device_zone_indices=device_zone_indices,  # type: ignore[arg-type]
                     compositor_hdr_mode=pipeline_params.compositor_hdr_mode,
@@ -1141,11 +1156,11 @@ def _run_loop_pipeline(
 
                 if (
                     mean_brightness < 2.0
-                    and 0 < state.consecutive_black_frames <= _SHORT_BLACK_HOLD_MAX_FRAMES
-                    and state.prev_sent_colors
+                    and 0 < state.consecutive_black_frame_count() <= _SHORT_BLACK_HOLD_MAX_FRAMES
+                    and prev_sent_snapshot
                     and state.first_frame_sent
                 ):
-                    smoothed_colors = [list(row) for row in state.prev_sent_colors]
+                    smoothed_colors = [tuple(row) for row in prev_sent_snapshot]
 
                 state.predictive_sync_active = bool(
                     getattr(processing_timings, "predictive_sync_active", False)
@@ -1303,11 +1318,12 @@ def _run_loop_pipeline(
         idle_poll_ms = _WORKER_POLL_INTERVAL_S * 1000.0
 
         while not state.stop_event.is_set():
-            state.reinit_pause.wait(timeout=0.001)
+            if state.reinit_pause.is_set() or state.is_reinitializing:
+                state.hid_worker_idle.set()
+                time.sleep(0.001)
+                continue
+            state.hid_worker_idle.set()
             try:
-                if state.is_reinitializing:
-                    time.sleep(0.001)
-                    continue
                 payload = process_buf.pop_latest(timeout=_WORKER_POLL_INTERVAL_S)
                 coalesced_sends = int(process_buf.last_pop_coalesced)
                 now = time.perf_counter()
@@ -1353,10 +1369,13 @@ def _run_loop_pipeline(
 
                 driver = get_driver()
                 if driver is None:
+                    state.hid_worker_idle.set()
                     continue
                 if can_mirroring_write is not None and not can_mirroring_write():
                     state.output_owner_dropped_frames += 1
+                    state.hid_worker_idle.set()
                     continue
+                state.hid_worker_idle.clear()
 
                 pace_fps = min(
                     max(1, int(getattr(config, "fps", 60))),
@@ -1650,14 +1669,15 @@ def _run_loop_pipeline(
                 )
 
                 state.record_success()
-                if payload.smooth_float_history:
-                    state.prev_smooth_float_colors = [
-                        tuple(float(c) for c in row) for row in payload.smooth_float_history
+                with state._lock:
+                    if payload.smooth_float_history:
+                        state.prev_smooth_float_colors = [
+                            tuple(float(c) for c in row) for row in payload.smooth_float_history
+                        ]
+                    state.prev_sent_colors = [
+                        tuple(int(c) for c in row) for row in payload.smoothed_colors
                     ]
-                state.prev_sent_colors = [
-                    tuple(int(c) for c in row) for row in payload.smoothed_colors
-                ]
-                state.prev_smoothed_colors = list(state.prev_sent_colors)
+                    state.prev_smoothed_colors = list(state.prev_sent_colors)
                 state.first_frame_sent = True
                 state.startup_elapsed_ms = max(
                     0.0,
@@ -1672,7 +1692,7 @@ def _run_loop_pipeline(
 
                 # ---- adaptive FPS governor -----------------------------
                 previous_target = governor.target_fps
-                governor.record_frame(capture_to_send_ms)
+                governor.record_frame(actual_work_ms)
                 with gov_lock:
                     state.target_fps = governor.target_fps
                 state.governor_p95_latency_ms = float(
@@ -1714,7 +1734,7 @@ def _run_loop_pipeline(
                         "service_tick seq=%s fps=%s elapsed_ms=%.2f "
                         "zones=%s errors=%s send_fps=%.1f "
                         "capture_to_send_ms=%.2f dropped_frames=%s",
-                        frame_seq,
+                        payload.frame_context.frame_seq if payload.frame_context else frame_seq,
                         governor.target_fps,
                         actual_work_ms,
                         last_sent_zone_count,
@@ -1820,16 +1840,22 @@ def _run_loop_pipeline(
                         capture_buf=capture_buf,
                         process_buf=process_buf,
                         metadata_tracker=metadata_tracker,
+                        from_supervisory=True,
                     )
                     with metrics_lock:
                         capture_worker_failures = 0
                         capture_worker_error_count = 0
                         process_worker_error_count = 0
-            sustained_black_frames = 120
-            if (
-                state.consecutive_black_frames >= sustained_black_frames
-                and state.consecutive_black_frames % sustained_black_frames == 0
-            ):
+            black_count = state.consecutive_black_frame_count()
+            degrade_level = state.sync_black_frame_degradation(black_count)
+            if degrade_level >= 2 and black_count >= 120 and black_count % 120 == 0:
+                logger.warning(
+                    "Sustained all-black capture (%d frames, degrade=%d); "
+                    "skipping processing until capture recovers",
+                    black_count,
+                    degrade_level,
+                )
+            if state.take_black_frame_count_if_at_least(300):
                 backoff_s = max(
                     0.0,
                     float(getattr(config, "reinit_backoff_ms", 500)) / 1000.0,
@@ -1841,8 +1867,7 @@ def _run_loop_pipeline(
                     now_ts=now,
                 ):
                     logger.warning(
-                        "Sustained all-black capture (%d frames); reinitializing backends",
-                        state.consecutive_black_frames,
+                        "Sustained all-black capture (>=300 frames); reinitializing backends"
                     )
                     reinitialize_backends(
                         install_drivers=install_drivers,
@@ -1854,16 +1879,18 @@ def _run_loop_pipeline(
                         capture_buf=capture_buf,
                         process_buf=process_buf,
                         metadata_tracker=metadata_tracker,
+                        from_supervisory=True,
                     )
-                    state.consecutive_black_frames = 0
     for t in threads:
-        t.join(timeout=3.0)
+        t.join(timeout=5.0)
         if t.is_alive():
             logger.warning(
-                "%s thread did not exit within shutdown timeout (3s); "
+                "%s thread did not exit within shutdown timeout (5s); "
                 "it may still be blocked in IO",
                 t.name,
             )
+            state.stop_event.set()
+            t.join(timeout=2.0)
 
     capture_dropped_delta = capture_buf.dropped_count()
     capture_buf.reset_dropped()

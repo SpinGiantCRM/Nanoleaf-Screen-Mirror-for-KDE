@@ -126,7 +126,7 @@ class SourceIdentityTracker:
             session_generation=self.session_generation,
             hdr_metadata_confidence=hdr_metadata_confidence,
         )
-        changed = False
+        changed = self.last_identity is None and self.session_generation > 0
         if (
             self.last_identity is not None
             and self.last_identity.fingerprint() != identity.fingerprint()

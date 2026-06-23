@@ -126,7 +126,8 @@ def test_slider_readouts_bind_live_value_updates() -> None:
     assert "self.smoothing_slider.valueChanged" in text
     assert "self.fps_slider.valueChanged" in text
     assert "self.hdr_max_nits_slider.valueChanged" in text
-    assert "self.black_luminance_knee_slider.valueChanged" in text
+    assert "self.black_luminance_knee_slider" in text
+    assert "slider.valueChanged.connect(self._refresh_preview_label)" in text
     assert "signal.connect(self._refresh_numeric_labels)" in text
 
 

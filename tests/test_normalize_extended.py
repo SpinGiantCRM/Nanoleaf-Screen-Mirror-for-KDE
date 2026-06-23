@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.config.normalize import (
+    SCHEMA_VERSION,
     ConfigValidationError,
     _coerce_int,
     coerce_bool,
@@ -137,7 +138,7 @@ def test_normalize_wizard_state_sorts_keys() -> None:
 
 def test_migrate_config_dict_empty() -> None:
     result = migrate_config_dict({})
-    assert result["schema_version"] == 1
+    assert result["schema_version"] == 2
     assert "calibration" in result
     assert result["calibration"]["schema_version"] == 1
     assert result["calibration"]["calibration_model"] == "corner_anchored"
@@ -161,18 +162,29 @@ def test_migrate_config_dict_adds_calibration_model() -> None:
 
 
 def test_validate_config_schema_version_0_migrates() -> None:
-    """Config with schema_version=0 should be migrated to version 1."""
+    """Config with schema_version=0 should be migrated to the current schema."""
     cfg = AppConfig(schema_version=0, fps=30)
     result = validate_config(cfg)
-    assert result.schema_version == 1
+    assert result.schema_version == SCHEMA_VERSION
     assert result.fps == 30
+
+
+def test_validate_config_schema_version_1_preserves_device_zone_count_raw() -> None:
+    cfg = AppConfig(
+        schema_version=1,
+        device_zone_count=48,
+        calibration=CalibrationConfig(device_zone_count=48),
+    )
+    result = validate_config(cfg)
+    assert result.schema_version == SCHEMA_VERSION
+    assert result.device_zone_count_raw == 48
 
 
 def test_validate_config_already_current() -> None:
     """Config already at current schema should not change version."""
-    cfg = AppConfig(schema_version=1, fps=60)
+    cfg = AppConfig(schema_version=SCHEMA_VERSION, fps=60)
     result = validate_config(cfg)
-    assert result.schema_version == 1
+    assert result.schema_version == SCHEMA_VERSION
 
 
 def test_validate_config_coerces_brightness() -> None:

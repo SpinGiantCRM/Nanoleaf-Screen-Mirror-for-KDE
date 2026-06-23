@@ -120,6 +120,18 @@ class RuntimeState:
     smoothing_dimension_signature: tuple[int, int] | None = None
     dark_zone_stabilize_hold: list[bool] = field(default_factory=list)
     portal_selection_started_at: float | None = None
+    black_frame_degrade_level: int = 0
+    request_capture_buf_clear: bool = False
+    request_process_buf_clear: bool = False
+    capture_worker_idle: threading.Event = field(
+        default_factory=threading.Event, repr=False, compare=False
+    )
+    process_worker_idle: threading.Event = field(
+        default_factory=threading.Event, repr=False, compare=False
+    )
+    hid_worker_idle: threading.Event = field(
+        default_factory=threading.Event, repr=False, compare=False
+    )
 
     def _assert_locked(self) -> None:
         if not self._lock.locked():
@@ -207,6 +219,12 @@ class RuntimeState:
         self.smoothing_dimension_signature = None
         self.dark_zone_stabilize_hold = []
         self.portal_selection_started_at = None
+        self.black_frame_degrade_level = 0
+        self.request_capture_buf_clear = False
+        self.request_process_buf_clear = False
+        self.capture_worker_idle.set()
+        self.process_worker_idle.set()
+        self.hid_worker_idle.set()
 
     def clear_smoothing_history(self) -> None:
         self.prev_smoothed_colors = []
@@ -268,13 +286,14 @@ class RuntimeState:
         reason: str,
     ) -> None:
         now = time.perf_counter()
-        self.stale_output_dropped_frames += 1
-        self.last_stale_frame_age_ms = float(frame_age_ms)
-        self.max_send_age_ms = float(max_send_age_ms)
-        self.stale_drop_reason = str(reason or "")
-        if self.stale_drop_window_started_at <= 0.0:
-            self.stale_drop_window_started_at = now
-        self.stale_drop_window_events += 1
+        with self._lock:
+            self.stale_output_dropped_frames += 1
+            self.last_stale_frame_age_ms = float(frame_age_ms)
+            self.max_send_age_ms = float(max_send_age_ms)
+            self.stale_drop_reason = str(reason or "")
+            if self.stale_drop_window_started_at <= 0.0:
+                self.stale_drop_window_started_at = now
+            self.stale_drop_window_events += 1
 
     def stale_drop_rate_per_second(self) -> float:
         started = float(self.stale_drop_window_started_at or 0.0)
@@ -288,22 +307,102 @@ class RuntimeState:
         self.startup_complete.set()
 
     def record_success(self) -> None:
-        self.consecutive_errors = 0
-        self.last_error = None
-        self.last_error_kind = None
-        self.last_error_guidance = None
-        self.frames_sent += 1
-        self.last_frame_timestamp = time.time()
+        with self._lock:
+            self.consecutive_errors = 0
+            self.last_error = None
+            self.last_error_kind = None
+            self.last_error_guidance = None
+            self.frames_sent += 1
+            self.last_frame_timestamp = time.time()
 
     def record_error(self, error: Exception) -> int:
         from nanoleaf_sync.runtime.errors import translate_runtime_error
 
         translated = translate_runtime_error(error)
-        self.consecutive_errors += 1
-        self.last_error = translated.summary
-        self.last_error_kind = translated.kind
-        self.last_error_guidance = translated.guidance
-        return self.consecutive_errors
+        with self._lock:
+            self.consecutive_errors += 1
+            self.last_error = translated.summary
+            self.last_error_kind = translated.kind
+            self.last_error_guidance = translated.guidance
+            return self.consecutive_errors
+
+    def record_frame_brightness(self, mean_brightness: float, *, max_short_hold: int = 6) -> bool:
+        with self._lock:
+            self.latest_frame_mean_brightness = mean_brightness
+            if mean_brightness < 2.0:
+                self.consecutive_black_frames += 1
+                self.total_black_frames += 1
+                return False
+            should_clear_smoothing = self.consecutive_black_frames > max_short_hold
+            self.consecutive_black_frames = 0
+            return should_clear_smoothing
+
+    def consecutive_black_frame_count(self) -> int:
+        with self._lock:
+            return self.consecutive_black_frames
+
+    def reset_black_frame_count(self) -> None:
+        with self._lock:
+            self.consecutive_black_frames = 0
+
+    def take_black_frame_count_if_at_least(self, threshold: int) -> bool:
+        with self._lock:
+            if self.consecutive_black_frames >= threshold:
+                self.consecutive_black_frames = 0
+                return True
+            return False
+
+    def sync_black_frame_degradation(self, count: int | None = None) -> int:
+        with self._lock:
+            frame_count = int(self.consecutive_black_frames if count is None else count)
+            if frame_count < 30:
+                self.black_frame_degrade_level = 0
+            elif frame_count < 120:
+                self.black_frame_degrade_level = 1
+            elif frame_count < 300:
+                self.black_frame_degrade_level = 2
+            else:
+                self.black_frame_degrade_level = 3
+            return self.black_frame_degrade_level
+
+    def black_frame_degrade_level_value(self) -> int:
+        with self._lock:
+            return int(self.black_frame_degrade_level)
+
+    def request_pipeline_buffer_clear(self) -> None:
+        with self._lock:
+            self.request_capture_buf_clear = True
+            self.request_process_buf_clear = True
+
+    def take_capture_buf_clear_request(self) -> bool:
+        with self._lock:
+            if self.request_capture_buf_clear:
+                self.request_capture_buf_clear = False
+                return True
+            return False
+
+    def take_process_buf_clear_request(self) -> bool:
+        with self._lock:
+            if self.request_process_buf_clear:
+                self.request_process_buf_clear = False
+                return True
+            return False
+
+    def wait_for_worker_idle(self, *, timeout_s: float) -> None:
+        deadline = time.perf_counter() + max(0.0, float(timeout_s))
+        for event in (
+            self.capture_worker_idle,
+            self.process_worker_idle,
+            self.hid_worker_idle,
+        ):
+            remaining = deadline - time.perf_counter()
+            if remaining <= 0.0:
+                break
+            event.wait(timeout=remaining)
+
+    def set_skip_display_gamut_adaptation(self, skip: bool) -> None:
+        with self._lock:
+            self.skip_display_gamut_adaptation = bool(skip)
 
     def status_snapshot(
         self,

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
-from nanoleaf_sync.config.normalize import validate_config
+from nanoleaf_sync.config.normalize import SCHEMA_VERSION, validate_config
 from nanoleaf_sync.config.store import ConfigManager, mode_config
 
 
@@ -260,6 +260,17 @@ def test_save_lock_is_released_after_save(tmp_path: Path) -> None:
             fcntl.flock(fd, fcntl.LOCK_UN)
         finally:
             os.close(fd)
+
+
+def test_load_backs_up_config_before_schema_migration(tmp_path: Path) -> None:
+    path = tmp_path / "config.toml"
+    path.write_text("schema_version = 1\ndevice_zone_count = 48\n", encoding="utf-8")
+    mgr = ConfigManager(path=path)
+    loaded = mgr.load()
+    backup_path = path.with_suffix(path.suffix + ".bak")
+    assert backup_path.exists()
+    assert loaded.schema_version == SCHEMA_VERSION
+    assert loaded.device_zone_count_raw == 48
 
 
 def test_save_overwrite_existing(tmp_path: Path) -> None:

@@ -1064,9 +1064,6 @@ class NanoleafTrayApp:
             self.config = dlg.updated_config()
             self.cfg_mgr.save(self.config)
             settings_saved = True
-        elif settings_saved:
-            self.config = dlg.updated_config()
-            self.cfg_mgr.save(self.config)
 
         if was_running and (settings_saved or was_paused_by_preview):
             self._restart_mirroring_service(was_running=True)

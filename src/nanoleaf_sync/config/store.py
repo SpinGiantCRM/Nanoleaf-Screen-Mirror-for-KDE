@@ -17,6 +17,7 @@ from dacite import from_dict
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.config.normalize import (
+    SCHEMA_VERSION,
     ConfigValidationError,
     migrate_config_dict,
     validate_config,
@@ -105,6 +106,23 @@ class ConfigManager:
                 )
             self._config = AppConfig()
             return self._config
+        schema_version = int(data.get("schema_version", 0) or 0)
+        if schema_version < SCHEMA_VERSION and self.path.exists():
+            backup_path = self.path.with_suffix(self.path.suffix + ".bak")
+            try:
+                shutil.copy2(self.path, backup_path)
+                logger.info(
+                    "Backed up config to %s before schema migration %d -> %d",
+                    backup_path,
+                    schema_version,
+                    SCHEMA_VERSION,
+                )
+            except OSError as copy_exc:
+                logger.warning(
+                    "Could not back up config before migration at %s: %s",
+                    self.path,
+                    copy_exc,
+                )
         raw_use_mock_capture = bool(data.get("use_mock_capture", False))
         migrated_data = migrate_config_dict(data)
         try:

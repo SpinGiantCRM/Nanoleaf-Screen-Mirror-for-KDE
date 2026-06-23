@@ -8,6 +8,7 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
 from nanoleaf_sync.runtime.calibration_resolver import (
     CalibrationMappingSnapshot,
+    evaluate_device_zone_authority,
     resolve_calibration_mapping,
 )
 from nanoleaf_sync.ui.calibration_preview import (
@@ -96,6 +97,9 @@ class CalibrationState:
     source_zones_user_configured: bool = False
     source_side_counts: list[int] = field(default_factory=list)
 
+    device_zone_count_source: str = ""
+    device_zone_override_active: bool = False
+
     calibration_model: str = "corner_anchored"
 
     @classmethod
@@ -105,16 +109,21 @@ class CalibrationState:
         layout_preset = str(getattr(cfg, "layout_preset", "edge_strip"))
         source_zone_count = len(cfg.zones) if cfg.zones else 0
         source_zones_user_configured = bool(cfg.zones)
-        configured_device_zone_count = int(getattr(calibration, "device_zone_count", 0))
-        if configured_device_zone_count <= 0:
-            configured_device_zone_count = int(getattr(cfg, "device_zone_count", 0))
-        detected = int(runtime_status.get("device_zone_count") or 0)
-        if layout_preset == "edge_strip" and configured_device_zone_count > 0:
-            source_zone_count = configured_device_zone_count
+        detected = int(runtime_status.get("detected_device_zone_count") or 0)
+        if detected <= 0:
+            detected = int(runtime_status.get("device_zone_count") or 0)
+        zone_authority = evaluate_device_zone_authority(
+            config=cfg,
+            detected_device_zone_count=detected if detected > 0 else None,
+        )
+        effective_device_zone_count = int(zone_authority.effective_device_zone_count)
+        configured_device_zone_count = int(zone_authority.configured_device_zone_count)
+        if layout_preset == "edge_strip" and effective_device_zone_count > 0:
+            source_zone_count = effective_device_zone_count
             source_zones_user_configured = False
         if source_zone_count <= 0:
-            if configured_device_zone_count > 0:
-                source_zone_count = configured_device_zone_count
+            if effective_device_zone_count > 0:
+                source_zone_count = effective_device_zone_count
             else:
                 source_zone_count = DEFAULT_DERIVED_ZONE_COUNT
         if configured_device_zone_count <= 0:
@@ -124,7 +133,7 @@ class CalibrationState:
             zone_count=max(1, int(source_zone_count)),
             layout_preset=layout_preset,
             reverse_zones=bool(getattr(calibration, "reverse_zones", False)),
-            device_zone_count=max(1, int(configured_device_zone_count)),
+            device_zone_count=max(1, int(effective_device_zone_count)),
             corner_anchor_top_left=int(getattr(calibration, "corner_anchor_top_left", -1)),
             corner_anchor_top_right=int(getattr(calibration, "corner_anchor_top_right", -1)),
             corner_anchor_bottom_right=int(getattr(calibration, "corner_anchor_bottom_right", -1)),
@@ -134,6 +143,8 @@ class CalibrationState:
             source_side_counts=[
                 int(v) for v in (getattr(cfg, "source_side_counts", None) or [])[:4]
             ],
+            device_zone_count_source=str(zone_authority.device_zone_count_source or ""),
+            device_zone_override_active=bool(zone_authority.override_active),
             calibration_model="corner_anchored",
         )
 
@@ -177,6 +188,13 @@ class CalibrationState:
         )
 
     def auto_detection_status(self) -> str:
+        if self.device_zone_override_active:
+            return (
+                f"Using manual strip zone count {self.device_zone_count} "
+                f"(override active; source={self.device_zone_count_source or 'configured'})."
+            )
+        if self.device_zone_count_source == "detected-usb":
+            return f"Using USB-reported strip zone count {self.device_zone_count}."
         return (
             f"Using manual strip zone count {self.device_zone_count}."
             if int(self.device_zone_count) > 0

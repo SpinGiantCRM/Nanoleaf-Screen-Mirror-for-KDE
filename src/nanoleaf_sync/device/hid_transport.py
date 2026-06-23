@@ -5,6 +5,7 @@ import logging
 import re
 import subprocess
 import sys
+import threading
 import time
 from collections.abc import Sequence
 from pathlib import Path
@@ -58,6 +59,7 @@ class HIDTransport:
         self.use_report_id_prefix = bool(use_report_id_prefix)
         self._handle: object | None = None
         self._ack_latency_ewma_ms: float = 0.0
+        self._io_lock = threading.RLock()
 
     @staticmethod
     def _fmt_path(value: Any) -> str:
@@ -472,10 +474,11 @@ class HIDTransport:
     def write_with_timing(
         self, report: bytes | bytearray | memoryview | Sequence[int]
     ) -> dict[str, int | float | list[int] | list[float] | bool | str]:
-        if self._handle is None:
-            raise RuntimeError("HID transport not opened.")
-        payload = bytes(report)
-        return self._write_payload(payload)
+        with self._io_lock:
+            if self._handle is None:
+                raise RuntimeError("HID transport not opened.")
+            payload = bytes(report)
+            return self._write_payload(payload)
 
     def read(self) -> bytes:
         if self._handle is None:
@@ -582,9 +585,15 @@ class HIDTransport:
             resolved = 25
         if target_fps is not None and int(target_fps) >= 120:
             resolved = min(resolved, 15)
-        return max(1, resolved)
+        return max(10, resolved)
 
     def transceive_with_timing(
+        self, request: bytes, *, target_fps: int | None = None
+    ) -> tuple[bytes, dict[str, int | float | list[int] | list[float] | bool | str]]:
+        with self._io_lock:
+            return self._transceive_with_timing_locked(request, target_fps=target_fps)
+
+    def _transceive_with_timing_locked(
         self, request: bytes, *, target_fps: int | None = None
     ) -> tuple[bytes, dict[str, int | float | list[int] | list[float] | bool | str]]:
         """Write TLV request bytes and read enough framed HID bytes for a full TLV response.
@@ -608,16 +617,19 @@ class HIDTransport:
         if target_fps and target_fps > 0:
             frame_budget_ms = max(1000 // target_fps, 8)
             write_timeout_ms = max(self.read_timeout_ms, frame_budget_ms * 3)
+            guard_window_s = min(max(0.05, float(write_timeout_ms) / 1000.0 * 2.0), 0.5)
+            read_timeout_ms = min(self.read_timeout_ms, 50)
         else:
             write_timeout_ms = self.read_timeout_ms
-        guard_window_s = max(0.05, float(write_timeout_ms) / 1000.0 * 4.0)
+            guard_window_s = max(0.05, float(write_timeout_ms) / 1000.0 * 4.0)
+            read_timeout_ms = self.read_timeout_ms
         remaining_budget_s = guard_window_s
-        per_read_budget_s = max(float(self.read_timeout_ms) / 1000.0, 0.001)
+        per_read_budget_s = max(float(read_timeout_ms) / 1000.0, 0.001)
         read_start = time.perf_counter()
         read_calls = 0
         while True:
             # Read up to report-size + report-id byte. hidapi may still return 64 bytes.
-            raw_chunk = self._handle.read(self.report_size + 1, self.read_timeout_ms)
+            raw_chunk = self._handle.read(self.report_size + 1, read_timeout_ms)
             read_calls += 1
             remaining_budget_s -= per_read_budget_s
             if not raw_chunk:
@@ -651,9 +663,10 @@ class HIDTransport:
                 )
 
     def close(self) -> None:
-        if self._handle is None:
-            return
-        try:
-            self._handle.close()
-        finally:
-            self._handle = None
+        with self._io_lock:
+            if self._handle is None:
+                return
+            try:
+                self._handle.close()
+            finally:
+                self._handle = None

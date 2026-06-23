@@ -14,6 +14,11 @@ def test_effective_calibration_prefers_nested_block() -> None:
     assert out.reverse_zones is True
 
 
+def test_validate_config_preserves_zero_predictive_sync_strength() -> None:
+    cfg = validate_config(AppConfig(predictive_sync_strength=0.0))
+    assert cfg.predictive_sync_strength == 0.0
+
+
 def test_validate_config_keeps_corner_anchored_schema() -> None:
     cfg = validate_config(AppConfig(calibration=CalibrationConfig(calibration_model="manual_map")))
     assert cfg.calibration.calibration_model == "corner_anchored"

@@ -457,7 +457,7 @@ class NanoleafSyncService:
             display_referred = True
         skip_display_gamut = bool(
             color_ctx_dict.get("skip_display_gamut_adaptation", False)
-            or self._runtime.skip_display_gamut_adaptation
+            or status.get("skip_display_gamut_adaptation", False)
         )
         if display_referred and not color_ctx_dict:
             color_transfer = "srgb"
@@ -1264,12 +1264,20 @@ class NanoleafSyncService:
             "runtime failures; fresh probe will run on next install."
         )
 
+    def _get_capture_backend(self) -> object | None:
+        with self._status_lock:
+            return self._capture
+
+    def _get_driver_backend(self) -> object | None:
+        with self._status_lock:
+            return self._driver
+
     def _run_runtime(self) -> None:
         run_runtime_engine(
             config=self.config,
             state=self._runtime,
-            get_capture=lambda: self._capture,
-            get_driver=lambda: self._driver,
+            get_capture=self._get_capture_backend,
+            get_driver=self._get_driver_backend,
             install_drivers=self._install_drivers,
             close_backends=self._close_backends,
             clear_backends=self._clear_backends,

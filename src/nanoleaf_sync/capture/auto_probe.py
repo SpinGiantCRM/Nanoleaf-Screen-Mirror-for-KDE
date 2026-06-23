@@ -54,9 +54,12 @@ def _mark_stats(stats: CandidateProbeResult, min_success_ratio: float) -> None:
     ratio = (stats.success_count / total) if total > 0 else 0.0
     stats.qualified = ratio >= min_success_ratio
     if stats.status == "untested":
-        stats.status = (
-            "tested" if stats.success_count > 0 else ("failed" if stats.errors else "skipped")
-        )
+        if stats.success_count > 0 and stats.errors:
+            stats.status = "tested_with_errors"
+        else:
+            stats.status = (
+                "tested" if stats.success_count > 0 else ("failed" if stats.errors else "skipped")
+            )
 
 
 def _record_error(stats: CandidateProbeResult, error: ProbeError) -> None:
@@ -166,25 +169,9 @@ def probe_backends(
                         op_name=f"{candidate} capture",
                     )
                     if frame is not None:
-                        try:
-                            mean_val = float(np.mean(frame))
-                        except Exception:
-                            logger.debug(
-                                "Unable to compute frame mean during probe capture",
-                                exc_info=True,
-                            )
-                            mean_val = 999.0
-                        if mean_val < 2.0:
-                            logger.warning(
-                                "Backend %s returned black frame during probe "
-                                "(mean=%.2f); marking as marginal",
-                                candidate,
-                                mean_val,
-                            )
-                            stats.brightness_ok = False
-                    stats.success_count += 1
-                    stats.failure_count -= 1
-                    stats.latencies_ms.append((monotonic_s() - capture_start) * 1000.0)
+                        stats.success_count += 1
+                        stats.failure_count -= 1
+                        stats.latencies_ms.append((monotonic_s() - capture_start) * 1000.0)
                 except Exception as exc:  # noqa: BLE001 - diagnostics collection
                     _record_error(stats, _build_probe_error("capture", exc))
 

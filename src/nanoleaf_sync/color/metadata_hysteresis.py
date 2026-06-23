@@ -33,8 +33,10 @@ class MetadataHysteresisTracker:
         observed_key = _metadata_key(observed)
         stable_key = _metadata_key(self.stable)
         if observed_key == stable_key:
-            self.candidate = None
-            self.candidate_frames = 0
+            if self.candidate_frames > 0:
+                self.candidate_frames = max(0, self.candidate_frames - 1)
+            if self.candidate_frames == 0:
+                self.candidate = None
             return self.stable
         if self.candidate is not None and _metadata_key(self.candidate) == observed_key:
             self.candidate_frames += 1

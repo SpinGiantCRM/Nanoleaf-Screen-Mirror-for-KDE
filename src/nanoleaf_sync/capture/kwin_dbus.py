@@ -5,11 +5,13 @@ import logging
 import os
 import sys
 import threading
-
-logger = logging.getLogger(__name__)
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 import numpy as np
 
@@ -164,6 +166,11 @@ class KWinDBusScreenshotCapture:
         self.kwin_owner_change_count: int = 0
         self._last_invalid_screen_fallback = False
         self._last_rejected_monitor_id: str | None = None
+        self._raw_frame_buffer: bytearray | None = None
+        self._fd_read_executor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="kwin-fd-read"
+        )
+        self._fd_read_timeout_s = 5.0
 
     def capture(self) -> np.ndarray:
         """Return an RGB frame as a numpy array or raise ``KWinDBusCaptureError``."""
@@ -577,7 +584,7 @@ class KWinDBusScreenshotCapture:
             stride = int(result_map.get("stride", 0) or 0)
             height = int(result_map.get("height", 0) or 0)
             expected_bytes = stride * height
-            frame_data = self._read_fd_exact(
+            frame_data = await self._read_fd_exact_async(
                 read_fd,
                 expected_bytes,
                 stride=stride,
@@ -819,7 +826,7 @@ class KWinDBusScreenshotCapture:
             chunks.append(chunk)
         return b"".join(chunks)
 
-    def _read_fd_exact(
+    def _read_fd_exact_sync(
         self,
         fd: int,
         expected_size: int | None,
@@ -855,6 +862,36 @@ class KWinDBusScreenshotCapture:
             view[read_total : read_total + chunk_len] = chunk
             read_total += chunk_len
         return bytes(view[:read_total])
+
+    async def _read_fd_exact_async(
+        self,
+        fd: int,
+        expected_size: int | None,
+        *,
+        stride: int | None = None,
+        height: int | None = None,
+    ) -> bytes:
+        loop = asyncio.get_running_loop()
+        try:
+            return await asyncio.wait_for(
+                loop.run_in_executor(
+                    self._fd_read_executor,
+                    partial(
+                        self._read_fd_exact_sync,
+                        fd,
+                        expected_size,
+                        stride=stride,
+                        height=height,
+                    ),
+                ),
+                timeout=self._fd_read_timeout_s,
+            )
+        except TimeoutError as exc:
+            raise KWinDBusCaptureError(
+                "KWin ScreenShot2 pipe read timed out after "
+                f"{self._fd_read_timeout_s:.1f}s "
+                f"(expected={expected_size} bytes, stride={stride!r}, height={height!r})."
+            ) from exc
 
     def _candidate_args_for_method(self, method_name: str) -> tuple[tuple[object, ...], ...]:
         if method_name == "captureScreen":
@@ -1063,14 +1100,17 @@ class KWinDBusScreenshotCapture:
             ) from exc
 
         fmt = QImage.Format(image_format)
-        # Copy into a mutable buffer so QImage can safely reference it until conversion.
-        raw_copy = bytearray(data)
-        image = QImage(raw_copy, width, height, stride, fmt)
+        self._raw_frame_buffer = bytearray(data)
+        image = QImage(self._raw_frame_buffer, width, height, stride, fmt)
         if image.isNull():
+            self._raw_frame_buffer = None
             raise KWinDBusCaptureError(
                 f"KWin ScreenShot2 returned unsupported QImage format id: {image_format}"
             )
-        return self._qimage_to_rgb_array(image)
+        try:
+            return self._qimage_to_rgb_array(image)
+        finally:
+            self._raw_frame_buffer = None
 
     def _decode_known_qimage_raw_formats(
         self, *, data: bytes, width: int, height: int, stride: int, image_format: int

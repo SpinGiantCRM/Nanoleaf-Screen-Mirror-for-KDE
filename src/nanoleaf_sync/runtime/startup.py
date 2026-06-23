@@ -147,15 +147,14 @@ def reinitialize_backends(
     invalidate_plasma_hdr_cache()
     state.clear_smoothing_history()
     state.smoothing_dimension_signature = None
-    # Brief grace period to let workers that are mid-operation finish
-    # before we tear down the backends they hold references to.
-    time.sleep(0.05)
+    state.wait_for_worker_idle(timeout_s=0.5)
     try:
         close_backends()
         now_ts = time.perf_counter()
         install_drivers()
         state.last_reinit_ts = now_ts
-        state.consecutive_errors = 0
+        with state._lock:
+            state.consecutive_errors = 0
     except Exception:
         logger.exception("backend reinitialization failed")
     finally:
@@ -306,9 +305,6 @@ class RuntimeLifecycle:
             with self._lock:
                 self._sync_state_locked()
                 if self._thread is not None and self._thread.is_alive():
-                    # Thread is stuck (e.g. blocked in HID open or capture init)
-                    # and cannot respond to stop_event. Detach it so the UI
-                    # can recover and the user can retry Start.
                     self._state_name = "error"
                     self._state.lifecycle_state = "failed"
                     self._state.last_error = (
@@ -319,7 +315,6 @@ class RuntimeLifecycle:
                         self._state.last_error_guidance
                         or "The runtime thread is stuck. Check USB device connection and retry."
                     )
-                    self._thread = None
             return not self.is_running()
         return True
 

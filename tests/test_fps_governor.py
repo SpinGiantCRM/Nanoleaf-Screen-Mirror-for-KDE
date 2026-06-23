@@ -48,20 +48,20 @@ def test_warmup_accumulation_triggers_transition() -> None:
     assert g.target_fps >= 60  # stepped back up with 200 consecutive low-util frames
 
 
-def test_governor_respects_60fps_floor() -> None:
-    g = FPSGovernor(initial_fps=120, min_fps_floor=60)
-    for _ in range(200):
-        g.record_frame(25.0)
-    assert g.target_fps >= 60
-
-
 def test_governor_min_fps_floor_helper() -> None:
-    from nanoleaf_sync.runtime.fps_governor import governor_min_fps_floor
+    from nanoleaf_sync.runtime.fps_governor import FPS_TIERS, governor_min_fps_floor
 
-    assert governor_min_fps_floor(120) == 60
-    assert governor_min_fps_floor(45) == 30
+    assert governor_min_fps_floor(120) == FPS_TIERS[-1]
+    assert governor_min_fps_floor(45) == FPS_TIERS[-1]
     assert governor_min_fps_floor(24) == 24
     assert governor_min_fps_floor(20) == 20
+
+
+def test_governor_can_step_below_configured_60fps() -> None:
+    g = FPSGovernor(initial_fps=60, min_fps_floor=30)
+    for _ in range(200):
+        g.record_frame(25.0)
+    assert g.target_fps == 30
 
 
 def test_step_down_under_high_utilisation() -> None:

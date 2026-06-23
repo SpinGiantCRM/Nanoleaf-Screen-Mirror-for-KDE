@@ -43,13 +43,32 @@ def _normalize_device_usb_ids(
     allowed_pids = ALLOWED_NANOLEAF_USB_IDS.get(device_vid)
     if allowed_pids and device_pid in allowed_pids:
         return device_vid, device_pid
+    logger.warning(
+        "Unknown USB device IDs 0x%04X:0x%04X; using default Nanoleaf IDs 0x37FA:0x8202",
+        int(device_vid),
+        int(device_pid),
+    )
     return 0x37FA, 0x8202
 
 
 logger = logging.getLogger(__name__)
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 CURRENT_CALIBRATION_SCHEMA_VERSION = 1
 CURRENT_WIZARD_STATE_VERSION = 1
+
+_CALIBRATION_SCALAR_FIELDS = (
+    "red_gain",
+    "green_gain",
+    "blue_gain",
+    "led_gamma",
+    "white_balance_temperature",
+    "chroma_compression",
+    "neutral_luminance_gain",
+    "black_luminance_cutoff",
+    "black_luminance_knee",
+    "dark_sample_stabilize_on",
+    "dark_sample_stabilize_off",
+)
 
 
 class ConfigValidationError(ValueError):
@@ -238,8 +257,47 @@ def _consolidate_calibration_fields(migrated: dict[str, Any]) -> None:
         migrated["calibration"] = calibration
 
 
+def _clamp_float(
+    value: float,
+    *,
+    field_name: str,
+    minimum: float,
+    maximum: float,
+    raw_value: float | None = None,
+) -> float:
+    clamped = max(minimum, min(maximum, float(value)))
+    if raw_value is not None and float(raw_value) != clamped:
+        logger.warning(
+            "%s clamped from %s to %s (allowed range %.4g..%.4g)",
+            field_name,
+            raw_value,
+            clamped,
+            minimum,
+            maximum,
+        )
+    elif float(value) != clamped:
+        logger.warning(
+            "%s clamped from %s to %s (allowed range %.4g..%.4g)",
+            field_name,
+            value,
+            clamped,
+            minimum,
+            maximum,
+        )
+    return clamped
+
+
+def _migrate_v1_to_v2(cfg: AppConfig) -> AppConfig:
+    raw_count = int(getattr(cfg, "device_zone_count", 0) or 0)
+    calibration = cfg.calibration or CalibrationConfig()
+    if int(getattr(calibration, "device_zone_count", 0) or 0) > 0:
+        raw_count = int(calibration.device_zone_count)
+    return replace(cfg, device_zone_count_raw=raw_count)
+
+
 _MIGRATIONS: dict[int, Any] = {
-    1: None,  # schema_version 1 is the baseline; no migration needed.
+    1: None,
+    2: _migrate_v1_to_v2,
 }
 
 
@@ -257,7 +315,13 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     brightness = max(0.0, min(1.0, float(cfg.brightness)))
     smoothing = max(0.0, min(1.0, float(cfg.smoothing)))
     smoothing_speed = max(0.0, min(4.0, float(cfg.smoothing_speed)))
-    led_gamma = max(1.0, min(4.0, float(cfg.led_gamma)))
+    led_gamma = _clamp_float(
+        float(cfg.led_gamma),
+        field_name="led_gamma",
+        minimum=0.5,
+        maximum=4.0,
+        raw_value=float(cfg.led_gamma),
+    )
     red_gain = max(0.5, min(1.5, float(getattr(cfg, "red_gain", 1.0))))
     green_gain = max(0.5, min(1.5, float(getattr(cfg, "green_gain", 1.0))))
     blue_gain = max(0.5, min(1.5, float(getattr(cfg, "blue_gain", 1.0))))
@@ -306,9 +370,11 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         allowed=SYNC_MODES,
         default=AppConfig.sync_mode,
     )
-    predictive_sync_strength = max(
-        0.0, min(1.0, float(getattr(cfg, "predictive_sync_strength", 0.35) or 0.35))
-    )
+    predictive_sync_raw = getattr(cfg, "predictive_sync_strength", None)
+    if predictive_sync_raw is None:
+        predictive_sync_strength = 0.35
+    else:
+        predictive_sync_strength = max(0.0, min(1.0, float(predictive_sync_raw)))
     color_style = normalize_preset(
         getattr(cfg, "color_style", AppConfig.color_style),
         allowed=COLOR_STYLE_PRESETS,
@@ -390,6 +456,19 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         minimum=0,
         maximum=MAX_DEVICE_ZONE_COUNT,
     )
+    device_zone_count_raw = int(getattr(cfg, "device_zone_count_raw", 0) or 0)
+    if device_zone_count_raw <= 0:
+        device_zone_count_raw = raw_cfg_device_zone_count
+    if (
+        device_zone_count_raw > MAX_DEVICE_ZONE_COUNT
+        or device_zone_count_raw != raw_cfg_device_zone_count
+    ) and raw_cfg_device_zone_count > 0:
+        logger.warning(
+            "device_zone_count normalized from %d to %d (max=%d)",
+            device_zone_count_raw,
+            raw_cfg_device_zone_count,
+            MAX_DEVICE_ZONE_COUNT,
+        )
     raw_device_zone_count = _require_int_in_range(
         getattr(raw_calibration, "device_zone_count", 0),
         field_name="calibration.device_zone_count",
@@ -501,11 +580,18 @@ def validate_config(cfg: AppConfig) -> AppConfig:
 
     def _normalize_profile(profile: object) -> LedCalibrationProfile:
         p = profile if isinstance(profile, LedCalibrationProfile) else LedCalibrationProfile()
+        raw_gamma = float(getattr(p, "led_gamma", 1.0))
         return LedCalibrationProfile(
             red_gain=max(0.5, min(1.5, float(getattr(p, "red_gain", 1.0)))),
             green_gain=max(0.5, min(1.5, float(getattr(p, "green_gain", 1.0)))),
             blue_gain=max(0.5, min(1.5, float(getattr(p, "blue_gain", 1.0)))),
-            led_gamma=max(1.0, min(4.0, float(getattr(p, "led_gamma", 1.0)))),
+            led_gamma=_clamp_float(
+                raw_gamma,
+                field_name="led_calibration_profile.led_gamma",
+                minimum=0.5,
+                maximum=4.0,
+                raw_value=raw_gamma,
+            ),
             white_balance_temperature=max(
                 -1.0, min(1.0, float(getattr(p, "white_balance_temperature", 0.0)))
             ),
@@ -519,14 +605,51 @@ def validate_config(cfg: AppConfig) -> AppConfig:
             black_luminance_knee=max(
                 0.0005, min(0.03, float(getattr(p, "black_luminance_knee", 0.0024)))
             ),
+            dark_sample_stabilize_on=max(
+                0.0, min(0.1, float(getattr(p, "dark_sample_stabilize_on", 0.008)))
+            ),
+            dark_sample_stabilize_off=max(
+                0.0, min(0.1, float(getattr(p, "dark_sample_stabilize_off", 0.025)))
+            ),
             color_matrix=_normalize_color_matrix(getattr(p, "color_matrix", ())),
         )
 
-    sdr_profile = _normalize_profile(
-        getattr(cfg, "led_calibration_profile_sdr", LedCalibrationProfile())
+    def _profile_is_default(profile: LedCalibrationProfile) -> bool:
+        defaults = LedCalibrationProfile()
+        for field_name in _CALIBRATION_SCALAR_FIELDS:
+            if float(getattr(profile, field_name)) != float(getattr(defaults, field_name)):
+                return False
+        return not list(profile.color_matrix or [])
+
+    def _sync_top_level_into_profile(
+        profile: LedCalibrationProfile,
+        *,
+        top_level: AppConfig,
+    ) -> LedCalibrationProfile:
+        if not _profile_is_default(profile):
+            return profile
+        return LedCalibrationProfile(
+            red_gain=red_gain,
+            green_gain=green_gain,
+            blue_gain=blue_gain,
+            led_gamma=led_gamma,
+            white_balance_temperature=white_balance_temperature,
+            chroma_compression=chroma_compression,
+            neutral_luminance_gain=neutral_luminance_gain,
+            black_luminance_cutoff=black_luminance_cutoff,
+            black_luminance_knee=black_luminance_knee,
+            dark_sample_stabilize_on=0.008,
+            dark_sample_stabilize_off=0.025,
+            color_matrix=list(profile.color_matrix or []),
+        )
+
+    sdr_profile = _sync_top_level_into_profile(
+        _normalize_profile(getattr(cfg, "led_calibration_profile_sdr", LedCalibrationProfile())),
+        top_level=cfg,
     )
-    hdr_profile = _normalize_profile(
-        getattr(cfg, "led_calibration_profile_hdr", LedCalibrationProfile())
+    hdr_profile = _sync_top_level_into_profile(
+        _normalize_profile(getattr(cfg, "led_calibration_profile_hdr", LedCalibrationProfile())),
+        top_level=cfg,
     )
 
     wizard_completed = coerce_bool(getattr(cfg, "wizard_completed", False), False)
@@ -647,6 +770,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         calibration_schema_version=calibration_schema_version,
         calibration=normalized_calibration,
         device_zone_count=device_zone_count,
+        device_zone_count_raw=device_zone_count_raw,
         output_channel_order=output_channel_order,
         reverse_zones=normalized_calibration.reverse_zones,
         calibration_model=calibration_model,

@@ -195,16 +195,15 @@ def test_stop_does_not_close_shared_backends_from_caller_thread() -> None:
     assert service.start() is True
     assert capture.wait_until_blocked(timeout=1.0) is True
 
-    # Stop detaches the stuck thread and returns True so the UI can recover.
-    assert service.stop(timeout=0.05) is True
-    assert service.is_running() is False
-    # close is never called from the caller thread.
+    # Stop waits for the runtime thread; a short timeout leaves it running.
+    assert service.stop(timeout=0.05) is False
+    assert service.is_running() is True
     assert capture.close_calls == 0
     assert driver.close_calls == 0
 
-    # Release the captured thread; the detached runtime will finish on its own.
     capture.release()
     assert _wait_until(lambda: capture.close_calls >= 1, timeout_s=2.0)
+    assert service.stop(timeout=2.0) is True
     assert _wait_until(lambda: not service.is_running(), timeout_s=1.0)
     assert capture.close_calls >= 1
     assert caller_thread_id not in capture.close_thread_ids
@@ -223,12 +222,12 @@ def test_stop_detaches_stuck_runtime_and_reports_not_running() -> None:
     assert service.start() is True
     assert capture.wait_until_blocked(timeout=1.0) is True
 
-    # Stop detaches the stuck thread so the UI can recover.
-    assert service.stop(timeout=0.05) is True
-    assert service.is_running() is False
+    # Stop with a short timeout reports failure while the runtime thread is blocked.
+    assert service.stop(timeout=0.05) is False
+    assert service.is_running() is True
 
     capture.release()
-    assert service.stop(timeout=1.0) is True
+    assert service.stop(timeout=2.0) is True
     assert _wait_until(lambda: not service.is_running(), timeout_s=1.0)
 
 

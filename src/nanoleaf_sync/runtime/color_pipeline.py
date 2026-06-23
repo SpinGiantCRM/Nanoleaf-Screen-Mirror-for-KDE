@@ -26,10 +26,9 @@ from nanoleaf_sync.config.presets import (
 from nanoleaf_sync.runtime.blending import adaptive_one_euro_blend, apply_neighbor_blend
 from nanoleaf_sync.runtime.color_processing import (
     LedCalibration,
-    apply_color_style_mapping,
+    apply_color_style_and_led_calibration_with_diagnostics,
     apply_dark_zone_output,
     apply_display_gamut_adaptation,
-    apply_led_calibration,
     apply_output_quantization_hold_with_mask,
     stabilize_dark_zone_samples,
 )
@@ -382,9 +381,13 @@ def process_zone_colors(
             return snapshot_device_rgb_rows(arr)
 
         stage_before_style = _stage_snapshot(mapped)
-    mapped = apply_color_style_mapping(mapped, color_style=params.color_style).astype(
-        np.float32, copy=False
+    calibration = params.led_calibration or LedCalibration()
+    mapped, _cap_applied = apply_color_style_and_led_calibration_with_diagnostics(
+        mapped,
+        color_style=params.color_style,
+        calibration=calibration,
     )
+    mapped = mapped.astype(np.float32, copy=False)
     if capture_colour_stages:
         stage_after_style = _stage_snapshot(mapped)
     colour_processing_done = time.perf_counter()
@@ -423,8 +426,6 @@ def process_zone_colors(
         stage_after_smoothing = _stage_snapshot(mapped)
     smoothing_done = time.perf_counter()
 
-    calibration = params.led_calibration or LedCalibration()
-    mapped = apply_led_calibration(mapped, calibration)
     mapped = apply_dark_zone_output(mapped)
     if capture_colour_stages:
         stage_after_led_calibration = _stage_snapshot(mapped)
@@ -599,6 +600,8 @@ def build_led_calibration_from_profile(profile: object | None) -> LedCalibration
         neutral_luminance_gain=float(getattr(profile, "neutral_luminance_gain", 1.0)),
         black_luminance_cutoff=float(getattr(profile, "black_luminance_cutoff", 0.0032)),
         black_luminance_knee=float(getattr(profile, "black_luminance_knee", 0.0024)),
+        dark_sample_stabilize_on=float(getattr(profile, "dark_sample_stabilize_on", 0.008)),
+        dark_sample_stabilize_off=float(getattr(profile, "dark_sample_stabilize_off", 0.025)),
         color_matrix=matrix,
     )
 
@@ -689,7 +692,7 @@ def build_pipeline_params_from_config(
         return_diagnostics=return_diagnostics,
         build_zone_diagnostics=build_zone_diagnostics,
         sync_mode=sync_mode,
-        predictive_sync_strength=float(getattr(config, "predictive_sync_strength", 0.6)),
+        predictive_sync_strength=float(getattr(config, "predictive_sync_strength", 0.35)),
         effective_target_fps=target_fps,
         config_fps=configured_fps,
         staleness_ms=stale,

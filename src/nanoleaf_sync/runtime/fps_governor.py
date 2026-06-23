@@ -14,11 +14,7 @@ FPS_TIERS = [120, 90, 60, 45, 30]
 
 def governor_min_fps_floor(config_fps: int) -> int:
     fps = max(1, int(config_fps))
-    if fps >= 60:
-        return min(fps, 60)
-    if fps >= 30:
-        return min(fps, 30)
-    return fps
+    return min(fps, FPS_TIERS[-1])
 
 
 _UP_THRESHOLD = 0.60  # utilisation below this for N consecutive frames → step up

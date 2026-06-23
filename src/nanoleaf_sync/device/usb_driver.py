@@ -65,14 +65,7 @@ class NanoleafUSBDriver(DeviceDriver):
         self._auto_turn_on = bool(auto_turn_on)
         self._allow_live_zone_padding = bool(allow_live_zone_padding)
         order = str(output_channel_order or "grb").strip().lower()
-        if sorted(order) != ["b", "g", "r"]:
-            raise ValueError(
-                "output_channel_order must be a permutation of 'rgb' (for example: rgb, grb, bgr)."
-            )
-        self._output_channel_order = order
-        self._output_channel_indices = tuple(
-            {"r": 0, "g": 1, "b": 2}[ch] for ch in self._output_channel_order
-        )
+        self._set_output_channel_order(order, source="config")
 
         self.model_number: str | None = None
         self.zone_count: int | None = None
@@ -94,6 +87,31 @@ class NanoleafUSBDriver(DeviceDriver):
         self.last_send_policy_transition_reason: str = ""
         self.last_live_send_policy: str = "response_required"
         self.uncertain_write_failures: int = 0
+        self._zone_mismatch_attempts: int = 0
+        self.output_channel_order_source: str = "config"
+
+    def _set_output_channel_order(self, order: str, *, source: str) -> None:
+        normalized = str(order or "grb").strip().lower()
+        if sorted(normalized) != ["b", "g", "r"]:
+            raise ValueError(
+                "output_channel_order must be a permutation of 'rgb' (for example: rgb, grb, bgr)."
+            )
+        self._output_channel_order = normalized
+        self._output_channel_indices = tuple(
+            {"r": 0, "g": 1, "b": 2}[ch] for ch in self._output_channel_order
+        )
+        self.output_channel_order_source = str(source or "config")
+
+    @staticmethod
+    def _channel_order_for_model(model_number: str | None) -> str:
+        if str(model_number or "").strip().upper() in {"NL82K1", "NL82K2"}:
+            return "grb"
+        return "grb"
+
+    def probe_output_channel_order(self) -> str:
+        order = self._channel_order_for_model(self.model_number)
+        self._set_output_channel_order(order, source="model-probe")
+        return order
 
     def _request(self, cmd: int, payload: bytes = b"") -> bytes:
         request = self._protocol.build_request(cmd, payload)
@@ -206,6 +224,8 @@ class NanoleafUSBDriver(DeviceDriver):
             self._cached_brightness = self.get_brightness()
             if self._prefer_write_only_live_send:
                 self._apply_live_report_size_probe()
+            if self._output_channel_order == "grb":
+                self.probe_output_channel_order()
             self._initialized = True
         except Exception:
             self.close()
@@ -265,6 +285,31 @@ class NanoleafUSBDriver(DeviceDriver):
         self._request(CMD_SET_BRIGHTNESS, bytes((clamped,)))
         self._cached_brightness = clamped
 
+    def _try_recover_zone_count(self, frame_len: int) -> bool:
+        if self._zone_mismatch_attempts >= 2:
+            return False
+        self._zone_mismatch_attempts += 1
+        self._logger.warning(
+            "Zone count mismatch (frame=%d effective=%s); re-reading device length (attempt %d)",
+            frame_len,
+            self.zone_count,
+            self._zone_mismatch_attempts,
+        )
+        try:
+            detected = self.get_length()
+            self.reported_zone_count = detected
+            if self._configured_zone_count > 0:
+                self.zone_count = self._configured_zone_count
+            else:
+                self.zone_count = detected
+            return True
+        except Exception:
+            self._logger.warning(
+                "Failed to re-read device zone count after mismatch",
+                exc_info=True,
+            )
+            return False
+
     def set_zone_colors(
         self, colors: Sequence[RGBTuple], *, return_timing: bool = False
     ) -> dict[str, float | bool | str | None] | None:
@@ -293,31 +338,41 @@ class NanoleafUSBDriver(DeviceDriver):
 
         if len(normalized) < self.zone_count:
             if not self._allow_live_zone_padding:
+                recovered = self._try_recover_zone_count(len(normalized))
+                target = int(self.zone_count or 0)
+                if recovered and len(normalized) < target:
+                    pad_count = target - len(normalized)
+                    normalized.extend([(0, 0, 0)] * pad_count)
+                if len(normalized) < target:
+                    raise RuntimeError(
+                        "Refusing to silently pad short live zone colors: "
+                        f"frame_colors={len(normalized)} is below "
+                        f"effective_zone_count={self.zone_count} "
+                        f"(reported_zone_count={self.reported_zone_count}, "
+                        f"configured_zone_count={self._configured_zone_count}). "
+                        "Update device_zone_count calibration/config so runtime mapping "
+                        "matches the physical strip."
+                    )
+            else:
+                normalized.extend([(0, 0, 0)] * (self.zone_count - len(normalized)))
+        elif len(normalized) > self.zone_count:
+            if self._try_recover_zone_count(len(normalized)) and len(normalized) <= int(
+                self.zone_count or 0
+            ):
+                pass
+            elif len(normalized) > int(self.zone_count or 0):
                 raise RuntimeError(
-                    "Refusing to silently pad short live zone colors: "
-                    f"frame_colors={len(normalized)} is below "
+                    "Refusing to silently truncate zone colors: "
+                    f"frame_colors={len(normalized)} exceeds "
                     f"effective_zone_count={self.zone_count} "
                     f"(reported_zone_count={self.reported_zone_count}, "
                     f"configured_zone_count={self._configured_zone_count}). "
                     "Update device_zone_count calibration/config so runtime mapping "
                     "matches the physical strip."
                 )
-            normalized.extend([(0, 0, 0)] * (self.zone_count - len(normalized)))
-        elif len(normalized) > self.zone_count:
-            raise RuntimeError(
-                "Refusing to silently truncate zone colors: "
-                f"frame_colors={len(normalized)} exceeds "
-                f"effective_zone_count={self.zone_count} "
-                f"(reported_zone_count={self.reported_zone_count}, "
-                f"configured_zone_count={self._configured_zone_count}). "
-                "Update device_zone_count calibration/config so runtime mapping "
-                "matches the physical strip."
-            )
 
         payload_len = len(normalized) * 3
-        if self._live_payload_buffer is None or len(self._live_payload_buffer) != payload_len:
-            self._live_payload_buffer = bytearray(payload_len)
-        payload_buffer = self._live_payload_buffer
+        payload_buffer = bytearray(payload_len)
         write_idx = 0
         for rgb in normalized:
             for channel_idx in self._output_channel_indices:

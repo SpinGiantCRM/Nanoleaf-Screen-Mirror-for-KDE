@@ -431,6 +431,9 @@ def _benchmark_backend(
                 logger.debug("Capture benchmark attempt failed", exc_info=True)
                 continue
             capture_ms.append((time.monotonic() - call_start) * 1000.0)
+            if frame is None:
+                empty_buffers += 1
+                continue
             if frame.size <= 0 or frame.nbytes <= 0:
                 empty_buffers += 1
             frame_bytes = int(frame.nbytes)

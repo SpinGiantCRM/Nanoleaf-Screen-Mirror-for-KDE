@@ -54,6 +54,8 @@ class LedCalibrationProfile:
     neutral_luminance_gain: float = 1.0
     black_luminance_cutoff: float = 0.0032
     black_luminance_knee: float = 0.0024
+    dark_sample_stabilize_on: float = 0.008
+    dark_sample_stabilize_off: float = 0.025
     color_matrix: list[float] = field(default_factory=list)
 
 
@@ -229,6 +231,8 @@ class AppConfig:
     min_max_send_age_ms: float = 60.0
     # Permit configured strip zone count to override USB-reported count (shows warning).
     allow_zone_count_override: bool = False
+    # Preserved user-entered strip count before normalization/clamping (diagnostics only).
+    device_zone_count_raw: int = 0
 
     def __post_init__(self) -> None:
         """Sync calibration field to ensure single source of truth.

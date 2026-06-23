@@ -141,28 +141,6 @@ def apply_predictive_sync(
             active=False,
             scene_cut_suppressed=False,
         )
-    if (
-        vivid_weighted_active
-        and sampled_colors is not None
-        and prev_sampled_colors is not None
-        and sampled_colors.shape == prev_sampled_colors.shape
-        and median_zone_delta is not None
-        and float(median_zone_delta) < float(params.static_scene_delta_threshold)
-    ):
-        from nanoleaf_sync.runtime.color_processing import rgb_u8_to_oklch
-
-        cur_u8 = np.clip(np.rint(sampled_colors), 0.0, 255.0).astype(np.uint8, copy=False)
-        prev_u8 = np.clip(np.rint(prev_sampled_colors), 0.0, 255.0).astype(np.uint8, copy=False)
-        _l_c, _c_c, h_c = rgb_u8_to_oklch(cur_u8)
-        _l_p, _c_p, h_p = rgb_u8_to_oklch(prev_u8)
-        hue_delta = np.abs(np.arctan2(np.sin(h_c - h_p), np.cos(h_c - h_p)))
-        if float(np.median(hue_delta)) > 0.35:
-            return PredictiveSyncResult(
-                colors=smoothed,
-                lookahead_frames=0.0,
-                active=False,
-                scene_cut_suppressed=False,
-            )
     if float(np.max(smoothed)) < float(params.near_black_threshold):
         return PredictiveSyncResult(
             colors=smoothed,
@@ -212,6 +190,29 @@ def apply_predictive_sync(
             active=False,
             scene_cut_suppressed=False,
         )
+
+    if (
+        vivid_weighted_active
+        and sampled_colors is not None
+        and prev_sampled_colors is not None
+        and sampled_colors.shape == prev_sampled_colors.shape
+        and median_zone_delta is not None
+        and float(median_zone_delta) < float(params.static_scene_delta_threshold)
+    ):
+        from nanoleaf_sync.runtime.color_processing import rgb_u8_to_oklch
+
+        cur_u8 = np.clip(np.rint(sampled_colors), 0.0, 255.0).astype(np.uint8, copy=False)
+        prev_u8 = np.clip(np.rint(prev_sampled_colors), 0.0, 255.0).astype(np.uint8, copy=False)
+        _l_c, _c_c, h_c = rgb_u8_to_oklch(cur_u8)
+        _l_p, _c_p, h_p = rgb_u8_to_oklch(prev_u8)
+        hue_delta = np.abs(np.arctan2(np.sin(h_c - h_p), np.cos(h_c - h_p)))
+        if float(np.median(hue_delta)) > 0.35:
+            return PredictiveSyncResult(
+                colors=smoothed,
+                lookahead_frames=0.0,
+                active=False,
+                scene_cut_suppressed=False,
+            )
 
     blend_t = min(1.0, float(params.base_blend_alpha) + polish_strength)
     polished = previous + (blend_t * (smoothed - previous))

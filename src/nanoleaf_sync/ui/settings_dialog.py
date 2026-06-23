@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import contextlib
+import copy
 import logging
+import threading
 from collections.abc import Callable
 from dataclasses import replace
 
@@ -12,7 +14,12 @@ from nanoleaf_sync.capture.factory import (
     run_fresh_backend_probe,
     run_manual_portal_benchmark,
 )
-from nanoleaf_sync.config.model import AppConfig, CalibrationConfig, LedCalibrationProfile
+from nanoleaf_sync.config.model import (
+    MAX_DEVICE_ZONE_COUNT,
+    AppConfig,
+    CalibrationConfig,
+    LedCalibrationProfile,
+)
 from nanoleaf_sync.runtime.color_accuracy_diagnostics import run_color_accuracy_diagnostic
 from nanoleaf_sync.runtime.color_processing import (
     LedCalibration,
@@ -171,9 +178,22 @@ class SettingsDialog:
                 self._open_display_configurator = False
                 self._calibration_sender = calibration_sender
                 self._diagnostic_capture = diagnostic_capture
-                self._runtime_status = runtime_status or {}
+                self._runtime_status = dict(runtime_status or {})
+                self._probe_session_state: dict[str, object] = {}
                 self._on_apply = on_apply
                 self._state = CalibrationState.from_config(cfg, runtime_status)
+                self._device_ids_manual = False
+                self._syncing_device_model = False
+                self._led_profile_sdr = copy.deepcopy(
+                    getattr(cfg, "led_calibration_profile_sdr", LedCalibrationProfile())
+                )
+                self._led_profile_hdr = copy.deepcopy(
+                    getattr(cfg, "led_calibration_profile_hdr", LedCalibrationProfile())
+                )
+                self._active_display_preset = (
+                    str(getattr(cfg, "display_preset", "hdr") or "hdr").strip().lower()
+                )
+                self._backend_probe_running = False
                 self._source_zones_locked_to_device_count = (
                     not bool(self._state.source_zones_user_configured)
                     and str(self._state.layout_preset) == "edge_strip"
@@ -540,6 +560,7 @@ class SettingsDialog:
                 self.black_luminance_knee_slider.setValue(
                     int(round(getattr(cfg, "black_luminance_knee", 0.0024) * 10000))
                 )
+                self._load_led_profile_sliders(self._active_display_preset)
                 self.reset_led_calibration_button = QPushButton("Reset calibration")
                 self.reference_test_colours_button = QPushButton("Reference test colours")
                 self.guided_led_calibration_button = QPushButton("Calibrate LED colour")
@@ -623,13 +644,26 @@ class SettingsDialog:
 
                 for signal in (
                     self.performance_profile_combo.currentIndexChanged,
-                    self.sampling_quality_combo.currentIndexChanged,
                     self.reverse_checkbox.stateChanged,
                     self.capture_backend_combo.currentIndexChanged,
                     self.auto_probe_policy_combo.currentIndexChanged,
-                    self.display_preset_combo.currentIndexChanged,
                 ):
                     signal.connect(self._refresh_preview_label)
+                self.display_preset_combo.currentIndexChanged.connect(
+                    self._on_display_preset_changed
+                )
+                for slider in (
+                    self.led_gamma_slider,
+                    self.red_gain_slider,
+                    self.green_gain_slider,
+                    self.blue_gain_slider,
+                    self.white_balance_slider,
+                    self.chroma_compression_slider,
+                    self.neutral_luminance_gain_slider,
+                    self.black_luminance_cutoff_slider,
+                    self.black_luminance_knee_slider,
+                ):
+                    slider.valueChanged.connect(self._refresh_preview_label)
                 self.zone_count_slider.valueChanged.connect(self._on_zone_count_slider_changed)
                 self.performance_profile_combo.currentIndexChanged.connect(
                     self._on_performance_profile_changed
@@ -679,6 +713,8 @@ class SettingsDialog:
                 self.device_model_combo.currentIndexChanged.connect(
                     self._sync_device_model_selection
                 )
+                self.device_vid_combo.currentIndexChanged.connect(self._on_device_usb_id_edited)
+                self.device_pid_combo.currentIndexChanged.connect(self._on_device_usb_id_edited)
                 self.sdr_boost_nits_slider.valueChanged.connect(self._on_sdr_white_slider_changed)
                 self.sdr_white_reference_preset_combo.currentIndexChanged.connect(
                     self._on_sdr_white_preset_changed
@@ -998,15 +1034,6 @@ class SettingsDialog:
                     self.zone_count_slider.valueChanged,
                     self.device_zone_count_slider.valueChanged,
                     self.hdr_max_nits_slider.valueChanged,
-                    self.led_gamma_slider.valueChanged,
-                    self.red_gain_slider.valueChanged,
-                    self.green_gain_slider.valueChanged,
-                    self.blue_gain_slider.valueChanged,
-                    self.white_balance_slider.valueChanged,
-                    self.chroma_compression_slider.valueChanged,
-                    self.neutral_luminance_gain_slider.valueChanged,
-                    self.black_luminance_cutoff_slider.valueChanged,
-                    self.black_luminance_knee_slider.valueChanged,
                     self.sampling_quality_combo.currentIndexChanged,
                 ):
                     signal.connect(self._refresh_numeric_labels)
@@ -1366,6 +1393,7 @@ class SettingsDialog:
                         self._apply_settings()
                         super().reject()
                     elif clicked == discard_btn:
+                        self._settings_applied_in_session = False
                         super().reject()
                     return
                 super().reject()
@@ -1383,7 +1411,6 @@ class SettingsDialog:
 
             def _pull_state(self):
                 self._state.zone_count = int(self.zone_count_slider.value())
-                self._state.layout_preset = "edge_strip"
                 self._state.reverse_zones = bool(self.reverse_checkbox.isChecked())
                 self._state.device_zone_count = int(self.device_zone_count_slider.value())
                 self._state.calibration_model = "corner_anchored"
@@ -1561,7 +1588,13 @@ class SettingsDialog:
                     int(self._state.corner_anchor_bottom_right),
                     int(self._state.corner_anchor_bottom_left),
                 )
-                if detected > 0 and configured != detected:
+                if (
+                    detected > 0
+                    and configured != detected
+                    and not (
+                        bool(getattr(cfg, "allow_zone_count_override", False)) and configured > 0
+                    )
+                ):
                     warnings.append(
                         "Device-reported count differs from configured count. "
                         "The configured manual value is used."
@@ -1803,8 +1836,104 @@ class SettingsDialog:
                     return
                 self.latency_report_label.setText(f"Exported live latency stage breakdown: {out}")
 
+            def showEvent(self, event) -> None:
+                super().showEvent(event)
+                self._refresh_device_zone_slider_range()
+
+            def _active_led_profile(self, preset: str | None = None) -> LedCalibrationProfile:
+                style = str(preset or self._active_display_preset).strip().lower()
+                return self._led_profile_sdr if style == "sdr" else self._led_profile_hdr
+
+            def _led_profile_from_sliders(self) -> LedCalibrationProfile:
+                return LedCalibrationProfile(
+                    red_gain=self.red_gain_slider.value() / 100.0,
+                    green_gain=self.green_gain_slider.value() / 100.0,
+                    blue_gain=self.blue_gain_slider.value() / 100.0,
+                    led_gamma=self.led_gamma_slider.value() / 100.0,
+                    white_balance_temperature=self.white_balance_slider.value() / 100.0,
+                    chroma_compression=self.chroma_compression_slider.value() / 100.0,
+                    neutral_luminance_gain=self.neutral_luminance_gain_slider.value() / 100.0,
+                    black_luminance_cutoff=self.black_luminance_cutoff_slider.value() / 10000.0,
+                    black_luminance_knee=self.black_luminance_knee_slider.value() / 10000.0,
+                )
+
+            def _save_slider_values_to_profile(self, preset: str | None = None) -> None:
+                style = str(preset or self._active_display_preset).strip().lower()
+                profile = self._led_profile_from_sliders()
+                if style == "sdr":
+                    self._led_profile_sdr = profile
+                else:
+                    self._led_profile_hdr = profile
+
+            def _load_led_profile_sliders(self, preset: str) -> None:
+                profile = self._active_led_profile(preset)
+                self._set_slider_value_safely(
+                    self.led_gamma_slider, int(round(float(profile.led_gamma) * 100))
+                )
+                self._set_slider_value_safely(
+                    self.red_gain_slider, int(round(float(profile.red_gain) * 100))
+                )
+                self._set_slider_value_safely(
+                    self.green_gain_slider, int(round(float(profile.green_gain) * 100))
+                )
+                self._set_slider_value_safely(
+                    self.blue_gain_slider, int(round(float(profile.blue_gain) * 100))
+                )
+                self._set_slider_value_safely(
+                    self.white_balance_slider,
+                    int(round(float(profile.white_balance_temperature) * 100)),
+                )
+                self._set_slider_value_safely(
+                    self.chroma_compression_slider,
+                    int(round(float(profile.chroma_compression) * 100)),
+                )
+                self._set_slider_value_safely(
+                    self.neutral_luminance_gain_slider,
+                    int(round(float(profile.neutral_luminance_gain) * 100)),
+                )
+                self._set_slider_value_safely(
+                    self.black_luminance_cutoff_slider,
+                    int(round(float(profile.black_luminance_cutoff) * 10000)),
+                )
+                self._set_slider_value_safely(
+                    self.black_luminance_knee_slider,
+                    int(round(float(profile.black_luminance_knee) * 10000)),
+                )
+
+            def _on_display_preset_changed(self, *_args) -> None:
+                previous = str(self._active_display_preset or "hdr").strip().lower()
+                self._save_slider_values_to_profile(previous)
+                self._active_display_preset = value_for_label(
+                    DISPLAY_PRESET_LABELS,
+                    str(self.display_preset_combo.currentText()),
+                    default="hdr",
+                )
+                self._load_led_profile_sliders(self._active_display_preset)
+                self._refresh_preview_label()
+
+            def _on_device_usb_id_edited(self, *_args) -> None:
+                if self._syncing_device_model:
+                    return
+                self._device_ids_manual = True
+                custom_index = self.device_model_combo.findText("Custom VID/PID")
+                if custom_index >= 0:
+                    self._syncing_device_model = True
+                    self.device_model_combo.setCurrentIndex(custom_index)
+                    self._syncing_device_model = False
+
             def _sync_device_model_selection(self):
+                if self._syncing_device_model:
+                    return
                 selected_model = str(self.device_model_combo.currentText())
+                if selected_model.startswith("Custom"):
+                    return
+                if self._device_ids_manual:
+                    custom_index = self.device_model_combo.findText("Custom VID/PID")
+                    if custom_index >= 0:
+                        self._syncing_device_model = True
+                        self.device_model_combo.setCurrentIndex(custom_index)
+                        self._syncing_device_model = False
+                    return
                 if selected_model.startswith("NL82K2"):
                     vid_text = "0x37FA"
                     pid_text = "0x8202"
@@ -1846,13 +1975,15 @@ class SettingsDialog:
                     detected = (
                         203.0 if bool(self.compositor_hdr_mode_checkbox.isChecked()) else 80.0
                     )
-                self._runtime_status["detected_kde_sdr_white_nits"] = float(detected)
+                self._probe_session_state["detected_kde_sdr_white_nits"] = float(detected)
                 self.detected_sdr_white_label.setText(
                     f"Detected value: {float(detected):.0f} nits (not applied)"
                 )
 
             def _use_detected_sdr_white_reference(self) -> None:
-                detected = self._runtime_status.get("detected_kde_sdr_white_nits")
+                detected = self._probe_session_state.get("detected_kde_sdr_white_nits")
+                if detected is None:
+                    detected = self._runtime_status.get("detected_kde_sdr_white_nits")
                 if detected is None:
                     self.detected_sdr_white_label.setText("Detected value: unavailable")
                     return
@@ -1921,6 +2052,7 @@ class SettingsDialog:
                 self._send_guided_calibration_pattern()
 
             def _save_active_led_calibration_profile(self) -> None:
+                self._save_slider_values_to_profile()
                 style = str(self.display_preset_combo.currentText()).strip().lower()
                 target = "SDR" if style == "sdr" else "HDR"
                 self.color_accuracy_diagnostic_label.setText(
@@ -2084,7 +2216,13 @@ class SettingsDialog:
 
             def _device_zone_count_max(self) -> int:
                 detected = int(self._state.detected_device_zone_count or 0)
-                return max(MAX_ZONE_COUNT, detected + 16)
+                return max(MAX_DEVICE_ZONE_COUNT, detected + 16)
+
+            def _refresh_device_zone_slider_range(self) -> None:
+                max_count = self._device_zone_count_max()
+                self.device_zone_count_slider.setRange(1, max_count)
+                if self.device_zone_count_slider.value() > max_count:
+                    self._set_slider_value_safely(self.device_zone_count_slider, max_count)
 
             def _on_device_zone_count_slider_changed(self, *_args) -> None:
                 self._state.effective_device_zone_count()
@@ -2284,20 +2422,42 @@ class SettingsDialog:
                 return startup_state in blocked_states or lifecycle_state in blocked_states
 
             def _run_fresh_backend_probe(self) -> None:
+                if self._backend_probe_running:
+                    return
                 if self._backend_probe_blocked_by_runtime_state():
                     self._update_backend_probe_button_state()
                     self.latency_label.setText("Stop mirroring before re-testing backends.")
                     return
                 width = int(self._runtime_status.get("capture_width") or 1920)
                 height = int(self._runtime_status.get("capture_height") or 1080)
-                result = run_fresh_backend_probe(width=width, height=height)
-                self._runtime_status["backend_probe_attempts"] = list(result.get("attempts") or [])
-                selected = str(result.get("selected_backend") or "none")
-                self.latency_label.setText(
-                    self._backend_probe_breakdown_text(
-                        selected_backend=selected, result_origin="manual"
-                    )
+                self._backend_probe_running = True
+                self.retest_backends_button.setEnabled(False)
+                self.latency_label.setText("Running backend probe…")
+
+                def worker() -> None:
+                    try:
+                        result = run_fresh_backend_probe(width=width, height=height)
+                    except Exception as exc:  # noqa: BLE001
+                        result = {"selected_backend": "none", "attempts": [], "error": str(exc)}
+                    QTimer.singleShot(0, lambda: self._finish_backend_probe(result))
+
+                threading.Thread(target=worker, daemon=True, name="backend-probe").start()
+
+            def _finish_backend_probe(self, result: dict[str, object]) -> None:
+                self._backend_probe_running = False
+                self._probe_session_state["backend_probe_attempts"] = list(
+                    result.get("attempts") or []
                 )
+                selected = str(result.get("selected_backend") or "none")
+                if result.get("error"):
+                    self.latency_label.setText(f"Backend probe failed: {result.get('error')}")
+                else:
+                    self.latency_label.setText(
+                        self._backend_probe_breakdown_text(
+                            selected_backend=selected, result_origin="manual"
+                        )
+                    )
+                self._update_backend_probe_button_state()
 
             def _run_xdg_portal_test(self) -> None:
                 self.latency_label.setText(
@@ -2485,7 +2645,9 @@ class SettingsDialog:
             def _backend_probe_breakdown_text(
                 self, *, selected_backend: str, result_origin: str | None = None
             ) -> str:
-                rows = self._runtime_status.get("backend_probe_attempts")
+                rows = self._probe_session_state.get("backend_probe_attempts")
+                if rows is None:
+                    rows = self._runtime_status.get("backend_probe_attempts")
                 if not isinstance(rows, list) or not rows:
                     return (
                         "Last auto-run probe result: waiting for first result.\n"
@@ -2575,11 +2737,12 @@ class SettingsDialog:
 
             def updated_config(self) -> AppConfig:
                 self._pull_state()
+                self._save_slider_values_to_profile()
                 selected_model = str(self.device_model_combo.currentText())
-                if selected_model.startswith("NL82K2"):
+                if not self._device_ids_manual and selected_model.startswith("NL82K2"):
                     vid_value = 0x37FA
                     pid_value = 0x8202
-                elif selected_model.startswith("NL82K1"):
+                elif not self._device_ids_manual and selected_model.startswith("NL82K1"):
                     vid_value = 0x37FA
                     pid_value = 0x8201
                 else:
@@ -2660,43 +2823,11 @@ class SettingsDialog:
                     neutral_luminance_gain=self.neutral_luminance_gain_slider.value() / 100.0,
                     black_luminance_cutoff=self.black_luminance_cutoff_slider.value() / 10000.0,
                     black_luminance_knee=self.black_luminance_knee_slider.value() / 10000.0,
-                    led_calibration_profile_sdr=(
-                        LedCalibrationProfile(
-                            red_gain=self.red_gain_slider.value() / 100.0,
-                            green_gain=self.green_gain_slider.value() / 100.0,
-                            blue_gain=self.blue_gain_slider.value() / 100.0,
-                            led_gamma=self.led_gamma_slider.value() / 100.0,
-                            white_balance_temperature=self.white_balance_slider.value() / 100.0,
-                            chroma_compression=self.chroma_compression_slider.value() / 100.0,
-                            neutral_luminance_gain=self.neutral_luminance_gain_slider.value()
-                            / 100.0,
-                            black_luminance_cutoff=self.black_luminance_cutoff_slider.value()
-                            / 10000.0,
-                            black_luminance_knee=self.black_luminance_knee_slider.value() / 10000.0,
-                        )
-                        if str(self.display_preset_combo.currentText()).strip().lower() == "sdr"
-                        else getattr(cfg, "led_calibration_profile_sdr", LedCalibrationProfile())
-                    ),
-                    led_calibration_profile_hdr=(
-                        LedCalibrationProfile(
-                            red_gain=self.red_gain_slider.value() / 100.0,
-                            green_gain=self.green_gain_slider.value() / 100.0,
-                            blue_gain=self.blue_gain_slider.value() / 100.0,
-                            led_gamma=self.led_gamma_slider.value() / 100.0,
-                            white_balance_temperature=self.white_balance_slider.value() / 100.0,
-                            chroma_compression=self.chroma_compression_slider.value() / 100.0,
-                            neutral_luminance_gain=self.neutral_luminance_gain_slider.value()
-                            / 100.0,
-                            black_luminance_cutoff=self.black_luminance_cutoff_slider.value()
-                            / 10000.0,
-                            black_luminance_knee=self.black_luminance_knee_slider.value() / 10000.0,
-                        )
-                        if str(self.display_preset_combo.currentText()).strip().lower() != "sdr"
-                        else getattr(cfg, "led_calibration_profile_hdr", LedCalibrationProfile())
-                    ),
+                    led_calibration_profile_sdr=copy.deepcopy(self._led_profile_sdr),
+                    led_calibration_profile_hdr=copy.deepcopy(self._led_profile_hdr),
                     zones=new_zones,
                     source_side_counts=source_side_counts,
-                    layout_preset="edge_strip",
+                    layout_preset=str(getattr(cfg, "layout_preset", "edge_strip")),
                     edge_locality=new_edge_locality,
                     light_spread=value_for_label(
                         LIGHT_SPREAD_LABELS,

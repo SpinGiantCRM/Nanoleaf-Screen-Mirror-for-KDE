@@ -108,14 +108,6 @@ _M1 = np.array(
     ],
     dtype=np.float32,
 )
-_M2 = np.array(
-    [
-        [0.2104542553, 0.7936177850, -0.0040720468],
-        [1.9779984951, -2.4285922050, 0.4505937099],
-        [0.0259040371, 0.7827717662, -0.8086757660],
-    ],
-    dtype=np.float32,
-)
 _M1_INV = np.array(
     [
         [4.0767416621, -3.3077115913, 0.2309699292],
@@ -124,7 +116,7 @@ _M1_INV = np.array(
     ],
     dtype=np.float32,
 )
-_M2_INV = np.array(
+_M2_INV_LITERAL = np.array(
     [
         [1.0, 0.3963377774, 0.2158037573],
         [1.0, -0.1055613458, -0.0638541728],
@@ -132,6 +124,8 @@ _M2_INV = np.array(
     ],
     dtype=np.float32,
 )
+_M2 = np.linalg.inv(_M2_INV_LITERAL.astype(np.float64)).astype(np.float32)
+_M2_INV = np.linalg.inv(_M2.astype(np.float64)).astype(np.float32)
 _M1_T = np.ascontiguousarray(_M1.T)
 _M2_T = np.ascontiguousarray(_M2.T)
 _M1_INV_T = np.ascontiguousarray(_M1_INV.T)
@@ -160,6 +154,14 @@ STYLE_PROFILES = {
 }
 
 
+_NEAR_BLACK_OFF_LOW = 4.0
+_NEAR_BLACK_OFF_HIGH = 16.0
+_NEAR_BLACK_ACHRO_FULL_BELOW = 20.0
+_DARK_SAMPLE_STABILIZE_ON = 0.008
+_DARK_SAMPLE_STABILIZE_OFF = 0.025
+_COFB_CHROMA_THRESHOLD = 0.02
+
+
 @dataclass(frozen=True)
 class LedCalibration:
     red_gain: float = 1.0
@@ -171,6 +173,8 @@ class LedCalibration:
     neutral_luminance_gain: float = 1.0
     black_luminance_cutoff: float = 0.0032
     black_luminance_knee: float = 0.0024
+    dark_sample_stabilize_on: float = _DARK_SAMPLE_STABILIZE_ON
+    dark_sample_stabilize_off: float = _DARK_SAMPLE_STABILIZE_OFF
     color_matrix: tuple[float, ...] = ()
 
 
@@ -237,6 +241,31 @@ def _smoothstep(edge0: np.ndarray, edge1: np.ndarray, x: np.ndarray) -> np.ndarr
     return t * t * (3.0 - (2.0 * t))
 
 
+def _cofb_cartesian_gate(c: np.ndarray) -> np.ndarray:
+    edge0 = _COFB_CHROMA_THRESHOLD * 0.5
+    edge1 = _COFB_CHROMA_THRESHOLD * 1.5
+    return _smoothstep(
+        np.full_like(c, edge1),
+        np.full_like(c, edge0),
+        c,
+    )
+
+
+def _reconstruct_oklab_from_polar(
+    lum: np.ndarray,
+    c: np.ndarray,
+    h: np.ndarray,
+    a_cart: np.ndarray,
+    b_cart: np.ndarray,
+    cart_gate: np.ndarray,
+) -> np.ndarray:
+    a_pol = c * np.cos(h)
+    b_pol = c * np.sin(h)
+    a = (a_cart * cart_gate) + (a_pol * (1.0 - cart_gate))
+    b = (b_cart * cart_gate) + (b_pol * (1.0 - cart_gate))
+    return np.stack((lum, a, b), axis=-1)
+
+
 def rgb_u8_to_oklch(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     linear = srgb_u8_to_linear01(np.asarray(rgb, dtype=np.uint8))
     oklab = _linear_to_oklab(linear)
@@ -255,17 +284,25 @@ def oklch_to_rgb_u8(lum: np.ndarray, c: np.ndarray, h: np.ndarray) -> np.ndarray
     return linear01_to_srgb_u8(linear)
 
 
-_NEAR_BLACK_OFF_LOW = 4.0
-_NEAR_BLACK_OFF_HIGH = 16.0
-_NEAR_BLACK_ACHRO_FULL_BELOW = 20.0
-_DARK_SAMPLE_STABILIZE_ON = 0.008
-_DARK_SAMPLE_STABILIZE_OFF = 0.025
+def oklch_to_rgb_u8_hybrid(
+    lum: np.ndarray,
+    c: np.ndarray,
+    h: np.ndarray,
+    a_cart: np.ndarray,
+    b_cart: np.ndarray,
+) -> np.ndarray:
+    cart_gate = _cofb_cartesian_gate(c)
+    oklab = _reconstruct_oklab_from_polar(lum, c, h, a_cart, b_cart, cart_gate)
+    linear = _oklab_to_linear(oklab)
+    return linear01_to_srgb_u8(linear)
 
 
 def stabilize_dark_zone_samples(
     colors: np.ndarray,
     *,
     hold_mask: np.ndarray | None = None,
+    stabilize_on: float = _DARK_SAMPLE_STABILIZE_ON,
+    stabilize_off: float = _DARK_SAMPLE_STABILIZE_OFF,
 ) -> tuple[np.ndarray, np.ndarray]:
     rgb = np.asarray(colors, dtype=np.float32)
     if rgb.size == 0:
@@ -280,13 +317,13 @@ def stabilize_dark_zone_samples(
     grey_u8 = linear01_to_srgb_u8(y)
     neutral = np.stack((grey_u8, grey_u8, grey_u8), axis=1).astype(np.float32, copy=False)
     if hold_mask is None or hold_mask.shape[0] != y.shape[0]:
-        hold = y < _DARK_SAMPLE_STABILIZE_ON
+        hold = y < stabilize_on
     else:
         prev_hold = np.asarray(hold_mask, dtype=bool)
         hold = np.where(
             prev_hold,
-            y <= _DARK_SAMPLE_STABILIZE_OFF,
-            y < _DARK_SAMPLE_STABILIZE_ON,
+            y <= stabilize_off,
+            y < stabilize_on,
         )
     blend = hold.astype(np.float32)[:, None]
     stabilized = (rgb * (1.0 - blend)) + (neutral * blend)
@@ -355,31 +392,45 @@ def apply_near_black_zone_output(colors: np.ndarray) -> np.ndarray:
     return apply_dark_zone_output(colors)
 
 
-def apply_color_style_mapping_with_diagnostics(
-    colors: np.ndarray, *, color_style: str
+def apply_color_style_and_led_calibration_with_diagnostics(
+    colors: np.ndarray,
+    *,
+    color_style: str,
+    calibration: LedCalibration | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     style = STYLE_PROFILES.get(str(color_style).strip().lower(), STYLE_PROFILES["ambient"])
+    cal = calibration or LedCalibration()
     rgb = np.clip(np.rint(colors), 0.0, 255.0).astype(np.uint8, copy=False)
     linear = srgb_u8_to_linear01(rgb)
+    gains = np.asarray([cal.red_gain, cal.green_gain, cal.blue_gain], dtype=np.float32)
+    linear *= np.clip(gains, 0.5, 1.5)
+    matrix_values = tuple(float(v) for v in (cal.color_matrix or ()))
+    if len(matrix_values) == 9:
+        matrix = np.asarray(matrix_values, dtype=np.float32).reshape(3, 3)
+        linear = np.clip(linear @ matrix.T, 0.0, 1.0)
+    wb_gain = _planckian_white_balance_gains(float(cal.white_balance_temperature))
+    linear *= wb_gain
+    linear = np.clip(linear, 0.0, 1.0)
 
     y = np.clip(
         (0.2126 * linear[..., 0]) + (0.7152 * linear[..., 1]) + (0.0722 * linear[..., 2]),
         0.0,
         1.0,
     )
-    lum, c, h = rgb_u8_to_oklch(rgb)
+    oklab = _linear_to_oklab(linear)
+    a_cart = oklab[..., 1]
+    b_cart = oklab[..., 2]
+    lum = oklab[..., 0]
+    c = np.sqrt((a_cart * a_cart) + (b_cart * b_cart))
+    h = np.arctan2(b_cart, a_cart)
 
     c_boosted = c * style.chroma_boost
     c_cap = c * style.chroma_cap_ratio
     cap_applied = c_boosted > c_cap + 1e-7
     c_capped = np.minimum(c_boosted, c_cap)
     c_mapped = c_capped / (1.0 + (style.chroma_compression * c_capped))
+    c_mapped = c_mapped / (1.0 + (np.clip(float(cal.chroma_compression), 0.0, 0.6) * c_mapped))
 
-    # Luminance model:
-    # - near-black falls to off via a smooth knee
-    # - low chroma preserves neutral luminance and trends to white
-    # - moderate chroma blends neutral luminance and sampled hue
-    # - high chroma follows hue with per-style chroma caps/compression
     black_gate = _smoothstep(
         np.full_like(y, style.black_luminance_cutoff - style.black_luminance_knee),
         np.full_like(y, style.black_luminance_cutoff + style.black_luminance_knee),
@@ -396,14 +447,54 @@ def apply_color_style_mapping_with_diagnostics(
     neutral_l = np.cbrt(neutral_y)
     lum_mapped = np.clip((neutral_l * neutral_weight) + (lum * (1.0 - neutral_weight)), 0.0, 1.0)
     c_mapped = c_mapped * (1.0 - (0.92 * neutral_weight))
-
+    neutral_w = np.clip((0.03 - c_mapped) / 0.03, 0.0, 1.0)
+    neutral_gain = np.clip(float(cal.neutral_luminance_gain), 0.7, 1.5)
+    lum_mapped = np.clip(lum_mapped * (1.0 + (neutral_gain - 1.0) * neutral_w), 0.0, 1.0)
     lum_mapped *= black_gate
     c_mapped *= black_gate
 
-    out = oklch_to_rgb_u8(
-        lum_mapped.astype(np.float32), c_mapped.astype(np.float32), h.astype(np.float32)
+    out = oklch_to_rgb_u8_hybrid(
+        lum_mapped.astype(np.float32),
+        c_mapped.astype(np.float32),
+        h.astype(np.float32),
+        a_cart.astype(np.float32),
+        b_cart.astype(np.float32),
+    ).astype(np.float32)
+
+    cutoff = np.clip(float(cal.black_luminance_cutoff), 0.0, 0.03)
+    knee = np.clip(float(cal.black_luminance_knee), 0.0005, 0.03)
+    if cutoff > 0.0:
+        out_linear = srgb_u8_to_linear01(
+            np.clip(np.rint(out), 0.0, 255.0).astype(np.uint8, copy=False)
+        )
+        y_out = np.clip(
+            (0.2126 * out_linear[..., 0])
+            + (0.7152 * out_linear[..., 1])
+            + (0.0722 * out_linear[..., 2]),
+            0.0,
+            1.0,
+        )
+        gate = _smoothstep(
+            np.full_like(y_out, max(0.0, cutoff - knee)),
+            np.full_like(y_out, cutoff + knee),
+            y_out,
+        )[..., None]
+        out *= gate
+
+    gamma = np.clip(float(cal.led_gamma), 1.0, 4.0)
+    if abs(gamma - 1.0) > 1e-6:
+        out = np.power(np.clip(out / 255.0, 0.0, 1.0), 1.0 / gamma) * 255.0
+    return np.clip(out, 0.0, 255.0).astype(np.uint8), cap_applied
+
+
+def apply_color_style_mapping_with_diagnostics(
+    colors: np.ndarray, *, color_style: str
+) -> tuple[np.ndarray, np.ndarray]:
+    return apply_color_style_and_led_calibration_with_diagnostics(
+        colors,
+        color_style=color_style,
+        calibration=LedCalibration(),
     )
-    return out, cap_applied
 
 
 _last_color_process_ms: float = 0.0
@@ -423,35 +514,36 @@ def apply_color_style_mapping(colors: np.ndarray, *, color_style: str) -> np.nda
 
 
 def apply_led_calibration(colors: np.ndarray, calibration: LedCalibration) -> np.ndarray:
-    rgb = np.clip(np.asarray(colors, dtype=np.float32), 0.0, 255.0)
-    domain = infer_color_domain(rgb)
-    linear = to_linear_srgb(rgb, domain=domain)
+    rgb = np.clip(np.rint(colors), 0.0, 255.0).astype(np.uint8, copy=False)
+    linear = srgb_u8_to_linear01(rgb)
     gains = np.asarray(
         [calibration.red_gain, calibration.green_gain, calibration.blue_gain], dtype=np.float32
     )
     linear *= np.clip(gains, 0.5, 1.5)
-
     matrix_values = tuple(float(v) for v in (calibration.color_matrix or ()))
     if len(matrix_values) == 9:
         matrix = np.asarray(matrix_values, dtype=np.float32).reshape(3, 3)
         linear = np.clip(linear @ matrix.T, 0.0, 1.0)
-
     wb_gain = _planckian_white_balance_gains(float(calibration.white_balance_temperature))
     linear *= wb_gain
     linear = np.clip(linear, 0.0, 1.0)
-    rgb = linear01_to_srgb_u8(linear).astype(np.float32)
-
-    rgb8 = np.clip(np.rint(rgb), 0.0, 255.0).astype(np.uint8, copy=False)
-    lum, c, h = rgb_u8_to_oklch(rgb8)
+    oklab = _linear_to_oklab(linear)
+    a_cart = oklab[..., 1]
+    b_cart = oklab[..., 2]
+    lum = oklab[..., 0]
+    c = np.sqrt((a_cart * a_cart) + (b_cart * b_cart))
+    h = np.arctan2(b_cart, a_cart)
     c = c / (1.0 + (np.clip(float(calibration.chroma_compression), 0.0, 0.6) * c))
-
     neutral_w = np.clip((0.03 - c) / 0.03, 0.0, 1.0)
     neutral_gain = np.clip(float(calibration.neutral_luminance_gain), 0.7, 1.5)
     lum = np.clip(lum * (1.0 + (neutral_gain - 1.0) * neutral_w), 0.0, 1.0)
-    out = oklch_to_rgb_u8(
-        lum.astype(np.float32), c.astype(np.float32), h.astype(np.float32)
+    out = oklch_to_rgb_u8_hybrid(
+        lum.astype(np.float32),
+        c.astype(np.float32),
+        h.astype(np.float32),
+        a_cart.astype(np.float32),
+        b_cart.astype(np.float32),
     ).astype(np.float32)
-
     cutoff = np.clip(float(calibration.black_luminance_cutoff), 0.0, 0.03)
     knee = np.clip(float(calibration.black_luminance_knee), 0.0005, 0.03)
     if cutoff > 0.0:
@@ -471,7 +563,6 @@ def apply_led_calibration(colors: np.ndarray, calibration: LedCalibration) -> np
             y,
         )[..., None]
         out *= gate
-
     gamma = np.clip(float(calibration.led_gamma), 1.0, 4.0)
     if abs(gamma - 1.0) > 1e-6:
         out = np.power(np.clip(out / 255.0, 0.0, 1.0), 1.0 / gamma) * 255.0

@@ -184,7 +184,7 @@ def test_normalize_wizard_json_sorts_keys() -> None:
 
 def test_migrate_bare_config() -> None:
     result = migrate_config_dict({})
-    assert result["schema_version"] == 1
+    assert result["schema_version"] == 2
     assert isinstance(result["calibration"], dict)
     assert result["calibration"]["schema_version"] == 1
     assert result["calibration_schema_version"] == 1

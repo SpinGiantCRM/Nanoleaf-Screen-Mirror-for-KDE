@@ -64,11 +64,12 @@ def effective_zone_count(
     config: AppConfig,
     detected_device_zone_count: int | None = None,
 ) -> int:
-    _ = detected_device_zone_count
     if config.zones:
         return len(config.zones)
     if int(getattr(config, "device_zone_count", 0)) > 0:
         return int(config.device_zone_count)
+    if detected_device_zone_count is not None and int(detected_device_zone_count) > 0:
+        return int(detected_device_zone_count)
     return DEFAULT_DERIVED_ZONE_COUNT
 
 
