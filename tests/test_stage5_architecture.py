@@ -58,16 +58,31 @@ def test_migrate_strips_use_legacy_pipeline() -> None:
     assert "use_legacy_pipeline" not in migrated
 
 
-def test_kmsgrab_skips_drm_zone_sampler_on_wayland(monkeypatch) -> None:
+def test_kmsgrab_attempts_drm_zone_sampler_on_wayland(monkeypatch) -> None:
     monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
     assert _wayland_session_active() is True
+    init_calls = {"count": 0}
+
+    class _FakeSampler:
+        width = 64
+        height = 36
+
+        def close(self) -> None:
+            return None
+
+    def _fake_sampler(*_args, **_kwargs) -> _FakeSampler:
+        init_calls["count"] += 1
+        return _FakeSampler()
+
+    monkeypatch.setattr("nanoleaf_sync.capture.kmsgrab.DRMZoneSampler", _fake_sampler)
     backend = KMSGrabCapture(
         width=64,
         height=36,
         allow_fallback=True,
         drm_zone_patch_capture=True,
     )
-    assert backend._drm_zone_sampler is None
+    assert init_calls["count"] == 1
+    assert backend._drm_zone_sampler is not None
 
 
 def test_governor_prefers_end_to_end_latency_samples() -> None:

@@ -472,7 +472,10 @@ class NanoleafSyncService:
                 portal_frame_diag = raw_diag
         metadata_source = color_source
         compositor_hdr_mode = bool(getattr(self.config, "compositor_hdr_mode", False))
-        effective_sdr_boost_compensation = compositor_hdr_mode and not display_referred
+        if is_kwin_backend:
+            effective_sdr_boost_compensation = compositor_hdr_mode
+        else:
+            effective_sdr_boost_compensation = compositor_hdr_mode and not display_referred
         if self.is_running():
             effective_sdr_boost_compensation = bool(self._runtime.sdr_boost_compensation_enabled)
         display_preset = str(getattr(self.config, "display_preset", "hdr")).strip().lower()
@@ -486,6 +489,8 @@ class NanoleafSyncService:
             hdr_notes.append(
                 "XDG portal PipeWire captures are display-referred SDR; using safe sRGB defaults."
             )
+        if is_kwin_backend and compositor_hdr_mode:
+            hdr_warnings.append("Screen capture via Screenshot2 cannot preserve HDR color accuracy")
         elif display_preset == "hdr" and metadata_source == "unknown":
             hdr_warnings.append(
                 "HDR preset active but capture metadata unavailable; using user preset assumptions."
@@ -1301,8 +1306,12 @@ class NanoleafSyncService:
 
 
 def main() -> None:  # pragma: no cover
+    from nanoleaf_sync.capture._drm_helper_bridge import _helper_binary_path
+    from nanoleaf_sync.tools.setcap_helper import ensure_helper_caps
+
     cfg_mgr = ConfigManager()
     config = cfg_mgr.load()
+    ensure_helper_caps(_helper_binary_path(), show_dialog=False)
 
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"

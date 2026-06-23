@@ -352,6 +352,7 @@ def apply_output_quantization_hold_with_mask(
     *,
     threshold: float = 1.25,
     effective_target_fps: float = 60.0,
+    prev_hold: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     rgb = np.asarray(colors, dtype=np.float32)
     if previous_sent is None or previous_sent.shape != rgb.shape:
@@ -359,7 +360,12 @@ def apply_output_quantization_hold_with_mask(
     fps = max(1.0, float(effective_target_fps))
     scaled_threshold = max(float(threshold), 60.0 / fps)
     prev = np.asarray(previous_sent, dtype=np.float32)
-    hold = np.max(np.abs(rgb - prev), axis=1) < scaled_threshold
+    delta = np.max(np.abs(rgb - prev), axis=1)
+    if prev_hold is None or prev_hold.shape[0] != rgb.shape[0]:
+        hold = delta < scaled_threshold
+    else:
+        prior = np.asarray(prev_hold, dtype=bool)
+        hold = np.where(prior, delta < scaled_threshold * 0.8, delta < scaled_threshold)
     if not hold.any():
         return rgb, hold
     out = rgb.copy()

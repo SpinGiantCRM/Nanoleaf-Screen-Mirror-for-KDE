@@ -466,10 +466,11 @@ class HIDTransport:
         }
 
     def write(self, report: bytes | bytearray | memoryview | Sequence[int]) -> None:
-        if self._handle is None:
-            raise RuntimeError("HID transport not opened.")
-        payload = bytes(report)
-        self._write_payload(payload)
+        with self._io_lock:
+            if self._handle is None:
+                raise RuntimeError("HID transport not opened.")
+            payload = bytes(report)
+            self._write_payload(payload)
 
     def write_with_timing(
         self, report: bytes | bytearray | memoryview | Sequence[int]
@@ -519,54 +520,55 @@ class HIDTransport:
         until the extra drain budget expires, *max_drain_reads* is reached, or
         the input buffer is empty.
         """
-        if self._handle is None:
-            raise RuntimeError("HID transport not opened.")
-        payload = bytes(report)
-        timing = dict(self._write_payload(payload))
-        drain_start = time.perf_counter()
-        drain_reads = 0
-        ack_arrival_ms: float | None = None
-        max_reads = max(0, int(max_drain_reads))
-        ack_ms = self._resolve_ack_timeout_ms(
-            ack_timeout_ms=ack_timeout_ms,
-            target_fps=target_fps,
-        )
-        extra_budget_ms = max(1, int(drain_budget_ms)) if drain_budget_ms is not None else 8
-        read_size = self.report_size + (1 if self.use_report_id_prefix else 0)
-        try:
-            deadline = time.perf_counter() + (ack_ms / 1000.0)
-            while drain_reads == 0:
-                if time.perf_counter() >= deadline:
-                    break
-                raw_chunk = self._handle.read(read_size, 1)
-                if raw_chunk:
+        with self._io_lock:
+            if self._handle is None:
+                raise RuntimeError("HID transport not opened.")
+            payload = bytes(report)
+            timing = dict(self._write_payload(payload))
+            drain_start = time.perf_counter()
+            drain_reads = 0
+            ack_arrival_ms: float | None = None
+            max_reads = max(0, int(max_drain_reads))
+            ack_ms = self._resolve_ack_timeout_ms(
+                ack_timeout_ms=ack_timeout_ms,
+                target_fps=target_fps,
+            )
+            extra_budget_ms = max(1, int(drain_budget_ms)) if drain_budget_ms is not None else 8
+            read_size = self.report_size + (1 if self.use_report_id_prefix else 0)
+            try:
+                deadline = time.perf_counter() + (ack_ms / 1000.0)
+                while drain_reads == 0:
+                    if time.perf_counter() >= deadline:
+                        break
+                    raw_chunk = self._handle.read(read_size, 1)
+                    if raw_chunk:
+                        drain_reads += 1
+                        ack_arrival_ms = (time.perf_counter() - drain_start) * 1000.0
+                        break
+                extra_deadline = time.perf_counter() + (extra_budget_ms / 1000.0)
+                for _ in range(max(0, max_reads - 1)):
+                    if time.perf_counter() >= extra_deadline:
+                        break
+                    raw_chunk = self._handle.read(read_size, 1)
+                    if not raw_chunk:
+                        break
                     drain_reads += 1
-                    ack_arrival_ms = (time.perf_counter() - drain_start) * 1000.0
-                    break
-            extra_deadline = time.perf_counter() + (extra_budget_ms / 1000.0)
-            for _ in range(max(0, max_reads - 1)):
-                if time.perf_counter() >= extra_deadline:
-                    break
-                raw_chunk = self._handle.read(read_size, 1)
-                if not raw_chunk:
-                    break
-                drain_reads += 1
-        finally:
-            flush_ms = (time.perf_counter() - drain_start) * 1000.0
-            timing["flush_or_wait_ms"] = flush_ms
-            timing["read_calls"] = int(drain_reads)
-            if ack_arrival_ms is not None:
-                timing["ack_arrival_ms"] = float(ack_arrival_ms)
-            if drain_reads > 0:
-                sample_ms = float(ack_arrival_ms if ack_arrival_ms is not None else flush_ms)
-                if self._ack_latency_ewma_ms > 0.0:
-                    self._ack_latency_ewma_ms = (0.9 * self._ack_latency_ewma_ms) + (
-                        0.1 * sample_ms
-                    )
-                else:
-                    self._ack_latency_ewma_ms = sample_ms
-            timing["ack_timeout_ms"] = float(ack_ms)
-        return timing
+            finally:
+                flush_ms = (time.perf_counter() - drain_start) * 1000.0
+                timing["flush_or_wait_ms"] = flush_ms
+                timing["read_calls"] = int(drain_reads)
+                if ack_arrival_ms is not None:
+                    timing["ack_arrival_ms"] = float(ack_arrival_ms)
+                if drain_reads > 0:
+                    sample_ms = float(ack_arrival_ms if ack_arrival_ms is not None else flush_ms)
+                    if self._ack_latency_ewma_ms > 0.0:
+                        self._ack_latency_ewma_ms = (0.9 * self._ack_latency_ewma_ms) + (
+                            0.1 * sample_ms
+                        )
+                    else:
+                        self._ack_latency_ewma_ms = sample_ms
+                timing["ack_timeout_ms"] = float(ack_ms)
+            return timing
 
     def _resolve_ack_timeout_ms(
         self,

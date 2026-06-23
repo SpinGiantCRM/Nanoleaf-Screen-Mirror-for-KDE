@@ -13,6 +13,11 @@ _SRGB_TO_LINEAR_LUT = np.array(
 )
 
 
+def gamma22_eotf_to_linear01(c: np.ndarray) -> np.ndarray:
+    encoded = np.clip(np.asarray(c, dtype=np.float32), 0.0, 1.0)
+    return np.power(encoded, 2.2, dtype=np.float32)
+
+
 def srgb_eotf_to_linear01(c: np.ndarray) -> np.ndarray:
     """Convert sRGB-encoded floats in [0, 1] to linear-light floats."""
     a = 0.055

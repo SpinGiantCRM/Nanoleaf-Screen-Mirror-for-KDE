@@ -272,7 +272,9 @@ def test_status_includes_hdr_colour_path_diagnostics() -> None:
     assert hdr["effective_sdr_boost_scalar"] > 1.0
     assert hdr["capture_metadata_source"] == "unknown"
     assert hdr["display_referred"] is True
+    assert hdr["sdr_boost_compensation_enabled"] is True
     assert any("kwin" in note.lower() for note in hdr["notes"])
+    assert any("screenshot2" in warning.lower() for warning in hdr["warnings"])
 
 
 def test_status_includes_portal_hdr_colour_path_diagnostics() -> None:

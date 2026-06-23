@@ -224,6 +224,10 @@ class NanoleafTrayApp:
         try:
             self._config_created = self.cfg_mgr.initialize(mode="full-real", force=False)
             self.config = self.cfg_mgr.load()
+            from nanoleaf_sync.capture._drm_helper_bridge import _helper_binary_path
+            from nanoleaf_sync.tools.setcap_helper import ensure_helper_caps
+
+            ensure_helper_caps(_helper_binary_path(), show_dialog=True)
             self.service = self._create_service()
         except Exception as exc:
             self._startup_warning = (

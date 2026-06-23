@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from nanoleaf_sync.capture._drm_helper_bridge import _helper_binary_path
 from nanoleaf_sync.capture.backend_selection import (
     AUTO_BACKEND,
     KMSGRAB_BACKEND,
@@ -50,6 +51,11 @@ from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
 from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping_from_config
 from nanoleaf_sync.runtime.errors import translate_runtime_error
 from nanoleaf_sync.runtime.zone_derivation import source_side_counts_from_config
+from nanoleaf_sync.tools.setcap_helper import (
+    caps_required_for_helper,
+    helper_has_required_caps,
+    setcap_command_for,
+)
 
 Status = Literal["pass", "warn", "fail"]
 
@@ -513,6 +519,33 @@ def collect_kde_compatibility_report() -> list[str]:
     return lines
 
 
+def _check_drm_helper_caps() -> DoctorCheck:
+    helper = _helper_binary_path()
+    if helper is None:
+        return DoctorCheck(
+            "drm-helper-caps",
+            "pass",
+            "DRM helper binary not installed (kmsgrab DRM path unavailable).",
+        )
+    if not caps_required_for_helper(helper):
+        return DoctorCheck(
+            "drm-helper-caps",
+            "pass",
+            f"DRM helper at {helper} uses development path; setcap not required.",
+        )
+    if helper_has_required_caps(helper):
+        return DoctorCheck(
+            "drm-helper-caps",
+            "pass",
+            f"DRM helper capabilities present on {helper}.",
+        )
+    return DoctorCheck(
+        "drm-helper-caps",
+        "warn",
+        f"DRM helper missing capabilities. Run once: {setcap_command_for(helper)}",
+    )
+
+
 def run_doctor(
     *, include_device_probe: bool = False, include_capture_probe: bool = False
 ) -> list[DoctorCheck]:
@@ -529,6 +562,7 @@ def run_doctor(
         _check_calibration_completeness(cfg),
         _check_probe_status(cfg),
         _check_hid_enumeration(cfg),
+        _check_drm_helper_caps(),
     ]
     if not cfg.use_mock_capture:
         if normalized in {"", AUTO_BACKEND, KWIN_DBUS_BACKEND, KMSGRAB_BACKEND}:

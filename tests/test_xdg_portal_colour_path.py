@@ -3,7 +3,10 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from nanoleaf_sync.capture.source_context import build_portal_display_source_context
+from nanoleaf_sync.capture.source_context import (
+    build_kwin_display_source_context,
+    build_portal_display_source_context,
+)
 from nanoleaf_sync.capture.xdg_portal import XDGPortalCapture
 from nanoleaf_sync.color.capture_metadata import resolve_capture_metadata
 from nanoleaf_sync.runtime.color_context import color_context_from_display_source
@@ -79,7 +82,11 @@ def test_display_referred_portal_suppresses_sdr_boost_compensation() -> None:
     color_ctx = color_context_from_display_source(ctx)
     capture_display_referred = bool(color_ctx.display_referred)
     compositor_hdr_mode = True
-    sdr_boost_compensation_enabled = compositor_hdr_mode and not capture_display_referred
+    capture_backend_name = "xdg-portal"
+    if capture_backend_name == "kwin-dbus":
+        sdr_boost_compensation_enabled = compositor_hdr_mode
+    else:
+        sdr_boost_compensation_enabled = compositor_hdr_mode and not capture_display_referred
     assert capture_display_referred is True
     assert sdr_boost_compensation_enabled is False
 
@@ -124,6 +131,32 @@ def test_display_referred_portal_suppresses_sdr_boost_compensation() -> None:
     assert suppressed_timings.per_zone_sdr_boost_undo_ratio == ()
     assert enabled_timings.per_zone_sdr_boost_undo_ratio
     assert int(suppressed_colors[0][0]) > int(enabled_colors[0][0]) + 20
+
+
+def test_kwin_display_referred_enables_sdr_boost_compensation_in_hdr_mode() -> None:
+    class _KwinBackend:
+        params = type("P", (), {"monitor_id": "DP-1", "width": 64, "height": 36})()
+        last_capture_path = "kwin-dbus:screenshot2"
+        last_hdr_diagnostics = {
+            "transfer": "srgb",
+            "primaries": "bt709",
+            "max_nits": 1000.0,
+            "skip_display_gamut_adaptation": True,
+            "tone_mapping_applied": True,
+            "source": "kwin display-referred",
+        }
+
+    ctx = build_kwin_display_source_context(_KwinBackend(), frame_width=64, frame_height=36)
+    color_ctx = color_context_from_display_source(ctx)
+    capture_display_referred = bool(color_ctx.display_referred)
+    compositor_hdr_mode = True
+    capture_backend_name = "kwin-dbus"
+    if capture_backend_name == "kwin-dbus":
+        sdr_boost_compensation_enabled = compositor_hdr_mode
+    else:
+        sdr_boost_compensation_enabled = compositor_hdr_mode and not capture_display_referred
+    assert capture_display_referred is True
+    assert sdr_boost_compensation_enabled is True
 
 
 def test_runtime_state_reflects_suppressed_sdr_boost_for_display_referred_portal() -> None:

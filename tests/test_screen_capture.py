@@ -1,4 +1,5 @@
 import builtins
+import ctypes
 
 import numpy as np
 import pytest
@@ -386,3 +387,146 @@ def test_kmsgrab_sticky_kwin_fallback_skips_drm_after_first_failure(
     assert fallback_calls["count"] == 2
     assert backend._use_kwin_only is True
     assert backend.last_capture_path == "kwin-dbus"
+
+
+def test_nvidia_x_tiled_pixel_offset_and_zone_read() -> None:
+    from nanoleaf_sync.capture._drm_helper_bridge import is_nvidia_x_tiled_modifier
+    from nanoleaf_sync.capture._drm_zone_sampler import (
+        _FOURCC_XB24,
+        DRMZoneSampler,
+        _nvidia_x_tiled_pixel_offset,
+    )
+
+    modifier = (0x03 << 56) | 0x10
+    assert is_nvidia_x_tiled_modifier(modifier) is True
+    assert is_nvidia_x_tiled_modifier(0) is False
+
+    width = 1920
+    height = 1080
+    tilex = 16
+    tiley = 128
+    tiles_x = width // tilex
+    tiles_y = height // tiley
+    buf_len = tiles_x * tiles_y * tilex * tiley * 4
+    frame = bytearray(buf_len)
+
+    def _set_pixel(px: int, py: int, r: int, g: int, b: int) -> None:
+        offset = _nvidia_x_tiled_pixel_offset(px, py, width)
+        frame[offset : offset + 4] = bytes((r, g, b, 255))
+
+    for py in range(254, 259):
+        for px in range(30, 35):
+            _set_pixel(px, py, 200, 100, 50)
+
+    sampler = object.__new__(DRMZoneSampler)
+    sampler._is_10bit = False
+    sampler._is_fp16 = False
+    sampler._rgb_order = True
+    sampler._r_byte, sampler._g_byte, sampler._b_byte = 0, 1, 2
+    sampler._width = width
+    sampler._height = height
+    sampler._pitch_bytes = width * 4
+    sampler._fourcc = _FOURCC_XB24
+    sampler._nvidia_x_tiled = True
+    sampler._remount_count = 0
+    sampler._crtc_id = 1
+    sampler._fb_id = 1
+    sampler._fd = -1
+    sampler._dma_buf_fd = -1
+    sampler._libc = None
+    sampler._ensure_framebuffer_current = lambda: None  # type: ignore[method-assign]
+
+    buf_type = ctypes.c_uint8 * len(frame)
+    buf = buf_type.from_buffer_copy(bytes(frame))
+    sampler._mapped_ptr = ctypes.addressof(buf)
+
+    out = DRMZoneSampler.capture_zone_patches(sampler, [(32, 256)])
+    assert isinstance(out, np.ndarray)
+    assert out.shape == (1, 3)
+    assert out.dtype == np.uint8
+    assert tuple(int(v) for v in out[0]) == (200, 100, 50)
+
+
+def test_drm_zone_sampler_decodes_10bit_xb30_pixel() -> None:
+    from nanoleaf_sync.capture._drm_zone_sampler import (
+        _FOURCC_XB30,
+        DRMZoneSampler,
+        _decode_10bit_pixel,
+    )
+
+    word = (150 << 20) | (300 << 10) | 640
+    r10, g10, b10 = _decode_10bit_pixel(word, rgb_order=True)
+    assert (r10, g10, b10) == (640, 300, 150)
+
+    sampler = object.__new__(DRMZoneSampler)
+    sampler._is_10bit = True
+    sampler._is_fp16 = False
+    sampler._rgb_order = True
+    sampler._width = 4
+    sampler._height = 4
+    sampler._pitch_bytes = 16
+    sampler._fourcc = _FOURCC_XB30
+    sampler._mapped_ptr = 0
+    sampler._remount_count = 0
+    sampler._crtc_id = 1
+    sampler._fb_id = 1
+    sampler._fd = -1
+    sampler._dma_buf_fd = -1
+    sampler._libc = None
+    sampler._ensure_framebuffer_current = lambda: None  # type: ignore[method-assign]
+
+    pixel_bytes = word.to_bytes(4, "little")
+    row = pixel_bytes * 4
+    frame = row * 4
+    buf_type = ctypes.c_uint8 * len(frame)
+    buf = buf_type.from_buffer_copy(frame)
+    sampler._mapped_ptr = ctypes.addressof(buf)
+
+    out = DRMZoneSampler.capture_zone_patches(sampler, [(0, 0)])
+    assert isinstance(out, tuple)
+    rgb, metadata = out
+    assert metadata["bit_depth"] == 10
+    assert metadata["transfer"] == "gamma22"
+    assert metadata["primaries"] == "bt2020"
+    assert rgb.shape == (1, 3)
+    assert rgb.dtype == np.float32
+    assert np.allclose(rgb[0], np.array([640, 300, 150], dtype=np.float32) / 1023.0, atol=1e-5)
+
+
+def test_kmsgrab_converts_drm_10bit_zone_rects(monkeypatch: pytest.MonkeyPatch) -> None:
+    backend = KMSGrabCapture(width=4, height=4, drm_zone_patch_capture=True)
+    zones = np.array([[0.5, 0.25, 0.1]], dtype=np.float32)
+    metadata = {
+        "fourcc": 0x30334258,
+        "bit_depth": 10,
+        "primaries": "bt2020",
+        "transfer": "gamma22",
+        "source": "backend metadata",
+    }
+
+    class _FakeSampler:
+        is_10bit = True
+
+        def capture_zone_rects(self, _rects):
+            return zones, metadata
+
+        def capture_metadata(self):
+            return metadata
+
+    backend._drm_zone_sampler = _FakeSampler()
+    converted = np.array([[120, 60, 20]], dtype=np.uint8)
+    calls: list[dict[str, object]] = []
+
+    def _fake_convert(frame: np.ndarray, metadata):
+        calls.append(dict(metadata))
+        return converted
+
+    monkeypatch.setattr("nanoleaf_sync.capture.kmsgrab.convert_frame_to_srgb8", _fake_convert)
+    out = backend.capture(zone_rects=[(0, 0, 2, 2)])
+    assert out.shape == (1, 3)
+    assert out.dtype == np.uint8
+    assert np.array_equal(out, converted)
+    assert calls
+    assert calls[0]["transfer"] == "gamma22"
+    assert calls[0]["primaries"] == "bt2020"
+    assert backend.last_hdr_diagnostics.get("display_referred") is True

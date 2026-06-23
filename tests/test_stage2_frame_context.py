@@ -17,6 +17,23 @@ def test_kwin_display_source_context_primary_default() -> None:
     backend.close()
 
 
+def test_kwin_display_source_context_preserves_skip_gamut_from_hdr_diagnostics() -> None:
+    class _Backend:
+        params = type("P", (), {"monitor_id": "DP-1", "width": 64, "height": 36})()
+        last_capture_path = "kwin-dbus:screenshot2"
+        last_hdr_diagnostics = {
+            "transfer": "srgb",
+            "primaries": "bt709",
+            "max_nits": 1000.0,
+            "skip_display_gamut_adaptation": True,
+            "tone_mapping_applied": True,
+            "source": "kwin display-referred",
+        }
+
+    ctx = build_kwin_display_source_context(_Backend(), frame_width=64, frame_height=36)
+    assert ctx.hdr_metadata.skip_display_gamut_adaptation is True
+
+
 def test_frame_context_carries_seq_and_timing() -> None:
     backend = KWinDBusScreenshotCapture(width=64, height=36, monitor_id="DP-1")
     source = build_kwin_display_source_context(backend, frame_width=64, frame_height=36)

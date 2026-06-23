@@ -83,7 +83,7 @@ class KMSGrabCapture:
 
         self._hdr_defaults = HDRMetadata(
             transfer=hdr_transfer
-            if hdr_transfer in ("srgb", "pq", "hlg", "linear", "unknown")
+            if hdr_transfer in ("srgb", "pq", "hlg", "linear", "gamma22", "unknown")
             else "srgb",  # type: ignore[arg-type]
             primaries=hdr_primaries if hdr_primaries in ("bt709", "bt2020", "unknown") else "bt709",  # type: ignore[arg-type]
             max_nits=float(hdr_max_nits),
@@ -95,7 +95,7 @@ class KMSGrabCapture:
         self._resize_index_cache_limit = 8
         self._drm_capture_impl = self._resolve_drm_capture_impl()
         self._drm_zone_sampler: DRMZoneSampler | None = None
-        if self._drm_capture_impl is None and not _wayland_session_active():
+        if self._drm_capture_impl is None:
             try:
                 self._drm_zone_sampler = DRMZoneSampler(
                     card_path=self.params.card_path,
@@ -111,8 +111,6 @@ class KMSGrabCapture:
                     "kmsgrab: DRMZoneSampler unavailable on %s; zone-patch capture disabled",
                     self.params.card_path,
                 )
-        elif self._drm_capture_impl is None and _wayland_session_active():
-            _log.debug("kmsgrab: skipping DRM zone sampler on Wayland; use kwin-dbus capture")
 
     def close(self) -> None:
         """Release D-Bus event-loop resources and DRM zone sampler."""
@@ -150,7 +148,10 @@ class KMSGrabCapture:
             if display_rects:
                 try:
                     patches = self._drm_zone_sampler.capture_zone_rects(display_rects)
+                    patches = self._convert_zone_result_if_needed(patches)
                     self.last_capture_path = "drm-zone-rects"
+                    if isinstance(patches, np.ndarray) and patches.ndim == 2:
+                        self._record_drm_hdr_diagnostics(patches)
                     return patches
                 except KMSGrabError:
                     if not self._allow_fallback:
@@ -261,6 +262,50 @@ class KMSGrabCapture:
         except TypeError:
             return False
 
+    def _convert_zone_result_if_needed(self, result: object) -> np.ndarray:
+        if isinstance(result, tuple) and len(result) == 2:
+            rgb, metadata = result
+            if isinstance(rgb, np.ndarray) and rgb.ndim == 2 and rgb.shape[1] == 3:
+                expanded = rgb.reshape(1, rgb.shape[0], 3)
+                converted = self._convert_if_needed((expanded, metadata))
+                return converted.reshape(rgb.shape[0], 3)
+        if isinstance(result, np.ndarray):
+            return result
+        return self._convert_if_needed(result)
+
+    def _record_drm_hdr_diagnostics(self, rgb: np.ndarray) -> None:
+        sampler = self._drm_zone_sampler
+        if sampler is None or not bool(getattr(sampler, "is_10bit", False)):
+            return
+        capture_meta = sampler.capture_metadata
+        if callable(capture_meta):
+            capture_meta = capture_meta()
+        if not isinstance(capture_meta, dict):
+            return
+        resolved = resolve_capture_metadata(
+            backend_metadata=capture_meta,
+            user_transfer=str(self._hdr_defaults.transfer),
+            user_primaries=str(self._hdr_defaults.primaries),
+            user_max_nits=float(self._hdr_defaults.max_nits),
+        )
+        meta = resolved.to_hdr_metadata()
+        self.last_hdr_diagnostics = {
+            **analyze_hdr_path(
+                rgb.reshape(1, rgb.shape[0], 3),
+                metadata={
+                    "transfer": meta.transfer,
+                    "primaries": meta.primaries,
+                    "max_nits": meta.max_nits,
+                    "bit_depth": capture_meta.get("bit_depth", 8),
+                    "source": resolved.source,
+                },
+            ),
+            "hdr_max_nits": float(meta.max_nits),
+            "assumption": resolved.assumption,
+            "skip_display_gamut_adaptation": resolved.skip_display_gamut_adaptation,
+            "display_referred": True,
+        }
+
     def _convert_if_needed(self, result: object) -> np.ndarray:
         """Convert DRM output to uint8 sRGB; accepts ndarray or (ndarray, metadata)."""
 
@@ -284,6 +329,12 @@ class KMSGrabCapture:
             user_max_nits=float(self._hdr_defaults.max_nits),
         )
         meta = resolved.to_hdr_metadata()
+
+        bit_depth = None
+        if isinstance(metadata, dict):
+            raw_depth = metadata.get("bit_depth")
+            if raw_depth is not None:
+                bit_depth = int(raw_depth)
 
         if not isinstance(rgb, np.ndarray):
             raise TypeError("DRM capture must return a numpy.ndarray (or (ndarray, metadata)).")
@@ -316,28 +367,29 @@ class KMSGrabCapture:
             }
             return rgb
 
+        convert_metadata = {
+            "transfer": meta.transfer,
+            "primaries": meta.primaries,
+            "max_nits": meta.max_nits,
+            "source": resolved.source,
+        }
+        if bit_depth is not None:
+            convert_metadata["bit_depth"] = bit_depth
+
         self.last_hdr_diagnostics = {
             **analyze_hdr_path(
                 rgb,
-                metadata={
-                    "transfer": meta.transfer,
-                    "primaries": meta.primaries,
-                    "max_nits": meta.max_nits,
-                    "source": resolved.source,
-                },
+                metadata=convert_metadata,
             ),
             "hdr_max_nits": float(meta.max_nits),
             "assumption": resolved.assumption,
             "skip_display_gamut_adaptation": resolved.skip_display_gamut_adaptation,
         }
+        if meta.transfer == "gamma22":
+            self.last_hdr_diagnostics["display_referred"] = True
         return convert_frame_to_srgb8(
             rgb,
-            metadata={
-                "transfer": meta.transfer,
-                "primaries": meta.primaries,
-                "max_nits": meta.max_nits,
-                "source": resolved.source,
-            },
+            metadata=convert_metadata,
         )
 
     def _resize_to_target(

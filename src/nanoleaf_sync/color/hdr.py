@@ -16,11 +16,12 @@ from typing import Any, Literal
 import numpy as np
 
 from nanoleaf_sync.runtime.srgb import (
+    gamma22_eotf_to_linear01,
     linear01_to_srgb_encoded,
     srgb_eotf_to_linear01,
 )
 
-TransferFn = Literal["srgb", "pq", "hlg", "linear", "unknown"]
+TransferFn = Literal["srgb", "pq", "hlg", "linear", "gamma22", "unknown"]
 Primaries = Literal["bt709", "bt2020", "unknown"]
 
 _XYZ_TO_SRGB = np.array(
@@ -63,6 +64,7 @@ class HDRMetadata:
     # Many PQ signals are defined over a 10,000 nit reference; this value
     # helps scale for content/mastering display metadata.
     max_nits: float = 1000.0
+    skip_display_gamut_adaptation: bool = False
 
     # Some capture backends may report an "encoded range" (0..1 for normalized).
     # We assume normalized float conversion already happens in the caller.
@@ -76,6 +78,9 @@ class HDRMetadata:
                 transfer=str(value.get("transfer", HDRMetadata.transfer)),
                 primaries=str(value.get("primaries", HDRMetadata.primaries)),
                 max_nits=float(value.get("max_nits", HDRMetadata.max_nits)),
+                skip_display_gamut_adaptation=bool(
+                    value.get("skip_display_gamut_adaptation", False)
+                ),
             )
         return HDRMetadata()
 
@@ -89,10 +94,12 @@ def _normalize_metadata_source(value: Any) -> str:
     return "unknown"
 
 
-def _to_float01(rgb: np.ndarray) -> np.ndarray:
+def _to_float01(rgb: np.ndarray, *, bit_depth: int | None = None) -> np.ndarray:
     if rgb.dtype == np.uint8:
         return rgb.astype(np.float32, copy=False) / 255.0
     if rgb.dtype == np.uint16:
+        if bit_depth == 10:
+            return rgb.astype(np.float32, copy=False) / 1023.0
         return rgb.astype(np.float32, copy=False) / 65535.0
     if np.issubdtype(rgb.dtype, np.floating):
         # Assume already normalized or already close enough; clamp defensively.
@@ -181,6 +188,18 @@ def _looks_sdr_encoded(enc: np.ndarray, *, transfer: str) -> bool:
     return True
 
 
+def _metadata_bit_depth(metadata: Any | None) -> int | None:
+    if not isinstance(metadata, dict):
+        return None
+    raw = metadata.get("bit_depth")
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
 def analyze_hdr_path(rgb: np.ndarray, metadata: Any | None = None) -> dict[str, object]:
     meta = HDRMetadata.from_any(metadata)
     source = "unknown"
@@ -189,7 +208,7 @@ def analyze_hdr_path(rgb: np.ndarray, metadata: Any | None = None) -> dict[str, 
     assumed_transfer = meta.transfer
     assumed_primaries = meta.primaries
     assumption_note = ""
-    if meta.transfer not in {"srgb", "pq", "hlg", "linear"}:
+    if meta.transfer not in {"srgb", "pq", "hlg", "linear", "gamma22"}:
         assumed_transfer = "srgb"
         assumption_note = "unknown transfer; assuming sRGB"
     if meta.primaries not in {"bt709", "bt2020"}:
@@ -198,7 +217,7 @@ def analyze_hdr_path(rgb: np.ndarray, metadata: Any | None = None) -> dict[str, 
             assumption_note + "; " if assumption_note else ""
         ) + "unknown primaries; assuming BT.709"
 
-    enc = _to_float01(rgb)
+    enc = _to_float01(rgb, bit_depth=_metadata_bit_depth(metadata))
     tone_map_planned = assumed_transfer in {"pq", "hlg"}
     if (
         tone_map_planned
@@ -211,7 +230,7 @@ def analyze_hdr_path(rgb: np.ndarray, metadata: Any | None = None) -> dict[str, 
         assumption_note = (
             assumption_note + "; " if assumption_note else ""
         ) + "input appears SDR-like; treating as display-referred sRGB"
-    if assumed_transfer in {"srgb", "linear"}:
+    if assumed_transfer in {"srgb", "linear", "gamma22"}:
         tone_map_planned = False
 
     return {
@@ -269,7 +288,8 @@ def convert_frame_to_srgb8(
     ):
         return np.clip(np.rint(np.clip(rgb, 0.0, 1.0) * 255.0), 0, 255).astype(np.uint8)
 
-    enc = _to_float01(rgb)
+    bit_depth = _metadata_bit_depth(metadata)
+    enc = _to_float01(rgb, bit_depth=bit_depth)
 
     path = analyze_hdr_path(rgb, metadata=metadata)
 
@@ -277,6 +297,8 @@ def convert_frame_to_srgb8(
     transfer = str(path["input_transfer"])
     if transfer == "srgb":
         linear = srgb_eotf_to_linear01(enc)
+    elif transfer == "gamma22":
+        linear = gamma22_eotf_to_linear01(enc)
     elif transfer == "pq":
         linear = _pq_eotf_to_linear(enc)
     elif transfer == "hlg":

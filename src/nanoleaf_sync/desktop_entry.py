@@ -226,6 +226,7 @@ def _systemd_service_text(*, exec_command: str | None = None) -> str:
         "[Service]\n"
         "Type=simple\n"
         f"ExecStart={run_cmd}\n"
+        "AmbientCapabilities=CAP_SYS_ADMIN CAP_SYS_PTRACE\n"
         "Restart=on-failure\n"
         "RestartSec=1\n\n"
         "[Install]\n"

@@ -30,3 +30,19 @@ def test_missing_metadata_defaults_to_display_referred_srgb() -> None:
     assert meta.transfer == "srgb"
     assert meta.primaries == "bt709"
     assert meta.skip_display_gamut_adaptation is True
+
+
+def test_backend_metadata_preserves_skip_display_gamut_adaptation() -> None:
+    meta = resolve_capture_metadata(
+        backend_metadata={
+            "transfer": "srgb",
+            "primaries": "bt709",
+            "max_nits": 1000.0,
+            "skip_display_gamut_adaptation": True,
+            "source": "kwin display-referred",
+        },
+        kwin_display_referred=True,
+    )
+    assert meta.skip_display_gamut_adaptation is True
+    assert meta.transfer == "srgb"
+    assert meta.primaries == "bt709"

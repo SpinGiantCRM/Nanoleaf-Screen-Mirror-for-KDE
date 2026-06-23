@@ -9,6 +9,7 @@ import numpy as np
 
 from nanoleaf_sync.capture.latency_probe import LatencyProbe
 from nanoleaf_sync.color._types import RGBTuple
+from nanoleaf_sync.runtime.blending import BlendHysteresisState
 from nanoleaf_sync.runtime.calibration_resolver import (
     CALIBRATION_INCOMPLETE_STATUS,
     CALIBRATION_READY_STATUS,
@@ -90,6 +91,7 @@ class RuntimeState:
     flattening_mitigation_active: bool = False
     skip_display_gamut_adaptation: bool = False
     sdr_boost_compensation_enabled: bool = True
+    kwin_screenshot2_hdr_warning_logged: bool = False
     latest_staleness_ms: float = 0.0
     output_healthy: bool = False
     governor_p95_latency_ms: float = 0.0
@@ -119,6 +121,8 @@ class RuntimeState:
     sampling_mode_dwell_remaining: int = 0
     smoothing_dimension_signature: tuple[int, int] | None = None
     dark_zone_stabilize_hold: list[bool] = field(default_factory=list)
+    blend_hysteresis_state: BlendHysteresisState | None = None
+    output_quantization_prev_hold: list[bool] = field(default_factory=list)
     portal_selection_started_at: float | None = None
     black_frame_degrade_level: int = 0
     request_capture_buf_clear: bool = False
@@ -189,6 +193,7 @@ class RuntimeState:
         self.total_black_frames = 0
         self.latest_frame_mean_brightness = 0.0
         self.sdr_boost_compensation_enabled = True
+        self.kwin_screenshot2_hdr_warning_logged = False
         self.latest_staleness_ms = 0.0
         self.output_healthy = False
         self.governor_p95_latency_ms = 0.0
@@ -218,6 +223,8 @@ class RuntimeState:
         self.sampling_mode_dwell_remaining = 0
         self.smoothing_dimension_signature = None
         self.dark_zone_stabilize_hold = []
+        self.blend_hysteresis_state = None
+        self.output_quantization_prev_hold = []
         self.portal_selection_started_at = None
         self.black_frame_degrade_level = 0
         self.request_capture_buf_clear = False
@@ -227,17 +234,20 @@ class RuntimeState:
         self.hid_worker_idle.set()
 
     def clear_smoothing_history(self) -> None:
-        self.prev_smoothed_colors = []
-        self.prev_smooth_float_colors = []
-        self.prev_sent_colors = []
-        self.prev_sampled_zone_colors = []
-        self.prev_palette_algorithms = []
-        self.zone_palette_temporal_states = []
-        self.palette_frame_index = 0
-        self.prior_zone_sample_motion = 0.0
-        self.prior_area_average_mode = False
-        self.sampling_mode_dwell_remaining = 0
-        self.dark_zone_stabilize_hold = []
+        with self._lock:
+            self.prev_smoothed_colors = []
+            self.prev_smooth_float_colors = []
+            self.prev_sent_colors = []
+            self.prev_sampled_zone_colors = []
+            self.prev_palette_algorithms = []
+            self.zone_palette_temporal_states = []
+            self.palette_frame_index = 0
+            self.prior_zone_sample_motion = 0.0
+            self.prior_area_average_mode = False
+            self.sampling_mode_dwell_remaining = 0
+            self.dark_zone_stabilize_hold = []
+            self.blend_hysteresis_state = None
+            self.output_quantization_prev_hold = []
 
     def mark_calibration_incomplete(self, message: str) -> None:
         self.calibration_status = CALIBRATION_INCOMPLETE_STATUS

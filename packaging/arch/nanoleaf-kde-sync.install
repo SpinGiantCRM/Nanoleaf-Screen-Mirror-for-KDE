@@ -1,4 +1,7 @@
 post_install() {
+  if [ -x /usr/bin/nanoleaf_drm_helper ]; then
+    setcap cap_sys_admin,cap_sys_ptrace+ep /usr/bin/nanoleaf_drm_helper 2>/dev/null || true
+  fi
   cat <<'EOF'
 [nanoleaf-kde-sync]
 Installed successfully.

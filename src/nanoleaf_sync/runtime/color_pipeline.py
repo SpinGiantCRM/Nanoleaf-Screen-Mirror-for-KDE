@@ -23,7 +23,11 @@ from nanoleaf_sync.config.presets import (
     is_accuracy_mode,
     predictive_sync_enabled_for_sync,
 )
-from nanoleaf_sync.runtime.blending import adaptive_one_euro_blend, apply_neighbor_blend
+from nanoleaf_sync.runtime.blending import (
+    BlendHysteresisState,
+    adaptive_one_euro_blend,
+    apply_neighbor_blend,
+)
 from nanoleaf_sync.runtime.color_processing import (
     LedCalibration,
     apply_color_style_and_led_calibration_with_diagnostics,
@@ -86,6 +90,8 @@ class ColorPipelineParams:
     prev_smooth_float_colors: Sequence[RGBTuple] = ()
     prev_sent_colors: Sequence[RGBTuple] = ()
     dark_zone_stabilize_hold: Sequence[bool] = ()
+    blend_hysteresis: BlendHysteresisState | None = None
+    output_quantization_prev_hold: Sequence[bool] = ()
 
 
 _SAMPLING_MODE_DWELL_FRAMES = 3
@@ -392,10 +398,14 @@ def process_zone_colors(
         stage_after_style = _stage_snapshot(mapped)
     colour_processing_done = time.perf_counter()
 
+    blend_hyst = params.blend_hysteresis or BlendHysteresisState()
     if light_spread != "off":
-        mapped = apply_neighbor_blend(mapped, spread_mode=light_spread).astype(
-            np.float32, copy=False
+        mapped, blend_hyst = apply_neighbor_blend(
+            mapped,
+            spread_mode=light_spread,
+            hysteresis=blend_hyst,
         )
+        mapped = mapped.astype(np.float32, copy=False)
 
     b = max(0.0, min(1.0, float(params.brightness)))
     if b != 1.0:
@@ -415,12 +425,13 @@ def process_zone_colors(
         n = min(len(prev_smooth), mapped.shape[0])
         if n:
             prev_arr = np.asarray(prev_smooth[:n], dtype=np.float32)
-            mapped[:n], adaptive_diag = adaptive_one_euro_blend(
+            mapped[:n], adaptive_diag, blend_hyst = adaptive_one_euro_blend(
                 current=mapped[:n],
                 previous=prev_arr,
                 smoothing=smoothing,
                 smoothing_speed=smoothing_speed,
                 motion_preset=motion_preset,
+                hysteresis=blend_hyst,
             )
     if capture_colour_stages:
         stage_after_smoothing = _stage_snapshot(mapped)
@@ -484,6 +495,11 @@ def process_zone_colors(
 
     prev_sent_arr: np.ndarray | None = None
     output_quantization_hold_mask: np.ndarray | None = None
+    prev_quant_hold = (
+        np.asarray(params.output_quantization_prev_hold, dtype=bool)
+        if params.output_quantization_prev_hold
+        else None
+    )
     if prev_sent:
         n = min(len(prev_sent), mapped.shape[0])
         if n:
@@ -492,6 +508,7 @@ def process_zone_colors(
                 mapped[:n],
                 prev_sent_arr,
                 effective_target_fps=float(params.effective_target_fps),
+                prev_hold=prev_quant_hold[:n] if prev_quant_hold is not None else None,
             )
 
     np.clip(mapped, 0.0, 255.0, out=mapped)
@@ -544,6 +561,12 @@ def process_zone_colors(
             predictive_scene_cut_suppressed=predictive_scene_cut_suppressed,
             sampling_mode_dwell_remaining=int(sampling_dwell),
             dark_zone_stabilize_hold=tuple(bool(v) for v in dark_hold.tolist()),
+            blend_hysteresis=blend_hyst,
+            output_quantization_prev_hold=tuple(
+                bool(v) for v in output_quantization_hold_mask.tolist()
+            )
+            if output_quantization_hold_mask is not None
+            else (),
             colour_path_before_style=stage_before_style,
             colour_path_after_style=stage_after_style,
             colour_path_after_spread=stage_after_spread,
@@ -654,6 +677,8 @@ def build_pipeline_params_from_config(
     sampling_mode_dwell_remaining: int = 0,
     color_context: object | None = None,
     dark_zone_stabilize_hold: Sequence[bool] = (),
+    blend_hysteresis: BlendHysteresisState | None = None,
+    output_quantization_prev_hold: Sequence[bool] = (),
 ) -> ColorPipelineParams:
     active_profile = resolve_active_led_profile(
         config,
@@ -707,4 +732,6 @@ def build_pipeline_params_from_config(
         sampling_mode_dwell_remaining=int(sampling_mode_dwell_remaining),
         color_context=color_context,
         dark_zone_stabilize_hold=tuple(bool(v) for v in dark_zone_stabilize_hold),
+        blend_hysteresis=blend_hysteresis,
+        output_quantization_prev_hold=tuple(bool(v) for v in output_quantization_prev_hold),
     )

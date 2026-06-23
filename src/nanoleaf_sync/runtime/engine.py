@@ -50,6 +50,7 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.presets import effective_drm_zone_patch_capture, is_accuracy_mode
 from nanoleaf_sync.runtime.blending import (
     AdaptiveSmoothingDiagnostics,
+    BlendHysteresisState,
     adaptive_one_euro_blend,
     apply_neighbor_blend,
 )
@@ -228,6 +229,8 @@ class FrameProcessingTimings:
     predictive_scene_cut_suppressed: bool = False
     sampling_mode_dwell_remaining: int = 0
     dark_zone_stabilize_hold: tuple[bool, ...] = ()
+    blend_hysteresis: BlendHysteresisState | None = None
+    output_quantization_prev_hold: tuple[bool, ...] = ()
     colour_path_before_style: tuple[tuple[int, int, int], ...] = ()
     colour_path_after_style: tuple[tuple[int, int, int], ...] = ()
     colour_path_after_spread: tuple[tuple[int, int, int], ...] = ()
@@ -282,13 +285,14 @@ def _adaptive_one_euro_blend(
     smoothing_speed: float = 0.75,
     motion_preset: str = "responsive",
 ) -> tuple[np.ndarray, AdaptiveSmoothingDiagnostics]:
-    return adaptive_one_euro_blend(
+    blended, diagnostics, _updated = adaptive_one_euro_blend(
         current=current,
         previous=previous,
         smoothing=smoothing,
         smoothing_speed=smoothing_speed,
         motion_preset=motion_preset,
     )
+    return blended, diagnostics
 
 
 def _zone_sampling_diagnostic_fields(
@@ -1022,6 +1026,10 @@ def _run_loop_pipeline(
                     "kwin-dbus",
                     "xdg-portal",
                 }
+                if cap_backend is not None and capture_backend_name == "kmsgrab":
+                    drm_sampler = getattr(cap_backend, "_drm_zone_sampler", None)
+                    if drm_sampler is not None and bool(getattr(drm_sampler, "is_10bit", False)):
+                        capture_display_referred = True
                 skip_gamut = state.skip_display_gamut_adaptation
                 color_context = None
                 if frame_context is not None:
@@ -1068,10 +1076,22 @@ def _run_loop_pipeline(
                             hdr_diag.get("tone_mapping_applied", False)
                         )
                         skip_gamut = bool(state.skip_display_gamut_adaptation)
-                state.sdr_boost_compensation_enabled = (
-                    bool(getattr(config, "compositor_hdr_mode", False))
-                    and not capture_display_referred
-                )
+                compositor_hdr_mode = bool(getattr(config, "compositor_hdr_mode", False))
+                if capture_backend_name == "kwin-dbus":
+                    state.sdr_boost_compensation_enabled = compositor_hdr_mode
+                else:
+                    state.sdr_boost_compensation_enabled = (
+                        compositor_hdr_mode and not capture_display_referred
+                    )
+                if (
+                    capture_backend_name == "kwin-dbus"
+                    and compositor_hdr_mode
+                    and not state.kwin_screenshot2_hdr_warning_logged
+                ):
+                    logger.warning(
+                        "Screen capture via Screenshot2 cannot preserve HDR color accuracy"
+                    )
+                    state.kwin_screenshot2_hdr_warning_logged = True
                 pipeline_params = build_pipeline_params_from_config(
                     config,
                     return_diagnostics=True,
@@ -1096,6 +1116,8 @@ def _run_loop_pipeline(
                     sampling_mode_dwell_remaining=int(state.sampling_mode_dwell_remaining),
                     color_context=color_context,
                     dark_zone_stabilize_hold=state.dark_zone_stabilize_hold,
+                    blend_hysteresis=state.blend_hysteresis_state,
+                    output_quantization_prev_hold=state.output_quantization_prev_hold,
                 )
                 light_spread = pipeline_params.light_spread
                 if state.flattening_mitigation_active:
@@ -1180,6 +1202,12 @@ def _run_loop_pipeline(
                 dark_hold = getattr(processing_timings, "dark_zone_stabilize_hold", ())
                 if dark_hold:
                     state.dark_zone_stabilize_hold = [bool(v) for v in dark_hold]
+                blend_hyst = getattr(processing_timings, "blend_hysteresis", None)
+                if blend_hyst is not None:
+                    state.blend_hysteresis_state = blend_hyst
+                quant_hold = getattr(processing_timings, "output_quantization_prev_hold", ())
+                if quant_hold:
+                    state.output_quantization_prev_hold = [bool(v) for v in quant_hold]
                 state.prior_zone_sample_motion = zone_sample_motion(
                     sampled_zone_colors,
                     state.prev_sampled_zone_colors,  # type: ignore[arg-type]

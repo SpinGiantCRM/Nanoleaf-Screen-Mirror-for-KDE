@@ -58,4 +58,8 @@ package() {
   install -Dm644 docs/PACKAGING_AUR.md "$pkgdir/usr/share/doc/$pkgname/PACKAGING_AUR.md"
   install -Dm644 docs/USER_GUIDE.md "$pkgdir/usr/share/doc/$pkgname/USER_GUIDE.md"
   install -Dm644 docs/SECURITY.md "$pkgdir/usr/share/doc/$pkgname/SECURITY.md"
+
+  bash scripts/build_drm_helper.sh
+  install -Dm755 src/nanoleaf_sync/capture/nanoleaf_drm_helper \
+    "$pkgdir/usr/bin/nanoleaf_drm_helper"
 }

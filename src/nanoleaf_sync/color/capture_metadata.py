@@ -35,6 +35,7 @@ class CaptureMetadata:
             transfer=self.transfer,
             primaries=self.primaries,
             max_nits=self.max_nits,
+            skip_display_gamut_adaptation=self.skip_display_gamut_adaptation,
         )
 
     def as_dict(self) -> dict[str, object]:
@@ -62,7 +63,7 @@ class DisplayPresetResolution:
 
 def _normalize_transfer(value: object) -> TransferFn:
     normalized = str(value or "srgb").strip().lower()
-    if normalized in {"srgb", "pq", "hlg", "linear", "unknown"}:
+    if normalized in {"srgb", "pq", "hlg", "linear", "gamma22", "unknown"}:
         return normalized  # type: ignore[return-value]
     return "srgb"
 
@@ -279,6 +280,7 @@ def resolve_capture_metadata(
         transfer = _normalize_transfer(meta.transfer)
         primaries = _normalize_primaries(meta.primaries)
         max_nits = float(meta.max_nits)
+        skip_display_gamut = bool(meta.skip_display_gamut_adaptation)
         if primaries == "bt2020":
             capture_primaries_converted = True
 
@@ -308,6 +310,9 @@ def resolve_capture_metadata(
             assumption = assumption
 
     if capture_primaries_converted and primaries == "bt2020":
+        skip_display_gamut = True
+
+    if kwin_display_referred:
         skip_display_gamut = True
 
     return CaptureMetadata(
