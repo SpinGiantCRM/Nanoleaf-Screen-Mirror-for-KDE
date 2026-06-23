@@ -10,6 +10,13 @@ from nanoleaf_sync.capture.factory import create_capture_backend
 from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture
 
 
+class _FailSampler:
+    """Mock that immediately raises KMSGrabError to prevent real DRM init."""
+
+    def __init__(self, *args, **kwargs):
+        raise KMSGrabError("mock: no DRM device")
+
+
 def test_capture_factory_mock_is_reusable(monkeypatch) -> None:
     monkeypatch.setattr("nanoleaf_sync.capture.factory._has_drm_device", lambda: False)
     monkeypatch.setattr("nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: False)
@@ -283,6 +290,11 @@ def test_kmsgrab_probes_modules_once_and_falls_back_without_import_exceptions(mo
 
     monkeypatch.setattr("nanoleaf_sync.capture.kmsgrab.import_module", _fake_import)
 
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.kmsgrab.DRMZoneSampler",
+        _FailSampler,
+    )
+
     backend = KMSGrabCapture(width=4, height=3)
 
     fallback_frame = np.zeros((3, 4, 3), dtype=np.uint8)
@@ -306,6 +318,11 @@ def test_kmsgrab_reuses_cached_probe_result_across_instances(monkeypatch) -> Non
 
     monkeypatch.setattr("nanoleaf_sync.capture.kmsgrab.import_module", _fake_import)
 
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.kmsgrab.DRMZoneSampler",
+        _FailSampler,
+    )
+
     KMSGrabCapture(width=4, height=3)
     KMSGrabCapture(width=8, height=6)
 
@@ -313,7 +330,11 @@ def test_kmsgrab_reuses_cached_probe_result_across_instances(monkeypatch) -> Non
     assert calls["imports"] == 2
 
 
-def test_kmsgrab_drm_capture_keyword_only_callable_is_used() -> None:
+def test_kmsgrab_drm_capture_keyword_only_callable_is_used(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.kmsgrab.DRMZoneSampler",
+        _FailSampler,
+    )
     backend = KMSGrabCapture(width=4, height=3)
     calls: list[str] = []
 
@@ -328,7 +349,11 @@ def test_kmsgrab_drm_capture_keyword_only_callable_is_used() -> None:
     assert calls == ["4x3@/dev/dri/card0"]
 
 
-def test_kmsgrab_drm_capture_positional_only_retry_on_keyword_typeerror() -> None:
+def test_kmsgrab_drm_capture_positional_only_retry_on_keyword_typeerror(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.kmsgrab.DRMZoneSampler",
+        _FailSampler,
+    )
     backend = KMSGrabCapture(width=4, height=3)
     calls: list[tuple[int, int, str]] = []
 
@@ -343,7 +368,13 @@ def test_kmsgrab_drm_capture_positional_only_retry_on_keyword_typeerror() -> Non
     assert calls == [(4, 3, "/dev/dri/card0")]
 
 
-def test_kmsgrab_drm_capture_mismatched_signature_raises_actionable_kmsgrab_error() -> None:
+def test_kmsgrab_drm_capture_mismatched_signature_raises_actionable_kmsgrab_error(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.kmsgrab.DRMZoneSampler",
+        _FailSampler,
+    )
     backend = KMSGrabCapture(width=4, height=3)
 
     def _mismatched(foo, /):
@@ -363,6 +394,10 @@ def test_kmsgrab_drm_capture_mismatched_signature_raises_actionable_kmsgrab_erro
 def test_kmsgrab_sticky_kwin_fallback_skips_drm_after_first_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.kmsgrab.DRMZoneSampler",
+        _FailSampler,
+    )
     backend = KMSGrabCapture(width=4, height=3)
     drm_attempts = {"count": 0}
 
@@ -494,6 +529,10 @@ def test_drm_zone_sampler_decodes_10bit_xb30_pixel() -> None:
 
 
 def test_kmsgrab_converts_drm_10bit_zone_rects(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.kmsgrab.DRMZoneSampler",
+        _FailSampler,
+    )
     backend = KMSGrabCapture(width=4, height=4, drm_zone_patch_capture=True)
     zones = np.array([[0.5, 0.25, 0.1]], dtype=np.float32)
     metadata = {

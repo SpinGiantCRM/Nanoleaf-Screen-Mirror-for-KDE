@@ -975,6 +975,12 @@ class DRMZoneSampler:
         )
 
     def _ensure_framebuffer_current(self) -> None:
+        # When initialised via the DRM helper binary we trust the FB is
+        # still current — the helper verified it and KWin won't reassign
+        # CRTCs mid-stream.  Skip the GETCRTC ioctl which requires master
+        # context on NVIDIA.
+        if getattr(self, "_helper_dma_mmap", False) or getattr(self, "_fd_cloned", False):
+            return
         if self._helper_dma_mmap:
             helper_info = request_helper_mmap(
                 card_path=self._card_path,
@@ -1229,7 +1235,7 @@ class DRMZoneSampler:
             raise KMSGrabError("DRMZoneSampler: framebuffer not mapped")
 
         n_zones = len(rects)
-        if self._is_10bit:
+        if self._is_fp16 or self._is_10bit:
             out = np.zeros((n_zones, 3), dtype=np.float32)
         else:
             out = np.zeros((n_zones, 3), dtype=np.uint8)
@@ -1253,14 +1259,19 @@ class DRMZoneSampler:
                 continue
 
             n_pixels = 0
-            sum_r = 0
-            sum_g = 0
-            sum_b = 0
+            if self._is_fp16 or self._is_10bit:
+                sum_r = 0.0
+                sum_g = 0.0
+                sum_b = 0.0
+            else:
+                sum_r = 0
+                sum_g = 0
+                sum_b = 0
             sum_linear = np.zeros(3, dtype=np.float64)
             for py in range(y0, y1):
                 for px in range(x0, x1):
                     pixel_base = self._pixel_byte_offset(px, py)
-                    if self._is_10bit:
+                    if self._is_fp16 or self._is_10bit:
                         sum_r, sum_g, sum_b = self._accumulate_pixel(
                             buf,
                             pixel_base,
@@ -1281,16 +1292,14 @@ class DRMZoneSampler:
                     n_pixels += 1
 
             if n_pixels > 0:
-                if self._is_10bit:
+                if self._is_fp16:
+                    out[i] = np.array([sum_r, sum_g, sum_b], dtype=np.float32) / float(n_pixels)
+                elif self._is_10bit:
                     avg = np.array(
-                        [
-                            sum_r / float(n_pixels),
-                            sum_g / float(n_pixels),
-                            sum_b / float(n_pixels),
-                        ],
+                        [sum_r, sum_g, sum_b],
                         dtype=np.float32,
-                    )
-                    out[i] = avg / 1023.0
+                    ) / (float(n_pixels) * 1023.0)
+                    out[i] = avg
                 else:
                     avg_linear = (sum_linear / float(n_pixels)).astype(np.float32, copy=False)
                     out[i] = linear01_to_srgb_u8(avg_linear)

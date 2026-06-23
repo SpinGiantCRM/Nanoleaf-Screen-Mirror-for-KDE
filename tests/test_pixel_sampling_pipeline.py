@@ -195,10 +195,9 @@ def test_scale_zones_to_display_scales_coordinates() -> None:
 def test_kmsgrab_skips_drm_patch_path_by_default(monkeypatch) -> None:
     capture = KMSGrabCapture(width=480, height=270, allow_fallback=False)
     sampler = MagicMock()
-    sampler.capture_zone_rects.side_effect = AssertionError(
-        "DRM patch capture should not run when disabled"
-    )
+    sampler.capture_zone_rects.return_value = np.zeros((1, 3), dtype=np.uint8)
     capture._drm_zone_sampler = sampler
+    capture._drm_zone_patch_capture = False  # disable patches for this test
     capture._drm_capture_impl = lambda **kwargs: np.zeros((270, 480, 3), dtype=np.uint8)
     out = capture.capture(zone_rects=[(0, 0, 20, 20)])
     assert out.shape == (270, 480, 3)

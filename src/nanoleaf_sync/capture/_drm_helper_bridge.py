@@ -131,8 +131,7 @@ def request_helper_mmap(*, card_path: str, fb_id: int = 0) -> DRMHelperMmapInfo 
             )
             return None
         with conn:
-            payload = _recv_all(conn, _MMAP_INFO_STRUCT.size)
-            fds = _recv_fds(conn)
+            payload, fds = _recv_payload_with_fds(conn, _MMAP_INFO_STRUCT.size)
         stdout, stderr = proc.communicate(timeout=_HELPER_TIMEOUT_SECONDS)
         if proc.returncode != 0:
             _log.debug(
@@ -232,25 +231,19 @@ def _accept_helper_connection(
     return None
 
 
-def _recv_all(conn: socket.socket, size: int) -> bytes:
+def _recv_payload_with_fds(conn: socket.socket, size: int) -> tuple[bytes, list[int]]:
     chunks: list[bytes] = []
     remaining = size
+    fds: list[int] = []
     while remaining > 0:
-        chunk = conn.recv(remaining)
-        if not chunk:
+        msg = conn.recvmsg(remaining, socket.CMSG_SPACE(4))
+        data, ancdata, _msg_flags, _addr = msg
+        if not data:
             raise OSError("DRM helper socket closed before payload complete")
-        chunks.append(chunk)
-        remaining -= len(chunk)
-    return b"".join(chunks)
-
-
-def _recv_fds(conn: socket.socket) -> list[int]:
-    if not hasattr(socket, "SCM_RIGHTS"):
-        return []
-    _data, ancdata, _msg_flags, _addr = conn.recvmsg(1, socket.CMSG_SPACE(4))
-    if not ancdata:
-        return []
-    for level, ctype, cdata in ancdata:
-        if level == socket.SOL_SOCKET and ctype == socket.SCM_RIGHTS:
-            return list(struct.unpack("i", cdata[: struct.calcsize("i")]))
-    return []
+        chunks.append(data)
+        remaining -= len(data)
+        if ancdata and not fds:
+            for level, ctype, cdata in ancdata:
+                if level == socket.SOL_SOCKET and ctype == socket.SCM_RIGHTS:
+                    fds.extend(struct.unpack("i" * (len(cdata) // 4), cdata[: len(cdata)]))
+    return b"".join(chunks), fds

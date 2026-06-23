@@ -53,10 +53,12 @@ def test_request_helper_mmap_parses_reply(monkeypatch: pytest.MonkeyPatch, tmp_p
             client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             try:
                 client.connect(sock_path)
-                client.sendall(payload)
+                # Match real helper behavior: payload + SCM_RIGHTS in ONE sendmsg
+                iov = [payload]
+                cmsg = struct.pack("i", pass_fd.fileno())
                 client.sendmsg(
-                    [b"\x00"],
-                    [(socket.SOL_SOCKET, socket.SCM_RIGHTS, struct.pack("i", pass_fd.fileno()))],
+                    iov,
+                    [(socket.SOL_SOCKET, socket.SCM_RIGHTS, cmsg)],
                 )
             finally:
                 client.close()

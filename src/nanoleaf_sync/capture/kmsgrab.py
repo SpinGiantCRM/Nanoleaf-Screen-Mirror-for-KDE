@@ -106,6 +106,9 @@ class KMSGrabCapture:
                     self._drm_zone_sampler.width,
                     self._drm_zone_sampler.height,
                 )
+                # Enable zone-patch capture when no native C extension exists
+                # but the Python DRMZoneSampler is available (NVIDIA FP16 path).
+                self._drm_zone_patch_capture = True
             except KMSGrabError:
                 _log.debug(
                     "kmsgrab: DRMZoneSampler unavailable on %s; zone-patch capture disabled",
@@ -145,6 +148,16 @@ class KMSGrabCapture:
             display_rects = zone_rects
             if display_rects is None and zone_centers:
                 display_rects = [(max(0, cx - 2), max(0, cy - 2), 5, 5) for cx, cy in zone_centers]
+            # No explicit zones but sampler is available — capture a grid
+            # covering the full frame so probe/fallback works.
+            if not display_rects:
+                w = self._drm_zone_sampler.width
+                h = self._drm_zone_sampler.height
+                step_x = max(1, w // 64)
+                step_y = max(1, h // 36)
+                display_rects = [
+                    (x, y, step_x, step_y) for y in range(0, h, step_y) for x in range(0, w, step_x)
+                ]
             if display_rects:
                 try:
                     patches = self._drm_zone_sampler.capture_zone_rects(display_rects)
@@ -266,9 +279,12 @@ class KMSGrabCapture:
         if isinstance(result, tuple) and len(result) == 2:
             rgb, metadata = result
             if isinstance(rgb, np.ndarray) and rgb.ndim == 2 and rgb.shape[1] == 3:
-                expanded = rgb.reshape(1, rgb.shape[0], 3)
-                converted = self._convert_if_needed((expanded, metadata))
-                return converted.reshape(rgb.shape[0], 3)
+                if rgb.dtype == np.uint8:
+                    return rgb
+                if rgb.dtype == np.float32 or rgb.dtype == np.float64:
+                    expanded = rgb.reshape(1, rgb.shape[0], 3)
+                    converted = self._convert_if_needed((expanded, metadata), skip_resize=True)
+                    return converted.reshape(rgb.shape[0], 3)
         if isinstance(result, np.ndarray):
             return result
         return self._convert_if_needed(result)
@@ -306,7 +322,7 @@ class KMSGrabCapture:
             "display_referred": True,
         }
 
-    def _convert_if_needed(self, result: object) -> np.ndarray:
+    def _convert_if_needed(self, result: object, skip_resize: bool = False) -> np.ndarray:
         """Convert DRM output to uint8 sRGB; accepts ndarray or (ndarray, metadata)."""
 
         if isinstance(result, tuple) and len(result) == 2:
@@ -341,7 +357,7 @@ class KMSGrabCapture:
 
         target_h = int(self.params.height)
         target_w = int(self.params.width)
-        if rgb.shape[0] != target_h or rgb.shape[1] != target_w:
+        if not skip_resize and (rgb.shape[0] != target_h or rgb.shape[1] != target_w):
             rgb = _resize_to_target(
                 frame=rgb,
                 target_height=target_h,
