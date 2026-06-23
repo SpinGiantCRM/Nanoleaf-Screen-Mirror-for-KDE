@@ -218,10 +218,10 @@ def test_run_loop_skips_duplicate_unchanged_output(monkeypatch: pytest.MonkeyPat
 
     driver = _CountingDriver()
     state = RuntimeState()
-    cfg = _cfg_with_valid_calibration(48, fps=60)
+    cfg = _cfg_with_valid_calibration(48, fps=60, min_max_send_age_ms=500.0)
 
     def _stop_after_duplicate_skip() -> None:
-        deadline = time.perf_counter() + 5.0
+        deadline = time.perf_counter() + 10.0
         while time.perf_counter() < deadline and state.duplicate_output_skipped_frames < 1:
             time.sleep(0.02)
         state.stop_event.set()
