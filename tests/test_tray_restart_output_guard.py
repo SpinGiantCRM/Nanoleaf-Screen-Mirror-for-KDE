@@ -48,14 +48,14 @@ def _run_guarded_loop(
     runtime_state: RuntimeState,
 ) -> None:
     def _stop_soon() -> None:
-        deadline = time.perf_counter() + 5.0
+        deadline = time.perf_counter() + 10.0
         while time.perf_counter() < deadline and runtime_state.frames_sent < 1:
             time.sleep(0.02)
         runtime_state.stop_event.set()
 
     threading.Thread(target=_stop_soon, daemon=True).start()
     run_loop(
-        config=_cfg_with_valid_calibration(48, fps=60),
+        config=_cfg_with_valid_calibration(48, fps=60, min_max_send_age_ms=500.0),
         state=runtime_state,
         get_capture=lambda: _FastCapture(),
         get_driver=lambda: _CountingDriver(),

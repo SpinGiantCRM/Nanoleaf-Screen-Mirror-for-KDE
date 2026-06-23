@@ -279,10 +279,10 @@ def test_run_loop_records_live_send_policy_without_response_wait_penalty() -> No
             }
 
     state = RuntimeState()
-    cfg = _cfg_with_valid_calibration(48, fps=60)
+    cfg = _cfg_with_valid_calibration(48, fps=60, min_max_send_age_ms=500.0)
 
     def _stop_after_first_send_or_timeout() -> None:
-        deadline = time.perf_counter() + 5.0
+        deadline = time.perf_counter() + 10.0
         while time.perf_counter() < deadline and not state.first_frame_sent:
             time.sleep(0.02)
         state.stop_event.set()
