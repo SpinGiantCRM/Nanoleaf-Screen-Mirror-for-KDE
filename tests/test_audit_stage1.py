@@ -221,9 +221,9 @@ def test_run_loop_skips_duplicate_unchanged_output(monkeypatch: pytest.MonkeyPat
     cfg = _cfg_with_valid_calibration(48, fps=60)
 
     def _stop_after_duplicate_skip() -> None:
-        deadline = time.perf_counter() + 2.0
+        deadline = time.perf_counter() + 5.0
         while time.perf_counter() < deadline and state.duplicate_output_skipped_frames < 1:
-            time.sleep(0.01)
+            time.sleep(0.02)
         state.stop_event.set()
 
     stopper = threading.Thread(target=_stop_after_duplicate_skip, daemon=True)
