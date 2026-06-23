@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.9.0 — DRM helper for kmsgrab and colour/HID hardening
+
+### Features
+
+- Setcap-backed `nanoleaf_drm_helper` binary for kmsgrab DRM master framebuffer access without full root
+- Expanded kmsgrab zone sampling: FP16, 10-bit, and NVIDIA tiled modifier support
+- Doctor checks for DRM helper capabilities and install-time setcap via pacman hook
+
+### Fixes
+
+- Blending, HDR metadata, and colour pipeline improvements for neutrals and edge locality
+- HID transport write timing and recovery hardened for sustained mirroring
+
 ## v1.8.0 — Stable 60 FPS capture, colour, and HID mirroring
 
 ### Features
