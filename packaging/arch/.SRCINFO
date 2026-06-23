@@ -17,7 +17,7 @@ pkgbase = nanoleaf-kde-sync
 	depends = python-hidapi
 	depends = python-dacite
 	depends = python-tomli-w
-	source = nanoleaf-kde-sync-1.9.0.tar.gz::https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/archive/refs/tags/v1.9.0.tar.gz
-	sha256sums = b0facac3721ba298def0648d2bc7c1ba544c074d59e7a1e43694fba6488b01e6
+	source = nanoleaf-kde-sync-1.9.1.tar.gz::https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/archive/refs/tags/v1.9.1.tar.gz
+	sha256sums = 9a2d2b6903efdeb61762ab1ad200f0e21f53e92b585a194d5c08ddd418f91b56
 
 pkgname = nanoleaf-kde-sync
