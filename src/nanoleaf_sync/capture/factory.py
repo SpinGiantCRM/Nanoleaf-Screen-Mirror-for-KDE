@@ -193,17 +193,13 @@ def _kmsgrab_bindings_available() -> bool:
 
 
 def _resolve_auto_backend() -> str:
-    if _has_drm_device() and _kmsgrab_bindings_available():
-        return "kmsgrab"
-    return "kwin-dbus"
+    return KWIN_DBUS_BACKEND
 
 
 def cached_probe_winner_is_viable(value: str | None) -> bool:
     if not is_valid_probe_candidate(value):
         return False
-    if value == KMSGRAB_BACKEND:
-        return _has_drm_device() and _kmsgrab_bindings_available()
-    return True
+    return value != KMSGRAB_BACKEND
 
 
 def _env_bool(var_name: str) -> bool | None:

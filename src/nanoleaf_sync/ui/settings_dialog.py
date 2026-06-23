@@ -1,14 +1,11 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 from collections.abc import Callable
 from dataclasses import replace
 
 import numpy as np
-
-_log = logging.getLogger(__name__)
-
-import contextlib
 
 from nanoleaf_sync.capture.factory import (
     run_explicit_xdg_portal_probe,
@@ -51,6 +48,7 @@ from nanoleaf_sync.ui.preset_ui import (
     LIGHT_SPREAD_LABELS,
     MOTION_PRESET_LABELS,
     PERFORMANCE_PRIORITY_LABELS,
+    PERFORMANCE_PROFILE_LABELS,
     SAMPLING_QUALITY_LABELS,
     label_for_value,
     labels,
@@ -58,6 +56,8 @@ from nanoleaf_sync.ui.preset_ui import (
 )
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.zone_presets import edge_weighted_layout, make_edge_weighted_zones
+
+_log = logging.getLogger(__name__)
 
 FPS_MIN = 1
 FPS_MAX = 120
@@ -160,7 +160,10 @@ class SettingsDialog:
                 self.setWindowTitle(window_title)
                 resize = getattr(self, "resize", None)
                 if callable(resize):
-                    resize(860, 760)
+                    resize(980, 760)
+                set_minimum_width = getattr(self, "setMinimumWidth", None)
+                if callable(set_minimum_width):
+                    set_minimum_width(980)
                 if dialog_geometry is not None:
                     restore = getattr(self, "restoreGeometry", None)
                     if callable(restore):
@@ -267,7 +270,7 @@ class SettingsDialog:
                         self.edge_locality_combo.findText(
                             label_for_value(
                                 EDGE_LOCALITY_LABELS,
-                                str(getattr(cfg, "edge_locality", "tight")),
+                                str(getattr(cfg, "edge_locality", "balanced")),
                                 default="Tight",
                             )
                         ),
@@ -466,8 +469,22 @@ class SettingsDialog:
                         self.sampling_quality_combo.findText(
                             label_for_value(
                                 SAMPLING_QUALITY_LABELS,
-                                str(getattr(cfg, "sampling_quality", "high")),
-                                default="High",
+                                str(getattr(cfg, "sampling_quality", "balanced")),
+                                default="Balanced",
+                            )
+                        ),
+                    )
+                )
+                self.performance_profile_combo = QComboBox()
+                self.performance_profile_combo.addItems(labels(PERFORMANCE_PROFILE_LABELS))
+                self.performance_profile_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.performance_profile_combo.findText(
+                            label_for_value(
+                                PERFORMANCE_PROFILE_LABELS,
+                                str(getattr(cfg, "performance_profile", "balanced")),
+                                default="Balanced",
                             )
                         ),
                     )
@@ -605,6 +622,7 @@ class SettingsDialog:
                 self._bind_live_numeric_updates()
 
                 for signal in (
+                    self.performance_profile_combo.currentIndexChanged,
                     self.sampling_quality_combo.currentIndexChanged,
                     self.reverse_checkbox.stateChanged,
                     self.capture_backend_combo.currentIndexChanged,
@@ -613,6 +631,9 @@ class SettingsDialog:
                 ):
                     signal.connect(self._refresh_preview_label)
                 self.zone_count_slider.valueChanged.connect(self._on_zone_count_slider_changed)
+                self.performance_profile_combo.currentIndexChanged.connect(
+                    self._on_performance_profile_changed
+                )
                 self.device_zone_count_slider.valueChanged.connect(
                     self._on_device_zone_count_slider_changed
                 )
@@ -762,6 +783,17 @@ class SettingsDialog:
                 for button in self._compact_action_buttons:
                     mark_compact(button)
                 for label in (
+                    self.device_zone_count_status_label,
+                    self.strip_count_warning_label,
+                    self.screen_zone_matched_label,
+                    self.test_label,
+                    self.simple_calibration_widget.preview_text_label,
+                    self.simple_calibration_widget.current_zone_label,
+                    self.simple_calibration_widget.assigned_corners_label,
+                    self.simple_calibration_widget.corner_checklist_label,
+                    self.simple_calibration_widget.direction_label,
+                    self.simple_calibration_widget.validation_label,
+                    self.simple_calibration_widget.preview_visual_label,
                     self.latency_label,
                     self.self_check_label,
                     self.sampling_export_label,
@@ -775,6 +807,7 @@ class SettingsDialog:
                     self.xdg_hint_label,
                     self.recovery_tools_hint_label,
                 ):
+                    self._configure_wrapping_label(label)
                     mark_muted(label)
                 stretch_all_combo_popups(self)
                 self._baseline_config = self.updated_config()
@@ -794,6 +827,10 @@ class SettingsDialog:
                 )
                 self.sampling_quality_combo.setToolTip(
                     "Low = better performance, Balanced = default, High = best visual fidelity."
+                )
+                self.performance_profile_combo.setToolTip(
+                    "Performance lowers capture cost, Balanced is the recommended default, "
+                    "Quality prioritizes colour and sampling fidelity."
                 )
                 self.performance_priority_combo.setToolTip(
                     "High priority may improve scheduling consistency. It may fail without "
@@ -927,6 +964,31 @@ class SettingsDialog:
                 if callable(set_min_width):
                     set_min_width(86)
 
+            def _configure_wrapping_label(self, label) -> None:
+                set_wrap = getattr(label, "setWordWrap", None)
+                if callable(set_wrap):
+                    set_wrap(True)
+                set_min_width = getattr(label, "setMinimumWidth", None)
+                if callable(set_min_width):
+                    set_min_width(0)
+                set_max_width = getattr(label, "setMaximumWidth", None)
+                if callable(set_max_width):
+                    set_max_width(760)
+
+            def _make_scroll_area(self):
+                scroll = QScrollArea()
+                scroll.setWidgetResizable(True)
+                set_policy = getattr(scroll, "setHorizontalScrollBarPolicy", None)
+                if callable(set_policy):
+                    set_policy(qt["Qt"].ScrollBarPolicy.ScrollBarAlwaysOff)
+                return scroll
+
+            def _set_scroll_page(self, scroll, page) -> None:
+                set_max_width = getattr(page, "setMaximumWidth", None)
+                if callable(set_max_width):
+                    set_max_width(760)
+                scroll.setWidget(page)
+
             def _bind_live_numeric_updates(self) -> None:
                 for signal in (
                     self.brightness_slider.valueChanged,
@@ -984,8 +1046,8 @@ class SettingsDialog:
                 return page
 
             def _build_strip_setup_section(self, QGroupBox, QGridLayout, QLabel, QScrollArea):
-                scroll = QScrollArea()
-                scroll.setWidgetResizable(True)
+                del QScrollArea
+                scroll = self._make_scroll_area()
                 page = QWidget()
                 layout = QVBoxLayout()
                 count_group = QGroupBox("Strip LED count")
@@ -1063,7 +1125,7 @@ class SettingsDialog:
                 layout.addWidget(calibration_group)
                 layout.addStretch(1)
                 page.setLayout(layout)
-                scroll.setWidget(page)
+                self._set_scroll_page(scroll, page)
                 return scroll
 
             def _build_fine_tuning_section(self, QGroupBox, QGridLayout, QLabel):
@@ -1072,27 +1134,29 @@ class SettingsDialog:
                 group = QGroupBox("Fine-tuning")
                 grid = QGridLayout()
                 self._configure_section_layout(grid)
-                grid.addWidget(QLabel("Edge locality"), 0, 0)
-                grid.addWidget(self.edge_locality_combo, 0, 1, 1, 2)
-                grid.addWidget(QLabel("Light spread"), 1, 0)
-                grid.addWidget(self.light_spread_combo, 1, 1, 1, 2)
-                grid.addWidget(QLabel("Quality"), 2, 0)
-                grid.addWidget(self.sampling_quality_combo, 2, 1)
-                grid.addWidget(self.sampling_quality_value, 2, 2)
-                grid.addWidget(QLabel("Target capture/output FPS"), 3, 0)
-                grid.addWidget(self.fps_slider, 3, 1)
-                grid.addWidget(self.fps_value, 3, 2)
-                grid.addWidget(QLabel("Smoothing"), 4, 0)
-                grid.addWidget(self.smoothing_slider, 4, 1)
-                grid.addWidget(self.smoothing_value, 4, 2)
-                grid.addWidget(QLabel("Smoothing speed"), 5, 0)
-                grid.addWidget(self.smoothing_speed_slider, 5, 1)
-                grid.addWidget(self.smoothing_speed_value, 5, 2)
-                grid.addWidget(QLabel("Performance priority"), 6, 0)
-                grid.addWidget(self.performance_priority_combo, 6, 1, 1, 2)
-                grid.addWidget(QLabel("Vibrancy (LED gamma)"), 7, 0)
-                grid.addWidget(self.led_gamma_slider, 7, 1)
-                grid.addWidget(self.led_gamma_value, 7, 2)
+                grid.addWidget(QLabel("Performance profile"), 0, 0)
+                grid.addWidget(self.performance_profile_combo, 0, 1, 1, 2)
+                grid.addWidget(QLabel("Edge locality"), 1, 0)
+                grid.addWidget(self.edge_locality_combo, 1, 1, 1, 2)
+                grid.addWidget(QLabel("Light spread"), 2, 0)
+                grid.addWidget(self.light_spread_combo, 2, 1, 1, 2)
+                grid.addWidget(QLabel("Quality"), 3, 0)
+                grid.addWidget(self.sampling_quality_combo, 3, 1)
+                grid.addWidget(self.sampling_quality_value, 3, 2)
+                grid.addWidget(QLabel("Target capture/output FPS"), 4, 0)
+                grid.addWidget(self.fps_slider, 4, 1)
+                grid.addWidget(self.fps_value, 4, 2)
+                grid.addWidget(QLabel("Smoothing"), 5, 0)
+                grid.addWidget(self.smoothing_slider, 5, 1)
+                grid.addWidget(self.smoothing_value, 5, 2)
+                grid.addWidget(QLabel("Smoothing speed"), 6, 0)
+                grid.addWidget(self.smoothing_speed_slider, 6, 1)
+                grid.addWidget(self.smoothing_speed_value, 6, 2)
+                grid.addWidget(QLabel("Performance priority"), 7, 0)
+                grid.addWidget(self.performance_priority_combo, 7, 1, 1, 2)
+                grid.addWidget(QLabel("Vibrancy (LED gamma)"), 8, 0)
+                grid.addWidget(self.led_gamma_slider, 8, 1)
+                grid.addWidget(self.led_gamma_value, 8, 2)
                 group.setLayout(grid)
                 layout.addWidget(group)
                 layout.addStretch(1)
@@ -1100,8 +1164,7 @@ class SettingsDialog:
                 return page
 
             def _build_colour_section(self, QGroupBox, QGridLayout, QLabel):
-                scroll = QScrollArea()
-                scroll.setWidgetResizable(True)
+                scroll = self._make_scroll_area()
                 page = QWidget()
                 layout = QVBoxLayout()
                 group = QGroupBox("Colour")
@@ -1199,12 +1262,11 @@ class SettingsDialog:
                 layout.addWidget(led_cal)
                 layout.addStretch(1)
                 page.setLayout(layout)
-                scroll.setWidget(page)
+                self._set_scroll_page(scroll, page)
                 return scroll
 
             def _build_advanced_section(self, QGroupBox, QGridLayout, QLabel):
-                scroll = QScrollArea()
-                scroll.setWidgetResizable(True)
+                scroll = self._make_scroll_area()
                 page = QWidget()
                 layout = QVBoxLayout()
 
@@ -1278,7 +1340,7 @@ class SettingsDialog:
                 layout.addWidget(troubleshooting)
                 layout.addStretch(1)
                 page.setLayout(layout)
-                scroll.setWidget(page)
+                self._set_scroll_page(scroll, page)
                 return scroll
 
             def _stop_calibration_preview_timer(self) -> None:
@@ -1336,6 +1398,86 @@ class SettingsDialog:
                 slider.setValue(int(value))
                 if callable(block_signals):
                     block_signals(previous)
+
+            def _set_combo_value_safely(self, combo, options, value: str, *, default: str) -> None:
+                label = label_for_value(options, value, default=default)
+                idx = combo.findText(label)
+                if idx < 0 or int(combo.currentIndex()) == int(idx):
+                    return
+                block_signals = getattr(combo, "blockSignals", None)
+                previous = False
+                if callable(block_signals):
+                    previous = bool(block_signals(True))
+                combo.setCurrentIndex(idx)
+                if callable(block_signals):
+                    block_signals(previous)
+
+            def _on_performance_profile_changed(self, *_args) -> None:
+                profile = value_for_label(
+                    PERFORMANCE_PROFILE_LABELS,
+                    str(self.performance_profile_combo.currentText()),
+                    default="balanced",
+                )
+                presets = {
+                    "performance": {
+                        "fps": 30,
+                        "sampling_quality": "low",
+                        "edge_locality": "tight",
+                        "light_spread": "precise",
+                        "motion_preset": "calm",
+                        "smoothing": 65,
+                        "smoothing_speed": 60,
+                    },
+                    "balanced": {
+                        "fps": 60,
+                        "sampling_quality": "balanced",
+                        "edge_locality": "balanced",
+                        "light_spread": "balanced",
+                        "motion_preset": "responsive",
+                        "smoothing": 50,
+                        "smoothing_speed": 75,
+                    },
+                    "quality": {
+                        "fps": 60,
+                        "sampling_quality": "high",
+                        "edge_locality": "wide",
+                        "light_spread": "precise",
+                        "motion_preset": "responsive",
+                        "smoothing": 35,
+                        "smoothing_speed": 120,
+                    },
+                }
+                preset = presets.get(profile, presets["balanced"])
+                self._set_slider_value_safely(self.fps_slider, int(preset["fps"]))
+                self._set_slider_value_safely(self.smoothing_slider, int(preset["smoothing"]))
+                self._set_slider_value_safely(
+                    self.smoothing_speed_slider, int(preset["smoothing_speed"])
+                )
+                self._set_combo_value_safely(
+                    self.sampling_quality_combo,
+                    SAMPLING_QUALITY_LABELS,
+                    str(preset["sampling_quality"]),
+                    default="Balanced",
+                )
+                self._set_combo_value_safely(
+                    self.edge_locality_combo,
+                    EDGE_LOCALITY_LABELS,
+                    str(preset["edge_locality"]),
+                    default="Balanced",
+                )
+                self._set_combo_value_safely(
+                    self.light_spread_combo,
+                    LIGHT_SPREAD_LABELS,
+                    str(preset["light_spread"]),
+                    default="Balanced",
+                )
+                self._set_combo_value_safely(
+                    self.motion_preset_combo,
+                    MOTION_PRESET_LABELS,
+                    str(preset["motion_preset"]),
+                    default="Responsive",
+                )
+                self._refresh_preview_label()
 
             def _refresh_numeric_labels(self):
                 if (
@@ -2491,7 +2633,16 @@ class SettingsDialog:
                 return replace(
                     cfg,
                     fps=int(self.fps_slider.value()),
-                    sampling_quality=str(self.sampling_quality_combo.currentText()).lower(),
+                    sampling_quality=value_for_label(
+                        SAMPLING_QUALITY_LABELS,
+                        str(self.sampling_quality_combo.currentText()),
+                        default="balanced",
+                    ),
+                    performance_profile=value_for_label(
+                        PERFORMANCE_PROFILE_LABELS,
+                        str(self.performance_profile_combo.currentText()),
+                        default="balanced",
+                    ),
                     performance_priority=value_for_label(
                         PERFORMANCE_PRIORITY_LABELS,
                         str(self.performance_priority_combo.currentText()),

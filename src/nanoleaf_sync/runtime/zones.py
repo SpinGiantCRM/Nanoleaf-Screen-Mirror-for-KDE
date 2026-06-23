@@ -130,10 +130,6 @@ def _edge_localized_weights(
     touches_bottom = zone_y1 >= frame_h and zone_h <= edge_thin_limit_h
     touches_left = zone_x0 <= 0 and zone_w <= edge_thin_limit_w
     touches_right = zone_x1 >= frame_w and zone_w <= edge_thin_limit_w
-    if (touches_top or touches_bottom) and (zone_w / max(1.0, float(frame_w))) > 0.40:
-        return None
-    if (touches_left or touches_right) and (zone_h / max(1.0, float(frame_h))) > 0.40:
-        return None
     if not (touches_top or touches_bottom or touches_left or touches_right):
         return None
 
@@ -201,10 +197,6 @@ def _zone_screen_orientation(
     touches_bottom = zone_y1 >= frame_h and zone_h <= edge_thin_limit_h
     touches_left = zone_x0 <= 0 and zone_w <= edge_thin_limit_w
     touches_right = zone_x1 >= frame_w and zone_w <= edge_thin_limit_w
-    if (touches_top or touches_bottom) and (zone_w / max(1.0, float(frame_w))) > 0.40:
-        return None
-    if (touches_left or touches_right) and (zone_h / max(1.0, float(frame_h))) > 0.40:
-        return None
     if touches_top:
         return "top"
     if touches_bottom:
@@ -218,7 +210,8 @@ def _zone_screen_orientation(
 
 @lru_cache(maxsize=256)
 def _outer_edge_weight_template(*, zone_h: int, zone_w: int, orientation: str) -> np.ndarray:
-    depth = min(2, zone_h if orientation in {"top", "bottom"} else zone_w)
+    edge_extent = zone_h if orientation in {"top", "bottom"} else zone_w
+    depth = min(8, max(2, int(np.ceil(float(edge_extent) * 0.35))), edge_extent)
     depth = max(1, depth)
     weights = np.zeros((zone_h, zone_w), dtype=np.float32)
     if orientation == "top":

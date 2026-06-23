@@ -41,6 +41,24 @@ def test_synthetic_side_colours_map_to_expected_edges() -> None:
     assert np.mean(colors[15:20, 0]) > np.mean(colors[15:20, 1])  # left red
 
 
+def test_long_edge_zone_area_sampling_keeps_outer_edge_locality() -> None:
+    frame = np.zeros((100, 300, 3), dtype=np.uint8)
+    frame[:2, :, :] = np.array([255, 0, 0], dtype=np.uint8)
+    frame[2:20, :, :] = np.array([0, 0, 255], dtype=np.uint8)
+    zone = [(0, 0, 300, 20)]
+
+    color = zone_colors_array(
+        frame,
+        zone,
+        sample_step=1,
+        edge_locality="tight",
+        sampling_mode="area_average",
+        engine="optimized",
+    )[0]
+
+    assert int(color[0]) > int(color[2])
+
+
 def test_left_purple_remains_local_and_far_side_stays_neutral() -> None:
     frame = np.full((2160, 3840, 3), 120, dtype=np.uint8)
     frame[:, :500, :] = np.array([200, 0, 220], dtype=np.uint8)

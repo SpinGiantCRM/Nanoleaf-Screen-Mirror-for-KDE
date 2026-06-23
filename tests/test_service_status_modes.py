@@ -607,3 +607,40 @@ def test_service_on_change_policy_reprobes_when_signature_changes(monkeypatch) -
     service._install_drivers()
 
     assert seen_cached_values == [None]
+
+
+def test_service_reprobes_stale_kmsgrab_cache_even_when_signature_matches(monkeypatch) -> None:
+    cfg = AppConfig(
+        use_mock_capture=False,
+        prefer_backend="auto",
+        auto_probe_policy="on-change",
+        auto_selected_backend="kmsgrab",
+        auto_probe_signature="stable-sig",
+    )
+    service = NanoleafSyncService(config=cfg, driver_override=FakeDriver())
+    seen_cached_values: list[str | None] = []
+
+    class _FakeCaptureBackend:
+        name = "kwin-dbus"
+        last_capture_path = None
+
+        def close(self) -> None:
+            pass
+
+    def _fake_create_capture_backend(**kwargs):
+        seen_cached_values.append(kwargs.get("cached_probe_winner"))
+        return _FakeCaptureBackend()
+
+    monkeypatch.setattr(
+        "nanoleaf_sync.service.create_capture_backend", _fake_create_capture_backend
+    )
+    monkeypatch.setattr(
+        "nanoleaf_sync.service._build_auto_probe_signature",
+        lambda _w, _h, *, capture_monitor="": "stable-sig",
+    )
+
+    service._install_drivers()
+
+    assert seen_cached_values == [None]
+    assert service._selection_reason == "fresh-probe"
+    assert service.config.auto_selected_backend == "kwin-dbus"

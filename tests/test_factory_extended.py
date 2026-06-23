@@ -150,7 +150,7 @@ def test_resolve_auto_backend_with_drm(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(factory, "_has_drm_device", lambda: True)
     monkeypatch.setattr(factory, "_kmsgrab_bindings_available", lambda: True)
     result = _resolve_auto_backend()
-    assert result == "kmsgrab"
+    assert result == "kwin-dbus"
 
 
 def test_resolve_auto_backend_without_drm(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -243,6 +243,23 @@ def test_cached_probe_winner_is_viable_kmsgrab_requires_bindings(
 
     assert cached_probe_winner_is_viable("kmsgrab") is False
     assert cached_probe_winner_is_viable("kwin-dbus") is True
+
+
+def test_cached_probe_winner_rejects_kmsgrab_even_when_available(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reset_capability_check_cache()
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.factory._has_drm_device",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.factory._kmsgrab_bindings_available",
+        lambda: True,
+    )
+    from nanoleaf_sync.capture.factory import cached_probe_winner_is_viable
+
+    assert cached_probe_winner_is_viable("kmsgrab") is False
 
 
 def test_resolve_auto_backend_ignores_stale_kmsgrab_cache(

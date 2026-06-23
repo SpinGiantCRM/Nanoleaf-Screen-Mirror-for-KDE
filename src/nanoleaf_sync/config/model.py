@@ -62,9 +62,9 @@ class AppConfig:
     # Config schema version for future migrations.
     schema_version: int = 1
     # Capture
-    fps: int = 30
-    # Auto chooses backend based on platform capabilities.
-    # On CachyOS, auto prefers kmsgrab for lower latency.
+    fps: int = 60
+    # Auto keeps kwin-dbus as the KDE primary backend; other backends remain explicit
+    # diagnostics/benchmark options.
     prefer_backend: str = "auto"
 
     # Color -> device mapping
@@ -106,7 +106,8 @@ class AppConfig:
     layout_preset: str = "edge_strip"
     edge_locality: str = "balanced"
     light_spread: str = "balanced"
-    sampling_quality: str = "high"
+    sampling_quality: str = "balanced"
+    performance_profile: str = "balanced"
     sampling_mode: str = "auto"
     motion_preset: str = "responsive"
     sync_mode: str = "standard"

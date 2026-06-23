@@ -250,7 +250,7 @@ class DisplayConfiguratorDialog:
                         self.edge_locality_combo.findText(
                             label_for_value(
                                 EDGE_LOCALITY_LABELS,
-                                str(getattr(cfg, "edge_locality", "tight")),
+                                str(getattr(cfg, "edge_locality", "balanced")),
                                 default="Tight",
                             )
                         ),
@@ -322,8 +322,8 @@ class DisplayConfiguratorDialog:
                         self.sampling_quality_combo.findText(
                             label_for_value(
                                 SAMPLING_QUALITY_LABELS,
-                                str(getattr(cfg, "sampling_quality", "high")),
-                                default="High",
+                                str(getattr(cfg, "sampling_quality", "balanced")),
+                                default="Balanced",
                             )
                         ),
                     )
@@ -1339,8 +1339,8 @@ class DisplayConfiguratorDialog:
                 sampling_idx = self.sampling_quality_combo.findText(
                     label_for_value(
                         SAMPLING_QUALITY_LABELS,
-                        str(data.get("sampling_quality", "high")),
-                        default="High",
+                        str(data.get("sampling_quality", "balanced")),
+                        default="Balanced",
                     )
                 )
                 if sampling_idx >= 0:
@@ -1384,7 +1384,7 @@ class DisplayConfiguratorDialog:
                 edge_locality_idx = self.edge_locality_combo.findText(
                     label_for_value(
                         EDGE_LOCALITY_LABELS,
-                        str(data.get("edge_locality", "tight")),
+                        str(data.get("edge_locality", "balanced")),
                         default="Tight",
                     )
                 )

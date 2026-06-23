@@ -57,7 +57,7 @@ class ColorPipelineParams:
     light_spread: str = "balanced"
     color_style: str = "natural"
     edge_locality: str = "balanced"
-    sampling_quality: str = "high"
+    sampling_quality: str = "balanced"
     sampling_mode: str = "auto"
     letterbox_detection: bool = True
     compositor_hdr_mode: bool = False
@@ -230,10 +230,13 @@ def process_zone_colors(
         sync_mode=params.sync_mode,
     )
     zone_sampling_stride = effective_zone_sampling_stride_for_sync(
-        sampling_quality=str(getattr(params, "sampling_quality", "high")),
+        sampling_quality=str(getattr(params, "sampling_quality", "balanced")),
         sync_mode=params.sync_mode,
         config_fps=int(max(1.0, float(params.config_fps))),
     )
+    accuracy_active = is_accuracy_mode(params.accuracy_mode, params.color_style)
+    if accuracy_active:
+        zone_sampling_stride = 1
     if zone_sampling_stride <= 0:
         zone_sampling_stride = max(1, int(params.zone_sampling_stride))
     zone_engine = effective_zone_sampling_engine_for_sync(
@@ -247,14 +250,19 @@ def process_zone_colors(
         color_style=params.color_style,
         accuracy_mode=params.accuracy_mode,
     )
-    live_sampling_mode, area_average_active, sampling_dwell = _resolve_robust_sampling_mode(
-        resolved_sampling_mode=resolved_sampling_mode,
-        prior_zone_sample_motion=float(params.prior_zone_sample_motion),
-        prior_area_average_mode=bool(params.prior_area_average_mode),
-        prev_sampled_zone_colors=params.prev_sampled_zone_colors,
-        letterbox_active=False,
-        dwell_remaining=int(getattr(params, "sampling_mode_dwell_remaining", 0) or 0),
-    )
+    if accuracy_active:
+        live_sampling_mode = resolved_sampling_mode
+        area_average_active = resolved_sampling_mode == SAMPLING_MODE_AREA_AVERAGE
+        sampling_dwell = 0
+    else:
+        live_sampling_mode, area_average_active, sampling_dwell = _resolve_robust_sampling_mode(
+            resolved_sampling_mode=resolved_sampling_mode,
+            prior_zone_sample_motion=float(params.prior_zone_sample_motion),
+            prior_area_average_mode=bool(params.prior_area_average_mode),
+            prev_sampled_zone_colors=params.prev_sampled_zone_colors,
+            letterbox_active=False,
+            dwell_remaining=int(getattr(params, "sampling_mode_dwell_remaining", 0) or 0),
+        )
 
     letterbox_active = False
     sampling_meta: ZoneSamplingMeta | None = None
@@ -290,18 +298,19 @@ def process_zone_colors(
                     frame_width=int(frame.shape[1]),
                     frame_height=int(frame.shape[0]),
                 )
-                (
-                    live_sampling_mode,
-                    area_average_active,
-                    sampling_dwell,
-                ) = _resolve_robust_sampling_mode(
-                    resolved_sampling_mode=resolved_sampling_mode,
-                    prior_zone_sample_motion=float(params.prior_zone_sample_motion),
-                    prior_area_average_mode=bool(params.prior_area_average_mode),
-                    prev_sampled_zone_colors=params.prev_sampled_zone_colors,
-                    letterbox_active=True,
-                    dwell_remaining=sampling_dwell,
-                )
+                if not accuracy_active:
+                    (
+                        live_sampling_mode,
+                        area_average_active,
+                        sampling_dwell,
+                    ) = _resolve_robust_sampling_mode(
+                        resolved_sampling_mode=resolved_sampling_mode,
+                        prior_zone_sample_motion=float(params.prior_zone_sample_motion),
+                        prior_area_average_mode=bool(params.prior_area_average_mode),
+                        prev_sampled_zone_colors=params.prev_sampled_zone_colors,
+                        letterbox_active=True,
+                        dwell_remaining=sampling_dwell,
+                    )
 
         raw_colors, sampling_meta = zone_colors_array_with_meta(
             frame,  # type: ignore[arg-type]
@@ -667,7 +676,7 @@ def build_pipeline_params_from_config(
         light_spread=str(getattr(config, "light_spread", "balanced")),
         color_style=str(getattr(config, "color_style", "natural")),
         edge_locality=str(getattr(config, "edge_locality", "balanced")),
-        sampling_quality=str(getattr(config, "sampling_quality", "high")),
+        sampling_quality=str(getattr(config, "sampling_quality", "balanced")),
         sampling_mode=str(getattr(config, "sampling_mode", "auto")),
         letterbox_detection=bool(getattr(config, "letterbox_detection", True)),
         compositor_hdr_mode=compositor_hdr_mode,

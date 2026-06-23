@@ -24,6 +24,85 @@ def test_effective_sampling_mode_defaults_to_edge_direct_for_reference() -> None
     )
 
 
+def test_effective_sampling_mode_accuracy_overrides_explicit_sampler() -> None:
+    assert (
+        effective_sampling_mode(
+            sampling_mode="palette_adaptive",
+            color_style="ambient",
+            accuracy_mode=True,
+        )
+        == "edge_direct"
+    )
+    assert (
+        effective_sampling_mode(
+            sampling_mode="area_average",
+            color_style="reference",
+            accuracy_mode=False,
+        )
+        == "edge_direct"
+    )
+
+
+def test_reference_sampling_stays_edge_direct_during_motion() -> None:
+    from nanoleaf_sync.runtime.color_pipeline import ColorPipelineParams, process_zone_colors
+
+    frame = np.zeros((20, 100, 3), dtype=np.uint8)
+    frame[:2, :, :] = np.array([255, 0, 0], dtype=np.uint8)
+    frame[2:4, :, :] = np.array([0, 0, 255], dtype=np.uint8)
+    zones_px = [(0, 0, 100, 4)]
+    params = ColorPipelineParams(
+        color_style="reference",
+        sampling_mode="auto",
+        prior_zone_sample_motion=40.0,
+        sampling_quality="low",
+        return_diagnostics=True,
+    )
+
+    out = process_zone_colors(
+        frame=frame,
+        precomputed_zone_colors=None,
+        prev_smoothed_colors=[],
+        zones_px=zones_px,
+        device_zone_indices=[0],
+        params=params,
+    )
+
+    _colors, sampled, _pre, _final, timings, _smooth, _history = out  # type: ignore[misc]
+    assert timings.area_average_active is False
+    assert timings.per_zone_sampling_mode == ("edge_direct",)
+    assert tuple(int(v) for v in sampled[0].tolist()) == (255, 0, 0)
+
+
+def test_reference_sampling_ignores_explicit_palette_adaptive_mode() -> None:
+    from nanoleaf_sync.runtime.color_pipeline import ColorPipelineParams, process_zone_colors
+
+    frame = np.zeros((20, 100, 3), dtype=np.uint8)
+    frame[:2, :, :] = np.array([255, 0, 0], dtype=np.uint8)
+    frame[2:4, :, :] = np.array([0, 0, 255], dtype=np.uint8)
+    zones_px = [(0, 0, 100, 4)]
+    params = ColorPipelineParams(
+        color_style="reference",
+        sampling_mode="palette_adaptive",
+        prior_zone_sample_motion=40.0,
+        sampling_quality="low",
+        return_diagnostics=True,
+    )
+
+    out = process_zone_colors(
+        frame=frame,
+        precomputed_zone_colors=None,
+        prev_smoothed_colors=[],
+        zones_px=zones_px,
+        device_zone_indices=[0],
+        params=params,
+    )
+
+    _colors, sampled, _pre, _final, timings, _smooth, _history = out  # type: ignore[misc]
+    assert timings.area_average_active is False
+    assert timings.per_zone_sampling_mode == ("edge_direct",)
+    assert tuple(int(v) for v in sampled[0].tolist()) == (255, 0, 0)
+
+
 def test_effective_sampling_mode_ambient_uses_palette_adaptive() -> None:
     assert (
         effective_sampling_mode(

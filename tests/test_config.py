@@ -40,6 +40,7 @@ def test_app_config_has_canonical_preset_fields() -> None:
     assert cfg.layout_preset in {"edge_strip", "horizontal_debug"}
     assert cfg.edge_locality in {"tight", "balanced", "wide"}
     assert cfg.sampling_quality in {"low", "balanced", "high"}
+    assert cfg.performance_profile in {"performance", "balanced", "quality"}
     assert cfg.motion_preset in {"calm", "responsive", "dynamic"}
     assert cfg.color_style in {"reference", "natural", "ambient", "vivid", "punchy"}
     assert cfg.display_preset in {"sdr", "hdr", "auto"}
@@ -52,6 +53,13 @@ def test_validate_config_normalizes_performance_priority() -> None:
     assert cfg.performance_priority == "very_high_experimental"
     fallback = validate_config(AppConfig(performance_priority="turbo"))
     assert fallback.performance_priority == "normal"
+
+
+def test_validate_config_normalizes_performance_profile() -> None:
+    cfg = validate_config(AppConfig(performance_profile="QUALITY"))
+    assert cfg.performance_profile == "quality"
+    fallback = validate_config(AppConfig(performance_profile="turbo"))
+    assert fallback.performance_profile == "balanced"
 
 
 def test_validate_config_normalizes_zone_sampling_engine() -> None:

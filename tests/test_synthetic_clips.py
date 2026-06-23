@@ -57,11 +57,15 @@ def test_black_white_flash_clip_does_not_flatten_all_zones() -> None:
 
 def test_dark_scene_small_red_ui_element_stays_visible() -> None:
     frame = np.zeros((90, 160, 3), dtype=np.uint8)
-    frame[10:14, 10:14, 0] = 255
+    frame[2:6, 10:14, 0] = 255
     colors = _run_clip(frame)
-    top_n, right_n, bottom_n, left_n = edge_side_counts(zone_count=48, width=160, height=90)
+    top_n, *_side_counts = edge_side_counts(zone_count=48, width=160, height=90)
     top = colors[:top_n]
     assert len(top) >= 1
+    arr = np.asarray(top, dtype=np.uint8)
+    assert int(arr[:, 0].max()) > 40
+    assert int(arr[:, 0].max()) > int(arr[:, 1].max()) + 20
+    assert int(arr[:, 0].max()) > int(arr[:, 2].max()) + 20
 
 
 def test_rapid_alternating_colors_produce_non_uniform_output() -> None:

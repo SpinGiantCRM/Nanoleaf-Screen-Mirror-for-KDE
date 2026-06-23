@@ -88,14 +88,19 @@ def test_backend_preference_resolution_only_emits_supported_backend_tokens(
     assert resolved in {"kwin-dbus", "xdg-portal", "kmsgrab"}
 
 
-def test_capture_factory_auto_prefers_kmsgrab_when_low_latency_path_is_available(
+def test_capture_factory_auto_keeps_kwin_when_probe_reports_kmsgrab(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr("nanoleaf_sync.capture.factory._has_drm_device", lambda: True)
     monkeypatch.setattr("nanoleaf_sync.capture.factory._kmsgrab_bindings_available", lambda: True)
+
+    class _ProbeResult:
+        selected_backend = "kmsgrab"
+        candidates: list[object] = []
+
     monkeypatch.setattr(
-        "nanoleaf_sync.capture.factory._resolve_auto_backend_with_probe",
-        lambda **_kwargs: "kmsgrab",
+        "nanoleaf_sync.capture.auto_probe.probe_backends",
+        lambda *_args, **_kwargs: _ProbeResult(),
     )
     backend = create_capture_backend(
         width=6,
@@ -103,7 +108,7 @@ def test_capture_factory_auto_prefers_kmsgrab_when_low_latency_path_is_available
         use_mock_capture=False,
         prefer_backend="auto",
     )
-    assert backend.name == "kmsgrab"
+    assert backend.name == "kwin-dbus"
 
 
 def test_capture_factory_auto_falls_back_to_kwin_when_kmsgrab_is_unavailable(

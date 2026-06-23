@@ -17,6 +17,8 @@ def test_settings_dialog_requires_qt_runtime(monkeypatch) -> None:
 def test_settings_dialog_source_uses_preset_ui_labels() -> None:
     text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     assert "display_preset_combo" in text
+    assert "performance_profile_combo" in text
+    assert "PERFORMANCE_PROFILE_LABELS" in text
     assert "layout_preset" in text
     assert "motion_preset_combo" in text
     assert "color_style_combo" in text
@@ -38,6 +40,35 @@ def test_settings_dialog_source_uses_preset_ui_labels() -> None:
     )
     assert "window_title = " in text
     assert '"nanoleaf-kde-sync Settings"' in text
+
+
+def test_qt_loader_exports_settings_dialog_widgets() -> None:
+    text = read_repo_text("src/nanoleaf_sync/ui/qt_lazy.py")
+    assert "QLineEdit" in text
+
+
+def test_settings_dialog_opens_without_horizontal_scroll(monkeypatch) -> None:
+    pytest.importorskip("PyQt6")
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+
+    from nanoleaf_sync.ui.qt_lazy import load_qt
+
+    qt = load_qt()
+    app = qt["QApplication"].instance() or qt["QApplication"]([])
+    dialog = SettingsDialog(None, AppConfig(), calibration_sender=None, runtime_status={})
+    widget = dialog._dialog
+    widget.show()
+    app.processEvents()
+
+    assert widget.size().width() >= 980
+    assert widget.minimumSize().width() >= 980
+    for index in range(widget._section_nav.count()):
+        section = widget._section_nav.item(index).text()
+        widget.focus_section(section)
+        app.processEvents()
+        page = widget._section_stack.currentWidget()
+        if page.metaObject().className() == "QScrollArea":
+            assert page.horizontalScrollBar().maximum() == 0
 
 
 def test_settings_primary_sections_do_not_expose_raw_mapping_text() -> None:

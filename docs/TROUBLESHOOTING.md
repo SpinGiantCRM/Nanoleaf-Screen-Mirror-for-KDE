@@ -192,7 +192,7 @@ Look at:
 ### Typical failure modes and fixes
 
 - `selection_reason=fallback` with `effective=kwin-dbus`:
-  - likely no valid cached winner + probe disabled/failed + no kmsgrab capability.
+  - likely no valid cached winner + probe disabled/failed/no qualified candidate.
   - run with `nanoleaf-kde-sync-doctor --capture` and resolve the reported root cause.
 - probe error includes `stage=warmup` / timeout:
   - warmup is reported separately from backend instantiation so startup/permission issues can be distinguished from capture timing.
@@ -241,8 +241,8 @@ nanoleaf-kde-sync-smoke-test
 
 Notes:
 
-- `kmsgrab` is often fastest when available.
-- `kwin-dbus` is the KDE compatibility baseline.
+- `kwin-dbus` is the KDE primary/default path.
+- `kmsgrab` can be benchmarked explicitly, but auto-selection does not promote it.
 - `xdg-portal` is most portable across launch contexts/compositor policies, but may add permission/setup overhead.
 
 If capture is fast but LED response is still delayed, reduce `smoothing` and `zone_sampling_stride` conservatively and retest.

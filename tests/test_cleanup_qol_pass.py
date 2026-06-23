@@ -6,6 +6,7 @@ import numpy as np
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.normalize import validate_config
+from nanoleaf_sync.runtime.color_pipeline import ColorPipelineParams
 from nanoleaf_sync.runtime.edge_locality_diagnostics import run_edge_locality_test
 from nanoleaf_sync.runtime.engine import process_frame
 from nanoleaf_sync.runtime.processing import zones_from_config
@@ -23,10 +24,28 @@ def test_first_run_defaults_are_ambient_daily_use() -> None:
     cfg = validate_config(AppConfig())
     assert cfg.layout_preset == "edge_strip"
     assert cfg.edge_locality == "balanced"
-    assert cfg.sampling_quality == "high"
+    assert cfg.performance_profile == "balanced"
+    assert cfg.sampling_quality == "balanced"
+    assert cfg.fps == 60
     assert cfg.motion_preset == "responsive"
     assert cfg.color_style == "ambient"
     assert cfg.display_preset == "hdr"
+
+
+def test_runtime_and_ui_fallbacks_match_balanced_profile_defaults() -> None:
+    cfg = validate_config(AppConfig())
+    assert ColorPipelineParams().sampling_quality == cfg.sampling_quality
+
+    engine_text = read_repo_text("src/nanoleaf_sync/runtime/engine.py")
+    settings_text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
+    configurator_text = read_repo_text("src/nanoleaf_sync/ui/display_configurator.py")
+    for text in (engine_text, settings_text, configurator_text):
+        assert 'getattr(cfg, "sampling_quality", "high")' not in text
+        assert 'data.get("sampling_quality", "high")' not in text
+        assert 'getattr(cfg, "edge_locality", "tight")' not in text
+        assert 'data.get("edge_locality", "tight")' not in text
+    assert 'edge_locality: str = "tight"' not in engine_text
+    assert 'sampling_quality: str = "high"' not in engine_text
 
 
 def test_reference_mode_preserves_locality_for_bottom_left_signal() -> None:

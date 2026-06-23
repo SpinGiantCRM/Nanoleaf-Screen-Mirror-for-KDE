@@ -30,6 +30,7 @@ from nanoleaf_sync.capture.dimensions import (
     resolve_capture_dims,
 )
 from nanoleaf_sync.capture.factory import (
+    cached_probe_winner_is_viable,
     create_capture_backend,
     last_auto_probe_report,
     reset_cached_probe_winner,
@@ -59,7 +60,6 @@ from nanoleaf_sync.runtime.startup import (
 from nanoleaf_sync.runtime.state import RuntimeState
 
 logger = logging.getLogger(__name__)
-_AUTO_PROBE_WINNERS = {"kwin-dbus", "xdg-portal", "kmsgrab"}
 _AUTO_PROBE_ENV_VARS = (
     "NANOLEAF_DISABLE_CAPTURE_PROBE",
     "NANOLEAF_ENABLE_CAPTURE_PROBE",
@@ -93,7 +93,7 @@ def _resolve_capture_dims(config: AppConfig) -> tuple[int, int]:
 
 
 def _is_valid_auto_probe_winner(value: str | None) -> bool:
-    return value in _AUTO_PROBE_WINNERS
+    return cached_probe_winner_is_viable(value)
 
 
 def _build_auto_probe_signature(

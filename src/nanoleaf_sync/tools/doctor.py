@@ -412,7 +412,8 @@ def _check_probe_status(config: AppConfig) -> DoctorCheck:
             "probe-status",
             "warn",
             (
-                f"Auto-probe cached_winner=kmsgrab is stale: kmsgrab bindings are unavailable "
+                f"Auto-probe cached_winner=kmsgrab is stale: auto selection now uses "
+                f"kwin-dbus as the primary KDE backend "
                 f"(effective_enabled={effective_enabled} effective_reason={effective_reason})."
             ),
             "Run `nanoleaf-kde-sync-reset diagnostics --stop-runtime` or set "

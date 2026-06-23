@@ -18,6 +18,10 @@ MOTION_PRESET_CALM = "calm"
 MOTION_PRESET_RESPONSIVE = "responsive"
 MOTION_PRESET_DYNAMIC = "dynamic"
 
+PERFORMANCE_PROFILE_PERFORMANCE = "performance"
+PERFORMANCE_PROFILE_BALANCED = "balanced"
+PERFORMANCE_PROFILE_QUALITY = "quality"
+
 COLOR_STYLE_REFERENCE = "reference"
 COLOR_STYLE_NATURAL = "natural"
 COLOR_STYLE_AMBIENT = "ambient"
@@ -56,6 +60,11 @@ SAMPLING_QUALITY_PRESETS = (
     SAMPLING_QUALITY_HIGH,
 )
 MOTION_PRESETS = (MOTION_PRESET_CALM, MOTION_PRESET_RESPONSIVE, MOTION_PRESET_DYNAMIC)
+PERFORMANCE_PROFILES = (
+    PERFORMANCE_PROFILE_PERFORMANCE,
+    PERFORMANCE_PROFILE_BALANCED,
+    PERFORMANCE_PROFILE_QUALITY,
+)
 COLOR_STYLE_PRESETS = (
     COLOR_STYLE_REFERENCE,
     COLOR_STYLE_NATURAL,
@@ -179,13 +188,13 @@ def effective_light_spread(*, light_spread: str, accuracy_mode: bool, color_styl
 
 
 def effective_sampling_mode(*, sampling_mode: str, color_style: str, accuracy_mode: bool) -> str:
+    if is_accuracy_mode(accuracy_mode, color_style):
+        return SAMPLING_MODE_EDGE_DIRECT
     normalized = normalize_preset(
         sampling_mode, allowed=SAMPLING_MODE_PRESETS, default=SAMPLING_MODE_AUTO
     )
     if normalized != SAMPLING_MODE_AUTO:
         return normalized
-    if is_accuracy_mode(accuracy_mode, color_style):
-        return SAMPLING_MODE_EDGE_DIRECT
     style = normalize_preset(color_style, allowed=COLOR_STYLE_PRESETS, default=COLOR_STYLE_AMBIENT)
     if style in {COLOR_STYLE_REFERENCE, COLOR_STYLE_NATURAL}:
         return SAMPLING_MODE_EDGE_DIRECT
