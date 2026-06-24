@@ -1,6 +1,6 @@
 # Maintainer: nanoleaf-kde-sync contributors
 pkgname=nanoleaf-kde-sync
-pkgver=1.9.1
+pkgver=1.9.2
 pkgrel=1
 pkgdesc='Nanoleaf screen mirroring for KDE Plasma on Linux.'
 arch=('x86_64')

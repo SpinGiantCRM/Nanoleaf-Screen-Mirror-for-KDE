@@ -250,7 +250,7 @@ DRM_IOCTL_MODE_GETENCODER = _IOC(
 DRM_IOCTL_MODE_GETCRTC = _IOC(
     _IOC_READ | _IOC_WRITE,
     _DRM_TYPE,
-    0xA2,
+    0xA1,
     ctypes.sizeof(_DrmModeCrtc),
 )
 DRM_IOCTL_MODE_GETFB2 = _IOC(

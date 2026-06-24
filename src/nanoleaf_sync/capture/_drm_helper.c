@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/audit.h>
+#include <linux/capability.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
 #include <stdint.h>
@@ -74,21 +75,26 @@ struct drm_mode_fb_cmd2 {
     uint64_t modifier[4];
 };
 
+struct drm_mode_modeinfo {
+    uint32_t clock;
+    uint16_t hdisplay, hsync_start, hsync_end, htotal, hskew;
+    uint16_t vdisplay, vsync_start, vsync_end, vtotal, vscan;
+    uint32_t vrefresh;
+    uint32_t flags;
+    uint32_t type;
+    char name[32];
+};
+
 struct drm_mode_crtc {
     uint64_t set_connectors_ptr;
     uint32_t count_connectors;
     uint32_t crtc_id;
     uint32_t fb_id;
+    uint32_t x;
+    uint32_t y;
     uint32_t gamma_size;
-    uint16_t mode_valid;
-    uint16_t pad;
-    struct { /* drm_mode_modeinfo — 68 bytes */
-        uint32_t clock;
-        uint16_t hdisplay, hsync_start, hsync_end, htotal, hskew;
-        uint16_t vdisplay, vsync_start, vsync_end, vtotal, vscan;
-        uint32_t vrefresh, flags, type;
-        char name[32];
-    } mode;
+    uint32_t mode_valid;
+    struct drm_mode_modeinfo mode;
 };
 
 struct drm_set_client_cap {
@@ -302,7 +308,8 @@ static int pidfd_getfd(int pidfd, int targetfd, unsigned int flags) {
     return syscall(438, pidfd, targetfd, flags);
 }
 
-static int clone_kwin_master_fd(const char *card_path, int *out_fd) {
+static int clone_kwin_master_fd(const char *card_path, int *out_fd, char *out_card_path,
+                                size_t out_card_path_sz) {
     /* Find the KWin PID */
     FILE *f;
     char comm[64];
@@ -332,34 +339,84 @@ static int clone_kwin_master_fd(const char *card_path, int *out_fd) {
         return -1;
     }
 
-    /* Iterate KWin's open fds looking for card_path */
-    char fd_path[256];
-    for (int fd_num = 0; fd_num < 512; fd_num++) {
-        snprintf(fd_path, sizeof(fd_path), "/proc/%d/fd/%d", (int)kwin_pid, fd_num);
-        char link[256];
-        ssize_t len = readlink(fd_path, link, sizeof(link) - 1);
-        if (len < 0) continue;
-        link[len] = 0;
-        if (strcmp(link, card_path) != 0) continue;
+    /* Iterate KWin's open fds.
+     * First pass: look for the requested card_path (exact match).
+     * Second pass: accept any /dev/dri/card* (NVIDIA sometimes renumbers). */
+    const char *found_card = NULL;
+    int found_fd_num = -1;
 
-        int pidfd = pidfd_open(kwin_pid, 0);
-        if (pidfd < 0) {
-            fprintf(stderr, "pidfd_open(%d) failed: %s\n", (int)kwin_pid, strerror(errno));
-            return -1;
+    int found_something = 0;
+    for (int pass = 0; pass < 2; pass++) {
+        for (int fd_num = 0; fd_num < 512; fd_num++) {
+            char link[256];
+            ssize_t len;
+            {
+                char fd_path[64];
+                snprintf(fd_path, sizeof(fd_path), "/proc/%d/fd/%d", (int)kwin_pid, fd_num);
+                len = readlink(fd_path, link, sizeof(link) - 1);
+            }
+            if (len < 0) {
+                if (pass == 0 && fd_num < 5 && errno != ENOENT) {
+                    fprintf(stderr, "  readlink fd %d FAIL errno=%d (%s)\n",
+                            fd_num, errno, strerror(errno));
+                }
+                continue;
+            }
+            found_something = 1;
+            link[len] = 0;
+
+            if (pass == 0) {
+                /* Exact match against requested card_path */
+                if (card_path && strcmp(link, card_path) == 0) {
+                    found_card = card_path;
+                    found_fd_num = fd_num;
+                    goto clone_it;
+                }
+            } else {
+                /* Any DRM card node */
+                if (strncmp(link, "/dev/dri/card", 13) == 0 && link[13] >= '0' && link[13] <= '9') {
+                    found_card = link;
+                    found_fd_num = fd_num;
+                    goto clone_it;
+                }
+            }
         }
-        int cloned = pidfd_getfd(pidfd, fd_num, 0);
-        close(pidfd);
-        if (cloned < 0) {
-            fprintf(stderr, "pidfd_getfd(%d,%d) failed: %s\n", (int)kwin_pid, fd_num,
-                    strerror(errno));
-            return -1;
-        }
-        *out_fd = cloned;
-        return 0;
     }
 
-    fprintf(stderr, "KWin fd %s not found\n", card_path);
-    return -1;
+clone_it:
+    if (found_fd_num < 0) {
+        if (card_path) {
+            fprintf(stderr, "KWin fd %s not found (and no other DRM card found)\n", card_path);
+        } else {
+            fprintf(stderr, "no KWin DRM card fd found\n");
+        }
+        return -1;
+    }
+
+    if (found_card != card_path) {
+        fprintf(stderr, "using KWin DRM card %s (requested %s)\n", found_card,
+                card_path ? card_path : "(any)");
+    }
+
+    int pidfd = pidfd_open(kwin_pid, 0);
+    if (pidfd < 0) {
+        fprintf(stderr, "pidfd_open(%d) failed: %s\n", (int)kwin_pid, strerror(errno));
+        return -1;
+    }
+    int cloned = pidfd_getfd(pidfd, found_fd_num, 0);
+    close(pidfd);
+    if (cloned < 0) {
+        fprintf(stderr, "pidfd_getfd(%d,%d) failed: %s\n", (int)kwin_pid, found_fd_num,
+                strerror(errno));
+        return -1;
+    }
+
+    if (out_card_path && found_card) {
+        snprintf(out_card_path, out_card_path_sz, "%s", found_card);
+    }
+
+    *out_fd = cloned;
+    return 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -528,15 +585,24 @@ static int export_framebuffer(int fd, uint32_t fb_id, struct mmap_reply *out, in
     flink.handle = handle;
     if (ioctl(fd, DRM_IOCTL_GEM_FLINK, &flink) < 0) {
         fprintf(stderr, "GEM_FLINK failed: %s\n", strerror(errno));
-        /* Last resort: try MAP_DUMB directly on the GETFB handle */
+        /* Last resort: MAP_DUMB directly on the GETFB handle.
+         * On NVIDIA with X-tiled modifier (FP16), the mmap size must use
+         * tile-aligned height, not linear pitch*height, or the tiled pixel
+         * offset calculation reads past the mmap'd region.
+         */
         uint64_t map_off2 = 0;
         if (map_dumb_handle(fd, handle, &map_off2) == 0) {
             fprintf(stderr, "MAP_DUMB fallback succeeded\n");
-        out->offset = map_off2;
-        out->size = (uint64_t)out->pitch * (uint64_t)out->height;
-        *out_pass_fd = fd;
-        *out_close_pass_fd = 0;
-        return 0;
+            uint32_t tile_h = 128;
+            uint32_t aligned_h = ((out->height + tile_h - 1) / tile_h) * tile_h;
+            uint64_t mod = ((uint64_t)out->modifier_hi << 32) | (uint64_t)out->modifier_lo;
+            int is_nvidia_tiled = (mod != 0 && mod != (1ULL << 56) &&
+                                   ((mod >> 56) & 0xFF) == 0x03);
+            out->offset = map_off2;
+            out->size = (uint64_t)out->pitch * (uint64_t)(is_nvidia_tiled ? aligned_h : out->height);
+            *out_pass_fd = fd;
+            *out_close_pass_fd = 0;
+            return 0;
         }
         fprintf(stderr, "PRIME+GEM_FLINK+MAP_DUMB all failed for fb %u\n", fb_id);
         return -1;
@@ -609,6 +675,21 @@ int main(int argc, char **argv) {
     int is_master_fd = 0;
     (void)is_master_fd;
 
+    /* Debug: check effective capabilities at startup via /proc/self/status */
+    {
+        FILE *sf = fopen("/proc/self/status", "r");
+        if (sf) {
+            char sbuf[256];
+            while (fgets(sbuf, sizeof(sbuf), sf)) {
+                if (strncmp(sbuf, "CapEff:", 7) == 0 || strncmp(sbuf, "CapPrm:", 7) == 0) {
+                    sbuf[strcspn(sbuf, "\n")] = 0;
+                    fprintf(stderr, "%s\n", sbuf);
+                }
+            }
+            fclose(sf);
+        }
+    }
+
     /* Try fresh open + planes (works on AMD/Intel) */
     if (fb_id == 0) {
         if (find_fb_via_planes(card_fd, &fb_id) == 0) {
@@ -621,7 +702,8 @@ int main(int argc, char **argv) {
     /* If fresh fd failed, try cloned master fd (NVIDIA) */
     if (fb_id == 0) {
         int master_fd = -1;
-        if (clone_kwin_master_fd(card_path, &master_fd) == 0) {
+        char actual_card[32] = {0};
+        if (clone_kwin_master_fd(card_path, &master_fd, actual_card, sizeof(actual_card)) == 0) {
             fprintf(stderr, "using cloned KWin master fd\n");
             close(card_fd);
             card_fd = master_fd;
