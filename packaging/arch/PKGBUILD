@@ -11,7 +11,7 @@ depends=(
   'python-numpy'
   'python-pyqt6'
   'python-dbus-next'
-  'python-hidraw'
+  'python-hidapi'
   'python-dacite'
   'python-tomli-w'
 )
