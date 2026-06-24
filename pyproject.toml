@@ -17,7 +17,7 @@ dependencies = [
   "hidapi>=0.14.0,<1",
   "dacite>=1.8.1,<2",
   "tomli-w>=1.0.0,<2",
-  "packaging>=24.0,<26",
+  "packaging>=24.0,<27",
 ]
 
 [project.optional-dependencies]
