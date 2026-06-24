@@ -61,6 +61,7 @@ nanoleaf_sync = [
   "ui/style.qss",
   "assets/icons/**/*",
   "assets/udev/60-nanoleaf-kde-sync.rules",
+  "capture/nanoleaf_drm_helper",
 ]
 
 [tool.pytest.ini_options]
