@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: release-${{ github.event.release.tag_name || inputs.release_tag || github.ref }}
@@ -147,7 +148,4 @@ jobs:
 
       - name: Publish to PyPI
         if: github.event_name == 'release'
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: twine upload dist/*
+        uses: pypa/gh-action-pypi-publish@v1.12.4
