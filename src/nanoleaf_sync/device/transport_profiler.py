@@ -50,12 +50,18 @@ def build_usb_transport_profile(driver: object) -> USBTransportProfile:
     hid_module = ""
     hid_version = ""
     try:
-        import hid  # type: ignore[import-untyped]
+        import hidraw  # type: ignore[import-untyped]
 
-        hid_module = str(getattr(hid, "__file__", "") or "")
-        hid_version = str(getattr(hid, "__version__", "") or "")
-    except Exception:
-        pass
+        hid_module = str(getattr(hidraw, "__file__", "") or "")
+        hid_version = str(getattr(hidraw, "__version__", "") or "")
+    except ImportError:
+        try:
+            import hid  # type: ignore[import-untyped]
+
+            hid_module = str(getattr(hid, "__file__", "") or "")
+            hid_version = str(getattr(hid, "__version__", "") or "")
+        except Exception:
+            pass
     opened_path = str(getattr(transport, "device_path", "") or getattr(transport, "path", "") or "")
     backend_class = str(getattr(transport, "backend_name", "") or "unknown")
     report_size = int(

@@ -241,7 +241,12 @@ def _check_hid_enumeration(config: AppConfig) -> DoctorCheck:
         )
 
     try:
-        import hid
+        try:
+            import hidraw
+
+            hid = hidraw
+        except ImportError:
+            import hid  # type: ignore
 
         devices = hid.enumerate(vid, pid)
     except Exception as exc:
@@ -249,7 +254,7 @@ def _check_hid_enumeration(config: AppConfig) -> DoctorCheck:
             "hid-device",
             "fail",
             f"Unable to enumerate HID devices: {exc}",
-            "Install/enable hidapi for your environment and confirm device access "
+            "Install the `hidraw` package for your environment and confirm device access "
             "permissions, then rerun doctor.",
         )
 

@@ -23,6 +23,7 @@ def test_open_retry_no_devices_found(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_hid = MagicMock()
     fake_hid.enumerate.return_value = []
     monkeypatch.setitem(sys.modules, "hid", fake_hid)
+    monkeypatch.setitem(sys.modules, "hidraw", fake_hid)
 
     with pytest.raises(RuntimeError, match="Nanoleaf device not found"):
         transport.open(retry_attempts=2, retry_delay_s=0.01)
@@ -37,6 +38,7 @@ def test_open_retry_zero_attempts_no_devices(monkeypatch: pytest.MonkeyPatch) ->
     fake_hid = MagicMock()
     fake_hid.enumerate.return_value = []
     monkeypatch.setitem(sys.modules, "hid", fake_hid)
+    monkeypatch.setitem(sys.modules, "hidraw", fake_hid)
 
     with pytest.raises(RuntimeError, match="Nanoleaf device not found"):
         transport.open(retry_attempts=0, retry_delay_s=0.01)
@@ -55,14 +57,14 @@ def test_open_hid_import_fails(monkeypatch: pytest.MonkeyPatch) -> None:
 
     original_import = builtins.__import__
 
-    def _fail_hid(name, *args, **kwargs):
-        if name == "hid":
-            raise ImportError("No module named 'hid'")
+    def _fail_hid_and_hidraw(name, *args, **kwargs):
+        if name in ("hid", "hidraw"):
+            raise ImportError(f"No module named '{name}'")
         return original_import(name, *args, **kwargs)
 
-    monkeypatch.setattr(builtins, "__import__", _fail_hid)
+    monkeypatch.setattr(builtins, "__import__", _fail_hid_and_hidraw)
 
-    with pytest.raises(RuntimeError, match="hidapi bindings not installed"):
+    with pytest.raises(RuntimeError, match="HID bindings not installed"):
         transport.open()
 
 

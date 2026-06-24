@@ -243,6 +243,7 @@ def test_hid_enumeration_reports_interface_details(monkeypatch) -> None:
         ],
     )
     monkeypatch.setitem(doctor.sys.modules, "hid", fake_hid)
+    monkeypatch.setitem(doctor.sys.modules, "hidraw", fake_hid)
     check = doctor._check_hid_enumeration(AppConfig(device_vid=0x37FA, device_pid=0x8202))
     assert check.status == "pass"
     assert "backend_module=/tmp/hidmodule.so" in check.message

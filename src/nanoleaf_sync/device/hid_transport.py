@@ -236,21 +236,28 @@ class HIDTransport:
         for recovery after an unplug/replug event during active mirroring.
         """
         try:
-            import hid  # type: ignore
-        except Exception as e:  # pragma: no cover
-            error_text = str(e).lower()
-            if "libusb" in error_text or "cannot open shared object" in error_text:
+            import hidraw  # type: ignore[import-untyped]
+
+            hid = hidraw
+        except ImportError:
+            try:
+                import hid  # type: ignore
+            except Exception as e:  # pragma: no cover
+                error_text = str(e).lower()
+                if "libusb" in error_text or "cannot open shared object" in error_text:
+                    raise RuntimeError(
+                        "libusb-1.0 shared library not found. Install libusb: "
+                        "'sudo pacman -S libusb' (Arch) or "
+                        "'sudo apt install libusb-1.0-0' (Debian/Ubuntu)."
+                    ) from e
+                if "hidraw" in error_text or "permission" in error_text:
+                    raise RuntimeError(
+                        "HID device access denied. Ensure udev rules are installed: "
+                        "run 'sudo ./scripts/setup_udev.sh' or check device permissions."
+                    ) from e
                 raise RuntimeError(
-                    "libusb-1.0 shared library not found. Install libusb: "
-                    "'sudo pacman -S libusb' (Arch) or "
-                    "'sudo apt install libusb-1.0-0' (Debian/Ubuntu)."
+                    "HID bindings not installed. Install the `hidraw` package."
                 ) from e
-            if "hidraw" in error_text or "permission" in error_text:
-                raise RuntimeError(
-                    "HID device access denied. Ensure udev rules are installed: "
-                    "run 'sudo ./scripts/setup_udev.sh' or check device permissions."
-                ) from e
-            raise RuntimeError("hidapi bindings not installed. Install `hidapi` package.") from e
 
         max_attempts = max(1, int(retry_attempts) + 1)
         base_delay = max(0.0, float(retry_delay_s))

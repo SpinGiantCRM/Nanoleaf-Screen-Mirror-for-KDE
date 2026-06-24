@@ -263,6 +263,7 @@ def test_open_wraps_hid_permission_error_with_actionable_message(monkeypatch) ->
         device=lambda: _FailingOpenHandle(),
     )
     monkeypatch.setitem(sys.modules, "hid", fake_hid)
+    monkeypatch.setitem(sys.modules, "hidraw", fake_hid)
 
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
     with pytest.raises(RuntimeError, match="hid backend"):
@@ -276,6 +277,7 @@ def test_open_prefers_enumerated_path_before_vid_pid(monkeypatch) -> None:
         device=lambda: handle,
     )
     monkeypatch.setitem(sys.modules, "hid", fake_hid)
+    monkeypatch.setitem(sys.modules, "hidraw", fake_hid)
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
     transport.open()
     assert handle.opened_path == b"/dev/hidraw3"
@@ -289,6 +291,7 @@ def test_open_uses_vid_pid_fallback_when_all_paths_fail(monkeypatch) -> None:
         device=lambda: handle,
     )
     monkeypatch.setitem(sys.modules, "hid", fake_hid)
+    monkeypatch.setitem(sys.modules, "hidraw", fake_hid)
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
     transport.open()
     assert handle.opened_path is None
@@ -309,6 +312,7 @@ def test_open_resolves_linux_usb_interface_path_to_hidraw(monkeypatch, tmp_path)
         device=lambda: handle,
     )
     monkeypatch.setitem(sys.modules, "hid", fake_hid)
+    monkeypatch.setitem(sys.modules, "hidraw", fake_hid)
 
     from nanoleaf_sync.device import hid_transport as hid_transport_module
 
@@ -347,6 +351,7 @@ def test_open_uses_linux_sysfs_hidraw_mapping_when_enumeration_path_not_openable
         device=lambda: handle,
     )
     monkeypatch.setitem(sys.modules, "hid", fake_hid)
+    monkeypatch.setitem(sys.modules, "hidraw", fake_hid)
 
     from nanoleaf_sync.device import hid_transport as hid_transport_module
 
@@ -375,6 +380,7 @@ def test_open_error_reports_unusable_candidate_path_format(monkeypatch) -> None:
         device=lambda: handle,
     )
     monkeypatch.setitem(sys.modules, "hid", fake_hid)
+    monkeypatch.setitem(sys.modules, "hidraw", fake_hid)
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
     with pytest.raises(RuntimeError, match="candidate path format is not directly openable"):
         transport.open()
