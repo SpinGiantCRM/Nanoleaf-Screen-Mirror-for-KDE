@@ -18,7 +18,7 @@ import fcntl
 import logging
 import math
 import os
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
@@ -1355,6 +1355,6 @@ class DRMZoneSampler:
     def __enter__(self) -> DRMZoneSampler:
         return self
 
-    def __exit__(self, *args: object) -> bool:
+    def __exit__(self, *args: object) -> Literal[False]:
         self.close()
         return False

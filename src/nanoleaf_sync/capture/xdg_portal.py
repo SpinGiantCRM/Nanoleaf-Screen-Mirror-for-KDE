@@ -11,16 +11,26 @@ import asyncio
 import contextlib
 import logging
 import os
+import sys
 import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from nanoleaf_sync._coerce import as_int, as_optional_int
 from nanoleaf_sync.capture.portal_helpers import random_token, request_path, unwrap_variant
 
+if TYPE_CHECKING:
+    from dbus_next.aio import MessageBus
+
 logger = logging.getLogger(__name__)
+
+
+def _frame_diag_int(frame_diag: dict[str, object], key: str, *, default: int = 0) -> int:
+    return as_int(frame_diag.get(key), default=default)
 
 
 class XDGPortalError(RuntimeError):
@@ -92,7 +102,7 @@ class XDGPortalCapture:
         self._pw_fd: int | None = None
         self._node_id: int | None = None
         self._session_handle: str | None = None
-        self._portal_bus = None
+        self._portal_bus: MessageBus | None = None
         self._initialized = False
         self._use_gstreamer = False
         self._empty_first_buffers = 0
@@ -186,11 +196,17 @@ class XDGPortalCapture:
                 raise XDGPortalError("Portal negotiation failed: D-Bus unique name is unavailable.")
             sender = str(unique_name).replace(".", "_").lstrip(":")
 
-            async def _call(method: str, signature: str, body: list, *, handle_token: str):
+            async def _call(
+                method: str,
+                signature: str,
+                body: list[object],
+                *,
+                handle_token: str,
+            ) -> Message:
                 portal_request_path = request_path(sender_name=sender, handle_token=handle_token)
-                future: asyncio.Future = asyncio.get_event_loop().create_future()
+                future: asyncio.Future[Message] = asyncio.get_event_loop().create_future()
 
-                def _on_signal(msg):
+                def _on_signal(msg: Message | None) -> None:
                     if msg is None:
                         return
                     if (
@@ -304,11 +320,16 @@ class XDGPortalCapture:
             else:
                 self.portal_restore_token_state = "restored_confirmed"  # nosec B105
 
-            first_stream = unwrap_variant(streams)[0]
+            unwrapped_streams = unwrap_variant(streams)
+            if not isinstance(unwrapped_streams, (list, tuple)) or not unwrapped_streams:
+                raise XDGPortalError("Portal Start returned no stream entries.")
+            first_stream = unwrapped_streams[0]
+            if not isinstance(first_stream, (list, tuple)) or not first_stream:
+                raise XDGPortalError("Portal Start returned malformed stream entry.")
             node_id = int(first_stream[0])
             self.last_stream_properties = self._parse_stream_properties(first_stream)
             if self.last_stream_properties.get("pipewire-serial") is not None:
-                node_id = int(self.last_stream_properties.get("id", node_id))
+                node_id = as_int(self.last_stream_properties.get("id"), default=node_id)
 
             pw_reply = await bus.call(
                 Message(
@@ -320,6 +341,8 @@ class XDGPortalCapture:
                     body=[session_handle, {}],
                 )
             )
+            if pw_reply is None:
+                raise XDGPortalError("OpenPipeWireRemote failed: empty D-Bus reply.")
             if pw_reply.message_type == MessageType.ERROR:
                 raise XDGPortalError(f"OpenPipeWireRemote failed: {pw_reply.error_name}")
 
@@ -369,38 +392,34 @@ class XDGPortalCapture:
             frame = self.capture()
             diag.sample_received = bool(self._last_frame_diag.get("sample_received"))
             diag.buffer_present = bool(self._last_frame_diag.get("buffer_present"))
-            diag.buffer_reported_size = int(self._last_frame_diag.get("buffer_reported_size") or 0)
-            diag.memory_count = int(self._last_frame_diag.get("memory_count") or 0)
-            diag.mapped_memory_size = int(self._last_frame_diag.get("mapped_memory_size") or 0)
-            diag.stride = (
-                self._last_frame_diag.get("stride")
-                if isinstance(self._last_frame_diag.get("stride"), int)
-                else None
+            diag.buffer_reported_size = _frame_diag_int(
+                self._last_frame_diag, "buffer_reported_size", default=0
             )
-            diag.pts_ns = (
-                self._last_frame_diag.get("pts_ns")
-                if isinstance(self._last_frame_diag.get("pts_ns"), int)
-                else None
+            diag.memory_count = _frame_diag_int(self._last_frame_diag, "memory_count", default=0)
+            diag.mapped_memory_size = _frame_diag_int(
+                self._last_frame_diag, "mapped_memory_size", default=0
             )
-            diag.dts_ns = (
-                self._last_frame_diag.get("dts_ns")
-                if isinstance(self._last_frame_diag.get("dts_ns"), int)
-                else None
-            )
-            diag.duration_ns = (
-                self._last_frame_diag.get("duration_ns")
-                if isinstance(self._last_frame_diag.get("duration_ns"), int)
-                else None
-            )
+            diag.stride = as_optional_int(self._last_frame_diag.get("stride"))
+            diag.pts_ns = as_optional_int(self._last_frame_diag.get("pts_ns"))
+            diag.dts_ns = as_optional_int(self._last_frame_diag.get("dts_ns"))
+            diag.duration_ns = as_optional_int(self._last_frame_diag.get("duration_ns"))
             diag.negotiated_format = str(self._last_frame_diag.get("format") or "")
-            diag.negotiated_width = int(self._last_frame_diag.get("width") or 0) or None
-            diag.negotiated_height = int(self._last_frame_diag.get("height") or 0) or None
-            diag.negotiated_framerate = str(self._last_frame_diag.get("framerate") or "unknown")
-            diag.empty_buffer_count = int(
-                self._last_frame_diag.get("empty_buffer_count") or self._empty_first_buffers
+            diag.negotiated_width = (
+                _frame_diag_int(self._last_frame_diag, "width", default=0) or None
             )
-            diag.non_empty_buffer_count = int(
-                self._last_frame_diag.get("non_empty_buffer_count") or self._non_empty_first_buffers
+            diag.negotiated_height = (
+                _frame_diag_int(self._last_frame_diag, "height", default=0) or None
+            )
+            diag.negotiated_framerate = str(self._last_frame_diag.get("framerate") or "unknown")
+            diag.empty_buffer_count = _frame_diag_int(
+                self._last_frame_diag,
+                "empty_buffer_count",
+                default=self._empty_first_buffers,
+            )
+            diag.non_empty_buffer_count = _frame_diag_int(
+                self._last_frame_diag,
+                "non_empty_buffer_count",
+                default=self._non_empty_first_buffers,
             )
             diag.mark(
                 "first buffer received",
@@ -493,17 +512,23 @@ class XDGPortalCapture:
                 "failing_stage": failing_stage,
                 "details": {
                     "expected_bytes": diag.expected_bytes,
-                    "received_bytes": int(self._last_frame_diag.get("buffer_reported_size") or 0),
+                    "received_bytes": _frame_diag_int(
+                        self._last_frame_diag, "buffer_reported_size", default=0
+                    ),
                     "sample_received": bool(self._last_frame_diag.get("sample_received")),
                     "buffer_present": bool(self._last_frame_diag.get("buffer_present")),
-                    "buffer_reported_size": int(
-                        self._last_frame_diag.get("buffer_reported_size") or 0
+                    "buffer_reported_size": _frame_diag_int(
+                        self._last_frame_diag, "buffer_reported_size", default=0
                     ),
-                    "memory_count": int(self._last_frame_diag.get("memory_count") or 0),
-                    "mapped_memory_size": int(self._last_frame_diag.get("mapped_memory_size") or 0),
+                    "memory_count": _frame_diag_int(
+                        self._last_frame_diag, "memory_count", default=0
+                    ),
+                    "mapped_memory_size": _frame_diag_int(
+                        self._last_frame_diag, "mapped_memory_size", default=0
+                    ),
                     "caps": self._last_frame_diag.get("caps"),
-                    "width": int(self._last_frame_diag.get("width") or self.width),
-                    "height": int(self._last_frame_diag.get("height") or self.height),
+                    "width": _frame_diag_int(self._last_frame_diag, "width", default=self.width),
+                    "height": _frame_diag_int(self._last_frame_diag, "height", default=self.height),
                     "format": self._last_frame_diag.get("format"),
                     "framerate": self._last_frame_diag.get("framerate") or "unknown",
                     "caps_metadata_warning": self._last_frame_diag.get("caps_metadata_warning"),
@@ -512,12 +537,15 @@ class XDGPortalCapture:
                     "dts_ns": self._last_frame_diag.get("dts_ns"),
                     "duration_ns": self._last_frame_diag.get("duration_ns"),
                     "first_frame_timeout_s": self._GSTREAMER_FIRST_FRAME_TIMEOUT_S,
-                    "empty_buffer_count": int(
-                        self._last_frame_diag.get("empty_buffer_count") or self._empty_first_buffers
+                    "empty_buffer_count": _frame_diag_int(
+                        self._last_frame_diag,
+                        "empty_buffer_count",
+                        default=self._empty_first_buffers,
                     ),
-                    "non_empty_buffer_count": int(
-                        self._last_frame_diag.get("non_empty_buffer_count")
-                        or self._non_empty_first_buffers
+                    "non_empty_buffer_count": _frame_diag_int(
+                        self._last_frame_diag,
+                        "non_empty_buffer_count",
+                        default=self._non_empty_first_buffers,
                     ),
                 },
             }
@@ -546,7 +574,7 @@ class XDGPortalCapture:
 
     def _pipewire_python_is_supported(self) -> tuple[bool, str]:
         try:
-            import pipewire as pw  # type: ignore
+            import pipewire as pw
         except ImportError as exc:
             return False, f"import failed: {exc}"
 
@@ -562,7 +590,7 @@ class XDGPortalCapture:
         return True, "supported"
 
     def _open_via_pipewire_python(self, fd: int, node_id: int) -> None:
-        import pipewire as pw  # type: ignore
+        import pipewire as pw
 
         self._pw_main_loop = pw.MainLoop()
         self._pw_context = pw.Context(self._pw_main_loop)
@@ -667,8 +695,8 @@ class XDGPortalCapture:
         if diag.get("map_attempted") and not bool(diag.get("map_success")):
             return f"map failure{warning_text}"
         if (
-            int(diag.get("buffer_reported_size") or 0) <= 0
-            or int(diag.get("mapped_memory_size") or 0) <= 0
+            as_int(diag.get("buffer_reported_size")) <= 0
+            or as_int(diag.get("mapped_memory_size")) <= 0
         ):
             return f"zero-byte buffer{warning_text}"
         if diag.get("rgb_conversion_attempted") and not bool(diag.get("rgb_conversion_success")):
@@ -698,7 +726,7 @@ class XDGPortalCapture:
         return frame
 
     def _pull_gst_frame(
-        self, appsink, *, timeout_s: float
+        self, appsink: Any, *, timeout_s: float
     ) -> tuple[np.ndarray | None, dict[str, object]]:
         from gi.repository import Gst, GstVideo
 
@@ -773,16 +801,14 @@ class XDGPortalCapture:
                         return None, last_diag
                     continue
                 last_diag["rgb_conversion_attempted"] = True
+                stride_raw = as_optional_int(last_diag.get("stride"))
+                stride_arg = stride_raw if stride_raw is not None and stride_raw > 0 else None
                 frame = self._mapped_bytes_to_rgb(
                     payload=bytes(map_info.data),
-                    width=int(last_diag["width"] or self.width),
-                    height=int(last_diag["height"] or self.height),
-                    fmt=str(last_diag["format"] or "RGB"),
-                    stride=(
-                        int(last_diag["stride"])
-                        if isinstance(last_diag.get("stride"), int) and int(last_diag["stride"]) > 0
-                        else None
-                    ),
+                    width=as_int(last_diag.get("width"), default=self.width),
+                    height=as_int(last_diag.get("height"), default=self.height),
+                    fmt=str(last_diag.get("format") or "RGB"),
+                    stride=stride_arg,
                 )
                 if frame is not None:
                     last_diag["rgb_conversion_success"] = True
@@ -799,7 +825,7 @@ class XDGPortalCapture:
         self._non_empty_first_buffers = non_empty_buffers
         return None, last_diag
 
-    def _extract_caps_metadata(self, caps, *, gst_video) -> dict[str, object]:
+    def _extract_caps_metadata(self, caps: Any, *, gst_video: Any) -> dict[str, object]:
         metadata: dict[str, object] = {
             "caps": None,
             "width": 0,
@@ -874,6 +900,8 @@ class XDGPortalCapture:
         fmt: str,
         stride: int | None,
     ) -> np.ndarray | None:
+        if sys.byteorder != "little":
+            return None
         channels = (
             3 if fmt in {"RGB", "BGR"} else 4 if fmt in {"RGBx", "BGRx", "RGBA", "BGRA"} else 0
         )

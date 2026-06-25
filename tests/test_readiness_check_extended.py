@@ -10,6 +10,7 @@ import pytest
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.runtime.readiness_check import (
     CONFIG_PROBLEM_STATUS,
+    READY_STATUS,
     _probe_capture_backend,
     _probe_device,
     run_readiness_check,
@@ -166,6 +167,32 @@ def test_probe_device_does_not_crash(monkeypatch: pytest.MonkeyPatch) -> None:
 # ---------------------------------------------------------------------------
 # ReadinessReport and ReadinessIssue
 # ---------------------------------------------------------------------------
+
+
+def test_existing_driver_skips_device_probe(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When an initialized driver is already open, readiness should not re-probe USB."""
+    probe_calls: list[str] = []
+
+    class _InitializedDriver:
+        _initialized = True
+
+    def _probe_should_not_run(_cfg: AppConfig) -> str | None:
+        probe_calls.append("ran")
+        return None
+
+    monkeypatch.setattr(
+        "nanoleaf_sync.runtime.readiness_check._probe_device",
+        _probe_should_not_run,
+    )
+    report = run_readiness_check(
+        config=_valid_config(),
+        runtime_status={},
+        source_zone_count=4,
+        capture_probe=lambda _c: None,
+        existing_driver=_InitializedDriver(),
+    )
+    assert probe_calls == []
+    assert report.status == READY_STATUS
 
 
 def test_readiness_report_with_only_wizard_draft() -> None:

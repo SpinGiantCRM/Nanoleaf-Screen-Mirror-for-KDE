@@ -207,7 +207,9 @@ def test_create_kwin_dbus_backend_initializes_or_fails_cleanly() -> None:
             close_fn()
     except Exception as exc:
         # In non-KDE environments, it fails — verify the error message is meaningful
-        assert str(exc)
+        message = str(exc).strip()
+        assert message
+        assert message != "None"
 
 
 def test_create_kwin_backend_defaults_to_hdr_metadata(monkeypatch: pytest.MonkeyPatch) -> None:

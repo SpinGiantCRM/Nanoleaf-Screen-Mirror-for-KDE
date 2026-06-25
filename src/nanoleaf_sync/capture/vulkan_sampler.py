@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 
@@ -134,6 +135,6 @@ class VulkanZoneSampler:
     def __enter__(self) -> VulkanZoneSampler:
         return self
 
-    def __exit__(self, *args: object) -> bool:
+    def __exit__(self, *args: object) -> Literal[False]:
         self.close()
         return False

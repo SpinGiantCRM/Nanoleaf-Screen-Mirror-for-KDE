@@ -56,6 +56,42 @@ def test_smoke_test_forwards_auto_probe_kwargs(monkeypatch, capsys) -> None:
                 device_pid=0x8202,
             )
 
+    monkeypatch.setattr(smoke_test, "ConfigManager", _CfgMgr)
+
+    def _capture_factory(**kwargs):
+        captured_kwargs.update(kwargs)
+        return _CaptureStub()
+
+    monkeypatch.setattr(smoke_test, "create_capture_backend", _capture_factory)
+
+    def _raise_if_device_opened(_ids):
+        raise AssertionError("device path should be skipped")
+
+    monkeypatch.setattr(smoke_test, "NanoleafUSBDriver", _raise_if_device_opened)
+
+    exit_code = smoke_test.main([])
+
+    out = capsys.readouterr().out
+    assert exit_code == 0
+    assert captured_kwargs["auto_probe_enabled"] is False
+    assert captured_kwargs["cached_probe_winner"] == "xdg-portal"
+    assert "selection_reason=fresh-probe" in out
+    assert "device init skipped" in out
+
+
+def test_smoke_test_hardware_path_forwards_auto_probe_kwargs(monkeypatch, capsys) -> None:
+    captured_kwargs = {}
+
+    class _CfgMgr:
+        def load(self):
+            return AppConfig(
+                prefer_backend="auto",
+                auto_probe_enabled=False,
+                auto_selected_backend="xdg-portal",
+                device_vid=0x37FA,
+                device_pid=0x8202,
+            )
+
     class _DriverStub:
         model_number = "stub-model"
         zone_count = 8
@@ -75,7 +111,7 @@ def test_smoke_test_forwards_auto_probe_kwargs(monkeypatch, capsys) -> None:
     monkeypatch.setattr(smoke_test, "create_capture_backend", _capture_factory)
     monkeypatch.setattr(smoke_test, "NanoleafUSBDriver", lambda ids: _DriverStub())
 
-    exit_code = smoke_test.main([])
+    exit_code = smoke_test.main(["--hardware"])
 
     out = capsys.readouterr().out
     assert exit_code == 0
@@ -113,7 +149,7 @@ def test_smoke_test_prints_kwin_auth_context_for_shell_launch(monkeypatch, capsy
     monkeypatch.delenv("DESKTOP_STARTUP_ID", raising=False)
     monkeypatch.delenv("XDG_ACTIVATION_TOKEN", raising=False)
 
-    exit_code = smoke_test.main([])
+    exit_code = smoke_test.main(["--hardware"])
     assert exit_code == 1
     out = capsys.readouterr().out
     assert "context warning: shell-run smoke tests may lack KDE launcher policy" in out
@@ -138,7 +174,7 @@ def test_smoke_test_labels_device_init_failure(monkeypatch, capsys) -> None:
     monkeypatch.setattr(smoke_test, "NanoleafUSBDriver", lambda ids: _DriverFail())
     monkeypatch.setattr(smoke_test, "translate_runtime_error", lambda _exc: _TranslatedError())
 
-    exit_code = smoke_test.main([])
+    exit_code = smoke_test.main(["--hardware"])
 
     out = capsys.readouterr().out
     assert exit_code == 1
@@ -169,7 +205,7 @@ def test_smoke_test_labels_test_frame_send_failure(monkeypatch, capsys) -> None:
     monkeypatch.setattr(smoke_test, "NanoleafUSBDriver", lambda ids: _DriverFail())
     monkeypatch.setattr(smoke_test, "translate_runtime_error", lambda _exc: _TranslatedError())
 
-    exit_code = smoke_test.main(["--send-test-frame"])
+    exit_code = smoke_test.main(["--hardware", "--send-test-frame"])
 
     out = capsys.readouterr().out
     assert exit_code == 1

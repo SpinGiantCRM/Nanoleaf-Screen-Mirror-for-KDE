@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from nanoleaf_sync._coerce import as_float
 from nanoleaf_sync.color._types import RGBTuple
 from nanoleaf_sync.color.capture_metadata import resolve_compositor_hdr_runtime
 from nanoleaf_sync.config.model import AppConfig
@@ -89,7 +90,7 @@ class ColorPipelineParams:
     prior_zone_sample_motion: float = 0.0
     prior_area_average_mode: bool = False
     sampling_mode_dwell_remaining: int = 0
-    prev_smooth_float_colors: Sequence[RGBTuple] = ()
+    prev_smooth_float_colors: Sequence[tuple[float, float, float]] = ()
     prev_sent_colors: Sequence[RGBTuple] = ()
     dark_zone_stabilize_hold: Sequence[bool] = ()
     blend_hysteresis: BlendHysteresisState | None = None
@@ -203,7 +204,7 @@ def process_zone_colors(
         np.ndarray,
         np.ndarray,
         FrameProcessingTimings,
-        list[RGBTuple],
+        list[tuple[float, float, float]],
         list[RGBTuple],
     ]
 ):
@@ -249,13 +250,13 @@ def process_zone_colors(
         )
         profile = PROFILES.get(profile_name, {})
         motion_preset = str(profile.get("motion_preset", motion_preset))
-        smoothing = float(profile.get("smoothing", smoothing))
-        smoothing_speed = float(profile.get("smoothing_speed", smoothing_speed))
+        smoothing = as_float(profile.get("smoothing"), default=smoothing)
+        smoothing_speed = as_float(profile.get("smoothing_speed"), default=smoothing_speed)
         params = replace(
             params,
             color_style=str(profile.get("color_style", params.color_style)),
             light_spread=str(profile.get("light_spread", params.light_spread)),
-            effective_target_fps=float(profile.get("fps", params.effective_target_fps)),
+            effective_target_fps=as_float(profile.get("fps"), default=params.effective_target_fps),
         )
     light_spread = effective_light_spread_for_sync(
         light_spread=params.light_spread,
@@ -547,8 +548,11 @@ def process_zone_colors(
         predictive_lookahead_frames = float(pred_result.lookahead_frames)
         predictive_scene_cut_suppressed = bool(pred_result.scene_cut_suppressed)
 
-    smooth_float_history = (
-        [tuple(float(c) for c in row) for row in mapped.astype(np.float32, copy=False).tolist()]
+    smooth_float_history: list[tuple[float, float, float]] = (
+        [
+            (float(row[0]), float(row[1]), float(row[2]))
+            for row in mapped.astype(np.float32, copy=False).tolist()
+        ]
         if params.return_diagnostics
         else []
     )
@@ -583,7 +587,7 @@ def process_zone_colors(
     out = mapped.astype(np.uint8, copy=False)
     if capture_colour_stages:
         stage_final = _stage_snapshot(out.astype(np.float32, copy=False))
-    out_list = [tuple(int(c) for c in row) for row in out.tolist()]
+    out_list: list[RGBTuple] = [(int(row[0]), int(row[1]), int(row[2])) for row in out.tolist()]
     sent_history = out_list if params.return_diagnostics else []
     output_prepare_done = time.perf_counter()
 

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, cast
 
 CornerName = Literal["top_left", "top_right", "bottom_right", "bottom_left"]
+DirectionName = Literal["clockwise", "counter-clockwise"]
 CORNER_SEQUENCE_CLOCKWISE: tuple[CornerName, ...] = (
     "top_left",
     "top_right",
@@ -26,6 +27,12 @@ class AnchorValidationResult:
     errors: list[str]
 
 
+def corner_anchors_from_mapping(
+    anchors: dict[str, int | None],
+) -> dict[CornerName, int | None]:
+    return {name: anchors.get(name) for name in CORNER_SEQUENCE_CLOCKWISE}
+
+
 def validate_corner_anchors(
     *, anchors: dict[CornerName, int | None], device_zone_count: int
 ) -> AnchorValidationResult:
@@ -41,7 +48,7 @@ def validate_corner_anchors(
         errors.append(f"Missing corner anchors: {readable}.")
         return AnchorValidationResult(valid=False, errors=errors)
 
-    values = {name: int(anchors[name]) for name in CORNER_SEQUENCE_CLOCKWISE}
+    values = {name: int(cast(int, anchors[name])) for name in CORNER_SEQUENCE_CLOCKWISE}
     for name, idx in values.items():
         if idx < 0 or idx >= total:
             errors.append(f"Anchor {name.replace('_', '-')}={idx} is outside 0..{total - 1}.")
@@ -62,14 +69,14 @@ def _cw_distance(a: int, b: int, total: int) -> int:
 
 def _choose_direction(
     values: dict[CornerName, int], total: int
-) -> tuple[str, list[tuple[CornerName, int]], list[int]]:
-    cw_order = [
+) -> tuple[DirectionName, list[tuple[CornerName, int]], list[int]]:
+    cw_order: list[tuple[CornerName, int]] = [
         ("top_left", values["top_left"]),
         ("top_right", values["top_right"]),
         ("bottom_right", values["bottom_right"]),
         ("bottom_left", values["bottom_left"]),
     ]
-    ccw_order = [
+    ccw_order: list[tuple[CornerName, int]] = [
         ("top_left", values["top_left"]),
         ("bottom_left", values["bottom_left"]),
         ("bottom_right", values["bottom_right"]),
@@ -102,7 +109,7 @@ def derive_anchor_zone_map(
 
     src_total = max(1, int(zone_count))
     dst_total = int(device_zone_count)
-    values = {name: int(anchors[name]) for name in CORNER_SEQUENCE_CLOCKWISE}
+    values = {name: int(cast(int, anchors[name])) for name in CORNER_SEQUENCE_CLOCKWISE}
 
     direction, ordered_corners, edge_lengths = _choose_direction(values, dst_total)
 
@@ -138,6 +145,6 @@ def derive_anchor_zone_map(
     return AnchorMappingResult(
         mapping=mapping,
         direction=direction,
-        ordered_corners=[(str(name), int(idx)) for name, idx in ordered_corners],
+        ordered_corners=[(name, int(idx)) for name, idx in ordered_corners],
         edge_lengths=edge_lengths,
     )

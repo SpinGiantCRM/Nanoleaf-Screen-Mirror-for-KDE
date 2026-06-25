@@ -3,13 +3,20 @@
 KDE ScreenShot2 access can depend on launch context, so this module ensures
 desktop entries and autostart files carry the required restricted-interface
 marker used by diagnostics and first-run tooling.
+
+Preferred autostart: ``enable_autostart()`` writes an XDG desktop autostart
+entry that inherits the desktop session launch context KWin expects.
+
+Advanced autostart: ``enable_systemd_autostart()`` enables a systemd --user
+unit. That path can miss desktop-entry authorization context and is not
+recommended when ``prefer_backend`` is ``kwin-dbus`` (or ``auto`` on KDE).
 """
 
 from __future__ import annotations
 
 import os
 import shlex
-import subprocess
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
@@ -234,12 +241,36 @@ def _systemd_service_text(*, exec_command: str | None = None) -> str:
     )
 
 
+def systemd_autostart_enabled() -> bool:
+    """Return True when the user systemd unit is installed and enabled."""
+    path = user_systemd_service_path()
+    if not path.exists():
+        return False
+    try:
+        result = subprocess.run(  # nosec B603 B607
+            ["systemctl", "--user", "is-enabled", path.name],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        return (result.stdout or "").strip() == "enabled"
+    except Exception:
+        return True
+
+
 def enable_systemd_autostart(*, exec_command: str | None = None) -> Path:
+    """Enable systemd --user autostart (advanced).
+
+    Prefer :func:`enable_autostart` for daily use. Systemd user units may not
+    inherit the desktop-entry launch context required for reliable KWin
+    ScreenShot2 authorization when ``prefer_backend`` is ``kwin-dbus``.
+    """
     destination = user_systemd_service_path()
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(_systemd_service_text(exec_command=exec_command), encoding="utf-8")
-    subprocess.run(["systemctl", "--user", "daemon-reload"], check=True, timeout=5)
-    subprocess.run(
+    subprocess.run(["systemctl", "--user", "daemon-reload"], check=True, timeout=5)  # nosec B603 B607
+    subprocess.run(  # nosec B603 B607
         ["systemctl", "--user", "enable", destination.name],
         check=True,
         timeout=5,
@@ -250,12 +281,12 @@ def enable_systemd_autostart(*, exec_command: str | None = None) -> Path:
 def disable_systemd_autostart() -> bool:
     path = user_systemd_service_path()
     was_present = path.exists()
-    subprocess.run(
+    subprocess.run(  # nosec B603 B607
         ["systemctl", "--user", "disable", path.name],
         check=False,
         timeout=5,
     )
     if was_present:
         path.unlink()
-    subprocess.run(["systemctl", "--user", "daemon-reload"], check=False, timeout=5)
+    subprocess.run(["systemctl", "--user", "daemon-reload"], check=False, timeout=5)  # nosec B603 B607
     return was_present

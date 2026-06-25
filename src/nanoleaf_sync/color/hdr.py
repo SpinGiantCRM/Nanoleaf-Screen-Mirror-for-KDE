@@ -11,10 +11,11 @@ Goal:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import numpy as np
 
+from nanoleaf_sync._coerce import as_float
 from nanoleaf_sync.runtime.srgb import (
     gamma22_eotf_to_linear01,
     linear01_to_srgb_encoded,
@@ -54,6 +55,20 @@ _HDR_DIFFUSE_WHITE_NITS = 100.0
 _PQ_REFERENCE_WHITE_NITS = 10000.0
 
 
+def _parse_transfer(value: object) -> TransferFn:
+    text = str(value or "srgb").strip().lower()
+    if text in {"srgb", "pq", "hlg", "linear", "gamma22"}:
+        return cast(TransferFn, text)
+    return "unknown"
+
+
+def _parse_primaries(value: object) -> Primaries:
+    text = str(value or "bt709").strip().lower()
+    if text in {"bt709", "bt2020"}:
+        return cast(Primaries, text)
+    return "unknown"
+
+
 @dataclass(frozen=True)
 class HDRMetadata:
     # Transfer function / EOTF for the encoded input.
@@ -75,9 +90,16 @@ class HDRMetadata:
             return value
         if isinstance(value, dict):
             return HDRMetadata(
-                transfer=str(value.get("transfer", value.get("input_transfer", "srgb"))),
-                primaries=str(value.get("primaries", value.get("input_primaries", "bt709"))),
-                max_nits=float(value.get("max_nits", value.get("hdr_max_nits", 1000.0))),
+                transfer=_parse_transfer(
+                    value.get("transfer", value.get("input_transfer", "srgb"))
+                ),
+                primaries=_parse_primaries(
+                    value.get("primaries", value.get("input_primaries", "bt709"))
+                ),
+                max_nits=as_float(
+                    value.get("max_nits", value.get("hdr_max_nits", 1000.0)),
+                    default=1000.0,
+                ),
                 skip_display_gamut_adaptation=bool(
                     value.get("skip_display_gamut_adaptation", False)
                 ),
@@ -159,7 +181,7 @@ def _pq_eotf_to_linear(c: np.ndarray) -> np.ndarray:
     num = np.maximum(vp - c1, 0.0)
     den = np.maximum(c2 - c3 * vp, 1e-10)
     linear = np.power(np.maximum(num / den, 0.0), 1.0 / m1)
-    return linear
+    return cast(np.ndarray, linear)
 
 
 def _hlg_eotf_to_linear(c: np.ndarray) -> np.ndarray:
@@ -212,7 +234,7 @@ def _apply_tonemap_hable_luminance_preserving(
     tone_y = _apply_tonemap_hable(y[..., None], max_nits=max_nits)[..., 0]
     scale = np.divide(tone_y, y, out=np.zeros_like(tone_y, dtype=np.float32), where=y > 1e-8)
     mapped = rgb * scale[..., None]
-    return np.clip(mapped, 0.0, 1.0)
+    return cast(np.ndarray, np.clip(mapped, 0.0, 1.0))
 
 
 def _looks_sdr_encoded(enc: np.ndarray, *, transfer: str) -> bool:
@@ -290,12 +312,12 @@ def analyze_hdr_path(rgb: np.ndarray, metadata: Any | None = None) -> dict[str, 
 
 def _linear_bt709_to_linear_srgb(linear_rgb: np.ndarray) -> np.ndarray:
     # BT.709 primaries -> linear sRGB (D65)
-    return _LINEAR_BT709_TO_SRGB @ linear_rgb.reshape(-1, 3).T
+    return cast(np.ndarray, _LINEAR_BT709_TO_SRGB @ linear_rgb.reshape(-1, 3).T)
 
 
 def _linear_bt2020_to_linear_srgb(linear_rgb: np.ndarray) -> np.ndarray:
     # BT.2020 primaries -> linear sRGB (D65)
-    return _LINEAR_BT2020_TO_SRGB @ linear_rgb.reshape(-1, 3).T
+    return cast(np.ndarray, _LINEAR_BT2020_TO_SRGB @ linear_rgb.reshape(-1, 3).T)
 
 
 def _linear_to_srgb_encoded(linear: np.ndarray) -> np.ndarray:
@@ -332,7 +354,10 @@ def convert_frame_to_srgb8(
         and meta.transfer == "srgb"
         and meta.primaries == "bt709"
     ):
-        return np.clip(np.rint(np.clip(rgb, 0.0, 1.0) * 255.0), 0, 255).astype(np.uint8)
+        return cast(
+            np.ndarray,
+            np.clip(np.rint(np.clip(rgb, 0.0, 1.0) * 255.0), 0, 255).astype(np.uint8),
+        )
 
     bit_depth = _metadata_bit_depth(metadata)
     enc = _to_float01(

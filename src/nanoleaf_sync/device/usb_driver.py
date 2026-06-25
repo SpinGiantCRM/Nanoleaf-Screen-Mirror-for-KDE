@@ -7,6 +7,7 @@ from typing import Any
 
 import numpy as np
 
+from nanoleaf_sync._coerce import scalar_float, scalar_int
 from nanoleaf_sync.device.hid_transport import HIDTransport, HIDWriteError
 from nanoleaf_sync.device.interfaces import (
     DeviceDriver,
@@ -341,7 +342,7 @@ class NanoleafUSBDriver(DeviceDriver):
 
     def set_zone_colors(
         self, colors: Sequence[RGBTuple], *, return_timing: bool = False
-    ) -> dict[str, float | bool | str | None] | None:
+    ) -> dict[str, float | bool | str | int | list[int] | list[float] | None] | None:
         if not self._initialized:
             self.initialize()
         if self.zone_count is None:
@@ -613,23 +614,28 @@ class NanoleafUSBDriver(DeviceDriver):
                         "response-required fallback also failed."
                     ) from send_err
                 raise
-        device_write_ms = float(transport_timing.get("write_ms") or 0.0)
+        device_write_ms = scalar_float(transport_timing.get("write_ms"))
+        flush_raw = transport_timing.get("flush_or_wait_ms")
         flush_or_wait_ms = (
-            float(transport_timing.get("flush_or_wait_ms"))
-            if transport_timing.get("flush_or_wait_ms") is not None
+            scalar_float(flush_raw)
+            if flush_raw is not None and not isinstance(flush_raw, list)
             else None
         )
         report_data_sizes = transport_timing.get("report_data_sizes")
         per_report_write_ms = transport_timing.get("per_report_write_ms")
-        total_bytes = int(transport_timing.get("total_frame_bytes") or request_len)
+        total_bytes = scalar_int(transport_timing.get("total_frame_bytes"), default=request_len)
         if live_send_policy in {"write_only", "nonblocking_drain", "mailbox"}:
             reports_per_frame = report_count
             bytes_per_report = report_size
             if not isinstance(report_data_sizes, list):
                 report_data_sizes = chunk_sizes
         else:
-            reports_per_frame = int(transport_timing.get("report_count") or report_count)
-            bytes_per_report = int(transport_timing.get("bytes_per_report") or report_size)
+            reports_per_frame = scalar_int(
+                transport_timing.get("report_count"), default=report_count
+            )
+            bytes_per_report = scalar_int(
+                transport_timing.get("bytes_per_report"), default=report_size
+            )
         if isinstance(report_data_sizes, list) and isinstance(per_report_write_ms, list):
             self._logger.debug(
                 "USB HID write timing: reports_per_frame=%d bytes_per_report=%d "
@@ -640,7 +646,7 @@ class NanoleafUSBDriver(DeviceDriver):
                 bytes_per_report,
                 total_bytes,
                 report_data_sizes,
-                [round(float(v), 3) for v in per_report_write_ms],
+                [round(scalar_float(v), 3) for v in per_report_write_ms],
                 device_write_ms,
                 f"{float(flush_or_wait_ms):.3f}" if flush_or_wait_ms is not None else "unavailable",
                 "yes" if bool(transport_timing.get("write_blocking", True)) else "no",
@@ -669,10 +675,11 @@ class NanoleafUSBDriver(DeviceDriver):
             "write_blocking": bool(transport_timing.get("write_blocking", True)),
             "write_retry_policy": str(transport_timing.get("retry_policy", "none")),
             "write_rate_limit_policy": str(transport_timing.get("rate_limit_policy", "none")),
-            "write_read_calls": int(transport_timing.get("read_calls") or 0),
+            "write_read_calls": scalar_int(transport_timing.get("read_calls")),
             "ack_arrival_ms": (
-                float(transport_timing.get("ack_arrival_ms"))
+                scalar_float(transport_timing.get("ack_arrival_ms"))
                 if transport_timing.get("ack_arrival_ms") is not None
+                and not isinstance(transport_timing.get("ack_arrival_ms"), list)
                 else None
             ),
             "live_send_policy": live_send_policy,
@@ -688,7 +695,7 @@ class NanoleafUSBDriver(DeviceDriver):
             if ack_arrival is not None:
                 self.ack_received_count += 1
                 self.last_ack_status = "received"
-                self.last_ack_age_ms = float(ack_arrival)
+                self.last_ack_age_ms = scalar_float(ack_arrival)
             elif live_send_policy == LiveSendPolicy.RESPONSE_REQUIRED.value:
                 self.ack_missed_count += 1
                 self.last_ack_status = "missed"
@@ -723,7 +730,7 @@ class NanoleafUSBDriver(DeviceDriver):
 
     def send_frame_with_timing(
         self, colors: Sequence[RGBTuple]
-    ) -> dict[str, float | bool | str | None]:
+    ) -> dict[str, float | bool | str | int | list[int] | list[float] | None]:
         timing = self.set_zone_colors(colors, return_timing=True)
         if isinstance(timing, dict):
             return timing

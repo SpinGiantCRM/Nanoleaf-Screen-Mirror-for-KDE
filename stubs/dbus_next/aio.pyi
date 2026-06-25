@@ -1,0 +1,26 @@
+from collections.abc import Callable
+from typing import Any
+
+from dbus_next import BaseProxyObject, Message
+from dbus_next.constants import BusType
+
+class MessageBus:
+    unique_name: str
+    def __init__(
+        self,
+        bus_type: BusType = ...,
+        *,
+        negotiate_unix_fd: bool = ...,
+    ) -> None: ...
+    async def connect(self) -> MessageBus: ...
+    async def introspect(self, bus_name: str, path: str) -> Any: ...
+    def get_proxy_object(
+        self,
+        bus_name: str,
+        path: str,
+        introspection: Any,
+    ) -> BaseProxyObject: ...
+    async def call(self, msg: Message) -> Message | None: ...
+    def add_message_handler(self, handler: Callable[..., None]) -> None: ...
+    def remove_message_handler(self, handler: Callable[..., None]) -> None: ...
+    def disconnect(self) -> None: ...

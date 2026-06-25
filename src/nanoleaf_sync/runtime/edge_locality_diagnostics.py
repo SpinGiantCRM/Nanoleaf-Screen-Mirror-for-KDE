@@ -49,9 +49,10 @@ def run_edge_locality_test(
 
     corner_frame = np.zeros((height, width, 3), dtype=np.uint8)
     corner_frame[height - t : height, :t, :] = np.array([0, 255, 0], dtype=np.uint8)
-    corner_colors = zone_colors_array(
+    corner_result = zone_colors_array(
         corner_frame, zones_px, sample_step=stride, mode=analyzer_mode, edge_locality=edge_locality
     )
+    corner_colors = corner_result[0] if isinstance(corner_result, tuple) else corner_result
 
     top_n, right_n, bottom_n, left_n = layout.side_counts
     bottom_start = top_n + right_n

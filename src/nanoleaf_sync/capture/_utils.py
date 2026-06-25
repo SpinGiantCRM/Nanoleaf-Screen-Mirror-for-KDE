@@ -66,7 +66,10 @@ def _resize_to_target(
                 else:
                     index_cache.pop(next(iter(index_cache)))
 
-    return frame[y_idx[:, None], x_idx[None, :], :]
+    assert y_idx is not None and x_idx is not None  # nosec B101
+    ys = np.asarray(y_idx, dtype=np.intp)
+    xs = np.asarray(x_idx, dtype=np.intp)
+    return frame[ys[:, None], xs[None, :], :]
 
 
 def zone_box_average(

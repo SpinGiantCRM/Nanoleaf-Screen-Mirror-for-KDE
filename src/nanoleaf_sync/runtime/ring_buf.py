@@ -15,9 +15,12 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass, field
 from threading import Condition, Lock
-from typing import Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from nanoleaf_sync.runtime.engine_frame import FrameProcessingTimings
 
 T = TypeVar("T")
 
@@ -42,13 +45,16 @@ class SPSCRingBuffer(Generic[T]):
     # Push (producer) side
     # ------------------------------------------------------------------
 
+    def _maxlen(self) -> int:
+        return self._deque.maxlen or 1
+
     def try_push(self, item: T) -> bool:
         """Push *item* without blocking.
 
         Returns ``False`` when the buffer is full and *item* is discarded.
         """
         with self._lock:
-            if len(self._deque) >= self._deque.maxlen:
+            if len(self._deque) >= self._maxlen():
                 self._dropped_count += 1
                 return False
             self._deque.append(item)
@@ -62,7 +68,7 @@ class SPSCRingBuffer(Generic[T]):
         """
         with self._not_full:
             if not self._not_full.wait_for(
-                lambda: len(self._deque) < self._deque.maxlen,
+                lambda: len(self._deque) < self._maxlen(),
                 timeout=max(0.0, float(timeout)),
             ):
                 self._dropped_count += 1
@@ -78,7 +84,7 @@ class SPSCRingBuffer(Generic[T]):
         low-latency handoffs where stale work is worse than a skipped frame.
         """
         with self._lock:
-            replaced = len(self._deque) >= self._deque.maxlen
+            replaced = len(self._deque) >= self._maxlen()
             if replaced:
                 self._deque.popleft()
                 self._dropped_count += 1
@@ -158,7 +164,7 @@ class SPSCRingBuffer(Generic[T]):
 
     @property
     def capacity(self) -> int:
-        return self._deque.maxlen
+        return self._maxlen()
 
 
 # ---------------------------------------------------------------------------
@@ -187,7 +193,7 @@ class ProcessedPayload:
     sampled_zone_colors: np.ndarray
     pre_led_colors: np.ndarray
     final_zone_colors: np.ndarray
-    processing_timings: object
+    processing_timings: FrameProcessingTimings
     smooth_float_history: list = field(default_factory=list)
     sent_history: list = field(default_factory=list)
     frame: np.ndarray | None = None

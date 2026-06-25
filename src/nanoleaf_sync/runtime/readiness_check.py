@@ -17,9 +17,11 @@ from nanoleaf_sync.config.presets import (
 )
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 from nanoleaf_sync.device.usb_driver import NanoleafUSBDriver
-from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
+from nanoleaf_sync.runtime.anchor_calibration import (
+    corner_anchors_from_mapping,
+    validate_corner_anchors,
+)
 from nanoleaf_sync.runtime.calibration_resolver import (
-    evaluate_device_zone_authority,
     resolve_calibration_mapping,
 )
 from nanoleaf_sync.runtime.zone_derivation import source_side_counts_from_config
@@ -82,6 +84,12 @@ def _probe_device(config: AppConfig) -> str | None:
     return None
 
 
+def _existing_driver_probe_skippable(driver: object) -> bool:
+    if bool(getattr(driver, "_initialized", False)):
+        return True
+    return bool(getattr(driver, "initialized", False))
+
+
 def run_readiness_check(
     *,
     config: AppConfig,
@@ -89,6 +97,7 @@ def run_readiness_check(
     source_zone_count: int | None = None,
     capture_probe: Callable[[AppConfig], str | None] | None = None,
     device_probe: Callable[[AppConfig], str | None] | None = None,
+    existing_driver: object | None = None,
 ) -> ReadinessReport:
     status = runtime_status or {}
     issues: list[ReadinessIssue] = []
@@ -132,27 +141,6 @@ def run_readiness_check(
             )
         )
 
-    detected_from_status = status.get("detected_device_zone_count")
-    if detected_from_status is None:
-        detected_from_status = status.get("device_zone_count")
-    zone_authority = evaluate_device_zone_authority(
-        config=normalized,
-        detected_device_zone_count=detected_from_status,
-    )
-    if zone_authority.blocked:
-        issues.append(
-            ReadinessIssue(
-                check="device-zone-count",
-                reason=(
-                    "USB strip zone count does not match calibration/config "
-                    f"(detected={zone_authority.detected_device_zone_count}, "
-                    f"configured={zone_authority.configured_device_zone_count})."
-                ),
-                fix="Rerun calibration or enable allow_zone_count_override",
-                category=DEVICE_PROBLEM_STATUS,
-            )
-        )
-
     calibration = normalized.effective_calibration()
     anchors: dict[str, int | None] = {
         "top_left": int(getattr(calibration, "corner_anchor_top_left", -1)),
@@ -161,8 +149,8 @@ def run_readiness_check(
         "bottom_left": int(getattr(calibration, "corner_anchor_bottom_left", -1)),
     }
     anchor_validation = validate_corner_anchors(
-        anchors=anchors,
-        device_zone_count=max(1, manual_strip_count),  # type: ignore[arg-type]
+        anchors=corner_anchors_from_mapping(anchors),
+        device_zone_count=max(1, manual_strip_count),
     )
     if not anchor_validation.valid:
         issues.append(
@@ -333,24 +321,25 @@ def run_readiness_check(
             )
         )
 
-    device_runner = device_probe or _probe_device
-    try:
-        device_error = device_runner(normalized)
-        if device_error:
-            raise RuntimeError(device_error)
-    except Exception as exc:
-        lowered = str(exc).lower()
-        fix = "Reconnect the Nanoleaf strip"
-        if "permission" in lowered or "access" in lowered or "udev" in lowered:
-            fix = "Run udev setup"
-        issues.append(
-            ReadinessIssue(
-                check="hid-device",
-                reason=f"Nanoleaf HID device could not be opened: {exc}",
-                fix=fix,
-                category=DEVICE_PROBLEM_STATUS,
+    if existing_driver is None or not _existing_driver_probe_skippable(existing_driver):
+        device_runner = device_probe or _probe_device
+        try:
+            device_error = device_runner(normalized)
+            if device_error:
+                raise RuntimeError(device_error)
+        except Exception as exc:
+            lowered = str(exc).lower()
+            fix = "Reconnect the Nanoleaf strip"
+            if "permission" in lowered or "access" in lowered or "udev" in lowered:
+                fix = "Run udev setup"
+            issues.append(
+                ReadinessIssue(
+                    check="hid-device",
+                    reason=f"Nanoleaf HID device could not be opened: {exc}",
+                    fix=fix,
+                    category=DEVICE_PROBLEM_STATUS,
+                )
             )
-        )
 
     if not issues:
         return ReadinessReport(status=READY_STATUS, issues=())

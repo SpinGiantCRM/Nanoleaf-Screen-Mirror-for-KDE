@@ -8,6 +8,7 @@ import time
 from collections.abc import Callable
 from importlib import import_module
 from pathlib import Path
+from typing import Any
 
 from nanoleaf_sync.capture.backend_selection import (
     AUTO_BACKEND,
@@ -97,7 +98,7 @@ def _probe_row(
     }
 
 
-def _probe_rows_from_result(*, result, mode: str) -> list[dict[str, object]]:
+def _probe_rows_from_result(*, result: Any, mode: str) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for candidate in result.candidates:
         latencies = list(getattr(candidate, "latencies_ms", []) or [])

@@ -57,7 +57,7 @@ def dominant_colors_kmeans(
 
         if np.array_equal(new_labels, labels):
             break
-        labels = new_labels
+        labels = np.asarray(new_labels, dtype=np.int32)
 
         # Update centers as mean of assigned points.
         for k in range(n_clusters):

@@ -28,6 +28,11 @@ from nanoleaf_sync.capture._utils import effective_runtime_zone_count
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Manual smoke test for nanoleaf-kde-sync")
     parser.add_argument(
+        "--hardware",
+        action="store_true",
+        help="Exercise the USB device path (skipped by default for CI-safe smoke tests).",
+    )
+    parser.add_argument(
         "--send-test-frame",
         action="store_true",
         help="Send a low-brightness RGB test frame to the active device backend.",
@@ -38,7 +43,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print("== nanoleaf-kde-sync smoke test ==")
     print(f"capture mode: {'mock' if cfg.use_mock_capture else cfg.prefer_backend}")
-    print("device mode: real-usb")
+    print(f"device mode: {'real-usb' if args.hardware else 'skipped (use --hardware)'}")
     print(
         "probe config: "
         f"configured_enabled={cfg.auto_probe_enabled} policy={cfg.auto_probe_policy} "
@@ -89,7 +94,7 @@ def main(argv: list[str] | None = None) -> int:
         f"selection_reason={selection_reason}"
     )
 
-    driver = NanoleafUSBDriver(ids=NanoleafUSBIds(vid=cfg.device_vid, pid=cfg.device_pid))
+    driver = None
     return_code = 0
     phase = "capture"
 
@@ -97,6 +102,13 @@ def main(argv: list[str] | None = None) -> int:
         frame = capture.capture()
         print(f"capture ok: frame shape={frame.shape}")
 
+        if not args.hardware:
+            print("device init skipped (use --hardware to exercise USB device path).")
+            if args.send_test_frame:
+                print("test frame not sent (requires --hardware).")
+            return return_code
+
+        driver = NanoleafUSBDriver(ids=NanoleafUSBIds(vid=cfg.device_vid, pid=cfg.device_pid))
         phase = "device init"
         driver.initialize()
         zones = getattr(driver, "zone_count", None)
@@ -150,10 +162,11 @@ def main(argv: list[str] | None = None) -> int:
             )
         return_code = 1
     finally:
-        try:
-            driver.close()
-        except Exception:
-            logger.debug("Failed to close device driver during smoke test", exc_info=True)
+        if args.hardware and driver is not None:
+            try:
+                driver.close()
+            except Exception:
+                logger.debug("Failed to close device driver during smoke test", exc_info=True)
         try:
             close_fn = getattr(capture, "close", None)
             if close_fn is not None:

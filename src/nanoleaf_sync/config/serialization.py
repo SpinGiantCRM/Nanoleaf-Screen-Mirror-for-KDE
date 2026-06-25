@@ -39,4 +39,4 @@ def _prepare_payload_for_round_trip(payload: dict[str, Any]) -> dict[str, Any]:
 
 def dump_toml(payload: dict[str, Any]) -> str:
     prepared_payload = _prepare_payload_for_round_trip(payload)
-    return tomli_w.dumps(prepared_payload)
+    return tomli_w.dumps(prepared_payload)  # type: ignore[no-any-return]

@@ -205,7 +205,7 @@ def translate_runtime_error(error: Exception) -> UserFacingError:
                     "if portal capture keeps failing."
                 )
         except Exception:
-            pass
+            pass  # nosec B110
         return UserFacingError(
             kind="portal-backend",
             summary=message,

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import argparse
-import subprocess
+import subprocess  # nosec B404
 
 from nanoleaf_sync.config.store import ConfigManager
 
 
 def _stop_runtime_processes() -> None:
     for pattern in ("nanoleaf-kde-sync-service$", "nanoleaf-kde-sync$"):
-        subprocess.run(
+        subprocess.run(  # nosec B603 B607
             ["pkill", "-f", pattern],
             check=False,
             stdout=subprocess.DEVNULL,

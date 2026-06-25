@@ -44,6 +44,7 @@ from nanoleaf_sync.desktop_entry import (
     desktop_entry_has_restricted_marker,
     installed_desktop_entry_candidates,
     source_desktop_template_path,
+    systemd_autostart_enabled,
     user_autostart_path,
 )
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
@@ -562,6 +563,24 @@ def _check_drm_helper_caps() -> DoctorCheck:
     )
 
 
+def _check_systemd_autostart_capture_context(config: AppConfig) -> DoctorCheck | None:
+    if config.use_mock_capture or not systemd_autostart_enabled():
+        return None
+    normalized = _normalized_backend(config)
+    if normalized not in {"", AUTO_BACKEND, KWIN_DBUS_BACKEND}:
+        return None
+    return DoctorCheck(
+        "systemd-autostart",
+        "warn",
+        "Systemd user autostart is enabled; this can fail KWin ScreenShot2 "
+        "authorization because systemd units may not inherit desktop-entry "
+        "launch context.",
+        "Disable systemd autostart and use desktop autostart "
+        "(`nanoleaf-kde-sync-autostart enable --method desktop`), or set "
+        "prefer_backend to xdg-portal if you must use systemd.",
+    )
+
+
 def run_doctor(
     *, include_device_probe: bool = False, include_capture_probe: bool = False
 ) -> list[DoctorCheck]:
@@ -584,6 +603,9 @@ def run_doctor(
         if normalized in {"", AUTO_BACKEND, KWIN_DBUS_BACKEND, KMSGRAB_BACKEND}:
             checks.append(_run_probe_sync())
             checks.append(_check_desktop_authorization())
+            systemd_check = _check_systemd_autostart_capture_context(cfg)
+            if systemd_check is not None:
+                checks.append(systemd_check)
         elif normalized == XDG_PORTAL_BACKEND:
             checks.append(
                 DoctorCheck(

@@ -23,7 +23,7 @@ def make_settings_dialog(monkeypatch: pytest.MonkeyPatch, **kwargs):
     qt, app = load_headless_qt(monkeypatch)
     dialog = SettingsDialog(
         None,
-        AppConfig(),
+        kwargs.get("cfg", AppConfig()),
         calibration_sender=kwargs.get("calibration_sender"),
         runtime_status=kwargs.get("runtime_status", {}),
     )

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
 
+from nanoleaf_sync._coerce import as_float
+from nanoleaf_sync.color._types import RGBTuple
 from nanoleaf_sync.runtime.color_processing import color_pipeline_diagnostics
 
 GOLDEN_SWATCH_SAMPLES: dict[str, tuple[int, int, int]] = {
@@ -32,10 +35,10 @@ def validate_golden_swatch_bounds(entries: list[dict[str, object]]) -> list[str]
             continue
         r, g, b = (int(out_rgb[0]), int(out_rgb[1]), int(out_rgb[2]))
         channel_spread = max(r, g, b) - min(r, g, b)
-        hue_delta = abs(float(entry.get("hue_difference_degrees", 0.0)))
-        chroma_ratio = float(entry.get("chroma_ratio", 1.0))
-        l_out = float(entry.get("output_lightness", 0.0))
-        l_in = float(entry.get("input_lightness", 0.0))
+        hue_delta = abs(as_float(entry.get("hue_difference_degrees")))
+        chroma_ratio = as_float(entry.get("chroma_ratio"), default=1.0)
+        l_out = as_float(entry.get("output_lightness"))
+        l_in = as_float(entry.get("input_lightness"))
         l_delta = abs(l_out - l_in)
 
         if name in {"grey_16", "grey_64", "grey_128", "grey_196", "white"}:
@@ -68,7 +71,7 @@ class ColorAccuracyDiagnosticResult:
 
 
 def run_color_accuracy_diagnostic(
-    *, mapper, color_style: str = "reference"
+    *, mapper: Callable[[RGBTuple], object], color_style: str = "reference"
 ) -> ColorAccuracyDiagnosticResult:
     samples = dict(GOLDEN_SWATCH_SAMPLES)
     entries: list[dict[str, object]] = []
@@ -86,16 +89,19 @@ def run_color_accuracy_diagnostic(
             chroma_cap_applied=bool(cap_applied),
             color_style=color_style,
         )
-        metrics["name"] = name
-        metrics["output_rgb"] = out
-        entries.append(metrics)
-        capped_count += int(bool(metrics.get("chroma_cap_applied", False)))
+        metrics_obj: dict[str, object] = dict(metrics)
+        metrics_obj["name"] = name
+        metrics_obj["output_rgb"] = out
+        entries.append(metrics_obj)
+        capped_count += int(bool(metrics_obj.get("chroma_cap_applied", False)))
 
-    chroma_rows = [float(e["chroma_ratio"]) for e in entries if float(e["input_chroma"]) > 0.01]
+    chroma_rows = [
+        as_float(e["chroma_ratio"]) for e in entries if as_float(e.get("input_chroma")) > 0.01
+    ]
     avg_ratio = float(np.mean(chroma_rows)) if chroma_rows else 1.0
     max_ratio = float(np.max(chroma_rows)) if chroma_rows else 1.0
     max_hue_delta = (
-        float(np.max([abs(float(e["hue_difference_degrees"])) for e in entries]))
+        float(np.max([abs(as_float(e["hue_difference_degrees"])) for e in entries]))
         if entries
         else 0.0
     )

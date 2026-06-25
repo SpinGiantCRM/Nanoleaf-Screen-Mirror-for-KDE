@@ -4,4 +4,5 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="37fa", ATTRS{idProduct}=="8201", MODE="06
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="37fa", ATTRS{idProduct}=="8202", MODE="0660", GROUP="plugdev", TAG+="uaccess"
 
 # Disable USB autosuspend so HID resume latency does not drop frames at 60 FPS.
-ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="37fa", ATTR{idProduct}=="8201|8202", ATTR{power/control}="on"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="37fa", ATTR{idProduct}=="8201", ATTR{power/control}="on"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="37fa", ATTR{idProduct}=="8202", ATTR{power/control}="on"

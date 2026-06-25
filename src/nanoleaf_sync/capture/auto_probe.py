@@ -119,8 +119,12 @@ def probe_backends(
 
         try:
             remaining = max(0.0, deadline - monotonic_s())
+
+            def _instantiate(candidate_name: str = candidate) -> CaptureBackend:
+                return cast(CaptureBackend, factory(candidate_name, width, height))
+
             backend = call_with_timeout(
-                lambda c=candidate: factory(c, width, height),
+                _instantiate,
                 min(probe_config.instantiate_timeout_s, remaining),
                 op_name=f"{candidate} instantiate",
             )
@@ -128,8 +132,12 @@ def probe_backends(
             try:
                 remaining = max(0.0, deadline - monotonic_s())
                 stats.attempted_captures += 1
+
+                def _warmup_capture(backend_obj: CaptureBackend = backend) -> np.ndarray:  # type: ignore[assignment]
+                    return backend_obj.capture()
+
                 frame = call_with_timeout(
-                    lambda b=backend: b.capture(),
+                    _warmup_capture,
                     min(probe_config.warmup_timeout_s, remaining),
                     op_name=f"{candidate} warmup capture",
                 )
@@ -163,8 +171,12 @@ def probe_backends(
                 capture_start = monotonic_s()
                 try:
                     remaining = max(0.0, deadline - monotonic_s())
+
+                    def _probe_capture(backend_obj: CaptureBackend = backend) -> np.ndarray:  # type: ignore[assignment]
+                        return backend_obj.capture()
+
                     frame = call_with_timeout(
-                        lambda b=backend: b.capture(),
+                        _probe_capture,
                         min(probe_config.capture_timeout_s, remaining),
                         op_name=f"{candidate} capture",
                     )

@@ -22,7 +22,7 @@ def apply_brightness(colors: Sequence[RGBTuple], brightness: float) -> list[RGBT
     linear = srgb_encoded_float_to_linear01(arr)
     out = linear01_to_srgb_float(linear * b)
     return [
-        tuple(int(c) for c in row)
+        (int(row[0]), int(row[1]), int(row[2]))
         for row in np.clip(np.rint(out), 0, 255).astype(np.uint8, copy=False)
     ]
 
@@ -46,7 +46,7 @@ def ema_smooth(
     blended = (a * cur_linear) + ((1.0 - a) * prev_linear)
     out = linear01_to_srgb_float(blended)
     return [
-        tuple(int(c) for c in row)
+        (int(row[0]), int(row[1]), int(row[2]))
         for row in np.clip(np.rint(out), 0, 255).astype(np.uint8, copy=False)
     ]
 

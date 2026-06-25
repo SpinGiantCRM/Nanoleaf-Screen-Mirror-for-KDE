@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from nanoleaf_sync.color.capture_metadata import resolve_capture_metadata
 from nanoleaf_sync.runtime.frame_context import (
@@ -9,6 +9,8 @@ from nanoleaf_sync.runtime.frame_context import (
     SourceConfidence,
     default_display_source_context,
 )
+
+ScaleConfidence = Literal["pixel-exact", "compositor-layout", "fractional-unknown", "fallback"]
 
 
 def _parse_int_pair(value: object) -> tuple[int, int] | None:
@@ -51,7 +53,7 @@ def build_kwin_display_source_context(
     if monitor_id:
         source_confidence: SourceConfidence = "explicit"
         method_confidence: CaptureMethodConfidence = "explicit-monitor"
-        scale_confidence = "pixel-exact"
+        scale_confidence: ScaleConfidence = "pixel-exact"
     else:
         source_confidence = "primary-default"
         method_confidence = "plasma-primary-empty-name"
@@ -113,7 +115,7 @@ def build_portal_display_source_context(
     serial_int = int(pipewire_serial) if pipewire_serial is not None else None
     stream_size = (max(1, int(frame_width)), max(1, int(frame_height)))
     if size is not None and size != stream_size:
-        scale_confidence = "compositor-layout"
+        scale_confidence: ScaleConfidence = "compositor-layout"
     else:
         scale_confidence = "pixel-exact"
     display_size = stream_size

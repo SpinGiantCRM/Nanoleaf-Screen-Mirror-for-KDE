@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import logging
-import subprocess
+import subprocess  # nosec B404
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ def main(argv: list[str] | None = None) -> int:
         path = user_systemd_service_path()
         unit = path.name
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ["systemctl", "--user", "is-enabled", unit],
                 capture_output=True,
                 text=True,

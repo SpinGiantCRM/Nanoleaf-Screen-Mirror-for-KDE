@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-import subprocess
+import subprocess  # nosec B404
 from configparser import ConfigParser
 from dataclasses import dataclass
 from functools import lru_cache
@@ -107,7 +107,7 @@ def _plasma_hdr_enabled() -> bool | None:
         if value in {"false", "0", "no", "off"}:
             return False
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 B607
             ["kreadconfig6", "--file", "kwinrc", "--group", "Compositing", "--key", "HDR"],
             capture_output=True,
             text=True,
@@ -135,7 +135,7 @@ def _plasma_sdr_white_nits() -> float | None:
         except ValueError:
             pass
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 B607
             [
                 "kreadconfig6",
                 "--file",

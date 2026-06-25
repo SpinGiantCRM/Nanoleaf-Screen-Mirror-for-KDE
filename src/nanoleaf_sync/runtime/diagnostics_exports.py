@@ -11,6 +11,7 @@ from pathlib import Path
 
 import numpy as np
 
+from nanoleaf_sync._coerce import as_int, as_side_counts4
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.state import ZoneRect
 
@@ -35,7 +36,7 @@ def format_backend_attempt_row(row: dict[str, object]) -> str:
     backend = str(row.get("backend") or "unknown")
     status = str(row.get("status") or "skipped")
     mode = str(row.get("mode") or ("failed" if status == "failed" else "fresh-probe"))
-    sample_count = int(row.get("sample_count") or 0)
+    sample_count = as_int(row.get("sample_count"))
     reason = str(row.get("reason") or "-")
     return (
         f"{backend}: status={status} mode={mode} samples={sample_count} "
@@ -55,12 +56,33 @@ def _normalize_side_counts(
     if not isinstance(raw, (tuple, list)) or len(raw) != 4:
         return None
     try:
-        counts = tuple(max(0, int(i)) for i in raw)
+        counts = as_side_counts4(max(0, int(i)) for i in raw)
     except (TypeError, ValueError):
         return None
     if sum(counts) <= 0 and source_zone_count > 0:
         return None
     return counts
+
+
+def _geo_pair(geo: dict[str, object], key: str) -> tuple[int, int]:
+    value = geo.get(key)
+    if isinstance(value, tuple) and len(value) == 2:
+        return as_int(value[0]), as_int(value[1])
+    return 0, 0
+
+
+def _geo_float(geo: dict[str, object], key: str, *, default: float = 0.0) -> float:
+    value = geo.get(key)
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value)
+    return default
+
+
+def _geo_optional_float(geo: dict[str, object], key: str) -> float | None:
+    value = geo.get(key)
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value)
+    return None
 
 
 def evaluate_geometry(*, status: dict, cfg: AppConfig) -> dict[str, object]:
@@ -168,17 +190,19 @@ def diagnostics_text_lines(*, status: dict, cfg: AppConfig) -> list[str]:
         else "unavailable"
     )
     latency_lines = latency_breakdown_lines(status=status)
+    kde_display = _geo_pair(geo, "kde_display_size")
+    captured_frame = _geo_pair(geo, "captured_frame_size")
+    expected_display = _geo_pair(geo, "expected_display_size")
     return [
-        f"KDE display resolution: {geo['kde_display_size'][0]}x{geo['kde_display_size'][1]}",
+        f"KDE display resolution: {kde_display[0]}x{kde_display[1]}",
         f"KDE scale factor: {geo['kde_scale_factor'] or 'unknown'}",
         f"Selected backend: {geo['capture_backend']}",
-        f"Captured frame size: {geo['captured_frame_size'][0]}x{geo['captured_frame_size'][1]}",
-        f"Expected display size: "
-        f"{geo['expected_display_size'][0]}x{geo['expected_display_size'][1]}",
+        f"Captured frame size: {captured_frame[0]}x{captured_frame[1]}",
+        f"Expected display size: {expected_display[0]}x{expected_display[1]}",
         f"Match physical display: {'yes' if geo['matches_physical'] else 'no'}",
         f"Match logical/scaled display: {'yes' if geo['matches_logical'] else 'no'}",
-        f"Inferred scale factor: {geo['inferred_scale_factor']:.3f}"
-        if geo["inferred_scale_factor"]
+        f"Inferred scale factor: {_geo_optional_float(geo, 'inferred_scale_factor'):.3f}"
+        if _geo_optional_float(geo, "inferred_scale_factor")
         else "Inferred scale factor: unknown",
         f"Coordinate mode: {geo['coordinate_mode']}",
         f"Source-zone count: {geo['source_zone_count']} | "
@@ -190,7 +214,7 @@ def diagnostics_text_lines(*, status: dict, cfg: AppConfig) -> list[str]:
         f"Display preset: {geo['display_preset']} | "
         f"HDR enabled/assumed: {'yes' if geo['hdr_enabled_assumed'] else 'no'}",
         "Grey and white screen areas create neutral ambient light. Black areas turn the LEDs off.",
-        geo["warning_text"]
+        str(geo.get("warning_text") or "")
         if geo["geometry_warning"] or bool(geo.get("intentional_scaled_capture"))
         else "Display geometry and capture frame space are consistent.",
         (
@@ -209,9 +233,12 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
 
     live_only = bool(measurement.get("live_mirroring_only", False))
     dropped = int(measurement.get("dropped_or_skipped_frames") or 0)
-    counters = measurement.get("counters") if isinstance(measurement.get("counters"), dict) else {}
-    flags = measurement.get("flags") if isinstance(measurement.get("flags"), dict) else {}
-    labels = measurement.get("labels") if isinstance(measurement.get("labels"), dict) else {}
+    raw_counters = measurement.get("counters")
+    counters: dict[str, object] = raw_counters if isinstance(raw_counters, dict) else {}
+    raw_flags = measurement.get("flags")
+    flags: dict[str, object] = raw_flags if isinstance(raw_flags, dict) else {}
+    raw_labels = measurement.get("labels")
+    labels: dict[str, object] = raw_labels if isinstance(raw_labels, dict) else {}
     target_fps = float(measurement.get("target_fps") or 0.0)
     effective_output_fps = float(measurement.get("effective_output_fps") or 0.0)
     fps_cap = float(measurement.get("fps_cap") or 0.0)
@@ -246,11 +273,11 @@ def latency_breakdown_lines(*, status: dict) -> list[str]:
     hid_write = _stage("hid_write_ms")
     hid_device_write = _stage("hid_device_write_ms")
     _stage("inferred_unattributed_gap_ms")
-    no_pending_frame_ticks = int(counters.get("no_pending_frame_ticks", 0) or 0)
-    capture_worker_error_count = int(counters.get("capture_worker_error_count", 0) or 0)
-    capture_buffer_dropped_frames = int(counters.get("capture_buffer_dropped_frames", 0) or 0)
-    process_buffer_dropped_frames = int(counters.get("process_buffer_dropped_frames", 0) or 0)
-    coalesced_sends = int(counters.get("coalesced_sends", 0) or 0)
+    no_pending_frame_ticks = as_int(counters.get("no_pending_frame_ticks"))
+    capture_worker_error_count = as_int(counters.get("capture_worker_error_count"))
+    capture_buffer_dropped_frames = as_int(counters.get("capture_buffer_dropped_frames"))
+    process_buffer_dropped_frames = as_int(counters.get("process_buffer_dropped_frames"))
+    coalesced_sends = as_int(counters.get("coalesced_sends"))
     capture_worker_active = bool(flags.get("capture_worker_active", False))
     latest_capture_backend_name = str(
         labels.get("latest_capture_backend_name", "unavailable") or "unavailable"

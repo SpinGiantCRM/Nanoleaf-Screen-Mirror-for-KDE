@@ -8,12 +8,33 @@ import sys
 import threading
 import time
 from collections.abc import Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
 
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
+
+
+class _HIDDevice(Protocol):
+    def open_path(self, path: str | bytes) -> None: ...
+    def open(self, vid: int, pid: int) -> None: ...
+    def write(self, data: bytes | bytearray) -> int: ...
+    def read(self, size: int, timeout_ms: int | None = ...) -> bytes: ...
+    def close(self) -> None: ...
+
+
+class _HIDModule(Protocol):
+    def enumerate(self, vid: int, pid: int) -> list[dict[str, Any]]: ...
+    def device(self) -> _HIDDevice: ...
+
+
+@dataclass
+class _TLVCandidate:
+    strip_prefix: bool
+    buffer: bytearray = field(default_factory=bytearray)
+    expected_len: int | None = None
 
 
 class HIDWriteError(RuntimeError):
@@ -57,7 +78,7 @@ class HIDTransport:
         self.report_size = int(report_size)
         self.read_timeout_ms = int(read_timeout_ms)
         self.use_report_id_prefix = bool(use_report_id_prefix)
-        self._handle: object | None = None
+        self._handle: _HIDDevice | None = None
         self._ack_latency_ewma_ms: float = 0.0
         self._io_lock = threading.RLock()
 
@@ -230,12 +251,14 @@ class HIDTransport:
         for recovery after an unplug/replug event during active mirroring.
         """
         try:
-            import hidraw  # type: ignore[import-untyped]
+            import hidraw
 
-            hid = hidraw
+            hid: _HIDModule = hidraw
         except ImportError:
             try:
-                import hid  # type: ignore
+                import hid
+
+                hid = hid
             except Exception as e:  # pragma: no cover
                 error_text = str(e).lower()
                 if "libusb" in error_text or "cannot open shared object" in error_text:
@@ -410,8 +433,11 @@ class HIDTransport:
         raw = bytes(report_buffer)
 
         def _do() -> None:
+            handle = self._handle
+            if handle is None:
+                raise RuntimeError("HID transport not opened.")
             try:
-                self._handle.write(raw)
+                handle.write(raw)
             except Exception as e:
                 _exc.append(e)
             finally:
@@ -477,7 +503,10 @@ class HIDTransport:
                 if write_timeout_ms is not None:
                     self._write_chunk_with_timeout(report_buffer, write_timeout_ms)
                 else:
-                    self._handle.write(report_buffer)
+                    handle = self._handle
+                    if handle is None:
+                        raise RuntimeError("HID transport not opened.")
+                    handle.write(report_buffer)
             except HIDWriteError:
                 raise
             except Exception as exc:
@@ -647,14 +676,16 @@ class HIDTransport:
         length accounting. We therefore evaluate both framing variants and accept the first
         complete TLV that matches the expected response type.
         """
+        if self._handle is None:
+            raise RuntimeError("HID transport not opened.")
+        handle = self._handle
         write_timing = self.write_with_timing(request)
 
         expected_type = (request[0] + 0x80) & 0xFF
         preferred_first = bool(self.use_report_id_prefix)
-        # first candidate = preferred behavior for compatibility with existing devices.
         candidates = [
-            {"strip_prefix": preferred_first, "buffer": bytearray(), "expected_len": None},
-            {"strip_prefix": not preferred_first, "buffer": bytearray(), "expected_len": None},
+            _TLVCandidate(strip_prefix=preferred_first),
+            _TLVCandidate(strip_prefix=not preferred_first),
         ]
 
         if target_fps and target_fps > 0:
@@ -672,34 +703,32 @@ class HIDTransport:
         read_calls = 0
         while True:
             # Read up to report-size + report-id byte. hidapi may still return 64 bytes.
-            raw_chunk = self._handle.read(self.report_size + 1, read_timeout_ms)
+            raw_chunk = handle.read(self.report_size + 1, read_timeout_ms)
             read_calls += 1
             remaining_budget_s -= per_read_budget_s
             if not raw_chunk:
                 if remaining_budget_s > 0:
                     continue
-                received = max(len(c["buffer"]) for c in candidates)
+                received = max(len(c.buffer) for c in candidates)
                 raise RuntimeError(
                     f"Timed out waiting for HID response after receiving {received} bytes"
                 )
             raw = bytes(raw_chunk)
             for candidate in candidates:
-                chunk = raw[1:] if candidate["strip_prefix"] and raw else raw
+                chunk = raw[1:] if candidate.strip_prefix and raw else raw
                 if not chunk:
                     continue
-                candidate["buffer"].extend(chunk)
-                if candidate["expected_len"] is None:
-                    candidate["expected_len"] = self._tlv_expected_len(
-                        candidate["buffer"], expected_type
-                    )
-                expected_len = candidate["expected_len"]
-                if expected_len is not None and len(candidate["buffer"]) >= expected_len:
+                candidate.buffer.extend(chunk)
+                if candidate.expected_len is None:
+                    candidate.expected_len = self._tlv_expected_len(candidate.buffer, expected_type)
+                expected_len = candidate.expected_len
+                if expected_len is not None and len(candidate.buffer) >= expected_len:
                     timing = dict(write_timing)
                     timing["flush_or_wait_ms"] = (time.perf_counter() - read_start) * 1000.0
                     timing["read_calls"] = int(read_calls)
-                    return bytes(candidate["buffer"][:expected_len]), timing
+                    return bytes(candidate.buffer[:expected_len]), timing
             if remaining_budget_s <= 0:
-                received = max(len(c["buffer"]) for c in candidates)
+                received = max(len(c.buffer) for c in candidates)
                 raise RuntimeError(
                     "Malformed HID response: failed to assemble expected TLV "
                     f"within {guard_window_s:.2f}s after receiving {received} bytes"

@@ -9,7 +9,7 @@ import pytest
 from nanoleaf_sync.capture.kwin_dbus import KWinDBusScreenshotCapture
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig, ZoneConfig
 from nanoleaf_sync.runtime.calibration_resolver import (
-    DEVICE_ZONE_MISMATCH_STATUS,
+    CALIBRATION_READY_STATUS,
     evaluate_device_zone_authority,
 )
 from nanoleaf_sync.runtime.engine import (
@@ -74,14 +74,16 @@ def test_evaluate_stale_output_drop_allows_fresh_frames() -> None:
     assert max_age_ms == pytest.approx(66.667, rel=0.01)
 
 
-def test_zone_mismatch_blocks_authority_without_override() -> None:
+def test_zone_mismatch_warns_without_override() -> None:
     cfg = _cfg_with_valid_calibration(80)
     authority = evaluate_device_zone_authority(config=cfg, detected_device_zone_count=75)
-    assert authority.blocked is True
-    assert authority.status == DEVICE_ZONE_MISMATCH_STATUS
-    assert authority.mapping_repair_required is True
+    assert authority.blocked is False
+    assert authority.status == CALIBRATION_READY_STATUS
+    assert authority.mapping_repair_required is False
     assert authority.effective_device_zone_count == 80
     assert authority.device_zone_count_source == "configured"
+    assert authority.device_zone_count_mismatch is True
+    assert "device_zone_count_mismatch" in authority.message
 
 
 def test_zone_mismatch_allows_override() -> None:
@@ -244,7 +246,7 @@ def test_run_loop_skips_duplicate_unchanged_output(monkeypatch: pytest.MonkeyPat
     assert state.duplicate_output_skipped_frames >= 1
 
 
-def test_run_loop_zone_mismatch_blocks_startup() -> None:
+def test_run_loop_zone_mismatch_uses_configured_count(monkeypatch: pytest.MonkeyPatch) -> None:
     class _FastCapture:
         name = "kwin-dbus"
         last_capture_path = "kwin-dbus:test"
@@ -257,28 +259,45 @@ def test_run_loop_zone_mismatch_blocks_startup() -> None:
     class _MismatchDriver:
         reported_zone_count = 75
         zone_count = 75
+        sends = 0
 
         def send_frame_with_timing(self, _colors):
-            return {"device_write_ms": 1.0}
+            self.sends += 1
+            return {"device_write_ms": 1.0, "live_send_policy": "response_required"}
 
+    driver = _MismatchDriver()
     state = RuntimeState()
     cfg = _cfg_with_valid_calibration(80, fps=30)
 
+    monkeypatch.setattr(
+        "nanoleaf_sync.runtime.engine.evaluate_stale_output_drop",
+        lambda **_kwargs: (False, 5.0, 60.0, ""),
+    )
+
+    def _stop_after_first_send_or_timeout() -> None:
+        deadline = time.perf_counter() + 0.5
+        while time.perf_counter() < deadline and driver.sends < 1:
+            time.sleep(0.005)
+        state.stop_event.set()
+
+    stopper = threading.Thread(target=_stop_after_first_send_or_timeout, daemon=True)
+    stopper.start()
     run_loop(
         config=cfg,
         state=state,
         get_capture=lambda: _FastCapture(),
-        get_driver=lambda: _MismatchDriver(),
+        get_driver=lambda: driver,
         install_drivers=lambda: True,
         close_backends=lambda: None,
     )
 
-    assert state.calibration_status == DEVICE_ZONE_MISMATCH_STATUS
-    assert state.frames_sent == 0
-    assert state.mapping_repair_required is True
+    assert state.device_zone_count_mismatch is True
+    assert state.effective_device_zone_count == 80
+    assert state.mapping_repair_required is False
+    assert driver.sends >= 1
 
 
-def test_service_startup_blocks_on_zone_mismatch() -> None:
+def test_service_startup_continues_on_zone_mismatch() -> None:
     from tests.test_service_status_modes import FakeCapture
 
     class _MismatchDriver:
@@ -301,10 +320,12 @@ def test_service_startup_blocks_on_zone_mismatch() -> None:
     )
     started = svc.start()
     time.sleep(0.15)
-    assert started is False
+    assert started is True
     status = svc.get_status()
-    assert status.get("mapping_repair_required") is True
+    assert status.get("mapping_repair_required") is False
     assert status.get("device_zone_count_mismatch") is True
+    assert status.get("effective_device_zone_count") == 80
+    svc.stop()
 
 
 def test_effective_zone_count_uses_device_zone_count_when_zones_list_differs() -> None:

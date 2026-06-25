@@ -31,7 +31,7 @@ class RuntimeState:
     startup_succeeded: bool = False
 
     prev_smoothed_colors: list[RGBTuple] = field(default_factory=list)
-    prev_smooth_float_colors: list[RGBTuple] = field(default_factory=list)
+    prev_smooth_float_colors: list[tuple[float, float, float]] = field(default_factory=list)
     prev_sent_colors: list[RGBTuple] = field(default_factory=list)
     prev_sampled_zone_colors: list[RGBTuple] = field(default_factory=list)
     prev_palette_algorithms: list[str] = field(default_factory=list)
@@ -42,9 +42,9 @@ class RuntimeState:
     prior_area_average_mode: bool = False
 
     cached_zone_rects: list[ZoneRect] | None = None
-    zone_rects_signature: tuple[int, int, tuple[tuple[float, float, float, float], ...]] | None = (
-        None
-    )
+    zone_rects_signature: (
+        tuple[int, int, str, float, float, tuple[tuple[float, float, float, float], ...]] | None
+    ) = None
 
     cached_device_zone_indices: list[int] | None = None
     cached_device_zone_indices_np: np.ndarray | None = None

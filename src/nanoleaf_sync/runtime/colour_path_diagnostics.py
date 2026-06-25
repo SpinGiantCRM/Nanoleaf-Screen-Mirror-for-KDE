@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from nanoleaf_sync._coerce import as_float, as_int
 from nanoleaf_sync.runtime.diagnostics_exports import write_png
 
 if TYPE_CHECKING:
@@ -28,7 +29,7 @@ _STAGE_KEYS = (
 def snapshot_device_rgb_rows(mapped: np.ndarray) -> tuple[_RGB, ...]:
     clipped = np.clip(mapped, 0.0, 255.0)
     rounded = np.rint(clipped).astype(np.uint8)
-    return tuple(tuple(int(c) for c in row) for row in rounded.tolist())
+    return tuple((int(row[0]), int(row[1]), int(row[2])) for row in rounded.tolist())
 
 
 def device_stage_rgb(
@@ -109,13 +110,15 @@ def build_capture_source_diagnostics(
     identity_dict = identity if isinstance(identity, dict) else {}
     frame_ctx = status.get("latest_frame_context")
     frame_source: dict[str, object] = {}
-    if isinstance(frame_ctx, dict) and isinstance(frame_ctx.get("source"), dict):
-        frame_source = frame_ctx["source"]  # type: ignore[assignment]
-    stream_w = int(status.get("captured_frame_width") or status.get("capture_width") or 0)
-    stream_h = int(status.get("captured_frame_height") or status.get("capture_height") or 0)
-    display_w = int(status.get("kde_display_width") or 0)
-    display_h = int(status.get("kde_display_height") or 0)
-    kde_scale = float(status.get("kde_scale_factor") or 0.0)
+    if isinstance(frame_ctx, dict):
+        source_obj = frame_ctx.get("source")
+        if isinstance(source_obj, dict):
+            frame_source = source_obj
+    stream_w = as_int(status.get("captured_frame_width") or status.get("capture_width"))
+    stream_h = as_int(status.get("captured_frame_height") or status.get("capture_height"))
+    display_w = as_int(status.get("kde_display_width"))
+    display_h = as_int(status.get("kde_display_height"))
+    kde_scale = as_float(status.get("kde_scale_factor"))
     inferred_scale = (
         (float(display_w) / float(stream_w)) if display_w > 0 and stream_w > 0 else None
     )
@@ -356,7 +359,8 @@ def write_colour_debug_snapshot(
         hdr_colour_path=hdr_dict,
         capture=capture,
     )
-    zones = list(status.get("_latest_zone_diagnostics") or status.get("zone_diagnostics") or [])
+    zone_raw = status.get("_latest_zone_diagnostics") or status.get("zone_diagnostics")
+    zones = list(zone_raw) if isinstance(zone_raw, list) else []
     thumbnail_written = False
     if isinstance(frame, np.ndarray) and frame.ndim == 3 and frame.shape[2] >= 3:
         thumb_path = out_dir / "frame_thumbnail.png"

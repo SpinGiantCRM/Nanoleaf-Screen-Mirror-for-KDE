@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from nanoleaf_sync._coerce import as_float, as_int, as_rgb_tuple3
 from nanoleaf_sync.color._types import RGBTuple
 
 CONFIDENCE_SWITCH_MARGIN = 0.15
@@ -49,28 +50,30 @@ class ZonePaletteTemporalState:
             return cls()
         held = data.get("held_rgb", (0.0, 0.0, 0.0))
         rgb = data.get("selected_rgb", (0, 0, 0))
+        held_rgb = (
+            (
+                as_float(held[0], default=0.0),
+                as_float(held[1], default=0.0),
+                as_float(held[2], default=0.0),
+            )
+            if isinstance(held, (tuple, list)) and len(held) >= 3
+            else (0.0, 0.0, 0.0)
+        )
+        selected_rgb = as_rgb_tuple3(rgb) if isinstance(rgb, (tuple, list)) else (0, 0, 0)
         return cls(
             selected_algorithm=str(data.get("selected_algorithm", "") or ""),
-            selected_confidence=float(data.get("selected_confidence", 0.0) or 0.0),
-            selected_rgb=(
-                int(rgb[0]),  # type: ignore[index]
-                int(rgb[1]),  # type: ignore[index]
-                int(rgb[2]),  # type: ignore[index]
-            ),
-            dominant_hue_degrees=float(data.get("dominant_hue_degrees", 0.0) or 0.0),
-            dwell_remaining=int(data.get("dwell_remaining", 0) or 0),
+            selected_confidence=as_float(data.get("selected_confidence"), default=0.0),
+            selected_rgb=selected_rgb,
+            dominant_hue_degrees=as_float(data.get("dominant_hue_degrees"), default=0.0),
+            dwell_remaining=as_int(data.get("dwell_remaining")),
             pending_algorithm=str(data.get("pending_algorithm", "") or ""),
-            pending_streak=int(data.get("pending_streak", 0) or 0),
-            held_rgb=(
-                float(held[0]),  # type: ignore[index]
-                float(held[1]),  # type: ignore[index]
-                float(held[2]),  # type: ignore[index]
-            ),
-            last_scene_cut_frame=int(data.get("last_scene_cut_frame", 0) or 0),
+            pending_streak=as_int(data.get("pending_streak")),
+            held_rgb=held_rgb,
+            last_scene_cut_frame=as_int(data.get("last_scene_cut_frame")),
         )
 
 
-def _rgb_chroma(rgb: np.ndarray | RGBTuple) -> float:
+def _rgb_chroma(rgb: np.ndarray | RGBTuple | tuple[float, float, float]) -> float:
     arr = np.asarray(rgb, dtype=np.float32)
     return float(np.max(arr) - np.min(arr))
 
@@ -229,7 +232,9 @@ def stabilize_palette_zone(
     )
     instant_rgb = np.asarray(current_best_rgb, dtype=np.float32)
 
-    prev_rgb_source = prev.held_rgb if prev.held_rgb != (0.0, 0.0, 0.0) else prev.selected_rgb
+    prev_rgb_source: np.ndarray | RGBTuple | tuple[float, float, float] = (
+        prev.selected_rgb if prev.held_rgb == (0.0, 0.0, 0.0) else prev.held_rgb
+    )
     prev_chroma = _rgb_chroma(prev_rgb_source)
     target_chroma = _rgb_chroma(target_rgb)
     instant_chroma = _rgb_chroma(instant_rgb)
@@ -262,7 +267,11 @@ def stabilize_palette_zone(
 
     prev_held = prev.held_rgb
     if prev_held == (0.0, 0.0, 0.0) and prev.selected_rgb:
-        prev_held = tuple(float(v) for v in prev.selected_rgb)
+        prev_held = (
+            float(prev.selected_rgb[0]),
+            float(prev.selected_rgb[1]),
+            float(prev.selected_rgb[2]),
+        )
 
     instant_rgb_arr = np.asarray(current_best_rgb, dtype=np.float32)
     if (
@@ -328,26 +337,36 @@ def stabilize_palette_batch(
     diagnostics: list[dict[str, object]] = []
     for idx, frame in enumerate(zone_frames):
         prev = prev_states[idx] if idx < len(prev_states) else None
+        candidate_raw = frame.get("candidate_rgbs")
+        scores_raw = frame.get("scores")
+        candidate_rgbs = (
+            {str(k): np.asarray(v, dtype=np.float32) for k, v in candidate_raw.items()}
+            if isinstance(candidate_raw, dict)
+            else {}
+        )
+        scores = (
+            {str(k): as_float(v) for k, v in scores_raw.items()}
+            if isinstance(scores_raw, dict)
+            else {}
+        )
         rgb, state, diag = stabilize_palette_zone(
             current_best_algorithm=str(frame["current_best_algorithm"]),
-            current_best_confidence=float(frame["current_best_confidence"]),
+            current_best_confidence=as_float(frame.get("current_best_confidence")),
             current_best_rgb=np.asarray(frame["current_best_rgb"], dtype=np.float32),
-            candidate_rgbs={
-                str(k): np.asarray(v, dtype=np.float32)
-                for k, v in frame["candidate_rgbs"].items()  # type: ignore[union-attr]
-            },
-            scores={str(k): float(v) for k, v in frame["scores"].items()},  # type: ignore[union-attr]
-            dominant_hue_degrees=float(frame.get("dominant_hue_degrees", 0.0) or 0.0),
-            neutral_white_coverage=float(frame.get("neutral_white_coverage", 0.0) or 0.0),
-            saturated_coverage=float(frame.get("saturated_coverage", 0.0) or 0.0),
-            hue_coherence=float(frame.get("hue_coherence", 0.0) or 0.0),
+            candidate_rgbs=candidate_rgbs,
+            scores=scores,
+            dominant_hue_degrees=as_float(frame.get("dominant_hue_degrees")),
+            neutral_white_coverage=as_float(frame.get("neutral_white_coverage")),
+            saturated_coverage=as_float(frame.get("saturated_coverage")),
+            hue_coherence=as_float(frame.get("hue_coherence")),
             prev_state=prev,
             global_scene_cut=global_scene_cut,
             frame_index=frame_index,
         )
         colors.append(rgb)
         states.append(state)
-        base_diag = dict(frame.get("base_diagnostics", {}) or {})
+        base_diag_raw = frame.get("base_diagnostics")
+        base_diag = dict(base_diag_raw) if isinstance(base_diag_raw, dict) else {}
         base_diag.update(diag)
         base_diag["selected_sampling_algorithm"] = selected_algorithm_name(
             selected=str(diag["selected_algorithm"]),

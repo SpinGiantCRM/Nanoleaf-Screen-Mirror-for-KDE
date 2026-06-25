@@ -4,7 +4,11 @@ from dataclasses import dataclass
 
 from nanoleaf_sync.color.zone_mapper import resolve_device_zone_indices
 from nanoleaf_sync.config.model import AppConfig
-from nanoleaf_sync.runtime.anchor_calibration import derive_anchor_zone_map, validate_corner_anchors
+from nanoleaf_sync.runtime.anchor_calibration import (
+    corner_anchors_from_mapping,
+    derive_anchor_zone_map,
+    validate_corner_anchors,
+)
 
 CALIBRATION_INCOMPLETE_STATUS = "calibration_incomplete"
 CALIBRATION_READY_STATUS = "ready"
@@ -96,27 +100,31 @@ def evaluate_device_zone_authority(
         if detected_device_zone_count is not None and int(detected_device_zone_count) > 0
         else None
     )
-    override_active = bool(getattr(config, "allow_zone_count_override", False))
+    override_enabled = bool(getattr(config, "allow_zone_count_override", False))
     mismatch = detected is not None and configured > 0 and int(detected) != int(configured)
     if configured > 0:
         effective = int(configured)
-        source = "configured-override" if detected is not None and override_active else "configured"
+        source = (
+            "configured-override"
+            if detected is not None and override_enabled and mismatch
+            else "configured"
+        )
     elif detected is not None:
         effective = int(detected)
         source = "detected-usb"
     else:
         effective = 1
         source = "fallback"
-    blocked = bool(mismatch and not override_active)
-    status = CALIBRATION_READY_STATUS
     message = ""
-    if blocked:
-        status = DEVICE_ZONE_MISMATCH_STATUS
-        message = f"{DEVICE_ZONE_MISMATCH_MESSAGE} detected={detected} configured={configured}."
-    elif mismatch and override_active:
+    if mismatch and override_enabled:
         message = (
             f"device_zone_override_active: using configured={configured} "
             f"instead of detected={detected}."
+        )
+    elif mismatch:
+        message = (
+            f"device_zone_count_mismatch: USB reported {detected} zones; "
+            f"using configured={configured}."
         )
     return DeviceZoneAuthorityResult(
         configured_device_zone_count=configured,
@@ -124,10 +132,10 @@ def evaluate_device_zone_authority(
         effective_device_zone_count=effective,
         device_zone_count_source=source,
         device_zone_count_mismatch=mismatch,
-        mapping_repair_required=blocked,
-        override_active=override_active and mismatch,
-        blocked=blocked,
-        status=status,
+        mapping_repair_required=False,
+        override_active=override_enabled and mismatch,
+        blocked=False,
+        status=CALIBRATION_READY_STATUS,
         message=message,
     )
 
@@ -170,8 +178,10 @@ def resolve_calibration_mapping(
     if normalized_device_zone_count <= 0:
         normalized_device_zone_count = 1
 
+    typed_anchors = corner_anchors_from_mapping(anchors)
+
     anchor_validation = validate_corner_anchors(
-        anchors=anchors, device_zone_count=device_zone_count
+        anchors=typed_anchors, device_zone_count=device_zone_count
     )
     if not anchor_validation.valid:
         validation_warnings = tuple(anchor_validation.errors)
@@ -184,7 +194,7 @@ def resolve_calibration_mapping(
             strategy=strategy,
             calibration_model=normalized_model,
         )
-    effective_anchors = anchors
+    effective_anchors = typed_anchors
 
     derive_device_zone_count = max(4, int(device_zone_count))
     anchor_map = derive_anchor_zone_map(

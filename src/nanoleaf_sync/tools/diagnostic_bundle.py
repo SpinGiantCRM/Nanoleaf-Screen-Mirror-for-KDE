@@ -10,7 +10,7 @@ import zipfile
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from nanoleaf_sync.config.store import ConfigManager
 from nanoleaf_sync.tools.doctor import collect_kde_compatibility_report, format_report, run_doctor
@@ -46,15 +46,18 @@ def redact_object(value: Any) -> Any:
 
 
 def _system_info_redacted() -> dict[str, Any]:
-    return redact_object(
-        {
-            "platform": platform.platform(),
-            "python": sys.version.split()[0],
-            "cwd": str(Path.cwd()),
-            "xdg_session_type": os.environ.get("XDG_SESSION_TYPE", ""),
-            "wayland_display": os.environ.get("WAYLAND_DISPLAY", ""),
-            "kde_session_version": os.environ.get("KDE_SESSION_VERSION", ""),
-        }
+    return cast(
+        dict[str, Any],
+        redact_object(
+            {
+                "platform": platform.platform(),
+                "python": sys.version.split()[0],
+                "cwd": str(Path.cwd()),
+                "xdg_session_type": os.environ.get("XDG_SESSION_TYPE", ""),
+                "wayland_display": os.environ.get("WAYLAND_DISPLAY", ""),
+                "kde_session_version": os.environ.get("KDE_SESSION_VERSION", ""),
+            }
+        ),
     )
 
 
@@ -70,7 +73,7 @@ def _config_redacted() -> dict[str, Any]:
             "sync_mode": str(getattr(config, "sync_mode", "")),
             "wizard_completed": bool(getattr(config, "wizard_completed", False)),
         }
-        return redact_object(payload)
+        return cast(dict[str, Any], redact_object(payload))
     except Exception as exc:
         return {"error": redact_text(str(exc))}
 

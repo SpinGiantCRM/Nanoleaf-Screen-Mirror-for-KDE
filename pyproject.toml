@@ -10,6 +10,21 @@ readme = "README.md"
 license = "LicenseRef-Nanoleaf-Source-Available-Non-Commercial"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
+authors = [{name = "SpinGiantCRM"}]
+maintainers = [{name = "nanoleaf-kde-sync contributors"}]
+keywords = ["nanoleaf", "kde", "plasma", "wayland", "ambient-lighting", "screen-mirroring"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: X11 Applications :: Qt",
+  "Intended Audience :: End Users/Desktop",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Desktop Environment :: KDE",
+  "Topic :: Multimedia :: Graphics :: Capture",
+]
 dependencies = [
   "numpy>=1.21,<3",
   "PyQt6>=6.0,<7",
@@ -44,7 +59,14 @@ nanoleaf-kde-sync-smoke-test = "nanoleaf_sync.tools.smoke_test:main"
 nanoleaf-kde-sync-init-config = "nanoleaf_sync.tools.config_init:main"
 nanoleaf-kde-sync-autostart = "nanoleaf_sync.tools.autostart:main"
 nanoleaf-kde-sync-reset = "nanoleaf_sync.tools.reset:main"
+nanoleaf-kde-sync-benchmark = "nanoleaf_sync.tools.benchmark:main"
 
+[project.urls]
+Homepage = "https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE"
+Repository = "https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE"
+Issues = "https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/issues"
+Documentation = "https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/blob/main/docs/USER_GUIDE.md"
+Changelog = "https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/blob/main/CHANGELOG.md"
 
 [tool.setuptools.dynamic]
 version = {file = ["VERSION"]}
@@ -70,7 +92,6 @@ pythonpath = ["src"]
 
 [tool.coverage.run]
 omit = [
-  "src/nanoleaf_sync/ui/settings_dialog.py",
   "src/nanoleaf_sync/ui/display_configurator.py",
   "src/nanoleaf_sync/ui/live_diagnostics.py",
   "src/nanoleaf_sync/ui/led_color_calibration_dialog.py",
@@ -84,14 +105,17 @@ target-version = "py311"
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
+"setup.py" = ["N801"]
 "tests/**" = ["N802", "N803", "N806"]
 "src/nanoleaf_sync/tools/doctor.py" = ["E402"]
 "src/nanoleaf_sync/tools/smoke_test.py" = ["E402"]
+"src/nanoleaf_sync/tools/benchmark.py" = ["E402"]
 "src/nanoleaf_sync/tools/autostart.py" = ["E402"]
 "src/nanoleaf_sync/capture/kwin_dbus.py" = ["E402"]
 "src/nanoleaf_sync/config/store.py" = ["E402"]
 "src/nanoleaf_sync/device/hid_transport.py" = ["E402"]
 "src/nanoleaf_sync/ui/settings_dialog.py" = ["E402", "N802", "N803", "N806"]
+"src/nanoleaf_sync/ui/settings_dialog_*.py" = ["E402", "N802", "N803", "N806", "F841"]
 "src/nanoleaf_sync/ui/display_configurator.py" = ["N802", "N803", "N806"]
 "src/nanoleaf_sync/ui/calibration_widget.py" = ["N806"]
 "src/nanoleaf_sync/ui/led_color_calibration_dialog.py" = ["N806"]
@@ -104,26 +128,57 @@ line-ending = "lf"
 
 [tool.mypy]
 python_version = "3.12"
+mypy_path = ["stubs"]
 ignore_missing_imports = true
 warn_redundant_casts = true
 warn_unused_ignores = true
+disallow_untyped_defs = true
+warn_return_any = true
+no_implicit_optional = true
+strict_equality = true
 exclude = ["src/nanoleaf_sync/ui/"]
 files = ["src/nanoleaf_sync"]
 
 [[tool.mypy.overrides]]
 module = [
-  "nanoleaf_sync.capture.*",
-  "nanoleaf_sync.runtime.*",
-  "nanoleaf_sync.device.*",
-  "nanoleaf_sync.service",
-  "nanoleaf_sync.desktop_entry",
-  "nanoleaf_sync.color.hdr",
-  "nanoleaf_sync.color.zone_mapper",
-  "nanoleaf_sync.tools.portal_tools",
-  "nanoleaf_sync.tools.color_kmeans",
+  "nanoleaf_sync.compat.*",
+  "nanoleaf_sync.config.*",
+  "nanoleaf_sync.tools.doctor",
+  "nanoleaf_sync.tools.smoke_test",
+  "nanoleaf_sync.tools.autostart",
+  "nanoleaf_sync.tools.reset",
+  "nanoleaf_sync.tools.config_init",
+  "nanoleaf_sync.tools.benchmark",
+  "dbus_next.*",
+  "gi.*",
+  "hid",
+  "hidraw",
+  "pipewire",
 ]
-ignore_errors = true
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = [
+  "nanoleaf_sync.runtime.srgb",
+  "nanoleaf_sync.runtime.zones",
+  "nanoleaf_sync.runtime.engine_frame",
+  "nanoleaf_sync.runtime.color_pipeline",
+  "nanoleaf_sync.runtime.color_processing",
+  "nanoleaf_sync.runtime.virtual_zones",
+  "nanoleaf_sync.color.primaries",
+  "nanoleaf_sync.runtime.compositor",
+]
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = [
+  "nanoleaf_sync.runtime.engine_loop",
+  "nanoleaf_sync.runtime.engine_loop_capture",
+  "nanoleaf_sync.runtime.engine_loop_process",
+  "nanoleaf_sync.runtime.engine_loop_hid",
+  "nanoleaf_sync.runtime.engine_loop_supervisor",
+]
+disallow_untyped_defs = false
 
 [tool.bandit]
 exclude_dirs = ["tests", "build", "dist", ".venv"]
-skips = ["B101", "B108", "B110", "B311", "B324", "B404", "B603", "B607", "B608"]

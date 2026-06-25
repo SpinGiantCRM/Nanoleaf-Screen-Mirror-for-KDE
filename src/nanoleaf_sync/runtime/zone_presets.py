@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from nanoleaf_sync._coerce import as_side_counts4
 from nanoleaf_sync.config.model import ZoneConfig
 from nanoleaf_sync.config.presets import edge_locality_profile
 
@@ -28,7 +29,7 @@ def edge_side_counts(
         base = [0, 0, 0, 0]
         for idx in range(count):
             base[idx] += 1
-        return tuple(base)
+        return as_side_counts4(base)
 
     w = max(1.0, float(width or 16))
     h = max(1.0, float(height or 9))
@@ -55,7 +56,7 @@ def edge_side_counts(
                 to_remove -= 1
             if to_remove == 0:
                 break
-    return tuple(assigned)
+    return as_side_counts4(assigned)
 
 
 @dataclass(frozen=True)

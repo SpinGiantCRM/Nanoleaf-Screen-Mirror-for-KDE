@@ -1,0 +1,14 @@
+{
+  "preset": "production",
+  "metrics": {
+    "zone_sampling": {
+      "p95_ms_max": 80.0
+    },
+    "colour_pipeline": {
+      "p95_ms_max": 120.0
+    },
+    "hid_frame_build": {
+      "p95_ms_max": 5.0
+    }
+  }
+}

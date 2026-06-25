@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 import shutil
-import subprocess
+import subprocess  # nosec B404
 from configparser import ConfigParser
 from pathlib import Path
 from typing import Final
@@ -36,7 +36,7 @@ def _run_command(args: list[str]) -> str:
     if not args or shutil.which(args[0]) is None:
         return ""
     try:
-        completed = subprocess.run(
+        completed = subprocess.run(  # nosec B603
             args,
             check=False,
             capture_output=True,

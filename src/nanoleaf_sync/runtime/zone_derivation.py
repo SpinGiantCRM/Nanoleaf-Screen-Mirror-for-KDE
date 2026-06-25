@@ -4,6 +4,7 @@ import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from nanoleaf_sync._coerce import as_side_counts4
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
 from nanoleaf_sync.runtime.zone_presets import (
     apply_layout_transform,
@@ -119,7 +120,7 @@ def _resolve_persisted_side_counts(
 ) -> tuple[int, int, int, int] | None:
     raw = getattr(config, "source_side_counts", None) or []
     if len(raw) == 4:
-        counts = tuple(max(0, int(v)) for v in raw)
+        counts = as_side_counts4(max(0, int(v)) for v in raw)
         if sum(counts) > 0:
             return counts
     zone_count = len(config.zones) if config.zones else 0

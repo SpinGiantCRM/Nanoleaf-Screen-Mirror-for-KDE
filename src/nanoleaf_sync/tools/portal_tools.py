@@ -60,9 +60,9 @@ def _run_portal_pick_color(timeout_s: float) -> tuple[int, int, int] | None:
 
 
 async def _pick_color_async(*, timeout_s: float) -> tuple[int, int, int] | None:
+    from dbus_next import Variant
     from dbus_next.aio import MessageBus
     from dbus_next.constants import BusType
-    from dbus_next.signature import Variant
 
     bus = await MessageBus(bus_type=BusType.SESSION).connect()
     try:

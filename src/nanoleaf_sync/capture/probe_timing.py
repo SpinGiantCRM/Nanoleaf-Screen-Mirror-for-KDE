@@ -4,7 +4,7 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TypeVar, cast
+from typing import Generic, TypeVar, cast
 
 T = TypeVar("T")
 
@@ -14,7 +14,7 @@ def monotonic_s() -> float:
 
 
 @dataclass
-class _CallResult:
+class _CallResult(Generic[T]):
     value: T | None = None
     error: BaseException | None = None
 
@@ -34,7 +34,7 @@ def call_with_timeout(func: Callable[[], T], timeout_s: float, *, op_name: str) 
         raise TimeoutError(f"{op_name} timeout must be > 0 seconds")
 
     finished = threading.Event()
-    result: _CallResult = _CallResult()
+    result: _CallResult[T] = _CallResult()
 
     def _run() -> None:
         try:

@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
-from typing import Final
+from typing import Final, cast
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +96,7 @@ def _run_async_probe(coro) -> int:
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        return asyncio.run(coro)
+        return cast(int, asyncio.run(coro))
 
     result: list[int] = []
     error: list[BaseException] = []

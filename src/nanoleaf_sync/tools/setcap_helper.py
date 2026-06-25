@@ -4,7 +4,7 @@ import hashlib
 import logging
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404
 from pathlib import Path
 
 _log = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ def helper_has_required_caps(path: Path) -> bool:
     if getcap is None or not path.is_file():
         return False
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [getcap, str(path)],
             check=False,
             capture_output=True,
@@ -129,5 +129,5 @@ def ensure_helper_caps(
                 app.quit()
             _ = QGuiApplication
         except Exception:
-            pass
+            pass  # nosec B110
     return False

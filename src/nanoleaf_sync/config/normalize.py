@@ -97,7 +97,7 @@ def _require_int_in_range(value: Any, *, field_name: str, minimum: int, maximum:
         raise ConfigValidationError(f"{field_name} must be an integer in {bounds}; got {value!r}")
     if value < minimum or value > maximum:
         raise ConfigValidationError(f"{field_name} must be an integer in {bounds}; got {value}")
-    return value
+    return value  # type: ignore[no-any-return]
 
 
 def validate_raw_config_values(data: dict[str, Any]) -> None:

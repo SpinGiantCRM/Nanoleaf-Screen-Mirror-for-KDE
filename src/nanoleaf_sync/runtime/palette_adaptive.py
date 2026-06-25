@@ -302,7 +302,7 @@ def palette_adaptive_zone_frame(
             current_best_confidence=1.0,
             current_best_rgb=mean_u8.astype(np.float32),
             candidate_rgbs={"area_mean": mean_u8.astype(np.float32)},
-            scores={"area_mean": np.float32(1.0)},
+            scores={"area_mean": float(np.float32(1.0))},
             diagnostics=diag,
         )
 
@@ -407,8 +407,10 @@ def palette_adaptive_zone_color(
             selected_algorithm=str(prev_algo or frame.current_best_algorithm),
             selected_rgb=prev_rgb or frame.diagnostics.selected_candidate_rgb,
             dominant_hue_degrees=float(frame.diagnostics.dominant_hue_degrees),
-            held_rgb=tuple(
-                float(v) for v in (prev_rgb or frame.diagnostics.selected_candidate_rgb)
+            held_rgb=(
+                float((prev_rgb or frame.diagnostics.selected_candidate_rgb)[0]),
+                float((prev_rgb or frame.diagnostics.selected_candidate_rgb)[1]),
+                float((prev_rgb or frame.diagnostics.selected_candidate_rgb)[2]),
             ),
         )
     color, new_state, temporal_diag = stabilize_palette_zone(

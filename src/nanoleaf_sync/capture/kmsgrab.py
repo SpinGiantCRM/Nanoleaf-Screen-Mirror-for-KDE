@@ -4,8 +4,10 @@ import inspect
 import logging
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from importlib import import_module
+from typing import cast
 
 import numpy as np
 
@@ -44,7 +46,7 @@ class KMSGrabCapture:
     """DRM/KMS capture backend with optional KWin D-Bus fallback."""
 
     name = "kmsgrab"
-    _cached_drm_capture_impl: object | None = None
+    _cached_drm_capture_impl: Callable[..., np.ndarray] | None = None
     _cached_probe_done: bool = False
 
     def __init__(
@@ -149,7 +151,7 @@ class KMSGrabCapture:
             self._fallback.close()
 
     @classmethod
-    def _resolve_drm_capture_impl(cls):
+    def _resolve_drm_capture_impl(cls) -> Callable[..., np.ndarray] | None:
         if cls._cached_probe_done:
             return cls._cached_drm_capture_impl
         cls._cached_drm_capture_impl = cls._probe_drm_capture_impl()
@@ -182,13 +184,14 @@ class KMSGrabCapture:
                 ]
             if display_rects:
                 try:
+                    raw_patches: object
                     if self._vulkan_zone_sampler is not None:
-                        patches = self._vulkan_zone_sampler.sample_zone_rects(display_rects)
+                        raw_patches = self._vulkan_zone_sampler.sample_zone_rects(display_rects)
                         self.last_capture_path = "vulkan-zone-rects"
                     else:
-                        patches = self._drm_zone_sampler.capture_zone_rects(display_rects)
+                        raw_patches = self._drm_zone_sampler.capture_zone_rects(display_rects)
                         self.last_capture_path = "drm-zone-rects"
-                    patches = self._convert_zone_result_if_needed(patches)
+                    patches = self._convert_zone_result_if_needed(raw_patches)
                     if isinstance(patches, np.ndarray) and patches.ndim == 2:
                         self._record_drm_hdr_diagnostics(patches)
                     return patches
@@ -269,12 +272,12 @@ class KMSGrabCapture:
                 ) from positional_error
 
     @staticmethod
-    def _probe_drm_capture_impl():
+    def _probe_drm_capture_impl() -> Callable[..., np.ndarray] | None:
         try:
             module = import_module("nanoleaf_sync.capture._kmsgrab")
             capture = getattr(module, "capture_dma_buf_rgb", None)
             if callable(capture):
-                return capture
+                return cast(Callable[..., np.ndarray], capture)
         except ImportError:
             pass
 
@@ -282,7 +285,7 @@ class KMSGrabCapture:
             module = import_module("kmsgrab")
             capture = getattr(module, "capture", None)
             if callable(capture):
-                return capture
+                return cast(Callable[..., np.ndarray], capture)
         except ImportError:
             pass
 
@@ -423,7 +426,7 @@ class KMSGrabCapture:
                 "skip_display_gamut_adaptation": resolved.skip_display_gamut_adaptation,
                 "display_referred": resolved.source == "backend display-referred",
             }
-            return rgb
+            return cast(np.ndarray, rgb)
 
         convert_metadata = {
             "transfer": meta.transfer,

@@ -6,7 +6,7 @@ import logging
 import os
 import socket
 import struct
-import subprocess
+import subprocess  # nosec B404
 import tempfile
 import time
 from dataclasses import dataclass
@@ -113,7 +113,7 @@ def request_helper_mmap(*, card_path: str, fb_id: int = 0) -> DRMHelperMmapInfo 
         server.listen(1)
         server.settimeout(_HELPER_TIMEOUT_SECONDS)
 
-        proc = subprocess.Popen(
+        proc = subprocess.Popen(  # nosec B603
             [str(helper), card_path, sock_path, str(int(fb_id))],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

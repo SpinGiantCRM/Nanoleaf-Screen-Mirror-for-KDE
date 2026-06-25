@@ -247,6 +247,28 @@ def test_normalized_backend_empty() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_systemd_autostart_warns_for_kwin_dbus_backend(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(doctor, "systemd_autostart_enabled", lambda: True)
+    result = doctor._check_systemd_autostart_capture_context(
+        AppConfig(use_mock_capture=False, prefer_backend="kwin-dbus")
+    )
+    assert result is not None
+    assert result.status == "warn"
+    assert result.name == "systemd-autostart"
+
+
+def test_systemd_autostart_ignored_for_portal_backend(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(doctor, "systemd_autostart_enabled", lambda: True)
+    result = doctor._check_systemd_autostart_capture_context(
+        AppConfig(use_mock_capture=False, prefer_backend="xdg-portal")
+    )
+    assert result is None
+
+
 def test_desktop_authorization_no_files_found(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

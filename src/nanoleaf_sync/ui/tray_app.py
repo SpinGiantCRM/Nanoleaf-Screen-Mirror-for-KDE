@@ -5,7 +5,7 @@ import importlib
 import json
 import logging
 import os
-import subprocess
+import subprocess  # nosec B404
 import sys
 import threading
 import time
@@ -1233,7 +1233,7 @@ class NanoleafTrayApp:
         guide_path = resolve_user_doc("TROUBLESHOOTING.md")
         if guide_path is not None:
             try:
-                opened = subprocess.run(
+                opened = subprocess.run(  # nosec B603 B607
                     ["xdg-open", str(guide_path)],
                     check=False,
                     stdout=subprocess.DEVNULL,
@@ -1256,7 +1256,7 @@ class NanoleafTrayApp:
         guide_url = user_doc_url("TROUBLESHOOTING.md")
         if guide_url is not None:
             try:
-                subprocess.run(
+                subprocess.run(  # nosec B603 B607
                     ["xdg-open", guide_url],
                     check=False,
                     stdout=subprocess.DEVNULL,
@@ -1537,7 +1537,7 @@ class NanoleafTrayApp:
 
         def worker() -> None:
             try:
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603
                     argv, capture_output=True, text=True, check=False, timeout=30
                 )
                 combined = (result.stdout or "").strip()
@@ -1669,6 +1669,7 @@ class NanoleafTrayApp:
                     source_zone_count=None,
                     capture_probe=lambda _cfg: None,
                     device_probe=lambda _cfg: None,
+                    existing_driver=getattr(self.service, "_driver", None),
                 )
                 if report.status == READY_STATUS:
                     _log.info("Config passes readiness check; skipping first-run wizard")

@@ -68,7 +68,7 @@ def _allowed_screenshot_path(path: Path) -> Path:
     runtime_dir = os.environ.get("XDG_RUNTIME_DIR", "").strip()
     if runtime_dir:
         allowed_roots.append(Path(runtime_dir).resolve())
-    allowed_roots.append(Path("/tmp").resolve())
+    allowed_roots.append(Path("/tmp").resolve())  # nosec B108
     for root in allowed_roots:
         try:
             resolved.relative_to(root)
@@ -91,15 +91,6 @@ def is_kwin_invalid_screen_error(exc: Exception | str | None) -> bool:
         return False
     normalized = str(exc).strip().lower().replace("_", "").replace(".", " ")
     return "invalidscreen" in normalized.replace(" ", "") or "invalid screen" in normalized
-
-
-def _parse_screenshot2_color_metadata(results: dict[str, Any]) -> dict[str, object] | None:
-    """Reserved for future KWin ScreenShot2 colour metadata.
-
-    Current Plasma ScreenShot2 replies do not include transfer/primaries/nits fields.
-    """
-    _ = results
-    return None
 
 
 class KWinDBusScreenshotCapture:
@@ -241,7 +232,7 @@ class KWinDBusScreenshotCapture:
             },
         )
 
-    def _run_async(self, coro, *, timeout: float = 2.0):
+    def _run_async(self, coro: Any, *, timeout: float = 2.0) -> Any:
         """Run async DBus calls in a dedicated loop for sync capture API.
 
         A *timeout* (default 2.0 s) prevents the capture worker from blocking
@@ -356,7 +347,7 @@ class KWinDBusScreenshotCapture:
                     )
 
             if loop is not None:
-                assert loop.is_closed() or not loop.is_running()
+                assert loop.is_closed() or not loop.is_running()  # nosec B101
             self._loop = None
             self._loop_thread = None
             self._loop_ready.clear()
@@ -378,7 +369,7 @@ class KWinDBusScreenshotCapture:
         # Preserve native resolution for per-zone box-filter sampling (PIX-001).
         return frame
 
-    async def _capture_reply_via_dbus(self):
+    async def _capture_reply_via_dbus(self) -> Any:
         # Fallback order is explicit: modern ScreenShot2 first, legacy KWin
         # screenshot methods second.
         screenshot2_exc: Exception | None = None
@@ -412,7 +403,7 @@ class KWinDBusScreenshotCapture:
             f"Legacy: {self._format_exception_details(legacy_exc)}."
         ) from (legacy_exc or screenshot2_exc)
 
-    async def _call_with_reconnect(self, func):
+    async def _call_with_reconnect(self, func: Any) -> Any:
         try:
             return await func()
         except Exception as exc:
@@ -456,10 +447,10 @@ class KWinDBusScreenshotCapture:
         self._legacy_bus = None
         self._legacy_introspection_cache.clear()
 
-    async def _sync_kwin_owner(self, bus: object) -> None:
+    async def _sync_kwin_owner(self, bus: Any) -> None:
         from dbus_next import Message
 
-        reply = await bus.call(  # type: ignore[union-attr]
+        reply = await bus.call(
             Message(
                 destination="org.freedesktop.DBus",
                 path="/org/freedesktop/DBus",
@@ -487,29 +478,29 @@ class KWinDBusScreenshotCapture:
             await self._reset_bus_connections()
         self._kwin_owner = owner
 
-    async def _connect_screenshot2_bus(self):
+    async def _connect_screenshot2_bus(self) -> Any:
         from dbus_next.aio import MessageBus
 
         return await MessageBus(negotiate_unix_fd=True).connect()
 
-    async def _connect_legacy_bus(self):
+    async def _connect_legacy_bus(self) -> Any:
         from dbus_next.aio import MessageBus
 
         return await MessageBus().connect()
 
-    async def _get_screenshot2_bus(self):
+    async def _get_screenshot2_bus(self) -> Any:
         if self._screenshot2_bus is None:
             self._screenshot2_bus = await self._connect_screenshot2_bus()
         return self._screenshot2_bus
 
-    async def _get_screenshot2_introspection(self):
+    async def _get_screenshot2_introspection(self) -> Any:
         bus_name, path, _ = self._SCREENSHOT2_API
         bus = await self._get_screenshot2_bus()
         if self._screenshot2_introspection is None:
             self._screenshot2_introspection = await bus.introspect(bus_name, path)
         return self._screenshot2_introspection
 
-    async def _get_legacy_bus(self):
+    async def _get_legacy_bus(self) -> Any:
         if self._legacy_bus is None:
             self._legacy_bus = await self._connect_legacy_bus()
         return self._legacy_bus
@@ -550,7 +541,7 @@ class KWinDBusScreenshotCapture:
     async def _invoke_screenshot2_method(
         self,
         *,
-        bus,
+        bus: Any,
         bus_name: str,
         path: str,
         interface_name: str,
@@ -599,7 +590,7 @@ class KWinDBusScreenshotCapture:
             if write_fd >= 0:
                 os.close(write_fd)
 
-    async def _capture_reply_via_screenshot2(self):
+    async def _capture_reply_via_screenshot2(self) -> Any:
         bus_name, path, interface_name = self._SCREENSHOT2_API
         bus = await self._get_screenshot2_bus()
         await self._sync_kwin_owner(bus)
@@ -695,8 +686,8 @@ class KWinDBusScreenshotCapture:
 
         monitor_detail = "not attempted"
         active_detail = "not attempted"
-        for method_name, exc in attempt_errors:
-            formatted = self._format_exception_details(exc)
+        for method_name, err in attempt_errors:
+            formatted = self._format_exception_details(err)
             if method_name == "CaptureScreen":
                 monitor_detail = formatted
             else:
@@ -707,7 +698,7 @@ class KWinDBusScreenshotCapture:
             f"CaptureActiveScreen: {active_detail}."
         ) from attempt_errors[-1][1]
 
-    async def _capture_reply_via_legacy_interfaces(self):
+    async def _capture_reply_via_legacy_interfaces(self) -> Any:
         bus = await self._get_legacy_bus()
         await self._sync_kwin_owner(bus)
         last_exc: Exception | None = None
@@ -954,7 +945,6 @@ class KWinDBusScreenshotCapture:
 
     def _decode_screenshot2_payload(self, reply: _ScreenShot2Payload) -> np.ndarray:
         results = self._normalize_variant_dict(reply.results)
-        self._last_screenshot2_color_metadata = _parse_screenshot2_color_metadata(results)
         image_type = results.get("type")
         if image_type != "raw":
             raise KWinDBusCaptureError(f"Unsupported KWin ScreenShot2 result type: {image_type!r}")
@@ -1068,7 +1058,7 @@ class KWinDBusScreenshotCapture:
             )
         return self._qimage_to_rgb_array(image)
 
-    def _qimage_to_rgb_array(self, image) -> np.ndarray:
+    def _qimage_to_rgb_array(self, image: Any) -> np.ndarray:
         from PyQt6.QtGui import QImage
 
         rgb_image = image.convertToFormat(QImage.Format.Format_RGB888)
@@ -1103,7 +1093,7 @@ class KWinDBusScreenshotCapture:
 
         fmt = QImage.Format(image_format)
         self._raw_frame_buffer = bytearray(data)
-        image = QImage(self._raw_frame_buffer, width, height, stride, fmt)
+        image = QImage(bytes(self._raw_frame_buffer), width, height, stride, fmt)
         if image.isNull():
             self._raw_frame_buffer = None
             raise KWinDBusCaptureError(

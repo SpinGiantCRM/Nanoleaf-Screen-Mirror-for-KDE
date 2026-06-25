@@ -17,7 +17,11 @@ import time
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
+from typing import Any
 
+import numpy as np
+
+from nanoleaf_sync._coerce import as_rgb_tuple3
 from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
 from nanoleaf_sync.capture.dimensions import (
     DEFAULT_CAPTURE_HEIGHT as _DEFAULT_CAPTURE_HEIGHT,
@@ -54,6 +58,7 @@ from nanoleaf_sync.runtime.calibration_resolver import (
 )
 from nanoleaf_sync.runtime.compositor import effective_sdr_boost
 from nanoleaf_sync.runtime.diagnostics_exports import default_kde_display_metadata
+from nanoleaf_sync.runtime.engine_frame import FrameProcessingTimings
 from nanoleaf_sync.runtime.startup import (
     RuntimeLifecycle,
     run_runtime_engine,
@@ -85,7 +90,7 @@ __all__ = (
 )
 
 
-def _detect_primary_screen_dims(*, qt_widgets_module=None) -> tuple[int, int] | None:
+def _detect_primary_screen_dims(*, qt_widgets_module: Any | None = None) -> tuple[int, int] | None:
     return detect_primary_screen_dims(qt_widgets_module=qt_widgets_module)
 
 
@@ -179,7 +184,7 @@ class NanoleafSyncService:
         config: AppConfig | None = None,
         *,
         capture_backend_override: CaptureBackend | None = None,
-        driver_override=None,
+        driver_override: DeviceDriver | None = None,
     ) -> None:
         self.config = config or AppConfig()
 
@@ -417,12 +422,11 @@ class NanoleafSyncService:
         color_ctx_snapshot = status.get("latest_color_context")
         color_ctx_dict = color_ctx_snapshot if isinstance(color_ctx_snapshot, dict) else {}
         frame_ctx_snapshot = status.get("latest_frame_context")
-        frame_source = (
-            frame_ctx_snapshot.get("source")
-            if isinstance(frame_ctx_snapshot, dict)
-            and isinstance(frame_ctx_snapshot.get("source"), dict)
-            else {}
-        )
+        frame_source: dict[str, object] = {}
+        if isinstance(frame_ctx_snapshot, dict):
+            source_obj = frame_ctx_snapshot.get("source")
+            if isinstance(source_obj, dict):
+                frame_source = source_obj
         color_backend = str(
             color_ctx_dict.get("backend")
             or frame_source.get("backend")
@@ -715,21 +719,26 @@ class NanoleafSyncService:
             from nanoleaf_sync.runtime.engine import _zone_sampling_diagnostic_fields
 
             device_indices = list(device_zone_indices)
+            proc_timings = (
+                processing_timings
+                if isinstance(processing_timings, FrameProcessingTimings)
+                else None
+            )
             rows: list[dict[str, object]] = []
             for zone_index, rect in enumerate(zones_px):
-                sampled_rgb = tuple(int(c) for c in sampled_zone_colors[zone_index].tolist())  # type: ignore[union-attr]
+                sampled_rgb = as_rgb_tuple3(
+                    np.asarray(sampled_zone_colors[zone_index], dtype=np.uint8).tolist()
+                )
                 mapped_led_index = resolve_mapped_led_index(zone_index, device_indices)
                 if mapped_led_index is None:
                     pre_led_rgb = sampled_rgb
                     final_rgb = sampled_rgb
                 else:
-                    pre_led_rgb = tuple(
-                        int(c)
-                        for c in pre_led_colors[mapped_led_index].tolist()  # type: ignore[union-attr]
+                    pre_led_rgb = as_rgb_tuple3(
+                        np.asarray(pre_led_colors[mapped_led_index], dtype=np.uint8).tolist()
                     )
-                    final_rgb = tuple(
-                        int(c)
-                        for c in final_zone_colors[mapped_led_index].tolist()  # type: ignore[union-attr]
+                    final_rgb = as_rgb_tuple3(
+                        np.asarray(final_zone_colors[mapped_led_index], dtype=np.uint8).tolist()
                     )
                 rows.append(
                     build_zone_colour_path_row(
@@ -743,11 +752,11 @@ class NanoleafSyncService:
                         mapped_led_index=mapped_led_index,
                         pre_led_rgb=pre_led_rgb,
                         final_rgb=final_rgb,
-                        proc_timings=processing_timings,
+                        proc_timings=proc_timings,
                         sampling_fields=_zone_sampling_diagnostic_fields(
                             zone_index=zone_index,
                             default_rect=rect,
-                            proc_timings=processing_timings,
+                            proc_timings=proc_timings,
                         ),
                         color_style=str(getattr(self.config, "color_style", "ambient")),
                     )
@@ -798,33 +807,23 @@ class NanoleafSyncService:
                 "message": f"Zone index {zone_index} is out of range (0–{len(zone_diag) - 1}).",
             }
         row = zone_diag[zone_index]
-        sampled = tuple(int(v) for v in row.get("sampled_rgb", (0, 0, 0)))  # type: ignore[arg-type]
-        pre_led = tuple(int(v) for v in row.get("output_rgb_before_led_calibration", sampled))  # type: ignore[arg-type]
-        final = tuple(int(v) for v in row.get("final_output_rgb", pre_led))  # type: ignore[arg-type]
+
+        def _row_rgb(key: str, fallback: tuple[int, int, int]) -> tuple[int, int, int]:
+            value = row.get(key, fallback)
+            return as_rgb_tuple3(value) if isinstance(value, (tuple, list)) else fallback
+
+        sampled = _row_rgb("sampled_rgb", (0, 0, 0))
+        pre_led = _row_rgb("output_rgb_before_led_calibration", sampled)
+        final = _row_rgb("final_output_rgb", pre_led)
         comparison = compare_colour_path_stages(
             captured_rgb=sampled,
             staged_outputs={
                 "sampled_zone": sampled,
-                "before_style_mapping": tuple(
-                    int(v)
-                    for v in row.get("output_rgb_before_style_mapping", sampled)  # type: ignore[arg-type]
-                ),
-                "after_style_mapping": tuple(
-                    int(v)
-                    for v in row.get("output_rgb_after_style_mapping", sampled)  # type: ignore[arg-type]
-                ),
-                "after_light_spread": tuple(
-                    int(v)
-                    for v in row.get("output_rgb_after_light_spread", pre_led)  # type: ignore[arg-type]
-                ),
-                "after_smoothing": tuple(
-                    int(v)
-                    for v in row.get("output_rgb_after_smoothing", pre_led)  # type: ignore[arg-type]
-                ),
-                "after_led_calibration": tuple(
-                    int(v)
-                    for v in row.get("output_rgb_after_led_calibration", pre_led)  # type: ignore[arg-type]
-                ),
+                "before_style_mapping": _row_rgb("output_rgb_before_style_mapping", sampled),
+                "after_style_mapping": _row_rgb("output_rgb_after_style_mapping", sampled),
+                "after_light_spread": _row_rgb("output_rgb_after_light_spread", pre_led),
+                "after_smoothing": _row_rgb("output_rgb_after_smoothing", pre_led),
+                "after_led_calibration": _row_rgb("output_rgb_after_led_calibration", pre_led),
                 "pre_led_calibration": pre_led,
                 "final_output": final,
             },
@@ -1164,14 +1163,11 @@ class NanoleafSyncService:
                 config=self.config,
                 detected_device_zone_count=reported_zone_count,
             )
-            if zone_authority.blocked:
-                self._runtime.mark_device_zone_mismatch(
+            if zone_authority.device_zone_count_mismatch and zone_authority.message:
+                logger.warning(
+                    "device zone count mismatch (using configured count): %s",
                     zone_authority.message,
-                    authority=zone_authority,
                 )
-                raise RuntimeError(zone_authority.message)
-            if zone_authority.override_active and zone_authority.message:
-                logger.warning(zone_authority.message)
             self._runtime.driver_ready = True
             with self._status_lock:
                 self._device_discovered = True
@@ -1305,7 +1301,7 @@ class NanoleafSyncService:
         )
 
     def install_signal_handlers(self) -> None:
-        def _handler(signum, _frame):
+        def _handler(signum: int, _frame: object) -> None:
             stop_result = self.stop(timeout=5.0)
             if not stop_result:
                 self.turn_off_lights()

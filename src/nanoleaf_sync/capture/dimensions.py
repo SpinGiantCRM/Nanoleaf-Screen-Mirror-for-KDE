@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any, cast
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.runtime.zone_presets import _adaptive_edge_thickness
@@ -63,7 +64,9 @@ def _detect_primary_screen_dims_sysfs() -> tuple[int, int] | None:
     return best
 
 
-def detect_primary_screen_dims(*, qt_widgets_module=None) -> tuple[int, int] | None:
+def detect_primary_screen_dims(
+    *, qt_widgets_module: object | None = None
+) -> tuple[int, int] | None:
     """Best-effort primary-screen detection via sysfs/DRM first, Qt fallback."""
     if qt_widgets_module is None:
         detected = _detect_primary_screen_dims_sysfs()
@@ -81,7 +84,8 @@ def detect_primary_screen_dims(*, qt_widgets_module=None) -> tuple[int, int] | N
             return None
 
     try:
-        qapplication = qt_widgets.QApplication
+        qt_mod = cast(Any, qt_widgets)
+        qapplication = qt_mod.QApplication
         app = qapplication.instance()
     except Exception:
         logger.debug("Unable to access Qt QApplication for screen detection", exc_info=True)

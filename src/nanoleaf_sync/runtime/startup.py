@@ -101,7 +101,7 @@ def wait_for_startup(state: RuntimeState, timeout_s: float = 1.0) -> bool:
 
 def initialize_or_fail(
     *,
-    install_drivers: Callable[[], None],
+    install_drivers: Callable[[], object],
     close_backends: Callable[[], None],
     state: RuntimeState,
 ) -> bool:
@@ -138,7 +138,7 @@ def should_reinitialize(
 
 def reinitialize_backends(
     *,
-    install_drivers: Callable[[], None],
+    install_drivers: Callable[[], object],
     close_backends: Callable[[], None],
     state: RuntimeState,
 ) -> None:
@@ -194,7 +194,7 @@ def run_runtime_engine(
     state: RuntimeState,
     get_capture: Callable[[], object],
     get_driver: Callable[[], object],
-    install_drivers: Callable[[], None],
+    install_drivers: Callable[[], object],
     close_backends: Callable[[], None],
     clear_backends: Callable[[], None],
     send_final_frame: Callable[[], None] | None = None,

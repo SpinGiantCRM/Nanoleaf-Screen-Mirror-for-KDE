@@ -152,8 +152,8 @@ class LatencyProbe:
             for key, value in sample.flags.items():
                 self._flags[str(key)] = bool(value)
         if isinstance(sample.labels, dict):
-            for key, value in sample.labels.items():
-                text = str(value or "").strip()
+            for key, label_value in sample.labels.items():
+                text = str(label_value or "").strip()
                 if text:
                     self._labels[str(key)] = text
         if sample.target_fps is not None:

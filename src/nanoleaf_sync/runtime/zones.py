@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 import threading
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -490,8 +490,8 @@ def zone_colors(
     *,
     sample_step: int = 1,
 ) -> list[RGBTuple]:
-    zone_arr = zone_colors_array(image, zones, sample_step=sample_step)
-    return [tuple(int(c) for c in row) for row in zone_arr]
+    zone_arr = np.asarray(zone_colors_array(image, zones, sample_step=sample_step), dtype=np.uint8)
+    return [(int(row[0]), int(row[1]), int(row[2])) for row in zone_arr]
 
 
 @dataclass(frozen=True)
@@ -794,8 +794,8 @@ def zone_colors_array(
 
         if normalized_sampling_mode in {"vivid_weighted", "peak_luma"}:
             linear_img = srgb_u8_to_linear01(img)
-            per_zone_modes: list[str] = [normalized_sampling_mode] * len(zones)
-            per_zone_mixed: list[bool] = [False] * len(zones)
+            per_zone_modes = [normalized_sampling_mode] * len(zones)
+            per_zone_mixed = [False] * len(zones)
             for idx in range(len(zones)):
                 if not valid[idx]:
                     continue
@@ -1065,7 +1065,7 @@ def zone_colors_array_with_meta(
         multi_moment_zone_colors=multi_moment_zone_colors,
         return_meta=True,
     )
-    assert isinstance(out, tuple)
+    assert isinstance(out, tuple)  # nosec B101
     return out
 
 
@@ -1237,7 +1237,7 @@ def _select_faster_engine_auto(
 
     weighted_indices = {plan[0] for plan in weight_plans}
 
-    def _time(fn) -> tuple[float, np.ndarray]:
+    def _time(fn: Callable[..., np.ndarray]) -> tuple[float, np.ndarray]:
         start = time.perf_counter()
         out = fn(
             image=image,
