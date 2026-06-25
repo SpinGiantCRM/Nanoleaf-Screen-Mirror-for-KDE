@@ -9,6 +9,16 @@ MAX_DEVICE_ZONE_COUNT = 512
 
 
 @dataclass
+class PrivacyZone:
+    """Normalized screen rectangle excluded from zone colour sampling (0..1)."""
+
+    x: float
+    y: float
+    w: float
+    h: float
+
+
+@dataclass
 class ZoneConfig:
     """
     Zone rectangles expressed in normalized screen coordinates.
@@ -123,7 +133,7 @@ class AppConfig:
     capture_monitor: str = ""
     # Persisted top/right/bottom/left source zone counts for corner-anchor mapping.
     source_side_counts: list[int] = field(default_factory=list)
-    display_preset: str = "hdr"
+    display_preset: str = "sdr"
     # Tracks whether the first-run display configurator has been completed.
     wizard_completed: bool = False
     # Schema version for wizard_in_progress_state JSON payload.
@@ -166,6 +176,20 @@ class AppConfig:
     hdr_max_nits: float = 1000.0
     hdr_transfer: str = "srgb"
     hdr_primaries: str = "bt709"
+    # Rectangular regions (normalized 0..1) masked out during zone sampling.
+    privacy_zones: list[PrivacyZone] = field(default_factory=list)
+    # Virtual zone oversampling count (0 = disabled, e.g. 96 or 192).
+    virtual_zone_oversample: int = 0
+    # Auto-select smoothing/FPS profile from scene statistics.
+    scene_adaptive_profiles: bool = False
+    # Temporal zone-colour accumulation before output smoothing (PIX-005).
+    zone_temporal_accumulation: bool = True
+    # Blue-noise dither before 8-bit quantization (SMOOTH-002).
+    blue_noise_dither: bool = True
+    # Per-zone box-filter sampling from native-resolution capture (PIX-001).
+    zone_box_filter_sampling: bool = True
+    # Multi-moment zone colour selector for mixed content (PIX-003).
+    multi_moment_zone_colors: bool = False
 
     # Display gamut / ICC profile support.
     # - auto: detect from colord or EDID; fall back to sRGB

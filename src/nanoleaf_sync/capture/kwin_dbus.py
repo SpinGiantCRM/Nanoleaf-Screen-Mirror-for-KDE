@@ -18,6 +18,7 @@ import numpy as np
 from nanoleaf_sync.capture._utils import _resize_to_target
 from nanoleaf_sync.color.capture_metadata import resolve_capture_metadata
 from nanoleaf_sync.color.hdr import HDRMetadata, analyze_hdr_path, convert_frame_to_srgb8
+from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.desktop_entry import (
     QT_DESKTOP_FILE_NAME,
     RESTRICTED_IFACE_MARKER,
@@ -133,8 +134,8 @@ class KWinDBusScreenshotCapture:
         monitor_id: str | None = None,
         *,
         hdr_max_nits: float = 1000.0,
-        hdr_transfer: str = "srgb",
-        hdr_primaries: str = "bt709",
+        hdr_transfer: str = AppConfig.hdr_transfer,
+        hdr_primaries: str = AppConfig.hdr_primaries,
     ) -> None:
         self.last_capture_path: str | None = None
         self.last_hdr_diagnostics: dict[str, object] = {}
@@ -226,7 +227,7 @@ class KWinDBusScreenshotCapture:
             "hdr_max_nits": float(meta.max_nits),
             "assumption": user_meta.assumption,
             "skip_display_gamut_adaptation": user_meta.skip_display_gamut_adaptation,
-            "tone_mapping_applied": True,
+            "display_referred": True,
         }
         if frame.dtype == np.uint8 and meta.transfer == "srgb" and meta.primaries == "bt709":
             return frame
@@ -374,7 +375,8 @@ class KWinDBusScreenshotCapture:
         if frame_h == target_h and frame_w == target_w:
             return frame
 
-        return self._resize_frame(frame=frame, width=target_w, height=target_h)
+        # Preserve native resolution for per-zone box-filter sampling (PIX-001).
+        return frame
 
     async def _capture_reply_via_dbus(self):
         # Fallback order is explicit: modern ScreenShot2 first, legacy KWin

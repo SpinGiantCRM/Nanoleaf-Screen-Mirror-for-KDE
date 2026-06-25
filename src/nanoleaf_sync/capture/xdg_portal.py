@@ -156,185 +156,181 @@ class XDGPortalCapture:
         self._initialized = False
 
     def _negotiate_portal_sync(self) -> tuple[int, int]:
-        result: list[tuple[int, int]] = []
-        error: list[BaseException] = []
+        from nanoleaf_sync.capture._async_loop import BackgroundAsyncLoop
 
-        def _worker() -> None:
-            loop: asyncio.AbstractEventLoop | None = None
-            try:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                fd, node = loop.run_until_complete(self._negotiate_portal())
-                result.append((fd, node))
-            except BaseException as exc:  # pragma: no cover - thread handoff
-                error.append(exc)
-            finally:
-                if loop is not None:
-                    assert self._portal_bus is None
-                    loop.close()
-
-        worker = threading.Thread(target=_worker, name="portal-negotiate", daemon=True)
-        worker.start()
-        worker.join()
-
-        if error:
-            raise XDGPortalError(f"Portal negotiation failed: {error[0]}") from error[0]
-        if not result:
-            raise XDGPortalError("Portal negotiation failed: no result returned.")
-        return result[0]
+        if not hasattr(self, "_async_loop"):
+            self._async_loop = BackgroundAsyncLoop(thread_name="portal-capture")
+        try:
+            return self._async_loop.run(self._negotiate_portal(), timeout=130.0)
+        except Exception as exc:
+            raise XDGPortalError(f"Portal negotiation failed: {exc}") from exc
 
     async def _negotiate_portal(self) -> tuple[int, int]:
         from dbus_next import Message, MessageType, Variant
         from dbus_next.aio import MessageBus
 
         bus = await MessageBus(negotiate_unix_fd=True).connect()
-        self._portal_bus = bus
-        unique_name = getattr(bus, "unique_name", None)
-        if not unique_name:
-            raise XDGPortalError("Portal negotiation failed: D-Bus unique name is unavailable.")
-        sender = str(unique_name).replace(".", "_").lstrip(":")
 
-        async def _call(method: str, signature: str, body: list, *, handle_token: str):
-            portal_request_path = request_path(sender_name=sender, handle_token=handle_token)
-            future: asyncio.Future = asyncio.get_event_loop().create_future()
+        async def _disconnect_bus() -> None:
+            disconnect = getattr(bus, "disconnect", None)
+            if disconnect is None:
+                return
+            maybe = disconnect()
+            if asyncio.iscoroutine(maybe):
+                await maybe
 
-            def _on_signal(msg):
-                if msg is None:
-                    return
-                if (
-                    msg.path == portal_request_path
-                    and msg.interface == self._REQUEST_IFACE
-                    and msg.member == "Response"
-                    and not future.done()
-                ):
-                    future.set_result(msg)
+        try:
+            self._portal_bus = bus
+            unique_name = getattr(bus, "unique_name", None)
+            if not unique_name:
+                raise XDGPortalError("Portal negotiation failed: D-Bus unique name is unavailable.")
+            sender = str(unique_name).replace(".", "_").lstrip(":")
 
-            bus.add_message_handler(_on_signal)
-            try:
-                reply = await bus.call(
-                    Message(
-                        destination=self._PORTAL_BUS,
-                        path=self._PORTAL_PATH,
-                        interface=self._PORTAL_IFACE,
-                        member=method,
-                        signature=signature,
-                        body=body,
+            async def _call(method: str, signature: str, body: list, *, handle_token: str):
+                portal_request_path = request_path(sender_name=sender, handle_token=handle_token)
+                future: asyncio.Future = asyncio.get_event_loop().create_future()
+
+                def _on_signal(msg):
+                    if msg is None:
+                        return
+                    if (
+                        msg.path == portal_request_path
+                        and msg.interface == self._REQUEST_IFACE
+                        and msg.member == "Response"
+                        and not future.done()
+                    ):
+                        future.set_result(msg)
+
+                bus.add_message_handler(_on_signal)
+                try:
+                    reply = await bus.call(
+                        Message(
+                            destination=self._PORTAL_BUS,
+                            path=self._PORTAL_PATH,
+                            interface=self._PORTAL_IFACE,
+                            member=method,
+                            signature=signature,
+                            body=body,
+                        )
                     )
-                )
-                if reply is None:
-                    raise XDGPortalError(f"Portal {method} call failed: empty D-Bus reply.")
-                if reply.message_type == MessageType.ERROR:
-                    raise XDGPortalError(f"Portal {method} call failed: {reply.error_name}")
-                return await asyncio.wait_for(future, timeout=120.0)
-            finally:
-                bus.remove_message_handler(_on_signal)
+                    if reply is None:
+                        raise XDGPortalError(f"Portal {method} call failed: empty D-Bus reply.")
+                    if reply.message_type == MessageType.ERROR:
+                        raise XDGPortalError(f"Portal {method} call failed: {reply.error_name}")
+                    return await asyncio.wait_for(future, timeout=120.0)
+                finally:
+                    bus.remove_message_handler(_on_signal)
 
-        session_token = random_token("nanoleaf_")
-        handle_token = random_token("h")
-        create_options: dict[str, Variant] = {
-            "handle_token": Variant("s", handle_token),
-            "session_handle_token": Variant("s", session_token),
-        }
-        msg = await _call("CreateSession", "a{sv}", [create_options], handle_token=handle_token)
-        response_code = msg.body[0]
-        if response_code != 0:
-            raise XDGPortalError(f"CreateSession denied (response={response_code}).")
-        session_handle = msg.body[1]["session_handle"].value
-        self._session_handle = str(session_handle)
+            session_token = random_token("nanoleaf_")
+            handle_token = random_token("h")
+            create_options: dict[str, Variant] = {
+                "handle_token": Variant("s", handle_token),
+                "session_handle_token": Variant("s", session_token),
+            }
+            msg = await _call("CreateSession", "a{sv}", [create_options], handle_token=handle_token)
+            response_code = msg.body[0]
+            if response_code != 0:
+                raise XDGPortalError(f"CreateSession denied (response={response_code}).")
+            session_handle = msg.body[1]["session_handle"].value
+            self._session_handle = str(session_handle)
 
-        restore_token = self._load_restore_token()
-        self.portal_restore_token_loaded = bool(restore_token)
-        self.portal_restore_token_accepted = False
-        self.portal_restore_token_refreshed = False
-        self.portal_restore_token_state = "submitted" if restore_token else "none"
-        handle_token2 = random_token("h")
-        src_options: dict[str, Variant] = {
-            "handle_token": Variant("s", handle_token2),
-            "types": Variant("u", 1),
-            "multiple": Variant("b", False),
-            "cursor_mode": Variant("u", 2),
-            "persist_mode": Variant("u", 2),
-        }
-        if restore_token:
-            src_options["restore_token"] = Variant("s", restore_token)
-
-        msg2 = await _call(
-            "SelectSources",
-            "oa{sv}",
-            [session_handle, src_options],
-            handle_token=handle_token2,
-        )
-        if msg2.body[0] != 0:
+            restore_token = self._load_restore_token()
+            self.portal_restore_token_loaded = bool(restore_token)
+            self.portal_restore_token_accepted = False
+            self.portal_restore_token_refreshed = False
+            self.portal_restore_token_state = "submitted" if restore_token else "none"
+            handle_token2 = random_token("h")
+            src_options: dict[str, Variant] = {
+                "handle_token": Variant("s", handle_token2),
+                "types": Variant("u", 1),
+                "multiple": Variant("b", False),
+                "cursor_mode": Variant("u", 2),
+                "persist_mode": Variant("u", 2),
+            }
             if restore_token:
-                self._clear_restore_token()
-                self.portal_restore_token_state = "invalidated"  # nosec B105
-            else:
-                self.portal_restore_token_state = "failed"  # nosec B105
-            raise XDGPortalError(f"SelectSources denied (response={msg2.body[0]}).")
-        if restore_token and self.portal_restore_token_state == "submitted":  # nosec B105
-            self.portal_restore_token_accepted = True
+                src_options["restore_token"] = Variant("s", restore_token)
 
-        handle_token3 = random_token("h")
-        start_options: dict[str, Variant] = {
-            "handle_token": Variant("s", handle_token3),
-        }
-        msg3 = await _call(
-            "Start",
-            "osa{sv}",
-            [session_handle, "", start_options],
-            handle_token=handle_token3,
-        )
-        if msg3.body[0] != 0:
-            if restore_token:
-                self._clear_restore_token()
-                self.portal_restore_token_state = "invalidated"  # nosec B105
-            else:
-                self.portal_restore_token_state = "failed"  # nosec B105
-            raise XDGPortalError(f"Start denied (response={msg3.body[0]}).")
-
-        results = msg3.body[1]
-        streams = results.get("streams")
-        if not streams:
-            if restore_token:
-                self._clear_restore_token()
-                self.portal_restore_token_state = "invalidated"  # nosec B105
-            else:
-                self.portal_restore_token_state = "failed"  # nosec B105
-            raise XDGPortalError("Portal Start returned no streams.")
-
-        new_restore = results.get("restore_token")
-        if new_restore:
-            self._save_restore_token(str(unwrap_variant(new_restore)))
-            self.portal_restore_token_refreshed = True
-            self.portal_restore_token_state = "refreshed"  # nosec B105
-        elif restore_token:
-            self.portal_restore_token_state = "restored_confirmed"  # nosec B105
-        else:
-            self.portal_restore_token_state = "restored_confirmed"  # nosec B105
-
-        first_stream = unwrap_variant(streams)[0]
-        node_id = int(first_stream[0])
-        self.last_stream_properties = self._parse_stream_properties(first_stream)
-        if self.last_stream_properties.get("pipewire-serial") is not None:
-            node_id = int(self.last_stream_properties.get("id", node_id))
-
-        pw_reply = await bus.call(
-            Message(
-                destination=self._PORTAL_BUS,
-                path=self._PORTAL_PATH,
-                interface=self._PORTAL_IFACE,
-                member="OpenPipeWireRemote",
-                signature="oa{sv}",
-                body=[session_handle, {}],
+            msg2 = await _call(
+                "SelectSources",
+                "oa{sv}",
+                [session_handle, src_options],
+                handle_token=handle_token2,
             )
-        )
-        if pw_reply.message_type == MessageType.ERROR:
-            raise XDGPortalError(f"OpenPipeWireRemote failed: {pw_reply.error_name}")
+            if msg2.body[0] != 0:
+                if restore_token:
+                    self._clear_restore_token()
+                    self.portal_restore_token_state = "invalidated"  # nosec B105
+                else:
+                    self.portal_restore_token_state = "failed"  # nosec B105
+                raise XDGPortalError(f"SelectSources denied (response={msg2.body[0]}).")
+            if restore_token and self.portal_restore_token_state == "submitted":  # nosec B105
+                self.portal_restore_token_accepted = True
 
-        if not pw_reply.unix_fds:
-            raise XDGPortalError("OpenPipeWireRemote did not return a PipeWire fd.")
-        fd = os.dup(pw_reply.unix_fds[0])
-        return fd, node_id
+            handle_token3 = random_token("h")
+            start_options: dict[str, Variant] = {
+                "handle_token": Variant("s", handle_token3),
+            }
+            msg3 = await _call(
+                "Start",
+                "osa{sv}",
+                [session_handle, "", start_options],
+                handle_token=handle_token3,
+            )
+            if msg3.body[0] != 0:
+                if restore_token:
+                    self._clear_restore_token()
+                    self.portal_restore_token_state = "invalidated"  # nosec B105
+                else:
+                    self.portal_restore_token_state = "failed"  # nosec B105
+                raise XDGPortalError(f"Start denied (response={msg3.body[0]}).")
+
+            results = msg3.body[1]
+            streams = results.get("streams")
+            if not streams:
+                if restore_token:
+                    self._clear_restore_token()
+                    self.portal_restore_token_state = "invalidated"  # nosec B105
+                else:
+                    self.portal_restore_token_state = "failed"  # nosec B105
+                raise XDGPortalError("Portal Start returned no streams.")
+
+            new_restore = results.get("restore_token")
+            if new_restore:
+                self._save_restore_token(str(unwrap_variant(new_restore)))
+                self.portal_restore_token_refreshed = True
+                self.portal_restore_token_state = "refreshed"  # nosec B105
+            elif restore_token:
+                self.portal_restore_token_state = "restored_confirmed"  # nosec B105
+            else:
+                self.portal_restore_token_state = "restored_confirmed"  # nosec B105
+
+            first_stream = unwrap_variant(streams)[0]
+            node_id = int(first_stream[0])
+            self.last_stream_properties = self._parse_stream_properties(first_stream)
+            if self.last_stream_properties.get("pipewire-serial") is not None:
+                node_id = int(self.last_stream_properties.get("id", node_id))
+
+            pw_reply = await bus.call(
+                Message(
+                    destination=self._PORTAL_BUS,
+                    path=self._PORTAL_PATH,
+                    interface=self._PORTAL_IFACE,
+                    member="OpenPipeWireRemote",
+                    signature="oa{sv}",
+                    body=[session_handle, {}],
+                )
+            )
+            if pw_reply.message_type == MessageType.ERROR:
+                raise XDGPortalError(f"OpenPipeWireRemote failed: {pw_reply.error_name}")
+
+            if not pw_reply.unix_fds:
+                raise XDGPortalError("OpenPipeWireRemote did not return a PipeWire fd.")
+            fd = os.dup(pw_reply.unix_fds[0])
+            return fd, node_id
+        except Exception:
+            self._portal_bus = None
+            await _disconnect_bus()
+            raise
 
     def run_explicit_diagnostic(self) -> dict[str, object]:
         diag = PortalDiagnosticState(
@@ -611,41 +607,50 @@ class XDGPortalCapture:
 
         for fmt in self._APP_SINK_FORMATS:
             pipeline = None
-            pipeline_desc = (
-                f"pipewiresrc fd={fd} path={node_id} do-timestamp=true "
-                "! queue leaky=downstream max-size-buffers=2 max-size-bytes=0 max-size-time=0 "
-                "! videoconvert ! videoscale "
-                f"! video/x-raw,width={self.width},height={self.height},format={fmt} "
-                "! appsink name=sink emit-signals=false sync=false max-buffers=2 drop=true"
+            caps_with_colorimetry = (
+                f"! video/x-raw,width={self.width},height={self.height},"
+                f"format={fmt},colorimetry=bt709 "
             )
-            try:
-                pipeline = Gst.parse_launch(pipeline_desc)
-                appsink = pipeline.get_by_name("sink")
-                if appsink is None:
-                    raise XDGPortalError("GStreamer appsink was not created.")
-                ret = pipeline.set_state(Gst.State.PLAYING)
-                if ret == Gst.StateChangeReturn.FAILURE:
-                    raise XDGPortalError(f"GStreamer failed to start with format={fmt}.")
-                frame, diag = self._pull_gst_frame(
-                    appsink, timeout_s=self._GSTREAMER_FIRST_FRAME_TIMEOUT_S
+            caps_plain = f"! video/x-raw,width={self.width},height={self.height},format={fmt} "
+            for caps_fragment in (caps_with_colorimetry, caps_plain):
+                pipeline_desc = (
+                    f"pipewiresrc fd={fd} path={node_id} do-timestamp=true "
+                    "! queue leaky=downstream max-size-buffers=2 max-size-bytes=0 max-size-time=0 "
+                    "! videoconvert ! videoscale "
+                    f"{caps_fragment}"
+                    "! appsink name=sink emit-signals=false sync=false max-buffers=2 drop=true"
                 )
-                self._last_frame_diag = diag
-                if frame is not None:
-                    self._gst_pipeline = pipeline
-                    self._gst_sink = appsink
-                    self._use_gstreamer = True
-                    return
-                pipeline.set_state(Gst.State.NULL)
-                errors.append(f"{fmt}: {self._describe_gst_pull_failure(diag)}")
-            except Exception as exc:  # noqa: BLE001
-                errors.append(f"{fmt}: {exc}")
                 try:
-                    pipeline.set_state(Gst.State.NULL)
-                except Exception:
-                    logger.debug(
-                        "Failed to set Gst pipeline to NULL during format probe",
-                        exc_info=True,
+                    pipeline = Gst.parse_launch(pipeline_desc)
+                    appsink = pipeline.get_by_name("sink")
+                    if appsink is None:
+                        raise XDGPortalError("GStreamer appsink was not created.")
+                    ret = pipeline.set_state(Gst.State.PLAYING)
+                    if ret == Gst.StateChangeReturn.FAILURE:
+                        raise XDGPortalError(f"GStreamer failed to start with format={fmt}.")
+                    frame, diag = self._pull_gst_frame(
+                        appsink, timeout_s=self._GSTREAMER_FIRST_FRAME_TIMEOUT_S
                     )
+                    self._last_frame_diag = diag
+                    if frame is not None:
+                        self._gst_pipeline = pipeline
+                        self._gst_sink = appsink
+                        self._use_gstreamer = True
+                        return
+                    pipeline.set_state(Gst.State.NULL)
+                    errors.append(f"{fmt}: {self._describe_gst_pull_failure(diag)}")
+                    break
+                except Exception as exc:  # noqa: BLE001
+                    errors.append(f"{fmt}: {exc}")
+                    try:
+                        if pipeline is not None:
+                            pipeline.set_state(Gst.State.NULL)
+                    except Exception:
+                        logger.debug(
+                            "Failed to set Gst pipeline to NULL during format probe",
+                            exc_info=True,
+                        )
+                    continue
 
         raise XDGPortalError(
             "Portal stream negotiated, but no CPU-readable frame was received. "

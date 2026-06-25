@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import errno
 import logging
+import os
 import re
-import subprocess
 import sys
 import threading
 import time
@@ -139,33 +139,27 @@ class HIDTransport:
         path = str(device_path or "").strip()
         if not path.startswith("/dev/hidraw"):
             return []
-        try:
-            completed = subprocess.run(
-                ["fuser", "-v", path],
-                capture_output=True,
-                text=True,
-                timeout=2.0,
-                check=False,
-            )
-            text = f"{completed.stdout or ''}\n{completed.stderr or ''}"
-        except Exception:
-            logger.debug("Unable to inspect hidraw holders for %s", path, exc_info=True)
-            return []
         holders: list[str] = []
-        for line in text.splitlines():
-            stripped = line.strip()
-            if (
-                not stripped
-                or stripped.startswith("/dev/")
-                or ("USER" in stripped and "PID" in stripped)
-            ):
+        for proc_entry in Path("/proc").iterdir():
+            if not proc_entry.name.isdigit():
                 continue
-            parts = stripped.split()
-            if len(parts) < 2:
-                continue
-            pid = parts[1] if parts[1].isdigit() else parts[0]
-            command = parts[-1] if len(parts) >= 4 else "unknown"
-            holders.append(f"PID {pid} ({command})")
+            try:
+                fd_dir = proc_entry / "fd"
+                for fd_path in fd_dir.iterdir():
+                    try:
+                        link = os.readlink(str(fd_path))
+                        if link == path:
+                            cmdline_path = proc_entry / "cmdline"
+                            cmd = (
+                                cmdline_path.read_text().split("\0")[0]
+                                if cmdline_path.exists()
+                                else "?"
+                            )
+                            holders.append(f"PID {proc_entry.name} ({cmd})")
+                    except OSError:
+                        pass
+            except PermissionError:
+                pass
         return holders
 
     @classmethod

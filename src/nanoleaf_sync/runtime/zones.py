@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import threading
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -7,8 +8,11 @@ from functools import lru_cache
 
 import numpy as np
 
+from nanoleaf_sync.capture._utils import zone_box_average
 from nanoleaf_sync.color._types import RGBTuple
-from nanoleaf_sync.config.presets import edge_locality_profile
+from nanoleaf_sync.config.model import PrivacyZone
+from nanoleaf_sync.config.presets import SAMPLING_MODE_WAVELET_EDGE, edge_locality_profile
+from nanoleaf_sync.runtime.novel_features import wavelet_sampling_enabled
 from nanoleaf_sync.runtime.palette_adaptive import (
     palette_adaptive_zone_color,
     palette_adaptive_zone_frame,
@@ -208,6 +212,48 @@ def _zone_screen_orientation(
     return None
 
 
+def _sigmoid(x: float) -> float:
+    if x >= 0.0:
+        z = math.exp(-x)
+        return 1.0 / (1.0 + z)
+    z = math.exp(x)
+    return z / (1.0 + z)
+
+
+def _sample_zone_wavelet(
+    patch: np.ndarray,
+    orientation: str | None,
+    *,
+    k: float = 8.0,
+    threshold: float = 0.35,
+    epsilon: float = 1e-3,
+) -> np.ndarray:
+    if patch.size == 0:
+        return np.zeros(3, dtype=np.uint8)
+    patch_f = patch.astype(np.float32)
+    h, w, _ = patch_f.shape
+    strip_avgs: list[np.ndarray] = []
+    strip_details: list[np.ndarray] = []
+    if orientation in {"left", "right"}:
+        n_strips = max(1, w)
+        for col in range(n_strips):
+            strip = patch_f[:, col : col + 1, :]
+            strip_avgs.append(strip.mean(axis=(0, 1)))
+            strip_details.append(strip.max(axis=(0, 1)) - strip.min(axis=(0, 1)))
+    else:
+        n_strips = max(1, h)
+        for row in range(n_strips):
+            strip = patch_f[row : row + 1, :, :]
+            strip_avgs.append(strip.mean(axis=(0, 1)))
+            strip_details.append(strip.max(axis=(0, 1)) - strip.min(axis=(0, 1)))
+    avg = np.mean(np.stack(strip_avgs, axis=0), axis=0)
+    detail = np.mean(np.stack(strip_details, axis=0), axis=0)
+    edge_energy = float(np.max(detail) / (float(np.max(avg)) + epsilon))
+    blend = _sigmoid(k * (edge_energy - threshold))
+    output = avg + blend * (detail - avg)
+    return np.clip(np.rint(output), 0.0, 255.0).astype(np.uint8)
+
+
 @lru_cache(maxsize=256)
 def _outer_edge_weight_template(*, zone_h: int, zone_w: int, orientation: str) -> np.ndarray:
     edge_extent = zone_h if orientation in {"top", "bottom"} else zone_w
@@ -226,6 +272,131 @@ def _outer_edge_weight_template(*, zone_h: int, zone_w: int, orientation: str) -
     if weight_sum <= 1e-6:
         return np.ones((zone_h, zone_w), dtype=np.float32) / float(zone_h * zone_w)
     return weights / weight_sum
+
+
+def compute_adaptive_step(
+    prev_zone_variance: np.ndarray | None,
+    *,
+    base_step: int = 1,
+    min_step: int = 1,
+    max_step: int = 8,
+) -> int:
+    if prev_zone_variance is None or prev_zone_variance.size == 0:
+        return max(min_step, int(base_step))
+    mean_var = float(np.mean(prev_zone_variance))
+    normalized = float(np.clip(mean_var / 2048.0, 0.0, 1.0))
+    step = int(round(max_step - (max_step - min_step) * normalized))
+    return max(min_step, min(max_step, step))
+
+
+def multi_moment_zone_color(pixels: np.ndarray) -> tuple[np.ndarray, str]:
+    flat = pixels.reshape(-1, 3).astype(np.float32)
+    if flat.size == 0:
+        return np.zeros(3, dtype=np.uint8), "mean"
+    variance = float(np.var(flat, axis=0).mean())
+    if variance < 500:
+        return flat.mean(axis=0).astype(np.uint8), "mean"
+
+    median_rgb = np.median(flat, axis=0)
+    quantized = (flat // 32).clip(0, 7).astype(np.uint8)
+    bin_indices = (
+        quantized[:, 0].astype(np.uint16) * 64
+        + quantized[:, 1].astype(np.uint16) * 8
+        + quantized[:, 2].astype(np.uint16)
+    )
+    counts = np.bincount(bin_indices, minlength=512)
+    dominant_bin = int(counts.argmax())
+    dominant_rgb = np.array(
+        [
+            (dominant_bin // 64) * 32 + 16,
+            ((dominant_bin // 8) % 8) * 32 + 16,
+            (dominant_bin % 8) * 32 + 16,
+        ],
+        dtype=np.uint8,
+    )
+    peak_fraction = float(counts.max() / max(1, len(bin_indices)))
+    if peak_fraction > 0.15 and variance > 1000:
+        return dominant_rgb, "dominant"
+    if variance > 1500:
+        return median_rgb.astype(np.uint8), "median"
+    return flat.mean(axis=0).astype(np.uint8), "mean"
+
+
+def edge_anchored_rect(
+    zone: ZoneRect,
+    frame_w: int,
+    frame_h: int,
+    *,
+    padding_ratio: float = 0.3,
+) -> ZoneRect:
+    x, y, w, h = (int(zone[0]), int(zone[1]), int(zone[2]), int(zone[3]))
+    pad_w = max(1, int(w * padding_ratio))
+    pad_h = max(1, int(h * padding_ratio))
+    touches_top = y <= 0
+    touches_bottom = y + h >= frame_h
+    touches_left = x <= 0
+    touches_right = x + w >= frame_w
+    if touches_left:
+        x = max(0, x - pad_w)
+        w = min(frame_w - x, w + pad_w)
+    elif touches_right:
+        w = min(frame_w - x + pad_w, frame_w - x)
+    if touches_top:
+        y = max(0, y - pad_h)
+        h = min(frame_h - y, h + pad_h)
+    elif touches_bottom:
+        h = min(frame_h - y + pad_h, frame_h - y)
+    return (x, y, w, h)
+
+
+def _apply_privacy_mask(
+    image: np.ndarray,
+    privacy_zones: Sequence[PrivacyZone],
+) -> np.ndarray:
+    if not privacy_zones:
+        return image
+    masked = image.copy()
+    h, w = masked.shape[:2]
+    for zone in privacy_zones:
+        x0 = int(max(0.0, min(1.0, float(zone.x))) * w)
+        y0 = int(max(0.0, min(1.0, float(zone.y))) * h)
+        x1 = int(max(0.0, min(1.0, float(zone.x + zone.w))) * w)
+        y1 = int(max(0.0, min(1.0, float(zone.y + zone.h))) * h)
+        if x1 > x0 and y1 > y0:
+            masked[y0:y1, x0:x1, :] = 0
+    return masked
+
+
+def _zone_colors_via_box_filter(
+    image: np.ndarray,
+    zones: Sequence[ZoneRect],
+    *,
+    edge_locality: str,
+    privacy_zones: Sequence[PrivacyZone] = (),
+    use_multi_moment: bool = True,
+    edge_anchor: bool = True,
+    max_pixels: int = 256,
+) -> tuple[np.ndarray, np.ndarray]:
+    img = _apply_privacy_mask(_ensure_rgb_u8(image), privacy_zones)
+    h, w, _ = img.shape
+    means = np.zeros((len(zones), 3), dtype=np.uint8)
+    variances = np.zeros(len(zones), dtype=np.float32)
+    for idx, zone in enumerate(zones):
+        sample_rect = edge_anchored_rect(zone, w, h) if edge_anchor else zone
+        patch = img[
+            sample_rect[1] : sample_rect[1] + sample_rect[3],
+            sample_rect[0] : sample_rect[0] + sample_rect[2],
+            :,
+        ]
+        if patch.size == 0:
+            continue
+        if use_multi_moment:
+            color, _selector = multi_moment_zone_color(patch)
+            means[idx] = color
+        else:
+            means[idx] = zone_box_average(img, sample_rect, max_pixels=max_pixels)
+        variances[idx] = float(np.var(patch.reshape(-1, 3).astype(np.float32), axis=0).mean())
+    return means, variances
 
 
 @lru_cache(maxsize=128)
@@ -330,28 +501,29 @@ class ZoneSamplingMeta:
     per_zone_mixed_fallback: tuple[bool, ...]
     per_zone_palette_diagnostics: tuple[dict[str, object], ...] = ()
     per_zone_palette_temporal_states: tuple[dict[str, object], ...] = ()
+    per_zone_variance: tuple[float, ...] = ()
 
 
 def detect_zone_patch_mixed_content(patch: np.ndarray) -> bool:
     if patch.size == 0:
         return False
-    patch_f = np.asarray(patch, dtype=np.float32)
+    linear = srgb_u8_to_linear01(np.asarray(patch, dtype=np.uint8))
+    patch_f = np.asarray(linear, dtype=np.float32)
     if patch_f.ndim != 3 or patch_f.shape[2] != 3:
         return False
     max_c = patch_f.max(axis=2)
     min_c = patch_f.min(axis=2)
     lum = (0.2126 * patch_f[:, :, 0]) + (0.7152 * patch_f[:, :, 1]) + (0.0722 * patch_f[:, :, 2])
     luma_std = float(np.std(lum))
-    if luma_std > 20.0:
+    if luma_std > 0.042:
         return True
-    sat = (max_c - min_c) / np.clip(max_c, 1.0, None)
+    sat = (max_c - min_c) / np.clip(max_c, 0.0001, None)
     zone_lum = float(np.mean(lum))
-    zone_lum_norm = np.clip(zone_lum / 255.0, 0.0, 1.0)
-    required_delta = 10.0 + (55.0 * zone_lum_norm)
+    required_delta = 0.003 + (0.038 * zone_lum)
     prominence = np.clip((lum - zone_lum) / required_delta, 0.0, 1.0)
     prominence_coverage = float(np.mean(prominence > 0.5))
     max_sat = float(np.max(sat))
-    if prominence_coverage < 0.15 and max_sat > 0.25 and luma_std > 8.0:
+    if prominence_coverage < 0.15 and max_sat > 0.25 and luma_std > 0.017:
         return True
     sat_mask = sat > 0.2
     if int(np.count_nonzero(sat_mask)) < 8:
@@ -363,7 +535,7 @@ def detect_zone_patch_mixed_content(patch: np.ndarray) -> bool:
     mx = np.maximum(np.maximum(r, g), b)
     mn = np.minimum(np.minimum(r, g), b)
     dv = mx - mn
-    valid = dv > 1.0
+    valid = dv > 1e-6
     if not bool(valid.any()):
         return False
     rv = r[valid]
@@ -394,19 +566,22 @@ def detect_zone_patch_mixed_content(patch: np.ndarray) -> bool:
     return hue_spread < 0.85
 
 
-_LOW_LIGHT_VIVID_PEAK = 32.0
-_LOW_LIGHT_PROFILE_PEAK = 40.0
-_LOW_LIGHT_PROFILE_CHROMA = 8.0
+_LOW_LIGHT_VIVID_PEAK = 0.0144
+_LOW_LIGHT_PROFILE_PEAK = 0.021
+_LOW_LIGHT_PROFILE_CHROMA = 0.006
 
 
 def _low_light_patch_mean(patch_u8: np.ndarray) -> np.ndarray:
-    return np.clip(np.rint(patch_u8.mean(axis=(0, 1))), 0.0, 255.0).astype(np.uint8)
+    linear = srgb_u8_to_linear01(np.asarray(patch_u8, dtype=np.uint8))
+    avg_linear = linear.reshape(-1, 3).mean(axis=0)
+    return linear01_to_srgb_u8(avg_linear.astype(np.float32, copy=False))
 
 
 def _patch_peak_and_chroma(patch_u8: np.ndarray) -> tuple[float, float]:
     if patch_u8.size == 0:
         return 0.0, 0.0
-    patch_f = np.asarray(patch_u8, dtype=np.float32)
+    linear = srgb_u8_to_linear01(np.asarray(patch_u8, dtype=np.uint8))
+    patch_f = np.asarray(linear, dtype=np.float32)
     peak = float(np.max(patch_f))
     mean_rgb = patch_f.reshape(-1, 3).mean(axis=0)
     chroma = float(np.max(mean_rgb) - np.min(mean_rgb))
@@ -414,20 +589,24 @@ def _patch_peak_and_chroma(patch_u8: np.ndarray) -> tuple[float, float]:
 
 
 def _dark_biased_patch_mean(patch_u8: np.ndarray) -> np.ndarray:
-    patch_f = np.asarray(patch_u8, dtype=np.float32)
-    if patch_f.size == 0:
+    if patch_u8.size == 0:
         return np.zeros(3, dtype=np.uint8)
-    flat_rgb = patch_f.reshape(-1, 3)
-    flat_lum = (0.2126 * flat_rgb[:, 0]) + (0.7152 * flat_rgb[:, 1]) + (0.0722 * flat_rgb[:, 2])
+    flat_linear = srgb_u8_to_linear01(np.asarray(patch_u8, dtype=np.uint8)).reshape(-1, 3)
+    flat_lum = (
+        (0.2126 * flat_linear[:, 0]) + (0.7152 * flat_linear[:, 1]) + (0.0722 * flat_linear[:, 2])
+    )
     median_lum = float(np.median(flat_lum))
-    if median_lum >= 25.0:
-        return np.clip(np.rint(flat_rgb.mean(axis=0)), 0.0, 255.0).astype(np.uint8)
-    weights = 255.0 - flat_lum
+    if median_lum >= 0.0058:
+        avg_linear = flat_linear.mean(axis=0)
+        return linear01_to_srgb_u8(avg_linear.astype(np.float32, copy=False))
+    raw_weights = 1.0 / (1.0 + flat_lum * 100.0)
+    weights = raw_weights * raw_weights
     weight_sum = float(np.sum(weights))
     if weight_sum <= 1e-6:
-        return np.clip(np.rint(flat_rgb.mean(axis=0)), 0.0, 255.0).astype(np.uint8)
-    weighted = np.sum(flat_rgb * weights[:, None], axis=0) / weight_sum
-    return np.clip(np.rint(weighted), 0.0, 255.0).astype(np.uint8)
+        avg_linear = flat_linear.mean(axis=0)
+        return linear01_to_srgb_u8(avg_linear.astype(np.float32, copy=False))
+    weighted = np.sum(flat_linear * weights[:, None], axis=0) / weight_sum
+    return linear01_to_srgb_u8(weighted.astype(np.float32, copy=False))
 
 
 def _sampling_meta_from_plan(
@@ -466,6 +645,12 @@ def zone_colors_array(
     global_scene_cut: bool = False,
     palette_frame_index: int = 0,
     return_meta: bool = False,
+    privacy_zones: Sequence[PrivacyZone] = (),
+    prev_zone_variance: np.ndarray | None = None,
+    use_zone_box_filter: bool = False,
+    virtual_oversample: int = 0,
+    multi_moment_zone_colors: bool = False,
+    edge_anchor_sampling: bool = True,
 ) -> np.ndarray | tuple[np.ndarray, ZoneSamplingMeta]:
     """
     Given a list of screen regions and an image, return average RGB per zone.
@@ -473,18 +658,57 @@ def zone_colors_array(
     zones: list of (x, y, width, height) in pixel coordinates.
     """
 
-    img = _ensure_rgb_u8(image)
-    h, w, _ = img.shape
-    orig_h, orig_w = h, w
-
     if not zones:
         empty = np.zeros((0, 3), dtype=np.uint8)
         if return_meta:
             return empty, ZoneSamplingMeta((), (), ())
         return empty
 
-    step = max(1, int(sample_step))
     normalized_sampling_mode = str(sampling_mode or "area_average").strip().lower()
+    if virtual_oversample > len(zones):
+        from nanoleaf_sync.runtime.virtual_zones import project_to_physical, virtual_zone_samples
+
+        virtual_colors = virtual_zone_samples(image, virtual_oversample)
+        means = project_to_physical(virtual_colors, len(zones))
+        if return_meta:
+            rects = tuple((int(z[0]), int(z[1]), int(z[2]), int(z[3])) for z in zones)
+            return means, ZoneSamplingMeta(rects, ("virtual_oversample",) * len(zones), ())
+        return means
+
+    step = compute_adaptive_step(
+        prev_zone_variance,
+        base_step=max(1, int(sample_step)),
+    )
+    if (
+        use_zone_box_filter
+        and normalized_sampling_mode in {"area_average", "auto", "edge_direct"}
+        and normalized_sampling_mode not in {"vivid_weighted", "peak_luma", "palette_adaptive"}
+    ):
+        means, zone_variances = _zone_colors_via_box_filter(
+            image,
+            zones,
+            edge_locality=edge_locality,
+            privacy_zones=privacy_zones,
+            use_multi_moment=multi_moment_zone_colors,
+            edge_anchor=edge_anchor_sampling,
+        )
+        if return_meta:
+            rects = tuple((int(z[0]), int(z[1]), int(z[2]), int(z[3])) for z in zones)
+            return means, ZoneSamplingMeta(
+                rects,
+                ("box_filter",) * len(zones),
+                (),
+                per_zone_variance=tuple(float(v) for v in zone_variances.tolist()),
+            )
+        return means
+
+    img = _ensure_rgb_u8(image)
+    if privacy_zones:
+        img = _apply_privacy_mask(img, privacy_zones)
+    h, w, _ = img.shape
+    orig_h, orig_w = h, w
+
+    step = max(1, int(step))
     zones_key = tuple((int(zone[0]), int(zone[1]), int(zone[2]), int(zone[3])) for zone in zones)
     if step > 1:
         img = img[::step, ::step, :]
@@ -593,6 +817,28 @@ def zone_colors_array(
                     means[idx] = _peak_luma_zone_mean(patch_linear)
                 else:
                     means[idx] = _vivid_weighted_zone_mean(patch_linear)
+        elif normalized_sampling_mode == SAMPLING_MODE_WAVELET_EDGE and wavelet_sampling_enabled():
+            per_zone_modes = [SAMPLING_MODE_WAVELET_EDGE] * len(zones)
+            per_zone_mixed = [False] * len(zones)
+            for idx in range(len(zones)):
+                if not valid[idx]:
+                    continue
+                patch_u8 = img[y0[idx] : y1[idx], x0[idx] : x1[idx]]
+                if patch_u8.size == 0:
+                    continue
+                orientation = _zone_screen_orientation(
+                    zone_x0=int(x0[idx]),
+                    zone_y0=int(y0[idx]),
+                    zone_x1=int(x1[idx]),
+                    zone_y1=int(y1[idx]),
+                    frame_w=w,
+                    frame_h=h,
+                )
+                try:
+                    means[idx] = _sample_zone_wavelet(patch_u8, orientation)
+                except Exception:
+                    per_zone_modes[idx] = "area_average"
+                    per_zone_mixed[idx] = True
         elif normalized_sampling_mode == "palette_adaptive":
             per_zone_modes = [normalized_sampling_mode] * len(zones)
             per_zone_mixed = [False] * len(zones)
@@ -792,6 +1038,11 @@ def zone_colors_array_with_meta(
     stabilize_palette: bool = True,
     global_scene_cut: bool = False,
     palette_frame_index: int = 0,
+    privacy_zones: Sequence[PrivacyZone] = (),
+    prev_zone_variance: np.ndarray | None = None,
+    use_zone_box_filter: bool = False,
+    virtual_oversample: int = 0,
+    multi_moment_zone_colors: bool = False,
 ) -> tuple[np.ndarray, ZoneSamplingMeta]:
     out = zone_colors_array(
         image,
@@ -807,6 +1058,11 @@ def zone_colors_array_with_meta(
         stabilize_palette=stabilize_palette,
         global_scene_cut=global_scene_cut,
         palette_frame_index=palette_frame_index,
+        privacy_zones=privacy_zones,
+        prev_zone_variance=prev_zone_variance,
+        use_zone_box_filter=use_zone_box_filter,
+        virtual_oversample=virtual_oversample,
+        multi_moment_zone_colors=multi_moment_zone_colors,
         return_meta=True,
     )
     assert isinstance(out, tuple)
@@ -876,9 +1132,10 @@ def _zone_means_legacy(
     means = np.zeros((len(x0), 3), dtype=np.uint8)
     if not valid.any():
         return means
+    linear_img = srgb_u8_to_linear01(image)
     integral_indices = valid_idx[~np.isin(valid_idx, list(weighted_indices))]
     if integral_indices.size > 0:
-        cropped = image[by0:by1, bx0:bx1].astype(np.float64, copy=False)
+        cropped = linear_img[by0:by1, bx0:bx1, :]
         integral = _get_integral_buffer(cropped.shape[0] + 1, cropped.shape[1] + 1)
         integral[0, :, :] = 0.0
         integral[:, 0, :] = 0.0
@@ -894,13 +1151,12 @@ def _zone_means_legacy(
             - integral[cy1[integral_indices], cx0[integral_indices]]
             + integral[cy0[integral_indices], cx0[integral_indices]]
         )
-        means[integral_indices] = np.clip(
-            np.rint(sums / areas[integral_indices, None]), 0.0, 255.0
-        ).astype(np.uint8, copy=False)
+        avg_linear = (sums / areas[integral_indices, None]).astype(np.float32, copy=False)
+        means[integral_indices] = linear01_to_srgb_u8(avg_linear)
     for idx, py0, py1, px0, px1, weights in weight_plans:
-        patch = image[py0:py1, px0:px1].astype(np.float64, copy=False)
+        patch = linear_img[py0:py1, px0:px1]
         weighted = np.einsum("hwc,hw->c", patch, weights, dtype=np.float64)
-        means[idx] = np.clip(np.rint(weighted), 0.0, 255.0).astype(np.uint8, copy=False)
+        means[idx] = linear01_to_srgb_u8(weighted.astype(np.float32, copy=False))
     return means
 
 

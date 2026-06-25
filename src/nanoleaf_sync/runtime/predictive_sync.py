@@ -199,12 +199,10 @@ def apply_predictive_sync(
         and median_zone_delta is not None
         and float(median_zone_delta) < float(params.static_scene_delta_threshold)
     ):
-        from nanoleaf_sync.runtime.color_processing import rgb_u8_to_oklch
+        from nanoleaf_sync.runtime.color_processing import encoded_float_to_oklch
 
-        cur_u8 = np.clip(np.rint(sampled_colors), 0.0, 255.0).astype(np.uint8, copy=False)
-        prev_u8 = np.clip(np.rint(prev_sampled_colors), 0.0, 255.0).astype(np.uint8, copy=False)
-        _l_c, _c_c, h_c = rgb_u8_to_oklch(cur_u8)
-        _l_p, _c_p, h_p = rgb_u8_to_oklch(prev_u8)
+        _l_c, _c_c, h_c = encoded_float_to_oklch(sampled_colors)
+        _l_p, _c_p, h_p = encoded_float_to_oklch(prev_sampled_colors)
         hue_delta = np.abs(np.arctan2(np.sin(h_c - h_p), np.cos(h_c - h_p)))
         if float(np.median(hue_delta)) > 0.35:
             return PredictiveSyncResult(

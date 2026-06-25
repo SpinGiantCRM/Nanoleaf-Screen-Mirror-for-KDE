@@ -26,9 +26,8 @@ def test_assert_locked_passes_when_lock_held() -> None:
         state._assert_locked()
 
 
-def test_reset_for_start_under_lock() -> None:
+def test_reset_for_start_resets_fields() -> None:
     state = RuntimeState()
     state.frames_sent = 42
-    with state._lock:
-        state.reset_for_start()
+    state.reset_for_start()
     assert state.frames_sent == 0

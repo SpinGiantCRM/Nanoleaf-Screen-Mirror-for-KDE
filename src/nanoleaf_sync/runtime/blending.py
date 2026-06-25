@@ -309,10 +309,10 @@ def _oklab_blend_rows(
     previous: np.ndarray,
     alpha: np.ndarray,
 ) -> np.ndarray:
-    cur_u8 = np.clip(np.rint(current), 0.0, 255.0).astype(np.uint8, copy=False)
-    prev_u8 = np.clip(np.rint(previous), 0.0, 255.0).astype(np.uint8, copy=False)
-    l_c, c_c, h_c = rgb_u8_to_oklch(cur_u8)
-    l_p, c_p, h_p = rgb_u8_to_oklch(prev_u8)
+    from nanoleaf_sync.runtime.color_processing import encoded_float_to_oklch
+
+    l_c, c_c, h_c = encoded_float_to_oklch(current)
+    l_p, c_p, h_p = encoded_float_to_oklch(previous)
     a = np.clip(alpha.astype(np.float32), 0.0, 1.0)
     l_out = (a * l_c) + ((1.0 - a) * l_p)
     c_out = (a * c_c) + ((1.0 - a) * c_p)

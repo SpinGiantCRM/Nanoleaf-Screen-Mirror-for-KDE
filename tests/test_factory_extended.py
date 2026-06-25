@@ -82,6 +82,20 @@ def test_auto_probe_effective_state() -> None:
     assert reason == "enabled"
 
 
+def test_real_capture_fallback_chain_never_selects_mock(monkeypatch: pytest.MonkeyPatch) -> None:
+    attempted: list[tuple[str, bool]] = []
+
+    def _raise_backend(**kwargs):
+        attempted.append((str(kwargs.get("prefer_backend")), bool(kwargs.get("use_mock_capture"))))
+        raise RuntimeError("capture unavailable")
+
+    monkeypatch.setattr(factory, "create_capture_backend", _raise_backend)
+
+    assert factory._try_fallback_chain(width=6, height=4) == "kwin-dbus"
+    assert all(backend != "mock" for backend, _mock in attempted)
+    assert all(not mock for _backend, mock in attempted)
+
+
 # ---------------------------------------------------------------------------
 # DRM and kmsgrab capability checks
 # ---------------------------------------------------------------------------
@@ -194,6 +208,26 @@ def test_create_kwin_dbus_backend_initializes_or_fails_cleanly() -> None:
     except Exception as exc:
         # In non-KDE environments, it fails — verify the error message is meaningful
         assert str(exc) or True  # any exception is acceptable
+
+
+def test_create_kwin_backend_defaults_to_hdr_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    class _FakeKWinBackend:
+        def __init__(self, **kwargs: object) -> None:
+            captured.update(kwargs)
+
+    monkeypatch.setattr(factory, "KWinDBusScreenshotCapture", _FakeKWinBackend)
+
+    create_capture_backend(
+        width=64,
+        height=36,
+        use_mock_capture=False,
+        prefer_backend="kwin-dbus",
+    )
+
+    assert captured["hdr_transfer"] == "srgb"
+    assert captured["hdr_primaries"] == "bt709"
 
 
 # ---------------------------------------------------------------------------

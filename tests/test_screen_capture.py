@@ -569,3 +569,31 @@ def test_kmsgrab_converts_drm_10bit_zone_rects(monkeypatch: pytest.MonkeyPatch) 
     assert calls[0]["transfer"] == "gamma22"
     assert calls[0]["primaries"] == "bt2020"
     assert backend.last_hdr_diagnostics.get("display_referred") is True
+
+
+def test_kmsgrab_no_metadata_uint8_stays_display_referred_sdr(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.kmsgrab.DRMZoneSampler",
+        _FailSampler,
+    )
+    backend = KMSGrabCapture(
+        width=2,
+        height=1,
+        hdr_transfer="pq",
+        hdr_primaries="bt2020",
+        allow_fallback=False,
+    )
+    frame = np.array([[[255, 128, 64], [64, 128, 255]]], dtype=np.uint8)
+
+    def _fake_capture(**_kwargs):
+        return frame.copy()
+
+    backend._drm_capture_impl = _fake_capture
+    out = backend.capture()
+
+    np.testing.assert_array_equal(out, frame)
+    assert backend.last_hdr_diagnostics["input_transfer"] == "srgb"
+    assert backend.last_hdr_diagnostics["input_primaries"] == "bt709"
+    assert backend.last_hdr_diagnostics["display_referred"] is True

@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import time
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from nanoleaf_sync.color._types import RGBTuple
 from nanoleaf_sync.color.capture_metadata import resolve_compositor_hdr_runtime
+from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.presets import (
     SAMPLING_MODE_AREA_AVERAGE,
     SAMPLING_MODE_EDGE_DIRECT,
@@ -42,6 +43,7 @@ from nanoleaf_sync.runtime.compositor import (
     zone_sdr_boost_undo_ratio,
 )
 from nanoleaf_sync.runtime.predictive_sync import PredictiveSyncParams, apply_predictive_sync
+from nanoleaf_sync.runtime.srgb import linear01_to_srgb_float, srgb_encoded_float_to_linear01
 from nanoleaf_sync.runtime.state import ZoneRect
 from nanoleaf_sync.runtime.zones import ZoneSamplingMeta, zone_colors_array_with_meta
 
@@ -92,6 +94,14 @@ class ColorPipelineParams:
     dark_zone_stabilize_hold: Sequence[bool] = ()
     blend_hysteresis: BlendHysteresisState | None = None
     output_quantization_prev_hold: Sequence[bool] = ()
+    privacy_zones: Sequence[object] = ()
+    prev_zone_variance: object | None = None
+    virtual_oversample: int = 0
+    scene_adaptive_profiles: bool = False
+    zone_temporal_accumulation: bool = False
+    blue_noise_dither: bool = False
+    multi_moment_zone_colors: bool = False
+    use_zone_box_filter: bool = False
 
 
 _SAMPLING_MODE_DWELL_FRAMES = 3
@@ -224,6 +234,29 @@ def process_zone_colors(
         color_style=params.color_style,
         sync_mode=params.sync_mode,
     )
+    if params.scene_adaptive_profiles:
+        from nanoleaf_sync.runtime.scene_profiles import PROFILES, classify_scene
+
+        chroma_variance = 0.0
+        if params.prev_sampled_zone_colors:
+            prev_arr = np.asarray(params.prev_sampled_zone_colors, dtype=np.float32)
+            if prev_arr.size:
+                chroma_variance = float(np.std(prev_arr[:, :3]))
+        profile_name = classify_scene(
+            motion=float(params.prior_zone_sample_motion),
+            letterbox_ratio=0.0,
+            chroma_variance=chroma_variance,
+        )
+        profile = PROFILES.get(profile_name, {})
+        motion_preset = str(profile.get("motion_preset", motion_preset))
+        smoothing = float(profile.get("smoothing", smoothing))
+        smoothing_speed = float(profile.get("smoothing_speed", smoothing_speed))
+        params = replace(
+            params,
+            color_style=str(profile.get("color_style", params.color_style)),
+            light_spread=str(profile.get("light_spread", params.light_spread)),
+            effective_target_fps=float(profile.get("fps", params.effective_target_fps)),
+        )
     light_spread = effective_light_spread_for_sync(
         light_spread=params.light_spread,
         accuracy_mode=params.accuracy_mode,
@@ -276,7 +309,9 @@ def process_zone_colors(
         raw_colors = np.asarray(precomputed_zone_colors, dtype=np.uint8)
         if raw_colors.ndim != 2 or raw_colors.shape[1] != 3:
             raise RuntimeError(f"Precomputed zone colors have unexpected shape: {raw_colors.shape}")
+        precomputed_sampling_modes = ("precomputed_zone_colors",) * int(raw_colors.shape[0])
     else:
+        precomputed_sampling_modes = ()
         from nanoleaf_sync.config.presets import analyzer_mode_for_presets
 
         analyzer_mode = analyzer_mode_for_presets(
@@ -331,9 +366,34 @@ def process_zone_colors(
             stabilize_palette=bool(params.stabilize_palette_selection),
             global_scene_cut=float(params.prior_zone_sample_motion) >= 24.0,
             palette_frame_index=int(params.palette_frame_index),
+            privacy_zones=params.privacy_zones,  # type: ignore[arg-type]
+            prev_zone_variance=(
+                np.asarray(params.prev_zone_variance, dtype=np.float32)
+                if params.prev_zone_variance is not None
+                else None
+            ),
+            virtual_oversample=int(params.virtual_oversample),
+            multi_moment_zone_colors=bool(params.multi_moment_zone_colors),
+            use_zone_box_filter=bool(params.use_zone_box_filter),
         )
     if raw_colors.size == 0:
         return []
+
+    if params.zone_temporal_accumulation:
+        from nanoleaf_sync.runtime.zone_accumulator import ZoneAccumulator
+
+        if not hasattr(process_zone_colors, "_zone_accumulator"):
+            process_zone_colors._zone_accumulator = None  # type: ignore[attr-defined]
+        accumulator = process_zone_colors._zone_accumulator  # type: ignore[attr-defined]
+        if (
+            accumulator is None
+            or getattr(accumulator, "_accum", None) is None
+            or accumulator._accum.shape[0] != raw_colors.shape[0]
+        ):
+            accumulator = ZoneAccumulator(raw_colors.shape[0])
+            process_zone_colors._zone_accumulator = accumulator  # type: ignore[attr-defined]
+        frame_delta = min(1.0, float(params.prior_zone_sample_motion) / 64.0)
+        raw_colors = accumulator.update(raw_colors, frame_delta)
 
     sampling_done = time.perf_counter()
 
@@ -409,7 +469,7 @@ def process_zone_colors(
 
     b = max(0.0, min(1.0, float(params.brightness)))
     if b != 1.0:
-        mapped *= b
+        mapped = linear01_to_srgb_float(srgb_encoded_float_to_linear01(mapped) * b)
 
     if capture_colour_stages:
         stage_after_spread = _stage_snapshot(mapped)
@@ -512,6 +572,14 @@ def process_zone_colors(
             )
 
     np.clip(mapped, 0.0, 255.0, out=mapped)
+    if params.blue_noise_dither:
+        from nanoleaf_sync.runtime.blue_noise import apply_blue_noise_dither
+
+        mapped = apply_blue_noise_dither(
+            mapped,
+            frame_index=int(params.palette_frame_index),
+            strength=0.5,
+        )
     np.rint(mapped, out=mapped)
     out = mapped.astype(np.uint8, copy=False)
     if capture_colour_stages:
@@ -525,6 +593,8 @@ def process_zone_colors(
             sampling_meta.effective_sample_rects if sampling_meta is not None else raw_sample_rects
         )
         per_zone_modes = sampling_meta.per_zone_effective_mode if sampling_meta is not None else ()
+        if not per_zone_modes and precomputed_sampling_modes:
+            per_zone_modes = precomputed_sampling_modes
         per_zone_mixed = sampling_meta.per_zone_mixed_fallback if sampling_meta is not None else ()
         per_zone_palette = (
             sampling_meta.per_zone_palette_diagnostics if sampling_meta is not None else ()
@@ -556,6 +626,11 @@ def process_zone_colors(
             per_zone_sdr_boost_undo_ratio=tuple(float(v) for v in sdr_undo_ratio.tolist())
             if sdr_undo_ratio is not None
             else (),
+            per_zone_variance=(
+                tuple(float(v) for v in sampling_meta.per_zone_variance)
+                if sampling_meta is not None and sampling_meta.per_zone_variance
+                else ()
+            ),
             predictive_sync_active=predictive_active,
             predictive_lookahead_frames=predictive_lookahead_frames,
             predictive_scene_cut_suppressed=predictive_scene_cut_suppressed,
@@ -644,8 +719,8 @@ def resolve_active_led_profile(
 
     preset = resolve_display_preset(
         display_preset=str(getattr(config, "display_preset", "hdr")),
-        hdr_transfer=str(getattr(config, "hdr_transfer", "srgb")),
-        hdr_primaries=str(getattr(config, "hdr_primaries", "bt709")),
+        hdr_transfer=str(getattr(config, "hdr_transfer", AppConfig.hdr_transfer)),
+        hdr_primaries=str(getattr(config, "hdr_primaries", AppConfig.hdr_primaries)),
         compositor_hdr_mode=bool(getattr(config, "compositor_hdr_mode", False)),
         sdr_boost_nits=float(getattr(config, "sdr_boost_nits", 80.0)),
     )
@@ -679,6 +754,9 @@ def build_pipeline_params_from_config(
     dark_zone_stabilize_hold: Sequence[bool] = (),
     blend_hysteresis: BlendHysteresisState | None = None,
     output_quantization_prev_hold: Sequence[bool] = (),
+    prev_zone_variance: object | None = None,
+    virtual_oversample: int | None = None,
+    scene_adaptive_profiles: bool | None = None,
 ) -> ColorPipelineParams:
     active_profile = resolve_active_led_profile(
         config,
@@ -734,4 +812,20 @@ def build_pipeline_params_from_config(
         dark_zone_stabilize_hold=tuple(bool(v) for v in dark_zone_stabilize_hold),
         blend_hysteresis=blend_hysteresis,
         output_quantization_prev_hold=tuple(bool(v) for v in output_quantization_prev_hold),
+        privacy_zones=tuple(getattr(config, "privacy_zones", ()) or ()),
+        prev_zone_variance=prev_zone_variance,
+        virtual_oversample=int(
+            virtual_oversample
+            if virtual_oversample is not None
+            else getattr(config, "virtual_zone_oversample", 0) or 0
+        ),
+        scene_adaptive_profiles=bool(
+            scene_adaptive_profiles
+            if scene_adaptive_profiles is not None
+            else getattr(config, "scene_adaptive_profiles", False)
+        ),
+        zone_temporal_accumulation=bool(getattr(config, "zone_temporal_accumulation", True)),
+        blue_noise_dither=bool(getattr(config, "blue_noise_dither", True)),
+        multi_moment_zone_colors=bool(getattr(config, "multi_moment_zone_colors", False)),
+        use_zone_box_filter=bool(getattr(config, "zone_box_filter_sampling", True)),
     )

@@ -67,3 +67,43 @@ def _resize_to_target(
                     index_cache.pop(next(iter(index_cache)))
 
     return frame[y_idx[:, None], x_idx[None, :], :]
+
+
+def zone_box_average(
+    frame: np.ndarray,
+    zone: tuple[int, int, int, int],
+    *,
+    max_pixels: int = 256,
+) -> np.ndarray:
+    """Area-weighted zone colour using strided box-filter anti-aliasing."""
+    x, y, w, h = (int(zone[0]), int(zone[1]), int(zone[2]), int(zone[3]))
+    if w <= 0 or h <= 0:
+        return np.zeros(3, dtype=np.uint8)
+
+    frame_h, frame_w = frame.shape[:2]
+    x = max(0, min(x, frame_w))
+    y = max(0, min(y, frame_h))
+    w = max(0, min(w, frame_w - x))
+    h = max(0, min(h, frame_h - y))
+    if w <= 0 or h <= 0:
+        return np.zeros(3, dtype=np.uint8)
+
+    from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
+
+    patch = frame[y : y + h, x : x + w, :3]
+    pixel_count = h * w
+    if pixel_count <= max_pixels:
+        linear_mean = srgb_u8_to_linear01(patch).reshape(-1, 3).mean(axis=0)
+        return linear01_to_srgb_u8(linear_mean)
+
+    step = max(1, int(np.sqrt(pixel_count / max_pixels)))
+    h_aligned = (h // step) * step
+    w_aligned = (w // step) * step
+    if h_aligned <= 0 or w_aligned <= 0:
+        linear_mean = srgb_u8_to_linear01(patch).reshape(-1, 3).mean(axis=0)
+        return linear01_to_srgb_u8(linear_mean)
+
+    linear_patch = srgb_u8_to_linear01(patch[:h_aligned, :w_aligned])
+    blocks = linear_patch.reshape(h_aligned // step, step, w_aligned // step, step, 3)
+    sampled = blocks.mean(axis=(1, 3))
+    return linear01_to_srgb_u8(sampled.reshape(-1, 3).mean(axis=0))

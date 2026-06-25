@@ -43,6 +43,7 @@ from nanoleaf_sync.compat.version_snapshot import (
     upgrade_notification_message,
 )
 from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.config.normalize import preferred_send_policy_from_config
 from nanoleaf_sync.config.presets import effective_drm_zone_patch_capture, is_four_d_sync
 from nanoleaf_sync.config.store import ConfigManager
 from nanoleaf_sync.device.interfaces import DeviceDriver, NanoleafUSBIds
@@ -431,12 +432,12 @@ class NanoleafSyncService:
         color_transfer = str(
             color_ctx_dict.get("transfer")
             or capture_hdr.get("input_transfer")
-            or getattr(self.config, "hdr_transfer", "srgb")
+            or getattr(self.config, "hdr_transfer", AppConfig.hdr_transfer)
         )
         color_primaries = str(
             color_ctx_dict.get("primaries")
             or capture_hdr.get("input_primaries")
-            or getattr(self.config, "hdr_primaries", "bt709")
+            or getattr(self.config, "hdr_primaries", AppConfig.hdr_primaries)
         )
         color_source = str(
             color_ctx_dict.get("source")
@@ -472,10 +473,7 @@ class NanoleafSyncService:
                 portal_frame_diag = raw_diag
         metadata_source = color_source
         compositor_hdr_mode = bool(getattr(self.config, "compositor_hdr_mode", False))
-        if is_kwin_backend:
-            effective_sdr_boost_compensation = compositor_hdr_mode
-        else:
-            effective_sdr_boost_compensation = compositor_hdr_mode and not display_referred
+        effective_sdr_boost_compensation = compositor_hdr_mode and not display_referred
         if self.is_running():
             effective_sdr_boost_compensation = bool(self._runtime.sdr_boost_compensation_enabled)
         display_preset = str(getattr(self.config, "display_preset", "hdr")).strip().lower()
@@ -586,6 +584,9 @@ class NanoleafSyncService:
         from nanoleaf_sync.runtime.status_warnings import build_runtime_warnings
 
         status["runtime_warnings"] = build_runtime_warnings(status=status)
+        from nanoleaf_sync.runtime.mirroring_confidence import compute_mirroring_confidence
+
+        status["mirroring_confidence"] = compute_mirroring_confidence(status)
         return status
 
     def capture_one_diagnostic_frame(self) -> dict[str, object]:
@@ -902,14 +903,19 @@ class NanoleafSyncService:
                     int(ids.vid),
                     int(ids.pid),
                 )
+        send_policy = preferred_send_policy_from_config(self.config)
+        prefer_mailbox = send_policy == "mailbox"
+        prefer_write_only = (
+            is_four_d_sync(str(getattr(self.config, "sync_mode", "standard")))
+            or send_policy == "write_only"
+        )
         return NanoleafUSBDriver(
             ids=ids,
             output_channel_order=self.config.output_channel_order,
             configured_zone_count=int(getattr(self.config, "device_zone_count", 0) or 0),
             enable_live_frame_write_optimization=bool(enable_live_frame_write_optimization),
-            prefer_write_only_live_send=is_four_d_sync(
-                str(getattr(self.config, "sync_mode", "standard"))
-            ),
+            prefer_write_only_live_send=prefer_write_only,
+            prefer_mailbox_live_send=prefer_mailbox,
             auto_turn_on=bool(getattr(self.config, "auto_turn_on", True)),
             allow_live_zone_padding=allow_live_zone_padding,
         )

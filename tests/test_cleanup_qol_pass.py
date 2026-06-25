@@ -29,7 +29,9 @@ def test_first_run_defaults_are_ambient_daily_use() -> None:
     assert cfg.fps == 60
     assert cfg.motion_preset == "responsive"
     assert cfg.color_style == "ambient"
-    assert cfg.display_preset == "hdr"
+    assert cfg.display_preset == "sdr"
+    assert cfg.hdr_transfer == "srgb"
+    assert cfg.hdr_primaries == "bt709"
 
 
 def test_runtime_and_ui_fallbacks_match_balanced_profile_defaults() -> None:
@@ -37,13 +39,22 @@ def test_runtime_and_ui_fallbacks_match_balanced_profile_defaults() -> None:
     assert ColorPipelineParams().sampling_quality == cfg.sampling_quality
 
     engine_text = read_repo_text("src/nanoleaf_sync/runtime/engine.py")
+    pipeline_text = read_repo_text("src/nanoleaf_sync/runtime/color_pipeline.py")
+    readiness_text = read_repo_text("src/nanoleaf_sync/runtime/readiness_check.py")
+    service_text = read_repo_text("src/nanoleaf_sync/service.py")
     settings_text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
     configurator_text = read_repo_text("src/nanoleaf_sync/ui/display_configurator.py")
-    for text in (engine_text, settings_text, configurator_text):
+    for text in (engine_text, settings_text, configurator_text, pipeline_text, readiness_text):
         assert 'getattr(cfg, "sampling_quality", "high")' not in text
         assert 'data.get("sampling_quality", "high")' not in text
         assert 'getattr(cfg, "edge_locality", "tight")' not in text
         assert 'data.get("edge_locality", "tight")' not in text
+        assert 'getattr(cfg, "hdr_transfer", "srgb")' not in text
+        assert 'getattr(cfg, "hdr_primaries", "bt709")' not in text
+        assert 'getattr(config, "hdr_transfer", "srgb")' not in text
+        assert 'getattr(config, "hdr_primaries", "bt709")' not in text
+    assert 'getattr(self.config, "hdr_transfer", "srgb")' not in service_text
+    assert 'getattr(self.config, "hdr_primaries", "bt709")' not in service_text
     assert 'edge_locality: str = "tight"' not in engine_text
     assert 'sampling_quality: str = "high"' not in engine_text
 

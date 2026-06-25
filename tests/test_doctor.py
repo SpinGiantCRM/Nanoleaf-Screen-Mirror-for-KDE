@@ -81,6 +81,9 @@ def test_run_doctor_real_device_requested_hid_unavailable(monkeypatch) -> None:
     monkeypatch.setitem(
         doctor.sys.modules, "hid", SimpleNamespace(enumerate=_raise_hid_unavailable)
     )
+    monkeypatch.setitem(
+        doctor.sys.modules, "hidraw", SimpleNamespace(enumerate=_raise_hid_unavailable)
+    )
 
     checks = run_doctor(include_device_probe=True)
     hid_check = next(check for check in checks if check.name == "hid-device")

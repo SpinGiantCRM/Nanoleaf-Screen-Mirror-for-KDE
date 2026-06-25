@@ -145,6 +145,7 @@ def build_capture_source_diagnostics(
         "metadata_source": hdr_colour_path.get("capture_metadata_source")
         or hdr_colour_path.get("source"),
         "display_referred": bool(hdr_colour_path.get("display_referred", False)),
+        "tone_mapping_applied": bool(hdr_colour_path.get("tone_mapping_applied", False)),
         "skip_display_gamut_adaptation": bool(
             hdr_colour_path.get("skip_display_gamut_adaptation", False)
         ),

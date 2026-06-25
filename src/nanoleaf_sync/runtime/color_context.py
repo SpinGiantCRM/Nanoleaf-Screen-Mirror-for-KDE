@@ -9,7 +9,7 @@ from nanoleaf_sync.color.capture_metadata import CaptureMetadata
 from nanoleaf_sync.runtime.color_processing import get_gamut_adaptation_matrix
 from nanoleaf_sync.runtime.frame_context import DisplaySourceContext
 
-TransferKind = Literal["srgb", "pq", "hlg", "linear", "unknown"]
+TransferKind = Literal["srgb", "pq", "hlg", "linear", "gamma22", "unknown"]
 PrimariesKind = Literal["bt709", "bt2020", "unknown"]
 MetadataConfidence = Literal["backend", "compositor", "user", "heuristic", "fallback", "unknown"]
 
@@ -40,7 +40,7 @@ class ColorContext:
 
 def _normalize_transfer(value: object) -> TransferKind:
     normalized = str(value or "unknown").strip().lower()
-    if normalized in {"srgb", "pq", "hlg", "linear", "unknown"}:
+    if normalized in {"srgb", "pq", "hlg", "linear", "gamma22", "unknown"}:
         return normalized  # type: ignore[return-value]
     return "unknown"
 
@@ -54,8 +54,10 @@ def _normalize_primaries(value: object) -> PrimariesKind:
 
 def _metadata_confidence(metadata: CaptureMetadata) -> MetadataConfidence:
     source = str(metadata.source or "").strip().lower()
-    if "kwin screenshot2 metadata" in source or source == "backend":
+    if "kwin screenshot2 metadata" in source or source == "backend" or source == "backend metadata":
         return "backend"
+    if source == "backend display-referred":
+        return "heuristic"
     if source in {"user preset", "user"}:
         return "user"
     if source in {"plasma auto", "session fallback"}:

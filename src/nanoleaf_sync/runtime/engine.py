@@ -237,6 +237,7 @@ class FrameProcessingTimings:
     colour_path_after_smoothing: tuple[tuple[int, int, int], ...] = ()
     colour_path_after_led_calibration: tuple[tuple[int, int, int], ...] = ()
     colour_path_final: tuple[tuple[int, int, int], ...] = ()
+    per_zone_variance: tuple[float, ...] = ()
 
 
 class PendingFrameSlot:
@@ -508,24 +509,48 @@ def _resolve_capture_frame_dimensions(
     return int(fallback_width or 480), int(fallback_height or 270)
 
 
+def _capture_backend_display_referred(
+    capture_backend_name: str,
+    cap_backend: object | None,
+) -> bool:
+    capture_display_referred = capture_backend_name in {
+        "kwin-dbus",
+        "xdg-portal",
+    }
+    if cap_backend is not None and capture_backend_name == "kmsgrab":
+        drm_sampler = getattr(cap_backend, "_drm_zone_sampler", None)
+        if drm_sampler is not None and bool(getattr(drm_sampler, "is_10bit", False)):
+            capture_display_referred = True
+    if cap_backend is not None:
+        hdr_diag = getattr(cap_backend, "last_hdr_diagnostics", None) or {}
+        if isinstance(hdr_diag, dict):
+            capture_display_referred = (
+                capture_display_referred
+                or bool(hdr_diag.get("display_referred", False))
+                or bool(hdr_diag.get("tone_mapping_applied", False))
+            )
+    return capture_display_referred
+
+
 _SHORT_BLACK_HOLD_MAX_FRAMES = 5
 _CAPTURE_CONTINUITY_GAP_S = 0.5
 
 
-def _clear_pipeline_temporal_state(
+def _reset_pipeline_state(
     *,
     state: RuntimeState,
-    capture_buf: SPSCRingBuffer[CapturePayload] | None = None,
-    process_buf: SPSCRingBuffer[ProcessedPayload] | None = None,
+    reason: str,
     metadata_tracker: MetadataHysteresisTracker | None = None,
-    from_supervisory: bool = False,
+    buffers: bool = True,
 ) -> None:
-    del capture_buf, process_buf
+    """Clear temporal pipeline state when capture continuity or identity changes."""
+    logger.info("Pipeline state reset: %s", reason)
     state.clear_smoothing_history()
-    state.smoothing_dimension_signature = None
-    state.request_pipeline_buffer_clear()
-    if metadata_tracker is not None:
-        metadata_tracker.reset()
+    if buffers:
+        state.smoothing_dimension_signature = None
+        state.request_pipeline_buffer_clear()
+        if metadata_tracker is not None:
+            metadata_tracker.reset()
 
 
 def process_frame(
@@ -708,6 +733,9 @@ def _run_loop_pipeline(
         nonlocal hid_output_work_ewma_ms
 
         apply_current_thread_priority(config=config, state=state, thread_label="capture worker")
+        from nanoleaf_sync.runtime.fixed_timestep import FixedTimestepAccumulator
+
+        capture_pacing = FixedTimestepAccumulator(1.0 / max(1.0, float(getattr(config, "fps", 60))))
         with metrics_lock:
             capture_worker_active = True
         while not state.stop_event.is_set():
@@ -719,6 +747,7 @@ def _run_loop_pipeline(
             if state.take_capture_buf_clear_request():
                 capture_buf.clear()
             try:
+                capture_pacing.tick()
                 with gov_lock:
                     gap_ewma = hid_output_work_ewma_ms
                     target_fps_now = min(
@@ -791,10 +820,9 @@ def _run_loop_pipeline(
                 if last_capture_success_ts is not None:
                     capture_gap_s = capture_end - last_capture_success_ts
                     if capture_gap_s > _CAPTURE_CONTINUITY_GAP_S:
-                        _clear_pipeline_temporal_state(
+                        _reset_pipeline_state(
                             state=state,
-                            capture_buf=capture_buf,
-                            process_buf=process_buf,
+                            reason="capture_continuity_gap",
                             metadata_tracker=metadata_tracker,
                         )
                 with metrics_lock:
@@ -905,14 +933,22 @@ def _run_loop_pipeline(
                             mean_brightness,
                         )
                 elif should_clear_smoothing:
-                    state.clear_smoothing_history()
+                    _reset_pipeline_state(
+                        state=state,
+                        reason="brightness_recovery",
+                        buffers=False,
+                    )
 
                 dimension_signature = (int(img_w), int(img_h))
                 if (
                     state.smoothing_dimension_signature is not None
                     and state.smoothing_dimension_signature != dimension_signature
                 ):
-                    state.clear_smoothing_history()
+                    _reset_pipeline_state(
+                        state=state,
+                        reason="frame_dimension_change",
+                        buffers=False,
+                    )
                 state.smoothing_dimension_signature = dimension_signature
 
                 driver = get_driver()
@@ -1022,14 +1058,10 @@ def _run_loop_pipeline(
                 )
                 cap_backend = get_capture()
                 capture_backend_name = str(getattr(cap_backend, "name", "") or "")
-                capture_display_referred = capture_backend_name in {
-                    "kwin-dbus",
-                    "xdg-portal",
-                }
-                if cap_backend is not None and capture_backend_name == "kmsgrab":
-                    drm_sampler = getattr(cap_backend, "_drm_zone_sampler", None)
-                    if drm_sampler is not None and bool(getattr(drm_sampler, "is_10bit", False)):
-                        capture_display_referred = True
+                capture_display_referred = _capture_backend_display_referred(
+                    capture_backend_name,
+                    cap_backend,
+                )
                 skip_gamut = state.skip_display_gamut_adaptation
                 color_context = None
                 if frame_context is not None:
@@ -1054,13 +1086,16 @@ def _run_loop_pipeline(
                     }
                     state.metadata_hysteresis_transitions = int(metadata_tracker.transitions)
                     if metadata_tracker.transitions > prev_metadata_transitions:
-                        state.clear_smoothing_history()
+                        _reset_pipeline_state(
+                            state=state,
+                            reason="metadata_transition",
+                            buffers=False,
+                        )
                     if identity_changed:
                         logger.warning("Capture source identity changed during mirroring session")
-                        _clear_pipeline_temporal_state(
+                        _reset_pipeline_state(
                             state=state,
-                            capture_buf=capture_buf,
-                            process_buf=process_buf,
+                            reason="capture_source_identity_change",
                         )
                     state.latest_frame_context = frame_context
                     state.latest_color_context = color_context
@@ -1072,17 +1107,9 @@ def _run_loop_pipeline(
                         state.set_skip_display_gamut_adaptation(
                             bool(hdr_diag.get("skip_display_gamut_adaptation", False))
                         )
-                        capture_display_referred = capture_display_referred or bool(
-                            hdr_diag.get("tone_mapping_applied", False)
-                        )
                         skip_gamut = bool(state.skip_display_gamut_adaptation)
                 compositor_hdr_mode = bool(getattr(config, "compositor_hdr_mode", False))
-                if capture_backend_name == "kwin-dbus":
-                    state.sdr_boost_compensation_enabled = compositor_hdr_mode
-                else:
-                    state.sdr_boost_compensation_enabled = (
-                        compositor_hdr_mode and not capture_display_referred
-                    )
+                state.sdr_boost_compensation_enabled = compositor_hdr_mode
                 if (
                     capture_backend_name == "kwin-dbus"
                     and compositor_hdr_mode
@@ -1118,6 +1145,9 @@ def _run_loop_pipeline(
                     dark_zone_stabilize_hold=state.dark_zone_stabilize_hold,
                     blend_hysteresis=state.blend_hysteresis_state,
                     output_quantization_prev_hold=state.output_quantization_prev_hold,
+                    prev_zone_variance=state.per_zone_variance,
+                    virtual_oversample=int(getattr(config, "virtual_zone_oversample", 0) or 0),
+                    scene_adaptive_profiles=bool(getattr(config, "scene_adaptive_profiles", False)),
                 )
                 light_spread = pipeline_params.light_spread
                 if state.flattening_mitigation_active:
@@ -1199,6 +1229,9 @@ def _run_loop_pipeline(
                 state.sampling_mode_dwell_remaining = int(
                     getattr(processing_timings, "sampling_mode_dwell_remaining", 0) or 0
                 )
+                per_zone_variance = getattr(processing_timings, "per_zone_variance", ())
+                if per_zone_variance:
+                    state.per_zone_variance = np.asarray(per_zone_variance, dtype=np.float32)
                 dark_hold = getattr(processing_timings, "dark_zone_stabilize_hold", ())
                 if dark_hold:
                     state.dark_zone_stabilize_hold = [bool(v) for v in dark_hold]
@@ -1212,6 +1245,8 @@ def _run_loop_pipeline(
                     sampled_zone_colors,
                     state.prev_sampled_zone_colors,  # type: ignore[arg-type]
                 )
+                governor.signal_motion(state.prior_zone_sample_motion)
+                state.motion_envelope = float(governor.motion_envelope)
                 state.prev_sampled_zone_colors = [
                     tuple(int(c) for c in row)
                     for row in sampled_zone_colors.tolist()  # type: ignore[union-attr]
@@ -1863,12 +1898,10 @@ def _run_loop_pipeline(
                         close_backends=close_backends,
                         state=state,
                     )
-                    _clear_pipeline_temporal_state(
+                    _reset_pipeline_state(
                         state=state,
-                        capture_buf=capture_buf,
-                        process_buf=process_buf,
+                        reason="pipeline_reinit",
                         metadata_tracker=metadata_tracker,
-                        from_supervisory=True,
                     )
                     with metrics_lock:
                         capture_worker_failures = 0
@@ -1902,12 +1935,10 @@ def _run_loop_pipeline(
                         close_backends=close_backends,
                         state=state,
                     )
-                    _clear_pipeline_temporal_state(
+                    _reset_pipeline_state(
                         state=state,
-                        capture_buf=capture_buf,
-                        process_buf=process_buf,
+                        reason="pipeline_reinit",
                         metadata_tracker=metadata_tracker,
-                        from_supervisory=True,
                     )
     for t in threads:
         t.join(timeout=5.0)

@@ -82,26 +82,13 @@ def test_display_referred_portal_suppresses_sdr_boost_compensation() -> None:
     color_ctx = color_context_from_display_source(ctx)
     capture_display_referred = bool(color_ctx.display_referred)
     compositor_hdr_mode = True
-    capture_backend_name = "xdg-portal"
-    if capture_backend_name == "kwin-dbus":
-        sdr_boost_compensation_enabled = compositor_hdr_mode
-    else:
-        sdr_boost_compensation_enabled = compositor_hdr_mode and not capture_display_referred
+    sdr_boost_compensation_enabled = compositor_hdr_mode
     assert capture_display_referred is True
-    assert sdr_boost_compensation_enabled is False
+    assert sdr_boost_compensation_enabled is True
 
     raw = np.asarray([[128, 128, 128]], dtype=np.uint8)
     zones_px = [(0, 0, 120, 80)]
-    suppressed = ColorPipelineParams(
-        compositor_hdr_mode=True,
-        sdr_boost_nits=200.0,
-        sdr_boost_compensation_enabled=sdr_boost_compensation_enabled,
-        skip_display_gamut_adaptation=True,
-        color_context=color_ctx,
-        color_style="reference",
-        return_diagnostics=True,
-    )
-    enabled = ColorPipelineParams(
+    with_compensation = ColorPipelineParams(
         compositor_hdr_mode=True,
         sdr_boost_nits=200.0,
         sdr_boost_compensation_enabled=True,
@@ -110,30 +97,39 @@ def test_display_referred_portal_suppresses_sdr_boost_compensation() -> None:
         color_style="reference",
         return_diagnostics=True,
     )
-    suppressed_out = process_zone_colors(
+    without_compensation = ColorPipelineParams(
+        compositor_hdr_mode=True,
+        sdr_boost_nits=200.0,
+        sdr_boost_compensation_enabled=False,
+        skip_display_gamut_adaptation=True,
+        color_context=color_ctx,
+        color_style="reference",
+        return_diagnostics=True,
+    )
+    compensated_out = process_zone_colors(
         frame=None,
         precomputed_zone_colors=raw,
         prev_smoothed_colors=[],
         zones_px=zones_px,
         device_zone_indices=[0],
-        params=suppressed,
+        params=with_compensation,
     )
-    enabled_out = process_zone_colors(
+    uncompensated_out = process_zone_colors(
         frame=None,
         precomputed_zone_colors=raw,
         prev_smoothed_colors=[],
         zones_px=zones_px,
         device_zone_indices=[0],
-        params=enabled,
+        params=without_compensation,
     )
-    suppressed_colors, *_rest, suppressed_timings, _smooth, _history = suppressed_out  # type: ignore[misc]
-    enabled_colors, *_rest2, enabled_timings, _smooth2, _history2 = enabled_out  # type: ignore[misc]
-    assert suppressed_timings.per_zone_sdr_boost_undo_ratio == ()
-    assert enabled_timings.per_zone_sdr_boost_undo_ratio
-    assert int(suppressed_colors[0][0]) > int(enabled_colors[0][0]) + 20
+    compensated_colors, *_rest, compensated_timings, _smooth, _history = compensated_out  # type: ignore[misc]
+    uncompensated_colors, *_rest2, uncompensated_timings, _smooth2, _history2 = uncompensated_out  # type: ignore[misc]
+    assert compensated_timings.per_zone_sdr_boost_undo_ratio != ()
+    assert uncompensated_timings.per_zone_sdr_boost_undo_ratio == ()
+    assert int(compensated_colors[0][0]) < int(uncompensated_colors[0][0]) + 20
 
 
-def test_kwin_display_referred_enables_sdr_boost_compensation_in_hdr_mode() -> None:
+def test_kwin_display_referred_suppresses_sdr_boost_compensation_in_hdr_mode() -> None:
     class _KwinBackend:
         params = type("P", (), {"monitor_id": "DP-1", "width": 64, "height": 36})()
         last_capture_path = "kwin-dbus:screenshot2"
@@ -142,7 +138,8 @@ def test_kwin_display_referred_enables_sdr_boost_compensation_in_hdr_mode() -> N
             "primaries": "bt709",
             "max_nits": 1000.0,
             "skip_display_gamut_adaptation": True,
-            "tone_mapping_applied": True,
+            "display_referred": True,
+            "tone_mapping_applied": False,
             "source": "kwin display-referred",
         }
 
@@ -150,11 +147,7 @@ def test_kwin_display_referred_enables_sdr_boost_compensation_in_hdr_mode() -> N
     color_ctx = color_context_from_display_source(ctx)
     capture_display_referred = bool(color_ctx.display_referred)
     compositor_hdr_mode = True
-    capture_backend_name = "kwin-dbus"
-    if capture_backend_name == "kwin-dbus":
-        sdr_boost_compensation_enabled = compositor_hdr_mode
-    else:
-        sdr_boost_compensation_enabled = compositor_hdr_mode and not capture_display_referred
+    sdr_boost_compensation_enabled = compositor_hdr_mode
     assert capture_display_referred is True
     assert sdr_boost_compensation_enabled is True
 

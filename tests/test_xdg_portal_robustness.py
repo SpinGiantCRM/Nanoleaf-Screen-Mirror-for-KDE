@@ -11,8 +11,77 @@ from nanoleaf_sync.capture.xdg_portal import XDGPortalCapture, XDGPortalError
 class _FakeBusNoUniqueName:
     unique_name = None
 
+    async def disconnect(self) -> None:
+        return None
+
     async def connect(self):
         return self
+
+
+def test_negotiate_portal_disconnects_bus_on_failure(monkeypatch) -> None:
+    disconnected: list[bool] = []
+
+    class _FakeBus:
+        unique_name = ":1.23"
+
+        async def disconnect(self) -> None:
+            disconnected.append(True)
+
+    class _FailingBusFactory:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        async def connect(self):
+            return _FakeBus()
+
+    monkeypatch.setattr("dbus_next.aio.MessageBus", _FailingBusFactory)
+    backend = XDGPortalCapture(width=4, height=4)
+
+    with pytest.raises((XDGPortalError, AttributeError)):
+        asyncio.run(backend._negotiate_portal())
+
+    assert disconnected == [True]
+    assert backend._portal_bus is None
+
+
+def test_open_via_gstreamer_pins_colorimetry_bt709(monkeypatch) -> None:
+    backend = XDGPortalCapture(width=1, height=1)
+    parse_calls: list[str] = []
+
+    class _FakePipeline:
+        def get_by_name(self, _name: str):
+            return object()
+
+        def set_state(self, _state):
+            return _FakeGst.StateChangeReturn.SUCCESS
+
+    class _FakeGst:
+        class State:
+            PLAYING = object()
+            NULL = object()
+
+        class StateChangeReturn:
+            FAILURE = object()
+            SUCCESS = object()
+
+        @staticmethod
+        def init(_arg) -> None:
+            return None
+
+        @staticmethod
+        def parse_launch(desc: str) -> _FakePipeline:
+            parse_calls.append(desc)
+            return _FakePipeline()
+
+    monkeypatch.setitem(sys.modules, "gi", types.SimpleNamespace())
+    monkeypatch.setitem(sys.modules, "gi.repository", types.SimpleNamespace(Gst=_FakeGst))
+    frame = np.zeros((1, 1, 3), dtype=np.uint8)
+    diag = {"sample_received": True, "buffer_present": True, "buffer_reported_size": 3}
+    monkeypatch.setattr(backend, "_pull_gst_frame", lambda _sink, timeout_s: (frame, diag))
+
+    backend._open_via_gstreamer(fd=1, node_id=2)
+
+    assert any("colorimetry=bt709" in call for call in parse_calls)
 
 
 def test_negotiate_portal_fails_cleanly_without_unique_name(monkeypatch) -> None:

@@ -53,6 +53,51 @@ def test_app_config_has_canonical_preset_fields() -> None:
     assert cfg.zone_sampling_engine in {"auto", "legacy", "optimized"}
 
 
+def test_sdr_display_default_uses_sdr_transfer_defaults() -> None:
+    cfg = AppConfig()
+    assert cfg.display_preset == "sdr"
+    assert cfg.hdr_transfer == "srgb"
+    assert cfg.hdr_primaries == "bt709"
+
+
+def test_validate_config_migrates_legacy_hdr_defaults_to_sdr() -> None:
+    cfg = validate_config(
+        AppConfig(display_preset="hdr", hdr_transfer="pq", hdr_primaries="bt2020")
+    )
+    assert cfg.display_preset == "sdr"
+    assert cfg.hdr_transfer == "srgb"
+    assert cfg.hdr_primaries == "bt709"
+
+
+def test_validate_config_privacy_zone_round_trip() -> None:
+    from nanoleaf_sync.config.model import PrivacyZone
+
+    cfg = validate_config(
+        AppConfig(
+            privacy_zones=[PrivacyZone(x=0.1, y=0.2, w=0.3, h=0.4)],
+        )
+    )
+    assert len(cfg.privacy_zones) == 1
+    assert cfg.privacy_zones[0].x == pytest.approx(0.1)
+    assert cfg.privacy_zones[0].h == pytest.approx(0.4)
+
+
+def test_validate_config_preserves_explicit_hdr_sdr_metadata() -> None:
+    cfg = validate_config(
+        AppConfig(display_preset="hdr", hdr_transfer="srgb", hdr_primaries="bt709")
+    )
+    assert cfg.hdr_transfer == "srgb"
+    assert cfg.hdr_primaries == "bt709"
+
+
+def test_validate_config_keeps_sdr_preset_metadata_sdr() -> None:
+    cfg = validate_config(
+        AppConfig(display_preset="sdr", hdr_transfer="srgb", hdr_primaries="bt709")
+    )
+    assert cfg.hdr_transfer == "srgb"
+    assert cfg.hdr_primaries == "bt709"
+
+
 def test_validate_config_normalizes_performance_priority() -> None:
     cfg = validate_config(AppConfig(performance_priority="VERY_HIGH_EXPERIMENTAL"))
     assert cfg.performance_priority == "very_high_experimental"

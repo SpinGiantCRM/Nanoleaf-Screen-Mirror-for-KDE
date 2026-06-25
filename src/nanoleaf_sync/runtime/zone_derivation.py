@@ -17,6 +17,18 @@ _log = logging.getLogger(__name__)
 DEFAULT_DERIVED_ZONE_COUNT = 8
 
 
+def zone_distribution_from_count(zone_count: int) -> tuple[int, int, int, int]:
+    total = max(4, int(zone_count))
+    top = max(1, total // 4)
+    right = max(1, (total - top) // 3)
+    bottom = max(1, (total - top - right) // 2)
+    left = max(1, total - top - right - bottom)
+    remainder = total - (top + right + bottom + left)
+    if remainder > 0:
+        top += remainder
+    return top, right, bottom, left
+
+
 @dataclass(frozen=True)
 class SourceZoneArtifacts:
     zones: Sequence[ZoneConfig]

@@ -38,6 +38,7 @@ def main() -> int:
             "ui/style.qss",
             "assets/icons/hicolor/scalable/apps/nanoleaf-kde-sync.svg",
             "assets/udev/60-nanoleaf-kde-sync.rules",
+            "capture/nanoleaf_drm_helper",
         )
         if not _resource_exists(rel_path)
     ]

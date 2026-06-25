@@ -39,6 +39,7 @@ def test_kwin_capture_colour_diagnostics_populated() -> None:
     assert colour["kwin"]["screenshot2_method"] == "CaptureActiveScreen"
     assert colour["capture_source"]["backend"] == "kwin-dbus"
     assert colour["capture_source"]["display_referred"] is True
+    assert colour["capture_source"]["tone_mapping_applied"] is False
 
 
 def test_portal_capture_colour_diagnostics_display_referred() -> None:
@@ -70,6 +71,7 @@ def test_portal_capture_colour_diagnostics_display_referred() -> None:
     colour = status["capture_colour_diagnostics"]
     assert hdr["display_referred"] is True
     assert colour["capture_source"]["display_referred"] is True
+    assert colour["capture_source"]["tone_mapping_applied"] is False
     assert colour["portal"]["pixel_format"] == "BGR"
     assert colour["portal"]["negotiated_caps"] == "video/x-raw,format=BGR,width=2560,height=1440"
 

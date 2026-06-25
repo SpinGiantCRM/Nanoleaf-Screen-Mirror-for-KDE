@@ -6,6 +6,10 @@ import numpy as np
 
 from nanoleaf_sync.color._types import RGBTuple
 from nanoleaf_sync.config.model import ZoneConfig
+from nanoleaf_sync.runtime.srgb import (
+    linear01_to_srgb_float,
+    srgb_encoded_float_to_linear01,
+)
 
 
 def apply_brightness(colors: Sequence[RGBTuple], brightness: float) -> list[RGBTuple]:
@@ -15,8 +19,12 @@ def apply_brightness(colors: Sequence[RGBTuple], brightness: float) -> list[RGBT
     if b == 1.0:
         return colors if isinstance(colors, list) else list(colors)
     arr = np.asarray(colors, dtype=np.float32)
-    out = np.clip(np.rint(arr * b), 0.0, 255.0).astype(np.uint8, copy=False)
-    return [tuple(row) for row in out.tolist()]
+    linear = srgb_encoded_float_to_linear01(arr)
+    out = linear01_to_srgb_float(linear * b)
+    return [
+        tuple(int(c) for c in row)
+        for row in np.clip(np.rint(out), 0, 255).astype(np.uint8, copy=False)
+    ]
 
 
 def ema_smooth(
@@ -33,9 +41,14 @@ def ema_smooth(
     n = min(len(prev), len(current))
     cur_arr = np.asarray(current[:n], dtype=np.float32)
     prev_arr = np.asarray(prev[:n], dtype=np.float32)
-    mixed = (a * cur_arr) + ((1.0 - a) * prev_arr)
-    out = np.clip(np.rint(mixed), 0.0, 255.0).astype(np.uint8, copy=False)
-    return [tuple(row) for row in out.tolist()]
+    cur_linear = srgb_encoded_float_to_linear01(cur_arr)
+    prev_linear = srgb_encoded_float_to_linear01(prev_arr)
+    blended = (a * cur_linear) + ((1.0 - a) * prev_linear)
+    out = linear01_to_srgb_float(blended)
+    return [
+        tuple(int(c) for c in row)
+        for row in np.clip(np.rint(out), 0, 255).astype(np.uint8, copy=False)
+    ]
 
 
 def zones_from_config(

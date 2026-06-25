@@ -11,6 +11,7 @@ def test_runtime_install_verifier_uses_public_package_invariants() -> None:
     assert "__version__" in text
     assert "ui/style.qss" in text
     assert "assets/udev/60-nanoleaf-kde-sync.rules" in text
+    assert "capture/nanoleaf_drm_helper" in text
 
 
 def test_arch_build_script_uses_runtime_install_verifier() -> None:

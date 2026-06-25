@@ -1307,6 +1307,10 @@ class DRMZoneSampler:
         return self._maybe_with_metadata(out)
 
     @property
+    def dma_buf_fd(self) -> int:
+        return int(self._dma_buf_fd)
+
+    @property
     def capture_metadata(self) -> dict[str, object]:
         return self._capture_metadata()
 

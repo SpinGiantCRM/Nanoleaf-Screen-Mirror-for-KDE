@@ -14,6 +14,7 @@ from nanoleaf_sync.config.model import (
     AppConfig,
     CalibrationConfig,
     LedCalibrationProfile,
+    PrivacyZone,
     ZoneConfig,
 )
 from nanoleaf_sync.config.presets import (
@@ -389,6 +390,7 @@ def validate_config(cfg: AppConfig) -> AppConfig:
             "vivid_weighted",
             "peak_luma",
             "palette_adaptive",
+            "wavelet_edge",
         ),
         default=AppConfig.sampling_mode,
     )
@@ -407,6 +409,27 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         allowed=DISPLAY_PRESETS,
         default=AppConfig.display_preset,
     )
+
+    privacy_zones: list[PrivacyZone] = []
+    for row in getattr(cfg, "privacy_zones", ()) or ():
+        if isinstance(row, PrivacyZone):
+            privacy_zones.append(
+                PrivacyZone(
+                    x=max(0.0, min(1.0, float(row.x))),
+                    y=max(0.0, min(1.0, float(row.y))),
+                    w=max(0.0, min(1.0, float(row.w))),
+                    h=max(0.0, min(1.0, float(row.h))),
+                )
+            )
+        elif isinstance(row, dict):
+            privacy_zones.append(
+                PrivacyZone(
+                    x=max(0.0, min(1.0, float(row.get("x", 0.0)))),
+                    y=max(0.0, min(1.0, float(row.get("y", 0.0)))),
+                    w=max(0.0, min(1.0, float(row.get("w", 0.0)))),
+                    h=max(0.0, min(1.0, float(row.get("h", 0.0)))),
+                )
+            )
 
     zones: list[ZoneConfig] = []
     for z in cfg.zones:
@@ -680,7 +703,28 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         1,
         _coerce_int(getattr(cfg, "wizard_state_version", CURRENT_WIZARD_STATE_VERSION), 1),
     )
-
+    hdr_transfer = normalize_enum(
+        cfg.hdr_transfer,
+        allowed={"srgb": "srgb", "pq": "pq", "st2084": "pq"},
+        default=AppConfig.hdr_transfer,
+    )
+    hdr_primaries = normalize_enum(
+        cfg.hdr_primaries,
+        allowed={"bt709": "bt709", "srgb": "bt709", "bt2020": "bt2020"},
+        default=AppConfig.hdr_primaries,
+    )
+    if display_preset == "hdr" and hdr_transfer == "pq" and hdr_primaries == "bt2020":
+        display_preset = "sdr"
+        hdr_transfer = "srgb"
+        hdr_primaries = "bt709"
+    virtual_zone_oversample = max(
+        0,
+        _coerce_int(getattr(cfg, "virtual_zone_oversample", 0), 0),
+    )
+    scene_adaptive_profiles = coerce_bool(
+        getattr(cfg, "scene_adaptive_profiles", False),
+        False,
+    )
     return replace(
         cfg,
         schema_version=SCHEMA_VERSION,
@@ -757,16 +801,11 @@ def validate_config(cfg: AppConfig) -> AppConfig:
             default="80",
         ),
         sdr_boost_nits=max(80.0, min(1000.0, float(getattr(cfg, "sdr_boost_nits", 80.0)))),
-        hdr_transfer=normalize_enum(
-            cfg.hdr_transfer,
-            allowed={"srgb": "srgb", "pq": "pq", "st2084": "pq"},
-            default=AppConfig.hdr_transfer,
-        ),
-        hdr_primaries=normalize_enum(
-            cfg.hdr_primaries,
-            allowed={"bt709": "bt709", "srgb": "bt709", "bt2020": "bt2020"},
-            default=AppConfig.hdr_primaries,
-        ),
+        hdr_transfer=hdr_transfer,
+        hdr_primaries=hdr_primaries,
+        privacy_zones=privacy_zones,
+        virtual_zone_oversample=virtual_zone_oversample,
+        scene_adaptive_profiles=scene_adaptive_profiles,
         calibration_schema_version=calibration_schema_version,
         calibration=normalized_calibration,
         device_zone_count=device_zone_count,
@@ -817,3 +856,10 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         capture_monitor=capture_monitor,
         source_side_counts=source_side_counts,
     )
+
+
+def preferred_send_policy_from_config(cfg: AppConfig) -> str:
+    raw = str(getattr(cfg, "preferred_send_policy", "mailbox") or "mailbox").strip().lower()
+    if raw in {"mailbox", "response_required", "write_only", "nonblocking_drain"}:
+        return raw
+    return "mailbox"

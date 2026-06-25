@@ -75,9 +75,9 @@ class HDRMetadata:
             return value
         if isinstance(value, dict):
             return HDRMetadata(
-                transfer=str(value.get("transfer", HDRMetadata.transfer)),
-                primaries=str(value.get("primaries", HDRMetadata.primaries)),
-                max_nits=float(value.get("max_nits", HDRMetadata.max_nits)),
+                transfer=str(value.get("transfer", value.get("input_transfer", "srgb"))),
+                primaries=str(value.get("primaries", value.get("input_primaries", "bt709"))),
+                max_nits=float(value.get("max_nits", value.get("hdr_max_nits", 1000.0))),
                 skip_display_gamut_adaptation=bool(
                     value.get("skip_display_gamut_adaptation", False)
                 ),
@@ -89,12 +89,46 @@ def _normalize_metadata_source(value: Any) -> str:
     normalized = str(value or "").strip().lower()
     if normalized in {"backend", "backend metadata", "backend-metadata"}:
         return "backend metadata"
+    if normalized in {
+        "backend display-referred",
+        "kwin display-referred",
+        "xdg-portal display-referred",
+        "portal display-referred",
+    }:
+        return "display-referred"
     if normalized in {"user", "user preset", "preset"}:
         return "user preset"
     return "unknown"
 
 
-def _to_float01(rgb: np.ndarray, *, bit_depth: int | None = None) -> np.ndarray:
+def _metadata_transfer(metadata: Any | None) -> str:
+    if isinstance(metadata, HDRMetadata):
+        return str(metadata.transfer)
+    if isinstance(metadata, dict):
+        return str(metadata.get("transfer", metadata.get("input_transfer", ""))).strip().lower()
+    return ""
+
+
+def _metadata_source(metadata: Any | None) -> str:
+    if isinstance(metadata, dict):
+        return _normalize_metadata_source(metadata.get("source", metadata.get("metadata_source")))
+    return ""
+
+
+def _preserve_extended_linear_float(metadata: Any | None) -> bool:
+    return (
+        _metadata_transfer(metadata) == "linear"
+        and isinstance(metadata, dict)
+        and _metadata_source(metadata) == "backend metadata"
+    )
+
+
+def _to_float01(
+    rgb: np.ndarray,
+    *,
+    bit_depth: int | None = None,
+    preserve_extended_linear: bool = False,
+) -> np.ndarray:
     if rgb.dtype == np.uint8:
         return rgb.astype(np.float32, copy=False) / 255.0
     if rgb.dtype == np.uint16:
@@ -102,6 +136,8 @@ def _to_float01(rgb: np.ndarray, *, bit_depth: int | None = None) -> np.ndarray:
             return rgb.astype(np.float32, copy=False) / 1023.0
         return rgb.astype(np.float32, copy=False) / 65535.0
     if np.issubdtype(rgb.dtype, np.floating):
+        if preserve_extended_linear:
+            return np.clip(rgb.astype(np.float32, copy=False), 0.0, None)
         # Assume already normalized or already close enough; clamp defensively.
         return np.clip(rgb.astype(np.float32, copy=False), 0.0, 1.0)
     # Fallback: interpret as 8-bit.
@@ -204,7 +240,7 @@ def analyze_hdr_path(rgb: np.ndarray, metadata: Any | None = None) -> dict[str, 
     meta = HDRMetadata.from_any(metadata)
     source = "unknown"
     if isinstance(metadata, dict):
-        source = _normalize_metadata_source(metadata.get("source", "unknown"))
+        source = _metadata_source(metadata)
     assumed_transfer = meta.transfer
     assumed_primaries = meta.primaries
     assumption_note = ""
@@ -217,7 +253,11 @@ def analyze_hdr_path(rgb: np.ndarray, metadata: Any | None = None) -> dict[str, 
             assumption_note + "; " if assumption_note else ""
         ) + "unknown primaries; assuming BT.709"
 
-    enc = _to_float01(rgb, bit_depth=_metadata_bit_depth(metadata))
+    enc = _to_float01(
+        rgb,
+        bit_depth=_metadata_bit_depth(metadata),
+        preserve_extended_linear=_preserve_extended_linear_float(metadata),
+    )
     tone_map_planned = assumed_transfer in {"pq", "hlg"}
     if (
         tone_map_planned
@@ -230,7 +270,13 @@ def analyze_hdr_path(rgb: np.ndarray, metadata: Any | None = None) -> dict[str, 
         assumption_note = (
             assumption_note + "; " if assumption_note else ""
         ) + "input appears SDR-like; treating as display-referred sRGB"
-    if assumed_transfer in {"srgb", "linear", "gamma22"}:
+    if assumed_transfer == "linear":
+        bit_depth = _metadata_bit_depth(metadata)
+        if bit_depth is not None and bit_depth > 8 and source == "backend metadata":
+            tone_map_planned = True
+        else:
+            tone_map_planned = False
+    elif assumed_transfer in {"srgb", "gamma22"}:
         tone_map_planned = False
 
     return {
@@ -289,7 +335,11 @@ def convert_frame_to_srgb8(
         return np.clip(np.rint(np.clip(rgb, 0.0, 1.0) * 255.0), 0, 255).astype(np.uint8)
 
     bit_depth = _metadata_bit_depth(metadata)
-    enc = _to_float01(rgb, bit_depth=bit_depth)
+    enc = _to_float01(
+        rgb,
+        bit_depth=bit_depth,
+        preserve_extended_linear=_preserve_extended_linear_float(metadata),
+    )
 
     path = analyze_hdr_path(rgb, metadata=metadata)
 

@@ -73,3 +73,32 @@ def test_hdr_fallback_emits_confidence_state() -> None:
     ctx = color_context_from_display_source(_display_source(skip=True, source=meta.source))
     assert ctx.confidence in {"heuristic", "fallback", "unknown"}
     assert ctx.display_referred is True
+
+
+def test_backend_display_referred_metadata_sets_color_context_flag() -> None:
+    meta = resolve_capture_metadata(
+        backend_metadata={
+            "transfer": "linear",
+            "primaries": "bt2020",
+            "max_nits": 1000.0,
+            "source": "backend metadata",
+            "tone_mapping_applied": True,
+        }
+    )
+    ctx = build_color_context(metadata=meta)
+    assert ctx.display_referred is True
+    assert ctx.skip_display_gamut_adaptation is True
+
+
+def test_backend_metadata_confidence_and_gamma22_transfer_are_preserved() -> None:
+    meta = resolve_capture_metadata(
+        backend_metadata={
+            "transfer": "gamma22",
+            "primaries": "bt2020",
+            "max_nits": 1000.0,
+            "source": "backend metadata",
+        }
+    )
+    ctx = build_color_context(metadata=meta)
+    assert ctx.transfer == "gamma22"
+    assert ctx.confidence == "backend"

@@ -26,6 +26,7 @@ from nanoleaf_sync.capture.mock_capture import MockScreenCapture
 from nanoleaf_sync.capture.xdg_portal import XDGPortalCapture
 from nanoleaf_sync.compat.kwin_probe import log_kwin_probe_results
 from nanoleaf_sync.compat.portal_probe import log_portal_probe_results
+from nanoleaf_sync.config.model import AppConfig
 
 logger = logging.getLogger(__name__)
 
@@ -196,6 +197,39 @@ def _resolve_auto_backend() -> str:
     return KWIN_DBUS_BACKEND
 
 
+_FALLBACK_CHAIN = (KWIN_DBUS_BACKEND, XDG_PORTAL_BACKEND, KMSGRAB_BACKEND)
+
+
+def _try_fallback_chain(
+    *,
+    width: int,
+    height: int,
+    capture_monitor: str = "",
+) -> str:
+    monitor = str(capture_monitor or "").strip()
+    for backend in _FALLBACK_CHAIN:
+        try:
+            cap = create_capture_backend(
+                width=width,
+                height=height,
+                use_mock_capture=backend == "mock",
+                prefer_backend=backend,
+                capture_monitor=monitor,
+            )
+            frame = cap.capture()
+            if frame is not None:
+                logger.info("capture fallback chain selected backend=%s", backend)
+                return backend
+        except Exception:
+            logger.warning("capture fallback chain backend=%s failed", backend, exc_info=True)
+            continue
+    logger.warning(
+        "capture fallback chain found no real backend; using default backend=%s",
+        KWIN_DBUS_BACKEND,
+    )
+    return KWIN_DBUS_BACKEND
+
+
 def cached_probe_winner_is_viable(value: str | None) -> bool:
     if not is_valid_probe_candidate(value):
         return False
@@ -340,9 +374,11 @@ def _resolve_auto_backend_with_probe(
             logger.info("capture auto-probe selected winner=%s", winner)
             return winner
 
-        logger.warning(
-            "capture auto-probe yielded no qualified backend; using capability fallback=%s",
-            fallback,
+        logger.warning("capture auto-probe yielded no qualified backend; trying fallback chain")
+        return _try_fallback_chain(
+            width=width,
+            height=height,
+            capture_monitor=capture_monitor,
         )
     except Exception as exc:  # noqa: BLE001 - preserve startup reliability
         _set_last_auto_probe_report(
@@ -358,9 +394,13 @@ def _resolve_auto_backend_with_probe(
             ]
         )
         logger.warning(
-            "capture auto-probe failed; using capability fallback=%s reason=%s",
-            fallback,
+            "capture auto-probe failed; trying fallback chain reason=%s",
             exc,
+        )
+        return _try_fallback_chain(
+            width=width,
+            height=height,
+            capture_monitor=capture_monitor,
         )
 
     return fallback
@@ -561,8 +601,8 @@ def create_capture_backend(
     use_mock_capture: bool,
     prefer_backend: str,
     hdr_max_nits: float = 1000.0,
-    hdr_transfer: str = "srgb",
-    hdr_primaries: str = "bt709",
+    hdr_transfer: str | None = None,
+    hdr_primaries: str | None = None,
     auto_probe_enabled: bool | None = None,
     cached_probe_winner: str | None = None,
     drm_zone_patch_capture: bool = False,
@@ -592,8 +632,8 @@ def create_capture_backend(
                 width=width,
                 height=height,
                 hdr_max_nits=hdr_max_nits,
-                hdr_transfer=hdr_transfer,
-                hdr_primaries=hdr_primaries,
+                hdr_transfer=hdr_transfer or AppConfig.hdr_transfer,
+                hdr_primaries=hdr_primaries or AppConfig.hdr_primaries,
                 monitor_id=monitor_id,
             )
         except Exception as exc:  # noqa: BLE001
@@ -611,8 +651,8 @@ def create_capture_backend(
                 width=width,
                 height=height,
                 hdr_max_nits=hdr_max_nits,
-                hdr_transfer=hdr_transfer,
-                hdr_primaries=hdr_primaries,
+                hdr_transfer=hdr_transfer or AppConfig.hdr_transfer,
+                hdr_primaries=hdr_primaries or AppConfig.hdr_primaries,
                 drm_zone_patch_capture=drm_zone_patch_capture,
             )
         except Exception as exc:  # noqa: BLE001

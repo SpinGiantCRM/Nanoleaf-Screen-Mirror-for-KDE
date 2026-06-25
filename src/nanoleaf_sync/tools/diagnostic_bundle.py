@@ -137,8 +137,13 @@ def create_diagnostic_bundle(
         "capture_source_identity": status.get("latest_capture_source_identity"),
         "usb_transport_profile": status.get("usb_transport_profile"),
         "runtime_warnings": status.get("runtime_warnings"),
+        "mirroring_confidence": status.get("mirroring_confidence"),
     }
     with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(
+            "mirroring_confidence.json",
+            json.dumps(status.get("mirroring_confidence") or {}, indent=2, sort_keys=True),
+        )
         archive.writestr("bundle.json", json.dumps(bundle_meta, indent=2, sort_keys=True))
         archive.writestr("runtime_status.json", json.dumps(status, indent=2, sort_keys=True))
         if status.get("usb_transport_profile") is not None:

@@ -6,6 +6,11 @@ import numpy as np
 
 from nanoleaf_sync.color._types import RGBTuple
 from nanoleaf_sync.runtime.palette_temporal import ZonePaletteTemporalState
+from nanoleaf_sync.runtime.srgb import (
+    linear01_to_srgb_float,
+    linear01_to_srgb_u8,
+    srgb_u8_to_linear01,
+)
 
 _CANDIDATE_ORDER = (
     "area_mean",
@@ -66,7 +71,7 @@ def _hue_degrees(rgb: np.ndarray) -> np.ndarray:
     mn = np.minimum(np.minimum(r, g), b)
     delta = mx - mn
     hue = np.zeros_like(mx, dtype=np.float32)
-    valid = delta > 1.0
+    valid = delta > 1e-6
     if not bool(valid.any()):
         return hue
     rv = r[valid]
@@ -90,22 +95,28 @@ def _hue_degrees(rgb: np.ndarray) -> np.ndarray:
 
 
 def _meaningful_sat_mask(sat: np.ndarray, lum: np.ndarray, max_c: np.ndarray) -> np.ndarray:
-    return (sat >= 0.18) & (lum >= 28.0) & (max_c >= 35.0)
+    return (sat >= 0.18) & (lum >= 0.0116) & (max_c >= 0.0168)
+
+
+def _low_light_linear_mean(patch_u8: np.ndarray) -> np.ndarray:
+    linear = srgb_u8_to_linear01(np.asarray(patch_u8, dtype=np.uint8))
+    avg_linear = linear.reshape(-1, 3).mean(axis=0)
+    return linear01_to_srgb_u8(avg_linear.astype(np.float32, copy=False))
 
 
 def _patch_features(
     patch_u8: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    patch_f = np.asarray(patch_u8, dtype=np.float32)
-    flat = patch_f.reshape(-1, 3)
+    linear = srgb_u8_to_linear01(np.asarray(patch_u8, dtype=np.uint8))
+    flat = linear.reshape(-1, 3)
     if flat.size == 0:
         zeros = np.zeros(0, dtype=np.float32)
         return flat, zeros, zeros, zeros.astype(bool), zeros
     max_c = flat.max(axis=1)
     min_c = flat.min(axis=1)
     lum = (0.2126 * flat[:, 0]) + (0.7152 * flat[:, 1]) + (0.0722 * flat[:, 2])
-    sat = (max_c - min_c) / np.clip(max_c, 1.0, None)
-    neutral = (sat < 0.10) & ((lum > 180.0) | (min_c > 200.0))
+    sat = (max_c - min_c) / np.clip(max_c, 0.0001, None)
+    neutral = (sat < 0.10) & ((lum > 0.456) | (min_c > 0.578))
     return flat, lum, sat, neutral, max_c
 
 
@@ -147,13 +158,13 @@ def _candidate_saturated_highlight(
         return np.zeros(3, dtype=np.float32), 0.0
     zone_lum = float(lum.mean())
     meaningful = _meaningful_sat_mask(sat, lum, max_c)
-    bright_colored = meaningful & (lum >= max(40.0, zone_lum + 12.0)) & ~neutral
+    bright_colored = meaningful & (lum >= max(0.021, zone_lum + 0.005)) & ~neutral
     if not bool(bright_colored.any()):
         return _candidate_area_mean(flat), 0.0
     selected = flat[bright_colored]
     sat_sel = sat[bright_colored]
     lum_sel = lum[bright_colored]
-    weights = sat_sel * np.clip((lum_sel - zone_lum) / 80.0, 0.2, 1.5)
+    weights = sat_sel * np.clip((lum_sel - zone_lum) / 0.08, 0.2, 1.5)
     weight_sum = float(weights.sum())
     if weight_sum <= 1e-6:
         return selected.mean(axis=0), float(bright_colored.mean())
@@ -271,10 +282,8 @@ def palette_adaptive_zone_frame(
 
     peak = float(patch.max())
     if peak < _LOW_LIGHT_PEAK:
-        mean = np.clip(np.rint(patch.astype(np.float32).mean(axis=(0, 1))), 0.0, 255.0).astype(
-            np.uint8
-        )
-        rgb_tuple = (int(mean[0]), int(mean[1]), int(mean[2]))
+        mean_u8 = _low_light_linear_mean(patch)
+        rgb_tuple = (int(mean_u8[0]), int(mean_u8[1]), int(mean_u8[2]))
         diag = PaletteAdaptiveDiagnostics(
             selected_sampling_algorithm="area_mean",
             selected_candidate_rgb=rgb_tuple,
@@ -291,9 +300,9 @@ def palette_adaptive_zone_frame(
         return PaletteAdaptiveFrame(
             current_best_algorithm="area_mean",
             current_best_confidence=1.0,
-            current_best_rgb=mean.astype(np.float32),
-            candidate_rgbs={"area_mean": mean.astype(np.float32)},
-            scores={"area_mean": 1.0},
+            current_best_rgb=mean_u8.astype(np.float32),
+            candidate_rgbs={"area_mean": mean_u8.astype(np.float32)},
+            scores={"area_mean": np.float32(1.0)},
             diagnostics=diag,
         )
 
@@ -301,7 +310,7 @@ def palette_adaptive_zone_frame(
     meaningful_sat = _meaningful_sat_mask(sat, lum, max_c)
     saturated_coverage = float(meaningful_sat.mean())
     neutral_coverage = float(neutral.mean())
-    luma_contrast = float(np.clip(np.std(lum) / 64.0, 0.0, 1.0))
+    luma_contrast = float(np.clip(np.std(lum) / 0.082, 0.0, 1.0))
 
     area_rgb = _candidate_area_mean(flat)
     dom_rgb, dominant_hue, hue_coherence = _candidate_dominant_saturated_hue(flat, sat, lum, max_c)
@@ -316,11 +325,11 @@ def palette_adaptive_zone_frame(
     hold_rgb = area_rgb
 
     candidates: dict[str, np.ndarray] = {
-        "area_mean": area_rgb,
-        "dominant_saturated_hue": dom_rgb,
-        "saturated_highlight": highlight_rgb,
-        "peak_luma": peak_rgb,
-        "previous_colour_hold": hold_rgb,
+        "area_mean": linear01_to_srgb_float(area_rgb),
+        "dominant_saturated_hue": linear01_to_srgb_float(dom_rgb),
+        "saturated_highlight": linear01_to_srgb_float(highlight_rgb),
+        "peak_luma": linear01_to_srgb_float(peak_rgb),
+        "previous_colour_hold": linear01_to_srgb_float(hold_rgb),
     }
 
     scores = {

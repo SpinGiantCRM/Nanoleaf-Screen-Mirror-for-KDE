@@ -9,7 +9,11 @@ from typing import Any
 import numpy as np
 
 from nanoleaf_sync.runtime.color_domain import ColorDomain, infer_color_domain, to_linear_srgb
-from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
+from nanoleaf_sync.runtime.srgb import (
+    linear01_to_srgb_u8,
+    srgb_encoded_float_to_linear01,
+    srgb_u8_to_linear01,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -180,7 +184,9 @@ class LedCalibration:
 
 def get_gamut_adaptation_matrix() -> np.ndarray | None:
     with _GAMUT_LOCK:
-        return _GAMUT_ADAPTATION_MATRIX_T
+        if _GAMUT_ADAPTATION_MATRIX_T is None:
+            return None
+        return _GAMUT_ADAPTATION_MATRIX_T.copy()
 
 
 def apply_display_gamut_adaptation(
@@ -268,6 +274,16 @@ def _reconstruct_oklab_from_polar(
 
 def rgb_u8_to_oklch(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     linear = srgb_u8_to_linear01(np.asarray(rgb, dtype=np.uint8))
+    oklab = _linear_to_oklab(linear)
+    a = oklab[..., 1]
+    b = oklab[..., 2]
+    c = np.sqrt((a * a) + (b * b))
+    h = np.arctan2(b, a)
+    return oklab[..., 0], c, h
+
+
+def encoded_float_to_oklch(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    linear = srgb_encoded_float_to_linear01(rgb)
     oklab = _linear_to_oklab(linear)
     a = oklab[..., 1]
     b = oklab[..., 2]
@@ -406,8 +422,7 @@ def apply_color_style_and_led_calibration_with_diagnostics(
 ) -> tuple[np.ndarray, np.ndarray]:
     style = STYLE_PROFILES.get(str(color_style).strip().lower(), STYLE_PROFILES["ambient"])
     cal = calibration or LedCalibration()
-    rgb = np.clip(np.rint(colors), 0.0, 255.0).astype(np.uint8, copy=False)
-    linear = srgb_u8_to_linear01(rgb)
+    linear = srgb_encoded_float_to_linear01(colors)
     gains = np.asarray([cal.red_gain, cal.green_gain, cal.blue_gain], dtype=np.float32)
     linear *= np.clip(gains, 0.5, 1.5)
     matrix_values = tuple(float(v) for v in (cal.color_matrix or ()))
@@ -520,8 +535,7 @@ def apply_color_style_mapping(colors: np.ndarray, *, color_style: str) -> np.nda
 
 
 def apply_led_calibration(colors: np.ndarray, calibration: LedCalibration) -> np.ndarray:
-    rgb = np.clip(np.rint(colors), 0.0, 255.0).astype(np.uint8, copy=False)
-    linear = srgb_u8_to_linear01(rgb)
+    linear = srgb_encoded_float_to_linear01(colors)
     gains = np.asarray(
         [calibration.red_gain, calibration.green_gain, calibration.blue_gain], dtype=np.float32
     )

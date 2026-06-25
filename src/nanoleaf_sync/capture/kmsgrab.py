@@ -13,6 +13,7 @@ from nanoleaf_sync.capture._drm_zone_sampler import DRMZoneSampler
 from nanoleaf_sync.capture._utils import _resize_to_target
 from nanoleaf_sync.capture.errors import KMSGrabError
 from nanoleaf_sync.capture.kwin_dbus import KWinDBusScreenshotCapture
+from nanoleaf_sync.capture.vulkan_sampler import VulkanZoneSampler
 from nanoleaf_sync.color.capture_metadata import resolve_capture_metadata
 from nanoleaf_sync.color.hdr import HDRMetadata, analyze_hdr_path, convert_frame_to_srgb8
 
@@ -95,6 +96,7 @@ class KMSGrabCapture:
         self._resize_index_cache_limit = 8
         self._drm_capture_impl = self._resolve_drm_capture_impl()
         self._drm_zone_sampler: DRMZoneSampler | None = None
+        self._vulkan_zone_sampler: VulkanZoneSampler | None = None
         if self._drm_capture_impl is None:
             try:
                 self._drm_zone_sampler = DRMZoneSampler(
@@ -109,14 +111,34 @@ class KMSGrabCapture:
                 # Enable zone-patch capture when no native C extension exists
                 # but the Python DRMZoneSampler is available (NVIDIA FP16 path).
                 self._drm_zone_patch_capture = True
+                self._try_init_vulkan_sampler()
             except KMSGrabError:
                 _log.debug(
                     "kmsgrab: DRMZoneSampler unavailable on %s; zone-patch capture disabled",
                     self.params.card_path,
                 )
 
+    def _try_init_vulkan_sampler(self) -> None:
+        sampler = self._drm_zone_sampler
+        if sampler is None:
+            return
+        fd = int(getattr(sampler, "dma_buf_fd", -1))
+        if fd < 0:
+            return
+        self._vulkan_zone_sampler = VulkanZoneSampler.try_create(
+            width=sampler.width,
+            height=sampler.height,
+            dma_buf_fd=fd,
+        )
+
     def close(self) -> None:
         """Release D-Bus event-loop resources and DRM zone sampler."""
+        if self._vulkan_zone_sampler is not None:
+            try:
+                self._vulkan_zone_sampler.close()
+            except Exception:
+                _log.debug("Failed to close Vulkan zone sampler", exc_info=True)
+            self._vulkan_zone_sampler = None
         if self._drm_zone_sampler is not None:
             try:
                 self._drm_zone_sampler.close()
@@ -160,9 +182,13 @@ class KMSGrabCapture:
                 ]
             if display_rects:
                 try:
-                    patches = self._drm_zone_sampler.capture_zone_rects(display_rects)
+                    if self._vulkan_zone_sampler is not None:
+                        patches = self._vulkan_zone_sampler.sample_zone_rects(display_rects)
+                        self.last_capture_path = "vulkan-zone-rects"
+                    else:
+                        patches = self._drm_zone_sampler.capture_zone_rects(display_rects)
+                        self.last_capture_path = "drm-zone-rects"
                     patches = self._convert_zone_result_if_needed(patches)
-                    self.last_capture_path = "drm-zone-rects"
                     if isinstance(patches, np.ndarray) and patches.ndim == 2:
                         self._record_drm_hdr_diagnostics(patches)
                     return patches
@@ -328,18 +354,33 @@ class KMSGrabCapture:
         if isinstance(result, tuple) and len(result) == 2:
             rgb, metadata = result
             metadata_source = "backend metadata"
-        else:
-            rgb, metadata = result, self._hdr_defaults
-            metadata_source = "user preset"
-
-        meta = HDRMetadata.from_any(metadata)
-        resolved = resolve_capture_metadata(
-            backend_metadata={
+            meta = HDRMetadata.from_any(metadata)
+            backend_metadata = {
                 "transfer": meta.transfer,
                 "primaries": meta.primaries,
                 "max_nits": meta.max_nits,
                 "source": metadata_source,
-            },
+            }
+        else:
+            rgb = result
+            metadata = HDRMetadata(
+                transfer="srgb",
+                primaries="bt709",
+                max_nits=float(self._hdr_defaults.max_nits),
+                skip_display_gamut_adaptation=True,
+            )
+            metadata_source = "backend display-referred"
+            backend_metadata = {
+                "transfer": metadata.transfer,
+                "primaries": metadata.primaries,
+                "max_nits": metadata.max_nits,
+                "source": metadata_source,
+                "display_referred": True,
+            }
+
+        meta = HDRMetadata.from_any(metadata)
+        resolved = resolve_capture_metadata(
+            backend_metadata=backend_metadata,
             user_transfer=str(self._hdr_defaults.transfer),
             user_primaries=str(self._hdr_defaults.primaries),
             user_max_nits=float(self._hdr_defaults.max_nits),
@@ -380,6 +421,7 @@ class KMSGrabCapture:
                 "hdr_max_nits": float(meta.max_nits),
                 "assumption": resolved.assumption,
                 "skip_display_gamut_adaptation": resolved.skip_display_gamut_adaptation,
+                "display_referred": resolved.source == "backend display-referred",
             }
             return rgb
 
@@ -400,6 +442,7 @@ class KMSGrabCapture:
             "hdr_max_nits": float(meta.max_nits),
             "assumption": resolved.assumption,
             "skip_display_gamut_adaptation": resolved.skip_display_gamut_adaptation,
+            "display_referred": resolved.source == "backend display-referred",
         }
         if meta.transfer == "gamma22":
             self.last_hdr_diagnostics["display_referred"] = True

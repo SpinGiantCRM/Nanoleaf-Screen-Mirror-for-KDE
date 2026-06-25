@@ -227,7 +227,7 @@ def resolve_display_preset(
             hdr_transfer=_normalize_transfer(hdr_transfer),
             hdr_primaries=_normalize_primaries(hdr_primaries),
             source="session fallback",
-            assumption="Could not read Plasma HDR state; using configured HDR transfer/primaries",
+            assumption="Could not read Plasma HDR state; using configured transfer/primaries",
         )
     return DisplayPresetResolution(
         preset="sdr",
@@ -272,8 +272,15 @@ def resolve_capture_metadata(
             meta = backend_metadata
         else:
             meta = HDRMetadata.from_any(backend_metadata)
-        if isinstance(backend_metadata, dict) and backend_metadata.get("source"):
-            source = str(backend_metadata.get("source", "backend"))
+        if isinstance(backend_metadata, dict) and (
+            backend_metadata.get("source") or backend_metadata.get("metadata_source")
+        ):
+            source = str(
+                backend_metadata.get(
+                    "source",
+                    backend_metadata.get("metadata_source", "backend"),
+                )
+            )
         else:
             source = "backend"
         confidence = "backend"
@@ -283,6 +290,30 @@ def resolve_capture_metadata(
         skip_display_gamut = bool(meta.skip_display_gamut_adaptation)
         if primaries == "bt2020":
             capture_primaries_converted = True
+        if isinstance(backend_metadata, dict) and bool(backend_metadata.get("display_referred")):
+            transfer = "srgb"
+            primaries = "bt709"
+            source = "backend display-referred"
+            capture_primaries_converted = False
+            skip_display_gamut = True
+        if isinstance(backend_metadata, dict) and bool(
+            backend_metadata.get("tone_mapping_applied")
+        ):
+            transfer = "srgb"
+            primaries = "bt709"
+            source = "backend display-referred"
+            capture_primaries_converted = False
+            skip_display_gamut = True
+        if kwin_display_referred:
+            transfer = "srgb"
+            primaries = "bt709"
+            source = "kwin display-referred"
+            capture_primaries_converted = False
+            assumption = (
+                "KWin screenshot is display-referred sRGB; skipping HDR tone map at capture"
+            )
+            skip_display_gamut = True
+            confidence = "heuristic"
 
     elif kwin_display_referred:
         transfer = "srgb"

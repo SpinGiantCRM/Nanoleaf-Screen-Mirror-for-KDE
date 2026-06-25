@@ -419,7 +419,7 @@ def test_zone_sampling_auto_picks_faster_engine_for_48_edge_zones() -> None:
         weight_plans=weight_plans,
         weighted_indices=weighted_indices,
     )
-    assert np.max(np.abs(legacy.astype(np.int16) - optimized.astype(np.int16))) <= 30
+    np.testing.assert_array_equal(legacy, optimized)
     np.testing.assert_array_equal(
         auto, legacy if _AUTO_ENGINE_CACHE.get(key) == "legacy" else optimized
     )

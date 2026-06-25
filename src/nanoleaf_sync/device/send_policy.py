@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 _PERIODIC_ACK_INTERVAL = 30
+_MAILBOX_RESYNC_INTERVAL = 30
 
 
 class LiveSendPolicy(StrEnum):
@@ -11,6 +12,7 @@ class LiveSendPolicy(StrEnum):
     NONBLOCKING_DRAIN = "nonblocking_drain"
     WRITE_ONLY = "write_only"
     ACK_EVERY_N_FRAMES = "ack_every_n_frames"
+    MAILBOX = "mailbox"
 
 
 @dataclass(frozen=True)
@@ -25,6 +27,7 @@ def select_live_send_policy(
     *,
     report_count: int,
     prefer_write_only_live_send: bool,
+    prefer_mailbox_live_send: bool = False,
     enable_live_frame_write_optimization: bool,
     is_live_frame: bool,
     has_write_with_timing: bool,
@@ -69,6 +72,13 @@ def select_live_send_policy(
             transition_reason="probed single-report path uses bounded drain",
             requires_frame_ack=False,
         )
+    if prefer_mailbox_live_send and has_write_with_timing:
+        return LiveSendPolicyDecision(
+            policy=LiveSendPolicy.MAILBOX,
+            response_wait_skipped=True,
+            transition_reason="mailbox live path",
+            requires_frame_ack=False,
+        )
     if prefer_write_only_live_send and has_write_with_timing:
         return LiveSendPolicyDecision(
             policy=LiveSendPolicy.WRITE_ONLY,
@@ -107,6 +117,7 @@ def apply_periodic_ack_check(
     if decision.policy not in {
         LiveSendPolicy.WRITE_ONLY,
         LiveSendPolicy.NONBLOCKING_DRAIN,
+        LiveSendPolicy.MAILBOX,
     }:
         return decision
     if live_frame_index <= 0 or live_frame_index % max(1, int(interval)) != 0:
@@ -125,9 +136,11 @@ def degrade_policy_on_missed_acks(
     missed_ack_rate: float,
     threshold: float = 0.25,
 ) -> LiveSendPolicyDecision:
-    if decision.policy in {LiveSendPolicy.WRITE_ONLY, LiveSendPolicy.NONBLOCKING_DRAIN} and float(
-        missed_ack_rate
-    ) >= float(threshold):
+    if decision.policy in {
+        LiveSendPolicy.WRITE_ONLY,
+        LiveSendPolicy.NONBLOCKING_DRAIN,
+        LiveSendPolicy.MAILBOX,
+    } and float(missed_ack_rate) >= float(threshold):
         return LiveSendPolicyDecision(
             policy=LiveSendPolicy.RESPONSE_REQUIRED,
             response_wait_skipped=False,

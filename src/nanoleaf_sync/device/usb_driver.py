@@ -5,6 +5,8 @@ import time
 from collections.abc import Sequence
 from typing import Any
 
+import numpy as np
+
 from nanoleaf_sync.device.hid_transport import HIDTransport, HIDWriteError
 from nanoleaf_sync.device.interfaces import (
     DeviceDriver,
@@ -24,15 +26,24 @@ from nanoleaf_sync.device.protocol import (
     NanoleafTLVProtocol,
 )
 from nanoleaf_sync.device.send_policy import (
+    _MAILBOX_RESYNC_INTERVAL,
     LiveSendPolicy,
     apply_periodic_ack_check,
     degrade_policy_on_missed_acks,
     select_live_send_policy,
 )
+from nanoleaf_sync.runtime.novel_features import mailbox_send_enabled
 
 
 class NanoleafUSBDriver(DeviceDriver):
     """Nanoleaf USB HID driver using the official TLV request/response protocol."""
+
+    CHANNEL_ORDER_MAP = {
+        "NL82K1": "grb",
+        "NL82K2": "grb",
+    }
+    _SHADOW_RESYNC_INTERVAL = 30
+    _MAILBOX_RESYNC_INTERVAL = _MAILBOX_RESYNC_INTERVAL
 
     capabilities = DriverCapabilities(name="nanoleaf-usb")
     _logger = logging.getLogger(__name__)
@@ -49,6 +60,7 @@ class NanoleafUSBDriver(DeviceDriver):
         configured_zone_count: int = 0,
         enable_live_frame_write_optimization: bool = True,
         prefer_write_only_live_send: bool = False,
+        prefer_mailbox_live_send: bool = False,
         auto_turn_on: bool = True,
         allow_live_zone_padding: bool = False,
     ) -> None:
@@ -62,6 +74,7 @@ class NanoleafUSBDriver(DeviceDriver):
         self._configured_zone_count = max(0, int(configured_zone_count))
         self._enable_live_frame_write_optimization = bool(enable_live_frame_write_optimization)
         self._prefer_write_only_live_send = bool(prefer_write_only_live_send)
+        self._prefer_mailbox_live_send = bool(prefer_mailbox_live_send) and mailbox_send_enabled()
         self._auto_turn_on = bool(auto_turn_on)
         self._allow_live_zone_padding = bool(allow_live_zone_padding)
         order = str(output_channel_order or "grb").strip().lower()
@@ -89,6 +102,14 @@ class NanoleafUSBDriver(DeviceDriver):
         self.uncertain_write_failures: int = 0
         self._zone_mismatch_attempts: int = 0
         self.output_channel_order_source: str = "config"
+        self._shadow_colors: np.ndarray | None = None
+        self._shadow_diverged: bool = False
+        self._resync_counter: int = 0
+        self._pending_mailbox: np.ndarray | None = None
+        self._mailbox_write_in_flight: bool = False
+        self._mailbox_resync_counter: int = 0
+        self._mailbox_resync_hold_frames: int = 0
+        self.mailbox_writes_skipped: int = 0
 
     def _set_output_channel_order(self, order: str, *, source: str) -> None:
         normalized = str(order or "grb").strip().lower()
@@ -104,9 +125,17 @@ class NanoleafUSBDriver(DeviceDriver):
 
     @staticmethod
     def _channel_order_for_model(model_number: str | None) -> str:
-        if str(model_number or "").strip().upper() in {"NL82K1", "NL82K2"}:
-            return "grb"
-        return "grb"
+        normalized = str(model_number or "").strip().upper()
+        return NanoleafUSBDriver.CHANNEL_ORDER_MAP.get(normalized, "grb")
+
+    def _check_shadow_diverged(self, colors: Sequence[RGBTuple]) -> bool:
+        new = np.asarray(colors, dtype=np.uint8)
+        if self._shadow_colors is not None and self._shadow_colors.shape == new.shape:
+            delta = int(np.max(np.abs(new.astype(np.int16) - self._shadow_colors.astype(np.int16))))
+            if self.ack_missed_count > 3 and delta > 10:
+                self._shadow_diverged = True
+        self._shadow_colors = new.copy()
+        return self._shadow_diverged
 
     def probe_output_channel_order(self) -> str:
         order = self._channel_order_for_model(self.model_number)
@@ -336,6 +365,27 @@ class NanoleafUSBDriver(DeviceDriver):
             for r, g, b in colors
         ]
 
+        mailbox_active = self._prefer_mailbox_live_send and self._is_live_frame_command(
+            CMD_SET_ZONE_COLORS
+        )
+        if mailbox_active:
+            self._pending_mailbox = np.asarray(normalized, dtype=np.uint8)
+            if self._mailbox_write_in_flight:
+                self.mailbox_writes_skipped += 1
+                if return_timing:
+                    return {
+                        "frame_build_ms": 0.0,
+                        "device_write_ms": 0.0,
+                        "flush_or_wait_ms": 0.0,
+                        "device_limited": False,
+                        "flush_or_wait_reason": "mailbox coalesced pending write",
+                        "live_send_policy": LiveSendPolicy.MAILBOX.value,
+                        "response_wait_skipped": True,
+                        "send_policy_transition_reason": "mailbox_pending_in_flight",
+                        "mailbox_writes_skipped": self.mailbox_writes_skipped,
+                    }
+                return None
+
         if len(normalized) < self.zone_count:
             if not self._allow_live_zone_padding:
                 recovered = self._try_recover_zone_count(len(normalized))
@@ -412,6 +462,7 @@ class NanoleafUSBDriver(DeviceDriver):
         policy_decision = select_live_send_policy(
             report_count=report_count,
             prefer_write_only_live_send=self._prefer_write_only_live_send,
+            prefer_mailbox_live_send=self._prefer_mailbox_live_send,
             enable_live_frame_write_optimization=self._enable_live_frame_write_optimization,
             is_live_frame=self._is_live_frame_command(CMD_SET_ZONE_COLORS),
             has_write_with_timing=callable(write_with_timing),
@@ -419,6 +470,31 @@ class NanoleafUSBDriver(DeviceDriver):
             first_frame_after_reopen=self._live_frames_sent_after_open <= 0,
             probed_report_size=self._probed_report_size,
         )
+        if policy_decision.policy == LiveSendPolicy.MAILBOX:
+            self._mailbox_resync_counter += 1
+            if self._mailbox_resync_hold_frames > 0:
+                from dataclasses import replace
+
+                policy_decision = replace(
+                    policy_decision,
+                    policy=LiveSendPolicy.RESPONSE_REQUIRED,
+                    response_wait_skipped=False,
+                    transition_reason="mailbox shadow resync hold",
+                    requires_frame_ack=True,
+                )
+                self._mailbox_resync_hold_frames -= 1
+            elif self._mailbox_resync_counter % self._MAILBOX_RESYNC_INTERVAL == 0:
+                from dataclasses import replace
+
+                policy_decision = replace(
+                    policy_decision,
+                    policy=LiveSendPolicy.RESPONSE_REQUIRED,
+                    response_wait_skipped=False,
+                    transition_reason=(
+                        f"mailbox periodic ACK every {self._MAILBOX_RESYNC_INTERVAL} frames"
+                    ),
+                    requires_frame_ack=True,
+                )
         policy_decision = apply_periodic_ack_check(
             policy_decision,
             live_frame_index=self._total_live_frames_sent + 1,
@@ -428,12 +504,32 @@ class NanoleafUSBDriver(DeviceDriver):
             policy_decision,
             missed_ack_rate=missed_rate,
         )
+        self._resync_counter += 1
+        shadow_diverged = self._check_shadow_diverged(normalized)
+        force_resync = shadow_diverged or (self._resync_counter % self._SHADOW_RESYNC_INTERVAL == 0)
+        if shadow_diverged:
+            self._shadow_diverged = False
+            if policy_decision.policy == LiveSendPolicy.MAILBOX:
+                self._mailbox_resync_hold_frames = 5
+        if force_resync and policy_decision.policy != LiveSendPolicy.RESPONSE_REQUIRED:
+            from dataclasses import replace
+
+            policy_decision = replace(
+                policy_decision,
+                policy=LiveSendPolicy.RESPONSE_REQUIRED,
+                response_wait_skipped=False,
+                transition_reason="shadow_resync",
+            )
         live_send_policy = policy_decision.policy.value
         response_wait_skipped = policy_decision.response_wait_skipped
         self.last_send_policy_transition_reason = policy_decision.transition_reason
         self.last_live_send_policy = live_send_policy
         send_err: Exception | None = None
-        if policy_decision.policy == LiveSendPolicy.WRITE_ONLY and callable(write_with_timing):
+        if policy_decision.policy in {
+            LiveSendPolicy.WRITE_ONLY,
+            LiveSendPolicy.MAILBOX,
+        } and callable(write_with_timing):
+            self._mailbox_write_in_flight = policy_decision.policy == LiveSendPolicy.MAILBOX
             try:
                 maybe_timing = write_with_timing(request)
                 if isinstance(maybe_timing, dict):
@@ -464,6 +560,9 @@ class NanoleafUSBDriver(DeviceDriver):
                         "closed transport and skipped immediate fallback "
                         "to avoid duplicate frame send."
                     ) from exc
+            finally:
+                if policy_decision.policy == LiveSendPolicy.MAILBOX:
+                    self._mailbox_write_in_flight = False
         elif policy_decision.policy == LiveSendPolicy.NONBLOCKING_DRAIN and callable(
             write_with_nonblocking_drain
         ):
@@ -523,7 +622,7 @@ class NanoleafUSBDriver(DeviceDriver):
         report_data_sizes = transport_timing.get("report_data_sizes")
         per_report_write_ms = transport_timing.get("per_report_write_ms")
         total_bytes = int(transport_timing.get("total_frame_bytes") or request_len)
-        if live_send_policy in {"write_only", "nonblocking_drain"}:
+        if live_send_policy in {"write_only", "nonblocking_drain", "mailbox"}:
             reports_per_frame = report_count
             bytes_per_report = report_size
             if not isinstance(report_data_sizes, list):
@@ -580,6 +679,7 @@ class NanoleafUSBDriver(DeviceDriver):
             "response_wait_skipped": response_wait_skipped,
             "send_policy_transition_reason": self.last_send_policy_transition_reason,
             "probed_report_size": self._probed_report_size,
+            "mailbox_writes_skipped": int(self.mailbox_writes_skipped),
         }
         if self._is_live_frame_command(CMD_SET_ZONE_COLORS):
             if live_send_policy == LiveSendPolicy.RESPONSE_REQUIRED.value:

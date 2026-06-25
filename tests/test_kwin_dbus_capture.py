@@ -308,6 +308,14 @@ def test_kwin_backend_applies_hdr_conversion_when_configured(monkeypatch) -> Non
     assert "display-referred" in str(backend.last_hdr_diagnostics.get("assumption", ""))
 
 
+def test_kwin_backend_constructor_defaults_to_hdr_metadata() -> None:
+    backend = KWinDBusScreenshotCapture(width=2, height=1)
+
+    assert backend._hdr_defaults.transfer == "srgb"
+    assert backend._hdr_defaults.primaries == "bt709"
+    backend.close()
+
+
 def test_screenshot2_ignores_speculative_metadata_and_stays_display_referred(
     monkeypatch,
 ) -> None:
@@ -341,7 +349,8 @@ def test_screenshot2_ignores_speculative_metadata_and_stays_display_referred(
     assert meta["transfer"] == "srgb"
     assert meta["primaries"] == "bt709"
     assert meta["source"] == "kwin display-referred"
-    assert backend.last_hdr_diagnostics.get("tone_mapping_applied") is True
+    assert backend.last_hdr_diagnostics.get("tone_mapping_applied") is False
+    assert backend.last_hdr_diagnostics.get("display_referred") is True
     assert "display-referred" in str(backend.last_hdr_diagnostics.get("assumption", ""))
 
 

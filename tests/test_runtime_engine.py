@@ -5,6 +5,7 @@ import numpy as np
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.runtime.engine import (
+    _capture_backend_display_referred,
     _ensure_runtime_artifacts,
     _estimate_processing_staleness_ms,
     _mapping_signature,
@@ -50,6 +51,45 @@ def test_processing_staleness_estimate_clamps_clock_reversal() -> None:
         hid_output_work_ewma_ms=None,
     )
     assert estimate == 0.0
+
+
+def test_capture_backend_display_referred_uses_current_diagnostics_key() -> None:
+    class _Backend:
+        last_hdr_diagnostics = {
+            "display_referred": True,
+            "tone_mapping_applied": False,
+        }
+
+    assert _capture_backend_display_referred("kmsgrab", _Backend()) is True
+
+
+def test_capture_backend_display_referred_preserves_legacy_tone_map_key() -> None:
+    class _Backend:
+        last_hdr_diagnostics = {
+            "tone_mapping_applied": True,
+        }
+
+    assert _capture_backend_display_referred("kmsgrab", _Backend()) is True
+
+
+def test_capture_backend_display_referred_detects_kms_10bit_sampler() -> None:
+    class _Sampler:
+        is_10bit = True
+
+    class _Backend:
+        _drm_zone_sampler = _Sampler()
+        last_hdr_diagnostics: dict[str, object] = {}
+
+    assert _capture_backend_display_referred("kmsgrab", _Backend()) is True
+
+
+def test_display_referred_capture_keeps_sdr_boost_for_kwin() -> None:
+    compositor_hdr_mode = True
+    capture_display_referred = _capture_backend_display_referred("kwin-dbus", None)
+    assert capture_display_referred is True
+
+    sdr_boost_compensation_enabled = compositor_hdr_mode
+    assert sdr_boost_compensation_enabled is True
 
 
 def test_no_global_zone_offset_reintroduced() -> None:

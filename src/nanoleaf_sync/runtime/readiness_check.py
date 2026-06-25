@@ -58,8 +58,8 @@ def _probe_capture_backend(config: AppConfig) -> str | None:
         use_mock_capture=bool(getattr(config, "use_mock_capture", False)),
         prefer_backend=str(getattr(config, "prefer_backend", "auto")),
         hdr_max_nits=float(getattr(config, "hdr_max_nits", 1000.0)),
-        hdr_transfer=str(getattr(config, "hdr_transfer", "srgb")),
-        hdr_primaries=str(getattr(config, "hdr_primaries", "bt709")),
+        hdr_transfer=str(getattr(config, "hdr_transfer", AppConfig.hdr_transfer)),
+        hdr_primaries=str(getattr(config, "hdr_primaries", AppConfig.hdr_primaries)),
         auto_probe_enabled=bool(getattr(config, "auto_probe_enabled", True)),
         cached_probe_winner=str(getattr(config, "auto_selected_backend", "") or None),
     )

@@ -38,6 +38,7 @@ class RuntimeState:
     zone_palette_temporal_states: list[dict[str, object]] = field(default_factory=list)
     palette_frame_index: int = 0
     prior_zone_sample_motion: float = 0.0
+    motion_envelope: float = 0.0
     prior_area_average_mode: bool = False
 
     cached_zone_rects: list[ZoneRect] | None = None
@@ -125,6 +126,7 @@ class RuntimeState:
     output_quantization_prev_hold: list[bool] = field(default_factory=list)
     portal_selection_started_at: float | None = None
     black_frame_degrade_level: int = 0
+    per_zone_variance: object | None = None
     request_capture_buf_clear: bool = False
     request_process_buf_clear: bool = False
     capture_worker_idle: threading.Event = field(
@@ -142,6 +144,10 @@ class RuntimeState:
             raise RuntimeError("RuntimeState multi-field update requires _lock")
 
     def reset_for_start(self) -> None:
+        with self._lock:
+            self._reset_for_start_unlocked()
+
+    def _reset_for_start_unlocked(self) -> None:
         self.reinit_pause.clear()
         self.prev_smoothed_colors = []
         self.prev_smooth_float_colors = []
@@ -151,6 +157,7 @@ class RuntimeState:
         self.zone_palette_temporal_states = []
         self.palette_frame_index = 0
         self.prior_zone_sample_motion = 0.0
+        self.motion_envelope = 0.0
         self.prior_area_average_mode = False
         self.cached_zone_rects = None
         self.zone_rects_signature = None
@@ -243,6 +250,7 @@ class RuntimeState:
             self.zone_palette_temporal_states = []
             self.palette_frame_index = 0
             self.prior_zone_sample_motion = 0.0
+            self.motion_envelope = 0.0
             self.prior_area_average_mode = False
             self.sampling_mode_dwell_remaining = 0
             self.dark_zone_stabilize_hold = []
@@ -513,6 +521,7 @@ class RuntimeState:
             "total_black_frames": self.total_black_frames,
             "latest_frame_mean_brightness": self.latest_frame_mean_brightness,
             "governor_p95_latency_ms": float(self.governor_p95_latency_ms),
+            "motion_envelope": float(self.motion_envelope),
             "latest_staleness_ms": float(self.latest_staleness_ms),
             "predictive_sync_active": bool(self.predictive_sync_active),
             "predictive_lookahead_frames": float(self.predictive_lookahead_frames),

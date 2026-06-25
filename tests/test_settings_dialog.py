@@ -42,6 +42,29 @@ def test_settings_dialog_source_uses_preset_ui_labels() -> None:
     assert '"nanoleaf-kde-sync Settings"' in text
 
 
+def test_settings_display_preset_change_updates_hdr_metadata_controls() -> None:
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
+    assert 'self._active_display_preset == "hdr"' in text
+    assert 'self.hdr_transfer_combo.findText("pq")' in text
+    assert 'self.hdr_primaries_combo.findText("bt2020")' in text
+    assert 'self._active_display_preset == "sdr"' in text
+    assert 'self.hdr_transfer_combo.findText("srgb")' in text
+    assert 'self.hdr_primaries_combo.findText("bt709")' in text
+
+
+def test_advanced_troubleshooting_grid_rows_do_not_overlap() -> None:
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
+    assert "grid.addWidget(self.capture_monitor_edit, 2, 1, 1, 2)" in text
+    assert 'grid.addWidget(self._section_heading(QLabel, "Backend & Probing"), 3, 0, 1, 3)' in text
+
+
+def test_color_preview_updates_are_debounced_for_calibration_sliders() -> None:
+    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
+    assert "self._preview_refresh_timer.setSingleShot(True)" in text
+    assert "slider.valueChanged.connect(self._schedule_refresh_preview_label)" in text
+    assert "self._preview_refresh_timer.start(75)" in text
+
+
 def test_qt_loader_exports_settings_dialog_widgets() -> None:
     text = read_repo_text("src/nanoleaf_sync/ui/qt_lazy.py")
     assert "QLineEdit" in text
@@ -127,7 +150,7 @@ def test_slider_readouts_bind_live_value_updates() -> None:
     assert "self.fps_slider.valueChanged" in text
     assert "self.hdr_max_nits_slider.valueChanged" in text
     assert "self.black_luminance_knee_slider" in text
-    assert "slider.valueChanged.connect(self._refresh_preview_label)" in text
+    assert "slider.valueChanged.connect(self._schedule_refresh_preview_label)" in text
     assert "signal.connect(self._refresh_numeric_labels)" in text
 
 

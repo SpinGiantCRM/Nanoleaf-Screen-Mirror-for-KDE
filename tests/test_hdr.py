@@ -162,6 +162,60 @@ def test_hable_tonemap_responds_to_max_nits_setting() -> None:
     assert float(np.mean(high_nits)) > float(np.mean(low_nits))
 
 
+def test_backend_linear_float_preserves_extended_hdr_colour_before_tonemap() -> None:
+    metadata = {
+        "transfer": "linear",
+        "primaries": "bt2020",
+        "max_nits": 1000.0,
+        "bit_depth": 16,
+        "source": "backend metadata",
+    }
+    clipped_red = np.asarray([[[1.0, 0.25, 0.25]]], dtype=np.float32)
+    hdr_red = np.asarray([[[2.0, 0.25, 0.25]]], dtype=np.float32)
+
+    clipped_out = convert_frame_to_srgb8(clipped_red, metadata=metadata)
+    hdr_out = convert_frame_to_srgb8(hdr_red, metadata=metadata)
+
+    assert analyze_hdr_path(hdr_red, metadata=metadata)["tone_mapping_applied"] is True
+    assert int(hdr_out[0, 0, 0]) == 255
+    assert int(hdr_out[0, 0, 1]) < int(clipped_out[0, 0, 1]) - 40
+    assert int(hdr_out[0, 0, 2]) < int(clipped_out[0, 0, 2]) - 20
+
+
+def test_analyzer_linear_float_metadata_preserves_extended_hdr_colour() -> None:
+    metadata = {
+        "input_transfer": "linear",
+        "input_primaries": "bt2020",
+        "hdr_max_nits": 1000.0,
+        "bit_depth": 16,
+        "metadata_source": "backend metadata",
+    }
+    clipped_red = np.asarray([[[1.0, 0.25, 0.25]]], dtype=np.float32)
+    hdr_red = np.asarray([[[2.0, 0.25, 0.25]]], dtype=np.float32)
+
+    clipped_out = convert_frame_to_srgb8(clipped_red, metadata=metadata)
+    hdr_out = convert_frame_to_srgb8(hdr_red, metadata=metadata)
+
+    assert analyze_hdr_path(hdr_red, metadata=metadata)["tone_mapping_applied"] is True
+    assert int(hdr_out[0, 0, 0]) == 255
+    assert int(hdr_out[0, 0, 1]) < int(clipped_out[0, 0, 1]) - 40
+    assert int(hdr_out[0, 0, 2]) < int(clipped_out[0, 0, 2]) - 20
+
+
+def test_srgb_float_still_clamps_to_display_range() -> None:
+    img = np.array([[[1.5, 0.5, -0.5]]], dtype=np.float32)
+    out = convert_frame_to_srgb8(
+        img,
+        metadata={
+            "transfer": "srgb",
+            "primaries": "bt709",
+            "max_nits": 1000.0,
+            "source": "user preset",
+        },
+    )
+    assert np.array_equal(out[0, 0], np.array([255, 128, 0], dtype=np.uint8))
+
+
 def test_missing_metadata_defaults_srgb() -> None:
     img = np.full((2, 2, 3), 128, dtype=np.uint8)
     out = convert_frame_to_srgb8(img, metadata={})

@@ -147,6 +147,54 @@ def _run_self_check() -> int:
     return 0
 
 
+def _run_headless_guided_calibration() -> int:
+    from nanoleaf_sync.runtime.guided_calibration import GuidedCalibrationSession, GuidedResponse
+
+    mgr = ConfigManager()
+    cfg = mgr.load()
+    zone_count = int(getattr(cfg, "device_zone_count", 0) or 60)
+    session = GuidedCalibrationSession(
+        device_zone_count=zone_count,
+        frame_width=1920,
+        frame_height=1080,
+    )
+    responses: tuple[GuidedResponse, ...] = (
+        "yes",
+        "yes",
+        "yes",
+        "yes",
+        "yes",
+        "yes",
+    )
+    response_iter = iter(responses)
+    while not session.is_complete():
+        print(session.progress_line(), flush=True)
+        try:
+            line = next(response_iter)
+        except StopIteration:
+            line = sys.stdin.readline().strip().lower()
+            if not line:
+                break
+        if line not in {"yes", "no", "close", "left", "right"}:
+            print(json.dumps({"error": f"invalid_response:{line}"}), flush=True)
+            return 1
+        session.apply_response(line)  # type: ignore[arg-type]
+    valid, errors = session.validation()
+    print(
+        json.dumps(
+            {
+                "complete": session.is_complete(),
+                "valid": valid,
+                "errors": errors,
+                "anchors": session.anchors,
+                "reverse_zones": session.reverse_zones,
+            }
+        ),
+        flush=True,
+    )
+    return 0 if valid else 1
+
+
 def _build_auto_start_bridge(qt: dict[str, object], callback):
     class _AutoStartBridge(qt["QObject"]):
         result_ready = qt["pyqtSignal"](bool)
@@ -239,6 +287,7 @@ class NanoleafTrayApp:
             self.service = self._create_service()
 
         self._idle_icon, self._running_icon = self._load_tray_icons()
+        self._backend_icons = self._load_backend_tray_icons()
         self.tray_icon = self.QSystemTrayIcon(self._idle_icon)
         self.tray_icon.setToolTip("nanoleaf-kde-sync")
         self.tray_icon.setContextMenu(self._make_menu())
@@ -618,6 +667,42 @@ class NanoleafTrayApp:
             )
         return idle_icon, running_icon
 
+    def _load_backend_tray_icons(self):
+        mapping = {
+            "kwin-dbus": "nanoleaf-kde-sync",
+            "xdg-portal": "nanoleaf-kde-sync-portal",
+            "mock": "nanoleaf-kde-sync-mock",
+            "error": "nanoleaf-kde-sync-error",
+        }
+        icons: dict[str, object] = {}
+        for key, theme_name in mapping.items():
+            icon = self.QIcon.fromTheme(theme_name)
+            if icon.isNull() and key == "kwin-dbus":
+                icon = getattr(self, "_idle_icon", self.QIcon())
+            icons[key] = icon
+        return icons
+
+    def _tray_icon_for_status(self, *, running: bool, status: dict) -> object:
+        backend = str(
+            status.get("effective_capture_backend")
+            or status.get("capture_backend")
+            or self.config.prefer_backend
+            or "kwin-dbus"
+        ).strip()
+        if status.get("last_error"):
+            error_icon = getattr(self, "_backend_icons", {}).get("error")
+            if error_icon is not None and not error_icon.isNull():
+                return error_icon
+        if backend == "mock" or bool(self.config.use_mock_capture):
+            mock_icon = getattr(self, "_backend_icons", {}).get("mock")
+            if mock_icon is not None and not mock_icon.isNull():
+                return mock_icon
+        if backend == "xdg-portal":
+            portal_icon = getattr(self, "_backend_icons", {}).get("xdg-portal")
+            if portal_icon is not None and not portal_icon.isNull():
+                return portal_icon
+        return self._running_icon if running else self._idle_icon
+
     def _make_menu(self):
         menu = self.QMenu()
 
@@ -632,6 +717,7 @@ class NanoleafTrayApp:
         self.action_display_wizard = self.QAction(
             self.QIcon.fromTheme("preferences-desktop-display"), "Set up strip…", menu
         )
+        self.action_guided_calibration = self.QAction("Guided Calibration…", menu)
         self.action_status = self.QAction(
             self.QIcon.fromTheme("help-about"), "About / Status", menu
         )
@@ -654,6 +740,7 @@ class NanoleafTrayApp:
         self.action_stop.triggered.connect(self.on_stop)
         self.action_settings.triggered.connect(self.on_settings)
         self.action_display_wizard.triggered.connect(self.on_display_configurator)
+        self.action_guided_calibration.triggered.connect(self.on_guided_calibration)
         self.action_troubleshooting_guide.triggered.connect(self.on_open_troubleshooting_guide)
         self.action_diagnostic_hub.triggered.connect(self.on_diagnostic_hub)
         self.action_live_diagnostics.triggered.connect(self.on_live_diagnostics)
@@ -688,6 +775,7 @@ class NanoleafTrayApp:
         menu.addSeparator()
         menu.addAction(self.action_settings)
         menu.addAction(self.action_display_wizard)
+        menu.addAction(self.action_guided_calibration)
         menu.addAction(self.action_status)
         menu.addSeparator()
         menu.addMenu(advanced_menu)
@@ -726,10 +814,19 @@ class NanoleafTrayApp:
         _ = capture_mode
         last_error = status.get("last_error") or ""
         last_error_line = str(last_error).splitlines()[0] if last_error else "None"
+        confidence = status.get("mirroring_confidence") or {}
+        confidence_line = ""
+        if isinstance(confidence, dict) and confidence.get("confidence_pct") is not None:
+            confidence_line = (
+                f"Confidence: {confidence.get('confidence_pct')}% "
+                f"({confidence.get('rating', 'unknown')})\n"
+            )
+        self.tray_icon.setIcon(self._tray_icon_for_status(running=running, status=status))
         self.tray_icon.setToolTip(
             "nanoleaf-kde-sync\n"
             f"State: {'Running' if running else startup_state.replace('_', ' ').title()}\n"
             f"{device_mode}\n"
+            f"{confidence_line}"
             f"Last issue: {last_error_line}"
         )
         self.action_status.setText(
@@ -978,6 +1075,41 @@ class NanoleafTrayApp:
                 7000,
             )
 
+    def on_guided_calibration(self) -> None:
+        from nanoleaf_sync.ui.guided_calibration_dialog import build_guided_calibration_dialog
+
+        dialog_cls = build_guided_calibration_dialog(self)
+        if dialog_cls is None:
+            self.tray_icon.showMessage(
+                "nanoleaf-kde-sync",
+                "Guided calibration is disabled.",
+                self.QSystemTrayIcon.MessageIcon.Warning,
+                5000,
+            )
+            return
+        status = self.service.get_status()
+        width = int(status.get("last_frame_width") or 1920)
+        height = int(status.get("last_frame_height") or 1080)
+        zone_count = int(
+            status.get("effective_device_zone_count") or self.config.device_zone_count or 60
+        )
+
+        def _save(session) -> None:
+            self.config.calibration.reverse_zones = bool(session.reverse_zones)
+            for corner in ("top_left", "top_right", "bottom_right", "bottom_left"):
+                value = session.anchors.get(corner)
+                if value is not None:
+                    setattr(self.config.calibration, f"corner_anchor_{corner}", int(value))
+            self.cfg_mgr.save(self.config)
+
+        dlg = dialog_cls(
+            device_zone_count=zone_count,
+            frame_width=width,
+            frame_height=height,
+            on_save=_save,
+        )
+        dlg.exec()
+
     def on_display_configurator(self, *, was_running_intent: bool | None = None) -> None:
         dlg = DisplayConfiguratorDialog(
             parent=None,
@@ -1034,6 +1166,7 @@ class NanoleafTrayApp:
                 initial_section=initial_section,
                 on_apply=_persist_settings_config,
                 dialog_geometry=getattr(self, "_saved_settings_geometry", None),
+                forget_portal_token_fn=getattr(self.service, "forget_portal_restore_token", None),
             )
             accepted = dlg.exec() == self.QDialog.DialogCode.Accepted
         except Exception as exc:
@@ -1541,7 +1674,14 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="clear persisted auto-probe winner/signature/timestamp and exit",
     )
+    parser.add_argument(
+        "--guided-calibration",
+        action="store_true",
+        help="run headless guided calibration on stdin (yes/no/close/left/right)",
+    )
     args = parser.parse_args(argv)
+    if args.guided_calibration:
+        return _run_headless_guided_calibration()
     if args.self_check:
         return _run_self_check()
     if args.reset_probe_cache:

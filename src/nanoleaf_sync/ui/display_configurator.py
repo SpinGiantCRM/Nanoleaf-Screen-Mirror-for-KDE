@@ -288,7 +288,9 @@ class DisplayConfiguratorDialog:
                 self.hdr_transfer_combo.setCurrentIndex(
                     max(
                         0,
-                        self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb"))),
+                        self.hdr_transfer_combo.findText(
+                            str(getattr(cfg, "hdr_transfer", AppConfig.hdr_transfer))
+                        ),
                     )
                 )
                 self.hdr_transfer_label = QLabel("HDR transfer")
@@ -298,7 +300,7 @@ class DisplayConfiguratorDialog:
                     max(
                         0,
                         self.hdr_primaries_combo.findText(
-                            str(getattr(cfg, "hdr_primaries", "bt709"))
+                            str(getattr(cfg, "hdr_primaries", AppConfig.hdr_primaries))
                         ),
                     )
                 )
@@ -1181,6 +1183,7 @@ class DisplayConfiguratorDialog:
                     hdr_transfer=str(self.hdr_transfer_combo.currentText()),
                     hdr_primaries=str(self.hdr_primaries_combo.currentText()),
                     hdr_max_nits=float(self.hdr_max_nits_slider.value()),
+                    compositor_hdr_mode=bool(self.compositor_hdr_mode_checkbox.isChecked()),
                     sdr_boost_nits=float(self.sdr_boost_nits_slider.value()),
                     sdr_white_reference_preset=(
                         "custom"

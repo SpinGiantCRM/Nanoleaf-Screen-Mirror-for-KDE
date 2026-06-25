@@ -140,6 +140,7 @@ class SettingsDialog:
         initial_section: str | None = None,
         on_apply: Callable[[AppConfig], None] | None = None,
         dialog_geometry: bytes | None = None,
+        forget_portal_token_fn: Callable[[], dict[str, object]] | None = None,
     ):
         qt = load_qt()
         QDialog = qt["QDialog"]
@@ -181,6 +182,7 @@ class SettingsDialog:
                 self._runtime_status = dict(runtime_status or {})
                 self._probe_session_state: dict[str, object] = {}
                 self._on_apply = on_apply
+                self._forget_portal_token_fn = forget_portal_token_fn
                 self._state = CalibrationState.from_config(cfg, runtime_status)
                 self._device_ids_manual = False
                 self._syncing_device_model = False
@@ -204,6 +206,9 @@ class SettingsDialog:
                 self._section_stack = None
                 self._section_nav = None
                 self._settings_applied_in_session = False
+                self._preview_refresh_timer = QTimer(self)
+                self._preview_refresh_timer.setSingleShot(True)
+                self._preview_refresh_timer.timeout.connect(self._refresh_preview_label)
                 self.screen_zone_matched_label = QLabel("")
                 self.brightness_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.brightness_slider.setRange(0, 100)
@@ -457,6 +462,7 @@ class SettingsDialog:
                 self.retest_backends_button = QPushButton("Re-test backends (fresh probe)")
                 self.test_xdg_portal_button = QPushButton("Test xdg-portal")
                 self.benchmark_xdg_portal_button = QPushButton("Benchmark xdg-portal")
+                self.reset_portal_screen_button = QPushButton("Reset portal screen selection")
                 self.latency_label = QLabel(latency_result_summary(None))
                 self.xdg_hint_label = QLabel("")
 
@@ -465,7 +471,9 @@ class SettingsDialog:
                 self.hdr_transfer_combo.setCurrentIndex(
                     max(
                         0,
-                        self.hdr_transfer_combo.findText(str(getattr(cfg, "hdr_transfer", "srgb"))),
+                        self.hdr_transfer_combo.findText(
+                            str(getattr(cfg, "hdr_transfer", AppConfig.hdr_transfer))
+                        ),
                     )
                 )
                 self.hdr_primaries_combo = QComboBox()
@@ -474,7 +482,7 @@ class SettingsDialog:
                     max(
                         0,
                         self.hdr_primaries_combo.findText(
-                            str(getattr(cfg, "hdr_primaries", "bt709"))
+                            str(getattr(cfg, "hdr_primaries", AppConfig.hdr_primaries))
                         ),
                     )
                 )
@@ -663,7 +671,7 @@ class SettingsDialog:
                     self.black_luminance_cutoff_slider,
                     self.black_luminance_knee_slider,
                 ):
-                    slider.valueChanged.connect(self._refresh_preview_label)
+                    slider.valueChanged.connect(self._schedule_refresh_preview_label)
                 self.zone_count_slider.valueChanged.connect(self._on_zone_count_slider_changed)
                 self.performance_profile_combo.currentIndexChanged.connect(
                     self._on_performance_profile_changed
@@ -689,6 +697,7 @@ class SettingsDialog:
                 self._update_backend_probe_button_state()
                 self.test_xdg_portal_button.clicked.connect(self._run_xdg_portal_test)
                 self.benchmark_xdg_portal_button.clicked.connect(self._run_xdg_portal_benchmark)
+                self.reset_portal_screen_button.clicked.connect(self._reset_portal_screen_selection)
                 self.edge_locality_diagnostic_button.clicked.connect(
                     self._run_edge_locality_diagnostic
                 )
@@ -1331,38 +1340,39 @@ class SettingsDialog:
                 runtime_status.setLayout(runtime_layout)
                 grid.addWidget(runtime_status, 1, 0, 1, 3)
 
-                grid.addWidget(self._section_heading(QLabel, "Backend & Probing"), 2, 0, 1, 3)
-                grid.addWidget(QLabel("Auto-probe policy"), 3, 0)
-                grid.addWidget(self.auto_probe_policy_combo, 3, 1, 1, 2)
-                grid.addWidget(QLabel("Latency auto-run policy"), 4, 0)
-                grid.addWidget(self.auto_latency_policy_combo, 4, 1, 1, 2)
-                grid.addWidget(self.run_latency_button, 5, 0)
-                grid.addWidget(self.retest_backends_button, 5, 1)
-                grid.addWidget(self.test_xdg_portal_button, 5, 2)
-                grid.addWidget(self.benchmark_xdg_portal_button, 6, 0, 1, 3)
-                grid.addWidget(self.latency_label, 7, 0, 1, 3)
-                grid.addWidget(self.xdg_hint_label, 8, 0, 1, 3)
+                grid.addWidget(self._section_heading(QLabel, "Backend & Probing"), 3, 0, 1, 3)
+                grid.addWidget(QLabel("Auto-probe policy"), 4, 0)
+                grid.addWidget(self.auto_probe_policy_combo, 4, 1, 1, 2)
+                grid.addWidget(QLabel("Latency auto-run policy"), 5, 0)
+                grid.addWidget(self.auto_latency_policy_combo, 5, 1, 1, 2)
+                grid.addWidget(self.run_latency_button, 6, 0)
+                grid.addWidget(self.retest_backends_button, 6, 1)
+                grid.addWidget(self.test_xdg_portal_button, 6, 2)
+                grid.addWidget(self.benchmark_xdg_portal_button, 7, 0, 1, 2)
+                grid.addWidget(self.reset_portal_screen_button, 7, 2)
+                grid.addWidget(self.latency_label, 8, 0, 1, 3)
+                grid.addWidget(self.xdg_hint_label, 9, 0, 1, 3)
 
-                grid.addWidget(self._section_heading(QLabel, "Diagnostics Actions"), 9, 0, 1, 3)
-                grid.addWidget(self.run_self_check_button, 10, 0)
-                grid.addWidget(self.capture_one_diagnostic_frame_button, 10, 1)
-                grid.addWidget(self.export_live_sampling_overlay_button, 11, 0)
-                grid.addWidget(self.export_synthetic_sampling_overlay_button, 11, 1)
-                grid.addWidget(self.export_zone_report_button, 12, 0)
-                grid.addWidget(self.export_latency_report_button, 12, 1)
-                grid.addWidget(self.self_check_label, 13, 0, 1, 3)
-                grid.addWidget(self.sampling_export_label, 14, 0, 1, 3)
-                grid.addWidget(self.zone_report_label, 15, 0, 1, 3)
-                grid.addWidget(self.latency_report_label, 16, 0, 1, 3)
+                grid.addWidget(self._section_heading(QLabel, "Diagnostics Actions"), 10, 0, 1, 3)
+                grid.addWidget(self.run_self_check_button, 11, 0)
+                grid.addWidget(self.capture_one_diagnostic_frame_button, 11, 1)
+                grid.addWidget(self.export_live_sampling_overlay_button, 12, 0)
+                grid.addWidget(self.export_synthetic_sampling_overlay_button, 12, 1)
+                grid.addWidget(self.export_zone_report_button, 13, 0)
+                grid.addWidget(self.export_latency_report_button, 13, 1)
+                grid.addWidget(self.self_check_label, 14, 0, 1, 3)
+                grid.addWidget(self.sampling_export_label, 15, 0, 1, 3)
+                grid.addWidget(self.zone_report_label, 16, 0, 1, 3)
+                grid.addWidget(self.latency_report_label, 17, 0, 1, 3)
 
-                grid.addWidget(self._section_heading(QLabel, "Quality Diagnostics"), 17, 0, 1, 3)
-                grid.addWidget(self.edge_locality_diagnostic_button, 18, 0)
-                grid.addWidget(self.color_accuracy_diagnostic_button, 18, 1)
-                grid.addWidget(self.edge_locality_diagnostic_label, 19, 0, 1, 3)
-                grid.addWidget(self.color_accuracy_diagnostic_label, 20, 0, 1, 3)
+                grid.addWidget(self._section_heading(QLabel, "Quality Diagnostics"), 18, 0, 1, 3)
+                grid.addWidget(self.edge_locality_diagnostic_button, 19, 0)
+                grid.addWidget(self.color_accuracy_diagnostic_button, 19, 1)
+                grid.addWidget(self.edge_locality_diagnostic_label, 20, 0, 1, 3)
+                grid.addWidget(self.color_accuracy_diagnostic_label, 21, 0, 1, 3)
 
-                grid.addWidget(self._section_heading(QLabel, "Recovery Tools"), 21, 0, 1, 3)
-                grid.addWidget(self.recovery_tools_hint_label, 22, 0, 1, 3)
+                grid.addWidget(self._section_heading(QLabel, "Recovery Tools"), 22, 0, 1, 3)
+                grid.addWidget(self.recovery_tools_hint_label, 23, 0, 1, 3)
                 troubleshooting.setLayout(grid)
                 layout.addWidget(troubleshooting)
                 layout.addStretch(1)
@@ -1556,7 +1566,13 @@ class SettingsDialog:
                     f"{self.black_luminance_knee_slider.value() / 10000.0:.4f}"
                 )
 
+            def _schedule_refresh_preview_label(self) -> None:
+                self._refresh_numeric_labels()
+                self._preview_refresh_timer.start(75)
+
             def _refresh_preview_label(self):
+                if self._preview_refresh_timer.isActive():
+                    self._preview_refresh_timer.stop()
                 self._refresh_numeric_labels()
                 self._pull_state()
                 pending_cfg = replace(
@@ -1908,6 +1924,20 @@ class SettingsDialog:
                     str(self.display_preset_combo.currentText()),
                     default="hdr",
                 )
+                if self._active_display_preset == "hdr":
+                    self.hdr_transfer_combo.setCurrentIndex(
+                        max(0, self.hdr_transfer_combo.findText("pq"))
+                    )
+                    self.hdr_primaries_combo.setCurrentIndex(
+                        max(0, self.hdr_primaries_combo.findText("bt2020"))
+                    )
+                elif self._active_display_preset == "sdr":
+                    self.hdr_transfer_combo.setCurrentIndex(
+                        max(0, self.hdr_transfer_combo.findText("srgb"))
+                    )
+                    self.hdr_primaries_combo.setCurrentIndex(
+                        max(0, self.hdr_primaries_combo.findText("bt709"))
+                    )
                 self._load_led_profile_sliders(self._active_display_preset)
                 self._refresh_preview_label()
 
@@ -2503,6 +2533,15 @@ class SettingsDialog:
                         self.xdg_hint_label.setText("")
                 except Exception as exc:  # noqa: BLE001
                     self.latency_label.setText(f"xdg-portal test failed: {exc}")
+
+            def _reset_portal_screen_selection(self) -> None:
+                fn = getattr(self, "_forget_portal_token_fn", None)
+                if not callable(fn):
+                    self.latency_label.setText("Portal reset unavailable in this settings session.")
+                    return
+                result = fn()
+                message = str(result.get("message") or "Portal screen selection reset.")
+                self.latency_label.setText(message)
 
             def _run_xdg_portal_benchmark(self) -> None:
                 self.latency_label.setText(
