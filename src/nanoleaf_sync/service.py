@@ -658,6 +658,7 @@ class NanoleafSyncService:
                 source_side_counts=artifacts.side_counts,
             )
             device_zone_indices = list(mapping_snapshot.device_to_source_indices)
+            diagnostic_fallback_mapping = False
             if not device_zone_indices:
                 target_count = max(
                     1,
@@ -668,6 +669,7 @@ class NanoleafSyncService:
                     device_zone_indices = [
                         int((idx * source_count) // target_count) for idx in range(target_count)
                     ]
+                    diagnostic_fallback_mapping = True
             processed = process_frame(
                 frame=frame,
                 prev_smoothed_colors=[],
@@ -755,7 +757,13 @@ class NanoleafSyncService:
                 "ok": True,
                 "message": (
                     f"Captured one diagnostic frame ({img_w}x{img_h}) with {len(rows)} zones."
+                    + (
+                        " Used fallback diagnostic mapping; calibration is not authoritative."
+                        if diagnostic_fallback_mapping
+                        else ""
+                    )
                 ),
+                "diagnostic_fallback_mapping": diagnostic_fallback_mapping,
             }
         except Exception as exc:
             return {"ok": False, "message": f"One-shot diagnostic capture failed: {exc}"}

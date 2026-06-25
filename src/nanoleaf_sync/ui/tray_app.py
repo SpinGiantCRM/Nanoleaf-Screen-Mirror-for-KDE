@@ -55,7 +55,42 @@ SELF_CHECK_IMPORTS: tuple[str, ...] = (
     "nanoleaf_sync.service",
     "nanoleaf_sync.ui.tray_app",
 )
+TRAY_MENU_ADVANCED_TITLE = "Advanced"
+TRAY_MENU_ICON_THEMES: dict[str, str] = {
+    "action_start": "media-playback-start",
+    "action_stop": "media-playback-stop",
+    "action_settings": "preferences-system",
+    "action_display_wizard": "preferences-desktop-display",
+    "action_status": "help-about",
+    "action_quit": "application-exit",
+}
 _log = logging.getLogger(__name__)
+
+
+def _tray_icon_fallback_candidates() -> tuple[Path, ...]:
+    return (
+        Path(__file__).resolve().parents[1]
+        / "assets"
+        / "icons"
+        / "hicolor"
+        / "scalable"
+        / "apps"
+        / "nanoleaf-kde-sync.svg",
+        Path(__file__).resolve().parents[3]
+        / "assets"
+        / "icons"
+        / "hicolor"
+        / "scalable"
+        / "apps"
+        / "nanoleaf-kde-sync.svg",
+        Path(sys.prefix)
+        / "share"
+        / "icons"
+        / "hicolor"
+        / "scalable"
+        / "apps"
+        / "nanoleaf-kde-sync.svg",
+    )
 
 
 def calibration_preview_user_message(exc: Exception) -> str:
@@ -426,7 +461,9 @@ class NanoleafTrayApp:
     def _restart_mirroring_service(self, *, was_running: bool) -> None:
         self._sync_config_for_mirroring()
         if self.service.is_running():
-            self.on_stop()
+            self._request_stop(timeout_s=self._shutdown_timeout_s)
+            if self.service.is_running():
+                _log.warning("mirroring service still running after stop; replacing anyway")
         create_service = getattr(self, "_create_service", None)
         if callable(create_service):
             self.service = create_service()
@@ -617,29 +654,7 @@ class NanoleafTrayApp:
             themed_running = self.QIcon.fromTheme("nanoleaf-kde-sync")
 
         fallback_icon = self.QIcon()
-        for candidate in (
-            Path(__file__).resolve().parents[1]
-            / "assets"
-            / "icons"
-            / "hicolor"
-            / "scalable"
-            / "apps"
-            / "nanoleaf-kde-sync.svg",
-            Path(__file__).resolve().parents[3]
-            / "assets"
-            / "icons"
-            / "hicolor"
-            / "scalable"
-            / "apps"
-            / "nanoleaf-kde-sync.svg",
-            Path(sys.prefix)
-            / "share"
-            / "icons"
-            / "hicolor"
-            / "scalable"
-            / "apps"
-            / "nanoleaf-kde-sync.svg",
-        ):
+        for candidate in _tray_icon_fallback_candidates():
             if candidate.exists():
                 fallback_icon = self.QIcon(str(candidate))
                 break
@@ -708,18 +723,22 @@ class NanoleafTrayApp:
 
         # ── Top-level daily-use actions ──
         self.action_start = self.QAction(
-            self.QIcon.fromTheme("media-playback-start"), "Start", menu
+            self.QIcon.fromTheme(TRAY_MENU_ICON_THEMES["action_start"]), "Start", menu
         )
-        self.action_stop = self.QAction(self.QIcon.fromTheme("media-playback-stop"), "Stop", menu)
+        self.action_stop = self.QAction(
+            self.QIcon.fromTheme(TRAY_MENU_ICON_THEMES["action_stop"]), "Stop", menu
+        )
         self.action_settings = self.QAction(
-            self.QIcon.fromTheme("preferences-system"), "Settings…", menu
+            self.QIcon.fromTheme(TRAY_MENU_ICON_THEMES["action_settings"]), "Settings…", menu
         )
         self.action_display_wizard = self.QAction(
-            self.QIcon.fromTheme("preferences-desktop-display"), "Set up strip…", menu
+            self.QIcon.fromTheme(TRAY_MENU_ICON_THEMES["action_display_wizard"]),
+            "Set up strip…",
+            menu,
         )
         self.action_guided_calibration = self.QAction("Guided Calibration…", menu)
         self.action_status = self.QAction(
-            self.QIcon.fromTheme("help-about"), "About / Status", menu
+            self.QIcon.fromTheme(TRAY_MENU_ICON_THEMES["action_status"]), "About / Status", menu
         )
 
         # ── Advanced submenu actions ──
@@ -733,7 +752,9 @@ class NanoleafTrayApp:
         self.action_launch_diagnostics = self.QAction("Show Launch Diagnostics", menu)
         self.action_enable_autostart = self.QAction("Enable Autostart", menu)
         self.action_disable_autostart = self.QAction("Disable Autostart", menu)
-        self.action_quit = self.QAction(self.QIcon.fromTheme("application-exit"), "Quit", menu)
+        self.action_quit = self.QAction(
+            self.QIcon.fromTheme(TRAY_MENU_ICON_THEMES["action_quit"]), "Quit", menu
+        )
 
         # ── Wire triggers ──
         self.action_start.triggered.connect(self.on_start)
@@ -755,7 +776,7 @@ class NanoleafTrayApp:
         self.action_quit.triggered.connect(self.on_quit)
 
         # ── Build Advanced submenu ──
-        advanced_menu = self.QMenu("Advanced", menu)
+        advanced_menu = self.QMenu(TRAY_MENU_ADVANCED_TITLE, menu)
         advanced_menu.addAction(self.action_diagnostic_hub)
         advanced_menu.addAction(self.action_troubleshooting_guide)
         advanced_menu.addAction(self.action_live_diagnostics)

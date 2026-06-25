@@ -8,10 +8,13 @@ DESKTOP_ENTRY="${HOME}/.local/share/applications/${APP_NAME}.desktop"
 CONFIG_DIR="${HOME}/.config/${APP_NAME}"
 CACHE_DIR="${HOME}/.cache/${APP_NAME}"
 
-echo "Stopping running ${APP_NAME} processes (if any)..."
-pkill -f "${APP_NAME}-service" 2>/dev/null || true
-pkill -f "nanoleaf_sync.ui.tray_app" 2>/dev/null || true
-pkill -f "${APP_NAME}$" 2>/dev/null || true
+matches="$(pgrep -af '(^|[ /])nanoleaf-kde-sync(-service)?($|[ ])|nanoleaf_sync\.ui\.tray_app' || true)"
+if [[ -n "${matches}" ]]; then
+  echo "Refusing to uninstall while ${APP_NAME} appears to be running:"
+  echo "${matches}"
+  echo "Stop the tray/service from the app or systemd, then rerun this script."
+  exit 1
+fi
 
 if command -v "${APP_NAME}-autostart" >/dev/null 2>&1; then
   "${APP_NAME}-autostart" disable --method desktop || true

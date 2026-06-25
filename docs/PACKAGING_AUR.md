@@ -2,18 +2,18 @@
 
 ## User install
 
-### Published on AUR (future)
+### AUR / Arch package install
 
-When the AUR package is live:
+If the AUR package is published in your helper's indexes:
 
 ```bash
 paru -S --needed python-dacite nanoleaf-kde-sync
 paru -Syu
 ```
 
-### Pre-AUR — local build (current)
+### Local package build
 
-AUR account creation is currently blocked. Build and install from this repository:
+If the AUR package is not available yet, or while testing local packaging changes, build and install from this repository:
 
 ```bash
 paru -S --needed python-dacite

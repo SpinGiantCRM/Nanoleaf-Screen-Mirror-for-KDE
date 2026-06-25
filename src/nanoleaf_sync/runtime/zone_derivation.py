@@ -76,10 +76,21 @@ def effective_zone_count(
     config: AppConfig,
     detected_device_zone_count: int | None = None,
 ) -> int:
+    manual_count = int(getattr(config, "device_zone_count", 0))
+    if config.zones and manual_count > 0 and len(config.zones) != manual_count:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "zones list length (%d) differs from device_zone_count (%d); "
+            "using device_zone_count for output mapping",
+            len(config.zones),
+            manual_count,
+        )
+        return manual_count
     if config.zones:
         return len(config.zones)
-    if int(getattr(config, "device_zone_count", 0)) > 0:
-        return int(config.device_zone_count)
+    if manual_count > 0:
+        return manual_count
     if detected_device_zone_count is not None and int(detected_device_zone_count) > 0:
         return int(detected_device_zone_count)
     return DEFAULT_DERIVED_ZONE_COUNT

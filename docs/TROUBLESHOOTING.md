@@ -259,6 +259,10 @@ python -c "from nanoleaf_sync.config.store import ConfigManager; ConfigManager()
 
 This clears:
 
+- `auto_selected_backend`
+- `auto_probe_signature`
+- `auto_probe_timestamp`
+
 ### Canonical reset tool (1.0.0)
 
 Prefer the dedicated reset command for clean, scoped resets:
@@ -284,10 +288,6 @@ For local editable/dev installs, use:
 ```
 
 `reinstall_local.sh` stops stale tray/service processes before reinstall to avoid duplicate runtime loops and stale HID handles.
-
-- `auto_selected_backend`
-- `auto_probe_signature`
-- `auto_probe_timestamp`
 
 ### Step 2: restart service/tray
 

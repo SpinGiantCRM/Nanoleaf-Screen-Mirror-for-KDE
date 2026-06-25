@@ -72,6 +72,8 @@ def test_restart_mirroring_service_replaces_service_instance(monkeypatch) -> Non
         tray_icon=SimpleNamespace(showMessage=lambda *_a, **_k: None),
         QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Warning=1)),
         _refresh_mode_labels=lambda: None,
+        _shutdown_timeout_s=5.0,
+        _request_stop=lambda *args, **kwargs: fake_tray.service.stop(),
         on_stop=lambda: fake_tray.service.stop(),
         on_start=lambda: fake_tray.service.start(),
     )

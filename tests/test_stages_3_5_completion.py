@@ -19,6 +19,7 @@ from nanoleaf_sync.runtime.color_processing import (
     apply_led_calibration,
 )
 from nanoleaf_sync.runtime.status_warnings import build_runtime_warnings
+from nanoleaf_sync.runtime.virtual_zones import virtual_zone_samples
 from nanoleaf_sync.tools.colour_path_probe import compare_colour_path_stages
 
 
@@ -30,6 +31,16 @@ def test_metadata_hysteresis_requires_multiple_frames() -> None:
     assert tracker.update(flip).source == "backend"
     assert tracker.update(flip).source == "backend"
     assert tracker.update(flip).source == "heuristic"
+
+
+def test_metadata_hysteresis_bypasses_unknown_confidence() -> None:
+    tracker = MetadataHysteresisTracker(frames_required=3)
+    first = CaptureMetadata(source="backend", confidence="backend")
+    unknown = CaptureMetadata(source="kwin display-referred", confidence="unknown")
+
+    assert tracker.update(first).source == "backend"
+    assert tracker.update(unknown) == unknown
+    assert tracker.candidate is None
 
 
 def test_portal_source_uses_compositor_layout_scale_confidence() -> None:
@@ -120,6 +131,17 @@ def test_color_domain_linear_calibration_order() -> None:
         LedCalibration(red_gain=1.2, color_matrix=(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)),
     )
     assert calibrated.shape == colors.shape
+
+
+def test_color_domain_detects_uint8_before_float_conversion() -> None:
+    colors = np.array([[1, 1, 1]], dtype=np.uint8)
+    assert infer_color_domain(colors) == ColorDomain.ENCODED_SRGB_U8
+
+
+def test_virtual_zone_samples_preserves_requested_count() -> None:
+    frame = np.zeros((20, 40, 3), dtype=np.uint8)
+    colors = virtual_zone_samples(frame, 10)
+    assert colors.shape == (10, 3)
 
 
 def test_gamut_adaptation_accepts_explicit_domain() -> None:

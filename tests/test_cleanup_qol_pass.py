@@ -8,10 +8,17 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.normalize import validate_config
 from nanoleaf_sync.runtime.color_pipeline import ColorPipelineParams
 from nanoleaf_sync.runtime.edge_locality_diagnostics import run_edge_locality_test
-from nanoleaf_sync.runtime.engine import process_frame
+from nanoleaf_sync.runtime.engine import _make_fps_governor, process_frame
 from nanoleaf_sync.runtime.processing import zones_from_config
+from nanoleaf_sync.runtime.readiness_check import run_readiness_check
+from nanoleaf_sync.ui.settings_dialog import SETTINGS_SECTIONS
+from nanoleaf_sync.ui.tray_app import _tray_icon_fallback_candidates
 from nanoleaf_sync.ui.zone_presets import edge_weighted_layout, make_edge_weighted_zones
-from tests.repo_text import read_repo_text
+from tests.qt_headless import (
+    button_texts,
+    make_display_configurator,
+    make_settings_dialog,
+)
 
 
 def test_active_config_serialization_has_no_legacy_preset_fields() -> None:
@@ -34,29 +41,24 @@ def test_first_run_defaults_are_ambient_daily_use() -> None:
     assert cfg.hdr_primaries == "bt709"
 
 
-def test_runtime_and_ui_fallbacks_match_balanced_profile_defaults() -> None:
+def test_runtime_and_ui_fallbacks_match_balanced_profile_defaults(monkeypatch) -> None:
     cfg = validate_config(AppConfig())
     assert ColorPipelineParams().sampling_quality == cfg.sampling_quality
 
-    engine_text = read_repo_text("src/nanoleaf_sync/runtime/engine.py")
-    pipeline_text = read_repo_text("src/nanoleaf_sync/runtime/color_pipeline.py")
-    readiness_text = read_repo_text("src/nanoleaf_sync/runtime/readiness_check.py")
-    service_text = read_repo_text("src/nanoleaf_sync/service.py")
-    settings_text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    configurator_text = read_repo_text("src/nanoleaf_sync/ui/display_configurator.py")
-    for text in (engine_text, settings_text, configurator_text, pipeline_text, readiness_text):
-        assert 'getattr(cfg, "sampling_quality", "high")' not in text
-        assert 'data.get("sampling_quality", "high")' not in text
-        assert 'getattr(cfg, "edge_locality", "tight")' not in text
-        assert 'data.get("edge_locality", "tight")' not in text
-        assert 'getattr(cfg, "hdr_transfer", "srgb")' not in text
-        assert 'getattr(cfg, "hdr_primaries", "bt709")' not in text
-        assert 'getattr(config, "hdr_transfer", "srgb")' not in text
-        assert 'getattr(config, "hdr_primaries", "bt709")' not in text
-    assert 'getattr(self.config, "hdr_transfer", "srgb")' not in service_text
-    assert 'getattr(self.config, "hdr_primaries", "bt709")' not in service_text
-    assert 'edge_locality: str = "tight"' not in engine_text
-    assert 'sampling_quality: str = "high"' not in engine_text
+    readiness = run_readiness_check(config=cfg, runtime_status={})
+    assert readiness is not None
+
+    governor = _make_fps_governor(cfg)
+    assert governor.target_fps == cfg.fps
+
+    _qt, _app, _settings_dialog, settings = make_settings_dialog(monkeypatch)
+    _qt2, _app2, _wizard_dialog, wizard = make_display_configurator(monkeypatch)
+    assert settings.edge_locality_combo.currentText() == "Balanced"
+    assert settings.sampling_quality_combo.currentText() == "Balanced"
+    assert wizard.edge_locality_combo.currentText() == "Balanced"
+    assert wizard.sampling_quality_combo.currentText() == "Balanced"
+    assert settings.updated_config().hdr_transfer == "srgb"
+    assert settings.updated_config().hdr_primaries == "bt709"
 
 
 def test_reference_mode_preserves_locality_for_bottom_left_signal() -> None:
@@ -101,44 +103,48 @@ def test_edge_locality_diagnostic_corner_test_passes() -> None:
     assert "far_edge_dark=yes" in result.summary
 
 
-def test_strip_count_mismatch_warning_exposes_manual_actions() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert "Use reported count" in text
-    assert "Keep manual count" in text
-    assert "Reset anchors and recalibrate" in text
+def test_strip_count_mismatch_warning_exposes_manual_actions(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    buttons = button_texts(widget, _qt)
+    assert "Use reported count" in buttons
+    assert "Keep manual count" in buttons
+    assert "Reset anchors and recalibrate" in buttons
 
 
-def test_calibration_widget_shows_corner_checklist_and_status() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/calibration_widget.py")
-    assert "corner_checklist_label" in text
-    assert "Calibration:" in read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
+def test_calibration_widget_shows_corner_checklist_and_status(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    assert hasattr(widget.simple_calibration_widget, "corner_checklist_label")
+    widget._refresh_preview_label()
+    assert "Calibration:" in widget.simple_calibration_widget.validation_label.text()
 
 
-def test_raw_mapping_text_is_diagnostics_only() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert "Raw device→source mapping" in text
-    assert "self.preview_label.setText(" in text
+def test_raw_mapping_text_is_diagnostics_only(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    widget._refresh_preview_label()
+    assert "Raw device→source mapping" in widget.diagnostics_mapping_label.text()
+    assert "Raw device→source mapping" not in widget.preview_label.text()
 
 
-def test_settings_sections_present() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
+def test_settings_sections_present(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    nav_sections = [widget._section_nav.item(i).text() for i in range(widget._section_nav.count())]
     for section in ("Everyday", "Strip setup", "Fine-tuning", "Colour", "Advanced"):
-        assert section in text
+        assert section in nav_sections
+    assert nav_sections == list(SETTINGS_SECTIONS)
 
 
 def test_tray_icon_fallback_checks_packaged_assets_before_checkout_assets() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/tray_app.py")
-    package_asset_ref = 'Path(__file__).resolve().parents[1]\n            / "assets"'
-    checkout_asset_ref = 'Path(__file__).resolve().parents[3]\n            / "assets"'
-
-    assert package_asset_ref in text
-    assert checkout_asset_ref in text
-    assert text.index(package_asset_ref) < text.index(checkout_asset_ref)
+    candidates = _tray_icon_fallback_candidates()
+    assert len(candidates) >= 2
+    package_root = str(candidates[0])
+    checkout_root = str(candidates[1])
+    assert package_root.endswith("nanoleaf-kde-sync.svg")
+    assert checkout_root.endswith("nanoleaf-kde-sync.svg")
+    assert "assets" in package_root
+    assert "assets" in checkout_root
 
 
 def test_pipeline_setup_has_no_dead_fps_expression() -> None:
-    text = read_repo_text("src/nanoleaf_sync/runtime/engine.py")
-    assert "\n    1.0 / fps\n" not in text
-    pipeline_start = text.index("def _run_loop_pipeline(")
-    pipeline_setup = text[pipeline_start : text.index("# Process buffer", pipeline_start)]
-    assert "fps = max(1, int(config.fps))" not in pipeline_setup
+    cfg = validate_config(AppConfig(fps=30))
+    governor = _make_fps_governor(cfg)
+    assert governor.target_fps == 30

@@ -17,17 +17,22 @@ def virtual_zone_samples(
     h, w, _ = frame.shape
     count = max(1, int(virtual_count))
     edge_px = max(1, int(h * edge_thickness))
-    per_side = max(1, count // 4)
+    base, remainder = divmod(count, 4)
+    per_side_counts = [base + (1 if side < remainder else 0) for side in range(4)]
+    per_side_counts = [max(1, side_count) for side_count in per_side_counts]
     zones: list[ZoneRect] = []
-    side_w = max(1, w // per_side)
-    for i in range(per_side):
+    top_count, right_count, bottom_count, left_count = per_side_counts
+    side_w = max(1, w // top_count)
+    for i in range(top_count):
         zones.append((i * side_w, 0, side_w, edge_px))
-    side_h = max(1, h // per_side)
-    for i in range(per_side):
+    side_h = max(1, h // right_count)
+    for i in range(right_count):
         zones.append((w - edge_px, i * side_h, edge_px, side_h))
-    for i in range(per_side):
+    side_w = max(1, w // bottom_count)
+    for i in range(bottom_count):
         zones.append((w - (i + 1) * side_w, h - edge_px, side_w, edge_px))
-    for i in range(per_side):
+    side_h = max(1, h // left_count)
+    for i in range(left_count):
         zones.append((0, h - (i + 1) * side_h, edge_px, side_h))
 
     colors = np.zeros((len(zones), 3), dtype=np.uint8)

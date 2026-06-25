@@ -573,12 +573,11 @@ def process_zone_colors(
 
     np.clip(mapped, 0.0, 255.0, out=mapped)
     if params.blue_noise_dither:
-        from nanoleaf_sync.runtime.blue_noise import apply_blue_noise_dither
+        from nanoleaf_sync.runtime.temporal_dither import apply_temporal_dither
 
-        mapped = apply_blue_noise_dither(
+        mapped = apply_temporal_dither(
             mapped,
             frame_index=int(params.palette_frame_index),
-            strength=0.5,
         )
     np.rint(mapped, out=mapped)
     out = mapped.astype(np.uint8, copy=False)

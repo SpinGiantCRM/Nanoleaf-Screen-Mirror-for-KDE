@@ -9,14 +9,19 @@ PKGREL="$(awk -F= '/^pkgrel=/{print $2}' "${ARCH_DIR}/PKGBUILD")"
 SRC_DIR="Nanoleaf-Screen-Mirror-for-KDE-${PKGVER}"
 TARBALL="${ARCH_DIR}/nanoleaf-kde-sync-${PKGVER}.tar.gz"
 
-stop_runtime_processes() {
-  pkill -f "nanoleaf-kde-sync-service" 2>/dev/null || true
-  pkill -f "nanoleaf_sync.ui.tray_app" 2>/dev/null || true
-  pkill -f "nanoleaf-kde-sync$" 2>/dev/null || true
+check_no_runtime_processes() {
+  local matches
+  matches="$(pgrep -af '(^|[ /])nanoleaf-kde-sync(-service)?($|[ ])|nanoleaf_sync\.ui\.tray_app' || true)"
+  if [[ -n "${matches}" ]]; then
+    echo "Refusing to build/install while nanoleaf-kde-sync appears to be running:"
+    echo "${matches}"
+    echo "Stop the tray/service from the app or systemd, then rerun this script."
+    exit 1
+  fi
 }
 
-echo "Stopping running nanoleaf-kde-sync processes (if any)..."
-stop_runtime_processes
+echo "Checking for running nanoleaf-kde-sync processes..."
+check_no_runtime_processes
 
 echo "Building source tarball ${TARBALL}..."
 rm -f "${TARBALL}"

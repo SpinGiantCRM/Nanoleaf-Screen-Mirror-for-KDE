@@ -13,6 +13,7 @@ _SCREENSHOT2_IFACE: Final = "org.kde.KWin.ScreenShot2"
 _PROPERTIES_IFACE: Final = "org.freedesktop.DBus.Properties"
 
 _KNOWN_MAX_VERSION = 5
+_PROBE_JOIN_TIMEOUT_SECONDS: Final = 2.0
 
 _VERSION_CAPABILITIES: dict[int, frozenset[str]] = {
     1: frozenset({"CaptureWindow", "CaptureActiveWindow"}),
@@ -112,7 +113,9 @@ def _run_async_probe(coro) -> int:
 
     thread = threading.Thread(target=_worker, name="kwin-screenshot2-probe", daemon=True)
     thread.start()
-    thread.join()
+    thread.join(timeout=_PROBE_JOIN_TIMEOUT_SECONDS)
+    if thread.is_alive():
+        raise RuntimeError("ScreenShot2 version probe timed out")
     if error:
         raise error[0]
     if not result:

@@ -24,6 +24,7 @@ _REDACT_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"activation_token[=:]\s*\S+", re.I), "activation_token=<redacted>"),
     (re.compile(r"DESKTOP_STARTUP_ID=\S+"), "DESKTOP_STARTUP_ID=<redacted>"),
     (re.compile(r"XDG_ACTIVATION_TOKEN=\S+"), "XDG_ACTIVATION_TOKEN=<redacted>"),
+    (re.compile(r"\bserial(?:_number)?=('[^']*'|\"[^\"]*\"|\S+)", re.I), "serial=<redacted>"),
 )
 
 

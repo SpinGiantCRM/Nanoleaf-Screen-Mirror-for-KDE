@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import sys
+import threading
 import types
 
 import pytest
 
-from nanoleaf_sync.device.hid_transport import HIDTransport
+from nanoleaf_sync.device.hid_transport import HIDTransport, HIDWriteError
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
 
 
@@ -384,3 +385,28 @@ def test_open_error_reports_unusable_candidate_path_format(monkeypatch) -> None:
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
     with pytest.raises(RuntimeError, match="candidate path format is not directly openable"):
         transport.open()
+
+
+class _BlockingHIDWriteHandle:
+    def __init__(self) -> None:
+        self.writes: list[bytes] = []
+        self._block = threading.Event()
+
+    def write(self, data: bytes) -> int:
+        self._block.wait()
+        self.writes.append(bytes(data))
+        return len(data)
+
+    def read(self, _size: int, _timeout_ms: int) -> list[int]:
+        return []
+
+    def close(self) -> None:
+        self._block.set()
+
+
+def test_write_payload_timeout_raises_on_blocking_handle() -> None:
+    transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
+    transport._handle = _BlockingHIDWriteHandle()
+    payload = b"\x00" * 64
+    with pytest.raises(HIDWriteError, match="timed out"):
+        transport._write_payload(payload, write_timeout_ms=50)

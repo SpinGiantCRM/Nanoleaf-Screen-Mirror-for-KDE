@@ -92,3 +92,27 @@ def test_screenshot2_probe_works_with_running_event_loop(monkeypatch) -> None:
         return kwin_probe.get_screenshot2_api_version(force_refresh=True)
 
     assert asyncio.run(_runner()) == 4
+
+
+def test_screenshot2_probe_times_out_with_running_event_loop(monkeypatch) -> None:
+    class _HungThread:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def start(self) -> None:
+            return None
+
+        def join(self, timeout=None) -> None:
+            return None
+
+        def is_alive(self) -> bool:
+            return True
+
+    monkeypatch.setattr(kwin_probe.threading, "Thread", _HungThread)
+    monkeypatch.setattr(kwin_probe, "_PROBE_JOIN_TIMEOUT_SECONDS", 0.01)
+
+    async def _runner() -> None:
+        with pytest.raises(RuntimeError, match="timed out"):
+            kwin_probe._run_async_probe(object())
+
+    asyncio.run(_runner())

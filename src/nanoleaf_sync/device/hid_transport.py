@@ -404,8 +404,43 @@ class HIDTransport:
         report[: len(payload)] = payload
         return bytes(report)
 
+    def _write_chunk_with_timeout(self, report_buffer: bytearray, timeout_ms: int) -> None:
+        _exc: list[Exception] = []
+        _done = threading.Event()
+        raw = bytes(report_buffer)
+
+        def _do() -> None:
+            try:
+                self._handle.write(raw)
+            except Exception as e:
+                _exc.append(e)
+            finally:
+                _done.set()
+
+        t = threading.Thread(target=_do, daemon=True)
+        t.start()
+        if not _done.wait(timeout=timeout_ms / 1000.0):
+            raise HIDWriteError(
+                "HID report write timed out",
+                write_status="timed_out",
+                completed_reports=0,
+                attempted_report_index=0,
+                device_disconnected=False,
+            )
+        if _exc:
+            exc = _exc[0]
+            if _is_enodev_error(exc):
+                self.close()
+            raise HIDWriteError(
+                "HID report write failed; device write progress is uncertain",
+                write_status="uncertain",
+                completed_reports=0,
+                attempted_report_index=0,
+                device_disconnected=_is_enodev_error(exc),
+            ) from exc
+
     def _write_payload(
-        self, payload: bytes
+        self, payload: bytes, *, write_timeout_ms: int | None = None
     ) -> dict[str, int | float | list[int] | list[float] | bool | str]:
         payload_capacity = self.report_size
         if payload_capacity <= 0:
@@ -439,7 +474,12 @@ class HIDTransport:
                 )
             write_start = time.perf_counter()
             try:
-                self._handle.write(report_buffer)
+                if write_timeout_ms is not None:
+                    self._write_chunk_with_timeout(report_buffer, write_timeout_ms)
+                else:
+                    self._handle.write(report_buffer)
+            except HIDWriteError:
+                raise
             except Exception as exc:
                 if _is_enodev_error(exc):
                     self.close()
@@ -461,7 +501,7 @@ class HIDTransport:
             "total_frame_bytes": int(len(payload)),
             "per_report_write_ms": per_report_write_ms,
             "write_ms": float(total_write_ms),
-            "write_blocking": True,
+            "write_blocking": write_timeout_ms is None,
             "retry_policy": "none",
             "rate_limit_policy": "none",
         }
@@ -525,7 +565,7 @@ class HIDTransport:
             if self._handle is None:
                 raise RuntimeError("HID transport not opened.")
             payload = bytes(report)
-            timing = dict(self._write_payload(payload))
+            timing = dict(self._write_payload(payload, write_timeout_ms=500))
             drain_start = time.perf_counter()
             drain_reads = 0
             ack_arrival_ms: float | None = None

@@ -4,7 +4,7 @@ from nanoleaf_sync.config.model import MAX_DEVICE_ZONE_COUNT, AppConfig, Calibra
 from nanoleaf_sync.config.normalize import ConfigValidationError, validate_config
 from nanoleaf_sync.config.serialization import dump_toml
 from nanoleaf_sync.config.store import ConfigManager
-from tests.repo_text import read_repo_text
+from tests.qt_headless import make_display_configurator, make_settings_dialog
 
 
 def test_effective_calibration_prefers_nested_block() -> None:
@@ -250,13 +250,13 @@ def test_normalize_layout_preset_maps_edge_weighted_alias_to_canonical() -> None
     assert result.layout_preset == "edge_strip"
 
 
-def test_settings_dialog_uses_canonical_layout_preset_value() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert '"edge-weighted"' not in text
-    assert '"edge_strip"' in text
+def test_settings_dialog_uses_canonical_layout_preset_value(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    updated = widget.updated_config()
+    assert updated.layout_preset == "edge_strip"
 
 
-def test_display_configurator_uses_canonical_layout_preset_value() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/display_configurator.py")
-    assert '"edge-weighted"' not in text
-    assert '"edge_strip"' in text
+def test_display_configurator_uses_canonical_layout_preset_value(monkeypatch) -> None:
+    _qt, _app, dialog, widget = make_display_configurator(monkeypatch)
+    updated = dialog.updated_config()
+    assert updated.layout_preset == "edge_strip"

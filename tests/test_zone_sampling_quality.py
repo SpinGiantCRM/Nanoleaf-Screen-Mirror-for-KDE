@@ -4,8 +4,8 @@ import numpy as np
 
 from nanoleaf_sync.capture._utils import _resize_to_target, zone_box_average
 from nanoleaf_sync.config.model import PrivacyZone
-from nanoleaf_sync.runtime.blue_noise import apply_blue_noise_dither
 from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
+from nanoleaf_sync.runtime.temporal_dither import apply_temporal_dither
 from nanoleaf_sync.runtime.zone_accumulator import ZoneAccumulator
 from nanoleaf_sync.runtime.zones import (
     compute_adaptive_step,
@@ -88,10 +88,10 @@ def test_zone_accumulator_first_frame_is_not_biased_toward_black() -> None:
     assert acc.update(first, frame_delta=0.0).tolist() == first.tolist()
 
 
-def test_blue_noise_reduces_quantization_banding() -> None:
+def test_temporal_dither_reduces_quantization_banding() -> None:
     gradient = np.linspace(100, 110, 16, dtype=np.float32)[:, None] * np.ones((16, 3))
     plain = np.clip(np.rint(gradient), 0, 255).astype(np.uint8)
-    dithered = apply_blue_noise_dither(gradient, frame_index=3, strength=0.8)
+    dithered = apply_temporal_dither(gradient, frame_index=3, strength=0.8)
     dithered_u8 = np.clip(np.rint(dithered), 0, 255).astype(np.uint8)
     assert len(np.unique(plain[:, 0])) <= len(np.unique(dithered_u8[:, 0]))
 

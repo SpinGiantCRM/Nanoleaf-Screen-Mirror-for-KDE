@@ -65,6 +65,8 @@ def test_diagnostic_capture_falls_back_when_corner_anchors_missing() -> None:
     )
     result = svc.capture_one_diagnostic_frame()
     assert result["ok"] is True, result.get("message")
+    assert result["diagnostic_fallback_mapping"] is True
+    assert "fallback diagnostic mapping" in str(result["message"])
 
 
 def test_persisted_zones_keep_side_counts_on_ultrawide() -> None:

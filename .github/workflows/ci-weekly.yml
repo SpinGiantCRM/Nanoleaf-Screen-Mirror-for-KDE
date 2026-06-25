@@ -8,6 +8,8 @@ on:
 jobs:
   weekly:
     name: Weekly CI (py${{ matrix.python-version }})
+    # Keep this job intentionally aligned with .github/workflows/ci.yml;
+    # weekly CI adds dependency audit coverage for drift detection.
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

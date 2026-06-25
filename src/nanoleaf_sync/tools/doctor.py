@@ -60,6 +60,7 @@ from nanoleaf_sync.tools.setcap_helper import (
 Status = Literal["pass", "warn", "fail"]
 
 _UPSTREAM_ISSUE_URL = "https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/issues/new"
+_PROBE_JOIN_TIMEOUT_SECONDS = 2.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,7 +150,15 @@ def _run_probe_sync() -> DoctorCheck:
 
     thread = threading.Thread(target=_worker, name="kwin-probe", daemon=True)
     thread.start()
-    thread.join()
+    thread.join(timeout=_PROBE_JOIN_TIMEOUT_SECONDS)
+
+    if thread.is_alive():
+        return DoctorCheck(
+            "kwin-screenshot2",
+            "warn",
+            "ScreenShot2 interface probe timed out.",
+            "If KWin is running, retry after the session bus is responsive.",
+        )
 
     if error is not None:
         raise error
@@ -274,13 +283,15 @@ def _check_hid_enumeration(config: AppConfig) -> DoctorCheck:
         path = dev.get("path")
         if isinstance(path, bytes):
             path = path.decode("utf-8", errors="replace")
+        serial = dev.get("serial_number")
+        redacted_serial = "<redacted>" if str(serial or "").strip() else "<empty>"
         details.append(
             f"#{idx} path={path or '<unknown>'} interface_number={dev.get('interface_number')!r} "
             f"usage_page={dev.get('usage_page')!r} usage={dev.get('usage')!r} "
             f"release_number={dev.get('release_number')!r} bus_type={dev.get('bus_type')!r} "
             f"manufacturer={dev.get('manufacturer_string')!r} "
             f"product={dev.get('product_string')!r} "
-            f"serial={dev.get('serial_number')!r}"
+            f"serial={redacted_serial}"
         )
 
     return DoctorCheck(

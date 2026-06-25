@@ -10,23 +10,31 @@ Mirrors your display edge colors to supported Nanoleaf USB strips in real time, 
 - A supported Nanoleaf USB strip: `NL82K1` (`0x37fa:0x8201`) or `NL82K2` (`0x37fa:0x8202`)
 - USB permissions via udev (see [Hardware setup](docs/HARDWARE_SETUP.md))
 
-## Install (Arch / CachyOS)
+## Install
 
-**When published on AUR:**
-
-```bash
-paru -S --needed python-dacite nanoleaf-kde-sync
-paru -Syu
-```
-
-**Until AUR account is available — local build from this repo:**
+**Recommended (all distros):**
 
 ```bash
-paru -S --needed python-dacite
-./scripts/build_arch_package.sh
+pip install nanoleaf-kde-sync
 ```
 
-Install udev rules after package install:
+On Arch with PEP 668 enforced, use `pipx` instead:
+
+```bash
+pipx install nanoleaf-kde-sync
+```
+
+After install, run `nanoleaf-kde-sync-doctor` for first-time setup.
+
+**AUR package (once published):**
+
+```bash
+paru -S nanoleaf-kde-sync
+```
+
+Local build from this repo is available via `./scripts/build_arch_package.sh`. See [docs/PACKAGING_AUR.md](docs/PACKAGING_AUR.md) for maintainer details.
+
+Udev rules are required regardless of install method:
 
 ```bash
 ./scripts/setup_udev.sh

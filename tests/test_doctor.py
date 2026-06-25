@@ -104,6 +104,31 @@ def test_run_probe_sync_works_inside_running_loop(monkeypatch) -> None:
     assert result.status == "pass"
 
 
+def test_run_probe_sync_times_out_inside_running_loop(monkeypatch) -> None:
+    class _HungThread:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def start(self) -> None:
+            return None
+
+        def join(self, timeout=None) -> None:
+            return None
+
+        def is_alive(self) -> bool:
+            return True
+
+    monkeypatch.setattr(doctor.threading, "Thread", _HungThread)
+    monkeypatch.setattr(doctor, "_PROBE_JOIN_TIMEOUT_SECONDS", 0.01)
+
+    async def _call() -> DoctorCheck:
+        return doctor._run_probe_sync()
+
+    result = doctor.asyncio.run(_call())
+    assert result.status == "warn"
+    assert "timed out" in result.message
+
+
 def test_run_doctor_with_capture_probe(monkeypatch) -> None:
     _patch_config_loader(monkeypatch, AppConfig(device_vid=0x37FA, device_pid=0x8201))
     monkeypatch.setattr(
@@ -241,7 +266,7 @@ def test_hid_enumeration_reports_interface_details(monkeypatch) -> None:
                 "bus_type": 1,
                 "manufacturer_string": "",
                 "product_string": "",
-                "serial_number": "",
+                "serial_number": "NL-SECRET-123",
             }
         ],
     )
@@ -257,6 +282,8 @@ def test_hid_enumeration_reports_interface_details(monkeypatch) -> None:
     assert "usage=1" in check.message
     assert "release_number=261" in check.message
     assert "bus_type=1" in check.message
+    assert "NL-SECRET-123" not in check.message
+    assert "serial=<redacted>" in check.message
 
 
 def test_device_probe_open_failure_returns_targeted_action(monkeypatch) -> None:

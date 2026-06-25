@@ -1,4 +1,4 @@
-"""Spatiotemporal blue-noise dithering before 8-bit LED quantization."""
+"""Spatiotemporal dithering before 8-bit LED quantization."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import numpy as np
 
 
 @lru_cache(maxsize=1)
-def _load_blue_noise() -> np.ndarray:
+def _load_dither_texture() -> np.ndarray:
     rng = np.random.default_rng(42)
     size = 64
     texture = np.zeros((size, size), dtype=np.float32)
@@ -19,13 +19,13 @@ def _load_blue_noise() -> np.ndarray:
     return texture
 
 
-def apply_blue_noise_dither(
+def apply_temporal_dither(
     colors: np.ndarray,
     *,
     frame_index: int,
-    strength: float = 0.5,
+    strength: float = 0.15,
 ) -> np.ndarray:
-    noise_tex = _load_blue_noise()
+    noise_tex = _load_dither_texture()
     out = np.asarray(colors, dtype=np.float32)
     if out.ndim != 2 or out.shape[1] != 3:
         return out

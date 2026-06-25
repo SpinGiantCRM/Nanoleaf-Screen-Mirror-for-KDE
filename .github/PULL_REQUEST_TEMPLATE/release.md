@@ -11,9 +11,8 @@
 > The evidence in this PR body is the release source of truth.
 
 Reference:
-- `docs/RC_TEST_MATRIX.md`
 - `docs/SMOKE_TEST.md`
-- `docs/PHYSICAL_CALIBRATION_VALIDATION_LOG.md`
+- Evidence attached in this PR body is authoritative for RC matrix and physical calibration sign-off.
 
 ### Matrix execution checklist
 
@@ -28,7 +27,7 @@ Reference:
 - [ ] Smoke checks pass for required scenarios
 - [ ] Tray Start/Stop/Status lifecycle verified
 - [ ] RC run results captured in artifact table in this PR body
-- [ ] Optional: mirrored rows appended to `docs/RC_TEST_MATRIX.md` after sign-off
+- [ ] Optional: mirrored rows appended to a tracked release note or follow-up docs PR after sign-off
 
 ## RC run results artifact
 

@@ -45,6 +45,8 @@ def _wire_preview_helpers(fake_tray: SimpleNamespace) -> None:
     fake_tray._restart_mirroring_service = lambda *, was_running: (
         NanoleafTrayApp._restart_mirroring_service(fake_tray, was_running=was_running)
     )
+    fake_tray._request_stop = lambda *args, **kwargs: fake_tray.on_stop()
+    fake_tray._shutdown_timeout_s = 5.0
     fake_tray._preview_driver = getattr(fake_tray, "_preview_driver", None)
     fake_tray._preview_paused_service = getattr(fake_tray, "_preview_paused_service", False)
     fake_tray._preview_pause_notified = getattr(fake_tray, "_preview_pause_notified", False)

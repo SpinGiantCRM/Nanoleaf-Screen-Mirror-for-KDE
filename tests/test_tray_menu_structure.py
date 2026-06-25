@@ -1,63 +1,106 @@
 from __future__ import annotations
 
-from pathlib import Path
+from types import SimpleNamespace
+
+import nanoleaf_sync
+from nanoleaf_sync.ui.tray_app import (
+    TRAY_MENU_ADVANCED_TITLE,
+    TRAY_MENU_ICON_THEMES,
+    NanoleafTrayApp,
+    first_run_message,
+)
+from tests.qt_headless import find_submenu, load_headless_qt, make_tray_menu, submenu_action_texts
 
 
-def test_tray_menu_groups_advanced_actions_under_submenu() -> None:
-    text = Path("src/nanoleaf_sync/ui/tray_app.py").read_text(encoding="utf-8")
-    assert 'advanced_menu = self.QMenu("Advanced", menu)' in text
-    assert "menu.addMenu(advanced_menu)" in text
-
-
-def test_tray_top_level_is_focused_for_daily_use() -> None:
-    text = Path("src/nanoleaf_sync/ui/tray_app.py").read_text(encoding="utf-8")
-    assert "self.action_settings = self.QAction(" in text
-    assert "self.action_display_wizard = self.QAction(" in text
-    assert "Set up strip…" in text
-    assert "self.action_status = self.QAction(" in text
-    assert "self.action_advanced_settings" not in text
-    assert "advanced_menu.addAction(self.action_troubleshooting_guide)" in text
-    assert "menu.addMenu(advanced_menu)" in text
-    assert "menu.addAction(self.action_status)" in text
-    assert text.index("menu.addAction(self.action_status)") < text.index(
-        "menu.addMenu(advanced_menu)"
+def _make_tray_status_stub(qt, *, app_version: str):
+    tray = SimpleNamespace()
+    tray.QIcon = qt["QIcon"]
+    tray._app_version = app_version
+    tray.config = SimpleNamespace(use_mock_capture=False, prefer_backend="auto")
+    tray.service = SimpleNamespace(
+        is_running=lambda: False,
+        get_status=lambda: {"startup_state": "idle", "last_error": "", "mirroring_confidence": {}},
     )
-    assert "Calibration tools moved to Settings" not in text
-    assert "def on_open_advanced_settings" not in text
+    tray.tray_icon = qt["QSystemTrayIcon"]()
+    tray.action_start = qt["QAction"]("Start")
+    tray.action_stop = qt["QAction"]("Stop")
+    tray.action_status = qt["QAction"]("About / Status")
+    tray.action_enable_autostart = qt["QAction"]("Enable Autostart")
+    tray.action_disable_autostart = qt["QAction"]("Disable Autostart")
+    tray._idle_icon = qt["QIcon"]()
+    tray._running_icon = qt["QIcon"]()
+    tray._backend_icons = {}
+    tray._tray_icon_for_status = lambda **kwargs: tray._idle_icon
+    return tray
 
 
-def test_tray_tooltip_is_simplified_for_daily_use() -> None:
-    text = Path("src/nanoleaf_sync/ui/tray_app.py").read_text(encoding="utf-8")
-    assert "Last issue:" in text
-    assert "Requested backend policy:" not in text
-    assert "Effective backend:" not in text
+def test_tray_menu_groups_advanced_actions_under_submenu(monkeypatch) -> None:
+    _qt, _app, _tray, menu = make_tray_menu(monkeypatch)
+    advanced_menu = find_submenu(menu, TRAY_MENU_ADVANCED_TITLE)
+    assert advanced_menu is not None
+    assert advanced_menu.title() == TRAY_MENU_ADVANCED_TITLE
+
+
+def test_tray_top_level_is_focused_for_daily_use(monkeypatch) -> None:
+    _qt, _app, tray, menu = make_tray_menu(monkeypatch)
+    assert hasattr(tray, "action_settings")
+    assert hasattr(tray, "action_display_wizard")
+    assert tray.action_display_wizard.text() == "Set up strip…"
+    assert hasattr(tray, "action_status")
+    assert not hasattr(tray, "action_advanced_settings")
+    advanced_menu = find_submenu(menu, TRAY_MENU_ADVANCED_TITLE)
+    assert advanced_menu is not None
+    assert "Troubleshooting Guide" in submenu_action_texts(advanced_menu)
+
+    ordered: list[str] = []
+    for action in menu.actions():
+        if action.isSeparator():
+            continue
+        sub = action.menu()
+        ordered.append(sub.title() if sub is not None else action.text())
+    assert ordered.index("About / Status") < ordered.index(TRAY_MENU_ADVANCED_TITLE)
+
+
+def test_tray_tooltip_is_simplified_for_daily_use(monkeypatch) -> None:
+    qt, app = load_headless_qt(monkeypatch)
+    tray = _make_tray_status_stub(qt, app_version=nanoleaf_sync.__version__)
+    NanoleafTrayApp._refresh_mode_labels(tray)  # type: ignore[arg-type]
+    app.processEvents()
+    tooltip = tray.tray_icon.toolTip()
+    assert "Last issue:" in tooltip
+    assert "Requested backend policy:" not in tooltip
+    assert "Effective backend:" not in tooltip
 
 
 def test_tray_copy_points_to_advanced_troubleshooting_guide() -> None:
-    text = Path("src/nanoleaf_sync/ui/tray_app.py").read_text(encoding="utf-8")
-    assert "Advanced → Troubleshooting Guide" in text
-    assert "Help → Troubleshooting" not in text
-    assert "Help / Troubleshooting" not in text
-    assert "Opening Set up strip…" in text
+    message = first_run_message("full-real")
+    assert "Advanced → Troubleshooting Guide" in message
+    assert "Help → Troubleshooting" not in message
+    assert "Help / Troubleshooting" not in message
+    assert "Opening Set up strip…" not in message
 
 
-def test_tray_status_label_includes_app_version() -> None:
-    text = Path("src/nanoleaf_sync/ui/tray_app.py").read_text(encoding="utf-8")
-    assert "· v{self._app_version}" in text
+def test_tray_status_label_includes_app_version(monkeypatch) -> None:
+    qt, app = load_headless_qt(monkeypatch)
+    tray = _make_tray_status_stub(qt, app_version="9.9.9-test")
+    NanoleafTrayApp._refresh_mode_labels(tray)  # type: ignore[arg-type]
+    app.processEvents()
+    assert "v9.9.9-test" in tray.action_status.text()
 
 
 def test_tray_menu_has_system_theme_icons() -> None:
-    text = Path("src/nanoleaf_sync/ui/tray_app.py").read_text(encoding="utf-8")
-    assert '"media-playback-start"' in text
-    assert '"media-playback-stop"' in text
-    assert '"preferences-system"' in text
-    assert '"preferences-desktop-display"' in text
-    assert '"help-about"' in text
-    assert '"application-exit"' in text
+    assert TRAY_MENU_ICON_THEMES["action_start"] == "media-playback-start"
+    assert TRAY_MENU_ICON_THEMES["action_stop"] == "media-playback-stop"
+    assert TRAY_MENU_ICON_THEMES["action_settings"] == "preferences-system"
+    assert TRAY_MENU_ICON_THEMES["action_display_wizard"] == "preferences-desktop-display"
+    assert TRAY_MENU_ICON_THEMES["action_status"] == "help-about"
+    assert TRAY_MENU_ICON_THEMES["action_quit"] == "application-exit"
 
 
-def test_duplicate_troubleshooting_merged() -> None:
-    text = Path("src/nanoleaf_sync/ui/tray_app.py").read_text(encoding="utf-8")
-    assert "self.action_troubleshooting =" not in text
-    assert "def on_troubleshooting" not in text
-    assert '"Troubleshooting Guide"' in text
+def test_duplicate_troubleshooting_merged(monkeypatch) -> None:
+    _qt, _app, tray, menu = make_tray_menu(monkeypatch)
+    assert not hasattr(tray, "action_troubleshooting")
+    assert not hasattr(NanoleafTrayApp, "on_troubleshooting")
+    advanced_menu = find_submenu(menu, TRAY_MENU_ADVANCED_TITLE)
+    assert advanced_menu is not None
+    assert "Troubleshooting Guide" in submenu_action_texts(advanced_menu)

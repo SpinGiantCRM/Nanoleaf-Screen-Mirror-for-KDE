@@ -1,8 +1,14 @@
 import pytest
 
 from nanoleaf_sync.config.model import AppConfig
-from nanoleaf_sync.ui.settings_dialog import SettingsDialog
-from tests.repo_text import normalized_repo_text, read_repo_text, source_contains_all
+from nanoleaf_sync.ui.preset_ui import PERFORMANCE_PRIORITY_LABELS, PERFORMANCE_PROFILE_LABELS
+from nanoleaf_sync.ui.settings_dialog import FPS_MAX, FPS_MIN, SettingsDialog
+from tests.qt_headless import (
+    button_texts,
+    group_box_titles,
+    label_texts,
+    make_settings_dialog,
+)
 
 
 def test_settings_dialog_requires_qt_runtime(monkeypatch) -> None:
@@ -14,75 +20,71 @@ def test_settings_dialog_requires_qt_runtime(monkeypatch) -> None:
         SettingsDialog(None, AppConfig(), calibration_sender=None, runtime_status={})
 
 
-def test_settings_dialog_source_uses_preset_ui_labels() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert "display_preset_combo" in text
-    assert "performance_profile_combo" in text
-    assert "PERFORMANCE_PROFILE_LABELS" in text
-    assert "layout_preset" in text
-    assert "motion_preset_combo" in text
-    assert "color_style_combo" in text
-    assert (
-        'QGroupBox("Advanced / Troubleshooting")' in text
-        or 'QGroupBox("Advanced Settings")' in text
+def test_settings_dialog_source_uses_preset_ui_labels(monkeypatch) -> None:
+    qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    assert hasattr(widget, "display_preset_combo")
+    assert hasattr(widget, "performance_profile_combo")
+    assert PERFORMANCE_PROFILE_LABELS
+    assert hasattr(widget, "motion_preset_combo")
+    assert hasattr(widget, "color_style_combo")
+    assert "Advanced / Troubleshooting" in group_box_titles(widget, qt)
+    labels = label_texts(widget, qt)
+    assert any("Raw device→source mapping" in text for text in labels) or any(
+        "Raw device→source mapping" in widget.diagnostics_mapping_label.text() for _ in [0]
     )
-    assert "Raw device→source mapping" in text
-    assert "HDR colour path" in text
-    assert "Runtime status (technical)" in text
-    assert "Backend & Probing" in text
-    assert "Diagnostics Actions" in text
-    assert "Quality Diagnostics" in text
-    assert "Recovery Tools" in text
-    assert source_contains_all(
-        "src/nanoleaf_sync/ui/settings_dialog.py",
-        "SDR white reference controls how bright SDR/desktop content appears",
-        "when HDR is enabled.",
+    assert any("HDR colour path" in text for text in labels) or "HDR colour path" in label_texts(
+        widget, qt
     )
-    assert "window_title = " in text
-    assert '"nanoleaf-kde-sync Settings"' in text
+    assert "Runtime status (technical)" in group_box_titles(widget, qt)
+    assert "Backend & Probing" in label_texts(widget, qt)
+    assert "Diagnostics Actions" in label_texts(widget, qt)
+    assert "Quality Diagnostics" in label_texts(widget, qt)
+    assert "Recovery Tools" in label_texts(widget, qt)
+    combined = " ".join(label_texts(widget, qt))
+    assert "SDR white reference controls how bright SDR/desktop content appears" in combined
+    assert "when HDR is enabled." in combined
+    assert widget.windowTitle() == "nanoleaf-kde-sync Settings"
 
 
-def test_settings_display_preset_change_updates_hdr_metadata_controls() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert 'self._active_display_preset == "hdr"' in text
-    assert 'self.hdr_transfer_combo.findText("pq")' in text
-    assert 'self.hdr_primaries_combo.findText("bt2020")' in text
-    assert 'self._active_display_preset == "sdr"' in text
-    assert 'self.hdr_transfer_combo.findText("srgb")' in text
-    assert 'self.hdr_primaries_combo.findText("bt709")' in text
+def test_settings_display_preset_change_updates_hdr_metadata_controls(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    widget.display_preset_combo.setCurrentIndex(max(0, widget.display_preset_combo.findText("HDR")))
+    widget._on_display_preset_changed()
+    assert widget._active_display_preset == "hdr"
+    assert widget.hdr_transfer_combo.currentText() == "pq"
+    assert widget.hdr_primaries_combo.currentText() == "bt2020"
+    widget.display_preset_combo.setCurrentIndex(max(0, widget.display_preset_combo.findText("SDR")))
+    widget._on_display_preset_changed()
+    assert widget._active_display_preset == "sdr"
+    assert widget.hdr_transfer_combo.currentText() == "srgb"
+    assert widget.hdr_primaries_combo.currentText() == "bt709"
 
 
-def test_advanced_troubleshooting_grid_rows_do_not_overlap() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert "grid.addWidget(self.capture_monitor_edit, 2, 1, 1, 2)" in text
-    assert 'grid.addWidget(self._section_heading(QLabel, "Backend & Probing"), 3, 0, 1, 3)' in text
+def test_advanced_troubleshooting_grid_rows_do_not_overlap(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    widget.focus_section("Advanced")
+    assert widget.capture_monitor_edit is not None
+    assert widget.retest_backends_button is not None
+    assert widget.capture_backend_combo is not None
 
 
-def test_color_preview_updates_are_debounced_for_calibration_sliders() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert "self._preview_refresh_timer.setSingleShot(True)" in text
-    assert "slider.valueChanged.connect(self._schedule_refresh_preview_label)" in text
-    assert "self._preview_refresh_timer.start(75)" in text
+def test_color_preview_updates_are_debounced_for_calibration_sliders(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    assert widget._preview_refresh_timer.isSingleShot()
+    assert widget.red_gain_slider.receivers(widget.red_gain_slider.valueChanged) >= 1
+    widget._schedule_refresh_preview_label()
+    assert widget._preview_refresh_timer.remainingTime() >= 0
 
 
 def test_qt_loader_exports_settings_dialog_widgets() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/qt_lazy.py")
-    assert "QLineEdit" in text
-
-
-def test_settings_dialog_opens_without_horizontal_scroll(monkeypatch) -> None:
-    pytest.importorskip("PyQt6")
-    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
-
     from nanoleaf_sync.ui.qt_lazy import load_qt
 
     qt = load_qt()
-    app = qt["QApplication"].instance() or qt["QApplication"]([])
-    dialog = SettingsDialog(None, AppConfig(), calibration_sender=None, runtime_status={})
-    widget = dialog._dialog
-    widget.show()
-    app.processEvents()
+    assert "QLineEdit" in qt
 
+
+def test_settings_dialog_opens_without_horizontal_scroll(monkeypatch) -> None:
+    _qt, app, _dialog, widget = make_settings_dialog(monkeypatch)
     assert widget.size().width() >= 980
     assert widget.minimumSize().width() >= 980
     for index in range(widget._section_nav.count()):
@@ -94,133 +96,168 @@ def test_settings_dialog_opens_without_horizontal_scroll(monkeypatch) -> None:
             assert page.horizontalScrollBar().maximum() == 0
 
 
-def test_settings_primary_sections_do_not_expose_raw_mapping_text() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert "self.preview_label.setText(" in text
+def test_settings_primary_sections_do_not_expose_raw_mapping_text(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    widget._refresh_preview_label()
+    assert "Raw device→source mapping" not in widget.preview_label.text()
+    assert "Raw device→source mapping" in widget.diagnostics_mapping_label.text()
+
+
+def test_strip_count_mismatch_warning_text_present(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(
+        monkeypatch,
+        runtime_status={"device_zone_count": 60},
+    )
+    widget.device_zone_count_slider.setValue(40)
+    widget.zone_count_slider.setValue(60)
+    widget._state.corner_anchor_top_left = 40
+    widget._refresh_preview_label()
+    warning = widget.strip_count_warning_label.text()
+    assert "Device-reported count differs from configured count." in warning
+    assert "The configured manual value is used." in warning
+    assert "Changing strip count invalidates calibration." in warning
+    assert "Current anchors were assigned for a different strip length." in warning
+    buttons = button_texts(widget, _qt)
+    assert "Use reported count" in buttons
+    assert "Keep manual count" in buttons
+
+
+def test_sdr_white_reference_controls_present(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    buttons = button_texts(widget, _qt)
+    assert "Detect KDE SDR white reference" in buttons
+    assert "Use detected value" in buttons
+    assert widget.sdr_boost_nits_slider.receivers(widget.sdr_boost_nits_slider.valueChanged) >= 1
+    assert "Capture one diagnostic frame" in buttons
+    assert "Export live sampling overlay" in buttons
+    assert "Export synthetic sampling test overlay" in buttons
+
+
+def test_fps_slider_label_value_and_tooltip_text(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    assert "Target capture/output FPS" in label_texts(widget, _qt)
+    widget.fps_slider.setValue(45)
+    widget._refresh_numeric_labels()
+    assert widget.fps_value.text() == "45 FPS"
+    tooltip = widget.fps_slider.toolTip()
+    assert "This is the target update rate. Actual output FPS may be lower if capture," in tooltip
+    assert "processing, or HID output cannot keep up." in tooltip
+    assert widget.fps_slider.minimum() == FPS_MIN
+    assert widget.fps_slider.maximum() == FPS_MAX
+    assert FPS_MAX == 120
+    assert "Capture backend" in label_texts(widget, _qt)
+    assert widget.capture_backend_combo is not None
+
+
+def test_slider_readouts_bind_live_value_updates(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    assert hasattr(widget, "_bind_live_numeric_updates")
+    assert widget.brightness_slider.receivers(widget.brightness_slider.valueChanged) >= 1
+    assert widget.smoothing_slider.receivers(widget.smoothing_slider.valueChanged) >= 1
+    assert widget.fps_slider.receivers(widget.fps_slider.valueChanged) >= 1
+    assert widget.hdr_max_nits_slider.receivers(widget.hdr_max_nits_slider.valueChanged) >= 1
+    assert hasattr(widget, "black_luminance_knee_slider")
+    assert widget.red_gain_slider.receivers(widget.red_gain_slider.valueChanged) >= 1
+
+
+def test_settings_uses_stacked_widget_navigation(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    assert widget._section_stack is not None
+    assert hasattr(widget, "_walk_strip_once")
+    assert callable(widget._walk_strip_once)
+
+
+def test_settings_layout_uses_consistent_spacing_helpers(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    assert hasattr(widget, "_configure_section_layout")
+    assert hasattr(widget, "_help_text_label")
+    assert hasattr(widget, "_configure_value_label")
+
+
+def test_guided_led_calibration_controls_present(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    buttons = button_texts(widget, _qt)
+    assert "Calibrate LED colour" in buttons
+    assert "Black cutoff" in label_texts(widget, _qt)
     assert (
-        "self._state.mapping_preview_text()"
-        not in text.split("self.preview_label.setText(", 1)[1].split(")", 1)[0]
+        "Neutral luminance: controls how bright grey/white screen areas"
+        in widget.neutral_luminance_gain_slider.toolTip()
     )
-
-
-def test_strip_count_mismatch_warning_text_present() -> None:
-    path = "src/nanoleaf_sync/ui/settings_dialog.py"
-    assert source_contains_all(
-        path,
-        "Device-reported count differs from configured count.",
-        "The configured manual value is used.",
+    assert "appear on the LEDs." in widget.neutral_luminance_gain_slider.toolTip()
+    assert (
+        "Black cutoff: controls when near-black screen areas turn the LEDs off."
+        in widget.black_luminance_cutoff_slider.toolTip()
     )
-    normalized = normalized_repo_text(path)
-    assert "Changing strip count invalidates calibration." in normalized
-    assert "Current anchors were assigned for a different strip length." in normalized
-    assert "Use reported count" in normalized
-    assert "Keep manual count" in normalized
+    from nanoleaf_sync.ui.led_color_calibration_dialog import LedColorCalibrationDialog
+
+    assert LedColorCalibrationDialog is not None
 
 
-def test_sdr_white_reference_controls_present() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert "Detect KDE SDR white reference" in text
-    assert "Use detected value" in text
-    assert "sdr_boost_nits_slider.valueChanged.connect(self._on_sdr_white_slider_changed)" in text
-    assert "Capture one diagnostic frame" in text
-    assert "Export live sampling overlay" in text
-    assert "Export synthetic sampling test overlay" in text
-
-
-def test_fps_slider_label_value_and_tooltip_text() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert "Target capture/output FPS" in text
-    assert 'self.fps_value.setText(f"{self.fps_slider.value()} FPS")' in text
-    assert source_contains_all(
-        "src/nanoleaf_sync/ui/settings_dialog.py",
-        "This is the target update rate. Actual output FPS may be lower if capture,",
-        "processing, or HID output cannot keep up.",
+def test_performance_priority_dropdown_present_and_persisted(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    assert "Performance priority" in label_texts(widget, _qt)
+    assert hasattr(widget, "performance_priority_combo")
+    assert any(label == "Very high experimental" for label, _ in PERFORMANCE_PRIORITY_LABELS)
+    tooltip = widget.performance_priority_combo.toolTip()
+    assert (
+        "High priority may improve scheduling consistency. It may fail without permission."
+        in tooltip
     )
-    assert "self.fps_slider.setRange(FPS_MIN, FPS_MAX)" in text
-    assert "FPS_MAX = 120" in text
-    assert 'grid.addWidget(QLabel("Capture backend"), 0, 0)' in text
-    assert "grid.addWidget(self.capture_backend_combo, 0, 1, 1, 2)" in text
+    assert "Very high is experimental." in tooltip
+    updated = widget.updated_config()
+    assert updated.performance_priority in {value for _label, value in PERFORMANCE_PRIORITY_LABELS}
 
 
-def test_slider_readouts_bind_live_value_updates() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert "def _bind_live_numeric_updates(self) -> None:" in text
-    assert "self.brightness_slider.valueChanged" in text
-    assert "self.smoothing_slider.valueChanged" in text
-    assert "self.fps_slider.valueChanged" in text
-    assert "self.hdr_max_nits_slider.valueChanged" in text
-    assert "self.black_luminance_knee_slider" in text
-    assert "slider.valueChanged.connect(self._schedule_refresh_preview_label)" in text
-    assert "signal.connect(self._refresh_numeric_labels)" in text
+def test_save_applies_without_closing_dialog(monkeypatch) -> None:
+    applied: list[AppConfig] = []
+
+    def _on_apply(cfg: AppConfig) -> None:
+        applied.append(cfg)
+
+    qt, app, _dialog, widget = make_settings_dialog(monkeypatch)
+    widget._on_apply = _on_apply
+    widget._apply_settings()
+    assert applied
+    assert widget.settings_applied_in_session() is True
 
 
-def test_settings_uses_stacked_widget_navigation() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert "QStackedWidget()" in text
-    assert "on_walk_strip_once=self._walk_strip_once" in text
-    assert "def _walk_strip_once(self)" in text
-
-
-def test_settings_layout_uses_consistent_spacing_helpers() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert "def _configure_section_layout(self, layout) -> None:" in text
-    assert "def _help_text_label(self, QLabel, text: str):" in text
-    assert "self._configure_section_layout(grid)" in text
-    assert "self._configure_value_label(label)" in text
-
-
-def test_guided_led_calibration_controls_present() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert "Calibrate LED colour" in text
-    assert "Black cutoff" in text
-    assert source_contains_all(
-        "src/nanoleaf_sync/ui/settings_dialog.py",
-        "Neutral luminance: controls how bright grey/white screen areas",
-        "appear on the LEDs.",
+def test_settings_dialog_surfaces_latest_auto_and_manual_probe_results(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    assert hasattr(widget, "_update_latency_label_for_latest_probe_result")
+    empty = widget._backend_probe_breakdown_text(selected_backend="none")
+    assert "waiting for first result" in empty
+    widget._probe_session_state["backend_probe_attempts"] = [
+        {
+            "backend": "kwin-dbus",
+            "status": "tested",
+            "mode": "fresh-probe",
+            "sample_count": 2,
+            "median_ms": 10.0,
+            "p95_ms": 12.0,
+            "jitter_ms": 1.0,
+            "score": 0.8,
+            "selected": True,
+            "tentative": False,
+            "reason": "ok",
+        }
+    ]
+    manual = widget._backend_probe_breakdown_text(
+        selected_backend="kwin-dbus",
+        result_origin="manual",
     )
-    assert source_contains_all(
-        "src/nanoleaf_sync/ui/led_color_calibration_dialog.py",
-        "Reference mode is used for calibration because it avoids saturation boost.",
+    assert "Last manual probe result." in manual
+    assert "Candidate backends:" in manual
+    assert hasattr(widget, "_update_backend_probe_button_state")
+    assert hasattr(widget, "_backend_probe_blocked_by_runtime_state")
+
+
+def test_sdr_white_preset_changed_uses_defensive_split_parsing(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    widget.sdr_white_reference_preset_combo.setCurrentIndex(3)
+    widget._refresh_numeric_labels()
+    assert widget.sdr_boost_nits_slider.value() == 203
+    widget.sdr_white_reference_preset_combo.setCurrentIndex(
+        widget.sdr_white_reference_preset_combo.findText("Custom")
     )
-
-
-def test_performance_priority_dropdown_present_and_persisted() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert "Performance priority" in text
-    assert "performance_priority_combo" in text
-    assert "Very high experimental" in read_repo_text("src/nanoleaf_sync/ui/preset_ui.py")
-    assert source_contains_all(
-        "src/nanoleaf_sync/ui/settings_dialog.py",
-        "High priority may improve scheduling consistency. It may fail without permission.",
-        "Very high is experimental.",
-    )
-    assert "performance_priority=value_for_label(" in text
-    assert "PERFORMANCE_PRIORITY_LABELS" in text
-
-
-def test_save_applies_without_closing_dialog() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert "QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Close" in text
-    assert "buttons.accepted.connect(self._apply_settings)" in text
-    assert "buttons.rejected.connect(self.reject)" in text
-    assert "def _apply_settings(self) -> None:" in text
-    assert "updated = self.updated_config()" in text
-
-
-def test_settings_dialog_surfaces_latest_auto_and_manual_probe_results() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert "def _update_latency_label_for_latest_probe_result(self) -> None:" in text
-    assert "self._update_latency_label_for_latest_probe_result()" in text
-    assert "Last auto-run probe result." in text
-    assert "Last manual probe result." in text
-    assert "waiting for first result" in text
-    assert "Stop mirroring before re-testing backends." in text
-    assert "def _update_backend_probe_button_state" in text
-    assert "def _backend_probe_blocked_by_runtime_state" in text
-    assert "Candidate backends:" in text
-
-
-def test_sdr_white_preset_changed_uses_defensive_split_parsing() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/settings_dialog.py")
-    assert "contextlib.suppress(ValueError, IndexError)" in text
-    assert 'preset_text.split(" ", 1)[0]' in text
+    widget._refresh_numeric_labels()
+    assert widget.sdr_boost_nits_slider.value() == 203

@@ -13,13 +13,14 @@ def test_calibration_state_uses_reverse_from_calibration_block() -> None:
     assert state.effective_device_zone_count() == 12
 
 
-def test_calibration_state_uses_detected_usb_count_when_override_disabled() -> None:
+def test_calibration_state_keeps_manual_strip_count_when_override_disabled() -> None:
     cfg = AppConfig(
         device_zone_count=48, calibration=CalibrationConfig(device_zone_count=48), zones=[]
     )
     state = CalibrationState.from_config(cfg, {"detected_device_zone_count": 54})
-    assert state.device_zone_count == 54
-    assert state.zone_count == 54
+    assert state.device_zone_count == 48
+    assert state.zone_count == 48
+    assert state.device_zone_count_source == "configured"
 
 
 def test_calibration_state_keeps_manual_strip_count_when_override_enabled() -> None:

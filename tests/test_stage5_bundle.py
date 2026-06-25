@@ -13,6 +13,13 @@ def test_redact_text_hides_home_directory(tmp_path: Path) -> None:
     assert "<redacted>" in redacted
 
 
+def test_redact_text_hides_hid_serials() -> None:
+    redacted = redact_text("serial='NL-SECRET-123' serial_number=ABCDEF")
+    assert "NL-SECRET-123" not in redacted
+    assert "ABCDEF" not in redacted
+    assert redacted.count("serial=<redacted>") == 2
+
+
 def test_create_diagnostic_bundle_writes_expected_files(tmp_path: Path) -> None:
     bundle_path = tmp_path / "bundle.zip"
     create_diagnostic_bundle(

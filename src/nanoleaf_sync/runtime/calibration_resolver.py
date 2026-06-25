@@ -98,12 +98,9 @@ def evaluate_device_zone_authority(
     )
     override_active = bool(getattr(config, "allow_zone_count_override", False))
     mismatch = detected is not None and configured > 0 and int(detected) != int(configured)
-    if detected is not None and not override_active:
-        effective = int(detected)
-        source = "detected-usb"
-    elif configured > 0:
+    if configured > 0:
         effective = int(configured)
-        source = "configured" if detected is None else "configured-override"
+        source = "configured-override" if detected is not None and override_active else "configured"
     elif detected is not None:
         effective = int(detected)
         source = "detected-usb"

@@ -2,7 +2,7 @@ import pytest
 
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.ui.display_configurator import DisplayConfiguratorDialog
-from tests.repo_text import read_repo_text
+from tests.qt_headless import group_box_titles, label_texts, make_display_configurator
 
 
 def test_display_configurator_requires_qt_runtime(monkeypatch) -> None:
@@ -14,34 +14,53 @@ def test_display_configurator_requires_qt_runtime(monkeypatch) -> None:
         DisplayConfiguratorDialog(None, AppConfig(), calibration_sender=None, runtime_status={})
 
 
-def test_display_configurator_source_uses_new_preset_controls() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/display_configurator.py")
-    assert "display_preset_combo" in text
-    assert "edge_locality_combo" in text
-    assert "motion_preset_combo" in text
-    assert "color_style_combo" in text
-    assert "preset_sdr_button" not in text
-    assert "preset_hdr_button" not in text
+def test_display_configurator_source_uses_new_preset_controls(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_display_configurator(monkeypatch)
+    assert hasattr(widget, "display_preset_combo")
+    assert hasattr(widget, "edge_locality_combo")
+    assert hasattr(widget, "motion_preset_combo")
+    assert hasattr(widget, "color_style_combo")
+    assert not hasattr(widget, "preset_sdr_button")
+    assert not hasattr(widget, "preset_hdr_button")
 
 
-def test_step1_primary_flow_hides_mapping_and_model_text() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/display_configurator.py")
-    assert 'self.preview_visual.setText("")' in text
-    assert 'self.technical_details_group = QGroupBox("Technical details")' in text
-    assert "How many addressable lighting zones does your strip have?" in text
-    assert "Calibration model/internal resolver mode" in text
-    assert "Device→source mapping list" in text
+def test_step1_primary_flow_hides_mapping_and_model_text(monkeypatch) -> None:
+    qt, _app, _dialog, widget = make_display_configurator(monkeypatch)
+    widget._flow.index = 0
+    widget._refresh()
+    assert widget.preview_visual.text() == ""
+    assert "Technical details" in group_box_titles(widget, qt)
+    labels = label_texts(widget, qt)
+    assert any(
+        "How many addressable lighting zones does your strip have?" in text for text in labels
+    )
+    assert any("Calibration model/internal resolver mode" in text for text in labels)
+    assert any("Device→source mapping list" in text for text in labels)
 
 
-def test_wizard_finish_enables_real_screen_capture() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/display_configurator.py")
-    assert "use_mock_capture=False" in text
+def test_wizard_finish_enables_real_screen_capture(monkeypatch) -> None:
+    _qt, _app, dialog, widget = make_display_configurator(monkeypatch)
+    widget._flow.index = widget._flow.total_steps - 1
+    widget._refresh()
+    finished = dialog.updated_config()
+    assert finished.use_mock_capture is False
 
 
-def test_step2_advanced_display_details_include_hdr_compositor_controls() -> None:
-    text = read_repo_text("src/nanoleaf_sync/ui/display_configurator.py")
-    assert "KDE SDR-on-HDR compensation / compositor HDR mode" in text
-    assert "compositor_hdr_mode=bool(self.compositor_hdr_mode_checkbox.isChecked())" in text
-    assert 'QLabel("SDR white reference")' in text
-    assert "SDR white reference preset" in text
-    assert '"203 nits"' in text
+def test_step2_advanced_display_details_include_hdr_compositor_controls(monkeypatch) -> None:
+    qt, _app, _dialog, widget = make_display_configurator(monkeypatch)
+    widget._flow.index = 1
+    widget._refresh()
+    assert (
+        widget.compositor_hdr_mode_checkbox.text()
+        == "KDE SDR-on-HDR compensation / compositor HDR mode"
+    )
+    labels = label_texts(widget, qt)
+    assert widget.compositor_hdr_mode_checkbox.isCheckable() or hasattr(
+        widget.compositor_hdr_mode_checkbox, "isChecked"
+    )
+    assert any("SDR white reference" in text for text in labels)
+    preset_items = [
+        widget.sdr_white_reference_preset_combo.itemText(i)
+        for i in range(widget.sdr_white_reference_preset_combo.count())
+    ]
+    assert "203 nits" in preset_items

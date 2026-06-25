@@ -18,10 +18,13 @@ class ColorDomain(StrEnum):
 
 
 def infer_color_domain(colors: np.ndarray) -> ColorDomain:
-    rgb = np.asarray(colors, dtype=np.float32)
-    if rgb.size == 0:
+    raw = np.asarray(colors)
+    if raw.size == 0:
         return ColorDomain.ENCODED_SRGB_U8
-    if rgb.dtype == np.uint8:
+    if raw.dtype == np.uint8:
+        return ColorDomain.ENCODED_SRGB_U8
+    rgb = raw.astype(np.float32, copy=False)
+    if rgb.size == 0:
         return ColorDomain.ENCODED_SRGB_U8
     peak = float(np.max(rgb))
     if peak <= 1.0:

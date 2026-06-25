@@ -26,6 +26,15 @@ from nanoleaf_sync.service import (
 RGB = tuple[int, int, int]
 
 
+def _wait_until(predicate, *, timeout_s: float = 2.0, step_s: float = 0.01) -> bool:
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        time.sleep(step_s)
+    return predicate()
+
+
 @dataclass
 class FakeCapture(CaptureBackend):
     name: str = "mock"
@@ -109,7 +118,7 @@ class TestServiceStatusAndMode:
     def test_capture_mode_mock(self):
         svc, capture, driver = self._make_service(capture_name="mock")
         svc.start()
-        time.sleep(0.1)
+        assert _wait_until(lambda: svc.get_status()["running"] is True)
         status = svc.get_status()
         svc.stop()
         svc.join(timeout=2.0)
@@ -118,7 +127,7 @@ class TestServiceStatusAndMode:
     def test_capture_mode_stub_fallback(self):
         svc, capture, driver = self._make_service(capture_name="kwin-dbus")
         svc.start()
-        time.sleep(0.1)
+        assert _wait_until(lambda: svc.get_status()["running"] is True)
         status = svc.get_status()
         svc.stop()
         svc.join(timeout=2.0)
@@ -136,14 +145,26 @@ class TestServiceStatusAndMode:
     def test_status_running_while_active(self):
         svc, _, _ = self._make_service()
         svc.start()
-        time.sleep(0.1)
+        assert _wait_until(lambda: svc.get_status()["running"] is True)
         assert svc.get_status()["running"] is True
         svc.stop()
         svc.join(timeout=2.0)
         assert svc.get_status()["running"] is False
 
     def test_driver_closed_after_stop(self):
-        cfg = AppConfig(fps=30, use_mock_capture=False)
+        zone_count = 48
+        cfg = AppConfig(
+            fps=30,
+            use_mock_capture=False,
+            device_zone_count=zone_count,
+            calibration=CalibrationConfig(
+                device_zone_count=zone_count,
+                corner_anchor_top_left=0,
+                corner_anchor_top_right=zone_count // 4,
+                corner_anchor_bottom_right=zone_count // 2,
+                corner_anchor_bottom_left=(3 * zone_count) // 4,
+            ),
+        )
         capture = FakeCapture(name="mock")
         driver = FakeDriver()
         svc = NanoleafSyncService(
@@ -152,7 +173,7 @@ class TestServiceStatusAndMode:
             driver_override=driver,
         )
         svc.start()
-        time.sleep(0.1)
+        assert _wait_until(lambda: svc.get_status()["running"] is True)
         svc.stop()
         svc.join(timeout=2.0)
         # Driver must be closed when the service shuts down.
@@ -161,7 +182,7 @@ class TestServiceStatusAndMode:
     def test_frames_sent_after_run(self):
         svc, _, driver = self._make_service()
         svc.start()
-        time.sleep(0.15)
+        assert _wait_until(lambda: driver.frames_sent >= 1)
         svc.stop()
         svc.join(timeout=2.0)
         assert driver.frames_sent >= 1

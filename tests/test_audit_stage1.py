@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from nanoleaf_sync.capture.kwin_dbus import KWinDBusScreenshotCapture
-from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
+from nanoleaf_sync.config.model import AppConfig, CalibrationConfig, ZoneConfig
 from nanoleaf_sync.runtime.calibration_resolver import (
     DEVICE_ZONE_MISMATCH_STATUS,
     evaluate_device_zone_authority,
@@ -80,6 +80,8 @@ def test_zone_mismatch_blocks_authority_without_override() -> None:
     assert authority.blocked is True
     assert authority.status == DEVICE_ZONE_MISMATCH_STATUS
     assert authority.mapping_repair_required is True
+    assert authority.effective_device_zone_count == 80
+    assert authority.device_zone_count_source == "configured"
 
 
 def test_zone_mismatch_allows_override() -> None:
@@ -87,6 +89,7 @@ def test_zone_mismatch_allows_override() -> None:
     authority = evaluate_device_zone_authority(config=cfg, detected_device_zone_count=75)
     assert authority.blocked is False
     assert authority.override_active is True
+    assert authority.effective_device_zone_count == 80
 
 
 def test_kwin_no_monitor_uses_capture_active_screen() -> None:
@@ -221,7 +224,7 @@ def test_run_loop_skips_duplicate_unchanged_output(monkeypatch: pytest.MonkeyPat
     cfg = _cfg_with_valid_calibration(48, fps=60, min_max_send_age_ms=500.0)
 
     def _stop_after_duplicate_skip() -> None:
-        deadline = time.perf_counter() + 10.0
+        deadline = time.perf_counter() + 2.0
         while time.perf_counter() < deadline and state.duplicate_output_skipped_frames < 1:
             time.sleep(0.02)
         state.stop_event.set()
@@ -302,3 +305,22 @@ def test_service_startup_blocks_on_zone_mismatch() -> None:
     status = svc.get_status()
     assert status.get("mapping_repair_required") is True
     assert status.get("device_zone_count_mismatch") is True
+
+
+def test_effective_zone_count_uses_device_zone_count_when_zones_list_differs() -> None:
+    """FBA-037: Warn and use device_zone_count when zones list length != device_zone_count."""
+    from nanoleaf_sync.runtime.zone_derivation import effective_zone_count
+
+    cfg = AppConfig(
+        device_zone_count=12,
+        zones=[ZoneConfig(x=0.0, y=0.0, w=0.5, h=0.5)] * 10,
+        calibration=CalibrationConfig(
+            device_zone_count=12,
+            corner_anchor_top_left=0,
+            corner_anchor_top_right=3,
+            corner_anchor_bottom_right=6,
+            corner_anchor_bottom_left=9,
+        ),
+    )
+    count = effective_zone_count(config=cfg)
+    assert count == 12

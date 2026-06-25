@@ -14,6 +14,12 @@ class _CaptureStub:
         return None
 
 
+class _TranslatedError:
+    kind = "device-error"
+    summary = "device failed"
+    guidance = "check device"
+
+
 def test_smoke_test_rejects_unconfigured_vid_pid(monkeypatch, capsys) -> None:
     calls = {"create_capture_backend": 0}
 
@@ -113,3 +119,59 @@ def test_smoke_test_prints_kwin_auth_context_for_shell_launch(monkeypatch, capsy
     assert "context warning: shell-run smoke tests may lack KDE launcher policy" in out
     assert "DESKTOP_STARTUP_ID=unset" in out
     assert "XDG_ACTIVATION_TOKEN=unset" in out
+
+
+def test_smoke_test_labels_device_init_failure(monkeypatch, capsys) -> None:
+    class _CfgMgr:
+        def load(self):
+            return AppConfig(device_vid=0x37FA, device_pid=0x8202)
+
+    class _DriverFail:
+        def initialize(self):
+            raise RuntimeError("device unavailable")
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(smoke_test, "ConfigManager", _CfgMgr)
+    monkeypatch.setattr(smoke_test, "create_capture_backend", lambda **_kwargs: _CaptureStub())
+    monkeypatch.setattr(smoke_test, "NanoleafUSBDriver", lambda ids: _DriverFail())
+    monkeypatch.setattr(smoke_test, "translate_runtime_error", lambda _exc: _TranslatedError())
+
+    exit_code = smoke_test.main([])
+
+    out = capsys.readouterr().out
+    assert exit_code == 1
+    assert "device init failed: kind=device-error" in out
+    assert "device init error: device failed" in out
+
+
+def test_smoke_test_labels_test_frame_send_failure(monkeypatch, capsys) -> None:
+    class _CfgMgr:
+        def load(self):
+            return AppConfig(device_vid=0x37FA, device_pid=0x8202)
+
+    class _DriverFail:
+        model_number = "stub-model"
+        zone_count = 8
+
+        def initialize(self):
+            return None
+
+        def send_frame(self, _colors):
+            raise RuntimeError("write failed")
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(smoke_test, "ConfigManager", _CfgMgr)
+    monkeypatch.setattr(smoke_test, "create_capture_backend", lambda **_kwargs: _CaptureStub())
+    monkeypatch.setattr(smoke_test, "NanoleafUSBDriver", lambda ids: _DriverFail())
+    monkeypatch.setattr(smoke_test, "translate_runtime_error", lambda _exc: _TranslatedError())
+
+    exit_code = smoke_test.main(["--send-test-frame"])
+
+    out = capsys.readouterr().out
+    assert exit_code == 1
+    assert "test frame send failed: kind=device-error" in out
+    assert "test frame send error: device failed" in out

@@ -1617,7 +1617,8 @@ class SettingsDialog:
                     )
                 if source != configured:
                     warnings.append("Changing strip count invalidates calibration.")
-                if anchor_max >= configured:
+                anchors_out_of_range = anchor_max >= configured
+                if anchors_out_of_range:
                     warnings.append("Current anchors were assigned for a different strip length.")
                 self.strip_count_warning_label.setText("\n".join(warnings))
                 if self._source_zones_locked_to_device_count:
@@ -1654,7 +1655,7 @@ class SettingsDialog:
                 )
                 validation_status = (
                     "Complete"
-                    if assigned_count == 4 and not warnings
+                    if assigned_count == 4 and not anchors_out_of_range
                     else ("Missing corners" if assigned_count < 4 else "Out of range")
                 )
                 self.simple_calibration_widget.validation_label.setText(
@@ -2176,7 +2177,9 @@ class SettingsDialog:
                     (255, 255, 0),
                     (128, 128, 128),
                 ]
-                self._calibration_sender(pattern)
+                device_zones = max(1, int(self.device_zone_count_slider.value()))
+                repeated = [pattern[i % len(pattern)] for i in range(device_zones)]
+                self._calibration_sender(repeated)
                 self.color_accuracy_diagnostic_label.setText("Reference test colours sent.")
 
             def _assign_anchor(self, corner: str):

@@ -9,6 +9,8 @@ on:
 jobs:
   tests:
     name: CI (py${{ matrix.python-version }})
+    # Keep this job intentionally aligned with .github/workflows/ci-weekly.yml;
+    # weekly CI adds dependency audit coverage for drift detection.
     # Intentional: ubuntu-latest validates packaging-agnostic Python behavior;
     # KDE/Wayland integration checks are covered manually in release RC matrix.
     runs-on: ubuntu-latest

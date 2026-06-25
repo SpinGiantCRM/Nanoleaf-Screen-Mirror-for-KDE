@@ -1406,6 +1406,7 @@ class DisplayConfiguratorDialog:
                     data.get("corner_anchor_bottom_left", self._state.corner_anchor_bottom_left)
                 )
                 self._refresh()
+                return True
 
             def _on_sdr_white_slider_changed(self, *_args) -> None:
                 if (

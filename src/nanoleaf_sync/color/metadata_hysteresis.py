@@ -27,6 +27,11 @@ class MetadataHysteresisTracker:
     transitions: int = 0
 
     def update(self, observed: CaptureMetadata) -> CaptureMetadata:
+        if str(observed.confidence).strip().lower() == "unknown":
+            self.stable = observed
+            self.candidate = None
+            self.candidate_frames = 0
+            return observed
         if self.stable is None:
             self.stable = observed
             return observed

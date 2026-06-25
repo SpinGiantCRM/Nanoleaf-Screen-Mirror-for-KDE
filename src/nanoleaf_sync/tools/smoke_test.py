@@ -91,11 +91,13 @@ def main(argv: list[str] | None = None) -> int:
 
     driver = NanoleafUSBDriver(ids=NanoleafUSBIds(vid=cfg.device_vid, pid=cfg.device_pid))
     return_code = 0
+    phase = "capture"
 
     try:
         frame = capture.capture()
         print(f"capture ok: frame shape={frame.shape}")
 
+        phase = "device init"
         driver.initialize()
         zones = getattr(driver, "zone_count", None)
         detected_zones = getattr(driver, "reported_zone_count", zones)
@@ -117,6 +119,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         if args.send_test_frame:
+            phase = "test frame send"
             zone_count = int(effective_zones or zones or 8)
             colors = [(8, 0, 0)] * zone_count
             colors[max(0, zone_count // 3 - 1) : max(1, zone_count // 3 + 1)] = [(0, 8, 0)] * 2
@@ -129,8 +132,8 @@ def main(argv: list[str] | None = None) -> int:
             print("test frame not sent (use --send-test-frame to send one frame).")
     except Exception as exc:
         translated = translate_runtime_error(exc)
-        print(f"capture failed: kind={translated.kind}")
-        print(f"capture error: {translated.summary}")
+        print(f"{phase} failed: kind={translated.kind}")
+        print(f"{phase} error: {translated.summary}")
         print(f"guidance: {translated.guidance}")
         if translated.kind == "kwin-authorization":
             desktop_startup = (os.environ.get("DESKTOP_STARTUP_ID") or "unset").strip() or "unset"
