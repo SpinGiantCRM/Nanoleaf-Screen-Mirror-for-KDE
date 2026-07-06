@@ -1,214 +1,240 @@
-# Production Readiness Audit Report
+# Nanoleaf KDE Sync Production Readiness Audit
 
-**Repository:** SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE  
-**Audit date:** 2026-07-06  
-**Auditor environment:** Linux (CachyOS-style), Python 3.14 venv, offscreen Qt, no active KDE Plasma session bus for KWin capture
-
----
+Date: 2026-07-06
+Repository: `SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE`
+Scope: KDE Plasma 6 / Linux Nanoleaf USB screen-mirroring app, including capture, colour/HDR, calibration, HID output, runtime loop, config persistence, UI-adjacent flows, doctor/smoke/release tooling, packaging, and security-sensitive surfaces.
 
 ## 1. Executive verdict
 
-**Production readiness status:** `ready` (pending live KDE session HDR validation)
+Production readiness status: **blocked**
 
-The codebase is mature: 1550 automated tests pass, release gate is green, type/lint/security scans are clean, and hardware smoke test passes with NL82K2 (48 zones). Remaining gaps are primarily **KDE-session authorization UX** and **HDR colour on a real Plasma HDR desktop** — not blockers for SDR mirroring with desktop-entry launch.
+The repository shows substantial prior hardening across capture, colour processing, HID transport, calibration authority, packaging, and release checks. Static inspection did not find a reason to call the code obviously non-functional. However, a production sign-off is blocked because this audit environment could not obtain a local checkout from GitHub and could not run the required local checks, KDE Wayland/KWin authorization checks, DRM helper checks, or NL82K2 hardware validation.
 
-### Top 10 risks (by user impact)
+### Top risks ranked by user impact
 
-| # | Risk | Severity |
-|---|------|----------|
-| 1 | KWin ScreenShot2 authorization depends on desktop-entry launch context; shell/systemd autostart may fail capture silently until user relaunches from `.desktop` | High |
-| 2 | HDR colour correctness on real Plasma HDR desktops not verified in this audit environment | High |
-| 3 | HDR colour correctness on real Plasma HDR desktops not verified in CI | High |
-| 4 | KWin ScreenShot2 authorization depends on desktop-entry launch context | High |
-| 5 | Single-monitor assumption; multi-monitor setups unsupported | Medium |
-| 6 | Tray UI (`tray_app.py`) has ~53% line coverage; complex lifecycle paths need hardware validation | Medium |
-| 7 | `virtual_zones.py` and several CLI helpers have 0% coverage | Low–Medium |
-| 8 | Arch packaging release gate requires `makepkg` (fails in minimal/sandbox CI) | Low |
-| 9 | Invalid imported `color_matrix` is dropped on normalize (logged; re-import required) | Low |
-| 10 | Multi-monitor / plugin framework explicitly out of scope | Low |
+1. **Real hardware and KDE session path unvalidated in this audit** — cannot certify NL82K2 output, HID permissions, KWin authorization, DRM helper capabilities, or runtime latency without a CachyOS/KDE Plasma 6 Wayland session and device.
+2. **HDR correctness remains partially constrained by capture backend semantics** — KWin Screenshot2 is warned as unable to preserve HDR colour accuracy in runtime code; HDR/SDR behaviour needs real Plasma HDR validation.
+3. **KMS/DRM helper path is fragile by nature** — helper packaging and setcap are present, but DRM framebuffer access and zone patch sampling require real compositor/GPU/driver validation.
+4. **HID write timeout handling still needs stress validation** — transport has timeout and uncertain-write recovery, but long-running write timeout/disconnect/reconnect behaviour must be tested on actual devices.
+5. **Single-monitor limitation is documented** — users with multiple displays may capture the wrong source or need explicit monitor selection validation.
+6. **Desktop-entry launch context remains important for KWin authorization** — terminal launches may fail differently from desktop launches.
+7. **Manual zone-count authority must be verified end-to-end** — config/runtime code prefers configured counts, but real mismatch cases must be checked against a detected 48-zone NL82K2.
+8. **Colour pipeline has many adaptive stages** — display gamut adaptation, SDR boost compensation, dark-zone stabilization, dithering, neighbour blending, and predictive sync need scene-based visual QA to rule out flicker or tinting regressions.
+9. **Release gate was not executed in this audit** — static inspection shows a broad gate, but the actual command result is unknown for the current branch.
+10. **Docs/tooling drift can mislead hardware validation** — one confirmed smoke-test documentation mismatch was fixed in this pass.
 
-### Top 10 fixes completed in this audit
+### Fixes completed in this audit
 
-| # | Fix |
-|---|-----|
-| 1 | Settings slider save now **merges** into existing `LedCalibrationProfile` instead of replacing it — preserves imported `color_matrix` and dark-sample fields |
-| 2 | HID `open()` retries the **full enumerate+open path** on busy/open failures, not only empty enumeration |
-| 3 | HID `transceive()` response budget uses **elapsed wall time** instead of decrementing full read-timeout slots per fast empty read |
-| 4 | Config normalize logs warning when `color_matrix` is invalid instead of silent drop |
-| 5 | Config migrate logs warning when top-level and calibration corner anchors conflict; keeps calibration block value |
-| 6 | `_sync_top_level_into_profile` preserves profile `dark_sample_stabilize_*` instead of hardcoding defaults |
-| 7 | Regression test: `test_settings_slider_save_preserves_imported_color_matrix` |
-| 8 | Regression test: `test_open_retries_when_device_is_busy_then_available` |
-| 9 | Regression test: `test_transceive_tolerates_many_fast_empty_reads_before_response` |
-| 10 | Regression tests for matrix/anchor/HID retry/transceive budget | Pass 1 |
-| 11 | HID write-timeout: join inflight thread before close; brief join after timeout | Pass 2 |
-| 12 | HID writer errors wired into supervisor reinit (same limit as capture/process) | Pass 2 |
-| 13 | kmsgrab→KWin fallback surfaced immediately in status; probe cache heals on first detection | Pass 2 |
-| 14 | Settings backend probes use `resolve_capture_dims` instead of 1920×1080 fallback | Pass 2 |
-| 15 | Duplicate-frame HID skip respects FPS pacing deadline | Pass 2 |
-| 16 | Hardware smoke test: NL82K2 48-zone capture + device init verified on device | Pass 2 |
+Only confirmed, low-risk fixes are listed. No speculative code changes were made to fragile capture, DRM, HID, HDR, calibration, or runtime timing code without local execution evidence.
 
-### Top 10 remaining issues (not safely fixable in this pass)
+1. **Fixed smoke-test documentation for hardware frame output** — `docs/SMOKE_TEST.md` now instructs `nanoleaf-kde-sync-smoke-test --hardware --send-test-frame`, matching the CLI requirement that hardware is skipped by default.
+2. **Corrected this audit report** — `AUDIT_REPORT.md` now records the inspected runtime path, evidence, blocked checks, and exact manual validation checklist without claiming unrun tests or hardware results.
 
-| # | Issue | Why blocked |
-|---|-------|-------------|
-| 1 | KWin authorization UX on Wayland from shell/autostart | Requires live Plasma session + user interaction |
-| 2 | HDR PQ/EOTF on real HDR desktop | Requires HDR monitor + Plasma HDR mode |
-| 3 | Multi-monitor support | Out of product scope per AGENTS.md |
-| 4 | Full tray UI visual/regression suite | Brittle without headed KDE session |
-| 5 | `virtual_zones.py` production usage | 0% coverage; may be experimental/dead path |
-| 6 | Orphan HID write thread if still alive after join cap | Platform cannot cancel blocking hidapi write |
-| 7 | Arch `makepkg` in sandbox release gate | Environment tooling, not app defect |
-| 8 | Invalid color_matrix dropped on load (warn only) | Safer than keeping corrupt matrix |
-| 9 | End-to-end sustained mirroring soak under load | Needs extended hardware session |
-| 10 | Plugin / multi-device architecture | Explicitly out of scope |
+### Remaining issues not safely fixable in this pass
 
----
+1. Run the complete local release gate on a real checkout.
+2. Validate KWin authorization from both terminal and installed desktop entry.
+3. Validate KMS/DRM helper installation, setcap, and zone patch sampling on the target GPU/driver stack.
+4. Validate NL82K2 48-zone HID output, unplug/replug, busy-device handling, and long-run write pacing.
+5. Validate HDR preset behaviour on Plasma HDR with known HDR and SDR test content.
+6. Validate manual zone count remains authoritative when USB reports a different count.
+7. Validate TL/TR/BR/BL physical calibration order on real strip placement.
+8. Stress-test runtime stop/start/restart and tray close behaviour over repeated sessions.
+9. Review HID timeout thread cleanup with local tests before making any code change in that area.
+10. Confirm packaged wheel/source distribution includes the DRM helper binary and udev rules exactly as expected.
 
 ## 2. Evidence table
 
 | Severity | Area | File(s) | Evidence | User-visible impact | Fix status | Validation |
-|----------|------|---------|----------|---------------------|------------|------------|
-| High | Config/UI | `settings_dialog_handlers.py` | `_led_profile_from_sliders()` built fresh profile without `color_matrix` | Imported LED matrix lost after any slider change + Save | **fixed** | `pytest tests/test_settings_dialog.py::test_settings_slider_save_preserves_imported_color_matrix` |
-| Medium | HID | `hid_transport.py` | Retry loop only re-enumerated on empty device list | Busy device open fails once with no backoff despite `retry_attempts=3` | **fixed** | `pytest tests/test_hid_transport_extended.py::test_open_retries_when_device_is_busy_then_available` |
-| Medium | HID | `hid_transport.py` | `remaining_budget_s -= per_read_budget_s` on every read | Multi-chunk HID responses fail after 4 fast empty reads | **fixed** | `pytest tests/device/test_hid_transport.py::test_transceive_tolerates_many_fast_empty_reads_before_response` |
-| Medium | Config | `normalize.py` | Invalid `color_matrix` returned `[]` silently | Measured profile matrix lost on load with no diagnostic | **fixed** (warn) | `pytest tests/test_normalize.py::test_validate_config_drops_invalid_color_matrix_with_warning` |
-| Medium | Config | `normalize.py` | Conflicting top-level vs calibration anchors: top-level dropped | Hand-edited configs may lose anchor without notice | **fixed** (warn) | `pytest tests/test_normalize.py::test_migrate_config_dict_keeps_calibration_anchor_on_conflict` |
-| Low | Config | `normalize.py` | `_sync_top_level_into_profile` hardcoded dark_sample defaults | Default-profile sync reset dark-sample tuning | **fixed** | `pytest tests/test_normalize.py` (existing + guided calibration tests) |
-| Medium–High | HID | `hid_transport.py` | Write timeout raised but daemon thread continued | Rare double-write or fault on close after timeout | **fixed** (join cap) | `pytest tests/device/test_hid_transport.py::test_close_waits_for_inflight_write_thread` |
-| Medium | Runtime | `engine_loop_hid.py`, `engine_loop_supervisor.py` | HID errors recorded but supervisor only watched capture/process | Sustained HID fault may not reinit backends | **fixed** | `pytest` (1550 pass); manual HID fault injection |
-| Medium | Capture | `kmsgrab.py`, `service.py` | Internal KWin fallback while cache still said `kmsgrab` | Diagnostics showed kmsgrab while using KWin | **fixed** | `pytest tests/test_service_status.py::test_get_status_reports_kmsgrab_kwin_fallback_before_cache_heal` |
-| High | Capture | `kwin_dbus.py`, `desktop_entry.py` | ScreenShot2 requires restricted DBus interface in `.desktop` | Capture fails from shell/autostart without authorization | documented | Manual: launch from desktop entry vs terminal |
-| Low | UI | `settings_dialog_handlers_ext.py` | 1920×1080 fallback when runtime status missing | Preview/diagnostics use wrong dims until runtime starts | **fixed** | `resolve_capture_dims(self._cfg_seed)` via `_probe_capture_dims()` |
-| — | Tests/CI | `scripts/release_gate.sh` | All gates pass with Arch `makepkg` available | — | verified | `./scripts/release_gate.sh` |
-| — | Security | `bandit`, `pip-audit` | No findings | — | verified | `bandit -r src/`; `pip-audit --path .` |
-
----
+|---|---|---|---|---|---|---|
+| High | Audit execution | repository checkout/test environment | `git clone https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE.git` failed in this environment with `Could not resolve host: github.com`. | No production sign-off can be made because tests and release gate did not run locally. | Blocked | Run all commands in section 7 from a local checkout. |
+| High | Capture / KWin / DRM | `README.md`, `src/nanoleaf_sync/capture/factory.py`, `src/nanoleaf_sync/runtime/engine_loop_capture.py` | README documents KDE Plasma 6 Wayland target, supported devices, single-monitor limitation, and desktop-entry context preference. Factory resolves auto/fallback backends. Capture worker supports full-frame and precomputed DRM zone colours. | Wrong backend, wrong monitor, or failed KWin authorization can prevent mirroring or use the wrong screen. | Documented | `nanoleaf-kde-sync-doctor --capture`; launch from desktop entry and terminal; verify selected backend and source size. |
+| High | HDR / SDR colour | `src/nanoleaf_sync/config/normalize.py`, `src/nanoleaf_sync/runtime/engine_loop_process.py`, `src/nanoleaf_sync/runtime/color_pipeline.py` | Config normalization intentionally maps a legacy HDR + PQ + BT.2020 default combination back to SDR/sRGB/BT.709. Runtime warns that KWin Screenshot2 cannot preserve HDR colour accuracy. Colour pipeline applies gamut adaptation, SDR boost compensation, style/calibration, brightness, smoothing, and output limiting. | HDR users may see wrong colour if backend metadata or Plasma HDR state is misdetected. | Documented | Test SDR and HDR presets on Plasma HDR; compare neutral grey, saturated red/green/blue, dark scenes, and bright HDR highlights. |
+| High | HID / USB output | `src/nanoleaf_sync/device/hid_transport.py`, `src/nanoleaf_sync/device/usb_driver.py` | HID transport has retry/open diagnostics, hidraw path resolution, busy-holder detection, write-progress metadata, and timeout write support. USB driver supports NL82K1/NL82K2 GRB channel mapping and stores device-reported count separately. | Device may fail to open, flicker, freeze, or require clear guidance if udev, busy handles, timeout, or disconnect occurs. | Documented | `nanoleaf-kde-sync-doctor --device`; `nanoleaf-kde-sync-smoke-test --hardware --send-test-frame`; unplug/replug during mirroring. |
+| Medium | Smoke test docs | `docs/SMOKE_TEST.md`, `src/nanoleaf_sync/tools/smoke_test.py` | CLI skips USB initialization unless `--hardware` is passed; previous docs showed `--send-test-frame` alone. | User could think the LED output test ran when it was actually skipped. | Fixed | `nanoleaf-kde-sync-smoke-test --hardware --send-test-frame` on real hardware. |
+| Medium | Calibration / zone count | `README.md`, `src/nanoleaf_sync/config/model.py`, `src/nanoleaf_sync/config/normalize.py`, `src/nanoleaf_sync/runtime/engine_loop_process.py` | README states manual strip count is authoritative; config model stores nested calibration and raw count; normalization prefers calibration count then configured count; process loop records configured/detected/effective source and mismatch state. | Wrong zone count or anchor mapping can shift all colours around the physical strip. | Documented | Set manual count to 48, run wizard, save/restart, verify count remains 48 and anchors TL/TR/BR/BL survive. |
+| Medium | Runtime frame pacing | `src/nanoleaf_sync/runtime/engine_loop_context.py`, `src/nanoleaf_sync/runtime/engine_loop_capture.py`, `src/nanoleaf_sync/runtime/engine_loop_process.py` | Capture/process ring buffers are bounded. Capture worker rate-limits from governor/HID EWMA and drops frames when full. Process worker stops on incomplete mapping and resets state on capture gaps/dimension/source changes. | Poor pacing can produce latency, stale output, or flicker during fast content. | Documented | Run long mirroring session with diagnostics enabled; inspect frame drops, stale output, HID work EWMA, and capture-to-send latency. |
+| Medium | Config persistence | `src/nanoleaf_sync/config/model.py`, `src/nanoleaf_sync/config/normalize.py`, `tests/test_config.py` | Canonical calibration block exists; normalization validates USB IDs/count bounds, preserves nested calibration, validates profiles and colour matrix, and tests cover several persistence/normalization cases. | Settings could be lost after save/load if a field is not round-tripped. | Test coverage present, not rerun | `pytest tests/test_config.py`; manually save settings/calibration, restart tray, inspect config. |
+| Medium | Packaging / release gate | `pyproject.toml`, `scripts/release_gate.sh` | Package data includes udev rules and `capture/nanoleaf_drm_helper`; release gate runs version checks, runtime install verification, ruff, format, mypy, bandit, pip-audit, DRM helper build, wheel build/validation, and pytest coverage fail-under 75. | Broken packaging could omit helper files or ship an unvalidated wheel. | Documented | `./scripts/release_gate.sh` from a clean venv on Linux. |
+| Low | Prior audit state | `CHANGELOG.md` | Changelog records recent stage 3-5 audit fixes, KWin invalid screen tracking, DRM helper fixes, colour path fixes, HID hardening, and packaging updates. | Indicates strong prior work, but changelog is not proof of current passing tests. | Documented | Compare current branch test results against changelog claims. |
 
 ## 3. Runtime path summary
 
-**Entry points:** `nanoleaf-kde-sync` (tray) → `service.py` → `runtime/startup.py` → `runtime/engine_loop.py`
+1. **Configuration load/normalization**
+   - `ConfigManager` loads config and passes through normalization.
+   - Capture backend preference, display preset, HDR metadata defaults, zone count, calibration block, channel order, privacy zones, and LED calibration profiles are normalized.
 
-```
-Config load (ConfigManager.validate_config)
-  → Backend selection (capture/factory.py: auto-probe kmsgrab→kwin-dbus→xdg-portal)
-  → Capture backend init (KWinDBusScreenshotCapture | KMSGrabCapture | XDGPortalCapture | Mock)
-  → USB driver init (device/usb_driver.py → hid_transport.py)
-  → Calibration gate (anchor_calibration / calibration_resolver — blocks stream if incomplete)
-  → run_loop_supervisor spawns:
-       capture_worker_loop  → capture_buf (ring buffer, drop-if-full)
-       process_worker_loop  → zone sample → color_pipeline → process_buf
-       hid_writer_loop      → stale-frame drop → HID write pacing → NanoleafUSBDriver.send_colors
-  → RuntimeState snapshots → tray/settings diagnostics
-```
+2. **Backend selection**
+   - `create_capture_backend()` resolves `prefer_backend`.
+   - `auto` can use cached/fresh probe results and a fallback chain across `kmsgrab`, `kwin-dbus`, and `xdg-portal`.
+   - Explicit backend selection bypasses probing.
 
-**Frame path detail:**
+3. **Capture worker**
+   - `capture_worker_loop()` obtains the active backend.
+   - If DRM zone patch capture is active and display-space zone rects are available, the worker attempts `capture(zone_rects=...)`.
+   - Otherwise it captures a frame normally.
+   - The capture result is either an RGB frame or precomputed per-zone RGB values.
+   - The worker resolves frame dimensions, builds a frame context, and pushes the newest payload into a bounded capture ring buffer.
 
-1. **Capture:** `engine_loop_capture.py` calls `capture.capture()`; kmsgrab may precompute zone colors via DRM helper; dimensions from `capture/dimensions.py` (sysfs/Qt, default 480×270).
-2. **Process:** `engine_loop_process.py` samples edge zones (`runtime/zones.py`), runs `color_pipeline.py` (HDR metadata → linear → gamut → LED calibration matrix → gamma → quantization).
-3. **HID:** `engine_loop_hid.py` applies FPS governor, stale-output drop (`engine_frame.evaluate_stale_output_drop`), duplicate-frame skip, then `usb_driver` TLV framing over HID.
+4. **Process worker**
+   - `process_worker_loop()` pops the latest capture payload.
+   - It derives image dimensions and brightness, handles black-frame degradation, verifies driver availability, evaluates configured vs detected device zone authority, and creates runtime zone artifacts.
+   - If calibration mapping is incomplete or empty, mirroring is stopped rather than streaming wrong colours.
+   - It builds colour context from capture metadata and source identity, resets smoothing on source/metadata changes, and constructs colour pipeline parameters.
 
----
+5. **Colour pipeline**
+   - `process_frame()` / `process_zone_colors()` samples zones or accepts precomputed zone colours.
+   - Pipeline stages include letterbox-aware sampling, privacy-zone handling, temporal accumulation, SDR boost compensation, display gamut adaptation, colour style, LED calibration, neighbour spread, brightness scaling, adaptive smoothing, dark-zone output, predictive sync, and final 8-bit output.
+
+6. **HID output**
+   - `NanoleafUSBDriver` initializes HID transport, validates model number, records reported zone count, and uses configured zone count when present.
+   - It sends generated zone colours through `HIDTransport` using TLV/HID report framing and live-send policies.
+   - HID transport has open retry diagnostics, hidraw path mapping, busy-device guidance, write timing metadata, and timeout/error handling.
 
 ## 4. Colour/HDR assessment
 
-**Status:** `partially correct` — strong test coverage for sRGB/PQ paths, neutrals, and pipeline stages; **not verified on live Plasma HDR hardware in this audit**.
+Status: **partially correct, not production-certified in this pass**
 
-**Reasons:**
+Positive evidence:
 
-- Dedicated tests: `test_hdr.py`, `test_color_accuracy_pipeline.py`, `test_color_golden_matrix.py`, `test_reference_ambient_neutral_model.py`, portal/KWin colour path contracts.
-- Pipeline separates SDR/HDR presets via `LedCalibrationProfile` per preset and compositor HDR runtime (`color/capture_metadata.py`).
-- PQ/EOTF, sRGB, display gamut adaptation, dark-zone stabilization, and neutral handling have regression tests.
-- **Gap:** No end-to-end hardware proof that Auto/HDR/SDR presets match user expectation on NL82K2 + HDR desktop.
-- **Fixed this audit:** Imported `color_matrix` no longer wiped by Settings slider save.
+- SDR defaults are explicit: `display_preset = "sdr"`, `hdr_transfer = "srgb"`, and `hdr_primaries = "bt709"`.
+- Tests cover default SDR metadata and the legacy HDR-default migration case.
+- Runtime stores and propagates colour context from capture metadata when available.
+- Colour pipeline has deterministic per-stage handling for gamut adaptation, SDR boost compensation, style/calibration, brightness, smoothing, and final quantization.
 
----
+Concerns:
+
+- KWin Screenshot2 is explicitly warned as unable to preserve HDR colour accuracy.
+- Normalization maps one legacy HDR/PQ/BT.2020 combination back to SDR, so HDR preset semantics are conservative rather than a guaranteed true HDR path.
+- Real correctness depends on compositor HDR state, capture backend metadata confidence, SDR white reference, and display gamut context, none of which could be validated here.
+
+Verdict: SDR path appears better covered than HDR. HDR must remain manually validated on the target KDE Plasma HDR environment before release.
 
 ## 5. Capture/DRM/KWin assessment
 
-**Status:** `partially robust` — explicit fallback chains, probe cache healing, and resource cleanup on failed probes; **fragile without KDE session**.
+Status: **partially robust, fragile under real compositor and permission conditions**
 
-**Reasons:**
+Positive evidence:
 
-- Auto-probe order: kmsgrab (if DRM helper ready) → kwin-dbus → xdg-portal (`capture/factory.py`).
-- Fallback chain closes backends on failed probe attempts (v1.9.3 changelog).
-- KWin uses dedicated executor + reconnect (`kwin_dbus.py`); invalid-screen errors tracked in `RuntimeState`.
-- kmsgrab requires setcap DRM helper; doctor checks caps; wheel bundles helper for linux_x86_64.
-- **Fragile:** KWin authorization is environment-dependent; smoke test failed here with `kwin-no-api` (no Plasma session).
-- **Fragile:** kmsgrab silent KWin fallback until service heals probe cache (3 status polls).
+- Backend constants, aliases, auto probe, cached winner, and fallback reporting are centralized.
+- Fallback chain closes failed backend instances.
+- Capture worker handles precomputed DRM zone colours and normal frames.
+- Display-space zone scaling exists for DRM zone patch capture.
+- Known limitations are documented: single-monitor flow and preferred desktop-entry launch context.
 
----
+Concerns:
+
+- KWin authorization and desktop-entry policy cannot be proven without a real Plasma session.
+- KMS/DRM helper readiness cannot be proven without installed helper, setcap, and a real DRM device.
+- Multi-monitor support remains a documented limitation.
+- Real source-size correctness for DRM precomputed zones needs physical validation with known screen content.
+
+Verdict: the design is careful, but production readiness remains blocked until real KDE/DRM validation passes.
 
 ## 6. Config/calibration persistence assessment
 
-**Status:** `robust` for normal flows; edge cases improved this audit.
+Status: **appears mostly robust from static inspection; requires end-to-end hardware validation**
 
-**Reasons:**
+Positive evidence:
 
-- Schema v2 migration with calibration block consolidation (`config/normalize.py`).
-- Manual `device_zone_count` authoritative; tests in `test_config.py`, `test_guided_led_calibration_workflow.py`.
-- Corner anchors TL/TR/BR/BL validated before streaming (`calibration_incomplete` gate).
-- Round-trip tests: `test_config_store.py`, reset tool tests, LED profile import/export.
-- **Fixed:** color_matrix preservation on UI slider save; anchor conflict warning; invalid matrix warning.
+- Canonical nested `CalibrationConfig` is present.
+- Top-level legacy fields are consolidated into the calibration block.
+- Manual configured zone count is preferred before detected USB count in runtime authority evaluation.
+- Device-reported zone count is stored separately as diagnostics.
+- Invalid VID/PID and zone counts are rejected or recovered with invalid config backup paths.
+- Tests cover several calibration/config preservation cases.
 
----
+Concerns:
+
+- Save/load/reset flows were not executed locally.
+- UI wizard state and physical anchors still require manual confirmation.
+- A real 48-zone NL82K2 mismatch case must verify that detected count never silently overrides manual count.
+
+Verdict: config and calibration persistence are structured correctly, but physical calibration validation is required before sign-off.
 
 ## 7. Test and command results
 
-| Command | Result |
-|---------|--------|
-| `python -m venv .venv && pip install -e .[test]` | Pass |
-| `ruff check src/ tests/ scripts/` | Pass (All checks passed) |
-| `ruff format --check src/ tests/ scripts/` | Pass (287 files formatted) |
-| `mypy src/nanoleaf_sync --ignore-missing-imports --follow-imports=silent` | Pass (110 files) |
-| `pytest -q --timeout=60 --cov=nanoleaf_sync --cov-fail-under=75` | **1550 passed**, 77.03% coverage |
-| `bandit -r src/ -c pyproject.toml` | Pass (0 issues) |
-| `pip-audit --path .` | Pass (no known vulnerabilities) |
-| `pre-commit run --all-files` | Pass (after ruff auto-format) |
-| `./scripts/release_gate.sh` | Pass (with full permissions; **fail in sandbox** on `makepkg --printsrcinfo` exit 10) |
-| `nanoleaf-kde-sync-doctor` | 0 FAIL, 3 WARN (no KWin session, drm-vendor-tier, autostart disabled) |
-| `nanoleaf-kde-sync-smoke-test` | Capture failed (`kwin-no-api`) without Plasma session |
-| `nanoleaf-kde-sync-smoke-test --hardware` | **Pass** — NL82K2, 48 zones, frame (1440×2560), device init OK |
+The required local commands were not run because the audit environment could not obtain a local checkout. The attempted checkout failed with DNS resolution failure:
 
----
+```text
+git clone https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE.git /mnt/data/nanoleaf_repo
+fatal: unable to access 'https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE.git/': Could not resolve host: github.com
+```
+
+| Command | Result in this audit | Required follow-up |
+|---|---|---|
+| `python -m venv .venv` | Not run; no local checkout | Run from repository root. |
+| `source .venv/bin/activate` | Not run; no local checkout | Run after venv creation. |
+| `pip install -e .[test]` | Not run; no local checkout | Run from repository root. |
+| `ruff check .` | Not run; no local checkout | Run and fix any findings. |
+| `ruff format --check .` | Not run; no local checkout | Run and fix formatting drift. |
+| `mypy src/nanoleaf_sync` | Not run; no local checkout | Run and fix type errors. |
+| `pytest` | Not run; no local checkout | Run full suite. |
+| `pytest --cov=src/nanoleaf_sync` | Not run; no local checkout | Run coverage check. |
+| `bandit -r src` | Not run; no local checkout | Run security scan. |
+| `pip-audit` | Not run; no local checkout | Run dependency audit. |
+| `pre-commit run --all-files` | Not run; no local checkout | Run full pre-commit. |
+| `./scripts/release_gate.sh` | Not run; no local checkout | Run final gate. |
+
+The release gate script itself statically contains the expected checks: version check, runtime install verification, `ruff`, format check, `mypy`, `bandit`, `pip-audit`, DRM helper build, wheel build, wheel validation, and `pytest` with coverage fail-under 75.
 
 ## 8. Manual validation checklist
 
-**Target:** CachyOS / KDE Plasma 6 Wayland, NL82K2, 48-zone manual count
+Target: CachyOS / Arch-family Linux, KDE Plasma 6 Wayland, supported Nanoleaf USB strip `NL82K2` / `0x37fa:0x8202`, 48 zones.
 
-- [ ] Run `nanoleaf-kde-sync-doctor` — expect PASS on session-bus, kwin-screenshot2, hid-device, calibration
-- [ ] Run `nanoleaf-kde-sync-smoke-test --hardware` — capture + device open + optional test frame
-- [ ] Launch tray from **desktop entry** (not bare terminal): `nanoleaf-kde-sync`
-- [ ] Authorize KWin screen capture when prompted; confirm diagnostics show `kwin-dbus` or intended backend
-- [ ] Settings → confirm manual zone count stays **48** after restart (device-reported count diagnostics-only)
-- [ ] Calibration test pattern → assign **TL / TR / BR / BL** anchors; restart; confirm mirroring starts
-- [ ] Display preset **SDR** → neutral grey/white on desktop edges look neutral on strip
-- [ ] Display preset **HDR** (if Plasma HDR on) → verify SDR white reference in diagnostics before tuning brightness
-- [ ] Start mirroring → verify low latency (target 60 FPS); check Live Diagnostics FPS and stale-drop counters
-- [ ] Unplug/replug USB strip → mirroring recovers without tray restart
-- [ ] **Stop** → strip goes black; tray remains running
-- [ ] **Start** again → mirroring resumes
-- [ ] Quit and relaunch tray → settings and calibration persist
-- [ ] Import measured LED profile → adjust one slider → Save → confirm `color_matrix` still applied (colours unchanged vs pre-slider except adjusted channel)
-- [ ] Check `~/.local/state/nanoleaf-kde-sync/` logs for repeated errors or screen content leaks (should be metadata only)
+1. Install from the candidate package or editable checkout.
+2. Install udev rules and reload/replug device.
+3. Run:
 
----
+   ```bash
+   nanoleaf-kde-sync-doctor
+   ```
 
-## Files changed in this audit
+4. Run:
 
-| File | Change |
-|------|--------|
-| `src/nanoleaf_sync/ui/settings_dialog_handlers.py` | Merge slider values into existing LED profile |
-| `src/nanoleaf_sync/device/hid_transport.py` | Full-path open retry; transceive elapsed budget; inflight write join on timeout/close |
-| `src/nanoleaf_sync/config/normalize.py` | Matrix/anchor warnings; dark_sample preserve |
-| `src/nanoleaf_sync/runtime/engine_loop_context.py` | `hid_worker_error_count` |
-| `src/nanoleaf_sync/runtime/engine_loop_hid.py` | HID error counter; duplicate-frame pacing |
-| `src/nanoleaf_sync/runtime/engine_loop_supervisor.py` | Reinit on HID worker failures |
-| `src/nanoleaf_sync/service.py` | Immediate kmsgrab→KWin status; heal cache on first fallback |
-| `src/nanoleaf_sync/ui/settings_dialog_handlers_ext.py` | `_probe_capture_dims()` |
-| `tests/test_settings_dialog.py` | color_matrix preservation test |
-| `tests/test_normalize.py` | matrix + anchor conflict tests |
-| `tests/device/test_hid_transport.py` | transceive + close-inflight tests |
-| `tests/test_hid_transport_extended.py` | busy-device open retry test |
-| `tests/test_service_status.py` | kmsgrab fallback status + faster heal test |
-| `AUDIT_REPORT.md` | Full audit report |
+   ```bash
+   nanoleaf-kde-sync-doctor --capture
+   nanoleaf-kde-sync-doctor --device
+   ```
+
+5. Run smoke test without hardware:
+
+   ```bash
+   nanoleaf-kde-sync-smoke-test
+   ```
+
+6. Run hardware smoke test and LED frame output:
+
+   ```bash
+   nanoleaf-kde-sync-smoke-test --hardware --send-test-frame
+   ```
+
+7. Start the tray app from the installed desktop entry:
+
+   ```bash
+   nanoleaf-kde-sync
+   ```
+
+8. Verify KWin authorization prompt and confirm capture succeeds after authorization.
+9. Verify manual zone count remains **48** after device detection, settings save, tray restart, and app restart.
+10. Run calibration pattern and verify physical TL/TR/BR/BL anchors.
+11. Verify SDR preset with neutral grey, saturated RGB, dark scene, and fast UI motion.
+12. Enable Plasma HDR and verify Auto/HDR preset behaviour with HDR and SDR content.
+13. Verify low-latency mirroring during fast-moving content.
+14. Unplug/replug the NL82K2 during mirroring and confirm recovery or clear error guidance.
+15. Stop/start runtime from tray controls several times.
+16. Close and restart the tray app; confirm no duplicate processes and no stale HID handle.
+17. Inspect logs and diagnostics exports for privacy leaks, repeated capture errors, repeated HID errors, and unexpected live frame RGB dumps.
+18. Run final release gate:
+
+   ```bash
+   ./scripts/release_gate.sh
+   ```
+
+## 9. Exact next engineering steps
+
+1. Pull the audit branch locally.
+2. Run all commands in section 7.
+3. If any command fails, fix the defect directly and add regression tests.
+4. Perform the section 8 physical validation checklist on the target CachyOS/KDE/NL82K2 setup.
+5. Attach release-gate output and hardware validation notes to the PR before merging.
