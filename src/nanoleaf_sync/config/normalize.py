@@ -23,6 +23,7 @@ from nanoleaf_sync.config.presets import (
     EDGE_LOCALITY_PRESETS,
     LIGHT_SPREAD_PRESETS,
     MOTION_PRESETS,
+    PERFORMANCE_PROFILE_CUSTOM,
     PERFORMANCE_PROFILES,
     SAMPLING_QUALITY_PRESETS,
     SYNC_MODES,
@@ -353,6 +354,11 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         allowed=PERFORMANCE_PROFILES,
         default=AppConfig.performance_profile,
     )
+    if (
+        str(getattr(cfg, "performance_profile", "") or "").strip().lower()
+        == PERFORMANCE_PROFILE_CUSTOM
+    ):
+        performance_profile = PERFORMANCE_PROFILE_CUSTOM
     zone_sampling_stride = sampling_quality_to_zone_stride(sampling_quality)
     layout_preset = normalize_layout_preset(getattr(cfg, "layout_preset", AppConfig.layout_preset))
     edge_locality = normalize_preset(

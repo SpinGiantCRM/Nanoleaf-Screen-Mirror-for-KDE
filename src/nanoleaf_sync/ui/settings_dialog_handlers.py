@@ -18,6 +18,11 @@ from nanoleaf_sync.config.led_calibration_profile_io import (
 from nanoleaf_sync.config.model import (
     LedCalibrationProfile,
 )
+from nanoleaf_sync.config.presets import (
+    PERFORMANCE_PROFILE_CUSTOM,
+    detect_performance_profile,
+    performance_profile_bundle,
+)
 from nanoleaf_sync.runtime.color_processing import (
     LedCalibration,
     apply_color_style_mapping_with_diagnostics,
@@ -42,7 +47,7 @@ from nanoleaf_sync.ui.preset_ui import (
     EDGE_LOCALITY_LABELS,
     LIGHT_SPREAD_LABELS,
     MOTION_PRESET_LABELS,
-    PERFORMANCE_PROFILE_LABELS,
+    PERFORMANCE_PROFILE_ALL_LABELS,
     SAMPLING_QUALITY_LABELS,
     label_for_value,
     value_for_label,
@@ -126,68 +131,88 @@ class SettingsDialogHandlersMixin:
 
     def _on_performance_profile_changed(self, *_args) -> None:
         profile = value_for_label(
-            PERFORMANCE_PROFILE_LABELS,
+            PERFORMANCE_PROFILE_ALL_LABELS,
             str(self.performance_profile_combo.currentText()),
             default="balanced",
         )
-        presets = {
-            "performance": {
-                "fps": 30,
-                "sampling_quality": "low",
-                "edge_locality": "tight",
-                "light_spread": "precise",
-                "motion_preset": "calm",
-                "smoothing": 65,
-                "smoothing_speed": 60,
-            },
-            "balanced": {
-                "fps": 60,
-                "sampling_quality": "balanced",
-                "edge_locality": "balanced",
-                "light_spread": "balanced",
-                "motion_preset": "responsive",
-                "smoothing": 50,
-                "smoothing_speed": 75,
-            },
-            "quality": {
-                "fps": 60,
-                "sampling_quality": "high",
-                "edge_locality": "wide",
-                "light_spread": "precise",
-                "motion_preset": "responsive",
-                "smoothing": 35,
-                "smoothing_speed": 120,
-            },
-        }
-        preset = presets.get(profile, presets["balanced"])
-        self._set_slider_value_safely(self.fps_slider, int(preset["fps"]))
-        self._set_slider_value_safely(self.smoothing_slider, int(preset["smoothing"]))
-        self._set_slider_value_safely(self.smoothing_speed_slider, int(preset["smoothing_speed"]))
-        self._set_combo_value_safely(
-            self.sampling_quality_combo,
-            SAMPLING_QUALITY_LABELS,
-            str(preset["sampling_quality"]),
-            default="Balanced — recommended",
-        )
-        self._set_combo_value_safely(
-            self.edge_locality_combo,
-            EDGE_LOCALITY_LABELS,
-            str(preset["edge_locality"]),
-            default="Balanced — recommended",
-        )
-        self._set_combo_value_safely(
-            self.light_spread_combo,
-            LIGHT_SPREAD_LABELS,
-            str(preset["light_spread"]),
-            default="Balanced — recommended",
-        )
-        self._set_combo_value_safely(
-            self.motion_preset_combo,
-            MOTION_PRESET_LABELS,
-            str(preset["motion_preset"]),
-            default="Responsive — recommended",
-        )
+        if profile == PERFORMANCE_PROFILE_CUSTOM:
+            return
+        bundle = performance_profile_bundle(profile)
+        self._applying_performance_profile = True
+        try:
+            self._set_slider_value_safely(self.fps_slider, int(bundle.fps))
+            self._set_slider_value_safely(self.smoothing_slider, int(bundle.smoothing_percent))
+            self._set_slider_value_safely(
+                self.smoothing_speed_slider, int(bundle.smoothing_speed_percent)
+            )
+            self._set_combo_value_safely(
+                self.sampling_quality_combo,
+                SAMPLING_QUALITY_LABELS,
+                str(bundle.sampling_quality),
+                default="Balanced — recommended",
+            )
+            self._set_combo_value_safely(
+                self.edge_locality_combo,
+                EDGE_LOCALITY_LABELS,
+                str(bundle.edge_locality),
+                default="Balanced — recommended",
+            )
+            self._set_combo_value_safely(
+                self.light_spread_combo,
+                LIGHT_SPREAD_LABELS,
+                str(bundle.light_spread),
+                default="Balanced — recommended",
+            )
+            self._set_combo_value_safely(
+                self.motion_preset_combo,
+                MOTION_PRESET_LABELS,
+                str(bundle.motion_preset),
+                default="Responsive — recommended",
+            )
+        finally:
+            self._applying_performance_profile = False
         self._refresh_preview_label()
+
+    def _sync_performance_profile_combo_from_controls(self) -> None:
+        if bool(getattr(self, "_applying_performance_profile", False)):
+            return
+        detected = detect_performance_profile(
+            fps=int(self.fps_slider.value()),
+            sampling_quality=value_for_label(
+                SAMPLING_QUALITY_LABELS,
+                str(self.sampling_quality_combo.currentText()),
+                default="balanced",
+            ),
+            edge_locality=value_for_label(
+                EDGE_LOCALITY_LABELS,
+                str(self.edge_locality_combo.currentText()),
+                default="balanced",
+            ),
+            light_spread=value_for_label(
+                LIGHT_SPREAD_LABELS,
+                str(self.light_spread_combo.currentText()),
+                default="balanced",
+            ),
+            motion_preset=value_for_label(
+                MOTION_PRESET_LABELS,
+                str(self.motion_preset_combo.currentText()),
+                default="responsive",
+            ),
+            smoothing=float(self.smoothing_slider.value()) / 100.0,
+            smoothing_speed=float(self.smoothing_speed_slider.value()) / 100.0,
+        )
+        profile = detected or PERFORMANCE_PROFILE_CUSTOM
+        label = label_for_value(
+            PERFORMANCE_PROFILE_ALL_LABELS,
+            profile,
+            default="Custom",
+        )
+        self._set_combo_value_safely(
+            self.performance_profile_combo,
+            PERFORMANCE_PROFILE_ALL_LABELS,
+            label,
+            default="Balanced",
+        )
 
     def _refresh_numeric_labels(self):
         if str(self.sdr_white_reference_preset_combo.currentText()).strip().lower() != "custom":

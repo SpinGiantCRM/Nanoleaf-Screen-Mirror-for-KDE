@@ -150,6 +150,7 @@ Quick recovery helper: **If calibration looks wrong, reset this section, send a 
 The Setup Wizard Step 3 (**Look & Feel**) and the Settings dialog now share the same user-facing preset model:
 
 - **Layout**: `Edge strip` (recommended)
+- **Performance profile**: `Performance`, `Balanced` (recommended), `Quality`
 - **Edge locality**: `Balanced` (recommended), `Tight` (precision/debug), `Wide` (softer)
 - **Quality**: `Low`, `Balanced`, `High`
 - **Motion**: `Calm`, `Responsive`, `Dynamic`
@@ -178,6 +179,17 @@ The app now surfaces clear warnings when strip counts are inconsistent:
 - `Current anchors were assigned for a different strip length.`
 
 These warnings are informational (not blocking), but you should recalibrate after major strip-count changes.
+
+### Performance profile
+
+**Performance profile** is a quick macro for capture/output tuning:
+
+- **Performance**: lower FPS, lighter sampling, calmer motion — best when CPU/GPU headroom is tight.
+- **Balanced**: default daily-use trade-off.
+- **Quality**: higher sampling fidelity and faster motion response.
+
+In Settings, changing individual FPS/quality/smoothing controls after picking a profile switches the
+profile indicator to **Custom**. The setup wizard exposes the same three profiles on Step 3.
 
 ### Edge locality
 

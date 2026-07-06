@@ -39,8 +39,8 @@ jobs:
         run: ruff format --check src/ tests/ scripts/
       - name: Type check
         run: mypy src/nanoleaf_sync --ignore-missing-imports --follow-imports=silent
-      - name: pip audit
-        run: pip-audit --path .
+      - name: pip audit (runtime deps)
+        run: bash scripts/pip_audit_runtime.sh
       - name: Tests
         env:
           QT_QPA_PLATFORM: offscreen

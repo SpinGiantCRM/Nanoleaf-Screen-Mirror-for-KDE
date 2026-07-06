@@ -1,0 +1,8 @@
+# Socket.dev configuration — https://docs.socket.dev/docs/socket-yml
+# Accepted upstream dependency alerts are triaged in docs/SECURITY.md.
+version: 2
+
+githubApp:
+  enabled: true
+  pullRequestAlertsEnabled: true
+  projectReportsEnabled: true

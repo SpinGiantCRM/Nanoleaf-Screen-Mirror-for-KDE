@@ -8,6 +8,7 @@ from nanoleaf_sync.config.model import (
     AppConfig,
     LedCalibrationProfile,
 )
+from nanoleaf_sync.config.presets import detect_performance_profile
 from nanoleaf_sync.ui.calibration_state import (
     CalibrationState,
     latency_result_summary,
@@ -21,7 +22,7 @@ from nanoleaf_sync.ui.preset_ui import (
     LIGHT_SPREAD_LABELS,
     MOTION_PRESET_LABELS,
     PERFORMANCE_PRIORITY_LABELS,
-    PERFORMANCE_PROFILE_LABELS,
+    PERFORMANCE_PROFILE_ALL_LABELS,
     SAMPLING_QUALITY_LABELS,
     label_for_value,
     labels,
@@ -403,16 +404,37 @@ class SettingsDialogWidgetBase:
                 ),
             )
         )
+        self._applying_performance_profile = False
         self.performance_profile_combo = QComboBox()
-        self.performance_profile_combo.addItems(labels(PERFORMANCE_PROFILE_LABELS))
+        self.performance_profile_combo.addItems(labels(PERFORMANCE_PROFILE_ALL_LABELS))
+        detected_profile = detect_performance_profile(
+            fps=int(getattr(self._cfg_seed, "fps", AppConfig.fps)),
+            sampling_quality=str(getattr(self._cfg_seed, "sampling_quality", "balanced")),
+            edge_locality=str(getattr(self._cfg_seed, "edge_locality", "balanced")),
+            light_spread=str(getattr(self._cfg_seed, "light_spread", "balanced")),
+            motion_preset=str(getattr(self._cfg_seed, "motion_preset", "responsive")),
+            smoothing=float(getattr(self._cfg_seed, "smoothing", 0.5)),
+            smoothing_speed=float(getattr(self._cfg_seed, "smoothing_speed", 0.75)),
+        )
+        stored_profile = (
+            str(getattr(self._cfg_seed, "performance_profile", "balanced")).strip().lower()
+        )
+        if detected_profile is not None:
+            initial_profile = detected_profile
+        elif stored_profile == "custom":
+            initial_profile = "custom"
+        elif stored_profile in {"performance", "balanced", "quality"}:
+            initial_profile = stored_profile
+        else:
+            initial_profile = "balanced"
         self.performance_profile_combo.setCurrentIndex(
             max(
                 0,
                 self.performance_profile_combo.findText(
                     label_for_value(
-                        PERFORMANCE_PROFILE_LABELS,
-                        str(getattr(self._cfg_seed, "performance_profile", "balanced")),
-                        default="Balanced — recommended",
+                        PERFORMANCE_PROFILE_ALL_LABELS,
+                        initial_profile,
+                        default="Balanced",
                     )
                 ),
             )
@@ -570,6 +592,16 @@ class SettingsDialogWidgetBase:
         self.performance_profile_combo.currentIndexChanged.connect(
             self._on_performance_profile_changed
         )
+        for signal in (
+            self.fps_slider.valueChanged,
+            self.smoothing_slider.valueChanged,
+            self.smoothing_speed_slider.valueChanged,
+            self.sampling_quality_combo.currentIndexChanged,
+            self.edge_locality_combo.currentIndexChanged,
+            self.light_spread_combo.currentIndexChanged,
+            self.motion_preset_combo.currentIndexChanged,
+        ):
+            signal.connect(self._sync_performance_profile_combo_from_controls)
         self.device_zone_count_slider.valueChanged.connect(
             self._on_device_zone_count_slider_changed
         )

@@ -35,7 +35,7 @@ ruff check src/ tests/
 ruff format --check src/ tests/
 mypy src/nanoleaf_sync --ignore-missing-imports --follow-imports=silent
 bandit -r src/ -c pyproject.toml
-pip-audit --path .
+bash scripts/pip_audit_runtime.sh
 QT_QPA_PLATFORM=offscreen python -m pytest -q --timeout=60 --timeout-method=thread \
   --cov=nanoleaf_sync --cov-fail-under=75
 ```

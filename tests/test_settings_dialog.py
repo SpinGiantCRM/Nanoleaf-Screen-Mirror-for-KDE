@@ -209,6 +209,25 @@ def test_performance_priority_dropdown_present_and_persisted(monkeypatch) -> Non
     assert updated.performance_priority in {value for _label, value in PERFORMANCE_PRIORITY_LABELS}
 
 
+def test_performance_profile_updates_fps_and_shows_custom_on_drift(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    assert "Performance profile" in label_texts(widget, _qt)
+    widget.performance_profile_combo.setCurrentIndex(
+        max(0, widget.performance_profile_combo.findText("Performance"))
+    )
+    widget._on_performance_profile_changed()
+    assert widget.fps_slider.value() == 30
+    widget.fps_slider.setValue(45)
+    widget._sync_performance_profile_combo_from_controls()
+    assert widget.performance_profile_combo.currentText() == "Custom"
+    widget.performance_profile_combo.setCurrentIndex(
+        max(0, widget.performance_profile_combo.findText("Balanced"))
+    )
+    widget._on_performance_profile_changed()
+    assert widget.fps_slider.value() == 60
+    assert widget.performance_profile_combo.currentText() == "Balanced"
+
+
 def test_save_applies_without_closing_dialog(monkeypatch) -> None:
     applied: list[AppConfig] = []
 

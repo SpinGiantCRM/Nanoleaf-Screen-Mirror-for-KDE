@@ -104,6 +104,99 @@ class MotionProfile:
     smoothing_speed_multiplier: float
 
 
+@dataclass(frozen=True)
+class PerformanceProfileBundle:
+    fps: int
+    sampling_quality: str
+    edge_locality: str
+    light_spread: str
+    motion_preset: str
+    smoothing_percent: int
+    smoothing_speed_percent: int
+
+
+PERFORMANCE_PROFILE_CUSTOM = "custom"
+
+_PERFORMANCE_PROFILE_BUNDLES: dict[str, PerformanceProfileBundle] = {
+    PERFORMANCE_PROFILE_PERFORMANCE: PerformanceProfileBundle(
+        fps=30,
+        sampling_quality=SAMPLING_QUALITY_LOW,
+        edge_locality=EDGE_LOCALITY_TIGHT,
+        light_spread=LIGHT_SPREAD_PRECISE,
+        motion_preset=MOTION_PRESET_CALM,
+        smoothing_percent=65,
+        smoothing_speed_percent=60,
+    ),
+    PERFORMANCE_PROFILE_BALANCED: PerformanceProfileBundle(
+        fps=60,
+        sampling_quality=SAMPLING_QUALITY_BALANCED,
+        edge_locality=EDGE_LOCALITY_BALANCED,
+        light_spread=LIGHT_SPREAD_BALANCED,
+        motion_preset=MOTION_PRESET_RESPONSIVE,
+        smoothing_percent=50,
+        smoothing_speed_percent=75,
+    ),
+    PERFORMANCE_PROFILE_QUALITY: PerformanceProfileBundle(
+        fps=60,
+        sampling_quality=SAMPLING_QUALITY_HIGH,
+        edge_locality=EDGE_LOCALITY_WIDE,
+        light_spread=LIGHT_SPREAD_PRECISE,
+        motion_preset=MOTION_PRESET_RESPONSIVE,
+        smoothing_percent=35,
+        smoothing_speed_percent=120,
+    ),
+}
+
+
+def performance_profile_bundle(profile: str) -> PerformanceProfileBundle:
+    normalized = normalize_preset(
+        profile,
+        allowed=PERFORMANCE_PROFILES,
+        default=PERFORMANCE_PROFILE_BALANCED,
+    )
+    return _PERFORMANCE_PROFILE_BUNDLES[normalized]
+
+
+def detect_performance_profile(
+    *,
+    fps: int,
+    sampling_quality: str,
+    edge_locality: str,
+    light_spread: str,
+    motion_preset: str,
+    smoothing: float,
+    smoothing_speed: float,
+) -> str | None:
+    smoothing_percent = int(round(float(smoothing) * 100.0))
+    smoothing_speed_percent = int(round(float(smoothing_speed) * 100.0))
+    for name, bundle in _PERFORMANCE_PROFILE_BUNDLES.items():
+        if (
+            int(fps) == bundle.fps
+            and normalize_preset(
+                sampling_quality,
+                allowed=SAMPLING_QUALITY_PRESETS,
+                default=SAMPLING_QUALITY_BALANCED,
+            )
+            == bundle.sampling_quality
+            and normalize_preset(
+                edge_locality, allowed=EDGE_LOCALITY_PRESETS, default=EDGE_LOCALITY_BALANCED
+            )
+            == bundle.edge_locality
+            and normalize_preset(
+                light_spread, allowed=LIGHT_SPREAD_PRESETS, default=LIGHT_SPREAD_BALANCED
+            )
+            == bundle.light_spread
+            and normalize_preset(
+                motion_preset, allowed=MOTION_PRESETS, default=MOTION_PRESET_RESPONSIVE
+            )
+            == bundle.motion_preset
+            and smoothing_percent == bundle.smoothing_percent
+            and smoothing_speed_percent == bundle.smoothing_speed_percent
+        ):
+            return name
+    return None
+
+
 def normalize_preset(value: object, *, allowed: tuple[str, ...], default: str) -> str:
     normalized = str(value or "").strip().lower()
     return normalized if normalized in allowed else default

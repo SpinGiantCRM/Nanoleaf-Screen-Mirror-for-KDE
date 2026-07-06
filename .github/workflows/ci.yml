@@ -158,8 +158,8 @@ jobs:
         run: pip install bandit pip-audit
       - name: Run bandit
         run: bandit -r src/ -c pyproject.toml
-      - name: Run pip-audit
-        run: pip-audit --path .
+      - name: Run pip-audit (runtime deps)
+        run: bash scripts/pip_audit_runtime.sh
 
   semgrep-sast:
     name: Semgrep SAST

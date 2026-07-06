@@ -10,6 +10,7 @@ from pathlib import Path
 from time import perf_counter
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
+from nanoleaf_sync.config.presets import detect_performance_profile, performance_profile_bundle
 from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
 from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping
 from nanoleaf_sync.runtime.zone_presets import edge_weighted_layout, make_edge_weighted_zones
@@ -23,6 +24,7 @@ from nanoleaf_sync.ui.preset_ui import (
     DISPLAY_PRESET_LABELS,
     EDGE_LOCALITY_LABELS,
     MOTION_PRESET_LABELS,
+    PERFORMANCE_PROFILE_LABELS,
     SAMPLING_QUALITY_LABELS,
     label_for_value,
     labels,
@@ -333,6 +335,32 @@ class DisplayConfiguratorDialog:
                         ),
                     )
                 )
+                self.performance_profile_combo = QComboBox()
+                self.performance_profile_combo.addItems(labels(PERFORMANCE_PROFILE_LABELS))
+                detected_profile = detect_performance_profile(
+                    fps=int(getattr(cfg, "fps", AppConfig.fps)),
+                    sampling_quality=str(getattr(cfg, "sampling_quality", "balanced")),
+                    edge_locality=str(getattr(cfg, "edge_locality", "balanced")),
+                    light_spread=str(getattr(cfg, "light_spread", "balanced")),
+                    motion_preset=str(getattr(cfg, "motion_preset", "responsive")),
+                    smoothing=float(getattr(cfg, "smoothing", 0.5)),
+                    smoothing_speed=float(getattr(cfg, "smoothing_speed", 0.75)),
+                )
+                initial_profile = detected_profile or str(
+                    getattr(cfg, "performance_profile", "balanced")
+                )
+                self.performance_profile_combo.setCurrentIndex(
+                    max(
+                        0,
+                        self.performance_profile_combo.findText(
+                            label_for_value(
+                                PERFORMANCE_PROFILE_LABELS,
+                                initial_profile,
+                                default="Balanced",
+                            )
+                        ),
+                    )
+                )
                 self.device_zone_count_slider = QSlider(qt["Qt"].Orientation.Horizontal)
                 self.device_zone_count_slider.setRange(1, self._device_zone_count_max())
                 self.device_zone_count_slider.setValue(self._state.device_zone_count)
@@ -415,6 +443,7 @@ class DisplayConfiguratorDialog:
 
                 for signal in (
                     self.display_preset_combo.currentIndexChanged,
+                    self.performance_profile_combo.currentIndexChanged,
                     self.sampling_quality_combo.currentIndexChanged,
                     self.motion_preset_combo.currentIndexChanged,
                     self.color_style_combo.currentIndexChanged,
@@ -422,6 +451,9 @@ class DisplayConfiguratorDialog:
                     self.reverse_checkbox.stateChanged,
                 ):
                     signal.connect(self._refresh)
+                self.performance_profile_combo.currentIndexChanged.connect(
+                    self._on_performance_profile_changed
+                )
                 self.device_zone_count_slider.valueChanged.connect(
                     self._on_device_zone_count_changed
                 )
@@ -662,14 +694,16 @@ class DisplayConfiguratorDialog:
                 appearance_layout = QGridLayout()
                 appearance_layout.addWidget(QLabel("Layout"), 0, 0)
                 appearance_layout.addWidget(QLabel("Edge strip"), 0, 1, 1, 2)
-                appearance_layout.addWidget(QLabel("Edge locality"), 1, 0)
-                appearance_layout.addWidget(self.edge_locality_combo, 1, 1, 1, 2)
-                appearance_layout.addWidget(QLabel("Quality"), 2, 0)
-                appearance_layout.addWidget(self.sampling_quality_combo, 2, 1, 1, 2)
-                appearance_layout.addWidget(QLabel("Motion"), 3, 0)
-                appearance_layout.addWidget(self.motion_preset_combo, 3, 1, 1, 2)
-                appearance_layout.addWidget(QLabel("Color style"), 4, 0)
-                appearance_layout.addWidget(self.color_style_combo, 4, 1, 1, 2)
+                appearance_layout.addWidget(QLabel("Performance profile"), 1, 0)
+                appearance_layout.addWidget(self.performance_profile_combo, 1, 1, 1, 2)
+                appearance_layout.addWidget(QLabel("Edge locality"), 2, 0)
+                appearance_layout.addWidget(self.edge_locality_combo, 2, 1, 1, 2)
+                appearance_layout.addWidget(QLabel("Quality"), 3, 0)
+                appearance_layout.addWidget(self.sampling_quality_combo, 3, 1, 1, 2)
+                appearance_layout.addWidget(QLabel("Motion"), 4, 0)
+                appearance_layout.addWidget(self.motion_preset_combo, 4, 1, 1, 2)
+                appearance_layout.addWidget(QLabel("Color style"), 5, 0)
+                appearance_layout.addWidget(self.color_style_combo, 5, 1, 1, 2)
                 appearance.setLayout(appearance_layout)
                 layout.addWidget(appearance, 1, 0, 1, 3)
 
@@ -722,6 +756,52 @@ class DisplayConfiguratorDialog:
                 if self._flow.index == 0:
                     self._stop_live_preview()
                 self._refresh()
+
+            def _set_combo_by_preset(
+                self,
+                combo,
+                options: tuple[tuple[str, str], ...],
+                value: str,
+                *,
+                default_label: str,
+            ) -> None:
+                label = label_for_value(options, value, default=default_label)
+                idx = combo.findText(label)
+                if idx < 0:
+                    return
+                block_signals = getattr(combo, "blockSignals", None)
+                previous = False
+                if callable(block_signals):
+                    previous = bool(block_signals(True))
+                combo.setCurrentIndex(idx)
+                if callable(block_signals):
+                    block_signals(previous)
+
+            def _on_performance_profile_changed(self, *_args) -> None:
+                profile = value_for_label(
+                    PERFORMANCE_PROFILE_LABELS,
+                    str(self.performance_profile_combo.currentText()),
+                    default="balanced",
+                )
+                bundle = performance_profile_bundle(profile)
+                self._set_combo_by_preset(
+                    self.sampling_quality_combo,
+                    SAMPLING_QUALITY_LABELS,
+                    bundle.sampling_quality,
+                    default_label="Balanced — recommended",
+                )
+                self._set_combo_by_preset(
+                    self.edge_locality_combo,
+                    EDGE_LOCALITY_LABELS,
+                    bundle.edge_locality,
+                    default_label="Balanced — recommended",
+                )
+                self._set_combo_by_preset(
+                    self.motion_preset_combo,
+                    MOTION_PRESET_LABELS,
+                    bundle.motion_preset,
+                    default_label="Responsive — recommended",
+                )
 
             def _pull_state_from_controls(self) -> None:
                 self._state.zone_count = int(self.device_zone_count_slider.value())
@@ -1056,6 +1136,7 @@ class DisplayConfiguratorDialog:
                     "\n".join(
                         (
                             f"Display preset: {self.display_preset_combo.currentText()}",
+                            f"Performance profile: {self.performance_profile_combo.currentText()}",
                             f"Quality: {self.sampling_quality_combo.currentText()}",
                             f"Motion: {self.motion_preset_combo.currentText()}",
                             f"Color style: {self.color_style_combo.currentText()}",
@@ -1231,9 +1312,20 @@ class DisplayConfiguratorDialog:
                     corner_anchor_bottom_right=anchor_bottom_right,
                     corner_anchor_bottom_left=anchor_bottom_left,
                 )
+                performance_profile = value_for_label(
+                    PERFORMANCE_PROFILE_LABELS,
+                    str(self.performance_profile_combo.currentText()),
+                    default="balanced",
+                )
+                bundle = performance_profile_bundle(performance_profile)
                 return replace(
                     cfg,
                     layout_preset="edge_strip",
+                    performance_profile=performance_profile,
+                    fps=int(bundle.fps),
+                    smoothing=float(bundle.smoothing_percent) / 100.0,
+                    smoothing_speed=float(bundle.smoothing_speed_percent) / 100.0,
+                    light_spread=bundle.light_spread,
                     edge_locality=value_for_label(
                         EDGE_LOCALITY_LABELS,
                         str(self.edge_locality_combo.currentText()),
@@ -1310,6 +1402,11 @@ class DisplayConfiguratorDialog:
                         DISPLAY_PRESET_LABELS,
                         str(self.display_preset_combo.currentText()),
                         default="hdr",
+                    ),
+                    "performance_profile": value_for_label(
+                        PERFORMANCE_PROFILE_LABELS,
+                        str(self.performance_profile_combo.currentText()),
+                        default="balanced",
                     ),
                     "sampling_quality": value_for_label(
                         SAMPLING_QUALITY_LABELS,
@@ -1418,6 +1515,15 @@ class DisplayConfiguratorDialog:
                 )
                 if display_idx >= 0:
                     self.display_preset_combo.setCurrentIndex(display_idx)
+                profile_idx = self.performance_profile_combo.findText(
+                    label_for_value(
+                        PERFORMANCE_PROFILE_LABELS,
+                        str(data.get("performance_profile", "balanced")),
+                        default="Balanced",
+                    )
+                )
+                if profile_idx >= 0:
+                    self.performance_profile_combo.setCurrentIndex(profile_idx)
                 sampling_idx = self.sampling_quality_combo.findText(
                     label_for_value(
                         SAMPLING_QUALITY_LABELS,

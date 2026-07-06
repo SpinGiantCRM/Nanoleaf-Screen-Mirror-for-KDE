@@ -45,7 +45,7 @@ from nanoleaf_sync.ui.preset_ui import (
     LIGHT_SPREAD_LABELS,
     MOTION_PRESET_LABELS,
     PERFORMANCE_PRIORITY_LABELS,
-    PERFORMANCE_PROFILE_LABELS,
+    PERFORMANCE_PROFILE_ALL_LABELS,
     SAMPLING_QUALITY_LABELS,
     value_for_label,
 )
@@ -706,7 +706,7 @@ class SettingsDialogHandlersExtMixin:
                 default="balanced",
             ),
             performance_profile=value_for_label(
-                PERFORMANCE_PROFILE_LABELS,
+                PERFORMANCE_PROFILE_ALL_LABELS,
                 str(self.performance_profile_combo.currentText()),
                 default="balanced",
             ),

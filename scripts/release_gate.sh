@@ -15,7 +15,7 @@ ruff check src/ tests/ scripts/
 ruff format --check src/ tests/ scripts/
 mypy src/nanoleaf_sync --ignore-missing-imports --follow-imports=silent
 bandit -r src/ -c pyproject.toml
-pip-audit --path .
+bash scripts/pip_audit_runtime.sh
 bash scripts/build_drm_helper.sh
 python -m build --wheel --no-isolation --outdir "${WHEEL_AUDIT_DIR}"
 python scripts/validate_wheel.py "${WHEEL_AUDIT_DIR}"/*-linux_x86_64.whl
