@@ -722,6 +722,28 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         },
         default=AppConfig.display_gamut,
     )
+    if display_gamut == "custom":
+        default_chromaticities = (
+            (AppConfig.custom_gamut_red_x, AppConfig.custom_gamut_red_y),
+            (AppConfig.custom_gamut_green_x, AppConfig.custom_gamut_green_y),
+            (AppConfig.custom_gamut_blue_x, AppConfig.custom_gamut_blue_y),
+        )
+        actual_chromaticities = (
+            (
+                float(getattr(cfg, "custom_gamut_red_x", 0.64)),
+                float(getattr(cfg, "custom_gamut_red_y", 0.33)),
+            ),
+            (
+                float(getattr(cfg, "custom_gamut_green_x", 0.3)),
+                float(getattr(cfg, "custom_gamut_green_y", 0.6)),
+            ),
+            (
+                float(getattr(cfg, "custom_gamut_blue_x", 0.15)),
+                float(getattr(cfg, "custom_gamut_blue_y", 0.06)),
+            ),
+        )
+        if actual_chromaticities == default_chromaticities:
+            display_gamut = "auto"
     wizard_state_version = max(
         1,
         _coerce_int(getattr(cfg, "wizard_state_version", CURRENT_WIZARD_STATE_VERSION), 1),
@@ -747,6 +769,22 @@ def validate_config(cfg: AppConfig) -> AppConfig:
     scene_adaptive_profiles = coerce_bool(
         getattr(cfg, "scene_adaptive_profiles", False),
         False,
+    )
+    zone_temporal_accumulation = coerce_bool(
+        getattr(cfg, "zone_temporal_accumulation", AppConfig.zone_temporal_accumulation),
+        AppConfig.zone_temporal_accumulation,
+    )
+    blue_noise_dither = coerce_bool(
+        getattr(cfg, "blue_noise_dither", AppConfig.blue_noise_dither),
+        AppConfig.blue_noise_dither,
+    )
+    zone_box_filter_sampling = coerce_bool(
+        getattr(cfg, "zone_box_filter_sampling", AppConfig.zone_box_filter_sampling),
+        AppConfig.zone_box_filter_sampling,
+    )
+    multi_moment_zone_colors = coerce_bool(
+        getattr(cfg, "multi_moment_zone_colors", AppConfig.multi_moment_zone_colors),
+        AppConfig.multi_moment_zone_colors,
     )
     return replace(
         cfg,
@@ -829,6 +867,10 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         privacy_zones=privacy_zones,
         virtual_zone_oversample=virtual_zone_oversample,
         scene_adaptive_profiles=scene_adaptive_profiles,
+        zone_temporal_accumulation=zone_temporal_accumulation,
+        blue_noise_dither=blue_noise_dither,
+        zone_box_filter_sampling=zone_box_filter_sampling,
+        multi_moment_zone_colors=multi_moment_zone_colors,
         calibration_schema_version=calibration_schema_version,
         calibration=normalized_calibration,
         device_zone_count=device_zone_count,

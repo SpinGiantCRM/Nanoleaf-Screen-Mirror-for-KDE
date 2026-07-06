@@ -6,8 +6,6 @@ import logging
 
 _log = logging.getLogger(__name__)
 
-_log = logging.getLogger(__name__)
-
 FPS_MIN = 1
 FPS_MAX = 120
 HDR_MAX_NITS_MIN = 80

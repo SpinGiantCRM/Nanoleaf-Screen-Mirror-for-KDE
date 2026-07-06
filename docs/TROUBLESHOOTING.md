@@ -118,6 +118,13 @@ Linux backend note:
 
 ### Colors look wrong on an HDR display
 
+**Plain-language outcomes:**
+
+- **Use SDR** if colours look wrong, whites are tinted, or you are unsure — safest default for mixed content.
+- **Use Auto** if you want the app to follow Plasma HDR session state (recommended for most users).
+- **Use HDR** only when desktop HDR is actually enabled and you have verified capture metadata in diagnostics.
+- **KWin Screenshot2 (`kwin-dbus`) cannot preserve perfect HDR accuracy.** When mirroring via kwin-dbus on an HDR desktop, expect approximate colour mapping; prefer SDR preset or xdg-portal/kmsgrab if HDR accuracy matters.
+
 Open tray **Settings** and adjust:
 - HDR transfer (`srgb` / `pq`)
 - HDR primaries (`bt709` / `bt2020`)

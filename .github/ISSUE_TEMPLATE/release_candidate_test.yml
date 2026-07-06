@@ -1,0 +1,27 @@
+name: Release candidate test
+description: Record manual KDE + USB verification for a release candidate
+labels: [release, qa]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use [RELEASE_RC_MATRIX.md](../docs/RELEASE_RC_MATRIX.md) as the checklist.
+        Copy the matrix into this issue and fill every row.
+  - type: input
+    id: version
+    attributes:
+      label: RC version / git tag
+    validations:
+      required: true
+  - type: textarea
+    id: matrix
+    attributes:
+      label: Completed test matrix
+      description: Distro, KDE, Wayland/X11, strip model, backend, HDR/SDR, pass/fail notes.
+    validations:
+      required: true
+  - type: textarea
+    id: blockers
+    attributes:
+      label: Blockers (if any)
+      description: Leave empty if RC is ready to ship.

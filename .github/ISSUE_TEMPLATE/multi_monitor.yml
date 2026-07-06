@@ -1,0 +1,25 @@
+name: Multi-monitor support
+description: Request mirroring multiple monitors simultaneously
+labels: [enhancement, scope-review]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Nanoleaf KDE Sync currently supports **one capture monitor** at a time.
+        Choosing a non-primary monitor in Settings → Advanced is experimental;
+        mirroring all displays at once is **not supported** today.
+        See [ROADMAP.md](../docs/ROADMAP.md).
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: What multi-monitor workflow do you need?
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: Current hardware setup
+      description: Monitor count, KDE version, strip model.
+    validations:
+      required: true

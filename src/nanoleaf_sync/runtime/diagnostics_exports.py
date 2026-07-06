@@ -137,6 +137,7 @@ def evaluate_geometry(*, status: dict, cfg: AppConfig) -> dict[str, object]:
     side_counts = _normalize_side_counts(
         status.get("source_zone_side_counts"), source_zone_count=source_zone_count
     )
+    preset_default = AppConfig.display_preset
 
     return {
         "kde_display_size": (kde_w, kde_h),
@@ -164,8 +165,9 @@ def evaluate_geometry(*, status: dict, cfg: AppConfig) -> dict[str, object]:
             status.get("zone_sampling_stride") or getattr(cfg, "zone_sampling_stride", 1) or 1
         ),
         "edge_locality": status.get("edge_locality") or getattr(cfg, "edge_locality", "balanced"),
-        "display_preset": status.get("display_preset") or getattr(cfg, "display_preset", "hdr"),
-        "hdr_enabled_assumed": str(getattr(cfg, "display_preset", "hdr")).lower() == "hdr",
+        "display_preset": status.get("display_preset")
+        or getattr(cfg, "display_preset", preset_default),
+        "hdr_enabled_assumed": str(getattr(cfg, "display_preset", preset_default)).lower() == "hdr",
         "geometry_warning": mismatch,
         "warning_text": (
             (

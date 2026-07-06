@@ -56,6 +56,17 @@ def test_init_gamut_adaptation_custom_gamut() -> None:
     # Should not crash; just set identity
 
 
+def test_init_gamut_adaptation_custom_chromaticities_converts() -> None:
+    set_skip_display_gamut_adaptation(False)
+    init_gamut_adaptation(
+        "custom",
+        custom_chromaticities=(0.68, 0.32, 0.27, 0.67, 0.15, 0.06),
+    )
+    colors = np.asarray([[220.0, 64.0, 64.0]], dtype=np.float32)
+    out = apply_display_gamut_adaptation(colors)
+    assert not np.allclose(out, colors, atol=0.5)
+
+
 def test_init_gamut_adaptation_srgb_identity() -> None:
     """srgb gamut should produce identity (same primaries)."""
     init_gamut_adaptation("srgb")

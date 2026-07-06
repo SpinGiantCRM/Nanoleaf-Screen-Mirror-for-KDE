@@ -36,7 +36,7 @@ def test_first_run_defaults_are_ambient_daily_use() -> None:
     assert cfg.fps == 60
     assert cfg.motion_preset == "responsive"
     assert cfg.color_style == "ambient"
-    assert cfg.display_preset == "sdr"
+    assert cfg.display_preset == "auto"
     assert cfg.hdr_transfer == "srgb"
     assert cfg.hdr_primaries == "bt709"
 

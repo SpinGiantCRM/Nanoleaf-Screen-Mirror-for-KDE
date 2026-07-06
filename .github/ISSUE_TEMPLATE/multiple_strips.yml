@@ -1,0 +1,23 @@
+name: Multiple strips
+description: Request support for more than one USB strip
+labels: [enhancement, scope-review]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This project targets **one Nanoleaf USB Edge Strip**. Multiple strips or
+        zone splitting across devices is **not planned** for the current architecture.
+        See [ROADMAP.md](../docs/ROADMAP.md).
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+    validations:
+      required: true
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Strip hardware details
+      description: Models, zone counts, how you would want them mapped.
+    validations:
+      required: true

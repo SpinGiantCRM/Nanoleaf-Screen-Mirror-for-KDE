@@ -210,13 +210,15 @@ class DisplayConfiguratorDialog:
                 # Step 2
                 self.display_preset_combo = QComboBox()
                 self.display_preset_combo.addItems(labels(DISPLAY_PRESET_LABELS))
-                initial_display_preset = str(getattr(cfg, "display_preset", "hdr"))
+                initial_display_preset = str(
+                    getattr(cfg, "display_preset", AppConfig.display_preset)
+                )
                 self.display_preset_combo.setCurrentIndex(
                     max(
                         0,
                         self.display_preset_combo.findText(
                             label_for_value(
-                                DISPLAY_PRESET_LABELS, initial_display_preset, default="HDR"
+                                DISPLAY_PRESET_LABELS, initial_display_preset, default="Auto"
                             )
                         ),
                     )
@@ -967,14 +969,14 @@ class DisplayConfiguratorDialog:
                     value_for_label(
                         DISPLAY_PRESET_LABELS,
                         str(self.display_preset_combo.currentText()),
-                        default="hdr",
+                        default=AppConfig.display_preset,
                     )
                     == "hdr"
                 )
                 selected_display_mode = value_for_label(
                     DISPLAY_PRESET_LABELS,
                     str(self.display_preset_combo.currentText()),
-                    default="hdr",
+                    default=AppConfig.display_preset,
                 )
                 if selected_display_mode == "hdr":
                     self.display_mode_help.setText(
@@ -1349,7 +1351,7 @@ class DisplayConfiguratorDialog:
                     display_preset=value_for_label(
                         DISPLAY_PRESET_LABELS,
                         str(self.display_preset_combo.currentText()),
-                        default="hdr",
+                        default=AppConfig.display_preset,
                     ),
                     hdr_transfer=str(self.hdr_transfer_combo.currentText()),
                     hdr_primaries=str(self.hdr_primaries_combo.currentText()),
@@ -1401,7 +1403,7 @@ class DisplayConfiguratorDialog:
                     "display_preset": value_for_label(
                         DISPLAY_PRESET_LABELS,
                         str(self.display_preset_combo.currentText()),
-                        default="hdr",
+                        default=AppConfig.display_preset,
                     ),
                     "performance_profile": value_for_label(
                         PERFORMANCE_PROFILE_LABELS,
@@ -1510,7 +1512,9 @@ class DisplayConfiguratorDialog:
                 self._state.zone_count = int(self.device_zone_count_slider.value())
                 display_idx = self.display_preset_combo.findText(
                     label_for_value(
-                        DISPLAY_PRESET_LABELS, str(data.get("display_preset", "hdr")), default="HDR"
+                        DISPLAY_PRESET_LABELS,
+                        str(data.get("display_preset", AppConfig.display_preset)),
+                        default="Auto",
                     )
                 )
                 if display_idx >= 0:

@@ -52,11 +52,32 @@ def test_app_config_has_canonical_preset_fields() -> None:
     assert cfg.zone_sampling_engine in {"auto", "legacy", "optimized"}
 
 
-def test_sdr_display_default_uses_sdr_transfer_defaults() -> None:
+def test_auto_display_default_uses_sdr_transfer_defaults() -> None:
     cfg = AppConfig()
-    assert cfg.display_preset == "sdr"
+    assert cfg.display_preset == "auto"
     assert cfg.hdr_transfer == "srgb"
     assert cfg.hdr_primaries == "bt709"
+
+
+def test_validate_config_custom_gamut_with_defaults_migrates_to_auto() -> None:
+    cfg = validate_config(AppConfig(display_gamut="custom"))
+    assert cfg.display_gamut == "auto"
+
+
+def test_validate_config_custom_gamut_round_trip() -> None:
+    cfg = validate_config(
+        AppConfig(
+            display_gamut="custom",
+            custom_gamut_red_x=0.68,
+            custom_gamut_red_y=0.32,
+            custom_gamut_green_x=0.27,
+            custom_gamut_green_y=0.67,
+            custom_gamut_blue_x=0.15,
+            custom_gamut_blue_y=0.06,
+        )
+    )
+    assert cfg.display_gamut == "custom"
+    assert cfg.custom_gamut_red_x == pytest.approx(0.68)
 
 
 def test_validate_config_migrates_legacy_hdr_defaults_to_sdr() -> None:

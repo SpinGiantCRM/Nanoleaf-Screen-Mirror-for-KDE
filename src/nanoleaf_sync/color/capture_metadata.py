@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from nanoleaf_sync.color.hdr import HDRMetadata, Primaries, TransferFn
+from nanoleaf_sync.config.model import AppConfig
 
 _log = logging.getLogger(__name__)
 _KREADCONFIG_TIMEOUT_SECONDS = 0.15
@@ -189,7 +190,7 @@ def resolve_display_preset(
     compositor_hdr_mode: bool,
     sdr_boost_nits: float,
 ) -> DisplayPresetResolution:
-    preset = str(display_preset or "hdr").strip().lower()
+    preset = str(display_preset or AppConfig.display_preset).strip().lower()
     if preset != "auto":
         resolved: DisplayPresetResolved = "sdr" if preset == "sdr" else "hdr"
         return DisplayPresetResolution(
@@ -244,7 +245,7 @@ def resolve_capture_metadata(
     user_transfer: str = "srgb",
     user_primaries: str = "bt709",
     user_max_nits: float = 1000.0,
-    display_preset: str = "hdr",
+    display_preset: str = AppConfig.display_preset,
     compositor_hdr_mode: bool = False,
     sdr_boost_nits: float = 80.0,
     kwin_display_referred: bool = False,

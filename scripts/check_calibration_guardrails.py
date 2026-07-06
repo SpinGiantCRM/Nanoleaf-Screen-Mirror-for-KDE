@@ -17,6 +17,9 @@ from pathlib import Path
 
 CALIBRATION_PATH_PREFIXES = (
     "src/nanoleaf_sync/ui/calibration",
+    "src/nanoleaf_sync/ui/display_configurator.py",
+    "src/nanoleaf_sync/ui/settings_dialog_handlers.py",
+    "src/nanoleaf_sync/ui/settings_dialog_handlers_ext.py",
     "src/nanoleaf_sync/runtime/calibration",
     "src/nanoleaf_sync/runtime/anchor_calibration.py",
     "src/nanoleaf_sync/runtime/zone_derivation.py",

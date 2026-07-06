@@ -6,7 +6,7 @@ import logging
 import threading
 import time
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 
@@ -521,8 +521,9 @@ def process_frame(
     prev_smoothed_colors: Sequence[RGBTuple],
     zones_px: Sequence[ZoneRect],
     device_zone_indices: Sequence[int],
-    brightness: float,
-    smoothing: float,
+    params: ColorPipelineParams | None = None,
+    brightness: float = 1.0,
+    smoothing: float = 0.5,
     smoothing_speed: float = 0.75,
     zone_sampling_stride: int = 1,
     zone_sampling_engine: str = "auto",
@@ -577,63 +578,72 @@ def process_frame(
     ]
 ):
     """Hot-path frame processing via the unified color pipeline contract."""
-    calibration = led_calibration or LedCalibration(
-        red_gain=red_gain,
-        green_gain=green_gain,
-        blue_gain=blue_gain,
-        led_gamma=led_gamma,
-        white_balance_temperature=white_balance_temperature,
-        chroma_compression=chroma_compression,
-        neutral_luminance_gain=neutral_luminance_gain,
-        black_luminance_cutoff=black_luminance_cutoff,
-        black_luminance_knee=black_luminance_knee,
-    )
     smooth_history: Sequence[tuple[float, float, float]] = (
         prev_smooth_float_colors
         if prev_smooth_float_colors
         else [(float(r), float(g), float(b)) for r, g, b in prev_smoothed_colors]
     )
     sent_history = prev_sent_colors if prev_sent_colors else prev_smoothed_colors
-    params = ColorPipelineParams(
-        brightness=brightness,
-        smoothing=smoothing,
-        smoothing_speed=smoothing_speed,
-        zone_sampling_stride=zone_sampling_stride,
-        zone_sampling_engine=zone_sampling_engine,
-        motion_preset=motion_preset,
-        light_spread=light_spread,
-        color_style=color_style,
-        edge_locality=edge_locality,
-        sampling_mode=sampling_mode,
-        letterbox_detection=letterbox_detection,
-        compositor_hdr_mode=compositor_hdr_mode,
-        sdr_boost_nits=sdr_boost_nits,
-        hdr_max_nits=hdr_max_nits,
-        sdr_boost_compensation_enabled=sdr_boost_compensation_enabled,
-        accuracy_mode=accuracy_mode,
-        skip_display_gamut_adaptation=skip_display_gamut_adaptation,
-        led_calibration=calibration,
-        return_diagnostics=return_diagnostics,
-        build_zone_diagnostics=build_zone_diagnostics,
-        sync_mode=sync_mode,
-        predictive_sync_strength=predictive_sync_strength,
-        effective_target_fps=effective_target_fps,
-        config_fps=config_fps,
-        staleness_ms=staleness_ms,
-        output_healthy=output_healthy,
-        sampling_quality=sampling_quality,
-        prev_sampled_zone_colors=prev_sampled_zone_colors,
-        previous_palette_algorithms=tuple(str(v) for v in previous_palette_algorithms),
-        prior_zone_sample_motion=prior_zone_sample_motion,
-        prior_area_average_mode=prior_area_average_mode,
-        prev_smooth_float_colors=smooth_history,
-        prev_sent_colors=sent_history,
-    )
+    if params is None:
+        calibration = led_calibration or LedCalibration(
+            red_gain=red_gain,
+            green_gain=green_gain,
+            blue_gain=blue_gain,
+            led_gamma=led_gamma,
+            white_balance_temperature=white_balance_temperature,
+            chroma_compression=chroma_compression,
+            neutral_luminance_gain=neutral_luminance_gain,
+            black_luminance_cutoff=black_luminance_cutoff,
+            black_luminance_knee=black_luminance_knee,
+        )
+        effective_params = ColorPipelineParams(
+            brightness=brightness,
+            smoothing=smoothing,
+            smoothing_speed=smoothing_speed,
+            zone_sampling_stride=zone_sampling_stride,
+            zone_sampling_engine=zone_sampling_engine,
+            motion_preset=motion_preset,
+            light_spread=light_spread,
+            color_style=color_style,
+            edge_locality=edge_locality,
+            sampling_mode=sampling_mode,
+            letterbox_detection=letterbox_detection,
+            compositor_hdr_mode=compositor_hdr_mode,
+            sdr_boost_nits=sdr_boost_nits,
+            hdr_max_nits=hdr_max_nits,
+            sdr_boost_compensation_enabled=sdr_boost_compensation_enabled,
+            accuracy_mode=accuracy_mode,
+            skip_display_gamut_adaptation=skip_display_gamut_adaptation,
+            led_calibration=calibration,
+            return_diagnostics=return_diagnostics,
+            build_zone_diagnostics=build_zone_diagnostics,
+            sync_mode=sync_mode,
+            predictive_sync_strength=predictive_sync_strength,
+            effective_target_fps=effective_target_fps,
+            config_fps=config_fps,
+            staleness_ms=staleness_ms,
+            output_healthy=output_healthy,
+            sampling_quality=sampling_quality,
+            prev_sampled_zone_colors=prev_sampled_zone_colors,
+            previous_palette_algorithms=tuple(str(v) for v in previous_palette_algorithms),
+            prior_zone_sample_motion=prior_zone_sample_motion,
+            prior_area_average_mode=prior_area_average_mode,
+            prev_smooth_float_colors=smooth_history,
+            prev_sent_colors=sent_history,
+        )
+    else:
+        effective_params = replace(
+            params,
+            prev_smooth_float_colors=smooth_history,
+            prev_sent_colors=sent_history,
+            return_diagnostics=return_diagnostics,
+            build_zone_diagnostics=build_zone_diagnostics,
+        )
     return process_zone_colors(
         frame=frame if precomputed_zone_colors is None else None,
         precomputed_zone_colors=precomputed_zone_colors,
         prev_smoothed_colors=sent_history,
         zones_px=zones_px,
         device_zone_indices=device_zone_indices,
-        params=params,
+        params=effective_params,
     )

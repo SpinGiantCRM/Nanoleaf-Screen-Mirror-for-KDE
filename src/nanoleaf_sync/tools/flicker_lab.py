@@ -6,6 +6,7 @@ from typing import Any
 import numpy as np
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
+from nanoleaf_sync.runtime.color_pipeline import build_pipeline_params_from_config
 from nanoleaf_sync.runtime.engine_frame import _ensure_runtime_artifacts, process_frame
 
 
@@ -116,23 +117,13 @@ def _process_sequence(
             detected_device_zone_count=int(config.device_zone_count or 48),
         )
         device_zone_indices = [int(i) for i in np.asarray(device_zone_indices_raw).tolist()]
+        pipeline_params = build_pipeline_params_from_config(config)
         raw_colors = process_frame(
             frame=frame,
             prev_smoothed_colors=prev_smoothed,
             zones_px=zones_px,
             device_zone_indices=device_zone_indices,
-            brightness=float(getattr(config, "brightness", 1.0) or 1.0),
-            smoothing=float(getattr(config, "smoothing", 0.8) or 0.8),
-            smoothing_speed=float(getattr(config, "smoothing_speed", 1.0) or 1.0),
-            zone_sampling_stride=int(getattr(config, "zone_sampling_stride", 1) or 1),
-            zone_sampling_engine=str(getattr(config, "zone_sampling_engine", "auto") or "auto"),
-            led_gamma=float(getattr(config, "led_gamma", 2.2) or 2.2),
-            motion_preset=str(getattr(config, "motion_preset", "responsive") or "responsive"),
-            color_style=str(getattr(config, "color_style", "ambient") or "ambient"),
-            edge_locality=str(getattr(config, "edge_locality", "balanced") or "balanced"),
-            compositor_hdr_mode=bool(getattr(config, "compositor_hdr_mode", False)),
-            sdr_boost_nits=float(getattr(config, "sdr_boost_nits", 80.0) or 80.0),
-            hdr_max_nits=float(getattr(config, "hdr_max_nits", 1000.0) or 1000.0),
+            params=pipeline_params,
         )
         if not isinstance(raw_colors, list):
             continue

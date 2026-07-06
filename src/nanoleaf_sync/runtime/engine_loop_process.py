@@ -312,6 +312,13 @@ def process_worker_loop(ctx: LoopPipelineContext) -> None:
                 prev_sent_snapshot = list(ctx.state.prev_sent_colors)
                 prev_smooth_snapshot = list(ctx.state.prev_smooth_float_colors)
                 prev_smoothed_snapshot = list(ctx.state.prev_smoothed_colors)
+            frame_params = replace(
+                pipeline_params,
+                light_spread=light_spread,
+                prev_smooth_float_colors=prev_smooth_snapshot
+                or [(float(r), float(g), float(b)) for r, g, b in prev_smoothed_snapshot],
+                prev_sent_colors=prev_sent_snapshot or prev_smoothed_snapshot,
+            )
             processed = cast(
                 tuple[
                     list[RGBTuple],
@@ -326,40 +333,9 @@ def process_worker_loop(ctx: LoopPipelineContext) -> None:
                     frame=frame,
                     precomputed_zone_colors=precomputed_zone_colors,
                     prev_smoothed_colors=prev_sent_snapshot or prev_smoothed_snapshot,
-                    prev_smooth_float_colors=prev_smooth_snapshot
-                    or [(float(r), float(g), float(b)) for r, g, b in prev_smoothed_snapshot],
-                    prev_sent_colors=prev_sent_snapshot or prev_smoothed_snapshot,
                     zones_px=zones_px,
                     device_zone_indices=device_zone_indices,  # type: ignore[arg-type]
-                    compositor_hdr_mode=pipeline_params.compositor_hdr_mode,
-                    sdr_boost_nits=pipeline_params.sdr_boost_nits,
-                    hdr_max_nits=pipeline_params.hdr_max_nits,
-                    sdr_boost_compensation_enabled=(pipeline_params.sdr_boost_compensation_enabled),
-                    accuracy_mode=pipeline_params.accuracy_mode,
-                    skip_display_gamut_adaptation=pipeline_params.skip_display_gamut_adaptation,
-                    brightness=pipeline_params.brightness,
-                    smoothing=pipeline_params.smoothing,
-                    smoothing_speed=pipeline_params.smoothing_speed,
-                    zone_sampling_stride=pipeline_params.zone_sampling_stride,
-                    zone_sampling_engine=pipeline_params.zone_sampling_engine,
-                    motion_preset=pipeline_params.motion_preset,
-                    light_spread=light_spread,
-                    color_style=pipeline_params.color_style,
-                    edge_locality=pipeline_params.edge_locality,
-                    sampling_mode=pipeline_params.sampling_mode,
-                    letterbox_detection=pipeline_params.letterbox_detection,
-                    led_calibration=pipeline_params.led_calibration,
-                    sync_mode=pipeline_params.sync_mode,
-                    predictive_sync_strength=pipeline_params.predictive_sync_strength,
-                    effective_target_fps=pipeline_params.effective_target_fps,
-                    config_fps=pipeline_params.config_fps,
-                    staleness_ms=pipeline_params.staleness_ms,
-                    output_healthy=pipeline_params.output_healthy,
-                    sampling_quality=pipeline_params.sampling_quality,
-                    prev_sampled_zone_colors=pipeline_params.prev_sampled_zone_colors,
-                    previous_palette_algorithms=pipeline_params.previous_palette_algorithms,
-                    prior_zone_sample_motion=pipeline_params.prior_zone_sample_motion,
-                    prior_area_average_mode=pipeline_params.prior_area_average_mode,
+                    params=frame_params,
                     return_diagnostics=True,
                     build_zone_diagnostics=build_diagnostics,
                 ),

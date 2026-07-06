@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from nanoleaf_sync.ui.layout_helpers import mark_muted
 from nanoleaf_sync.ui.settings_dialog_shared import (
     _FallbackLayout,
     _FallbackScrollArea,
@@ -396,6 +397,12 @@ class SettingsDialogLayoutMixin:
         capture_grid.addWidget(self.capture_backend_combo, 0, 1, 1, 2)
         capture_grid.addWidget(QLabel("Capture monitor"), 1, 0)
         capture_grid.addWidget(self.capture_monitor_edit, 1, 1, 1, 2)
+        capture_monitor_hint = QLabel(
+            "Choose one monitor to mirror. Multi-monitor simultaneous mirroring "
+            "and multiple strips are not supported."
+        )
+        mark_muted(capture_monitor_hint)
+        capture_grid.addWidget(capture_monitor_hint, 2, 0, 1, 3)
 
         runtime_status = _qt_widget(self._qt, "QGroupBox", _FallbackWidget)(
             "Runtime status (technical)"
@@ -407,21 +414,36 @@ class SettingsDialogLayoutMixin:
         runtime_layout.addWidget(self.diagnostics_mapping_label)
         runtime_layout.addWidget(self.hdr_colour_path_label)
         runtime_status.setLayout(runtime_layout)
-        capture_grid.addWidget(runtime_status, 2, 0, 1, 3)
+        capture_grid.addWidget(runtime_status, 3, 0, 1, 3)
 
-        capture_grid.addWidget(QLabel("Auto-probe policy"), 3, 0)
-        capture_grid.addWidget(self.auto_probe_policy_combo, 3, 1, 1, 2)
-        capture_grid.addWidget(QLabel("Latency auto-run policy"), 4, 0)
-        capture_grid.addWidget(self.auto_latency_policy_combo, 4, 1, 1, 2)
-        capture_grid.addWidget(self.run_latency_button, 5, 0)
-        capture_grid.addWidget(self.retest_backends_button, 5, 1)
-        capture_grid.addWidget(self.test_xdg_portal_button, 5, 2)
-        capture_grid.addWidget(self.benchmark_xdg_portal_button, 6, 0, 1, 2)
-        capture_grid.addWidget(self.reset_portal_screen_button, 6, 2)
-        capture_grid.addWidget(self.latency_label, 7, 0, 1, 3)
-        capture_grid.addWidget(self.xdg_hint_label, 8, 0, 1, 3)
+        capture_grid.addWidget(QLabel("Auto-probe policy"), 4, 0)
+        capture_grid.addWidget(self.auto_probe_policy_combo, 4, 1, 1, 2)
+        capture_grid.addWidget(QLabel("Latency auto-run policy"), 5, 0)
+        capture_grid.addWidget(self.auto_latency_policy_combo, 5, 1, 1, 2)
+        capture_grid.addWidget(self.run_latency_button, 6, 0)
+        capture_grid.addWidget(self.retest_backends_button, 6, 1)
+        capture_grid.addWidget(self.test_xdg_portal_button, 6, 2)
+        capture_grid.addWidget(self.benchmark_xdg_portal_button, 7, 0, 1, 2)
+        capture_grid.addWidget(self.reset_portal_screen_button, 7, 2)
+        capture_grid.addWidget(self.latency_label, 8, 0, 1, 3)
+        capture_grid.addWidget(self.xdg_hint_label, 9, 0, 1, 3)
         capture_group.setLayout(capture_grid)
         layout.addWidget(capture_group)
+
+        privacy_group = _qt_widget(self._qt, "QGroupBox", _FallbackWidget)("Privacy zones")
+        privacy_grid = QGridLayout()
+        self._configure_section_layout(privacy_grid)
+        privacy_grid.addWidget(QLabel("Excluded regions (x, y, w, h)"), 0, 0)
+        privacy_grid.addWidget(self.privacy_zone_x_edit, 0, 1)
+        privacy_grid.addWidget(self.privacy_zone_y_edit, 0, 2)
+        privacy_grid.addWidget(self.privacy_zone_w_edit, 0, 3)
+        privacy_grid.addWidget(self.privacy_zone_h_edit, 0, 4)
+        privacy_grid.addWidget(self.privacy_zone_add_button, 1, 0)
+        privacy_grid.addWidget(self.privacy_zone_remove_button, 1, 1)
+        privacy_grid.addWidget(self.privacy_zone_reset_button, 1, 2)
+        privacy_grid.addWidget(self.privacy_zones_list, 2, 0, 1, 5)
+        privacy_group.setLayout(privacy_grid)
+        layout.addWidget(privacy_group)
 
         diagnostics_group = _qt_widget(self._qt, "QGroupBox", _FallbackWidget)(
             "Diagnostics exports"

@@ -19,6 +19,7 @@ from nanoleaf_sync.config.model import (
     MAX_DEVICE_ZONE_COUNT,
     AppConfig,
     CalibrationConfig,
+    PrivacyZone,
 )
 from nanoleaf_sync.runtime.color_accuracy_diagnostics import run_color_accuracy_diagnostic
 from nanoleaf_sync.runtime.color_processing import (
@@ -79,6 +80,45 @@ class SettingsDialogHandlersExtMixin:
         self._state.corner_anchor_bottom_left = -1
         self._refresh_preview_label()
         self._schedule_live_preview()
+
+    def _clamp_privacy_norm(self, value: float) -> float:
+        return max(0.0, min(1.0, float(value)))
+
+    def _parse_privacy_zone_field(self, edit) -> float:
+        try:
+            return self._clamp_privacy_norm(float(str(edit.text()).strip()))
+        except ValueError:
+            return 0.0
+
+    def _refresh_privacy_zones_list(self) -> None:
+        self.privacy_zones_list.clear()
+        for zone in self._privacy_zones:
+            self.privacy_zones_list.addItem(
+                f"x={zone.x:.3f} y={zone.y:.3f} w={zone.w:.3f} h={zone.h:.3f}"
+            )
+
+    def _add_privacy_zone(self) -> None:
+        zone = PrivacyZone(
+            x=self._parse_privacy_zone_field(self.privacy_zone_x_edit),
+            y=self._parse_privacy_zone_field(self.privacy_zone_y_edit),
+            w=self._parse_privacy_zone_field(self.privacy_zone_w_edit),
+            h=self._parse_privacy_zone_field(self.privacy_zone_h_edit),
+        )
+        if zone.w <= 0.0 or zone.h <= 0.0:
+            return
+        self._privacy_zones.append(zone)
+        self._refresh_privacy_zones_list()
+
+    def _remove_privacy_zone(self) -> None:
+        row = int(self.privacy_zones_list.currentRow())
+        if row < 0 or row >= len(self._privacy_zones):
+            return
+        del self._privacy_zones[row]
+        self._refresh_privacy_zones_list()
+
+    def _reset_privacy_zones(self) -> None:
+        self._privacy_zones = []
+        self._refresh_privacy_zones_list()
 
     def _current_calibration_step(self):
         self._test_step %= self._test_cycle_length()
@@ -751,7 +791,7 @@ class SettingsDialogHandlersExtMixin:
             display_preset=value_for_label(
                 DISPLAY_PRESET_LABELS,
                 str(self.display_preset_combo.currentText()),
-                default="hdr",
+                default=AppConfig.display_preset,
             ),
             start_on_launch=bool(self.start_on_launch_checkbox.isChecked()),
             sync_mode="4d" if self.four_d_sync_checkbox.isChecked() else "standard",
@@ -769,6 +809,7 @@ class SettingsDialogHandlersExtMixin:
             ),
             prefer_backend=str(self.capture_backend_combo.currentText()),
             capture_monitor=str(self.capture_monitor_edit.text() or "").strip(),
+            privacy_zones=list(self._privacy_zones),
             auto_probe_policy=str(self.auto_probe_policy_combo.currentText()),
             auto_latency_policy=str(self.auto_latency_policy_combo.currentText()),
             latency_last_backend=(

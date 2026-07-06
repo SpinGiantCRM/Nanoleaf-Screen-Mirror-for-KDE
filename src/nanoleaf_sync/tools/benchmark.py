@@ -12,7 +12,9 @@ from typing import Any, cast
 import numpy as np
 
 from nanoleaf_sync.color import RGBTuple
+from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.device.protocol import CMD_SET_ZONE_COLORS, NanoleafTLVProtocol
+from nanoleaf_sync.runtime.color_pipeline import build_pipeline_params_from_config
 from nanoleaf_sync.runtime.engine_frame import process_frame
 from nanoleaf_sync.runtime.processing import zones_from_config
 from nanoleaf_sync.runtime.zone_presets import make_edge_weighted_zones
@@ -114,6 +116,7 @@ def run_benchmark(*, preset_name: str) -> dict[str, Any]:
     zones_px = zones_from_config(zone_models, width, height)
     device_zone_indices = list(range(zone_count))
     prev_smoothed: list[RGB] = [(0, 0, 0)] * zone_count
+    bench_params = build_pipeline_params_from_config(AppConfig())
 
     zone_samples = _timed_samples(
         lambda: zone_colors_array(
@@ -134,14 +137,7 @@ def run_benchmark(*, preset_name: str) -> dict[str, Any]:
             prev_smoothed_colors=prev_smoothed,
             zones_px=zones_px,
             device_zone_indices=device_zone_indices,
-            brightness=1.0,
-            smoothing=0.85,
-            edge_locality="balanced",
-            motion_preset="responsive",
-            color_style="natural",
-            compositor_hdr_mode=False,
-            sdr_boost_nits=80.0,
-            hdr_max_nits=1000.0,
+            params=bench_params,
         ),
         iterations=preset.iterations,
         warmup=preset.warmup,

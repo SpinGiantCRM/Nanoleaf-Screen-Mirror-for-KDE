@@ -98,7 +98,21 @@ The strip diagram in the calibration panel shows corner layout.
 ### Flicker or lag
 
 - Flicker: tray → **Help & Diagnostics** → Colour & flicker tab
-- Lag: lower smoothing on Fine-tuning page; enable **4D sync** for fast games
+- Lag: lower smoothing on Fine-tuning page; enable **4D sync** for fast games (see [4D sync guide](4D_SYNC.md))
+
+## Privacy zones
+
+Settings → **Advanced** → **Privacy zones** lets you exclude screen rectangles from colour sampling. Coordinates are normalized (0.0–1.0) from the top-left of the captured monitor.
+
+Examples:
+
+| Goal | x | y | w | h |
+|------|---|---|---|---|
+| Ignore bottom taskbar | 0.0 | 0.9 | 1.0 | 0.1 |
+| Ignore Discord side panel (left) | 0.0 | 0.0 | 0.15 | 1.0 |
+| Ignore notification area (top-right) | 0.85 | 0.0 | 0.15 | 0.12 |
+
+Excluded regions contribute black to zone sampling, so static UI (chat, taskbar, passwords on screen) does not dominate ambient lighting.
 - See [Slow path diagnosis](TROUBLESHOOTING.md#slow-path-diagnosis)
 
 ## 8. When something goes wrong

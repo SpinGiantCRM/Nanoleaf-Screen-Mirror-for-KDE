@@ -395,7 +395,9 @@ class NanoleafSyncService:
         status["zone_sampling_engine"] = str(getattr(self.config, "zone_sampling_engine", "auto"))
         status["edge_locality"] = str(getattr(self.config, "edge_locality", "balanced"))
         status["light_spread"] = str(getattr(self.config, "light_spread", "balanced"))
-        status["display_preset"] = str(getattr(self.config, "display_preset", "hdr"))
+        status["display_preset"] = str(
+            getattr(self.config, "display_preset", AppConfig.display_preset)
+        )
         status["edge_sampling_thickness"] = self._runtime.latest_edge_sampling_thickness
         status["zone_diagnostics_preview"] = self._runtime.latest_zone_diagnostics[:8]
         status["zone_diagnostics"] = list(self._runtime.latest_zone_diagnostics)
@@ -485,7 +487,9 @@ class NanoleafSyncService:
         effective_sdr_boost_compensation = compositor_hdr_mode and not display_referred
         if self.is_running():
             effective_sdr_boost_compensation = bool(self._runtime.sdr_boost_compensation_enabled)
-        display_preset = str(getattr(self.config, "display_preset", "hdr")).strip().lower()
+        display_preset = (
+            str(getattr(self.config, "display_preset", AppConfig.display_preset)).strip().lower()
+        )
         hdr_notes: list[str] = []
         hdr_warnings: list[str] = []
         if is_kwin_backend and display_preset == "hdr":
@@ -513,7 +517,7 @@ class NanoleafSyncService:
             "portal_negotiated_format": portal_frame_diag.get("format"),
             "portal_stride": portal_frame_diag.get("stride"),
             "portal_caps": portal_frame_diag.get("caps"),
-            "display_preset": str(getattr(self.config, "display_preset", "hdr")),
+            "display_preset": str(getattr(self.config, "display_preset", AppConfig.display_preset)),
             "compositor_hdr_mode": compositor_hdr_mode,
             "sdr_boost_nits": float(getattr(self.config, "sdr_boost_nits", 80.0)),
             "effective_sdr_boost_scalar": float(
@@ -597,6 +601,7 @@ class NanoleafSyncService:
         return status
 
     def capture_one_diagnostic_frame(self) -> dict[str, object]:
+        from nanoleaf_sync.runtime.color_pipeline import build_pipeline_params_from_config
         from nanoleaf_sync.runtime.engine_frame import process_frame
         from nanoleaf_sync.runtime.processing import zones_from_config
         from nanoleaf_sync.runtime.zone_derivation import derive_source_zone_artifacts
@@ -677,23 +682,17 @@ class NanoleafSyncService:
                         int((idx * source_count) // target_count) for idx in range(target_count)
                     ]
                     diagnostic_fallback_mapping = True
+            pipeline_params = build_pipeline_params_from_config(
+                self.config,
+                return_diagnostics=True,
+                build_zone_diagnostics=True,
+            )
             processed = process_frame(
                 frame=frame,
                 prev_smoothed_colors=[],
                 zones_px=zones_px,
                 device_zone_indices=device_zone_indices,
-                brightness=self.config.brightness,
-                smoothing=self.config.smoothing,
-                smoothing_speed=self.config.smoothing_speed,
-                zone_sampling_stride=self.config.zone_sampling_stride,
-                zone_sampling_engine=getattr(self.config, "zone_sampling_engine", "auto"),
-                led_gamma=self.config.led_gamma,
-                motion_preset=getattr(self.config, "motion_preset", "responsive"),
-                color_style=getattr(self.config, "color_style", "ambient"),
-                edge_locality=getattr(self.config, "edge_locality", "balanced"),
-                compositor_hdr_mode=getattr(self.config, "compositor_hdr_mode", False),
-                sdr_boost_nits=getattr(self.config, "sdr_boost_nits", 80.0),
-                hdr_max_nits=getattr(self.config, "hdr_max_nits", 1000.0),
+                params=pipeline_params,
                 return_diagnostics=True,
                 build_zone_diagnostics=True,
             )

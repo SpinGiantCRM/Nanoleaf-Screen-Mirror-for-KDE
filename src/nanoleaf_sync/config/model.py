@@ -133,7 +133,7 @@ class AppConfig:
     capture_monitor: str = ""
     # Persisted top/right/bottom/left source zone counts for corner-anchor mapping.
     source_side_counts: list[int] = field(default_factory=list)
-    display_preset: str = "sdr"
+    display_preset: str = "auto"
     # Tracks whether the first-run display configurator has been completed.
     wizard_completed: bool = False
     # Schema version for wizard_in_progress_state JSON payload.
@@ -196,7 +196,7 @@ class AppConfig:
     # - srgb: force sRGB primaries
     # - dci-p3: DCI-P3 primaries
     # - bt.2020: BT.2020 primaries
-    # - custom: user-provided chromaticities (not yet wired)
+    # - custom: user-provided chromaticities (config/API only until Settings editor lands)
     display_gamut: str = "auto"
     custom_gamut_red_x: float = 0.6400
     custom_gamut_red_y: float = 0.3300

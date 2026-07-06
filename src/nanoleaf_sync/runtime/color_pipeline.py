@@ -791,7 +791,7 @@ def resolve_active_led_profile(
     )
 
     preset = resolve_display_preset(
-        display_preset=str(getattr(config, "display_preset", "hdr")),
+        display_preset=str(getattr(config, "display_preset", AppConfig.display_preset)),
         hdr_transfer=str(getattr(config, "hdr_transfer", AppConfig.hdr_transfer)),
         hdr_primaries=str(getattr(config, "hdr_primaries", AppConfig.hdr_primaries)),
         compositor_hdr_mode=bool(getattr(config, "compositor_hdr_mode", False)),

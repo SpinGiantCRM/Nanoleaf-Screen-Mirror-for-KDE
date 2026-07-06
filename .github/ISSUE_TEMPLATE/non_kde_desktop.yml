@@ -1,0 +1,23 @@
+name: Non-KDE desktop
+description: Request support outside KDE Plasma
+labels: [enhancement, scope-review]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Primary target is **KDE Plasma 6 + Wayland**. Other desktops are
+        **not planned** as first-class supported platforms.
+        See [ROADMAP.md](../docs/ROADMAP.md).
+  - type: input
+    id: desktop
+    attributes:
+      label: Desktop environment
+      placeholder: GNOME 46, Sway, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Why KDE-specific capture cannot work for you
+    validations:
+      required: true

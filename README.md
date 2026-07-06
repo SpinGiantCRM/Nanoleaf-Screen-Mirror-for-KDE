@@ -97,6 +97,7 @@ See [Troubleshooting](docs/TROUBLESHOOTING.md) for symptom-based guidance.
 - `nanoleaf-kde-sync-service` — headless runtime service
 - `nanoleaf-kde-sync-autostart` — manage KDE autostart integration
 - `nanoleaf-kde-sync-reset` — reset config/calibration/diagnostic cache safely
+- `nanoleaf-kde-sync-benchmark` — synthetic pipeline performance benchmark (developers/diagnostics)
 
 ## First-run setup
 
@@ -107,7 +108,7 @@ See [Troubleshooting](docs/TROUBLESHOOTING.md) for symptom-based guidance.
 
 Manual strip count is authoritative for runtime, mapping, and calibration. Device-reported count is diagnostics-only unless you explicitly apply a new value.
 
-See the [User guide](docs/USER_GUIDE.md) for a full walkthrough.
+See the [User guide](docs/USER_GUIDE.md) for a full walkthrough. See [Diagnostics](docs/DIAGNOSTICS.md), [Performance](docs/PERFORMANCE.md), and [Roadmap](docs/ROADMAP.md) for advanced topics.
 
 ## HDR / SDR notes
 

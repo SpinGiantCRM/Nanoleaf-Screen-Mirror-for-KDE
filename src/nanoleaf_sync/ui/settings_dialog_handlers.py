@@ -16,6 +16,7 @@ from nanoleaf_sync.config.led_calibration_profile_io import (
     import_measured_led_calibration_profile,
 )
 from nanoleaf_sync.config.model import (
+    AppConfig,
     LedCalibrationProfile,
 )
 from nanoleaf_sync.config.presets import (
@@ -592,12 +593,12 @@ class SettingsDialogHandlersMixin:
         )
 
     def _on_display_preset_changed(self, *_args) -> None:
-        previous = str(self._active_display_preset or "hdr").strip().lower()
+        previous = str(self._active_display_preset or AppConfig.display_preset).strip().lower()
         self._save_slider_values_to_profile(previous)
         self._active_display_preset = value_for_label(
             DISPLAY_PRESET_LABELS,
             str(self.display_preset_combo.currentText()),
-            default="hdr",
+            default=AppConfig.display_preset,
         )
         if self._active_display_preset == "hdr":
             self.hdr_transfer_combo.setCurrentIndex(max(0, self.hdr_transfer_combo.findText("pq")))

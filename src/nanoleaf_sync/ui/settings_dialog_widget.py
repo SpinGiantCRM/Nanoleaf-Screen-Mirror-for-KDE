@@ -7,6 +7,7 @@ import copy
 from nanoleaf_sync.config.model import (
     AppConfig,
     LedCalibrationProfile,
+    PrivacyZone,
 )
 from nanoleaf_sync.config.presets import detect_performance_profile
 from nanoleaf_sync.ui.calibration_state import (
@@ -108,7 +109,12 @@ class SettingsDialogWidgetBase:
             getattr(self._cfg_seed, "led_calibration_profile_hdr", LedCalibrationProfile())
         )
         self._active_display_preset = (
-            str(getattr(self._cfg_seed, "display_preset", "hdr") or "hdr").strip().lower()
+            str(
+                getattr(self._cfg_seed, "display_preset", AppConfig.display_preset)
+                or AppConfig.display_preset
+            )
+            .strip()
+            .lower()
         )
         self._backend_probe_running = False
         self._source_zones_locked_to_device_count = (
@@ -147,8 +153,8 @@ class SettingsDialogWidgetBase:
                 self.display_preset_combo.findText(
                     label_for_value(
                         DISPLAY_PRESET_LABELS,
-                        str(getattr(self._cfg_seed, "display_preset", "hdr")),
-                        default="HDR",
+                        str(getattr(self._cfg_seed, "display_preset", AppConfig.display_preset)),
+                        default="Auto",
                     )
                 ),
             )
@@ -245,15 +251,16 @@ class SettingsDialogWidgetBase:
         self.whites_tinted_button = QPushButton("Whites look tinted")
         self.blacks_no_off_button = QPushButton("Blacks do not turn off")
         self.display_gamut_combo = QComboBox()
-        self.display_gamut_combo.addItems(["Auto", "sRGB", "DCI-P3", "BT.2020", "Custom"])
+        self.display_gamut_combo.addItems(["Auto", "sRGB", "DCI-P3", "BT.2020"])
         gamut_text = str(getattr(self._cfg_seed, "display_gamut", "auto")).strip().lower()
+        if gamut_text == "custom":
+            gamut_text = "auto"
         gamut_map = {
             "auto": "Auto",
             "srgb": "sRGB",
             "dci-p3": "DCI-P3",
             "bt.2020": "BT.2020",
             "bt2020": "BT.2020",
-            "custom": "Custom",
         }
         self.display_gamut_combo.setCurrentIndex(
             max(0, self.display_gamut_combo.findText(gamut_map.get(gamut_text, "Auto")))
@@ -338,6 +345,17 @@ class SettingsDialogWidgetBase:
         self.capture_monitor_edit = QLineEdit()
         self.capture_monitor_edit.setPlaceholderText("empty = Plasma primary output")
         self.capture_monitor_edit.setText(str(getattr(self._cfg_seed, "capture_monitor", "") or ""))
+        self._privacy_zones: list[PrivacyZone] = list(
+            getattr(self._cfg_seed, "privacy_zones", None) or []
+        )
+        self.privacy_zones_list = QListWidget()
+        self.privacy_zone_x_edit = QLineEdit("0.0")
+        self.privacy_zone_y_edit = QLineEdit("0.9")
+        self.privacy_zone_w_edit = QLineEdit("1.0")
+        self.privacy_zone_h_edit = QLineEdit("0.1")
+        self.privacy_zone_add_button = QPushButton("Add zone")
+        self.privacy_zone_remove_button = QPushButton("Remove selected")
+        self.privacy_zone_reset_button = QPushButton("Reset all")
         self.auto_probe_policy_combo = QComboBox()
         self.auto_probe_policy_combo.addItems(["on-change", "first-run", "each-boot"])
         self.auto_probe_policy_combo.setCurrentIndex(
@@ -624,6 +642,10 @@ class SettingsDialogWidgetBase:
         self.test_xdg_portal_button.clicked.connect(self._run_xdg_portal_test)
         self.benchmark_xdg_portal_button.clicked.connect(self._run_xdg_portal_benchmark)
         self.reset_portal_screen_button.clicked.connect(self._reset_portal_screen_selection)
+        self.privacy_zone_add_button.clicked.connect(self._add_privacy_zone)
+        self.privacy_zone_remove_button.clicked.connect(self._remove_privacy_zone)
+        self.privacy_zone_reset_button.clicked.connect(self._reset_privacy_zones)
+        self._refresh_privacy_zones_list()
         self.edge_locality_diagnostic_button.clicked.connect(self._run_edge_locality_diagnostic)
         self.color_accuracy_diagnostic_button.clicked.connect(self._run_color_accuracy_diagnostic)
         self.run_self_check_button.clicked.connect(self._run_self_check)
@@ -835,7 +857,20 @@ class SettingsDialogWidgetBase:
         self.hdr_max_nits_slider.setToolTip(
             "Reference display peak brightness for HDR tone mapping."
         )
-        self.capture_backend_combo.setToolTip("Select auto or force a specific capture backend.")
+        self.capture_backend_combo.setToolTip(
+            "Auto (recommended): probe and pick the best backend. "
+            "kwin-dbus: KDE default capture. "
+            "xdg-portal: permission-friendly fallback. "
+            "kmsgrab: advanced benchmark/debug path."
+        )
+        self.capture_monitor_edit.setToolTip(
+            "KWin output name for the monitor to mirror (e.g. HDMI-A-1, DP-1). "
+            "Leave empty for Plasma primary. Choose one monitor only."
+        )
+        self.privacy_zone_add_button.setToolTip(
+            "Exclude screen regions from LED colour sampling (normalized 0..1 coordinates). "
+            "Examples: taskbar at bottom, chat sidebar, notification area."
+        )
         self.device_model_combo.setToolTip("Select your Nanoleaf USB hardware model.")
         self.device_vid_combo.setToolTip("USB vendor ID used to locate your hardware.")
         self.device_pid_combo.setToolTip("USB product ID used to locate your hardware.")
@@ -853,7 +888,10 @@ class SettingsDialogWidgetBase:
             "Start syncing automatically right after tray launch."
         )
         self.four_d_sync_checkbox.setToolTip(
-            "Lower latency mode for fast games: faster HID send and tighter edge response."
+            "Low-latency mode for fast motion: tighter edge response, faster HID pacing, "
+            "and predictive colour lookahead. Does not force 120 FPS capture. "
+            "May increase CPU use and can flicker on some setups — disable if colours shimmer. "
+            "See docs/4D_SYNC.md."
         )
         self.compositor_hdr_mode_checkbox.setToolTip(
             "Enable compensation when KDE Plasma is running SDR content on HDR. "
