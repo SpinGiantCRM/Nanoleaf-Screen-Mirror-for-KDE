@@ -28,10 +28,11 @@ nanoleaf-kde-sync-doctor --device
 ## Optional device frame test
 
 ```bash
-nanoleaf-kde-sync-smoke-test --send-test-frame
+nanoleaf-kde-sync-smoke-test --hardware --send-test-frame
 ```
 
-This sends a low-brightness RGB pattern to verify device output.
+This initializes the USB device path and sends a low-brightness RGB pattern to verify device output.
+`--hardware` is required because the default smoke test is CI-safe and skips USB device initialization.
 
 ## Reading smoke-test output
 
