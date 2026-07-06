@@ -75,12 +75,18 @@ def run_loop_supervisor(ctx: LoopPipelineContext) -> None:
             with ctx.metrics_lock:
                 worker_fails = ctx.capture_worker_failures
                 proc_fails = ctx.process_worker_error_count
-            if worker_fails >= ctx.error_limit or proc_fails >= ctx.error_limit:
+                hid_fails = ctx.hid_worker_error_count
+            if (
+                worker_fails >= ctx.error_limit
+                or proc_fails >= ctx.error_limit
+                or hid_fails >= ctx.error_limit
+            ):
                 logger.warning(
-                    "worker failures: capture=%d process=%d (limit=%d); "
+                    "worker failures: capture=%d process=%d hid=%d (limit=%d); "
                     "triggering reinitialization",
                     worker_fails,
                     proc_fails,
+                    hid_fails,
                     ctx.error_limit,
                 )
                 backoff_s = max(
@@ -107,6 +113,7 @@ def run_loop_supervisor(ctx: LoopPipelineContext) -> None:
                         ctx.capture_worker_failures = 0
                         ctx.capture_worker_error_count = 0
                         ctx.process_worker_error_count = 0
+                        ctx.hid_worker_error_count = 0
             black_count = ctx.state.consecutive_black_frame_count()
             degrade_level = ctx.state.sync_black_frame_degradation(black_count)
             if degrade_level >= 2 and black_count >= 120 and black_count % 120 == 0:

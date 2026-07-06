@@ -81,6 +81,7 @@ class HIDTransport:
         self._handle: _HIDDevice | None = None
         self._ack_latency_ewma_ms: float = 0.0
         self._io_lock = threading.RLock()
+        self._inflight_write_thread: threading.Thread | None = None
 
     @staticmethod
     def _fmt_path(value: Any) -> str:
@@ -284,137 +285,141 @@ class HIDTransport:
                 delay = min(base_delay * (2 ** (attempt - 1)), 5.0)
                 time.sleep(delay)
             devices = list(hid.enumerate(self.ids.vid, self.ids.pid))
-            if devices:
-                break
-            retry_suffix = f" (retry {attempt + 1}/{max_attempts})" if max_attempts > 1 else ""
-            last_exc = RuntimeError(
-                f"Nanoleaf device not found VID={self.ids.vid:#06x} "
-                f"PID={self.ids.pid:#06x}{retry_suffix}"
-            )
-        else:
-            raise last_exc  # type: ignore[misc]
-
-        self._handle = hid.device()
-        attempt_results: list[str] = []
-        path_diagnostics: list[str] = []
-        seen_paths: set[str] = set()
-        candidates = [dev for dev in devices if isinstance(dev, dict)]
-        interface_numbers: set[int] = set()
-        for dev in candidates:
-            interface = dev.get("interface_number")
-            try:
-                if interface is not None:
-                    interface_numbers.add(int(interface))
-            except Exception:
-                logger.debug("Unable to parse HID interface number", exc_info=True)
-                continue
-
-        def _candidate_sort_key(dev: dict[str, Any]) -> tuple[int, int, str]:
-            interface = dev.get("interface_number")
-            try:
-                interface_key = 9999 if interface is None else int(interface)
-            except Exception:
-                logger.debug("Unable to parse HID interface number for sort key", exc_info=True)
-                interface_key = 9999
-            path_text = self._fmt_path(dev.get("path"))
-            if path_text.startswith("/dev/hidraw"):
-                path_kind = 0
-            elif self._looks_like_usb_interface_path(path_text):
-                path_kind = 1
-            else:
-                path_kind = 2
-            return (path_kind, interface_key, path_text)
-
-        sorted_devices = sorted(candidates, key=_candidate_sort_key)
-        for dev in sorted_devices:
-            path = dev.get("path")
-            path_text = self._fmt_path(path)
-            if path_text in seen_paths:
-                continue
-            seen_paths.add(path_text)
-            if not path:
-                attempt_results.append(f"open_path({path_text}) skipped: missing path")
-                continue
-            if self._looks_like_usb_interface_path(path_text):
-                path_diagnostics.append(
-                    f"path {path_text} is a USB interface token (not a hidraw node)"
+            if not devices:
+                retry_suffix = f" (retry {attempt + 1}/{max_attempts})" if max_attempts > 1 else ""
+                last_exc = RuntimeError(
+                    f"Nanoleaf device not found VID={self.ids.vid:#06x} "
+                    f"PID={self.ids.pid:#06x}{retry_suffix}"
                 )
-            open_paths = self._candidate_open_paths(path)
-            if not open_paths:
-                attempt_results.append(f"open_path({path_text}) skipped: no usable path")
                 continue
-            for open_path in open_paths:
-                open_path_text = self._fmt_path(open_path)
-                try:
-                    self._handle.open_path(open_path)
-                    return
-                except Exception as exc:
-                    attempt_results.append(
-                        f"open_path({open_path_text}) failed: {type(exc).__name__}: {exc}"
-                    )
 
-        if sys.platform.startswith("linux"):
-            sysfs_candidates = self._linux_hidraw_candidates_for_ids(
-                vid=self.ids.vid, pid=self.ids.pid, interface_numbers=interface_numbers
-            )
-            for open_path in sysfs_candidates:
-                open_path_text = self._fmt_path(open_path)
-                if open_path_text in seen_paths:
+            self._handle = hid.device()
+            attempt_results: list[str] = []
+            path_diagnostics: list[str] = []
+            seen_paths: set[str] = set()
+            candidates = [dev for dev in devices if isinstance(dev, dict)]
+            interface_numbers: set[int] = set()
+            for dev in candidates:
+                interface = dev.get("interface_number")
+                try:
+                    if interface is not None:
+                        interface_numbers.add(int(interface))
+                except Exception:
+                    logger.debug("Unable to parse HID interface number", exc_info=True)
                     continue
-                seen_paths.add(open_path_text)
-                try:
-                    self._handle.open_path(open_path)
-                    return
-                except Exception as exc:
-                    attempt_results.append(
-                        f"open_path({open_path_text}) failed: {type(exc).__name__}: {exc}"
-                    )
 
-        try:
-            self._handle.open(self.ids.vid, self.ids.pid)
-            return
-        except Exception as exc:
-            attempt_results.append(
-                f"open({self.ids.vid:#06x}, {self.ids.pid:#06x}) failed: "
-                f"{type(exc).__name__}: {exc}"
-            )
-            self._handle = None
-            backend = self._hid_backend_metadata(hid)
-            candidate_text = "; ".join(self._describe_candidate(dev) for dev in sorted_devices)
-            if not candidate_text:
-                candidate_text = "<none>"
-            attempts = (
-                "; ".join(attempt_results) if attempt_results else "no open attempts were made"
-            )
-            lowered = attempts.lower()
-            diagnosis: list[str] = []
-            if path_diagnostics:
-                diagnosis.append("candidate path format is not directly openable")
-            if "busy" in lowered or "resource busy" in lowered:
-                diagnosis.append("another process may hold the device")
+            def _candidate_sort_key(dev: dict[str, Any]) -> tuple[int, int, str]:
+                interface = dev.get("interface_number")
+                try:
+                    interface_key = 9999 if interface is None else int(interface)
+                except Exception:
+                    logger.debug("Unable to parse HID interface number for sort key", exc_info=True)
+                    interface_key = 9999
+                path_text = self._fmt_path(dev.get("path"))
+                if path_text.startswith("/dev/hidraw"):
+                    path_kind = 0
+                elif self._looks_like_usb_interface_path(path_text):
+                    path_kind = 1
+                else:
+                    path_kind = 2
+                return (path_kind, interface_key, path_text)
+
+            sorted_devices = sorted(candidates, key=_candidate_sort_key)
+            for dev in sorted_devices:
+                path = dev.get("path")
+                path_text = self._fmt_path(path)
+                if path_text in seen_paths:
+                    continue
+                seen_paths.add(path_text)
+                if not path:
+                    attempt_results.append(f"open_path({path_text}) skipped: missing path")
+                    continue
+                if self._looks_like_usb_interface_path(path_text):
+                    path_diagnostics.append(
+                        f"path {path_text} is a USB interface token (not a hidraw node)"
+                    )
+                open_paths = self._candidate_open_paths(path)
+                if not open_paths:
+                    attempt_results.append(f"open_path({path_text}) skipped: no usable path")
+                    continue
+                for open_path in open_paths:
+                    open_path_text = self._fmt_path(open_path)
+                    try:
+                        self._handle.open_path(open_path)
+                        return
+                    except Exception as exc:
+                        attempt_results.append(
+                            f"open_path({open_path_text}) failed: {type(exc).__name__}: {exc}"
+                        )
+
             if sys.platform.startswith("linux"):
-                holder_notes: list[str] = []
-                for path_text in sorted(seen_paths):
-                    if not path_text.startswith("/dev/hidraw"):
-                        continue
-                    for holder in self._linux_hidraw_holders(path_text):
-                        holder_notes.append(f"{path_text}: {holder}")
-                if holder_notes:
-                    diagnosis.append("device held by " + "; ".join(holder_notes))
-            if "open failed" in lowered or "access denied" in lowered:
-                diagnosis.append("device enumerates but hid backend cannot open it")
-            if interface_numbers and "/dev/hidraw" not in lowered:
-                diagnosis.append(
-                    "device interface layout unsupported by current backend path mapping"
+                sysfs_candidates = self._linux_hidraw_candidates_for_ids(
+                    vid=self.ids.vid, pid=self.ids.pid, interface_numbers=interface_numbers
                 )
-            if not diagnosis:
-                diagnosis.append("unable to classify open failure")
-            raise RuntimeError(
-                "Failed to open Nanoleaf HID device after enumeration. "
-                f"hid backend: {backend}. "
-                f"Enumerated candidates: {candidate_text}. Attempt results: {attempts}. "
-                f"Diagnostic classification: {', '.join(diagnosis)}."
-            ) from exc
+                for open_path in sysfs_candidates:
+                    open_path_text = self._fmt_path(open_path)
+                    if open_path_text in seen_paths:
+                        continue
+                    seen_paths.add(open_path_text)
+                    try:
+                        self._handle.open_path(open_path)
+                        return
+                    except Exception as exc:
+                        attempt_results.append(
+                            f"open_path({open_path_text}) failed: {type(exc).__name__}: {exc}"
+                        )
+
+            try:
+                self._handle.open(self.ids.vid, self.ids.pid)
+                return
+            except Exception as exc:
+                attempt_results.append(
+                    f"open({self.ids.vid:#06x}, {self.ids.pid:#06x}) failed: "
+                    f"{type(exc).__name__}: {exc}"
+                )
+                self._handle = None
+                backend = self._hid_backend_metadata(hid)
+                candidate_text = "; ".join(self._describe_candidate(dev) for dev in sorted_devices)
+                if not candidate_text:
+                    candidate_text = "<none>"
+                attempts = (
+                    "; ".join(attempt_results) if attempt_results else "no open attempts were made"
+                )
+                lowered = attempts.lower()
+                diagnosis: list[str] = []
+                if path_diagnostics:
+                    diagnosis.append("candidate path format is not directly openable")
+                if "busy" in lowered or "resource busy" in lowered:
+                    diagnosis.append("another process may hold the device")
+                if sys.platform.startswith("linux"):
+                    holder_notes: list[str] = []
+                    for path_text in sorted(seen_paths):
+                        if not path_text.startswith("/dev/hidraw"):
+                            continue
+                        for holder in self._linux_hidraw_holders(path_text):
+                            holder_notes.append(f"{path_text}: {holder}")
+                    if holder_notes:
+                        diagnosis.append("device held by " + "; ".join(holder_notes))
+                if "open failed" in lowered or "access denied" in lowered:
+                    diagnosis.append("device enumerates but hid backend cannot open it")
+                if interface_numbers and "/dev/hidraw" not in lowered:
+                    diagnosis.append(
+                        "device interface layout unsupported by current backend path mapping"
+                    )
+                if not diagnosis:
+                    diagnosis.append("unable to classify open failure")
+                retry_suffix = f" (retry {attempt + 1}/{max_attempts})" if max_attempts > 1 else ""
+                last_exc = RuntimeError(
+                    "Failed to open Nanoleaf HID device after enumeration"
+                    f"{retry_suffix}. "
+                    f"hid backend: {backend}. "
+                    f"Enumerated candidates: {candidate_text}. Attempt results: {attempts}. "
+                    f"Diagnostic classification: {', '.join(diagnosis)}."
+                )
+                last_exc.__cause__ = exc
+                continue
+
+        raise last_exc  # type: ignore[misc]
 
     def _build_report(self, payload: bytes) -> bytes:
         if self.use_report_id_prefix:
@@ -444,8 +449,16 @@ class HIDTransport:
                 _done.set()
 
         t = threading.Thread(target=_do, daemon=True)
+        self._inflight_write_thread = t
         t.start()
-        if not _done.wait(timeout=timeout_ms / 1000.0):
+        timed_out = not _done.wait(timeout=timeout_ms / 1000.0)
+        if timed_out:
+            t.join(timeout=0.15)
+            if t.is_alive():
+                logger.warning(
+                    "HID report write thread still running after timeout; "
+                    "deferring close until it exits"
+                )
             raise HIDWriteError(
                 "HID report write timed out",
                 write_status="timed_out",
@@ -464,6 +477,7 @@ class HIDTransport:
                 attempted_report_index=0,
                 device_disconnected=_is_enodev_error(exc),
             ) from exc
+        self._inflight_write_thread = None
 
     def _write_payload(
         self, payload: bytes, *, write_timeout_ms: int | None = None
@@ -698,14 +712,13 @@ class HIDTransport:
             guard_window_s = max(0.05, float(write_timeout_ms) / 1000.0 * 4.0)
             read_timeout_ms = self.read_timeout_ms
         remaining_budget_s = guard_window_s
-        per_read_budget_s = max(float(read_timeout_ms) / 1000.0, 0.001)
         read_start = time.perf_counter()
         read_calls = 0
         while True:
             # Read up to report-size + report-id byte. hidapi may still return 64 bytes.
             raw_chunk = handle.read(self.report_size + 1, read_timeout_ms)
             read_calls += 1
-            remaining_budget_s -= per_read_budget_s
+            remaining_budget_s = guard_window_s - (time.perf_counter() - read_start)
             if not raw_chunk:
                 if remaining_budget_s > 0:
                     continue
@@ -736,9 +749,14 @@ class HIDTransport:
 
     def close(self) -> None:
         with self._io_lock:
+            inflight = self._inflight_write_thread
+            if inflight is not None and inflight.is_alive():
+                inflight.join(timeout=0.25)
             if self._handle is None:
+                self._inflight_write_thread = None
                 return
             try:
                 self._handle.close()
             finally:
                 self._handle = None
+                self._inflight_write_thread = None

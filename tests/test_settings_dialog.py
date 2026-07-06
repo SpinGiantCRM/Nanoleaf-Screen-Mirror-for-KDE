@@ -316,3 +316,23 @@ def test_settings_imports_measured_hdr_led_calibration_profile(monkeypatch, tmp_
     assert "Imported measured LED calibration profile for HDR" in (
         widget.color_accuracy_diagnostic_label.text()
     )
+
+
+def test_settings_slider_save_preserves_imported_color_matrix(monkeypatch) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    matrix = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+    widget._led_profile_hdr = LedCalibrationProfile(
+        red_gain=1.0,
+        color_matrix=list(matrix),
+        dark_sample_stabilize_on=0.01,
+        dark_sample_stabilize_off=0.03,
+    )
+    widget._active_display_preset = "hdr"
+    widget.red_gain_slider.setValue(110)
+
+    widget._save_slider_values_to_profile()
+
+    assert widget._led_profile_hdr.color_matrix == matrix
+    assert widget._led_profile_hdr.red_gain == pytest.approx(1.10)
+    assert widget._led_profile_hdr.dark_sample_stabilize_on == pytest.approx(0.01)
+    assert widget._led_profile_hdr.dark_sample_stabilize_off == pytest.approx(0.03)

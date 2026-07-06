@@ -53,6 +53,7 @@ class LoopPipelineContext:
     capture_worker_error_count: int = 0
     capture_worker_failures: int = 0
     process_worker_error_count: int = 0
+    hid_worker_error_count: int = 0
     no_pending_frame_events: int = 0
     no_pending_started_at: float = field(default_factory=time.perf_counter)
     last_sent_zone_count: int = 0

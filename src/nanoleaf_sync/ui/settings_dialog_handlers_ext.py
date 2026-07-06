@@ -9,6 +9,7 @@ from dataclasses import replace
 
 import numpy as np
 
+from nanoleaf_sync.capture.dimensions import resolve_capture_dims
 from nanoleaf_sync.capture.factory import (
     run_explicit_xdg_portal_probe,
     run_fresh_backend_probe,
@@ -322,6 +323,13 @@ class SettingsDialogHandlersExtMixin:
         blocked_states = {"starting", "running", "stopping", "waiting_for_screen_selection"}
         return startup_state in blocked_states or lifecycle_state in blocked_states
 
+    def _probe_capture_dims(self) -> tuple[int, int]:
+        width = int(self._runtime_status.get("capture_width") or 0)
+        height = int(self._runtime_status.get("capture_height") or 0)
+        if width > 0 and height > 0:
+            return width, height
+        return resolve_capture_dims(self._cfg_seed)
+
     def _run_fresh_backend_probe(self) -> None:
         if self._backend_probe_running:
             return
@@ -329,8 +337,7 @@ class SettingsDialogHandlersExtMixin:
             self._update_backend_probe_button_state()
             self.latency_label.setText("Stop mirroring before re-testing backends.")
             return
-        width = int(self._runtime_status.get("capture_width") or 1920)
-        height = int(self._runtime_status.get("capture_height") or 1080)
+        width, height = self._probe_capture_dims()
         self._backend_probe_running = True
         self.retest_backends_button.setEnabled(False)
         self.latency_label.setText("Running backend probe…")
@@ -364,9 +371,10 @@ class SettingsDialogHandlersExtMixin:
             "prompt if it appears."
         )
         try:
+            width, height = self._probe_capture_dims()
             result = run_explicit_xdg_portal_probe(
-                width=int(self._runtime_status.get("capture_width") or 1920),
-                height=int(self._runtime_status.get("capture_height") or 1080),
+                width=width,
+                height=height,
             )
             self.latency_label.setText(
                 "xdg-portal explicit test:\n"
@@ -413,8 +421,7 @@ class SettingsDialogHandlersExtMixin:
         self.latency_label.setText(
             "Running manual xdg-portal benchmark. This may show a portal consent prompt."
         )
-        width = int(self._runtime_status.get("capture_width") or 1920)
-        height = int(self._runtime_status.get("capture_height") or 1080)
+        width, height = self._probe_capture_dims()
         result = run_manual_portal_benchmark(width=width, height=height, samples=30)
         if str(result.get("status")) != "tested":
             reason = str(result.get("reason") or "unknown failure")

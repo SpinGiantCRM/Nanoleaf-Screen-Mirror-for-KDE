@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+
 import pytest
 
-from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
+from nanoleaf_sync.config.model import AppConfig, CalibrationConfig, LedCalibrationProfile
 from nanoleaf_sync.config.normalize import (
     SCHEMA_VERSION,
     ConfigValidationError,
@@ -447,3 +449,24 @@ def test_validate_raw_config_values_calibration_zone_count() -> None:
 def test_validate_raw_config_values_boolean_vid_rejected() -> None:
     with pytest.raises(ConfigValidationError):
         validate_raw_config_values({"device_vid": True})
+
+
+def test_validate_config_drops_invalid_color_matrix_with_warning(caplog) -> None:
+    cfg = AppConfig(
+        led_calibration_profile_sdr=LedCalibrationProfile(color_matrix=[1.0, "bad", 0.0] * 3)
+    )
+    with caplog.at_level(logging.WARNING):
+        result = validate_config(cfg)
+    assert result.led_calibration_profile_sdr.color_matrix == []
+    assert any("color_matrix" in record.message for record in caplog.records)
+
+
+def test_migrate_config_dict_keeps_calibration_anchor_on_conflict(caplog) -> None:
+    payload = {
+        "corner_anchor_top_left": 5,
+        "calibration": {"corner_anchor_top_left": 12},
+    }
+    with caplog.at_level(logging.WARNING):
+        result = migrate_config_dict(payload)
+    assert result["calibration"]["corner_anchor_top_left"] == 12
+    assert "Conflicting corner_anchor_top_left" in caplog.text

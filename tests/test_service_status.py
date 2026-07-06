@@ -235,10 +235,28 @@ def test_get_status_heals_stale_kmsgrab_probe_cache(monkeypatch: pytest.MonkeyPa
     svc._capture = _KmsCapture()
     monkeypatch.setattr("nanoleaf_sync.service.ConfigManager", _FakeConfigManager)
 
-    for frames in (1, 2, 3):
+    for frames in (1,):
         svc._runtime.frames_sent = frames
         svc.get_status()
 
     assert "config" in saved
     assert saved["config"].auto_selected_backend == "kwin-dbus"
     assert svc.config.auto_selected_backend == "kwin-dbus"
+
+
+def test_get_status_reports_kmsgrab_kwin_fallback_before_cache_heal() -> None:
+    class _KmsCapture:
+        name = "kmsgrab"
+        last_capture_path = "kwin-dbus"
+
+        def close(self) -> None:
+            pass
+
+    cfg = AppConfig(prefer_backend="auto", auto_selected_backend="kmsgrab")
+    svc = NanoleafSyncService(config=cfg)
+    svc._capture = _KmsCapture()
+
+    status = svc.get_status()
+
+    assert status["effective_capture_backend"] == "kwin-dbus"
+    assert status["capture_backend_fallback_active"] is True

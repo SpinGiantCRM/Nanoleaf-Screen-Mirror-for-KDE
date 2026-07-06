@@ -44,6 +44,50 @@ def test_open_retry_zero_attempts_no_devices(monkeypatch: pytest.MonkeyPatch) ->
         transport.open(retry_attempts=0, retry_delay_s=0.01)
 
 
+def test_open_retries_when_device_is_busy_then_available(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Busy open failures should retry the full enumerate+open path."""
+    import sys
+    import types
+
+    class _BusyThenOpenHandle:
+        def __init__(self) -> None:
+            self.open_attempts = 0
+            self.opened_path: bytes | None = None
+
+        def open_path(self, path: bytes) -> None:
+            self.open_attempts += 1
+            if self.open_attempts == 1:
+                raise OSError("busy")
+            self.opened_path = path
+
+        def open(self, _vid: int, _pid: int) -> None:
+            raise OSError("open failed")
+
+        def close(self) -> None:
+            return None
+
+    handle = _BusyThenOpenHandle()
+    fake_hid = types.SimpleNamespace(
+        __file__="/tmp/fake-hid.so",
+        __version__="0.15.0",
+        enumerate=lambda _vid, _pid: [{"path": b"/dev/hidraw0", "interface_number": 0}],
+        device=lambda: handle,
+    )
+    monkeypatch.setitem(sys.modules, "hid", fake_hid)
+    monkeypatch.setitem(sys.modules, "hidraw", fake_hid)
+    monkeypatch.setattr(
+        HIDTransport,
+        "_linux_hidraw_candidates_for_ids",
+        lambda *_args, **_kwargs: [],
+    )
+
+    transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
+    transport.open(retry_attempts=1, retry_delay_s=0.01)
+
+    assert handle.opened_path == b"/dev/hidraw0"
+    assert handle.open_attempts == 2
+
+
 def test_open_hid_import_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     """When hid module cannot be imported, RuntimeError propagates (wrapping the import failure)."""
     transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)

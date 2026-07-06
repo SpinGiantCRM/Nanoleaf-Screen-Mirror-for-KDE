@@ -504,8 +504,12 @@ class SettingsDialogHandlersMixin:
         style = str(preset or self._active_display_preset).strip().lower()
         return self._led_profile_sdr if style == "sdr" else self._led_profile_hdr
 
-    def _led_profile_from_sliders(self) -> LedCalibrationProfile:
-        return LedCalibrationProfile(
+    def _led_profile_from_sliders(
+        self, *, base: LedCalibrationProfile | None = None
+    ) -> LedCalibrationProfile:
+        existing = base or self._active_led_profile()
+        return replace(
+            existing,
             red_gain=self.red_gain_slider.value() / 100.0,
             green_gain=self.green_gain_slider.value() / 100.0,
             blue_gain=self.blue_gain_slider.value() / 100.0,
@@ -519,7 +523,9 @@ class SettingsDialogHandlersMixin:
 
     def _save_slider_values_to_profile(self, preset: str | None = None) -> None:
         style = str(preset or self._active_display_preset).strip().lower()
-        profile = self._led_profile_from_sliders()
+        profile = self._led_profile_from_sliders(
+            base=self._led_profile_sdr if style == "sdr" else self._led_profile_hdr
+        )
         if style == "sdr":
             self._led_profile_sdr = profile
         else:

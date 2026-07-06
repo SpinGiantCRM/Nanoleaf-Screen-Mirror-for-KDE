@@ -183,6 +183,8 @@ def hid_writer_loop(ctx: LoopPipelineContext) -> None:
                 and outgoing_colors == ctx.state.prev_sent_colors
             ):
                 ctx.state.duplicate_output_skipped_frames += 1
+                send_interval_s = 1.0 / float(pace_fps)
+                next_send_deadline_ts = now + send_interval_s
                 with ctx.metrics_lock:
                     cap_active = bool(ctx.capture_worker_active)
                 ctx.state.latency_probe.add_stage_sample(
@@ -408,6 +410,8 @@ def hid_writer_loop(ctx: LoopPipelineContext) -> None:
             )
 
             ctx.state.record_success()
+            with ctx.metrics_lock:
+                ctx.hid_worker_error_count = 0
             with ctx.state._lock:
                 if payload.smooth_float_history:
                     ctx.state.prev_smooth_float_colors = [
@@ -494,4 +498,6 @@ def hid_writer_loop(ctx: LoopPipelineContext) -> None:
                     )
         except Exception as exc:
             ctx.state.record_error(exc)
+            with ctx.metrics_lock:
+                ctx.hid_worker_error_count += 1
             logger.debug("HID writer error: %s", exc)

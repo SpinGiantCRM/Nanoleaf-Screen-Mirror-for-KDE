@@ -244,8 +244,18 @@ def _consolidate_calibration_fields(migrated: dict[str, Any]) -> None:
         value = migrated.pop(key)
         if key.startswith("corner_anchor"):
             existing = calibration.get(key, -1)
-            if int(existing) < 0 and int(value) >= 0:
-                calibration[key] = int(value)
+            existing_int = int(existing)
+            value_int = int(value)
+            if existing_int >= 0 and value_int >= 0 and existing_int != value_int:
+                logger.warning(
+                    "Conflicting %s values in config: calibration=%d top-level=%d; "
+                    "keeping calibration value",
+                    key,
+                    existing_int,
+                    value_int,
+                )
+            elif existing_int < 0 and value_int >= 0:
+                calibration[key] = value_int
         else:
             calibration.setdefault(key, value)
     if calibration:
@@ -583,16 +593,24 @@ def validate_config(cfg: AppConfig) -> AppConfig:
 
     def _normalize_color_matrix(raw: object) -> list[float]:
         if not isinstance(raw, (list, tuple)):
+            if raw not in (None, "", ()):
+                logger.warning("Ignoring invalid led color_matrix type: %r", raw)
             return []
         if len(raw) == 0:
             return []
         if len(raw) != 9:
+            logger.warning(
+                "Ignoring led color_matrix with invalid length %d (expected 9)", len(raw)
+            )
             return []
         out: list[float] = []
-        for value in raw:
+        for index, value in enumerate(raw):
             try:
                 out.append(max(-4.0, min(4.0, float(value))))
             except (TypeError, ValueError):
+                logger.warning(
+                    "Ignoring led color_matrix: element %d is not numeric (%r)", index, value
+                )
                 return []
         return out
 
@@ -656,8 +674,12 @@ def validate_config(cfg: AppConfig) -> AppConfig:
             neutral_luminance_gain=neutral_luminance_gain,
             black_luminance_cutoff=black_luminance_cutoff,
             black_luminance_knee=black_luminance_knee,
-            dark_sample_stabilize_on=0.008,
-            dark_sample_stabilize_off=0.025,
+            dark_sample_stabilize_on=max(
+                0.0, min(0.1, float(getattr(profile, "dark_sample_stabilize_on", 0.008)))
+            ),
+            dark_sample_stabilize_off=max(
+                0.0, min(0.1, float(getattr(profile, "dark_sample_stabilize_off", 0.025)))
+            ),
             color_matrix=list(profile.color_matrix or []),
         )
 

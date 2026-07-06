@@ -124,6 +124,25 @@ def test_transceive_allows_empty_read_between_response_chunks() -> None:
     assert response == b"\x8c\x00\x07\x00NL82K2"
 
 
+def test_transceive_tolerates_many_fast_empty_reads_before_response() -> None:
+    fake = FakeHIDHandle(
+        [
+            b"",
+            b"",
+            b"",
+            b"",
+            b"",
+            b"\x00\x83\x00\x03\x00\x00\x0a" + b"\x00" * 58,
+        ]
+    )
+    transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
+    transport._handle = fake
+
+    response = transport.transceive(b"\x03\x00\x00")
+
+    assert response == b"\x83\x00\x03\x00\x00\x0a"
+
+
 def test_transceive_accepts_no_report_id_prefix_when_enabled_by_default() -> None:
     # Device replies with no report-id prefix (64-byte packet starts with TLV type directly).
     fake = FakeHIDHandle([b"\x83\x00\x03\x00\x00\x0a" + b"\x00" * 58])
@@ -410,3 +429,39 @@ def test_write_payload_timeout_raises_on_blocking_handle() -> None:
     payload = b"\x00" * 64
     with pytest.raises(HIDWriteError, match="timed out"):
         transport._write_payload(payload, write_timeout_ms=50)
+
+
+class _SlowThenCompleteWriteHandle:
+    def __init__(self) -> None:
+        self.closed = False
+        self._started = threading.Event()
+        self._release = threading.Event()
+
+    def write(self, _data: bytes) -> int:
+        self._started.set()
+        self._release.wait(timeout=1.0)
+        return 64
+
+    def read(self, _size: int, _timeout_ms: int) -> list[int]:
+        return []
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def test_close_waits_for_inflight_write_thread() -> None:
+    handle = _SlowThenCompleteWriteHandle()
+    transport = HIDTransport(ids=NanoleafUSBIds(0x37FA, 0x8202), report_size=64)
+    transport._handle = handle
+
+    def _writer() -> None:
+        with pytest.raises(HIDWriteError, match="timed out"):
+            transport._write_payload(b"\x01" * 32, write_timeout_ms=20)
+        handle._release.set()
+
+    thread = threading.Thread(target=_writer)
+    thread.start()
+    assert handle._started.wait(timeout=1.0)
+    transport.close()
+    thread.join(timeout=1.0)
+    assert handle.closed

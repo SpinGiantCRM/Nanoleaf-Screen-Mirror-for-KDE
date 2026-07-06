@@ -302,6 +302,12 @@ class NanoleafSyncService:
         status["effective_capture_backend"] = (
             self._effective_capture_backend or capture_backend_name
         )
+        capture_path_text = str(capture_path or "")
+        if capture_backend_name == "kmsgrab" and capture_path_text.startswith("kwin-dbus"):
+            status["effective_capture_backend"] = "kwin-dbus"
+            status["capture_backend_fallback_active"] = True
+        else:
+            status["capture_backend_fallback_active"] = False
         lifecycle_state = self._lifecycle.startup_state()
         startup_state = lifecycle_state
         if lifecycle_state in {"starting", "running"}:
@@ -1207,7 +1213,7 @@ class NanoleafSyncService:
             return
         self._probe_heal_last_frames = frames_sent
         self._kmsgrab_fallback_streak += 1
-        if self._kmsgrab_fallback_streak < 3:
+        if self._kmsgrab_fallback_streak < 1:
             return
         if self._capture_backend_override is not None:
             return
