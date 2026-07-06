@@ -128,7 +128,7 @@ class AppConfig:
     layout_inset: float = 0.0
     layout_scale: float = 1.0
     letterbox_detection: bool = True
-    drm_zone_patch_capture: bool = False
+    drm_zone_patch_capture: bool = True
     # Empty string mirrors Plasma primary; set a KWin output name for another display.
     capture_monitor: str = ""
     # Persisted top/right/bottom/left source zone counts for corner-anchor mapping.
@@ -241,11 +241,8 @@ class AppConfig:
     # Optional process scheduling niceness preference.
     # normal: no niceness change
     # high: best-effort attempt to set nice=-5
-    # very_high_experimental: best-effort attempt to set nice=-10
+    # very_high: best-effort attempt to set nice=-10
     performance_priority: str = "normal"
-    # Pipeline: use the legacy single-threaded path instead of the 3-stage pipeline.
-    # The 3-stage pipeline (capture → process → HID) is the default.
-    use_legacy_pipeline: bool = False
     # Maximum seconds to wait for the first frame on startup before timing out.
     # Increase if kwin-dbus authorization is slow (e.g. first launch from terminal).
     startup_frame_timeout_s: float = 5.0

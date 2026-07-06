@@ -5,7 +5,10 @@ import contextlib
 from pathlib import Path
 from typing import Any
 
-from nanoleaf_sync.capture.portal_helpers import unwrap_variant
+
+def _unwrap_variant(value: object) -> object:
+    return value.value if hasattr(value, "value") else value
+
 
 _DEFAULT_TOKEN_PATH = Path.home() / ".config" / "nanoleaf-kde-sync" / "portal_token"
 
@@ -89,7 +92,7 @@ async def _pick_color_async(*, timeout_s: float) -> tuple[int, int, int] | None:
             if color is None:
                 done.set_result(None)
                 return
-            rgba = unwrap_variant(color)
+            rgba = _unwrap_variant(color)
             if not isinstance(rgba, tuple) or len(rgba) < 3:
                 done.set_result(None)
                 return

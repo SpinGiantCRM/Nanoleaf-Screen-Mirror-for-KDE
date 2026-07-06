@@ -13,7 +13,7 @@ from nanoleaf_sync.runtime.colour_path_diagnostics import (
     write_colour_debug_snapshot,
     zone_colour_path_stage_fields,
 )
-from nanoleaf_sync.runtime.engine import FrameProcessingTimings
+from nanoleaf_sync.runtime.engine_frame import FrameProcessingTimings
 from nanoleaf_sync.service import NanoleafSyncService
 from tests.test_service_status_modes import FakeCapture, FakeDriver
 

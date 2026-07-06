@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import importlib
 import json
 import logging
@@ -31,7 +32,6 @@ from nanoleaf_sync.desktop_entry import (
     redact_launch_token,
     user_autostart_path,
 )
-from nanoleaf_sync.doc_paths import resolve_user_doc, user_doc_url
 from nanoleaf_sync.runtime.output_session import OutputSessionController
 from nanoleaf_sync.runtime.readiness_check import (
     CONFIG_PROBLEM_STATUS,
@@ -48,6 +48,41 @@ from nanoleaf_sync.ui.layout_helpers import stretch_menu_width
 from nanoleaf_sync.ui.live_diagnostics import LiveDiagnosticsDialog
 from nanoleaf_sync.ui.qt_lazy import load_qt
 from nanoleaf_sync.ui.settings_dialog import SettingsDialog
+
+# ponytail: inlined from doc_paths.py
+_INSTALLED_DOC_ROOT = Path("/usr/share/doc/nanoleaf-kde-sync")
+_GITHUB_DOCS_BASE = "https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/blob/main/docs"
+
+
+def _sanitize_doc_name(name: str) -> str | None:
+    candidate = Path(name).name
+    if not candidate or candidate != name or ".." in name:
+        return None
+    if not candidate.endswith(".md"):
+        return None
+    return candidate
+
+
+def _resolve_user_doc(name: str) -> Path | None:
+    safe_name = _sanitize_doc_name(name)
+    if safe_name is None:
+        return None
+    repo_root = Path(__file__).resolve().parents[2]
+    for candidate in (
+        _INSTALLED_DOC_ROOT / safe_name,
+        repo_root / "docs" / safe_name,
+    ):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _user_doc_url(name: str) -> str | None:
+    safe_name = _sanitize_doc_name(name)
+    if safe_name is None:
+        return None
+    return f"{_GITHUB_DOCS_BASE}/{safe_name}"
+
 
 SELF_CHECK_IMPORTS: tuple[str, ...] = (
     "nanoleaf_sync.compat.update_checker",
@@ -508,7 +543,14 @@ class NanoleafTrayApp:
                     5000,
                 )
         driver = self._make_preview_driver()
-        driver.initialize()
+        try:
+            driver.initialize()
+        except Exception:
+            close = getattr(driver, "close", None)
+            if callable(close):
+                with contextlib.suppress(Exception):
+                    close()
+            raise
         self._preview_driver = driver
         return driver
 
@@ -564,7 +606,7 @@ class NanoleafTrayApp:
     def _build_calibration_preview_diagnostics(
         self, *, frame_color_count: int, driver=None
     ) -> dict[str, int]:
-        status = self.service.get_status()
+        status = NanoleafTrayApp._safe_service_status(self)
         detected_zone_count = int(
             status.get("detected_device_zone_count") or status.get("device_zone_count") or 0
         )
@@ -807,7 +849,7 @@ class NanoleafTrayApp:
 
     def _refresh_mode_labels(self) -> None:
         running = self.service.is_running()
-        status = self.service.get_status()
+        status = NanoleafTrayApp._safe_service_status(self)
         startup_state = str(status.get("startup_state") or ("running" if running else "idle"))
         waiting_for_screen = startup_state == "waiting_for_screen_selection"
         start_action_enabled = startup_state in {"idle", "error"}
@@ -1073,7 +1115,7 @@ class NanoleafTrayApp:
         threading.Thread(target=worker, name="auto-start-worker", daemon=True).start()
 
     def _handle_auto_start_result(self, running: bool) -> None:
-        status = self.service.get_status()
+        status = NanoleafTrayApp._safe_service_status(self)
         startup_state = str(status.get("startup_state") or "")
         effective_running = bool(running and startup_state == "running")
         self.tray_icon.setIcon(self._running_icon if effective_running else self._idle_icon)
@@ -1108,7 +1150,7 @@ class NanoleafTrayApp:
                 5000,
             )
             return
-        status = self.service.get_status()
+        status = NanoleafTrayApp._safe_service_status(self)
         width = int(status.get("last_frame_width") or 1920)
         height = int(status.get("last_frame_height") or 1080)
         zone_count = int(
@@ -1136,7 +1178,7 @@ class NanoleafTrayApp:
             parent=None,
             cfg=self.config,
             calibration_sender=self._send_calibration_preview,
-            runtime_status=self.service.get_status(),
+            runtime_status=NanoleafTrayApp._safe_service_status(self),
         )
         was_running = (
             was_running_intent
@@ -1183,7 +1225,7 @@ class NanoleafTrayApp:
                 cfg=self.config,
                 calibration_sender=self._send_calibration_preview,
                 diagnostic_capture=getattr(self.service, "capture_one_diagnostic_frame", None),
-                runtime_status=self.service.get_status(),
+                runtime_status=NanoleafTrayApp._safe_service_status(self),
                 initial_section=initial_section,
                 on_apply=_persist_settings_config,
                 dialog_geometry=getattr(self, "_saved_settings_geometry", None),
@@ -1230,7 +1272,7 @@ class NanoleafTrayApp:
             self._refresh_mode_labels()
 
     def on_open_troubleshooting_guide(self) -> None:
-        guide_path = resolve_user_doc("TROUBLESHOOTING.md")
+        guide_path = _resolve_user_doc("TROUBLESHOOTING.md")
         if guide_path is not None:
             try:
                 opened = subprocess.run(  # nosec B603 B607
@@ -1253,7 +1295,7 @@ class NanoleafTrayApp:
                     "Unable to open troubleshooting guide with xdg-open: %s", exc, exc_info=True
                 )
 
-        guide_url = user_doc_url("TROUBLESHOOTING.md")
+        guide_url = _user_doc_url("TROUBLESHOOTING.md")
         if guide_url is not None:
             try:
                 subprocess.run(  # nosec B603 B607
@@ -1306,7 +1348,7 @@ class NanoleafTrayApp:
         dlg.exec()
 
     def on_status(self):
-        status = self.service.get_status()
+        status = NanoleafTrayApp._safe_service_status(self)
         running = bool(status.get("running"))
         connected = bool(status.get("device_discovered"))
         connection_text = (
@@ -1355,7 +1397,7 @@ class NanoleafTrayApp:
         technical_layout.addWidget(details_label)
         technical_group.setLayout(technical_layout)
         layout.addWidget(technical_group)
-        docs_url = user_doc_url("USER_GUIDE.md") or (
+        docs_url = _user_doc_url("USER_GUIDE.md") or (
             "https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE"
         )
         docs_label = self.QLabel(
@@ -1665,7 +1707,7 @@ class NanoleafTrayApp:
             try:
                 report = run_readiness_check(
                     config=self.config,
-                    runtime_status=self.service.get_status(),
+                    runtime_status=NanoleafTrayApp._safe_service_status(self),
                     source_zone_count=None,
                     capture_probe=lambda _cfg: None,
                     device_probe=lambda _cfg: None,

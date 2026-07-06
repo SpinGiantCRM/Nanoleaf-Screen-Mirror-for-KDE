@@ -536,6 +536,27 @@ def collect_kde_compatibility_report() -> list[str]:
     return lines
 
 
+def _check_drm_vendor_tier() -> DoctorCheck:
+    from nanoleaf_sync.capture.drm_vendor import detect_drm_vendor, vendor_validation_tier
+
+    vendor = detect_drm_vendor()
+    tier = vendor_validation_tier(vendor)
+    if tier == "validated":
+        return DoctorCheck(
+            "drm-vendor-tier",
+            "pass",
+            f"DRM vendor={vendor} tier=validated (CI hardware path).",
+        )
+    return DoctorCheck(
+        "drm-vendor-tier",
+        "warn",
+        (
+            f"DRM vendor={vendor} is implemented but not validated on this GPU in CI. "
+            "Please report issues if colour or capture differs from NVIDIA reference."
+        ),
+    )
+
+
 def _check_drm_helper_caps() -> DoctorCheck:
     helper = _helper_binary_path()
     if helper is None:
@@ -598,6 +619,7 @@ def run_doctor(
         _check_probe_status(cfg),
         _check_hid_enumeration(cfg),
         _check_drm_helper_caps(),
+        _check_drm_vendor_tier(),
     ]
     if not cfg.use_mock_capture:
         if normalized in {"", AUTO_BACKEND, KWIN_DBUS_BACKEND, KMSGRAB_BACKEND}:

@@ -6,7 +6,7 @@ import numpy as np
 
 from nanoleaf_sync.runtime.srgb import (
     linear01_to_srgb_u8,
-    srgb_encoded_float_to_linear01,
+    srgb_eotf_to_linear01,
     srgb_u8_to_linear01,
 )
 
@@ -38,7 +38,7 @@ def to_linear_srgb(colors: np.ndarray, *, domain: ColorDomain | None = None) -> 
     if resolved == ColorDomain.LINEAR_SRGB:
         return np.clip(rgb, 0.0, 1.0)
     if resolved == ColorDomain.ENCODED_SRGB_FLOAT:
-        return srgb_encoded_float_to_linear01(np.clip(rgb, 0.0, 1.0))
+        return srgb_eotf_to_linear01(np.clip(rgb, 0.0, 1.0))
     u8 = np.clip(np.rint(rgb), 0.0, 255.0).astype(np.uint8, copy=False)
     return srgb_u8_to_linear01(u8)
 

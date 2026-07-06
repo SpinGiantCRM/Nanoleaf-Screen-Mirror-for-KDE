@@ -30,6 +30,7 @@ from nanoleaf_sync.runtime.diagnostics_exports import (
 )
 from nanoleaf_sync.runtime.edge_locality_diagnostics import run_edge_locality_test
 from nanoleaf_sync.runtime.readiness_check import run_readiness_check
+from nanoleaf_sync.runtime.zone_presets import edge_weighted_layout, make_edge_weighted_zones
 from nanoleaf_sync.ui.calibration_state import (
     backend_selection_info,
     build_latency_result,
@@ -52,7 +53,6 @@ from nanoleaf_sync.ui.settings_dialog_shared import (
     CALIBRATION_MODE_PHYSICAL,
     SETTINGS_SECTIONS,
 )
-from nanoleaf_sync.ui.zone_presets import edge_weighted_layout, make_edge_weighted_zones
 
 _log = logging.getLogger(__name__)
 

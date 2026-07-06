@@ -8,12 +8,12 @@ from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.normalize import validate_config
 from nanoleaf_sync.runtime.color_pipeline import ColorPipelineParams
 from nanoleaf_sync.runtime.edge_locality_diagnostics import run_edge_locality_test
-from nanoleaf_sync.runtime.engine import _make_fps_governor, process_frame
+from nanoleaf_sync.runtime.engine_frame import _make_fps_governor, process_frame
 from nanoleaf_sync.runtime.processing import zones_from_config
 from nanoleaf_sync.runtime.readiness_check import run_readiness_check
+from nanoleaf_sync.runtime.zone_presets import edge_weighted_layout, make_edge_weighted_zones
 from nanoleaf_sync.ui.settings_dialog import SETTINGS_SECTIONS
 from nanoleaf_sync.ui.tray_app import _tray_icon_fallback_candidates
-from nanoleaf_sync.ui.zone_presets import edge_weighted_layout, make_edge_weighted_zones
 from tests.qt_headless import (
     button_texts,
     make_display_configurator,

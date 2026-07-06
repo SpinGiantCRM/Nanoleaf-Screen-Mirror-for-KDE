@@ -19,15 +19,23 @@ from nanoleaf_sync.capture.backend_selection import (
     is_valid_probe_candidate,
     normalize_backend_preference,
 )
-from nanoleaf_sync.capture.errors import CaptureBackendInitializationError
 from nanoleaf_sync.capture.interfaces import CaptureBackend
-from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture, validated_drm_card_path
-from nanoleaf_sync.capture.kwin_dbus import KWinDBusScreenshotCapture
-from nanoleaf_sync.capture.mock_capture import MockScreenCapture
-from nanoleaf_sync.capture.xdg_portal import XDGPortalCapture
-from nanoleaf_sync.compat.kwin_probe import log_kwin_probe_results
-from nanoleaf_sync.compat.portal_probe import log_portal_probe_results
-from nanoleaf_sync.config.model import AppConfig
+
+
+class CaptureBackendInitializationError(RuntimeError):
+    def __init__(self, backend: str, reason: str) -> None:
+        self.backend = backend
+        self.reason = reason
+        super().__init__(f"Capture backend '{backend}' initialization failed: {reason}")
+
+
+from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture, validated_drm_card_path  # noqa: E402
+from nanoleaf_sync.capture.kwin_dbus import KWinDBusScreenshotCapture  # noqa: E402
+from nanoleaf_sync.capture.mock_capture import MockScreenCapture  # noqa: E402
+from nanoleaf_sync.capture.xdg_portal import XDGPortalCapture  # noqa: E402
+from nanoleaf_sync.compat.kwin_probe import log_kwin_probe_results  # noqa: E402
+from nanoleaf_sync.compat.portal_probe import log_portal_probe_results  # noqa: E402
+from nanoleaf_sync.config.model import AppConfig  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -195,10 +203,14 @@ def _kmsgrab_bindings_available() -> bool:
 
 
 def _resolve_auto_backend() -> str:
+    from nanoleaf_sync.capture.drm_vendor import drm_helper_ready
+
+    if drm_helper_ready():
+        return KMSGRAB_BACKEND
     return KWIN_DBUS_BACKEND
 
 
-_FALLBACK_CHAIN = (KWIN_DBUS_BACKEND, XDG_PORTAL_BACKEND, KMSGRAB_BACKEND)
+_FALLBACK_CHAIN = (KMSGRAB_BACKEND, KWIN_DBUS_BACKEND, XDG_PORTAL_BACKEND)
 
 
 def _try_fallback_chain(
@@ -207,8 +219,13 @@ def _try_fallback_chain(
     height: int,
     capture_monitor: str = "",
 ) -> str:
+    from nanoleaf_sync.capture.drm_vendor import drm_helper_ready
+
     monitor = str(capture_monitor or "").strip()
     for backend in _FALLBACK_CHAIN:
+        if backend == KMSGRAB_BACKEND and not drm_helper_ready():
+            continue
+        cap: CaptureBackend | None = None
         try:
             cap = create_capture_backend(
                 width=width,
@@ -224,6 +241,18 @@ def _try_fallback_chain(
         except Exception:
             logger.warning("capture fallback chain backend=%s failed", backend, exc_info=True)
             continue
+        finally:
+            if cap is not None:
+                close_fn = getattr(cap, "close", None)
+                if callable(close_fn):
+                    try:
+                        close_fn()
+                    except Exception:
+                        logger.debug(
+                            "capture fallback chain backend=%s close failed",
+                            backend,
+                            exc_info=True,
+                        )
     logger.warning(
         "capture fallback chain found no real backend; using default backend=%s",
         KWIN_DBUS_BACKEND,
@@ -234,7 +263,11 @@ def _try_fallback_chain(
 def cached_probe_winner_is_viable(value: str | None) -> bool:
     if not is_valid_probe_candidate(value):
         return False
-    return value != KMSGRAB_BACKEND
+    if value == KMSGRAB_BACKEND:
+        from nanoleaf_sync.capture.drm_vendor import drm_helper_ready
+
+        return drm_helper_ready()
+    return True
 
 
 def _env_bool(var_name: str) -> bool | None:
@@ -655,6 +688,7 @@ def create_capture_backend(
                 hdr_transfer=hdr_transfer or AppConfig.hdr_transfer,
                 hdr_primaries=hdr_primaries or AppConfig.hdr_primaries,
                 drm_zone_patch_capture=drm_zone_patch_capture,
+                capture_monitor=capture_monitor,
             )
         except Exception as exc:  # noqa: BLE001
             raise CaptureBackendInitializationError(KMSGRAB_BACKEND, str(exc)) from exc

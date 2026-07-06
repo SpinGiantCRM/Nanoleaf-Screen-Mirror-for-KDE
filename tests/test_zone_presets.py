@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from nanoleaf_sync.ui.zone_presets import (
+from nanoleaf_sync.runtime.zone_presets import (
     edge_side_counts,
     make_edge_weighted_zones,
     make_horizontal_zones,

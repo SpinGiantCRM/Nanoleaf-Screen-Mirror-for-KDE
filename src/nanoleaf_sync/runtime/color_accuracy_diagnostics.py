@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from nanoleaf_sync._coerce import as_float
-from nanoleaf_sync.color._types import RGBTuple
+from nanoleaf_sync.color import RGBTuple
 from nanoleaf_sync.runtime.color_processing import color_pipeline_diagnostics
 
 GOLDEN_SWATCH_SAMPLES: dict[str, tuple[int, int, int]] = {

@@ -1,6 +1,11 @@
+import json
+
 import pytest
 
-from nanoleaf_sync.config.model import AppConfig
+from nanoleaf_sync.config.led_calibration_profile_io import (
+    export_measured_led_calibration_profile,
+)
+from nanoleaf_sync.config.model import AppConfig, LedCalibrationProfile
 from nanoleaf_sync.ui.preset_ui import PERFORMANCE_PRIORITY_LABELS, PERFORMANCE_PROFILE_LABELS
 from nanoleaf_sync.ui.settings_dialog import FPS_MAX, FPS_MIN, SettingsDialog
 from tests.qt_headless import (
@@ -197,13 +202,10 @@ def test_performance_priority_dropdown_present_and_persisted(monkeypatch) -> Non
     _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
     assert "Performance priority" in label_texts(widget, _qt)
     assert hasattr(widget, "performance_priority_combo")
-    assert any(label == "Very high experimental" for label, _ in PERFORMANCE_PRIORITY_LABELS)
+    assert any(label == "Very high" for label, _ in PERFORMANCE_PRIORITY_LABELS)
     tooltip = widget.performance_priority_combo.toolTip()
-    assert (
-        "High priority may improve scheduling consistency. It may fail without permission."
-        in tooltip
-    )
-    assert "Very high is experimental." in tooltip
+    assert "High priority may improve scheduling consistency." in tooltip
+    assert "nice=-10" in tooltip
     updated = widget.updated_config()
     assert updated.performance_priority in {value for _label, value in PERFORMANCE_PRIORITY_LABELS}
 
@@ -261,3 +263,56 @@ def test_sdr_white_preset_changed_uses_defensive_split_parsing(monkeypatch) -> N
     )
     widget._refresh_numeric_labels()
     assert widget.sdr_boost_nits_slider.value() == 203
+
+
+def test_settings_exports_active_led_calibration_profile(monkeypatch, tmp_path) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    export_path = tmp_path / "profile.json"
+    monkeypatch.setattr(
+        widget._qt["QFileDialog"],
+        "getSaveFileName",
+        lambda *_args, **_kwargs: (str(export_path), "JSON files (*.json)"),
+    )
+    widget._active_display_preset = "sdr"
+    widget.red_gain_slider.setValue(112)
+    widget.green_gain_slider.setValue(97)
+    widget.blue_gain_slider.setValue(91)
+
+    widget._export_led_calibration_profile()
+
+    parsed = json.loads(export_path.read_text(encoding="utf-8"))
+    assert parsed["display_preset"] == "sdr"
+    assert parsed["profile"]["red_gain"] == pytest.approx(1.12)
+    assert parsed["profile"]["green_gain"] == pytest.approx(0.97)
+    assert parsed["profile"]["blue_gain"] == pytest.approx(0.91)
+    assert "Exported measured LED calibration profile" in (
+        widget.color_accuracy_diagnostic_label.text()
+    )
+
+
+def test_settings_imports_measured_hdr_led_calibration_profile(monkeypatch, tmp_path) -> None:
+    _qt, _app, _dialog, widget = make_settings_dialog(monkeypatch)
+    import_path = tmp_path / "hdr-profile.json"
+    import_path.write_text(
+        export_measured_led_calibration_profile(
+            profile=LedCalibrationProfile(red_gain=1.2, green_gain=0.88, blue_gain=0.76),
+            display_preset="hdr",
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        widget._qt["QFileDialog"],
+        "getOpenFileName",
+        lambda *_args, **_kwargs: (str(import_path), "JSON files (*.json)"),
+    )
+
+    widget._import_led_calibration_profile()
+
+    assert widget._active_display_preset == "hdr"
+    assert widget.red_gain_slider.value() == 120
+    assert widget.green_gain_slider.value() == 88
+    assert widget.blue_gain_slider.value() == 76
+    assert widget._led_profile_hdr.red_gain == pytest.approx(1.2)
+    assert "Imported measured LED calibration profile for HDR" in (
+        widget.color_accuracy_diagnostic_label.text()
+    )

@@ -10,7 +10,7 @@ from typing import cast
 import numpy as np
 
 from nanoleaf_sync._coerce import as_rgb_tuple3
-from nanoleaf_sync.color._types import RGBTuple
+from nanoleaf_sync.color import RGBTuple
 from nanoleaf_sync.config.presets import is_accuracy_mode
 from nanoleaf_sync.runtime.calibration_resolver import (
     CALIBRATION_INCOMPLETE_STATUS,

@@ -216,9 +216,7 @@ def test_priority_modes_map_to_expected_targets(monkeypatch) -> None:
     apply_process_priority(config=AppConfig(performance_priority="normal"), state=state)
     assert calls == []
     apply_process_priority(config=AppConfig(performance_priority="high"), state=state)
-    apply_process_priority(
-        config=AppConfig(performance_priority="very_high_experimental"), state=state
-    )
+    apply_process_priority(config=AppConfig(performance_priority="very_high"), state=state)
     assert calls[-2:] == [-5, -10]
 
 
@@ -255,7 +253,7 @@ def test_worker_priority_failure_is_non_fatal_and_labeled(monkeypatch) -> None:
     state = RuntimeState()
     state.priority_apply_status = "applied"
     apply_current_thread_priority(
-        config=AppConfig(performance_priority="very_high_experimental"),
+        config=AppConfig(performance_priority="very_high"),
         state=state,
         thread_label="hid writer",
     )

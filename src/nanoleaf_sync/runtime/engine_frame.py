@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from nanoleaf_sync.color._types import RGBTuple
+from nanoleaf_sync.color import RGBTuple
 from nanoleaf_sync.color.metadata_hysteresis import MetadataHysteresisTracker
 from nanoleaf_sync.config.model import AppConfig, ZoneConfig
 from nanoleaf_sync.runtime.blending import (

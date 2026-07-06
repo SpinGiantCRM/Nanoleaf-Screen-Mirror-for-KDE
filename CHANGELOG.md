@@ -1,5 +1,35 @@
 # Changelog
 
+## v1.9.3 — Stage 3-5 audit completion, test refactoring, runtime improvements
+
+### Fixes
+
+- Stage 3-5 audit findings addressed: portal colour path, capture fallback cleanup, temporal dither bias
+- KWin invalid screen error detection centralized in RuntimeState with dedicated tracking counter
+- Thread-safe RuntimeState fields: `mark_calibration_incomplete`, `mark_device_zone_mismatch`, `stale_drop_rate_per_second`
+- DRM helper: dangling `found_card` pointer fix (stack-local buffer), `_IOC_*` macro redefinition guards
+- Resource leak fix in capture fallback chain: backends are now closed on failed probe attempts
+- Colour path fixes: sRGB EOTF conversion, display gamut adaptation propagation, import cycle
+- Box-filter sampling: bottom/right edge pixels no longer dropped in large zones
+- Multi-moment neutral high-contrast zone sampling uses linear-light mean
+- PyPI publish with OIDC-based publish action (no twine token)
+- hidapi dependency reverted (hidraw .so is bundled)
+
+## v1.9.2 — PyPI publishing with bundled DRM helper
+
+### Features
+
+- Published to PyPI with bundled DRM helper binary in platform wheel (linux_x86_64)
+- Wheel validation: platform-tag rejection, DRM helper ELF check, console script coverage
+
+## v1.9.1 — NVIDIA FP16 DRM capture + Arch packaging
+
+### Fixes
+
+- NVIDIA FP16 DRM tiled buffer bounds fix: aligned tile height and X-tiled modifier detection
+- Corrected GETCRTC ioctl for NVIDIA driver compatibility
+- Arch packaging: PKGBUILD/SRCINFO updated, install hooks for setcap on DRM helper
+
 ## v1.9.0 — DRM helper for kmsgrab and colour/HID hardening
 
 ### Features

@@ -28,9 +28,7 @@ from nanoleaf_sync.config.presets import (
     SYNC_MODES,
     normalize_layout_preset,
     normalize_preset,
-)
-from nanoleaf_sync.config.presets import (
-    sampling_quality_to_zone_stride as sampling_quality_to_zone_stride_impl,
+    sampling_quality_to_zone_stride,
 )
 
 ALLOWED_NANOLEAF_USB_IDS: dict[int, set[int]] = {0x37FA: {0x8201, 0x8202}}
@@ -76,10 +74,6 @@ class ConfigValidationError(ValueError):
     """Raised when config contains unsafe values that must not be defaulted."""
 
 
-def sampling_quality_to_zone_stride(quality: str) -> int:
-    return sampling_quality_to_zone_stride_impl(quality)
-
-
 def _coerce_int(value: Any, default: int) -> int:
     try:
         return int(value)
@@ -97,7 +91,7 @@ def _require_int_in_range(value: Any, *, field_name: str, minimum: int, maximum:
         raise ConfigValidationError(f"{field_name} must be an integer in {bounds}; got {value!r}")
     if value < minimum or value > maximum:
         raise ConfigValidationError(f"{field_name} must be an integer in {bounds}; got {value}")
-    return value  # type: ignore[no-any-return]
+    return int(value)
 
 
 def validate_raw_config_values(data: dict[str, Any]) -> None:
@@ -576,7 +570,8 @@ def validate_config(cfg: AppConfig) -> AppConfig:
         allowed={
             "normal": "normal",
             "high": "high",
-            "very_high_experimental": "very_high_experimental",
+            "very_high": "very_high",
+            "very_high_experimental": "very_high",
         },
         default=AppConfig.performance_priority,
     )

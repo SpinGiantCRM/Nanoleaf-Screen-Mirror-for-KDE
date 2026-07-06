@@ -6,11 +6,8 @@ Motion envelope follower provides preemptive FPS reduction on scene changes.
 
 from __future__ import annotations
 
+import os
 from collections import deque
-
-import numpy as np
-
-from nanoleaf_sync.runtime.novel_features import motion_governor_enabled
 
 FPS_TIERS = [120, 90, 60, 45, 30]
 
@@ -72,7 +69,12 @@ class FPSGovernor:
     def signal_motion(self, motion_value: float) -> None:
         motion = max(0.0, float(motion_value))
         self._last_motion_signal = motion
-        if not motion_governor_enabled():
+        if not os.environ.get("NANOLEAF_ENABLE_MOTION_GOV", "1").strip().lower() not in {
+            "0",
+            "false",
+            "no",
+            "off",
+        }:
             return
         self._motion_envelope = max(
             motion * _MOTION_ATTACK_GAIN,
@@ -91,13 +93,20 @@ class FPSGovernor:
         self._latency_window.append(float(latency_ms))
         self._frame_count += 1
 
-        if motion_governor_enabled():
+        if os.environ.get("NANOLEAF_ENABLE_MOTION_GOV", "1").strip().lower() not in {
+            "0",
+            "false",
+            "no",
+            "off",
+        }:
             self._apply_motion_enter()
 
         if self._frame_count <= _WARMUP_FRAMES or len(self._latency_window) < 5:
             return self._target_fps
 
-        p95 = float(np.percentile(list(self._latency_window), 95))
+        sorted_lat = sorted(self._latency_window)
+        idx = min(len(sorted_lat) - 1, max(0, int(round(0.95 * (len(sorted_lat) - 1)))))
+        p95 = float(sorted_lat[idx])
         budget_ms = 1000.0 / max(1, self._target_fps)
         utilisation = p95 / budget_ms if budget_ms > 0 else 0.0
 
@@ -113,7 +122,12 @@ class FPSGovernor:
                 self._transitions.append((self._frame_count, old, self._target_fps))
                 self._latency_window.clear()
         elif utilisation < _UP_THRESHOLD:
-            if motion_governor_enabled():
+            if os.environ.get("NANOLEAF_ENABLE_MOTION_GOV", "1").strip().lower() not in {
+                "0",
+                "false",
+                "no",
+                "off",
+            }:
                 self._apply_motion_recovery()
             if not self._motion_active:
                 self._consecutive_low += 1
@@ -171,7 +185,9 @@ class FPSGovernor:
 
     def get_metrics(self) -> dict[str, float | int | list[tuple[int, int, int]]]:
         if len(self._latency_window) >= 5:
-            p95 = float(np.percentile(list(self._latency_window), 95))
+            sorted_lat = sorted(self._latency_window)
+            idx = min(len(sorted_lat) - 1, max(0, int(round(0.95 * (len(sorted_lat) - 1)))))
+            p95 = float(sorted_lat[idx])
             budget_ms = 1000.0 / max(1, self._target_fps)
             utilisation = p95 / budget_ms if budget_ms > 0 else 0.0
         else:

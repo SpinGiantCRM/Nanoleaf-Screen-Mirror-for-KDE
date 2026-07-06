@@ -4,16 +4,16 @@ import time
 import numpy as np
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
-from nanoleaf_sync.runtime.engine import (
+from nanoleaf_sync.runtime.engine_frame import (
     _capture_backend_display_referred,
     _ensure_runtime_artifacts,
     _estimate_processing_staleness_ms,
     _mapping_signature,
     process_frame,
-    run_loop,
 )
+from nanoleaf_sync.runtime.engine_loop import run_loop
 from nanoleaf_sync.runtime.state import RuntimeState
-from nanoleaf_sync.ui.zone_presets import edge_side_counts
+from nanoleaf_sync.runtime.zone_presets import edge_side_counts
 
 
 def _cfg_with_valid_calibration(zone_count: int = 48, **kwargs) -> AppConfig:

@@ -22,7 +22,7 @@ from typing import Any
 import numpy as np
 
 from nanoleaf_sync._coerce import as_rgb_tuple3
-from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
+from nanoleaf_sync.capture.backend_selection import normalize_capture_backend
 from nanoleaf_sync.capture.dimensions import (
     DEFAULT_CAPTURE_HEIGHT as _DEFAULT_CAPTURE_HEIGHT,
 )
@@ -40,7 +40,6 @@ from nanoleaf_sync.capture.factory import (
     reset_cached_probe_winner,
 )
 from nanoleaf_sync.capture.interfaces import CaptureBackend
-from nanoleaf_sync.capture.kwin_dbus import is_kwin_invalid_screen_error
 from nanoleaf_sync.compat.version_snapshot import (
     check_for_upgrade,
     update_snapshot,
@@ -588,13 +587,11 @@ class NanoleafSyncService:
         from nanoleaf_sync.runtime.status_warnings import build_runtime_warnings
 
         status["runtime_warnings"] = build_runtime_warnings(status=status)
-        from nanoleaf_sync.runtime.mirroring_confidence import compute_mirroring_confidence
-
-        status["mirroring_confidence"] = compute_mirroring_confidence(status)
+        status["mirroring_confidence"] = _compute_mirroring_confidence(status)
         return status
 
     def capture_one_diagnostic_frame(self) -> dict[str, object]:
-        from nanoleaf_sync.runtime.engine import process_frame
+        from nanoleaf_sync.runtime.engine_frame import process_frame
         from nanoleaf_sync.runtime.processing import zones_from_config
         from nanoleaf_sync.runtime.zone_derivation import derive_source_zone_artifacts
 
@@ -716,7 +713,7 @@ class NanoleafSyncService:
                 resolve_mapped_led_index,
                 resolve_zone_side,
             )
-            from nanoleaf_sync.runtime.engine import _zone_sampling_diagnostic_fields
+            from nanoleaf_sync.runtime.engine_frame import _zone_sampling_diagnostic_fields
 
             device_indices = list(device_zone_indices)
             proc_timings = (
@@ -1250,10 +1247,7 @@ class NanoleafSyncService:
             return
         if self._capture is not None and getattr(self._capture, "name", None) != "kwin-dbus":
             return
-        if int(self._runtime.consecutive_errors or 0) < 3:
-            return
-        last_error = str(self._runtime.last_error or "")
-        if not is_kwin_invalid_screen_error(last_error):
+        if int(self._runtime.kwin_invalid_screen_consecutive_errors or 0) < 3:
             return
         if self._capture_backend_override is not None:
             return
@@ -1313,6 +1307,32 @@ class NanoleafSyncService:
 
         signal.signal(signal.SIGINT, _handler)
         signal.signal(signal.SIGTERM, _handler)
+
+
+def _compute_mirroring_confidence(status: dict[str, Any]) -> dict[str, object]:
+    scores: list[int] = []
+    weights: list[int] = []
+    scores.append(max(0, 100 - int(status.get("consecutive_errors", 0)) * 20))
+    weights.append(3)
+    stale_rate = float(status.get("stale_drop_rate_per_second", 0) or 0)
+    scores.append(max(0, 100 - int(stale_rate * 50)))
+    weights.append(2)
+    scores.append(100 if status.get("device_discovered") else 0)
+    weights.append(3)
+    cs = str(status.get("calibration_status", "") or "")
+    scores.append(100 if cs == "ready" else 30)
+    weights.append(2)
+    weighted = sum(s * w for s, w in zip(scores, weights, strict=True))
+    confidence = weighted // sum(weights)
+    if confidence >= 90:
+        rating = "excellent"
+    elif confidence >= 70:
+        rating = "good"
+    elif confidence >= 50:
+        rating = "fair"
+    else:
+        rating = "poor"
+    return {"confidence_pct": int(confidence), "rating": rating}
 
 
 def main() -> None:  # pragma: no cover

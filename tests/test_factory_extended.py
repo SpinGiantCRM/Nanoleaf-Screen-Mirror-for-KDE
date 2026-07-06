@@ -84,16 +84,55 @@ def test_auto_probe_effective_state() -> None:
 
 def test_real_capture_fallback_chain_never_selects_mock(monkeypatch: pytest.MonkeyPatch) -> None:
     attempted: list[tuple[str, bool]] = []
+    closed: list[str] = []
 
-    def _raise_backend(**kwargs):
+    class _Backend:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        def capture(self) -> object:
+            return object()
+
+        def close(self) -> None:
+            closed.append(self.name)
+
+    def _backend_factory(**kwargs):
         attempted.append((str(kwargs.get("prefer_backend")), bool(kwargs.get("use_mock_capture"))))
-        raise RuntimeError("capture unavailable")
+        return _Backend(str(kwargs.get("prefer_backend")))
 
-    monkeypatch.setattr(factory, "create_capture_backend", _raise_backend)
+    monkeypatch.setattr(factory, "create_capture_backend", _backend_factory)
 
     assert factory._try_fallback_chain(width=6, height=4) == "kwin-dbus"
     assert all(backend != "mock" for backend, _mock in attempted)
     assert all(not mock for _backend, mock in attempted)
+    assert closed == ["kwin-dbus"]
+
+
+def test_real_capture_fallback_chain_closes_failed_probe_backend(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    closed: list[str] = []
+
+    class _Backend:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        def capture(self) -> object:
+            if self.name == "kwin-dbus":
+                raise RuntimeError("kwin probe failed")
+            return object()
+
+        def close(self) -> None:
+            closed.append(self.name)
+
+    monkeypatch.setattr(
+        factory,
+        "create_capture_backend",
+        lambda **kwargs: _Backend(str(kwargs.get("prefer_backend"))),
+    )
+
+    assert factory._try_fallback_chain(width=6, height=4) == "xdg-portal"
+    assert closed == ["kwin-dbus", "xdg-portal"]
 
 
 # ---------------------------------------------------------------------------
@@ -160,16 +199,19 @@ def test_capability_cache_ttl(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_resolve_auto_backend_with_drm(monkeypatch: pytest.MonkeyPatch) -> None:
-    reset_capability_check_cache()
-    monkeypatch.setattr(factory, "_has_drm_device", lambda: True)
-    monkeypatch.setattr(factory, "_kmsgrab_bindings_available", lambda: True)
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.drm_vendor.drm_helper_ready",
+        lambda: True,
+    )
     result = _resolve_auto_backend()
-    assert result == "kwin-dbus"
+    assert result == "kmsgrab"
 
 
 def test_resolve_auto_backend_without_drm(monkeypatch: pytest.MonkeyPatch) -> None:
-    reset_capability_check_cache()
-    monkeypatch.setattr(factory, "_has_drm_device", lambda: False)
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.drm_vendor.drm_helper_ready",
+        lambda: False,
+    )
     result = _resolve_auto_backend()
     assert result == "kwin-dbus"
 
@@ -263,16 +305,12 @@ def test_kmsgrab_bindings_not_available(monkeypatch: pytest.MonkeyPatch) -> None
     assert _kmsgrab_bindings_available() is False
 
 
-def test_cached_probe_winner_is_viable_kmsgrab_requires_bindings(
+def test_cached_probe_winner_is_viable_kmsgrab_requires_drm_helper(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     reset_capability_check_cache()
     monkeypatch.setattr(
-        "nanoleaf_sync.capture.factory._has_drm_device",
-        lambda: True,
-    )
-    monkeypatch.setattr(
-        "nanoleaf_sync.capture.factory._kmsgrab_bindings_available",
+        "nanoleaf_sync.capture.drm_vendor.drm_helper_ready",
         lambda: False,
     )
     from nanoleaf_sync.capture.factory import cached_probe_winner_is_viable
@@ -281,21 +319,17 @@ def test_cached_probe_winner_is_viable_kmsgrab_requires_bindings(
     assert cached_probe_winner_is_viable("kwin-dbus") is True
 
 
-def test_cached_probe_winner_rejects_kmsgrab_even_when_available(
+def test_cached_probe_winner_accepts_kmsgrab_when_drm_ready(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     reset_capability_check_cache()
     monkeypatch.setattr(
-        "nanoleaf_sync.capture.factory._has_drm_device",
-        lambda: True,
-    )
-    monkeypatch.setattr(
-        "nanoleaf_sync.capture.factory._kmsgrab_bindings_available",
+        "nanoleaf_sync.capture.drm_vendor.drm_helper_ready",
         lambda: True,
     )
     from nanoleaf_sync.capture.factory import cached_probe_winner_is_viable
 
-    assert cached_probe_winner_is_viable("kmsgrab") is False
+    assert cached_probe_winner_is_viable("kmsgrab") is True
 
 
 def test_resolve_auto_backend_ignores_stale_kmsgrab_cache(
@@ -304,11 +338,7 @@ def test_resolve_auto_backend_ignores_stale_kmsgrab_cache(
     reset_cached_probe_winner()
     reset_capability_check_cache()
     monkeypatch.setattr(
-        "nanoleaf_sync.capture.factory._has_drm_device",
-        lambda: True,
-    )
-    monkeypatch.setattr(
-        "nanoleaf_sync.capture.factory._kmsgrab_bindings_available",
+        "nanoleaf_sync.capture.drm_vendor.drm_helper_ready",
         lambda: False,
     )
 
@@ -333,11 +363,7 @@ def test_resolve_auto_backend_rejects_nonviable_fresh_probe_winner(
     reset_cached_probe_winner()
     reset_capability_check_cache()
     monkeypatch.setattr(
-        "nanoleaf_sync.capture.factory._has_drm_device",
-        lambda: True,
-    )
-    monkeypatch.setattr(
-        "nanoleaf_sync.capture.factory._kmsgrab_bindings_available",
+        "nanoleaf_sync.capture.drm_vendor.drm_helper_ready",
         lambda: False,
     )
 

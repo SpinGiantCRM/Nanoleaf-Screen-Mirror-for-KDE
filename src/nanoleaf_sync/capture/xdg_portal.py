@@ -11,17 +11,105 @@ import asyncio
 import contextlib
 import logging
 import os
+import secrets
 import sys
 import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
 from nanoleaf_sync._coerce import as_int, as_optional_int
-from nanoleaf_sync.capture.portal_helpers import random_token, request_path, unwrap_variant
+
+
+def _random_token(prefix: str) -> str:
+    return f"{prefix}{secrets.randbelow(90000) + 10000}"
+
+
+def _request_path(*, sender_name: str, handle_token: str) -> str:
+    return f"/org/freedesktop/portal/desktop/request/{sender_name}/{handle_token}"
+
+
+def _unwrap_variant(value: object) -> object:
+    return value.value if hasattr(value, "value") else value
+
+
+class _BackgroundAsyncLoop:
+    def __init__(self, *, thread_name: str, wake_interval_s: float = 0.25) -> None:
+        self._thread_name = str(thread_name)
+        self._wake_interval_s = float(wake_interval_s)
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._loop_thread: threading.Thread | None = None
+        self._loop_ready = threading.Event()
+        self._loop_lock = threading.Lock()
+        self._loop_start_error: BaseException | None = None
+
+    def run(self, coro: Any, *, timeout: float = 2.0) -> Any:
+        loop = self.ensure_running()
+        future = asyncio.run_coroutine_threadsafe(coro, loop)
+        try:
+            return future.result(timeout=max(0.1, float(timeout)))
+        except TimeoutError:
+            future.cancel()
+            raise TimeoutError(
+                f"{self._thread_name} async call timed out after {timeout:.1f}s"
+            ) from None
+
+    def ensure_running(self) -> asyncio.AbstractEventLoop:
+        loop = self._loop
+        if loop is not None and loop.is_running():
+            return loop
+        with self._loop_lock:
+            if self._loop is not None and self._loop.is_running():
+                return self._loop
+            self._loop_ready.clear()
+            self._loop_thread = threading.Thread(
+                target=self._loop_worker, name=self._thread_name, daemon=True
+            )
+            self._loop_thread.start()
+        self._loop_ready.wait(timeout=2.0)
+        with self._loop_lock:
+            if self._loop is None or not self._loop.is_running():
+                raise RuntimeError(
+                    f"Failed to initialize {self._thread_name} event loop."
+                ) from self._loop_start_error
+            return self._loop
+
+    def shutdown(self, *, join_timeout_s: float = 3.0) -> None:
+        with self._loop_lock:
+            loop = self._loop
+            thread = self._loop_thread
+        if loop is not None and loop.is_running():
+            loop.call_soon_threadsafe(loop.stop)
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=max(0.0, float(join_timeout_s)))
+        with self._loop_lock:
+            self._loop = None
+            self._loop_thread = None
+            self._loop_ready.clear()
+
+    def _loop_worker(self) -> None:
+        try:
+            loop = asyncio.new_event_loop()
+            self._loop = loop
+            self._loop_start_error = None
+            asyncio.set_event_loop(loop)
+
+            def _keep_loop_waking() -> None:
+                if loop.is_running():
+                    loop.call_later(self._wake_interval_s, _keep_loop_waking)
+
+            loop.call_soon(self._loop_ready.set)
+            loop.call_soon(_keep_loop_waking)
+            loop.run_forever()
+            loop.close()
+        except Exception as exc:
+            self._loop_start_error = exc
+            self._loop = None
+            self._loop_ready.set()
+
 
 if TYPE_CHECKING:
     from dbus_next.aio import MessageBus
@@ -166,13 +254,19 @@ class XDGPortalCapture:
         self._initialized = False
 
     def _negotiate_portal_sync(self) -> tuple[int, int]:
-        from nanoleaf_sync.capture._async_loop import BackgroundAsyncLoop
-
         if not hasattr(self, "_async_loop"):
-            self._async_loop = BackgroundAsyncLoop(thread_name="portal-capture")
+            self._async_loop = _BackgroundAsyncLoop(thread_name="portal-capture")
         try:
-            return self._async_loop.run(self._negotiate_portal(), timeout=130.0)
+            return cast(
+                tuple[int, int],
+                self._async_loop.run(self._negotiate_portal(), timeout=130.0),
+            )
         except Exception as exc:
+            # On failure, nil out the bus reference to prevent use of the
+            # partially-initialized D-Bus connection. The bus was set in
+            # _negotiate_portal before any streaming; clearing the reference
+            # ensures follow-up code does not attempt to reuse it.
+            self._portal_bus = None
             raise XDGPortalError(f"Portal negotiation failed: {exc}") from exc
 
     async def _negotiate_portal(self) -> tuple[int, int]:
@@ -203,7 +297,7 @@ class XDGPortalCapture:
                 *,
                 handle_token: str,
             ) -> Message:
-                portal_request_path = request_path(sender_name=sender, handle_token=handle_token)
+                portal_request_path = _request_path(sender_name=sender, handle_token=handle_token)
                 future: asyncio.Future[Message] = asyncio.get_event_loop().create_future()
 
                 def _on_signal(msg: Message | None) -> None:
@@ -237,8 +331,8 @@ class XDGPortalCapture:
                 finally:
                     bus.remove_message_handler(_on_signal)
 
-            session_token = random_token("nanoleaf_")
-            handle_token = random_token("h")
+            session_token = _random_token("nanoleaf_")
+            handle_token = _random_token("h")
             create_options: dict[str, Variant] = {
                 "handle_token": Variant("s", handle_token),
                 "session_handle_token": Variant("s", session_token),
@@ -255,7 +349,7 @@ class XDGPortalCapture:
             self.portal_restore_token_accepted = False
             self.portal_restore_token_refreshed = False
             self.portal_restore_token_state = "submitted" if restore_token else "none"
-            handle_token2 = random_token("h")
+            handle_token2 = _random_token("h")
             src_options: dict[str, Variant] = {
                 "handle_token": Variant("s", handle_token2),
                 "types": Variant("u", 1),
@@ -282,7 +376,7 @@ class XDGPortalCapture:
             if restore_token and self.portal_restore_token_state == "submitted":  # nosec B105
                 self.portal_restore_token_accepted = True
 
-            handle_token3 = random_token("h")
+            handle_token3 = _random_token("h")
             start_options: dict[str, Variant] = {
                 "handle_token": Variant("s", handle_token3),
             }
@@ -312,7 +406,7 @@ class XDGPortalCapture:
 
             new_restore = results.get("restore_token")
             if new_restore:
-                self._save_restore_token(str(unwrap_variant(new_restore)))
+                self._save_restore_token(str(_unwrap_variant(new_restore)))
                 self.portal_restore_token_refreshed = True
                 self.portal_restore_token_state = "refreshed"  # nosec B105
             elif restore_token:
@@ -320,7 +414,7 @@ class XDGPortalCapture:
             else:
                 self.portal_restore_token_state = "restored_confirmed"  # nosec B105
 
-            unwrapped_streams = unwrap_variant(streams)
+            unwrapped_streams = _unwrap_variant(streams)
             if not isinstance(unwrapped_streams, (list, tuple)) or not unwrapped_streams:
                 raise XDGPortalError("Portal Start returned no stream entries.")
             first_stream = unwrapped_streams[0]

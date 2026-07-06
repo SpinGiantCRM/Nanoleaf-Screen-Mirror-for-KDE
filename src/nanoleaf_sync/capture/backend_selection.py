@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
-
 AUTO_BACKEND = "auto"
 KWIN_DBUS_BACKEND = "kwin-dbus"
 XDG_PORTAL_BACKEND = "xdg-portal"
@@ -13,8 +11,8 @@ SUPPORTED_REAL_BACKENDS: tuple[str, ...] = (
     KMSGRAB_BACKEND,
 )
 AUTO_PROBE_CANDIDATES: tuple[str, ...] = (
-    KWIN_DBUS_BACKEND,
     KMSGRAB_BACKEND,
+    KWIN_DBUS_BACKEND,
     XDG_PORTAL_BACKEND,
 )
 
@@ -32,3 +30,16 @@ def normalize_cached_backend(value: str | None) -> str:
 
 def is_valid_probe_candidate(value: str | None) -> bool:
     return value in AUTO_PROBE_CANDIDATES
+
+
+def normalize_capture_backend(value: str | None, *, default: str = "auto") -> str:
+    normalized = (value or "").strip().lower()
+    if normalized in {"", "auto"}:
+        return "auto"
+    if normalized in {"kwin-dbus", "kwin_dbus", "kwin-dbus-screenshot"}:
+        return "kwin-dbus"
+    if normalized in {"xdg-portal", "xdg_portal", "portal"}:
+        return "xdg-portal"
+    if normalized in {"kmsgrab", "kms-grab", "drm-kms", "drm_kms"}:
+        return "kmsgrab"
+    return default

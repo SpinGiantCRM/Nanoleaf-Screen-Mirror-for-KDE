@@ -13,12 +13,12 @@ from nanoleaf_sync.runtime.diagnostics_exports import (
     export_sampling_overlay,
     export_zone_report,
 )
-from nanoleaf_sync.runtime.engine import process_frame
+from nanoleaf_sync.runtime.engine_frame import process_frame
 from nanoleaf_sync.runtime.processing import zones_from_config
 from nanoleaf_sync.runtime.state import RuntimeState
+from nanoleaf_sync.runtime.zone_presets import make_edge_weighted_zones
 from nanoleaf_sync.runtime.zones import zone_colors_array
 from nanoleaf_sync.ui.calibration_state import LatencyProbeResult, latency_result_summary
-from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones
 
 
 def _make_4k_edge_frame() -> np.ndarray:

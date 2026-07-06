@@ -126,9 +126,9 @@ def test_strip_corner_diagram_marks_active_corner() -> None:
     ],
 )
 def test_resolve_user_doc_headless(name: str, expected_suffix: str) -> None:
-    from nanoleaf_sync.doc_paths import resolve_user_doc
+    from nanoleaf_sync.ui.tray_app import _resolve_user_doc
 
-    path = resolve_user_doc(name)
+    path = _resolve_user_doc(name)
     assert path is not None
     assert path.name == expected_suffix
 

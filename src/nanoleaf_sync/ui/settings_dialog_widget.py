@@ -759,7 +759,7 @@ class SettingsDialogWidgetBase:
         )
         self.performance_priority_combo.setToolTip(
             "High priority may improve scheduling consistency. It may fail without "
-            "permission. Very high is experimental."
+            "May require elevated process priority. Very high uses nice=-10 when permitted."
         )
         self.led_gamma_slider.setToolTip(
             "Gamma correction for LED response. 1.00 keeps output linear."

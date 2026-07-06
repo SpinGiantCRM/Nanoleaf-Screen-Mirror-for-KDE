@@ -13,7 +13,7 @@ from nanoleaf_sync.runtime.color_accuracy_diagnostics import (
 from nanoleaf_sync.runtime.color_pipeline import ColorPipelineParams, process_zone_colors
 from nanoleaf_sync.runtime.color_processing import apply_color_style_mapping
 from nanoleaf_sync.runtime.processing import zones_from_config
-from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones
+from nanoleaf_sync.runtime.zone_presets import make_edge_weighted_zones
 
 
 def _full_pipeline_mapper(*, sync_mode: str = SYNC_MODE_4D, color_style: str = "reference"):

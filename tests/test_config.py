@@ -2,8 +2,7 @@ import pytest
 
 from nanoleaf_sync.config.model import MAX_DEVICE_ZONE_COUNT, AppConfig, CalibrationConfig
 from nanoleaf_sync.config.normalize import ConfigValidationError, validate_config
-from nanoleaf_sync.config.serialization import dump_toml
-from nanoleaf_sync.config.store import ConfigManager
+from nanoleaf_sync.config.store import ConfigManager, dump_toml
 from tests.qt_headless import make_display_configurator, make_settings_dialog
 
 
@@ -49,7 +48,7 @@ def test_app_config_has_canonical_preset_fields() -> None:
     assert cfg.motion_preset in {"calm", "responsive", "dynamic"}
     assert cfg.color_style in {"reference", "natural", "ambient", "vivid", "punchy"}
     assert cfg.display_preset in {"sdr", "hdr", "auto"}
-    assert cfg.performance_priority in {"normal", "high", "very_high_experimental"}
+    assert cfg.performance_priority in {"normal", "high", "very_high"}
     assert cfg.zone_sampling_engine in {"auto", "legacy", "optimized"}
 
 
@@ -100,7 +99,7 @@ def test_validate_config_keeps_sdr_preset_metadata_sdr() -> None:
 
 def test_validate_config_normalizes_performance_priority() -> None:
     cfg = validate_config(AppConfig(performance_priority="VERY_HIGH_EXPERIMENTAL"))
-    assert cfg.performance_priority == "very_high_experimental"
+    assert cfg.performance_priority == "very_high"
     fallback = validate_config(AppConfig(performance_priority="turbo"))
     assert fallback.performance_priority == "normal"
 

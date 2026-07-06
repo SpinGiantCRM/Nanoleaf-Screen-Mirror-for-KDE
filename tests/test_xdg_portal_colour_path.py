@@ -15,7 +15,7 @@ from nanoleaf_sync.runtime.color_processing import (
     apply_display_gamut_adaptation,
     init_gamut_adaptation,
 )
-from nanoleaf_sync.runtime.engine import RuntimeState
+from nanoleaf_sync.runtime.state import RuntimeState
 
 
 class _PortalBackend:

@@ -194,10 +194,13 @@ def apply_display_gamut_adaptation(
     *,
     color_context: object | None = None,
     input_domain: ColorDomain | None = None,
+    skip_display_gamut_adaptation: bool | None = None,
 ) -> np.ndarray:
     from nanoleaf_sync.runtime.color_context import ColorContext
 
     skip = _SKIP_DISPLAY_GAMUT
+    if skip_display_gamut_adaptation is not None:
+        skip = bool(skip_display_gamut_adaptation)
     matrix_t: np.ndarray | None = None
     if isinstance(color_context, ColorContext):
         skip = bool(color_context.skip_display_gamut_adaptation)
@@ -229,15 +232,26 @@ def _planckian_white_balance_gains(temperature: float) -> np.ndarray:
     return np.asarray([1.0 - (0.06 * scale), 1.0, 1.0 + (0.10 * scale)], dtype=np.float32)
 
 
+_OKLAB_CBRT_EPSILON: float = 1e-8
+
+
 def _linear_to_oklab(linear_rgb: np.ndarray) -> np.ndarray:
     lms = linear_rgb @ _M1_T
-    lms_cbrt = np.cbrt(np.clip(lms, 0.0, None))
+    # Small epsilon before cube root prevents noise amplification for near-black
+    # colors where LMS values approach zero and the steep cbrt gradient magnifies
+    # floating-point quantization (confirmed research finding on Oklch near-dark
+    # hue shifts: L < 0.1 can produce unstable hue angles).
+    lms_clamped = np.maximum(lms, 0.0) + _OKLAB_CBRT_EPSILON
+    lms_cbrt = np.cbrt(lms_clamped)
     return lms_cbrt @ _M2_T
 
 
 def _oklab_to_linear(oklab: np.ndarray) -> np.ndarray:
     lms_cbrt = oklab @ _M2_INV_T
     lms = lms_cbrt * lms_cbrt * lms_cbrt
+    # Subtract the epsilon that was added before cube root to recover true black.
+    # Clip to zero to prevent negative values from floating-point rounding.
+    lms = np.maximum(lms - _OKLAB_CBRT_EPSILON, 0.0)
     return lms @ _M1_INV_T
 
 
@@ -393,8 +407,15 @@ def apply_dark_zone_output(colors: np.ndarray) -> np.ndarray:
     rgb = np.asarray(colors, dtype=np.float32)
     if rgb.size == 0:
         return rgb
+    linear = srgb_encoded_float_to_linear01(rgb)
     peak = np.max(rgb, axis=1)
-    grey = (0.2126 * rgb[:, 0]) + (0.7152 * rgb[:, 1]) + (0.0722 * rgb[:, 2])
+    y = np.clip(
+        (0.2126 * linear[:, 0]) + (0.7152 * linear[:, 1]) + (0.0722 * linear[:, 2]),
+        0.0,
+        1.0,
+    )
+    grey_u8 = linear01_to_srgb_u8(y)
+    grey = grey_u8.astype(np.float32, copy=False)
     achro_blend = 1.0 - _smoothstep(
         np.full_like(peak, 12.0),
         np.full_like(peak, _NEAR_BLACK_ACHRO_FULL_BELOW),

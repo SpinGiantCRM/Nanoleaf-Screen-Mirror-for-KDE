@@ -71,7 +71,7 @@ DISPLAY_PRESET_LABELS: tuple[tuple[str, str], ...] = (
 PERFORMANCE_PRIORITY_LABELS: tuple[tuple[str, str], ...] = (
     ("Normal", "normal"),
     ("High", "high"),
-    ("Very high experimental", "very_high_experimental"),
+    ("Very high", "very_high"),
 )
 
 

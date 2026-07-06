@@ -10,9 +10,9 @@ from nanoleaf_sync.runtime.color_processing import (
     apply_led_calibration,
     color_pipeline_diagnostics,
 )
-from nanoleaf_sync.runtime.engine import process_frame
+from nanoleaf_sync.runtime.engine_frame import process_frame
 from nanoleaf_sync.runtime.processing import zones_from_config
-from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones
+from nanoleaf_sync.runtime.zone_presets import make_edge_weighted_zones
 
 
 def test_calibration_reset_defaults_are_stable() -> None:

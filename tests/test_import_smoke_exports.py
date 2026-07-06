@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
@@ -37,6 +39,21 @@ def test_average_color_runtime_public_path_smoke() -> None:
     assert average_color(image) == (3, 4, 5)
 
 
+def test_runtime_zones_imports_in_fresh_process() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from nanoleaf_sync.runtime.zones import multi_moment_zone_color; print('ok')",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "ok"
+
+
 def test_cli_entrypoint_target_resolves() -> None:
     project_root = Path(__file__).resolve().parents[1]
     pyproject = tomllib.loads((project_root / "pyproject.toml").read_text(encoding="utf-8"))
@@ -59,9 +76,9 @@ def test_public_color_api_surface_supports_import_and_basic_calls() -> None:
     from nanoleaf_sync.color import (
         HDRMetadata,
         convert_frame_to_srgb8,
-        dominant_colors_kmeans,
         map_colors_to_device_zones,
     )
+    from nanoleaf_sync.tools.color_kmeans import dominant_colors_kmeans
 
     image = np.array(
         [

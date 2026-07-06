@@ -135,3 +135,29 @@ def test_linear_to_srgb_u8_dtype() -> None:
 def test_linear_to_srgb_u8_negative_input() -> None:
     result = linear01_to_srgb_u8(np.array([-10.0], dtype=np.float64))
     assert result[0] == 0
+
+
+def test_linear_to_srgb_encoded_clamps_above_1() -> None:
+    linear = np.array([1.5, 2.0, 10.0], dtype=np.float32)
+    result = linear01_to_srgb_encoded(linear)
+    assert np.all(result >= 0.0)
+    assert np.all(result <= 1.0)
+    assert np.all(np.isfinite(result))
+
+
+def test_linear01_to_srgb_u8_clamps_large_input() -> None:
+    linear = np.array([[1.5, 1.2, 0.8], [3.0, 0.0, -1.0]], dtype=np.float32)
+    result = linear01_to_srgb_u8(linear)
+    assert result.shape == (2, 3)
+    assert result.dtype == np.uint8
+    assert int(result[0, 0]) <= 255
+    assert int(result[1, 0]) <= 255
+    assert int(result[1, 2]) == 0
+
+
+def test_linear01_to_srgb_encoded_supersaturated_clip() -> None:
+    linear = np.array([100.0, 0.0, 0.0], dtype=np.float32)
+    result = linear01_to_srgb_encoded(linear)
+    assert abs(float(result[0]) - 1.0) < 0.001
+    assert float(result[1]) == 0.0
+    assert float(result[2]) == 0.0

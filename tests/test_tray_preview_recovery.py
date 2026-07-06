@@ -8,11 +8,14 @@ from nanoleaf_sync.ui.tray_app import NanoleafTrayApp
 
 
 class _FailingPreviewDriver:
+    def __init__(self) -> None:
+        self.closed = False
+
     def initialize(self) -> None:
         raise RuntimeError("preview init failed")
 
     def close(self) -> None:
-        return None
+        self.closed = True
 
 
 class _FakeService:
@@ -116,6 +119,29 @@ def test_send_calibration_preview_recovers_service_when_preview_driver_acquire_f
     assert service.stop_calls == 1
     assert fake_tray.service.is_running() is True
     assert any("Calibration test pattern failed" in message for message in messages)
+
+
+def test_preview_driver_is_closed_when_initialization_fails(monkeypatch) -> None:
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.NanoleafSyncService", _FakeService)
+    service = _FakeService()
+    messages: list[str] = []
+    drivers: list[_FailingPreviewDriver] = []
+
+    def make_driver() -> _FailingPreviewDriver:
+        driver = _FailingPreviewDriver()
+        drivers.append(driver)
+        return driver
+
+    fake_tray = _fake_tray(service, messages=messages, make_driver=make_driver)
+    fake_tray._acquire_preview_driver = lambda: NanoleafTrayApp._acquire_preview_driver(fake_tray)
+    fake_tray._close_preview_driver = lambda: NanoleafTrayApp._close_preview_driver(fake_tray)
+
+    NanoleafTrayApp._send_calibration_preview(fake_tray, [(255, 0, 0)])
+
+    assert drivers
+    assert all(driver.closed for driver in drivers)
+    assert fake_tray._preview_driver is None
+    assert fake_tray._output_session.current_owner() == "mirroring"
 
 
 class _FlakyPreviewDriver:

@@ -4,8 +4,9 @@ import numpy as np
 
 from nanoleaf_sync.capture._utils import _resize_to_target, zone_box_average
 from nanoleaf_sync.config.model import PrivacyZone
+from nanoleaf_sync.runtime.color_pipeline import _apply_temporal_dither as apply_temporal_dither
+from nanoleaf_sync.runtime.color_pipeline import _load_dither_texture
 from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
-from nanoleaf_sync.runtime.temporal_dither import apply_temporal_dither
 from nanoleaf_sync.runtime.zone_accumulator import ZoneAccumulator
 from nanoleaf_sync.runtime.zones import (
     compute_adaptive_step,
@@ -37,6 +38,15 @@ def test_zone_box_average_uses_linear_light_mean_for_mixed_black_white() -> None
     assert int(color[0]) == int(color[1]) == int(color[2])
 
 
+def test_zone_box_average_includes_bottom_right_remainder_pixels() -> None:
+    frame = np.zeros((33, 33, 3), dtype=np.uint8)
+    frame[-1, :, :] = 255
+    frame[:, -1, :] = 255
+    color = zone_box_average(frame, (0, 0, 33, 33), max_pixels=256)
+    assert 68 <= int(color[0]) <= 70
+    assert int(color[0]) == int(color[1]) == int(color[2])
+
+
 def test_box_filter_shift_stability() -> None:
     base = np.zeros((16, 16, 3), dtype=np.uint8)
     base[4:12, 4:12] = (0, 0, 255)
@@ -63,6 +73,23 @@ def test_multi_moment_mixed_content() -> None:
     color, selector = multi_moment_zone_color(pixels)
     assert selector in {"dominant", "median", "mean"}
     assert int(color[2]) > 40
+
+
+def test_multi_moment_neutral_high_contrast_uses_linear_mean() -> None:
+    pixels = np.zeros((10, 10, 3), dtype=np.uint8)
+    pixels[:, 5:, :] = 255
+    color, selector = multi_moment_zone_color(pixels)
+    assert selector == "mean"
+    assert 180 <= int(color[0]) <= 190
+    assert int(color[0]) == int(color[1]) == int(color[2])
+
+
+def test_multi_moment_low_variance_mean_uses_linear_light() -> None:
+    pixels = np.asarray([[[120, 120, 120], [140, 140, 140]]], dtype=np.uint8)
+    color, selector = multi_moment_zone_color(pixels)
+    assert selector == "mean"
+    assert 130 <= int(color[0]) <= 131
+    assert int(color[0]) == int(color[1]) == int(color[2])
 
 
 def test_edge_anchored_rect_extends_left_edge() -> None:
@@ -94,6 +121,29 @@ def test_temporal_dither_reduces_quantization_banding() -> None:
     dithered = apply_temporal_dither(gradient, frame_index=3, strength=0.8)
     dithered_u8 = np.clip(np.rint(dithered), 0, 255).astype(np.uint8)
     assert len(np.unique(plain[:, 0])) <= len(np.unique(dithered_u8[:, 0]))
+
+
+def test_temporal_dither_texture_is_dense_and_unbiased() -> None:
+    texture = _load_dither_texture()
+    assert texture.shape == (64, 64)
+    assert texture.dtype == np.float32
+    assert 0.49 <= float(np.mean(texture)) <= 0.51
+    assert int(np.count_nonzero(texture == 0.0)) < 8
+
+
+def test_temporal_dither_does_not_mutate_input() -> None:
+    colors = np.asarray([[128.25, 128.25, 128.25], [16.5, 32.5, 48.5]], dtype=np.float32)
+    original = colors.copy()
+    dithered = apply_temporal_dither(colors, frame_index=7)
+    assert np.array_equal(colors, original)
+    assert not np.shares_memory(colors, dithered)
+
+
+def test_temporal_dither_default_strength_has_low_mean_bias() -> None:
+    colors = np.full((512, 3), 128.25, dtype=np.float32)
+    dithered = apply_temporal_dither(colors, frame_index=11)
+    mean_delta = float(np.mean(dithered - colors))
+    assert abs(mean_delta) < 1.0
 
 
 def test_privacy_mask_zeros_region() -> None:

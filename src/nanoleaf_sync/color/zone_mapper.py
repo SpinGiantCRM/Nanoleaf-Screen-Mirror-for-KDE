@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 
-from nanoleaf_sync.color._types import RGBTuple
+RGBTuple = tuple[int, int, int]
 
 _log = logging.getLogger(__name__)
 

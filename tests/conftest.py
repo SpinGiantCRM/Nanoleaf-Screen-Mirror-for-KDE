@@ -34,7 +34,12 @@ def _reset_color_processing_globals() -> None:
 
 
 @pytest.fixture(autouse=True)
-def _reset_capture_factory_caches() -> None:
+def _drm_helper_not_ready_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep tests on kwin-dbus unless they explicitly enable DRM capture."""
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.drm_vendor.drm_helper_ready",
+        lambda: False,
+    )
     reset_cached_probe_winner()
     reset_capability_check_cache()
     reset_cached_drm_probe()

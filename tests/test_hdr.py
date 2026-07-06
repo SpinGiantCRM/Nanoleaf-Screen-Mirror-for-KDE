@@ -80,15 +80,18 @@ def test_sdr_grey_in_hdr_path_does_not_collapse_to_black_or_tint() -> None:
     assert abs(float(out[..., 1].mean()) - float(out[..., 2].mean())) < 4.0
 
 
-def test_hdr_analyzer_reports_no_tonemap_for_sdr_like_input() -> None:
+def test_hdr_analyzer_reports_adaptive_blend_for_sdr_like_input() -> None:
     img = np.full((2, 2, 3), 96, dtype=np.uint8)
     diag = analyze_hdr_path(
         img,
         metadata={"transfer": "pq", "primaries": "bt2020", "max_nits": 1000.0, "source": "unknown"},
     )
-    assert diag["tone_mapping_applied"] is False
-    assert diag["input_transfer"] == "srgb"
-    assert "SDR-like" in str(diag["assumption"])
+    assert "hdr_content_blend" in diag
+    blend = float(diag["hdr_content_blend"])
+    assert 0.0 < blend < 1.0
+    assert "blend" in str(diag.get("assumption", "")).lower()
+    assert diag["tone_mapping_applied"] is True
+    assert diag["input_transfer"] == "pq"
 
 
 def test_backend_pq_100_nit_grey_uses_hdr_tone_mapping() -> None:
@@ -221,3 +224,49 @@ def test_missing_metadata_defaults_srgb() -> None:
     out = convert_frame_to_srgb8(img, metadata={})
     assert out.dtype == np.uint8
     assert int(out[0, 0, 0]) > 0
+
+
+def test_adaptive_hdr_blend_very_dark_pq_has_no_tonemap() -> None:
+    img = np.full((2, 2, 3), 12, dtype=np.uint8)
+    diag = analyze_hdr_path(
+        img,
+        metadata={"transfer": "pq", "primaries": "bt2020", "max_nits": 1000.0, "source": "unknown"},
+    )
+    blend = float(diag.get("hdr_content_blend", 1.0))
+    assert blend == 0.0
+
+
+def test_adaptive_hdr_blend_bright_pq_full_tonemap() -> None:
+    img = np.full((2, 2, 3), 200, dtype=np.uint8)
+    diag = analyze_hdr_path(
+        img,
+        metadata={"transfer": "pq", "primaries": "bt2020", "max_nits": 1000.0, "source": "unknown"},
+    )
+    blend = float(diag.get("hdr_content_blend", 0.0))
+    assert blend == 1.0
+    assert diag["tone_mapping_applied"] is True
+
+
+def test_adaptive_hdr_blend_hlg_transfer() -> None:
+    img = np.full((2, 2, 3), 80, dtype=np.uint8)
+    diag = analyze_hdr_path(
+        img,
+        metadata={
+            "transfer": "hlg",
+            "primaries": "bt2020",
+            "max_nits": 1000.0,
+            "source": "unknown",
+        },
+    )
+    assert "hdr_content_blend" in diag
+    blend = float(diag["hdr_content_blend"])
+    assert 0.0 <= blend <= 1.0
+
+
+def test_hdr_dark_content_passthrough_via_convert_frame() -> None:
+    img = np.zeros((2, 2, 3), dtype=np.uint8)
+    out = convert_frame_to_srgb8(
+        img,
+        metadata={"transfer": "pq", "primaries": "bt2020", "max_nits": 1000.0, "source": "unknown"},
+    )
+    assert np.array_equal(out, np.zeros_like(out))

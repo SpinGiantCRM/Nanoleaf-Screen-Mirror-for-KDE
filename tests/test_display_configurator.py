@@ -64,3 +64,43 @@ def test_step2_advanced_display_details_include_hdr_compositor_controls(monkeypa
         for i in range(widget.sdr_white_reference_preset_combo.count())
     ]
     assert "203 nits" in preset_items
+
+
+def test_wizard_persists_preview_session_and_clears_on_finish(monkeypatch, tmp_path) -> None:
+    session_path = tmp_path / "wizard-session.json"
+    monkeypatch.setenv("NANOLEAF_ALLOW_UNSAFE_WIZARD_PATH", "1")
+    monkeypatch.setenv("NANOLEAF_WIZARD_SESSION_PATH", str(session_path))
+    sent: list[list[tuple[int, int, int]]] = []
+
+    _qt, app, _dialog, widget = make_display_configurator(
+        monkeypatch,
+        calibration_sender=sent.append,
+        runtime_status={"captured_frame_width": 320, "captured_frame_height": 180},
+    )
+
+    assert session_path.exists()
+    draft = _dialog.in_progress_config()
+    assert draft.wizard_in_progress_state
+
+    widget.device_zone_count_slider.setValue(4)
+    widget._state.corner_anchor_top_left = 0
+    widget._state.corner_anchor_top_right = 1
+    widget._state.corner_anchor_bottom_right = 2
+    widget._state.corner_anchor_bottom_left = 3
+    widget._flow.index = 1
+    widget._refresh()
+    app.processEvents()
+
+    assert widget._live_preview_timer.isActive()
+    widget._send_live_preview()
+    assert sent
+    assert len(sent[-1]) == 4
+    assert any(color != (0, 0, 0) for color in sent[-1])
+
+    widget.reject()
+    app.processEvents()
+    assert not widget._live_preview_timer.isActive()
+
+    widget._finish()
+    app.processEvents()
+    assert not session_path.exists()

@@ -55,7 +55,7 @@ def test_repeated_invalid_screen_invalidates_cached_kwin_selection(monkeypatch) 
     )
     service = NanoleafSyncService(config=cfg, driver_override=_FakeDriver(zone_count=4))
     service._capture = _FakeCapture()
-    service._runtime.consecutive_errors = 3
+    service._runtime.kwin_invalid_screen_consecutive_errors = 3
     service._runtime.last_error = (
         "org.kde.KWin.ScreenShot2.Error.InvalidScreen Invalid screen requested"
     )
@@ -85,7 +85,7 @@ def test_invalid_screen_invalidation_skips_when_errors_below_threshold() -> None
     )
     service = NanoleafSyncService(config=cfg, driver_override=_FakeDriver(zone_count=4))
     service._capture = _FakeCapture()
-    service._runtime.consecutive_errors = 1
+    service._runtime.kwin_invalid_screen_consecutive_errors = 1
     service._runtime.last_error = (
         "org.kde.KWin.ScreenShot2.Error.InvalidScreen Invalid screen requested"
     )

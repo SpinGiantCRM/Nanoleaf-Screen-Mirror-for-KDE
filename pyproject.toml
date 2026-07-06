@@ -43,6 +43,11 @@ test = [
   "ruff>=0.6",
   "mypy>=1.0",
   "pre-commit>=4.0",
+  "build>=1.0",
+  "setuptools>=77.0.0",
+  "wheel",
+  "bandit>=1.7",
+  "pip-audit>=2.7",
 ]
 portal = [
   "pipewire",
@@ -60,6 +65,7 @@ nanoleaf-kde-sync-init-config = "nanoleaf_sync.tools.config_init:main"
 nanoleaf-kde-sync-autostart = "nanoleaf_sync.tools.autostart:main"
 nanoleaf-kde-sync-reset = "nanoleaf_sync.tools.reset:main"
 nanoleaf-kde-sync-benchmark = "nanoleaf_sync.tools.benchmark:main"
+nanoleaf-kde-sync-setup-permissions = "nanoleaf_sync.tools.setup_permissions:main"
 
 [project.urls]
 Homepage = "https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE"
@@ -90,13 +96,6 @@ nanoleaf_sync = [
 testpaths = ["tests"]
 pythonpath = ["src"]
 
-[tool.coverage.run]
-omit = [
-  "src/nanoleaf_sync/ui/display_configurator.py",
-  "src/nanoleaf_sync/ui/live_diagnostics.py",
-  "src/nanoleaf_sync/ui/led_color_calibration_dialog.py",
-]
-
 [tool.ruff]
 line-length = 100
 target-version = "py311"
@@ -106,6 +105,7 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
 "setup.py" = ["N801"]
+"stubs/**" = ["N801", "N802"]
 "tests/**" = ["N802", "N803", "N806"]
 "src/nanoleaf_sync/tools/doctor.py" = ["E402"]
 "src/nanoleaf_sync/tools/smoke_test.py" = ["E402"]

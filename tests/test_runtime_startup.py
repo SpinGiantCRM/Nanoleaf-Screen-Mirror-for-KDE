@@ -150,7 +150,7 @@ def test_run_runtime_engine_shutdowns_backends_when_run_loop_raises(monkeypatch)
     def _clear_backends() -> None:
         calls.append("clear")
 
-    monkeypatch.setattr("nanoleaf_sync.runtime.engine.run_loop", _run_loop)
+    monkeypatch.setattr("nanoleaf_sync.runtime.engine_loop.run_loop", _run_loop)
 
     run_runtime_engine(
         config=AppConfig(),

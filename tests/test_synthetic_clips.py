@@ -3,9 +3,9 @@ from __future__ import annotations
 import numpy as np
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
-from nanoleaf_sync.runtime.engine import process_frame
+from nanoleaf_sync.runtime.engine_frame import process_frame
 from nanoleaf_sync.runtime.state import RuntimeState
-from nanoleaf_sync.ui.zone_presets import edge_side_counts
+from nanoleaf_sync.runtime.zone_presets import edge_side_counts
 
 
 def _cfg(zone_count: int = 48) -> AppConfig:
@@ -25,7 +25,7 @@ def _cfg(zone_count: int = 48) -> AppConfig:
 
 
 def _run_clip(frame: np.ndarray) -> list[tuple[int, int, int]]:
-    from nanoleaf_sync.runtime.engine import _ensure_runtime_artifacts
+    from nanoleaf_sync.runtime.engine_frame import _ensure_runtime_artifacts
 
     cfg = _cfg()
     state = RuntimeState()

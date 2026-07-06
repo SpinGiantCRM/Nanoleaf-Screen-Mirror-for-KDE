@@ -9,11 +9,12 @@ import pytest
 from nanoleaf_sync.color.capture_metadata import resolve_capture_metadata, resolve_display_preset
 from nanoleaf_sync.config.presets import effective_light_spread, is_accuracy_mode
 from nanoleaf_sync.runtime.color_pipeline import ColorPipelineParams, process_zone_colors
+from nanoleaf_sync.runtime.color_processing import init_gamut_adaptation
 from nanoleaf_sync.runtime.compositor import apply_zone_sdr_boost, apply_zone_sdr_boost_float
-from nanoleaf_sync.runtime.engine import process_frame
+from nanoleaf_sync.runtime.engine_frame import process_frame
 from nanoleaf_sync.runtime.processing import apply_brightness, zones_from_config
 from nanoleaf_sync.runtime.ring_buf import SPSCRingBuffer
-from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones
+from nanoleaf_sync.runtime.zone_presets import make_edge_weighted_zones
 
 
 def test_resolve_display_preset_auto_prefers_hdr_on_plasma(monkeypatch) -> None:
@@ -255,6 +256,45 @@ def test_sdr_boost_compensation_can_be_suppressed_for_tone_mapped_hdr() -> None:
     assert enabled_timings.per_zone_sdr_boost_undo_ratio
     assert suppressed_timings.per_zone_sdr_boost_undo_ratio == ()
     assert int(suppressed_colors[0][0]) > int(enabled_colors[0][0]) + 20
+
+
+def test_pipeline_skip_display_gamut_flag_reaches_gamut_stage() -> None:
+    init_gamut_adaptation("display-p3")
+    raw = np.asarray([[220, 64, 64]], dtype=np.uint8)
+    try:
+        adapted = process_zone_colors(
+            frame=None,
+            precomputed_zone_colors=raw,
+            prev_smoothed_colors=[],
+            zones_px=[(0, 0, 1, 1)],
+            device_zone_indices=[0],
+            params=ColorPipelineParams(
+                color_style="reference",
+                light_spread="off",
+                return_diagnostics=True,
+                skip_display_gamut_adaptation=False,
+            ),
+        )
+        skipped = process_zone_colors(
+            frame=None,
+            precomputed_zone_colors=raw,
+            prev_smoothed_colors=[],
+            zones_px=[(0, 0, 1, 1)],
+            device_zone_indices=[0],
+            params=ColorPipelineParams(
+                color_style="reference",
+                light_spread="off",
+                return_diagnostics=True,
+                skip_display_gamut_adaptation=True,
+            ),
+        )
+    finally:
+        init_gamut_adaptation("srgb")
+
+    _colors_a, _sampled_a, _pre_a, _final_a, timings_a, _smooth_a, _history_a = adapted  # type: ignore[misc]
+    _colors_s, _sampled_s, _pre_s, _final_s, timings_s, _smooth_s, _history_s = skipped  # type: ignore[misc]
+    assert timings_s.colour_path_before_style == ((220, 64, 64),)
+    assert timings_a.colour_path_before_style != timings_s.colour_path_before_style
 
 
 def test_precomputed_zone_colors_are_identified_in_sampling_diagnostics() -> None:

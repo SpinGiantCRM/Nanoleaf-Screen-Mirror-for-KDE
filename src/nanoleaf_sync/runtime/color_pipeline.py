@@ -3,12 +3,13 @@ from __future__ import annotations
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
+from functools import lru_cache
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from nanoleaf_sync._coerce import as_float
-from nanoleaf_sync.color._types import RGBTuple
+from nanoleaf_sync.color import RGBTuple
 from nanoleaf_sync.color.capture_metadata import resolve_compositor_hdr_runtime
 from nanoleaf_sync.config.model import AppConfig
 from nanoleaf_sync.config.presets import (
@@ -49,7 +50,7 @@ from nanoleaf_sync.runtime.state import ZoneRect
 from nanoleaf_sync.runtime.zones import ZoneSamplingMeta, zone_colors_array_with_meta
 
 if TYPE_CHECKING:
-    from nanoleaf_sync.runtime.engine import FrameProcessingTimings
+    from nanoleaf_sync.runtime.engine_frame import FrameProcessingTimings
 
 
 @dataclass(frozen=True)
@@ -103,6 +104,75 @@ class ColorPipelineParams:
     blue_noise_dither: bool = False
     multi_moment_zone_colors: bool = False
     use_zone_box_filter: bool = False
+
+
+_SCENE_PROFILES: dict[str, dict[str, object]] = {
+    "movie": {
+        "color_style": "natural",
+        "smoothing": 0.7,
+        "smoothing_speed": 0.5,
+        "light_spread": "soft",
+        "fps": 30,
+        "motion_preset": "calm",
+    },
+    "game": {
+        "color_style": "vivid",
+        "smoothing": 0.3,
+        "smoothing_speed": 1.5,
+        "light_spread": "balanced",
+        "fps": 60,
+        "motion_preset": "dynamic",
+    },
+    "presentation": {
+        "color_style": "natural",
+        "smoothing": 0.8,
+        "smoothing_speed": 0.3,
+        "light_spread": "precise",
+        "fps": 15,
+        "motion_preset": "calm",
+    },
+    "desktop": {
+        "color_style": "ambient",
+        "smoothing": 0.5,
+        "smoothing_speed": 0.75,
+        "light_spread": "balanced",
+        "fps": 30,
+        "motion_preset": "responsive",
+    },
+}
+
+
+@lru_cache(maxsize=1)
+def _load_dither_texture() -> np.ndarray:
+    rng = np.random.default_rng(42)
+    texture = rng.random((64, 64), dtype=np.float32)
+    texture -= np.float32(np.mean(texture))
+    return np.clip(texture + 0.5, 0.0, 1.0).astype(np.float32, copy=False)
+
+
+def _apply_temporal_dither(
+    colors: np.ndarray, *, frame_index: int, strength: float = 0.15
+) -> np.ndarray:
+    noise_tex = _load_dither_texture()
+    out = np.array(colors, dtype=np.float32, copy=True)
+    if out.ndim != 2 or out.shape[1] != 3:
+        return out
+    for zi in range(out.shape[0]):
+        tx = (zi * 7 + frame_index * 13) % 64
+        ty = (zi * 11 + frame_index * 17) % 64
+        noise = (float(noise_tex[ty, tx]) - 0.5) * float(strength)
+        out[zi] = np.clip(out[zi] + noise * 255.0, 0.0, 255.0)
+    return out
+
+
+def _classify_scene(*, motion: float, letterbox_ratio: float, chroma_variance: float) -> str:
+    if letterbox_ratio > 0.08 and motion < 15.0:
+        return "movie"
+    if motion > 15.0:
+        return "game"
+    if chroma_variance < 15.0 and motion < 3.0:
+        return "presentation"
+    return "desktop"
 
 
 _SAMPLING_MODE_DWELL_FRAMES = 3
@@ -218,7 +288,7 @@ def process_zone_colors(
                 f"Capture returned unexpected frame shape: {getattr(frame, 'shape', None)}"
             )
 
-    from nanoleaf_sync.runtime.engine import FrameProcessingTimings
+    from nanoleaf_sync.runtime.engine_frame import FrameProcessingTimings
 
     timings = FrameProcessingTimings()
     stage_start = time.perf_counter()
@@ -236,19 +306,17 @@ def process_zone_colors(
         sync_mode=params.sync_mode,
     )
     if params.scene_adaptive_profiles:
-        from nanoleaf_sync.runtime.scene_profiles import PROFILES, classify_scene
-
         chroma_variance = 0.0
         if params.prev_sampled_zone_colors:
             prev_arr = np.asarray(params.prev_sampled_zone_colors, dtype=np.float32)
             if prev_arr.size:
                 chroma_variance = float(np.std(prev_arr[:, :3]))
-        profile_name = classify_scene(
+        profile_name = _classify_scene(
             motion=float(params.prior_zone_sample_motion),
             letterbox_ratio=0.0,
             chroma_variance=chroma_variance,
         )
-        profile = PROFILES.get(profile_name, {})
+        profile = _SCENE_PROFILES.get(profile_name, {})
         motion_preset = str(profile.get("motion_preset", motion_preset))
         smoothing = as_float(profile.get("smoothing"), default=smoothing)
         smoothing_speed = as_float(profile.get("smoothing_speed"), default=smoothing_speed)
@@ -433,7 +501,11 @@ def process_zone_colors(
         )
     sdr_boost_done = time.perf_counter()
 
-    mapped = apply_display_gamut_adaptation(mapped, color_context=params.color_context)
+    mapped = apply_display_gamut_adaptation(
+        mapped,
+        color_context=params.color_context,
+        skip_display_gamut_adaptation=params.skip_display_gamut_adaptation,
+    )
     capture_colour_stages = bool(params.return_diagnostics or params.build_zone_diagnostics)
     stage_before_style: tuple[tuple[int, int, int], ...] = ()
     stage_after_style: tuple[tuple[int, int, int], ...] = ()
@@ -577,9 +649,7 @@ def process_zone_colors(
 
     np.clip(mapped, 0.0, 255.0, out=mapped)
     if params.blue_noise_dither:
-        from nanoleaf_sync.runtime.temporal_dither import apply_temporal_dither
-
-        mapped = apply_temporal_dither(
+        mapped = _apply_temporal_dither(
             mapped,
             frame_index=int(params.palette_frame_index),
         )

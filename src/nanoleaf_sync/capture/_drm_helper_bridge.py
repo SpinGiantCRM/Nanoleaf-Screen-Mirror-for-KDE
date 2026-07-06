@@ -49,6 +49,13 @@ def is_nvidia_x_tiled_modifier(modifier: int) -> bool:
     return ((int(modifier) >> 56) & 0xFF) == _MODIFIER_VENDOR_NVIDIA
 
 
+def drm_helper_binary_ready() -> bool:
+    helper = _helper_binary_path()
+    if helper is None:
+        return False
+    return _helper_launch_allowed(helper)
+
+
 def _helper_binary_path() -> Path | None:
     module_dir = Path(__file__).resolve().parent
     candidates = (

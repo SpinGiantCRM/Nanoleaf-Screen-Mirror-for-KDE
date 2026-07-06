@@ -12,6 +12,7 @@ from time import perf_counter
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
 from nanoleaf_sync.runtime.anchor_calibration import validate_corner_anchors
 from nanoleaf_sync.runtime.calibration_resolver import resolve_calibration_mapping
+from nanoleaf_sync.runtime.zone_presets import edge_weighted_layout, make_edge_weighted_zones
 from nanoleaf_sync.ui.calibration_state import (
     CalibrationState,
     build_testing_panel_state,
@@ -28,7 +29,6 @@ from nanoleaf_sync.ui.preset_ui import (
     value_for_label,
 )
 from nanoleaf_sync.ui.qt_lazy import load_qt
-from nanoleaf_sync.ui.zone_presets import edge_weighted_layout, make_edge_weighted_zones
 
 MAX_WIZARD_ZONE_COUNT = 128
 WIZARD_STEPS: tuple[str, ...] = (

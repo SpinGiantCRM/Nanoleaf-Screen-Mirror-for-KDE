@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from nanoleaf_sync._coerce import as_float, as_int, as_rgb_tuple3
-from nanoleaf_sync.color._types import RGBTuple
+from nanoleaf_sync.color import RGBTuple
 
 CONFIDENCE_SWITCH_MARGIN = 0.15
 DWELL_FRAMES_MIN = 3

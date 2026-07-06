@@ -330,7 +330,11 @@ class DiagnosticHubDialog(QDialog):
 
     def _open_live_diagnostics(self) -> None:
         if self._open_live_diagnostics_fn is not None:
-            self._open_live_diagnostics_fn()
+            try:
+                self._open_live_diagnostics_fn()
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Unable to open live diagnostics", exc_info=True)
+                self._overview_status.setPlainText(f"Live diagnostics failed: {exc}")
 
     def _export_bundle(self) -> None:
         stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
@@ -345,7 +349,13 @@ class DiagnosticHubDialog(QDialog):
             return
         if not str(path).lower().endswith(".zip"):
             path = f"{path}.zip"
-        result = self._export_bundle_fn(path)
+        try:
+            result = self._export_bundle_fn(path)
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Diagnostic bundle export failed", exc_info=True)
+            self._overview_status.setPlainText(f"Export failed: {exc}")
+            QMessageBox.warning(self, "Export failed", f"Export failed: {exc}")
+            return
         self._overview_status.setPlainText(str(result.get("message", "")))
         if result.get("ok"):
             QMessageBox.information(self, "Bundle exported", str(result.get("message", "")))
@@ -353,12 +363,22 @@ class DiagnosticHubDialog(QDialog):
             QMessageBox.warning(self, "Export failed", str(result.get("message", "")))
 
     def _forget_portal_token(self) -> None:
-        result = self._forget_portal_token_fn()
+        try:
+            result = self._forget_portal_token_fn()
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Unable to forget portal restore token", exc_info=True)
+            self._portal_message.setPlainText(f"Forget saved screen choice failed: {exc}")
+            return
         self._portal_message.setPlainText(str(result.get("message", "")))
         self._refresh_all()
 
     def _refresh_usb_profile(self) -> None:
-        status = self._status_fn()
+        try:
+            status = self._status_fn()
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Unable to refresh USB profile", exc_info=True)
+            self._usb_message.setPlainText(f"USB profile unavailable: {exc}")
+            return
         profile = status.get("usb_transport_profile")
         if not isinstance(profile, dict):
             self._usb_message.setPlainText(
@@ -370,7 +390,12 @@ class DiagnosticHubDialog(QDialog):
 
     def _run_colour_probe(self) -> None:
         zone_index = int(self._zone_spin.value())
-        result = self._colour_probe_fn(zone_index=zone_index)
+        try:
+            result = self._colour_probe_fn(zone_index=zone_index)
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Colour path probe failed", exc_info=True)
+            self._colour_output.setPlainText(f"Colour path probe failed: {exc}")
+            return
         if not result.get("ok"):
             self._colour_output.setPlainText(str(result.get("message", "Probe failed.")))
             return
@@ -383,21 +408,37 @@ class DiagnosticHubDialog(QDialog):
     def _run_portal_pick(self) -> None:
         self._colour_output.setPlainText("Waiting for portal colour pick…")
         self.repaint()
-        result = self._portal_pick_fn()
+        try:
+            result = self._portal_pick_fn()
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Portal colour pick failed", exc_info=True)
+            self._colour_output.setPlainText(f"Portal colour pick failed: {exc}")
+            return
         if not result.get("ok"):
             self._colour_output.setPlainText(str(result.get("message", "Pick failed.")))
             return
         rgb = result.get("rgb")
-        probe = self._colour_probe_fn(zone_index=int(self._zone_spin.value()))
+        try:
+            probe = self._colour_probe_fn(zone_index=int(self._zone_spin.value()))
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Colour path probe after portal pick failed", exc_info=True)
+            probe = {"ok": False, "message": str(exc)}
         lines = [str(result.get("message", "")), f"Picked RGB: {rgb}"]
         if probe.get("ok") and isinstance(probe.get("comparison"), dict):
             final = probe["comparison"].get("final_rgb")
             lines.append(f"Zone {self._zone_spin.value()} final output: {final}")
+        elif probe.get("message"):
+            lines.append(f"Colour path probe failed: {probe['message']}")
         self._colour_output.setPlainText("\n".join(lines))
 
     def _run_flicker_lab(self) -> None:
         scenario_key = str(self._flicker_combo.currentData() or "all")
-        result = self._flicker_lab_fn(scenario_key=scenario_key)
+        try:
+            result = self._flicker_lab_fn(scenario_key=scenario_key)
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Flicker lab failed", exc_info=True)
+            self._colour_output.setPlainText(f"Flicker lab failed: {exc}")
+            return
         self._colour_output.setPlainText(json.dumps(result, indent=2, sort_keys=True))
 
     def _apply_usb_profile(self, profile: dict[str, Any]) -> None:
@@ -416,8 +457,9 @@ class DiagnosticHubDialog(QDialog):
     def _refresh_all(self) -> None:
         try:
             status = self._status_fn()
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
             _log.debug("Diagnostic hub refresh failed", exc_info=True)
+            self._show_status_unavailable(exc)
             return
 
         running = bool(status.get("running"))
@@ -491,3 +533,13 @@ class DiagnosticHubDialog(QDialog):
         configured_zones = int(status.get("configured_device_zone_count", 0) or 0)
         if configured_zones > 0:
             self._zone_spin.setMaximum(max(0, configured_zones - 1))
+
+    def _show_status_unavailable(self, exc: Exception) -> None:
+        self._warnings_banner.setText(f"Runtime status unavailable: {exc}")
+        self._warnings_banner.setVisible(True)
+        self._overview_status.setPlainText(
+            "Runtime status is unavailable. You can still export a support bundle or run "
+            "offline diagnostics."
+        )
+        for key in self._overview_labels:
+            self._overview_labels[key].setText("Unavailable")

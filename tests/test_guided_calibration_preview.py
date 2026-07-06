@@ -2,7 +2,7 @@ from nanoleaf_sync.ui.led_color_calibration_dialog import (
     CALIBRATION_STEPS,
     LedColorCalibrationDialog,
 )
-from tests.qt_headless import load_headless_qt, make_settings_dialog
+from tests.qt_headless import button_texts, load_headless_qt, make_settings_dialog
 
 
 def test_guided_calibration_dialog_drives_live_preview_hooks(monkeypatch) -> None:
@@ -49,3 +49,63 @@ def test_led_dialog_calls_open_close_and_step_callbacks(monkeypatch) -> None:
     widget.done(0)
     app.processEvents()
     assert events == ["open", "close"]
+
+
+def test_led_dialog_navigation_and_action_buttons(monkeypatch) -> None:
+    qt, app = load_headless_qt(monkeypatch)
+    helper_keys: list[str] = []
+    events: list[str] = []
+    steps: list[int] = []
+
+    dialog = LedColorCalibrationDialog(
+        None,
+        on_reset=lambda: events.append("reset"),
+        on_helper_adjust=helper_keys.append,
+        on_save_profile=lambda: events.append("save"),
+        on_step_changed=steps.append,
+    )
+    widget = dialog._dialog
+    widget.show()
+    app.processEvents()
+
+    buttons = {
+        button.text(): button
+        for button in widget.findChildren(qt["QPushButton"])
+        if button.text() in set(button_texts(widget, qt))
+    }
+    assert set(buttons) >= {
+        "Previous",
+        "Next",
+        "Reset calibration values",
+        "Save profile",
+        "Too blue",
+        "Looks neutral",
+    }
+
+    buttons["Previous"].click()
+    app.processEvents()
+    assert widget.step_label.text() == CALIBRATION_STEPS[0]
+
+    buttons["Next"].click()
+    buttons["Next"].click()
+    app.processEvents()
+    assert widget.step_label.text() == CALIBRATION_STEPS[2]
+    assert steps[-3:] == [0, 1, 2]
+
+    for _ in range(len(CALIBRATION_STEPS) + 2):
+        buttons["Next"].click()
+    app.processEvents()
+    assert widget.step_label.text() == CALIBRATION_STEPS[-1]
+
+    buttons["Previous"].click()
+    app.processEvents()
+    assert widget.step_label.text() == CALIBRATION_STEPS[-2]
+
+    buttons["Too blue"].click()
+    buttons["Looks neutral"].click()
+    buttons["Reset calibration values"].click()
+    buttons["Save profile"].click()
+    app.processEvents()
+
+    assert helper_keys == ["Too blue", "Looks neutral"]
+    assert events == ["reset", "save"]

@@ -151,6 +151,18 @@ class _DrmModeGetEncoder(ctypes.Structure):
     ]
 
 
+class _DrmModeGetProperty(ctypes.Structure):
+    _fields_ = [
+        ("values_ptr", ctypes.c_uint64),
+        ("enum_ptr", ctypes.c_uint64),
+        ("prop_id", ctypes.c_uint32),
+        ("flags", ctypes.c_uint32),
+        ("name", ctypes.c_char * 32),
+        ("count_values", ctypes.c_uint32),
+        ("count_enum_blobs", ctypes.c_uint32),
+    ]
+
+
 class _DrmModeFbCmd2(ctypes.Structure):
     """``drm_mode_fb_cmd2`` — extended FB info including fourcc & modifiers."""
 
@@ -247,6 +259,12 @@ DRM_IOCTL_MODE_GETENCODER = _IOC(
     0xA6,
     ctypes.sizeof(_DrmModeGetEncoder),
 )
+DRM_IOCTL_MODE_GETPROPERTY = _IOC(
+    _IOC_READ | _IOC_WRITE,
+    _DRM_TYPE,
+    0x37,
+    ctypes.sizeof(_DrmModeGetProperty),
+)
 DRM_IOCTL_MODE_GETCRTC = _IOC(
     _IOC_READ | _IOC_WRITE,
     _DRM_TYPE,
@@ -307,6 +325,13 @@ _DRM_PRIME_CLOEXEC = 0x01
 
 # Connection states  (drm_mode.h)
 DRM_MODE_CONNECTED = 1
+
+_COLORSPACE_ENUM_LABELS: dict[int, str] = {
+    0: "Default",
+    6: "BT709",
+    9: "BT2020_RGB",
+    10: "BT2020_YCC",
+}
 
 # Fourcc codes for the 32 bpp formats this module supports
 _FOURCC_XR24 = 0x34325258  # X8 R8 G8 B8  (little-endian byte order: B, G, R, X)
@@ -382,14 +407,9 @@ def _decode_10bit_pixel(word: int, *, rgb_order: bool) -> tuple[int, int, int]:
 
 
 def _resolve_drm_primaries() -> str:
-    try:
-        from nanoleaf_sync.color.primaries import get_display_primaries_from_sysfs
+    from nanoleaf_sync.capture.drm_vendor import resolve_drm_primaries_label
 
-        if get_display_primaries_from_sysfs() is not None:
-            return "bt2020"
-    except Exception:
-        _log.debug("DRM primaries lookup failed", exc_info=True)
-    return "bt2020"
+    return resolve_drm_primaries_label()
 
 
 class DRMZoneSampler:
@@ -403,8 +423,9 @@ class DRMZoneSampler:
     the ``kmsgrab`` caller can fall back to ``kwin-dbus``.
     """
 
-    def __init__(self, card_path: str = "/dev/dri/card0") -> None:
+    def __init__(self, card_path: str = "/dev/dri/card0", *, capture_monitor: str = "") -> None:
         self._card_path: str = os.fspath(card_path)
+        self._capture_monitor: str = str(capture_monitor or "").strip()
         self._fd: int = -1
         self._mapped_ptr: int | None = None
         self._mapped_size: int = 0
@@ -427,6 +448,8 @@ class DRMZoneSampler:
         self._helper_dma_mmap: bool = False
         self._modifier: int = 0
         self._nvidia_x_tiled: bool = False
+        self._drm_vendor: str = "unknown"
+        self._connector_colorspace: str | None = None
 
         try:
             self._init()
@@ -519,6 +542,7 @@ class DRMZoneSampler:
             count_crtcs=count_crtcs,
             count_connectors=count_connectors,
             count_fbs=count_fbs,
+            capture_monitor=self._capture_monitor,
         )
 
         # 3. Get CRTC state (framebuffer id + mode)
@@ -886,22 +910,15 @@ class DRMZoneSampler:
         return int(_ptr_addr)
 
     def _capture_metadata(self) -> dict[str, object]:
-        if self._is_fp16:
-            bit_depth = 16
-            transfer = "linear"
-        elif self._is_10bit:
-            bit_depth = 10
-            transfer = "gamma22"
-        else:
-            bit_depth = 8
-            transfer = "srgb"
-        return {
-            "fourcc": int(self._fourcc),
-            "bit_depth": bit_depth,
-            "primaries": _resolve_drm_primaries(),
-            "transfer": transfer,
-            "source": "backend metadata",
-        }
+        from nanoleaf_sync.capture.drm_vendor import detect_drm_vendor, scanout_metadata_for_fourcc
+
+        vendor = detect_drm_vendor(self._card_path)
+        self._drm_vendor = vendor
+        return scanout_metadata_for_fourcc(
+            int(self._fourcc),
+            vendor=vendor,
+            connector_colorspace=getattr(self, "_connector_colorspace", None),
+        )
 
     def _maybe_with_metadata(
         self, rgb: np.ndarray
@@ -911,10 +928,19 @@ class DRMZoneSampler:
         return rgb
 
     def _pixel_byte_offset(self, px: int, py: int) -> int:
+        from nanoleaf_sync.capture.drm_vendor import detect_drm_vendor, pixel_byte_offset
+
         bpp = 8 if self._is_fp16 else 4
-        if getattr(self, "_nvidia_x_tiled", False):
-            return _nvidia_x_tiled_pixel_offset(px, py, self._width, bpp=bpp)
-        return py * self._pitch_bytes + px * bpp
+        vendor = detect_drm_vendor(getattr(self, "_card_path", None))
+        return pixel_byte_offset(
+            px=px,
+            py=py,
+            pitch_bytes=self._pitch_bytes,
+            bpp=bpp,
+            frame_width=self._width,
+            modifier=int(self._modifier),
+            vendor=vendor,
+        )
 
     def _read_pixel_word(self, buf: Any, pixel_base: int) -> int:
         return (
@@ -959,7 +985,10 @@ class DRMZoneSampler:
         if n_pixels <= 0:
             return np.zeros(3, dtype=np.uint8)
         if self._is_fp16:
-            return _fp16_zone_to_uint8(sum_r / n_pixels, sum_g / n_pixels, sum_b / n_pixels)
+            return np.array(
+                [sum_r / float(n_pixels), sum_g / float(n_pixels), sum_b / float(n_pixels)],
+                dtype=np.float32,
+            )
         if self._is_10bit:
             avg = (
                 np.array(
@@ -1040,6 +1069,59 @@ class DRMZoneSampler:
             self._remount_count,
         )
 
+    def _read_connector_colorspace(
+        self, connector_id: int, conn_hint: _DrmModeGetConnector
+    ) -> str | None:
+        count_props = int(conn_hint.count_props)
+        count_modes = int(conn_hint.count_modes)
+        count_encoders = int(conn_hint.count_encoders)
+        if count_props <= 0:
+            return None
+        struct_sz = ctypes.sizeof(_DrmModeGetConnector)
+        mode_sz = ctypes.sizeof(_DrmModeModeInfo)
+        total_sz = (
+            struct_sz
+            + count_encoders * 4
+            + count_props * 4
+            + count_props * 8
+            + count_modes * mode_sz
+        )
+        _buf = (ctypes.c_uint8 * total_sz)()
+        conn = _DrmModeGetConnector.from_buffer(_buf)
+        conn.connector_id = int(connector_id)
+        conn.count_encoders = count_encoders
+        conn.count_props = count_props
+        conn.count_modes = count_modes
+        _addr = ctypes.addressof(_buf)
+        _offset = struct_sz
+        conn.encoders_ptr = _addr + _offset
+        _offset += count_encoders * 4
+        conn.props_ptr = _addr + _offset
+        _offset += count_props * 4
+        conn.prop_values_ptr = _addr + _offset
+        _offset += count_props * 8
+        conn.modes_ptr = _addr + _offset
+        try:
+            fcntl.ioctl(self._fd, DRM_IOCTL_MODE_GETCONNECTOR, _buf)
+        except OSError:
+            return None
+        prop_base = struct_sz + count_encoders * 4
+        value_base = prop_base + count_props * 4
+        for i in range(count_props):
+            prop_id = int(ctypes.c_uint32.from_buffer(_buf, prop_base + i * 4).value)
+            prop_value = int(ctypes.c_uint64.from_buffer(_buf, value_base + i * 8).value)
+            prop = _DrmModeGetProperty()
+            prop.prop_id = prop_id
+            try:
+                fcntl.ioctl(self._fd, DRM_IOCTL_MODE_GETPROPERTY, prop)
+            except OSError:
+                continue
+            name = bytes(prop.name).split(b"\0", 1)[0].decode("ascii", errors="ignore")
+            if name.upper() != "COLORSPACE":
+                continue
+            return _COLORSPACE_ENUM_LABELS.get(int(prop_value), f"enum_{int(prop_value)}")
+        return None
+
     def _find_active_crtc(
         self,
         *,
@@ -1048,8 +1130,11 @@ class DRMZoneSampler:
         count_crtcs: int,
         count_connectors: int,
         count_fbs: int,
+        capture_monitor: str = "",
     ) -> int:
-        """Return the first connected CRTC id, preferring active ones."""
+        """Return a connected CRTC id, optionally matching *capture_monitor*."""
+        from nanoleaf_sync.capture.drm_vendor import connector_matches_capture_monitor
+
         if count_crtcs == 0:
             raise KMSGrabError("no CRTCs available")
 
@@ -1082,6 +1167,15 @@ class DRMZoneSampler:
 
             if conn.connection != DRM_MODE_CONNECTED:
                 continue
+
+            if not connector_matches_capture_monitor(
+                connector_type=int(conn.connector_type),
+                connector_type_id=int(conn.connector_type_id),
+                capture_monitor=capture_monitor,
+            ):
+                continue
+
+            self._connector_colorspace = self._read_connector_colorspace(int(cid), conn)
 
             enc_id = conn.encoder_id
             if enc_id == 0:
@@ -1183,7 +1277,7 @@ class DRMZoneSampler:
             raise KMSGrabError("DRMZoneSampler: framebuffer not mapped")
 
         n_zones = len(centers)
-        if self._is_10bit:
+        if self._is_10bit or self._is_fp16:
             out = np.zeros((n_zones, 3), dtype=np.float32)
         else:
             out = np.zeros((n_zones, 3), dtype=np.uint8)
@@ -1223,6 +1317,16 @@ class DRMZoneSampler:
                     n_pixels += 1
 
             out[i] = self._finalize_patch_color(sum_r, sum_g, sum_b, n_pixels)
+
+        if self._is_fp16:
+            expanded = out.reshape(1, out.shape[0], 3)
+            from nanoleaf_sync.color.hdr import convert_frame_to_srgb8
+
+            converted = convert_frame_to_srgb8(
+                expanded,
+                self._capture_metadata(),
+            )
+            out = converted.reshape(out.shape[0], 3).astype(np.uint8, copy=False)
 
         return self._maybe_with_metadata(out)
 
@@ -1317,6 +1421,10 @@ class DRMZoneSampler:
     @property
     def is_10bit(self) -> bool:
         return bool(self._is_10bit)
+
+    @property
+    def is_fp16(self) -> bool:
+        return bool(self._is_fp16)
 
     @property
     def width(self) -> int:

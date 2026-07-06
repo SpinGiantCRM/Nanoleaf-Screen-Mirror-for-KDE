@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 
 from nanoleaf_sync.capture.latency_probe import LatencyProbe
-from nanoleaf_sync.color._types import RGBTuple
+from nanoleaf_sync.color import RGBTuple
 from nanoleaf_sync.runtime.blending import BlendHysteresisState
 from nanoleaf_sync.runtime.calibration_resolver import (
     CALIBRATION_INCOMPLETE_STATUS,
@@ -51,6 +51,7 @@ class RuntimeState:
     device_zone_mapping_signature: DeviceZoneMappingSignature | None = None
 
     consecutive_errors: int = 0
+    kwin_invalid_screen_consecutive_errors: int = 0
     last_error: str | None = None
     last_error_kind: str | None = None
     last_error_guidance: str | None = None
@@ -165,6 +166,7 @@ class RuntimeState:
         self.cached_device_zone_indices_np = None
         self.device_zone_mapping_signature = None
         self.consecutive_errors = 0
+        self.kwin_invalid_screen_consecutive_errors = 0
         self.last_error = None
         self.last_error_kind = None
         self.last_error_guidance = None
@@ -258,43 +260,49 @@ class RuntimeState:
             self.output_quantization_prev_hold = []
 
     def mark_calibration_incomplete(self, message: str) -> None:
-        self.calibration_status = CALIBRATION_INCOMPLETE_STATUS
-        self.calibration_status_message = str(message or "calibration_incomplete")
-        self.last_error = self.calibration_status_message
-        self.last_error_kind = CALIBRATION_INCOMPLETE_STATUS
-        self.last_error_guidance = (
-            "Open Settings > Corner calibration and assign all four corners, "
-            "then start mirroring again."
-        )
-        self.start_failure_reason = self.calibration_status_message
-        self.lifecycle_state = CALIBRATION_INCOMPLETE_STATUS
+        with self._lock:
+            self.calibration_status = CALIBRATION_INCOMPLETE_STATUS
+            self.calibration_status_message = str(message or "calibration_incomplete")
+            self.last_error = self.calibration_status_message
+            self.last_error_kind = CALIBRATION_INCOMPLETE_STATUS
+            self.last_error_guidance = (
+                "Open Settings > Corner calibration and assign all four corners, "
+                "then start mirroring again."
+            )
+            self.start_failure_reason = self.calibration_status_message
+            self.lifecycle_state = CALIBRATION_INCOMPLETE_STATUS
 
     def mark_device_zone_mismatch(self, message: str, *, authority: object | None = None) -> None:
-        self.calibration_status = DEVICE_ZONE_MISMATCH_STATUS
-        self.calibration_status_message = str(message or DEVICE_ZONE_MISMATCH_STATUS)
-        self.last_error = self.calibration_status_message
-        self.last_error_kind = DEVICE_ZONE_MISMATCH_STATUS
-        self.last_error_guidance = (
-            "Open Settings > Corner calibration, confirm the physical strip LED count, "
-            "then rerun calibration. If you intentionally use a non-standard profile, "
-            "enable allow_zone_count_override in advanced settings."
-        )
-        self.start_failure_reason = self.calibration_status_message
-        self.lifecycle_state = DEVICE_ZONE_MISMATCH_STATUS
-        self.mapping_repair_required = True
-        self.device_zone_count_mismatch = True
-        if authority is not None:
-            self.device_zone_count_source = str(
-                getattr(authority, "device_zone_count_source", "") or ""
+        with self._lock:
+            self.calibration_status = DEVICE_ZONE_MISMATCH_STATUS
+            self.calibration_status_message = str(message or DEVICE_ZONE_MISMATCH_STATUS)
+            self.last_error = self.calibration_status_message
+            self.last_error_kind = DEVICE_ZONE_MISMATCH_STATUS
+            self.last_error_guidance = (
+                "Open Settings > Corner calibration, confirm the physical strip LED count, "
+                "then rerun calibration. If you intentionally use a non-standard profile, "
+                "enable allow_zone_count_override in advanced settings."
             )
-            self.configured_device_zone_count = int(
-                getattr(authority, "configured_device_zone_count", 0) or 0
-            )
-            self.detected_device_zone_count = getattr(authority, "detected_device_zone_count", None)
-            self.effective_device_zone_count = int(
-                getattr(authority, "effective_device_zone_count", 0) or 0
-            )
-            self.device_zone_override_active = bool(getattr(authority, "override_active", False))
+            self.start_failure_reason = self.calibration_status_message
+            self.lifecycle_state = DEVICE_ZONE_MISMATCH_STATUS
+            self.mapping_repair_required = True
+            self.device_zone_count_mismatch = True
+            if authority is not None:
+                self.device_zone_count_source = str(
+                    getattr(authority, "device_zone_count_source", "") or ""
+                )
+                self.configured_device_zone_count = int(
+                    getattr(authority, "configured_device_zone_count", 0) or 0
+                )
+                self.detected_device_zone_count = getattr(
+                    authority, "detected_device_zone_count", None
+                )
+                self.effective_device_zone_count = int(
+                    getattr(authority, "effective_device_zone_count", 0) or 0
+                )
+                self.device_zone_override_active = bool(
+                    getattr(authority, "override_active", False)
+                )
 
     def record_stale_output_drop(
         self,
@@ -314,6 +322,10 @@ class RuntimeState:
             self.stale_drop_window_events += 1
 
     def stale_drop_rate_per_second(self) -> float:
+        with self._lock:
+            return self._stale_drop_rate_per_second_unlocked()
+
+    def _stale_drop_rate_per_second_unlocked(self) -> float:
         started = float(self.stale_drop_window_started_at or 0.0)
         if started <= 0.0:
             return 0.0
@@ -342,6 +354,14 @@ class RuntimeState:
             self.last_error = translated.summary
             self.last_error_kind = translated.kind
             self.last_error_guidance = translated.guidance
+
+            from nanoleaf_sync.capture.kwin_dbus import is_kwin_invalid_screen_error
+
+            if is_kwin_invalid_screen_error(translated.summary):
+                self.kwin_invalid_screen_consecutive_errors += 1
+            else:
+                self.kwin_invalid_screen_consecutive_errors = 0
+
             return self.consecutive_errors
 
     def record_frame_brightness(self, mean_brightness: float, *, max_short_hold: int = 6) -> bool:
@@ -534,7 +554,7 @@ class RuntimeState:
             "last_stale_frame_age_ms": float(self.last_stale_frame_age_ms),
             "max_send_age_ms": float(self.max_send_age_ms),
             "stale_drop_reason": str(self.stale_drop_reason or ""),
-            "stale_drop_rate_per_second": float(self.stale_drop_rate_per_second()),
+            "stale_drop_rate_per_second": float(self._stale_drop_rate_per_second_unlocked()),
             "device_zone_count_source": str(self.device_zone_count_source or ""),
             "configured_device_zone_count": int(self.configured_device_zone_count),
             "detected_device_zone_count": self.detected_device_zone_count,

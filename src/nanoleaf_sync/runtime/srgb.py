@@ -31,7 +31,7 @@ def srgb_eotf_to_linear01(c: np.ndarray) -> np.ndarray:
 
 def linear01_to_srgb_encoded(linear: np.ndarray) -> np.ndarray:
     """Convert linear-light floats to sRGB-encoded floats in [0, 1]."""
-    linear = np.clip(linear, 0.0, None)
+    linear = np.clip(linear, 0.0, 1.0)
     a = 0.055
     threshold = 0.0031308
     out = np.empty_like(linear, dtype=np.float32)

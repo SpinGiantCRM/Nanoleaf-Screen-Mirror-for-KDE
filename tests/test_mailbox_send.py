@@ -76,11 +76,6 @@ def test_mailbox_static_content_fewer_writes_than_frames() -> None:
 @pytest.mark.parametrize("disabled", ["0", "false"])
 def test_mailbox_disabled_by_env(monkeypatch, disabled: str) -> None:
     monkeypatch.setenv("NANOLEAF_ENABLE_MAILBOX_SEND", disabled)
-    from importlib import reload
-
-    import nanoleaf_sync.runtime.novel_features as novel
-
-    reload(novel)
     transport = MagicMock()
     transport.report_size = 64
     driver = NanoleafUSBDriver(

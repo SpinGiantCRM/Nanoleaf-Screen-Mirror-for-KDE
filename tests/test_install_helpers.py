@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+import tomllib
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from tests.install_parsers import (
@@ -26,6 +28,14 @@ def test_runtime_install_verifier_uses_public_package_invariants() -> None:
     assert runtime_verifier_references_forbidden_symbols(verifier) == set()
     assert runtime_verifier_checks_package_version(verifier) is True
     assert runtime_verifier_required_assets(verifier) == REQUIRED_RUNTIME_VERIFIER_ASSETS
+
+
+def test_runtime_install_verifier_tracks_all_console_scripts() -> None:
+    verifier_text = repo_path(ROOT, "scripts/verify_runtime_install.py").read_text(encoding="utf-8")
+    project = tomllib.loads(repo_path(ROOT, "pyproject.toml").read_text(encoding="utf-8"))
+    scripts = set(project["project"]["scripts"])
+    for script in scripts:
+        assert f'"{script}"' in verifier_text
 
 
 def test_arch_build_script_uses_runtime_install_verifier() -> None:
@@ -56,6 +66,24 @@ def test_arch_publish_metadata_pins_source_checksum() -> None:
     assert "v1.0.0 note" not in docs
 
 
+def test_appstream_metadata_is_valid_xml_and_matches_desktop_id() -> None:
+    metadata_path = repo_path(ROOT, "docs/nanoleaf-kde-sync.metainfo.xml")
+    root = ET.parse(metadata_path).getroot()
+    assert root.tag == "component"
+    assert root.attrib.get("type") == "desktop-application"
+    assert root.findtext("id") == "io.github.spingiantcrm.nanoleaf-kde-sync"
+    launchable = root.find("launchable")
+    assert launchable is not None
+    assert launchable.attrib.get("type") == "desktop-id"
+    assert launchable.text == "nanoleaf-kde-sync.desktop"
+
+
+def test_arch_package_installs_appstream_metadata() -> None:
+    pkgbuild = repo_path(ROOT, "packaging/arch/PKGBUILD").read_text(encoding="utf-8")
+    assert "docs/nanoleaf-kde-sync.metainfo.xml" in pkgbuild
+    assert "$pkgdir/usr/share/metainfo/nanoleaf-kde-sync.metainfo.xml" in pkgbuild
+
+
 def test_arch_metadata_action_diffs_generated_srcinfo() -> None:
     action = repo_path(ROOT, ".github/actions/arch-metadata-validation/action.yml")
     blocks = composite_action_run_blocks(action)
@@ -71,6 +99,21 @@ def test_release_gate_runs_runtime_verifier_and_lints_scripts() -> None:
     assert "python scripts/verify_runtime_install.py" in lines
     assert "ruff check src/ tests/ scripts/" in lines
     assert "ruff format --check src/ tests/ scripts/" in lines
+    assert 'WHEEL_AUDIT_DIR="$(mktemp -d)"' in lines
+    assert "trap 'rm -rf \"${WHEEL_AUDIT_DIR}\"' EXIT" in lines
+    assert "bash scripts/build_drm_helper.sh" in lines
+    assert 'python -m build --wheel --no-isolation --outdir "${WHEEL_AUDIT_DIR}"' in lines
+    assert 'python scripts/validate_wheel.py "${WHEEL_AUDIT_DIR}"/*-linux_x86_64.whl' in lines
+
+
+def test_test_extra_contains_release_gate_tools() -> None:
+    project = tomllib.loads(repo_path(ROOT, "pyproject.toml").read_text(encoding="utf-8"))
+    test_extra = {
+        str(requirement).split(">", 1)[0].split("<", 1)[0].split("=", 1)[0]
+        for requirement in project["project"]["optional-dependencies"]["test"]
+    }
+    for package in {"build", "setuptools", "wheel", "bandit", "pip-audit"}:
+        assert package in test_extra
 
 
 def test_ci_runs_runtime_verifier_and_lints_scripts() -> None:

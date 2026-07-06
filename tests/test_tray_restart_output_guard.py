@@ -6,7 +6,7 @@ import time
 import numpy as np
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
-from nanoleaf_sync.runtime.engine import run_loop
+from nanoleaf_sync.runtime.engine_loop import run_loop
 from nanoleaf_sync.runtime.output_session import OutputSessionController
 from nanoleaf_sync.runtime.state import RuntimeState
 from nanoleaf_sync.ui.tray_app import NanoleafTrayApp

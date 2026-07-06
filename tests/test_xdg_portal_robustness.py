@@ -188,6 +188,21 @@ def test_mapped_bytes_to_rgb_handles_bgrx_and_stride_padding() -> None:
     assert frame[0, 1].tolist() == [60, 50, 40]
 
 
+def test_mapped_bytes_to_rgb_uses_safe_path_on_big_endian(monkeypatch) -> None:
+    backend = XDGPortalCapture(width=1, height=1)
+    monkeypatch.setattr(sys, "byteorder", "big")
+
+    frame = backend._mapped_bytes_to_rgb(
+        payload=bytes([1, 2, 3]),
+        width=1,
+        height=1,
+        fmt="RGB",
+        stride=None,
+    )
+
+    assert frame is None
+
+
 @pytest.mark.parametrize("fmt", ["RGB", "BGR", "RGBx", "BGRx", "RGBA", "BGRA"])
 def test_mapped_bytes_to_rgb_supports_multiple_formats(fmt: str) -> None:
     backend = XDGPortalCapture(width=1, height=1)

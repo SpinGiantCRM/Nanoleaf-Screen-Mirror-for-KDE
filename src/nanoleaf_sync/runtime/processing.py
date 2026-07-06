@@ -4,7 +4,7 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from nanoleaf_sync.color._types import RGBTuple
+from nanoleaf_sync.color import RGBTuple
 from nanoleaf_sync.config.model import ZoneConfig
 from nanoleaf_sync.runtime.srgb import (
     linear01_to_srgb_float,

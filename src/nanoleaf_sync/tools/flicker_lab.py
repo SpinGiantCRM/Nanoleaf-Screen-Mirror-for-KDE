@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig
-from nanoleaf_sync.runtime.engine import _ensure_runtime_artifacts, process_frame
+from nanoleaf_sync.runtime.engine_frame import _ensure_runtime_artifacts, process_frame
 
 
 @dataclass(frozen=True)

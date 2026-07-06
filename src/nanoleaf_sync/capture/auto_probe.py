@@ -128,13 +128,16 @@ def probe_backends(
                 min(probe_config.instantiate_timeout_s, remaining),
                 op_name=f"{candidate} instantiate",
             )
+            if backend is None:
+                raise RuntimeError(f"{candidate} instantiate returned no backend")
+            probe_backend = backend
 
             try:
                 remaining = max(0.0, deadline - monotonic_s())
                 stats.attempted_captures += 1
 
-                def _warmup_capture(backend_obj: CaptureBackend = backend) -> np.ndarray:  # type: ignore[assignment]
-                    return backend_obj.capture()
+                def _warmup_capture(b: CaptureBackend = probe_backend) -> np.ndarray:
+                    return b.capture()
 
                 frame = call_with_timeout(
                     _warmup_capture,
@@ -172,8 +175,8 @@ def probe_backends(
                 try:
                     remaining = max(0.0, deadline - monotonic_s())
 
-                    def _probe_capture(backend_obj: CaptureBackend = backend) -> np.ndarray:  # type: ignore[assignment]
-                        return backend_obj.capture()
+                    def _probe_capture(b: CaptureBackend = probe_backend) -> np.ndarray:
+                        return b.capture()
 
                     frame = call_with_timeout(
                         _probe_capture,

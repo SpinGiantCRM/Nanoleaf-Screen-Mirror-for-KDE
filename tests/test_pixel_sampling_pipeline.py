@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
 import numpy as np
 
 from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture
@@ -192,16 +190,26 @@ def test_scale_zones_to_display_scales_coordinates() -> None:
     assert scaled[0][1] == 80
 
 
-def test_kmsgrab_skips_drm_patch_path_by_default(monkeypatch) -> None:
+def test_kmsgrab_uses_drm_patch_path_by_default(monkeypatch) -> None:
+    class _MockSampler:
+        width = 480
+        height = 270
+        capture_metadata = {"display_referred": True, "bit_depth": 8}
+
+        def capture_zone_rects(self, rects):
+            return np.zeros((len(rects), 3), dtype=np.uint8)
+
+        def close(self) -> None:
+            pass
+
+    monkeypatch.setattr(
+        "nanoleaf_sync.capture.kmsgrab.DRMZoneSampler",
+        lambda *args, **kwargs: _MockSampler(),
+    )
     capture = KMSGrabCapture(width=480, height=270, allow_fallback=False)
-    sampler = MagicMock()
-    sampler.capture_zone_rects.return_value = np.zeros((1, 3), dtype=np.uint8)
-    capture._drm_zone_sampler = sampler
-    capture._drm_zone_patch_capture = False  # disable patches for this test
     capture._drm_capture_impl = lambda **kwargs: np.zeros((270, 480, 3), dtype=np.uint8)
     out = capture.capture(zone_rects=[(0, 0, 20, 20)])
-    assert out.shape == (270, 480, 3)
-    sampler.capture_zone_rects.assert_not_called()
+    assert out.shape == (1, 3)
 
 
 def test_resolve_capture_dims_grows_with_zone_count() -> None:

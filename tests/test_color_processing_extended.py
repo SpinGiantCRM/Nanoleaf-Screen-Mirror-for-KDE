@@ -259,6 +259,77 @@ def test_rgb_oklch_roundtrip() -> None:
     lum, c, h = rgb_u8_to_oklch(rgb)
     result = oklch_to_rgb_u8(lum, c, h)
     assert result.shape == rgb.shape
-    # Should be close (some precision loss)
     diff = np.max(np.abs(result.astype(np.int32) - rgb.astype(np.int32)))
     assert diff < 10, f"Round-trip error too large: {diff}"
+
+
+# ---------------------------------------------------------------------------
+# Oklab near-black stability (epsilon fix)
+# ---------------------------------------------------------------------------
+
+
+def test_oklab_near_black_zero_input() -> None:
+    from nanoleaf_sync.runtime.color_processing import _linear_to_oklab
+
+    linear = np.zeros((2, 3), dtype=np.float32)
+    oklab = _linear_to_oklab(linear)
+    assert np.all(np.isfinite(oklab))
+    assert abs(float(oklab[0, 0])) < 0.01
+
+
+def test_oklab_near_black_very_dark() -> None:
+    from nanoleaf_sync.runtime.color_processing import _linear_to_oklab, _oklab_to_linear
+
+    linear = np.array([[1e-6, 0.0, 0.0], [0.0, 1e-6, 0.0], [0.0, 0.0, 1e-6]], dtype=np.float32)
+    oklab = _linear_to_oklab(linear)
+    assert np.all(np.isfinite(oklab))
+    reconstructed = _oklab_to_linear(oklab)
+    assert np.all(np.isfinite(reconstructed))
+    assert np.all(reconstructed >= -1e-6)
+
+
+def test_oklab_epsilon_roundtrip_black() -> None:
+    from nanoleaf_sync.runtime.color_processing import _linear_to_oklab, _oklab_to_linear
+
+    linear = np.zeros((1, 3), dtype=np.float32)
+    oklab = _linear_to_oklab(linear)
+    reconstructed = _oklab_to_linear(oklab)
+    assert np.all(np.isfinite(reconstructed))
+    assert np.all(reconstructed >= 0.0)
+    assert np.all(reconstructed <= 1e-7)
+
+
+def test_oklab_near_black_oklch_stability() -> None:
+    from nanoleaf_sync.runtime.color_processing import oklch_to_rgb_u8, rgb_u8_to_oklch
+
+    for val in range(0, 6):
+        rgb = np.array([[val, val, val]], dtype=np.uint8)
+        lum, c, h = rgb_u8_to_oklch(rgb)
+        assert np.isfinite(lum).all()
+        assert np.isfinite(c).all()
+        assert np.isfinite(h).all()
+        result = oklch_to_rgb_u8(lum, c, h)
+        assert np.all(np.isfinite(result))
+
+
+def test_oklab_near_black_dark_color() -> None:
+    from nanoleaf_sync.runtime.color_processing import oklch_to_rgb_u8, rgb_u8_to_oklch
+
+    dark_colors = [
+        (1, 0, 0),
+        (0, 1, 0),
+        (0, 0, 1),
+        (3, 2, 1),
+        (5, 0, 5),
+    ]
+    for r, g, b in dark_colors:
+        rgb = np.array([[r, g, b]], dtype=np.uint8)
+        lum, c, h = rgb_u8_to_oklch(rgb)
+        assert np.all(np.isfinite(lum)), f"non-finite lum for ({r},{g},{b})"
+        assert np.all(np.isfinite(c)), f"non-finite chroma for ({r},{g},{b})"
+        assert np.all(np.isfinite(h) | (c < 1e-8)), f"non-finite hue for ({r},{g},{b})"
+        result = oklch_to_rgb_u8(lum, c, h)
+        assert result.dtype == np.uint8
+        assert int(result[0, 0]) <= 5
+        assert int(result[0, 1]) <= 5
+        assert int(result[0, 2]) <= 5

@@ -4,7 +4,7 @@ import ctypes
 import numpy as np
 import pytest
 
-from nanoleaf_sync.capture.backend_normalization import normalize_capture_backend
+from nanoleaf_sync.capture.backend_selection import normalize_capture_backend
 from nanoleaf_sync.capture.errors import KMSGrabError
 from nanoleaf_sync.capture.factory import create_capture_backend
 from nanoleaf_sync.capture.kmsgrab import KMSGrabCapture
@@ -463,6 +463,9 @@ def test_nvidia_x_tiled_pixel_offset_and_zone_read() -> None:
     sampler._pitch_bytes = width * 4
     sampler._fourcc = _FOURCC_XB24
     sampler._nvidia_x_tiled = True
+    sampler._card_path = "/dev/dri/card0"
+    sampler._modifier = 0x03 << 56
+    sampler._connector_colorspace = None
     sampler._remount_count = 0
     sampler._crtc_id = 1
     sampler._fb_id = 1
@@ -501,6 +504,8 @@ def test_drm_zone_sampler_decodes_10bit_xb30_pixel() -> None:
     sampler._height = 4
     sampler._pitch_bytes = 16
     sampler._fourcc = _FOURCC_XB30
+    sampler._card_path = "/dev/dri/card0"
+    sampler._modifier = 0
     sampler._mapped_ptr = 0
     sampler._remount_count = 0
     sampler._crtc_id = 1

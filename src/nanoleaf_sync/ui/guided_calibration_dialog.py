@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 
 from nanoleaf_sync.runtime.guided_calibration import GuidedCalibrationSession, GuidedResponse
-from nanoleaf_sync.runtime.novel_features import guided_calibration_enabled
 from nanoleaf_sync.runtime.pattern_generator import (
     anchor_blip,
     corner_screen_position,
@@ -13,7 +13,12 @@ from nanoleaf_sync.runtime.pattern_generator import (
 
 
 def build_guided_calibration_dialog(qt: object):
-    if not guided_calibration_enabled():
+    if not os.environ.get("NANOLEAF_ENABLE_GUIDED_CALIB", "1").strip().lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }:
         return None
     from PyQt6.QtCore import Qt, QTimer
     from PyQt6.QtGui import QImage, QPainter, QPixmap

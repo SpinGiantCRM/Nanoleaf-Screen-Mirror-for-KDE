@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from nanoleaf_sync.runtime.engine import _adaptive_one_euro_blend
+from nanoleaf_sync.runtime.engine_frame import _adaptive_one_euro_blend
 
 
 def _blend(

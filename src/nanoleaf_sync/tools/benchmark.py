@@ -11,9 +11,9 @@ from typing import Any, cast
 
 import numpy as np
 
-from nanoleaf_sync.color._types import RGBTuple
+from nanoleaf_sync.color import RGBTuple
 from nanoleaf_sync.device.protocol import CMD_SET_ZONE_COLORS, NanoleafTLVProtocol
-from nanoleaf_sync.runtime.engine import process_frame
+from nanoleaf_sync.runtime.engine_frame import process_frame
 from nanoleaf_sync.runtime.processing import zones_from_config
 from nanoleaf_sync.runtime.zone_presets import make_edge_weighted_zones
 from nanoleaf_sync.runtime.zones import zone_colors_array

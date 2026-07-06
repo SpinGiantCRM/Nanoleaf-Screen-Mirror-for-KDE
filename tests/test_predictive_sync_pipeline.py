@@ -5,7 +5,7 @@ import numpy as np
 from nanoleaf_sync.config.presets import SYNC_MODE_4D
 from nanoleaf_sync.runtime.color_pipeline import ColorPipelineParams, process_zone_colors
 from nanoleaf_sync.runtime.processing import zones_from_config
-from nanoleaf_sync.ui.zone_presets import make_edge_weighted_zones
+from nanoleaf_sync.runtime.zone_presets import make_edge_weighted_zones
 
 
 def _run_pipeline(

@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 
 def _evaluate_stale_output_drop(**kwargs):
-    from nanoleaf_sync.runtime.engine import evaluate_stale_output_drop
+    from nanoleaf_sync.runtime.engine_frame import evaluate_stale_output_drop
 
     return evaluate_stale_output_drop(**kwargs)
 
@@ -66,6 +66,17 @@ def hid_writer_loop(ctx: LoopPipelineContext) -> None:
             continue
         ctx.state.hid_worker_idle.set()
         try:
+            now = time.perf_counter()
+            pace_fps = min(
+                max(1, int(getattr(ctx.config, "fps", 60))),
+                max(1, int(ctx.governor.target_fps)),
+            )
+            if next_send_deadline_ts is not None and now < next_send_deadline_ts:
+                wait_s = next_send_deadline_ts - now
+                if wait_s > 0.0005:
+                    time.sleep(min(wait_s, _WORKER_POLL_INTERVAL_S))
+                continue
+
             payload = ctx.process_buf.pop_latest(timeout=_WORKER_POLL_INTERVAL_S)
             coalesced_sends = int(ctx.process_buf.last_pop_coalesced)
             now = time.perf_counter()
@@ -118,16 +129,6 @@ def hid_writer_loop(ctx: LoopPipelineContext) -> None:
                 ctx.state.hid_worker_idle.set()
                 continue
             ctx.state.hid_worker_idle.clear()
-
-            pace_fps = min(
-                max(1, int(getattr(ctx.config, "fps", 60))),
-                max(1, int(ctx.governor.target_fps)),
-            )
-            if next_send_deadline_ts is not None and now < next_send_deadline_ts:
-                wait_s = next_send_deadline_ts - now
-                if wait_s > 0.0005:
-                    time.sleep(min(wait_s, _WORKER_POLL_INTERVAL_S))
-                continue
 
             if hasattr(driver, "_live_target_fps"):
                 driver._live_target_fps = int(ctx.governor.target_fps)

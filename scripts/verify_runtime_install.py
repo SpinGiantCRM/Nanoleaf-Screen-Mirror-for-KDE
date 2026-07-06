@@ -15,6 +15,11 @@ REQUIRED_COMMANDS = (
     "nanoleaf-kde-sync-service",
     "nanoleaf-kde-sync-doctor",
     "nanoleaf-kde-sync-smoke-test",
+    "nanoleaf-kde-sync-init-config",
+    "nanoleaf-kde-sync-autostart",
+    "nanoleaf-kde-sync-reset",
+    "nanoleaf-kde-sync-benchmark",
+    "nanoleaf-kde-sync-setup-permissions",
 )
 
 

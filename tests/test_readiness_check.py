@@ -72,6 +72,23 @@ def test_ready_when_everything_ok() -> None:
     assert report.ready is True
 
 
+def test_initialized_existing_driver_skips_hid_probe() -> None:
+    calls: list[str] = []
+    existing_driver = type("InitializedDriver", (), {"initialized": True})()
+
+    report = run_readiness_check(
+        config=_valid_config(),
+        runtime_status={},
+        source_zone_count=4,
+        capture_probe=lambda _cfg: None,
+        device_probe=lambda _cfg: calls.append("probe") or None,
+        existing_driver=existing_driver,
+    )
+
+    assert report.status == READY_STATUS
+    assert calls == []
+
+
 def test_ready_when_running_with_no_errors() -> None:
     """Running but no consecutive errors should still report ready."""
     report = _check(

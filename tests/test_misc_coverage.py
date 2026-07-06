@@ -25,11 +25,9 @@ from nanoleaf_sync.config.presets import (
     normalize_preset,
     sampling_quality_to_zone_stride,
 )
-from nanoleaf_sync.config.serialization import (
+from nanoleaf_sync.config.store import (
     _prepare_payload_for_round_trip,
     dump_toml,
-    toml_render_list,
-    toml_render_scalar,
 )
 
 # ===========================================================================
@@ -192,36 +190,6 @@ def test_analyzer_mode_dynamic() -> None:
 
 def test_analyzer_mode_hyper() -> None:
     assert analyzer_mode_for_presets(motion_preset="dynamic", color_style="punchy") == "hyper"
-
-
-# ===========================================================================
-# serialization.py
-# ===========================================================================
-
-
-def test_toml_render_scalar_bool() -> None:
-    assert toml_render_scalar(True) == "true"
-    assert toml_render_scalar(False) == "false"
-
-
-def test_toml_render_scalar_string() -> None:
-    assert toml_render_scalar("hello") == '"hello"'
-
-
-def test_toml_render_scalar_int() -> None:
-    assert toml_render_scalar(42) == "42"
-
-
-def test_toml_render_scalar_float() -> None:
-    assert toml_render_scalar(3.14) == "3.14"
-
-
-def test_toml_render_scalar_none() -> None:
-    assert toml_render_scalar(None) == '""'
-
-
-def test_toml_render_list() -> None:
-    assert toml_render_list([1, 2, 3]) == "[1, 2, 3]"
 
 
 def test_dump_toml_basic() -> None:

@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import socket
 import struct
-import threading
-import time
 from pathlib import Path
 
 import pytest
@@ -16,6 +13,7 @@ def test_request_helper_mmap_parses_reply(monkeypatch: pytest.MonkeyPatch, tmp_p
     helper.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     helper.chmod(0o755)
     monkeypatch.setattr(bridge, "_helper_binary_path", lambda: helper)
+    monkeypatch.setattr(bridge, "_helper_launch_allowed", lambda _helper: True)
     monkeypatch.setattr(bridge.tempfile, "gettempdir", lambda: str(tmp_path))
     monkeypatch.setattr(bridge.os, "getpid", lambda: 999)
 
@@ -33,6 +31,27 @@ def test_request_helper_mmap_parses_reply(monkeypatch: pytest.MonkeyPatch, tmp_p
         modifier >> 32,
     )
     sent: dict[str, object] = {}
+    server_state: dict[str, object] = {}
+
+    class _FakeServer:
+        def bind(self, path: str) -> None:
+            server_state["bound_path"] = path
+
+        def listen(self, backlog: int) -> None:
+            server_state["listen_backlog"] = backlog
+
+        def settimeout(self, timeout: float) -> None:
+            server_state["timeout"] = timeout
+
+        def close(self) -> None:
+            server_state["closed"] = True
+
+    class _FakeConn:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc) -> None:
+            server_state["conn_closed"] = True
 
     class _FakeProc:
         returncode = 0
@@ -45,28 +64,11 @@ def test_request_helper_mmap_parses_reply(monkeypatch: pytest.MonkeyPatch, tmp_p
 
     def _popen(args, **_kwargs):
         sent["args"] = args
-        sock_path = str(args[2])
-        pass_fd, _peer_fd = socket.socketpair()
-
-        def _client() -> None:
-            time.sleep(0.05)
-            client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            try:
-                client.connect(sock_path)
-                # Match real helper behavior: payload + SCM_RIGHTS in ONE sendmsg
-                iov = [payload]
-                cmsg = struct.pack("i", pass_fd.fileno())
-                client.sendmsg(
-                    iov,
-                    [(socket.SOL_SOCKET, socket.SCM_RIGHTS, cmsg)],
-                )
-            finally:
-                client.close()
-                pass_fd.close()
-
-        threading.Thread(target=_client, daemon=True).start()
         return _FakeProc()
 
+    monkeypatch.setattr(bridge.socket, "socket", lambda *_args, **_kwargs: _FakeServer())
+    monkeypatch.setattr(bridge, "_accept_helper_connection", lambda _server, _proc: _FakeConn())
+    monkeypatch.setattr(bridge, "_recv_payload_with_fds", lambda _conn, _size: (payload, [123]))
     monkeypatch.setattr(bridge.subprocess, "Popen", _popen)
     monkeypatch.setattr(bridge, "_fd_is_dma_buf", lambda _fd: True)
 
@@ -88,3 +90,7 @@ def test_request_helper_mmap_parses_reply(monkeypatch: pytest.MonkeyPatch, tmp_p
         f"{tmp_path}/nanoleaf_drm_999_0.sock",
         "0",
     ]
+    assert server_state["bound_path"] == f"{tmp_path}/nanoleaf_drm_999_0.sock"
+    assert server_state["listen_backlog"] == 1
+    assert server_state["closed"] is True
+    assert server_state["conn_closed"] is True

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>nanoleaf-kde-sync</id>
+  <id>io.github.spingiantcrm.nanoleaf-kde-sync</id>
   <name>nanoleaf-kde-sync</name>
   <summary>Nanoleaf screen mirroring for KDE Plasma on Linux</summary>
   <description>
@@ -14,7 +14,7 @@
   <launchable type="desktop-id">nanoleaf-kde-sync.desktop</launchable>
   <metadata_license>FSFAP</metadata_license>
   <project_license>LicenseRef-Nanoleaf-Source-Available-Non-Commercial</project_license>
-  <developer id="com.github.SpinGiantCRM">
+  <developer id="io.github.spingiantcrm">
     <name>SpinGiantCRM</name>
   </developer>
   <url type="homepage">https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE</url>

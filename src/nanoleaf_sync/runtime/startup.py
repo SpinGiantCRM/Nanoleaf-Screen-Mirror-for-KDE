@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 _PRIORITY_TARGET_BY_MODE = {
     "normal": None,
     "high": -5,
-    "very_high_experimental": -10,
+    "very_high": -10,
 }
 
 
@@ -201,7 +201,7 @@ def run_runtime_engine(
     can_mirroring_write: Callable[[], bool] | None = None,
 ) -> None:
     try:
-        from nanoleaf_sync.runtime.engine import run_loop
+        from nanoleaf_sync.runtime.engine_loop import run_loop
 
         state.reset_for_start()
         apply_process_priority(config=config, state=state)
@@ -220,7 +220,6 @@ def run_runtime_engine(
             get_driver=get_driver,
             install_drivers=install_drivers,
             close_backends=close_backends,
-            use_legacy_pipeline=bool(getattr(config, "use_legacy_pipeline", False)),
             can_mirroring_write=can_mirroring_write,
         )
     except Exception as e:

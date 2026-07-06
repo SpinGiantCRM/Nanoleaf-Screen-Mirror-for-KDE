@@ -60,6 +60,7 @@ class KMSGrabCapture:
         hdr_primaries: str = "bt709",
         allow_fallback: bool = True,
         drm_zone_patch_capture: bool = False,
+        capture_monitor: str = "",
     ) -> None:
         self.params = KMSGrabParams(
             width=width,
@@ -98,11 +99,13 @@ class KMSGrabCapture:
         self._resize_index_cache_limit = 8
         self._drm_capture_impl = self._resolve_drm_capture_impl()
         self._drm_zone_sampler: DRMZoneSampler | None = None
+        self._capture_monitor = str(capture_monitor or "").strip()
         self._vulkan_zone_sampler: VulkanZoneSampler | None = None
         if self._drm_capture_impl is None:
             try:
                 self._drm_zone_sampler = DRMZoneSampler(
                     card_path=self.params.card_path,
+                    capture_monitor=self._capture_monitor,
                 )
                 _log.debug(
                     "kmsgrab: DRMZoneSampler initialised on %s (%dx%d)",
@@ -127,10 +130,17 @@ class KMSGrabCapture:
         fd = int(getattr(sampler, "dma_buf_fd", -1))
         if fd < 0:
             return
+        mapped_size = int(getattr(sampler, "_mapped_size", 0) or 0)
         self._vulkan_zone_sampler = VulkanZoneSampler.try_create(
             width=sampler.width,
             height=sampler.height,
             dma_buf_fd=fd,
+            pitch_bytes=int(getattr(sampler, "_pitch_bytes", 0) or 0),
+            fourcc=int(getattr(sampler, "_fourcc", 0) or 0),
+            modifier=int(getattr(sampler, "_modifier", 0) or 0),
+            mapped_size=mapped_size,
+            card_path=str(getattr(sampler, "_card_path", "") or ""),
+            cpu_sampler=sampler,
         )
 
     def close(self) -> None:
@@ -232,7 +242,31 @@ class KMSGrabCapture:
             return fallback_rgb
 
     def _capture_drm_rgb(self) -> np.ndarray:
-        """Try available DRM capture bindings, otherwise raise KMSGrabError."""
+        """Try available DRM capture bindings, otherwise use in-tree zone sampler."""
+        if self._drm_capture_impl is None and self._drm_zone_sampler is not None:
+            sampler = self._drm_zone_sampler
+            w = int(sampler.width)
+            h = int(sampler.height)
+            step_x = max(1, w // max(1, int(self.params.width)))
+            step_y = max(1, h // max(1, int(self.params.height)))
+            rects = [
+                (x, y, step_x, step_y) for y in range(0, h, step_y) for x in range(0, w, step_x)
+            ]
+            patches = sampler.capture_zone_rects(rects)
+            converted = self._convert_zone_result_if_needed(patches)
+            grid_w = max(1, len(range(0, w, step_x)))
+            grid_h = max(1, len(range(0, h, step_y)))
+            grid = converted.reshape(grid_h, grid_w, 3)
+            from nanoleaf_sync.capture._utils import _resize_to_target
+
+            return _resize_to_target(
+                frame=grid,
+                target_height=int(self.params.height),
+                target_width=int(self.params.width),
+                index_cache=self._resize_index_cache,
+                index_cache_limit=self._resize_index_cache_limit,
+            )
+
         if self._drm_capture_impl is None:
             raise KMSGrabError(
                 "DRM/KMS capture bindings are not available yet "
@@ -320,7 +354,7 @@ class KMSGrabCapture:
 
     def _record_drm_hdr_diagnostics(self, rgb: np.ndarray) -> None:
         sampler = self._drm_zone_sampler
-        if sampler is None or not bool(getattr(sampler, "is_10bit", False)):
+        if sampler is None:
             return
         capture_meta = sampler.capture_metadata
         if callable(capture_meta):

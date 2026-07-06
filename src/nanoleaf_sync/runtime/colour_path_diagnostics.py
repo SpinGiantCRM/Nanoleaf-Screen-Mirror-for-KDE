@@ -13,7 +13,7 @@ from nanoleaf_sync.runtime.diagnostics_exports import write_png
 
 if TYPE_CHECKING:
     from nanoleaf_sync.config.model import AppConfig
-    from nanoleaf_sync.runtime.engine import FrameProcessingTimings
+    from nanoleaf_sync.runtime.engine_frame import FrameProcessingTimings
 
 _RGB = tuple[int, int, int]
 _STAGE_KEYS = (

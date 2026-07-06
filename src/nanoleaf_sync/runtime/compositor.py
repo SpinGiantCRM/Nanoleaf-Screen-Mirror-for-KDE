@@ -26,8 +26,9 @@ def zone_sdr_boost_undo_ratio(
     zones: np.ndarray,
     *,
     sdr_boost_nits: float,
+    hdr_max_nits: float = 1000.0,
 ) -> np.ndarray:
-    boost = effective_sdr_boost(sdr_boost_nits=sdr_boost_nits)
+    boost = effective_sdr_boost(sdr_boost_nits=sdr_boost_nits, hdr_max_nits=hdr_max_nits)
     if boost <= 1.0:
         return np.zeros(int(np.asarray(zones).shape[0]), dtype=np.float32)
     linear = srgb_encoded_float_to_linear01(np.asarray(zones, dtype=np.float32))
@@ -39,10 +40,12 @@ def zone_sdr_boost_undo_ratio(
     return _luminance_adaptive_undo_ratio(y)
 
 
-def effective_sdr_boost(*, sdr_boost_nits: float) -> float:
+def effective_sdr_boost(*, sdr_boost_nits: float, hdr_max_nits: float = 1000.0) -> float:
     """Return the linear SDR boost scalar relative to the KDE SDR reference."""
 
-    return max(0.0, float(sdr_boost_nits)) / _SDR_REFERENCE_NITS
+    base = max(0.0, float(sdr_boost_nits)) / _SDR_REFERENCE_NITS
+    headroom = max(1.0, float(hdr_max_nits)) / 1000.0
+    return base * min(headroom, 4.0)
 
 
 def apply_sdr_boost_compensation(
@@ -60,7 +63,7 @@ def apply_sdr_boost_compensation(
     if frame.dtype != np.uint8:
         frame = np.clip(np.rint(frame), 0.0, 255.0).astype(np.uint8, copy=False)
 
-    boost = effective_sdr_boost(sdr_boost_nits=sdr_boost_nits)
+    boost = effective_sdr_boost(sdr_boost_nits=sdr_boost_nits, hdr_max_nits=hdr_max_nits)
     if boost <= 1.0:
         return frame
 
@@ -77,7 +80,7 @@ def apply_zone_sdr_boost_float(
     sdr_boost_nits: float,
     hdr_max_nits: float,
 ) -> np.ndarray:
-    boost = effective_sdr_boost(sdr_boost_nits=sdr_boost_nits)
+    boost = effective_sdr_boost(sdr_boost_nits=sdr_boost_nits, hdr_max_nits=hdr_max_nits)
     zones_f = np.asarray(zones, dtype=np.float32)
     if boost <= 1.0:
         return zones_f
@@ -108,7 +111,7 @@ def apply_zone_sdr_boost(
     if zones.dtype != np.uint8:
         zones = np.clip(np.rint(zones), 0.0, 255.0).astype(np.uint8, copy=False)
 
-    boost = effective_sdr_boost(sdr_boost_nits=sdr_boost_nits)
+    boost = effective_sdr_boost(sdr_boost_nits=sdr_boost_nits, hdr_max_nits=hdr_max_nits)
     if boost <= 1.0:
         return zones
 

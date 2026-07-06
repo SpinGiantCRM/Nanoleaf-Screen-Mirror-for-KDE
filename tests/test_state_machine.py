@@ -9,7 +9,7 @@ import pytest
 
 from nanoleaf_sync.capture.interfaces import CaptureBackend
 from nanoleaf_sync.config.model import AppConfig, CalibrationConfig, ZoneConfig
-from nanoleaf_sync.runtime.engine import run_loop
+from nanoleaf_sync.runtime.engine_loop import run_loop
 from nanoleaf_sync.runtime.output_session import OutputSessionController
 from nanoleaf_sync.runtime.startup import RuntimeLifecycle
 from nanoleaf_sync.runtime.state import RuntimeState
@@ -288,3 +288,155 @@ def test_settings_save_while_mirroring_replaces_service(
     assert fake_tray.service.config.device_zone_count == 0
     assert fake_tray.service.config.output_channel_order == "grb"
     assert service.stop_calls >= 1
+
+
+def test_tray_start_ignores_non_idle_states_without_calling_service_start() -> None:
+    class _StartGuardService(_FakeService):
+        def __init__(self, *, config: AppConfig, startup_state: str) -> None:
+            super().__init__(config=config, running=startup_state == "running")
+            self.startup_state = startup_state
+            self.start_calls = 0
+
+        def get_status(self) -> dict:
+            return {"startup_state": self.startup_state}
+
+        def start(self) -> bool:
+            self.start_calls += 1
+            return super().start()
+
+    for startup_state in ("starting", "waiting_for_screen_selection", "running", "stopping"):
+        service = _StartGuardService(
+            config=AppConfig(device_zone_count=4),
+            startup_state=startup_state,
+        )
+        tray = SimpleNamespace(
+            service=service,
+            _refresh_mode_labels=lambda: None,
+            _schedule_startup_refresh=lambda: None,
+        )
+
+        NanoleafTrayApp.on_start(tray)  # type: ignore[arg-type]
+
+        assert service.start_calls == 0
+
+
+def test_settings_apply_callback_restarts_mirroring_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _ApplyThenCloseDialog(_FakeDialog):
+        def __init__(self, parent, cfg, on_apply=None, **_kwargs) -> None:
+            super().__init__(parent, cfg, **_kwargs)
+            self._on_apply = on_apply
+
+        def exec(self) -> int:
+            if callable(self._on_apply):
+                self._on_apply(AppConfig(device_zone_count=4, fps=90))
+            return 0
+
+        def settings_applied_in_session(self) -> bool:
+            return True
+
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.SettingsDialog", _ApplyThenCloseDialog)
+
+    original_cfg = AppConfig(device_zone_count=4, fps=30)
+    service = _FakeService(config=original_cfg, running=True)
+    cfg_mgr = _FakeCfgMgr(original_cfg)
+    restarts = {"count": 0}
+    fake_tray = SimpleNamespace(
+        config=original_cfg,
+        cfg_mgr=cfg_mgr,
+        service=service,
+        QDialog=SimpleNamespace(DialogCode=SimpleNamespace(Accepted=1)),
+        QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Warning=1)),
+        tray_icon=SimpleNamespace(showMessage=lambda *_a, **_k: None),
+        _send_calibration_preview=lambda _colors: None,
+        _close_preview_driver=lambda: False,
+        _preview_paused_service=False,
+        _restart_mirroring_service=lambda *, was_running: restarts.__setitem__(
+            "count", restarts["count"] + int(was_running)
+        ),
+    )
+
+    NanoleafTrayApp.on_settings(fake_tray)  # type: ignore[arg-type]
+
+    assert cfg_mgr.saved is not None
+    assert cfg_mgr.saved.fps == 90
+    assert restarts["count"] == 1
+
+
+def test_settings_opens_with_empty_runtime_status_when_service_status_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen_runtime_status: list[dict] = []
+
+    class _StatusFailService(_FakeService):
+        def get_status(self) -> dict:
+            raise RuntimeError("status unavailable")
+
+    class _Dialog(_FakeDialog):
+        def __init__(self, parent, cfg, runtime_status=None, **kwargs) -> None:
+            super().__init__(parent, cfg, **kwargs)
+            seen_runtime_status.append(runtime_status)
+
+        def exec(self) -> int:
+            return 0
+
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.SettingsDialog", _Dialog)
+
+    cfg = AppConfig(device_zone_count=4)
+    service = _StatusFailService(config=cfg, running=False)
+    tray = SimpleNamespace(
+        config=cfg,
+        cfg_mgr=_FakeCfgMgr(cfg),
+        service=service,
+        QDialog=SimpleNamespace(DialogCode=SimpleNamespace(Accepted=1)),
+        QSystemTrayIcon=SimpleNamespace(MessageIcon=SimpleNamespace(Warning=1)),
+        tray_icon=SimpleNamespace(showMessage=lambda *_a, **_k: None),
+        _send_calibration_preview=lambda _colors: None,
+        _close_preview_driver=lambda: False,
+        _preview_paused_service=False,
+        _refresh_mode_labels=lambda: None,
+    )
+
+    NanoleafTrayApp.on_settings(tray)  # type: ignore[arg-type]
+
+    assert seen_runtime_status == [{}]
+
+
+def test_display_configurator_opens_with_empty_runtime_status_when_service_status_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen_runtime_status: list[dict] = []
+
+    class _StatusFailService(_FakeService):
+        def get_status(self) -> dict:
+            raise RuntimeError("status unavailable")
+
+    class _DisplayDialog:
+        def __init__(self, parent, cfg, runtime_status=None, **_kwargs) -> None:
+            self._cfg = cfg
+            seen_runtime_status.append(runtime_status)
+
+        def exec(self) -> int:
+            return 0
+
+        def in_progress_config(self) -> AppConfig:
+            return self._cfg
+
+        def updated_config(self) -> AppConfig:
+            return self._cfg
+
+    monkeypatch.setattr("nanoleaf_sync.ui.tray_app.DisplayConfiguratorDialog", _DisplayDialog)
+
+    cfg = AppConfig(device_zone_count=4)
+    service = _StatusFailService(config=cfg, running=False)
+    tray = SimpleNamespace(
+        config=cfg,
+        cfg_mgr=_FakeCfgMgr(cfg),
+        service=service,
+        QDialog=SimpleNamespace(DialogCode=SimpleNamespace(Accepted=1)),
+        _send_calibration_preview=lambda _colors: None,
+        _close_preview_driver=lambda: False,
+    )
+
+    NanoleafTrayApp.on_display_configurator(tray)  # type: ignore[arg-type]
+
+    assert seen_runtime_status == [{}]

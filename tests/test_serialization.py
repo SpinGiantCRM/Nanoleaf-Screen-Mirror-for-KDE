@@ -2,57 +2,12 @@
 
 from __future__ import annotations
 
-import json
 from copy import deepcopy
 
-from nanoleaf_sync.config.serialization import (
+from nanoleaf_sync.config.store import (
     _prepare_payload_for_round_trip,
     dump_toml,
-    toml_render_list,
-    toml_render_scalar,
 )
-
-
-def test_toml_render_bool_true() -> None:
-    assert toml_render_scalar(True) == "true"
-
-
-def test_toml_render_bool_false() -> None:
-    assert toml_render_scalar(False) == "false"
-
-
-def test_toml_render_string() -> None:
-    assert toml_render_scalar("hello") == json.dumps("hello")
-
-
-def test_toml_render_int() -> None:
-    assert toml_render_scalar(42) == "42"
-
-
-def test_toml_render_float() -> None:
-    assert toml_render_scalar(3.14) == "3.14"
-
-
-def test_toml_render_negative_int() -> None:
-    assert toml_render_scalar(-7) == "-7"
-
-
-def test_toml_render_none() -> None:
-    assert toml_render_scalar(None) == '""'
-
-
-def test_toml_render_list() -> None:
-    result = toml_render_list([1, 2, 3])
-    assert result == "[1, 2, 3]"
-
-
-def test_toml_render_list_strings() -> None:
-    result = toml_render_list(["a", "b"])
-    assert result == '["a", "b"]'
-
-
-def test_toml_render_list_empty() -> None:
-    assert toml_render_list([]) == "[]"
 
 
 def test_dump_toml_calibration_roundtrip() -> None:

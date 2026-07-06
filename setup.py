@@ -7,9 +7,9 @@ must be tagged ``linux_x86_64`` instead of ``py3-none-any``.
 from setuptools import setup
 
 try:
-    from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
-except ImportError:  # pragma: no cover - wheel is a build dependency
     from setuptools.command.bdist_wheel import bdist_wheel as _bdist_wheel
+except ImportError:  # pragma: no cover - compatibility with older build envs
+    from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
 
 
 class bdist_wheel(_bdist_wheel):

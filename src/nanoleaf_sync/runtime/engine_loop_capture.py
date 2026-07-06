@@ -26,9 +26,6 @@ logger = logging.getLogger(__name__)
 def capture_worker_loop(ctx: LoopPipelineContext) -> None:
 
     apply_current_thread_priority(config=ctx.config, state=ctx.state, thread_label="capture worker")
-    from nanoleaf_sync.runtime.fixed_timestep import FixedTimestepAccumulator
-
-    capture_pacing = FixedTimestepAccumulator(1.0 / max(1.0, float(getattr(ctx.config, "fps", 60))))
     with ctx.metrics_lock:
         ctx.capture_worker_active = True
     while not ctx.state.stop_event.is_set():
@@ -40,7 +37,6 @@ def capture_worker_loop(ctx: LoopPipelineContext) -> None:
         if ctx.state.take_capture_buf_clear_request():
             ctx.capture_buf.clear()
         try:
-            capture_pacing.tick()
             with ctx.gov_lock:
                 gap_ewma = ctx.hid_output_work_ewma_ms
                 target_fps_now = min(

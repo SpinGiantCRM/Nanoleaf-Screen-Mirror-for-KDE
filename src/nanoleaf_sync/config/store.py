@@ -6,9 +6,12 @@ import os
 import shutil
 import tempfile
 import tomllib
+from copy import deepcopy
 from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
+
+import tomli_w
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +26,6 @@ from nanoleaf_sync.config.normalize import (
     validate_config,
     validate_raw_config_values,
 )
-from nanoleaf_sync.config.serialization import dump_toml
 
 
 def default_config_path() -> Path:
@@ -47,11 +49,7 @@ class ConfigManager:
         self.path = Path(path) if path is not None else default_config_path()
         self._config: AppConfig | None = None
 
-    def _migrate_json_if_present(self) -> None:
-        return
-
     def load(self) -> AppConfig:
-        self._migrate_json_if_present()
         if not self.path.exists():
             self._config = AppConfig()
             return self._config
@@ -92,17 +90,32 @@ class ConfigManager:
             try:
                 shutil.copy2(self.path, backup_path)
                 logger.warning(
-                    "Config validation failed at %s; backed up to %s and using defaults: %s",
+                    "Config validation failed at %s; backed up to %s; attempting repair: %s",
                     self.path,
                     backup_path,
                     exc,
                 )
             except OSError as copy_exc:
                 logger.warning(
-                    "Config validation failed at %s; could not back up (%s); using defaults: %s",
+                    "Config validation failed at %s; could not back up (%s); attempting repair: %s",
                     self.path,
                     copy_exc,
                     exc,
+                )
+            try:
+                migrated_data = migrate_config_dict(data)
+                cfg = from_dict(
+                    data_class=AppConfig,
+                    data=migrated_data,
+                    config=DaciteConfig(strict=False, cast=[int, float, str, bool]),
+                )
+                self._config = validate_config(cfg)
+                return self._config
+            except Exception as repair_exc:
+                logger.warning(
+                    "Config repair failed at %s; using defaults: %s",
+                    self.path,
+                    repair_exc,
                 )
             self._config = AppConfig()
             return self._config
@@ -265,3 +278,21 @@ class ConfigManager:
                     tmp_path.unlink()
                 except Exception:
                     logger.debug("Failed to unlink temp config file", exc_info=True)
+
+
+def _prepare_payload_for_round_trip(payload: dict[str, Any]) -> dict[str, Any]:
+    prepared = deepcopy(payload)
+    calibration = prepared.get("calibration")
+    if isinstance(calibration, dict):
+        schema_version = calibration.get(
+            "calibration_schema_version",
+            calibration.get("schema_version", prepared.get("calibration_schema_version", 1)),
+        )
+        calibration["schema_version"] = schema_version
+        calibration["calibration_schema_version"] = schema_version
+        prepared["calibration_schema_version"] = schema_version
+    return prepared
+
+
+def dump_toml(payload: dict[str, Any]) -> str:
+    return str(tomli_w.dumps(_prepare_payload_for_round_trip(payload)))

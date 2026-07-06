@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from collections.abc import Sequence
 from typing import Any
@@ -33,7 +34,6 @@ from nanoleaf_sync.device.send_policy import (
     degrade_policy_on_missed_acks,
     select_live_send_policy,
 )
-from nanoleaf_sync.runtime.novel_features import mailbox_send_enabled
 
 
 class NanoleafUSBDriver(DeviceDriver):
@@ -75,7 +75,9 @@ class NanoleafUSBDriver(DeviceDriver):
         self._configured_zone_count = max(0, int(configured_zone_count))
         self._enable_live_frame_write_optimization = bool(enable_live_frame_write_optimization)
         self._prefer_write_only_live_send = bool(prefer_write_only_live_send)
-        self._prefer_mailbox_live_send = bool(prefer_mailbox_live_send) and mailbox_send_enabled()
+        self._prefer_mailbox_live_send = bool(prefer_mailbox_live_send) and os.environ.get(
+            "NANOLEAF_ENABLE_MAILBOX_SEND", "1"
+        ).strip().lower() not in {"0", "false", "no", "off"}
         self._auto_turn_on = bool(auto_turn_on)
         self._allow_live_zone_padding = bool(allow_live_zone_padding)
         order = str(output_channel_order or "grb").strip().lower()

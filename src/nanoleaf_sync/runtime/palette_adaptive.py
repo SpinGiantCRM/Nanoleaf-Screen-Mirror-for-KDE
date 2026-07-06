@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from nanoleaf_sync.color._types import RGBTuple
+from nanoleaf_sync.color import RGBTuple
 from nanoleaf_sync.runtime.palette_temporal import ZonePaletteTemporalState
 from nanoleaf_sync.runtime.srgb import (
     linear01_to_srgb_float,

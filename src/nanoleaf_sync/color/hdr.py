@@ -10,6 +10,7 @@ Goal:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
@@ -21,6 +22,8 @@ from nanoleaf_sync.runtime.srgb import (
     linear01_to_srgb_encoded,
     srgb_eotf_to_linear01,
 )
+
+logger = logging.getLogger(__name__)
 
 TransferFn = Literal["srgb", "pq", "hlg", "linear", "gamma22", "unknown"]
 Primaries = Literal["bt709", "bt2020", "unknown"]
@@ -237,15 +240,6 @@ def _apply_tonemap_hable_luminance_preserving(
     return cast(np.ndarray, np.clip(mapped, 0.0, 1.0))
 
 
-def _looks_sdr_encoded(enc: np.ndarray, *, transfer: str) -> bool:
-    p99 = float(np.percentile(enc, 99.5))
-    if transfer == "pq":
-        return p99 < 0.58
-    if transfer == "hlg":
-        return p99 < 0.70
-    return True
-
-
 def _metadata_bit_depth(metadata: Any | None) -> int | None:
     if not isinstance(metadata, dict):
         return None
@@ -256,6 +250,29 @@ def _metadata_bit_depth(metadata: Any | None) -> int | None:
         return int(raw)
     except (TypeError, ValueError):
         return None
+
+
+_HDR_ADAPTIVE_BLEND_LOW = 0.30
+_HDR_ADAPTIVE_BLEND_HIGH = 0.58
+_HDR_ADAPTIVE_BLEND_LOW_HLG = 0.40
+_HDR_ADAPTIVE_BLEND_HIGH_HLG = 0.70
+
+
+def _adaptive_hdr_blend_factor(enc: np.ndarray, *, transfer: str) -> float:
+    p99 = float(np.percentile(enc, 99.5))
+    if transfer == "pq":
+        low = _HDR_ADAPTIVE_BLEND_LOW
+        high = _HDR_ADAPTIVE_BLEND_HIGH
+    elif transfer == "hlg":
+        low = _HDR_ADAPTIVE_BLEND_LOW_HLG
+        high = _HDR_ADAPTIVE_BLEND_HIGH_HLG
+    else:
+        return 1.0
+    if p99 <= low:
+        return 0.0
+    if p99 >= high:
+        return 1.0
+    return (p99 - low) / (high - low)
 
 
 def analyze_hdr_path(rgb: np.ndarray, metadata: Any | None = None) -> dict[str, object]:
@@ -281,17 +298,27 @@ def analyze_hdr_path(rgb: np.ndarray, metadata: Any | None = None) -> dict[str, 
         preserve_extended_linear=_preserve_extended_linear_float(metadata),
     )
     tone_map_planned = assumed_transfer in {"pq", "hlg"}
-    if (
-        tone_map_planned
-        and source != "backend metadata"
-        and _looks_sdr_encoded(enc, transfer=assumed_transfer)
-    ):
-        tone_map_planned = False
-        assumed_transfer = "srgb"
-        assumed_primaries = "bt709"
-        assumption_note = (
-            assumption_note + "; " if assumption_note else ""
-        ) + "input appears SDR-like; treating as display-referred sRGB"
+    hdr_blend = 1.0
+    if tone_map_planned and source != "backend metadata":
+        hdr_blend = _adaptive_hdr_blend_factor(enc, transfer=assumed_transfer)
+        if hdr_blend < 0.99:
+            p99 = float(np.percentile(enc, 99.5))
+            logger.info(
+                "HDR metadata says input transfer=%s but content is partially SDR-like "
+                "(p99=%.3f, hdr_blend=%.2f); blending tone mapping at %.0f%% strength",
+                assumed_transfer,
+                p99,
+                hdr_blend,
+                hdr_blend * 100.0,
+            )
+            assumption_note = (assumption_note + "; " if assumption_note else "") + (
+                f"content p99={p99:.3f} below HDR threshold; "
+                f"adaptive blend at {hdr_blend:.0%} strength"
+            )
+            if hdr_blend < 0.01:
+                tone_map_planned = False
+                assumed_transfer = "srgb"
+                assumed_primaries = "bt709"
     if assumed_transfer == "linear":
         bit_depth = _metadata_bit_depth(metadata)
         if bit_depth is not None and bit_depth > 8 and source == "backend metadata":
@@ -306,6 +333,7 @@ def analyze_hdr_path(rgb: np.ndarray, metadata: Any | None = None) -> dict[str, 
         "input_primaries": assumed_primaries,
         "metadata_source": source,
         "tone_mapping_applied": bool(tone_map_planned),
+        "hdr_content_blend": hdr_blend,
         "assumption": assumption_note or "none",
     }
 
@@ -400,11 +428,19 @@ def convert_frame_to_srgb8(
 
     # Step 3: Tone-map into SDR-ish range, then sRGB encode.
     # (Nanoleaf HID expects 8-bit sRGB-like payloads.)
-    if bool(path["tone_mapping_applied"]):
-        ldr = _apply_tonemap_hable_luminance_preserving(linear_srgb, max_nits=meta.max_nits)
+    tone_map_active = bool(path["tone_mapping_applied"])
+    raw_blend = path.get("hdr_content_blend")
+    hdr_blend = float(raw_blend) if isinstance(raw_blend, (int, float)) else 1.0
+    if tone_map_active and hdr_blend < 1.0:
+        # Adaptive blend: tone-map for bright regions, clip for dark/low-luminance regions.
+        tone_mapped = _apply_tonemap_hable_luminance_preserving(linear_srgb, max_nits=meta.max_nits)
+        linear_clipped = np.clip(linear_srgb, 0.0, 1.0)
+        linear = tone_mapped * hdr_blend + linear_clipped * (1.0 - hdr_blend)
+    elif tone_map_active:
+        linear = _apply_tonemap_hable_luminance_preserving(linear_srgb, max_nits=meta.max_nits)
     else:
-        ldr = np.clip(linear_srgb, 0.0, 1.0)
-    srgb = _linear_to_srgb_encoded(ldr)
+        linear = np.clip(linear_srgb, 0.0, 1.0)
+    srgb = _linear_to_srgb_encoded(linear)
 
     srgb_u8 = np.clip(np.rint(srgb * 255.0), 0, 255).astype(np.uint8)
     return srgb_u8

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import os
 import threading
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -9,10 +10,9 @@ from functools import lru_cache
 import numpy as np
 
 from nanoleaf_sync.capture._utils import zone_box_average
-from nanoleaf_sync.color._types import RGBTuple
+from nanoleaf_sync.color import RGBTuple
 from nanoleaf_sync.config.model import PrivacyZone
 from nanoleaf_sync.config.presets import SAMPLING_MODE_WAVELET_EDGE, edge_locality_profile
-from nanoleaf_sync.runtime.novel_features import wavelet_sampling_enabled
 from nanoleaf_sync.runtime.palette_adaptive import (
     palette_adaptive_zone_color,
     palette_adaptive_zone_frame,
@@ -290,12 +290,27 @@ def compute_adaptive_step(
 
 
 def multi_moment_zone_color(pixels: np.ndarray) -> tuple[np.ndarray, str]:
-    flat = pixels.reshape(-1, 3).astype(np.float32)
+    raw = np.asarray(pixels)
+    if raw.ndim == 2 and raw.shape[1] == 3:
+        flat_u8 = np.clip(raw, 0, 255).astype(np.uint8, copy=False)
+    else:
+        flat_u8 = _ensure_rgb_u8(raw).reshape(-1, 3)
+    flat = flat_u8.astype(np.float32)
     if flat.size == 0:
         return np.zeros(3, dtype=np.uint8), "mean"
+
+    def _linear_mean() -> np.ndarray:
+        avg_linear = srgb_u8_to_linear01(flat_u8).reshape(-1, 3).mean(axis=0)
+        return linear01_to_srgb_u8(avg_linear.astype(np.float32, copy=False))
+
     variance = float(np.var(flat, axis=0).mean())
     if variance < 500:
-        return flat.mean(axis=0).astype(np.uint8), "mean"
+        return _linear_mean(), "mean"
+
+    linear = srgb_u8_to_linear01(flat_u8)
+    pixel_chroma = np.max(linear, axis=1) - np.min(linear, axis=1)
+    if float(np.percentile(pixel_chroma, 90)) < 0.015:
+        return _linear_mean(), "mean"
 
     median_rgb = np.median(flat, axis=0)
     quantized = (flat // 32).clip(0, 7).astype(np.uint8)
@@ -319,7 +334,7 @@ def multi_moment_zone_color(pixels: np.ndarray) -> tuple[np.ndarray, str]:
         return dominant_rgb, "dominant"
     if variance > 1500:
         return median_rgb.astype(np.uint8), "median"
-    return flat.mean(axis=0).astype(np.uint8), "mean"
+    return _linear_mean(), "mean"
 
 
 def edge_anchored_rect(
@@ -817,7 +832,9 @@ def zone_colors_array(
                     means[idx] = _peak_luma_zone_mean(patch_linear)
                 else:
                     means[idx] = _vivid_weighted_zone_mean(patch_linear)
-        elif normalized_sampling_mode == SAMPLING_MODE_WAVELET_EDGE and wavelet_sampling_enabled():
+        elif normalized_sampling_mode == SAMPLING_MODE_WAVELET_EDGE and os.environ.get(
+            "NANOLEAF_ENABLE_WAVELET", "1"
+        ).strip().lower() not in {"0", "false", "no", "off"}:
             per_zone_modes = [SAMPLING_MODE_WAVELET_EDGE] * len(zones)
             per_zone_mixed = [False] * len(zones)
             for idx in range(len(zones)):
