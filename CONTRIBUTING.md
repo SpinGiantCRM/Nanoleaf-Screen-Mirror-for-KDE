@@ -7,8 +7,10 @@ Thank you for helping improve Nanoleaf Screen Mirror for KDE.
 - Single Nanoleaf USB strip only — no multi-device or plugin framework
 - KDE Plasma 6 + Wayland assumptions
 - Prefer `kwin-dbus` capture; portal is fallback/manual benchmark path
-
-Read [AGENTS.md](AGENTS.md) for durable project rules.
+- Manual strip zone count is authoritative; do not add automatic LED-count detection or promotion
+- Do not add extra FPS or priority knobs beyond existing settings
+- Stop must stop mirroring while keeping the tray app running
+- Keep normal Settings focused; put advanced/diagnostic tools in Advanced/Troubleshooting surfaces
 
 ## Development setup
 
@@ -48,6 +50,7 @@ Large UI modules (`settings_dialog`, `display_configurator`, etc.) are omitted f
 - Include tests for behavior changes
 - Update user docs when install or UX changes
 - Do not commit secrets or local build artifacts under `packaging/arch/pkg/`
+- Do not claim an issue is fixed without tests or clearly stated verification limits
 
 ## Manual verification
 

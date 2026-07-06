@@ -1,0 +1,35 @@
+name: Calibration or LED mapping
+description: Wrong LED order, corners, or strip count mismatch
+title: "[calibration] "
+labels: [bug, calibration]
+body:
+  - type: input
+    id: strip_count
+    attributes:
+      label: Configured strip LED count
+    validations:
+      required: true
+  - type: textarea
+    id: mapping
+    attributes:
+      label: What is wrong with the mapping?
+      description: e.g. wrong order, upside-down, corners swapped
+    validations:
+      required: true
+  - type: textarea
+    id: anchors
+    attributes:
+      label: Corner assignments tried
+      description: TL/TR/BR/BL indices if known
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps tried
+      description: Reverse direction, wizard rerun, reset calibration, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Doctor output
+      render: shell

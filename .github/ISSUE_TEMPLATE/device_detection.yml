@@ -1,0 +1,43 @@
+name: Device detection
+description: USB strip not detected or HID open fails
+title: "[device] "
+labels: [bug, hardware]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this when the strip is not detected or doctor shows HID/device-probe failures.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Distro, KDE Plasma version, USB IDs from `lsusb`
+    validations:
+      required: true
+  - type: textarea
+    id: permissions
+    attributes:
+      label: Permissions steps tried
+      description: Did you run `nanoleaf-kde-sync-setup-permissions` and log out/in?
+    validations:
+      required: true
+  - type: textarea
+    id: doctor_device
+    attributes:
+      label: Doctor output
+      description: Paste `nanoleaf-kde-sync-doctor --device`
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happens
+    validations:
+      required: true

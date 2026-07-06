@@ -167,25 +167,25 @@ class SettingsDialogHandlersMixin:
             self.sampling_quality_combo,
             SAMPLING_QUALITY_LABELS,
             str(preset["sampling_quality"]),
-            default="Balanced",
+            default="Balanced — recommended",
         )
         self._set_combo_value_safely(
             self.edge_locality_combo,
             EDGE_LOCALITY_LABELS,
             str(preset["edge_locality"]),
-            default="Balanced",
+            default="Balanced — recommended",
         )
         self._set_combo_value_safely(
             self.light_spread_combo,
             LIGHT_SPREAD_LABELS,
             str(preset["light_spread"]),
-            default="Balanced",
+            default="Balanced — recommended",
         )
         self._set_combo_value_safely(
             self.motion_preset_combo,
             MOTION_PRESET_LABELS,
             str(preset["motion_preset"]),
-            default="Responsive",
+            default="Responsive — recommended",
         )
         self._refresh_preview_label()
 
@@ -660,6 +660,41 @@ class SettingsDialogHandlersMixin:
         )
         self.detected_sdr_white_label.setText(f"Detected value applied: {float(detected):.0f} nits")
         self._refresh_preview_label()
+
+    def _reset_everyday_settings(self) -> None:
+        self._set_slider_value_safely(self.brightness_slider, 100)
+        for combo, labels_map, value in (
+            (self.display_preset_combo, DISPLAY_PRESET_LABELS, "auto"),
+            (self.motion_preset_combo, MOTION_PRESET_LABELS, "responsive"),
+            (self.color_style_combo, COLOR_STYLE_LABELS, "ambient"),
+        ):
+            combo.setCurrentIndex(
+                max(0, combo.findText(label_for_value(labels_map, value, default="")))
+            )
+        self.start_on_launch_checkbox.setChecked(False)
+        self.four_d_sync_checkbox.setChecked(False)
+        self._refresh_preview_label()
+
+    def _fix_colours_too_dull(self) -> None:
+        self._set_slider_value_safely(self.neutral_luminance_gain_slider, 115)
+        self._set_slider_value_safely(self.led_gamma_slider, 110)
+        self._refresh_preview_label()
+        self._send_guided_calibration_pattern()
+        self.color_accuracy_diagnostic_label.setText(
+            "Applied brighter neutral and vibrancy adjustments. Save if this looks better."
+        )
+
+    def _fix_whites_tinted(self) -> None:
+        self._open_guided_led_calibration()
+
+    def _fix_blacks_no_off(self) -> None:
+        self._set_slider_value_safely(self.black_luminance_cutoff_slider, 50)
+        self._set_slider_value_safely(self.black_luminance_knee_slider, 30)
+        self._refresh_preview_label()
+        self._send_guided_calibration_pattern()
+        self.color_accuracy_diagnostic_label.setText(
+            "Raised black cutoff so near-black areas turn off sooner. Save if this looks better."
+        )
 
     def _reset_led_calibration(self) -> None:
         self._set_slider_value_safely(self.red_gain_slider, 100)

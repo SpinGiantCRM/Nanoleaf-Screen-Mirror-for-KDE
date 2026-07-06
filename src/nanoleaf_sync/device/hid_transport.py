@@ -271,7 +271,7 @@ class HIDTransport:
                 if "hidraw" in error_text or "permission" in error_text:
                     raise RuntimeError(
                         "HID device access denied. Ensure udev rules are installed: "
-                        "run 'sudo ./scripts/setup_udev.sh' or check device permissions."
+                        "run `nanoleaf-kde-sync-setup-permissions` or check device permissions."
                     ) from e
                 raise RuntimeError(
                     "HID bindings not installed. Install the `hidraw` package."

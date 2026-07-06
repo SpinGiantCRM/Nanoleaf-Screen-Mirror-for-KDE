@@ -1,5 +1,14 @@
 # Hardware Setup (Nanoleaf USB)
 
+## Most users only need
+
+1. `nanoleaf-kde-sync-setup-permissions`
+2. Log out and back in
+3. Reconnect the strip
+4. `nanoleaf-kde-sync-doctor`
+
+If doctor still reports USB issues, continue with the advanced diagnosis section below.
+
 ## Supported USB IDs
 
 - VID `0x37fa`
@@ -8,10 +17,10 @@
 
 ## Linux permissions
 
-Use the provided installer script (canonical path) to install the udev rule and reload rules:
+Install udev rules from the installed package:
 
 ```bash
-./scripts/setup_udev.sh
+nanoleaf-kde-sync-setup-permissions
 ```
 
 On Arch/CachyOS, if needed:
@@ -23,9 +32,15 @@ sudo usermod -aG plugdev "$USER"
 
 Then log out and back in, and reconnect the device.
 
-## Workflow: `hid-device PASS` + `device-probe FAIL`
+**Local git checkout only:**
 
-Use this short workflow when enumeration succeeds but open fails.
+```bash
+./scripts/setup_udev.sh
+```
+
+## Advanced diagnosis: `hid-device PASS` + `device-probe FAIL`
+
+Use this workflow when enumeration succeeds but open fails.
 
 1. Run both views:
 

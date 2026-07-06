@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=nanoleaf-kde-sync
-Comment=Nanoleaf screen mirroring for KDE Plasma on Linux.
+Name=Nanoleaf Screen Mirror
+Comment=Mirror your screen edge colours to a Nanoleaf USB light strip
 Exec=nanoleaf-kde-sync
 TryExec=nanoleaf-kde-sync
 Icon=nanoleaf-kde-sync

@@ -102,7 +102,7 @@ TRAY_MENU_ICON_THEMES: dict[str, str] = {
 _log = logging.getLogger(__name__)
 
 
-def _tray_icon_fallback_candidates() -> tuple[Path, ...]:
+def _tray_icon_fallback_candidates(name: str = "nanoleaf-kde-sync") -> tuple[Path, ...]:
     return (
         Path(__file__).resolve().parents[1]
         / "assets"
@@ -110,21 +110,15 @@ def _tray_icon_fallback_candidates() -> tuple[Path, ...]:
         / "hicolor"
         / "scalable"
         / "apps"
-        / "nanoleaf-kde-sync.svg",
+        / f"{name}.svg",
         Path(__file__).resolve().parents[3]
         / "assets"
         / "icons"
         / "hicolor"
         / "scalable"
         / "apps"
-        / "nanoleaf-kde-sync.svg",
-        Path(sys.prefix)
-        / "share"
-        / "icons"
-        / "hicolor"
-        / "scalable"
-        / "apps"
-        / "nanoleaf-kde-sync.svg",
+        / f"{name}.svg",
+        Path(sys.prefix) / "share" / "icons" / "hicolor" / "scalable" / "apps" / f"{name}.svg",
     )
 
 
@@ -730,10 +724,16 @@ class NanoleafTrayApp:
             "xdg-portal": "nanoleaf-kde-sync-portal",
             "mock": "nanoleaf-kde-sync-mock",
             "error": "nanoleaf-kde-sync-error",
+            "warning": "nanoleaf-kde-sync-warning",
         }
         icons: dict[str, object] = {}
         for key, theme_name in mapping.items():
             icon = self.QIcon.fromTheme(theme_name)
+            if icon.isNull():
+                for candidate in _tray_icon_fallback_candidates(theme_name):
+                    if candidate.exists():
+                        icon = self.QIcon(str(candidate))
+                        break
             if icon.isNull() and key == "kwin-dbus":
                 icon = getattr(self, "_idle_icon", self.QIcon())
             icons[key] = icon
@@ -750,6 +750,11 @@ class NanoleafTrayApp:
             error_icon = getattr(self, "_backend_icons", {}).get("error")
             if error_icon is not None and not error_icon.isNull():
                 return error_icon
+        calibration_status = str(status.get("calibration_status") or "").lower()
+        if not running and calibration_status and "ready" not in calibration_status:
+            warning_icon = getattr(self, "_backend_icons", {}).get("warning")
+            if warning_icon is not None and not warning_icon.isNull():
+                return warning_icon
         if backend == "mock" or bool(self.config.use_mock_capture):
             mock_icon = getattr(self, "_backend_icons", {}).get("mock")
             if mock_icon is not None and not mock_icon.isNull():
@@ -778,7 +783,7 @@ class NanoleafTrayApp:
             "Set up strip…",
             menu,
         )
-        self.action_guided_calibration = self.QAction("Guided Calibration…", menu)
+        self.action_guided_calibration = self.QAction("Guided strip calibration…", menu)
         self.action_status = self.QAction(
             self.QIcon.fromTheme(TRAY_MENU_ICON_THEMES["action_status"]), "About / Status", menu
         )
@@ -787,8 +792,8 @@ class NanoleafTrayApp:
         self.action_diagnostic_hub = self.QAction("Help & Diagnostics…", menu)
         self.action_troubleshooting_guide = self.QAction("Troubleshooting Guide", menu)
         self.action_live_diagnostics = self.QAction("Live Diagnostics", menu)
-        self.action_doctor = self.QAction("Run Doctor", menu)
-        self.action_smoke = self.QAction("Run Smoke Test", menu)
+        self.action_doctor = self.QAction("Check app/device health", menu)
+        self.action_smoke = self.QAction("Run quick test", menu)
         self.action_check_updates = self.QAction("Check for Updates…", menu)
         self.action_reset_probe_cache = self.QAction("Reset Auto-Probe Cache", menu)
         self.action_launch_diagnostics = self.QAction("Show Launch Diagnostics", menu)
@@ -884,10 +889,19 @@ class NanoleafTrayApp:
                 f"Confidence: {confidence.get('confidence_pct')}% "
                 f"({confidence.get('rating', 'unknown')})\n"
             )
+        device_model = str(status.get("device_model") or "").strip()
+        fps_target = getattr(self.config, "fps", None)
+        state_label = "Running" if running else startup_state.replace("_", " ").title()
+        summary_parts = [state_label]
+        if device_model:
+            summary_parts.append(device_model)
+        if fps_target:
+            summary_parts.append(f"{fps_target} FPS target")
+        summary_line = " · ".join(summary_parts)
         self.tray_icon.setIcon(self._tray_icon_for_status(running=running, status=status))
         self.tray_icon.setToolTip(
-            "nanoleaf-kde-sync\n"
-            f"State: {'Running' if running else startup_state.replace('_', ' ').title()}\n"
+            f"{summary_line}\n"
+            f"State: {state_label}\n"
             f"{device_mode}\n"
             f"{confidence_line}"
             f"Last issue: {last_error_line}"
@@ -1320,8 +1334,8 @@ class NanoleafTrayApp:
             (
                 "Run diagnostics from Troubleshooting / Advanced:\n"
                 "• Advanced / Troubleshooting\n"
-                "• Run Doctor\n"
-                "• Run Smoke Test\n\n"
+                "• Check app/device health\n"
+                "• Run quick test\n\n"
                 "Online guide:\n"
                 f"{guide_url or 'https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE'}"
             ),
@@ -1411,7 +1425,7 @@ class NanoleafTrayApp:
             set_text_format(self.Qt.TextFormat.RichText)
         layout.addWidget(docs_label)
         button_row = self.QHBoxLayout()
-        copy_button = self.QPushButton("Copy diagnostics summary")
+        copy_button = self.QPushButton("Copy device info")
         close_button = self.QPushButton("Close")
         clipboard_text = f"{summary}\n\nTechnical details:\n{details}"
 

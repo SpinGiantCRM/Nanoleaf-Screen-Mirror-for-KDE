@@ -90,7 +90,7 @@ def build_guided_calibration_dialog(qt: object):
             row.addWidget(self._left)
             row.addWidget(self._right)
             layout.addLayout(row)
-            self.setWindowTitle("Guided Calibration")
+            self.setWindowTitle("Guided strip calibration")
             self._refresh()
 
         def _make_handler(self, label: str):

@@ -32,7 +32,10 @@ def test_settings_dialog_source_uses_preset_ui_labels(monkeypatch) -> None:
     assert PERFORMANCE_PROFILE_LABELS
     assert hasattr(widget, "motion_preset_combo")
     assert hasattr(widget, "color_style_combo")
-    assert "Advanced / Troubleshooting" in group_box_titles(widget, qt)
+    assert "USB device" in group_box_titles(widget, qt)
+    assert "Capture" in group_box_titles(widget, qt)
+    assert "Diagnostics exports" in group_box_titles(widget, qt)
+    assert "Recovery" in group_box_titles(widget, qt)
     labels = label_texts(widget, qt)
     assert any("Raw device→source mapping" in text for text in labels) or any(
         "Raw device→source mapping" in widget.diagnostics_mapping_label.text() for _ in [0]
@@ -41,10 +44,6 @@ def test_settings_dialog_source_uses_preset_ui_labels(monkeypatch) -> None:
         widget, qt
     )
     assert "Runtime status (technical)" in group_box_titles(widget, qt)
-    assert "Backend & Probing" in label_texts(widget, qt)
-    assert "Diagnostics Actions" in label_texts(widget, qt)
-    assert "Quality Diagnostics" in label_texts(widget, qt)
-    assert "Recovery Tools" in label_texts(widget, qt)
     combined = " ".join(label_texts(widget, qt))
     assert "SDR white reference controls how bright SDR/desktop content appears" in combined
     assert "when HDR is enabled." in combined

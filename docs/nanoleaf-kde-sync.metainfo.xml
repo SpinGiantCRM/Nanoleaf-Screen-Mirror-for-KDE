@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
   <id>io.github.spingiantcrm.nanoleaf-kde-sync</id>
-  <name>nanoleaf-kde-sync</name>
-  <summary>Nanoleaf screen mirroring for KDE Plasma on Linux</summary>
+  <name>Nanoleaf Screen Mirror</name>
+  <summary>Mirror your screen edge colours to a Nanoleaf USB light strip</summary>
   <description>
     <p>
       Real-time screen mirroring for supported Nanoleaf USB Edge Strips on KDE Plasma 6.

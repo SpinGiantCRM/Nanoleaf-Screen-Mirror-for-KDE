@@ -182,7 +182,7 @@ class SettingsDialogWidgetBase:
                     label_for_value(
                         MOTION_PRESET_LABELS,
                         str(getattr(self._cfg_seed, "motion_preset", "responsive")),
-                        default="Responsive",
+                        default="Responsive — recommended",
                     )
                 ),
             )
@@ -224,7 +224,7 @@ class SettingsDialogWidgetBase:
                     label_for_value(
                         LIGHT_SPREAD_LABELS,
                         str(getattr(self._cfg_seed, "light_spread", "balanced")),
-                        default="Balanced",
+                        default="Balanced — recommended",
                     )
                 ),
             )
@@ -239,6 +239,10 @@ class SettingsDialogWidgetBase:
         self.four_d_sync_checkbox.setChecked(
             str(getattr(self._cfg_seed, "sync_mode", "standard")).strip().lower() == "4d"
         )
+        self.reset_everyday_settings_button = QPushButton("Reset everyday settings")
+        self.colours_too_dull_button = QPushButton("Colours too dull")
+        self.whites_tinted_button = QPushButton("Whites look tinted")
+        self.blacks_no_off_button = QPushButton("Blacks do not turn off")
         self.display_gamut_combo = QComboBox()
         self.display_gamut_combo.addItems(["Auto", "sRGB", "DCI-P3", "BT.2020", "Custom"])
         gamut_text = str(getattr(self._cfg_seed, "display_gamut", "auto")).strip().lower()
@@ -394,7 +398,7 @@ class SettingsDialogWidgetBase:
                     label_for_value(
                         SAMPLING_QUALITY_LABELS,
                         str(getattr(self._cfg_seed, "sampling_quality", "balanced")),
-                        default="Balanced",
+                        default="Balanced — recommended",
                     )
                 ),
             )
@@ -408,7 +412,7 @@ class SettingsDialogWidgetBase:
                     label_for_value(
                         PERFORMANCE_PROFILE_LABELS,
                         str(getattr(self._cfg_seed, "performance_profile", "balanced")),
-                        default="Balanced",
+                        default="Balanced — recommended",
                     )
                 ),
             )
@@ -495,7 +499,7 @@ class SettingsDialogWidgetBase:
         self.zone_report_label = QLabel("")
         self.latency_report_label = QLabel("")
         self.recovery_tools_hint_label = QLabel(
-            "Use tray Advanced / Troubleshooting for Run Doctor, Run Smoke Test, "
+            "Use tray Advanced for Check app/device health, Run quick test, "
             "launch diagnostics, and probe cache reset."
         )
         self.preview_label = self.simple_calibration_widget.preview_text_label
@@ -611,6 +615,10 @@ class SettingsDialogWidgetBase:
         self.detect_sdr_white_button.clicked.connect(self._detect_kde_sdr_white_reference)
         self.use_detected_sdr_white_button.clicked.connect(self._use_detected_sdr_white_reference)
         self.reset_led_calibration_button.clicked.connect(self._reset_led_calibration)
+        self.colours_too_dull_button.clicked.connect(self._fix_colours_too_dull)
+        self.whites_tinted_button.clicked.connect(self._fix_whites_tinted)
+        self.blacks_no_off_button.clicked.connect(self._fix_blacks_no_off)
+        self.reset_everyday_settings_button.clicked.connect(self._reset_everyday_settings)
         self.reference_test_colours_button.clicked.connect(self._send_reference_test_colours)
         self.guided_led_calibration_button.clicked.connect(self._open_guided_led_calibration)
         self.save_led_calibration_profile_button.clicked.connect(
@@ -813,8 +821,7 @@ class SettingsDialogWidgetBase:
             "Start syncing automatically right after tray launch."
         )
         self.four_d_sync_checkbox.setToolTip(
-            "Low-latency edge mirroring for high FPS: faster HID send, "
-            "balanced zone sampling, tight edge locality, and predictive colour sync."
+            "Lower latency mode for fast games: faster HID send and tighter edge response."
         )
         self.compositor_hdr_mode_checkbox.setToolTip(
             "Enable compensation when KDE Plasma is running SDR content on HDR. "

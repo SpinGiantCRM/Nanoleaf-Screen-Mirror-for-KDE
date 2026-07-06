@@ -1,5 +1,23 @@
 # Troubleshooting
 
+## Start here
+
+Choose the symptom closest to your problem:
+
+| Symptom | Try first | Details |
+| ------- | --------- | ------- |
+| [App does not open](#app-does-not-open) | Reinstall with `pipx install nanoleaf-kde-sync`; check terminal output | Launch or dependency issue |
+| [Tray appears but Start fails](#tray-appears-but-start-fails) | Tray → **Help & Diagnostics** → Refresh | Setup/capture/auth issue |
+| [Strip is not detected](#no-hid-device-found) | `nanoleaf-kde-sync-setup-permissions`, log out/in, reconnect | USB permissions |
+| [Test pattern does not light up](#hid-device-is-found-but-open-still-fails) | Doctor `--device`; check HID open errors | USB open / busy handle |
+| [LEDs light up in the wrong order](#zone-order-mismatch) | Settings → reverse direction; recalibrate corners | Mapping / orientation |
+| [Colours look wrong in HDR](#colors-look-wrong-on-an-hdr-display) | Settings → Display preset; start with SDR + Auto | HDR colour path |
+| [Mirroring feels delayed](#slow-path-diagnosis) | Lower smoothing; compare capture backends | Latency / smoothing |
+| [Wrong screen is captured](#kwin-screenshot2-authorization-errors) | Launch from desktop entry or tray, not bare shell | KWin / portal auth |
+| [It worked before and now fails](#calibration-config-looks-stale) | Reset probe cache; verify config; rerun wizard | Stale config / KDE update |
+
+Most issues can be diagnosed from tray → **Help & Diagnostics**.
+
 ## Quick triage
 
 Run:
@@ -20,6 +38,20 @@ nanoleaf-kde-sync-smoke-test --send-test-frame
 If command output references `requested=auto` with `selection_reason=fallback`, follow the auto-backend and probe sections below.
 
 ## Common issues
+
+### App does not open
+
+1. Confirm the package installed: `which nanoleaf-kde-sync`
+2. Run from a terminal to see the error: `nanoleaf-kde-sync`
+3. Reinstall: `pipx install --force nanoleaf-kde-sync`
+4. On Arch local builds, see [Install-time dependency issue](#install-time-dependency-issue-on-archcachyos)
+
+### Tray appears but Start fails
+
+1. Open tray → **Help & Diagnostics** and click **Refresh**
+2. If Start says **Needs calibration** or **Needs setup**, open **Set up strip…**
+3. Run **Check app/device health** from the Advanced submenu
+4. Launch from the desktop entry or tray (not a bare shell) for KWin authorization
 
 ### Install-time dependency issue on Arch/CachyOS
 
@@ -50,10 +82,10 @@ Quick distinction workflow:
 2. Ensure the udev rule is installed:
 
 ```bash
-./scripts/setup_udev.sh
+nanoleaf-kde-sync-setup-permissions
 ```
 
-3. Reconnect the device.
+3. Log out and back in, then reconnect the device.
 
 ### HID device is found but open still fails
 

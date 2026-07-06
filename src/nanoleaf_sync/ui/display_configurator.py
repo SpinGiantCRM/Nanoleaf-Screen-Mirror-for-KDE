@@ -173,6 +173,7 @@ class DisplayConfiguratorDialog:
         class _Dialog(QDialog):  # type: ignore
             def __init__(self):
                 super().__init__(parent)
+                self._qt = qt
                 self.setWindowTitle("Setup Wizard")
                 set_quit_attr = getattr(self, "setAttribute", None)
                 if callable(set_quit_attr):
@@ -264,7 +265,9 @@ class DisplayConfiguratorDialog:
                         0,
                         self.motion_preset_combo.findText(
                             label_for_value(
-                                MOTION_PRESET_LABELS, initial_motion, default="Responsive"
+                                MOTION_PRESET_LABELS,
+                                initial_motion,
+                                default="Responsive — recommended",
                             )
                         ),
                     )
@@ -325,7 +328,7 @@ class DisplayConfiguratorDialog:
                             label_for_value(
                                 SAMPLING_QUALITY_LABELS,
                                 str(getattr(cfg, "sampling_quality", "balanced")),
-                                default="Balanced",
+                                default="Balanced — recommended",
                             )
                         ),
                     )
@@ -362,6 +365,20 @@ class DisplayConfiguratorDialog:
                 self.strip_count_hint = QLabel(
                     "How many addressable lighting zones does your strip have?"
                 )
+                self.zone_explainer = QLabel(
+                    "A zone is one controllable lighting segment on the strip. "
+                    "If unsure, keep the detected value or start with the number "
+                    "printed in your Nanoleaf app or device specs. "
+                    "You can change this later."
+                )
+                self.strip_count_help_button = QPushButton("How to find your strip count")
+                self.calibration_reassurance = QLabel(
+                    "You cannot damage anything by testing. "
+                    "If the wrong LED lights up, keep pressing Next. "
+                    "Assign the lit LED to the screen corner it sits closest to. "
+                    "Use Reverse direction only if the strip walks the wrong way."
+                )
+                self.setup_checklist_label = QLabel("")
                 self.calibration_next_button = self.simple_calibration_widget.next_zone_button
                 self.calibration_prev_button = self.simple_calibration_widget.prev_zone_button
                 self.calibration_send_button = QPushButton("Send test pattern")
@@ -372,13 +389,14 @@ class DisplayConfiguratorDialog:
                 self.reset_anchors_button = self.simple_calibration_widget.reset_anchors_button
                 self.current_zone_label = self.simple_calibration_widget.current_zone_label
                 self.calibration_hint = QLabel(
-                    "Use Previous/Next zone to find the right physical LED, assign corners, "
-                    "and adjust reverse orientation if needed."
+                    "Use Previous/Next LED to find the right physical LED, assign corners, "
+                    "and adjust reverse direction if needed."
                 )
 
                 # Summary
                 self.summary_label = QLabel("")
                 self.finish_policy_note = QLabel("")
+                self.copy_setup_summary_button = QPushButton("Copy setup summary")
 
                 self.cancel_button = QPushButton("Save draft & close")
                 self.cancel_button.setToolTip(
@@ -442,6 +460,8 @@ class DisplayConfiguratorDialog:
                     on_walk_strip_once=self._walk_strip_once,
                 )
                 self.calibration_send_button.clicked.connect(self._send_test_pattern)
+                self.strip_count_help_button.clicked.connect(self._show_strip_count_help)
+                self.copy_setup_summary_button.clicked.connect(self._copy_setup_summary)
 
                 self.pages = QStackedWidget()
                 self.pages.addWidget(self._build_step_1(QWidget, QGridLayout, QLabel))
@@ -553,21 +573,45 @@ class DisplayConfiguratorDialog:
                     "Punchy: Strong stylised colour effect.",
                 )
 
+            def _copy_setup_summary(self) -> None:
+                clipboard = self._qt["QApplication"].clipboard()
+                if clipboard is not None:
+                    clipboard.setText(self.summary_label.text())
+
+            def _show_strip_count_help(self) -> None:
+                QMessageBox = self._qt["QMessageBox"]
+                QMessageBox.information(
+                    self,
+                    "Strip LED count",
+                    (
+                        "Check your Nanoleaf mobile app or the product specs for the "
+                        "number of addressable LEDs on your strip.\n\n"
+                        "If the app detected a count, you can keep that value. "
+                        "Wrong counts usually show up as missing corners or LEDs "
+                        "lighting in the wrong order — you can change the count and "
+                        "recalibrate later."
+                    ),
+                )
+
             def _build_step_1(self, QWidget, QGridLayout, QLabel):
                 page = QWidget()
                 layout = QGridLayout()
                 if hasattr(layout, "setVerticalSpacing"):
                     layout.setVerticalSpacing(4)
-                layout.addWidget(QLabel("Strip LED count"), 0, 0, 1, 3)
-                layout.addWidget(self.strip_count_hint, 1, 0, 1, 3)
-                layout.addWidget(QLabel("Zones on your strip"), 2, 0)
-                layout.addWidget(self.device_zone_count_slider, 2, 1)
-                layout.addWidget(self.device_zone_count_value, 2, 2)
-                layout.addWidget(self.device_zone_status, 3, 0, 1, 3)
-                layout.addWidget(QLabel("Corner calibration"), 4, 0, 1, 3)
-                layout.addWidget(self.calibration_hint, 5, 0, 1, 3)
+                layout.addWidget(self.setup_checklist_label, 0, 0, 1, 3)
+                layout.addWidget(QLabel("Strip LED count"), 1, 0, 1, 3)
+                layout.addWidget(self.strip_count_hint, 2, 0, 1, 3)
+                layout.addWidget(self.zone_explainer, 3, 0, 1, 3)
+                layout.addWidget(self.strip_count_help_button, 4, 0, 1, 3)
+                layout.addWidget(QLabel("Zones on your strip"), 5, 0)
+                layout.addWidget(self.device_zone_count_slider, 5, 1)
+                layout.addWidget(self.device_zone_count_value, 5, 2)
+                layout.addWidget(self.device_zone_status, 6, 0, 1, 3)
+                layout.addWidget(QLabel("Corner calibration"), 7, 0, 1, 3)
+                layout.addWidget(self.calibration_reassurance, 8, 0, 1, 3)
+                layout.addWidget(self.calibration_hint, 9, 0, 1, 3)
                 row = self.simple_calibration_widget.add_to_layout(
-                    layout, row=6, include_header=False
+                    layout, row=10, include_header=False
                 )
                 layout.addWidget(self.calibration_send_button, row, 0, 1, 3)
                 row += 1
@@ -641,9 +685,10 @@ class DisplayConfiguratorDialog:
                 advanced_layout = QGridLayout()
                 advanced_layout.addWidget(self.zone_count_explanation, 0, 0, 1, 3)
                 advanced_layout.addWidget(self.summary_label, 1, 0, 1, 3)
-                advanced_layout.addWidget(self.advanced_details, 2, 0, 1, 3)
-                advanced_layout.addWidget(self.diagnostics_layout_label, 3, 0, 1, 3)
-                advanced_layout.addWidget(self.finish_policy_note, 4, 0, 1, 3)
+                advanced_layout.addWidget(self.copy_setup_summary_button, 2, 0, 1, 3)
+                advanced_layout.addWidget(self.advanced_details, 3, 0, 1, 3)
+                advanced_layout.addWidget(self.diagnostics_layout_label, 4, 0, 1, 3)
+                advanced_layout.addWidget(self.finish_policy_note, 5, 0, 1, 3)
                 self.advanced_details_group.setLayout(advanced_layout)
                 layout.addWidget(self.advanced_details_group, 3, 0, 1, 3)
                 page.setLayout(layout)
@@ -834,7 +879,7 @@ class DisplayConfiguratorDialog:
                 if callable(finish_set_enabled):
                     finish_set_enabled(can_finish)
                 self.finish_policy_note.setText(
-                    "Finish unlocks after valid corner anchors are assigned and "
+                    "Finish unlocks after all four corners are assigned and "
                     "strip zone count is confirmed."
                 )
 
@@ -973,6 +1018,40 @@ class DisplayConfiguratorDialog:
                         "Current anchors were assigned for a different strip length."
                     )
                 self.zone_change_notice.setText("\n".join(calibration_warnings))
+                strip_detected = bool(
+                    int(self._runtime_status.get("device_zone_count") or 0) > 0
+                    or str(self._runtime_status.get("device_model") or "").strip()
+                )
+                permissions_ok = not any(
+                    token in str(self._runtime_status.get("last_error") or "").lower()
+                    for token in ("permission", "access denied", "udev")
+                )
+                corners_done = all(assigned.values())
+                direction_checked = True
+                display_selected = bool(self.display_preset_combo.currentText())
+                ready = (
+                    self._device_zone_count_confirmed
+                    and anchor_validation.valid
+                    and not verification.hard_fail
+                )
+
+                def _check(done: bool) -> str:
+                    return "✓" if done else "○"
+
+                self.setup_checklist_label.setText(
+                    "\n".join(
+                        (
+                            "Setup checklist:",
+                            f"  {_check(strip_detected)} Strip detected",
+                            f"  {_check(permissions_ok)} Permissions OK",
+                            f"  {_check(self._device_zone_count_confirmed)} Strip count set",
+                            f"  {_check(corners_done)} Corners assigned",
+                            f"  {_check(direction_checked)} Direction checked",
+                            f"  {_check(display_selected)} Display mode selected",
+                            f"  {_check(ready)} Ready to start",
+                        )
+                    )
+                )
                 self.summary_label.setText(
                     "\n".join(
                         (
@@ -1361,7 +1440,7 @@ class DisplayConfiguratorDialog:
                                 ),
                             )
                         ),
-                        default="Responsive",
+                        default="Responsive — recommended",
                     )
                 )
                 if motion_idx >= 0:

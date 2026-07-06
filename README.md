@@ -1,52 +1,75 @@
 # Nanoleaf Screen Mirror for KDE
 
-Public Nanoleaf USB screen mirroring app for KDE Plasma 6 on Linux (Arch / CachyOS and other distros via source install).
+[![CI](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/actions/workflows/ci.yml/badge.svg)](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE)](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/releases)
+[![PyPI](https://img.shields.io/pypi/v/nanoleaf-kde-sync)](https://pypi.org/project/nanoleaf-kde-sync/)
+[![Python](https://img.shields.io/pypi/pyversions/nanoleaf-kde-sync)](https://pypi.org/project/nanoleaf-kde-sync/)
+[![License](https://img.shields.io/github/license/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE)](LICENSE)
+[![KDE Plasma 6](https://img.shields.io/badge/KDE%20Plasma-6-blue)](https://kde.org/plasma-desktop/)
 
-Mirrors your display edge colors to supported Nanoleaf USB strips in real time, with a tray app, setup wizard, calibration, and diagnostics.
+Mirror your screen edge colours to a supported Nanoleaf USB light strip on KDE Plasma 6.
 
-## What you need
+Built for:
 
-- Linux with KDE Plasma 6 (Wayland recommended)
-- A supported Nanoleaf USB strip: `NL82K1` (`0x37fa:0x8201`) or `NL82K2` (`0x37fa:0x8202`)
-- USB permissions via udev (see [Hardware setup](docs/HARDWARE_SETUP.md))
+- KDE Plasma 6 on Linux
+- Wayland sessions
+- Nanoleaf USB strips NL82K1 / NL82K2
+- Single-monitor edge mirroring
+
+The app runs from your system tray, guides you through strip setup, lets you calibrate corner mapping, and includes diagnostics when capture, USB, or colour output needs fixing.
+
+## Works best with / not supported yet
+
+**Works best with:**
+
+- KDE Plasma 6 (Wayland recommended)
+- Nanoleaf USB strips: `NL82K1` (`0x37fa:0x8201`) or `NL82K2` (`0x37fa:0x8202`)
+- Single-monitor setups
+
+**Not supported yet:**
+
+- Multi-monitor mirroring
+- Multiple strips
+- Non-KDE desktops as the primary target
+
+## Privacy and safety
+
+This app reads your screen locally through KDE capture APIs and sends colour values to a supported USB HID strip. It does not run a network server. Diagnostics exports are local and should be reviewed before sharing. See [Security](docs/SECURITY.md) for the full threat model.
 
 ## Install
 
-**Recommended (all distros):**
-
-```bash
-pip install nanoleaf-kde-sync
-```
-
-On Arch with PEP 668 enforced, use `pipx` instead:
+**Recommended:**
 
 ```bash
 pipx install nanoleaf-kde-sync
+nanoleaf-kde-sync-setup-permissions
+nanoleaf-kde-sync-doctor
+nanoleaf-kde-sync
 ```
 
-After install, run `nanoleaf-kde-sync-doctor` for first-time setup.
+After installing permissions, log out and back in, then reconnect the strip.
 
-**AUR package (once published):**
+On distros without PEP 668 restrictions you can use `pip install nanoleaf-kde-sync` instead of pipx.
 
-```bash
-paru -S nanoleaf-kde-sync
-```
-
-Local build from this repo is available via `./scripts/build_arch_package.sh`. See [docs/PACKAGING_AUR.md](docs/PACKAGING_AUR.md) for maintainer details.
-
-Udev rules are required regardless of install method:
-
-```bash
-./scripts/setup_udev.sh
-```
+Arch package maintainers: see [docs/PACKAGING_AUR.md](docs/PACKAGING_AUR.md) for local build and AUR publish steps.
 
 ## Quick start
 
+| Step | Command / action | What should happen |
+| ---- | ---------------- | ------------------ |
+| 1 | `pipx install nanoleaf-kde-sync` | CLI commands become available |
+| 2 | `nanoleaf-kde-sync-setup-permissions` | udev rules installed; DRM setcap command printed if needed |
+| 3 | Log out/in, reconnect strip | USB permissions take effect |
+| 4 | `nanoleaf-kde-sync-doctor` | Device/capture checks show OK or clear fixes |
+| 5 | `nanoleaf-kde-sync` | Tray icon appears |
+| 6 | Tray → **Set up strip…** | Wizard completes; test pattern reaches the strip |
+| 7 | **Start** | LEDs follow screen edges |
+
+Optional first-run helpers:
+
 ```bash
 nanoleaf-kde-sync-init-config
-nanoleaf-kde-sync-doctor
 nanoleaf-kde-sync-smoke-test
-nanoleaf-kde-sync
 ```
 
 Service-only mode:
@@ -55,13 +78,23 @@ Service-only mode:
 nanoleaf-kde-sync-service
 ```
 
+## If something looks wrong
+
+1. Open tray → **Help & Diagnostics**
+2. Click **Refresh**
+3. Export a support bundle if asking for help
+4. Use **Reset** only if calibration or config is clearly broken
+
+See [Troubleshooting](docs/TROUBLESHOOTING.md) for symptom-based guidance.
+
 ## Core commands
 
 - `nanoleaf-kde-sync` — tray app (recommended)
-- `nanoleaf-kde-sync-service` — headless runtime service
-- `nanoleaf-kde-sync-init-config` — generate default config
+- `nanoleaf-kde-sync-setup-permissions` — install udev rules and print DRM helper guidance
 - `nanoleaf-kde-sync-doctor` — environment/device diagnostics
 - `nanoleaf-kde-sync-smoke-test` — quick functional sanity check
+- `nanoleaf-kde-sync-init-config` — generate default config
+- `nanoleaf-kde-sync-service` — headless runtime service
 - `nanoleaf-kde-sync-autostart` — manage KDE autostart integration
 - `nanoleaf-kde-sync-reset` — reset config/calibration/diagnostic cache safely
 
@@ -84,19 +117,6 @@ See the [User guide](docs/USER_GUIDE.md) for a full walkthrough.
 
 On Plasma HDR desktops, verify SDR white reference and compositor HDR settings in app diagnostics before tuning brightness.
 
-## Fresh install / reinstall / uninstall helpers
-
-Pacman-managed reinstall from a local checkout:
-
-```bash
-./scripts/reinstall_local.sh
-./scripts/uninstall_local.sh
-# optional full purge:
-./scripts/uninstall_local.sh --purge-config
-```
-
-See [Arch / AUR packaging](docs/PACKAGING_AUR.md) for maintainer and AUR publish steps.
-
 ## Reset commands
 
 ```bash
@@ -116,11 +136,7 @@ nanoleaf-kde-sync-reset diagnostics --stop-runtime
 
 Installed packages also ship docs under `/usr/share/doc/nanoleaf-kde-sync/`.
 
-## Release gate
-
-Run `./scripts/release_gate.sh` before tagging a release. CI must be green on `main`.
-
-## Developer setup
+## Developer / local checkout only
 
 ```bash
 python -m venv .venv
@@ -130,17 +146,26 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-## Supported environment
+Udev rules from a git checkout:
 
-- Linux
-- KDE Plasma 6 (Wayland recommended)
-- Supported Nanoleaf USB strips: `NL82K1` (`0x37fa:0x8201`), `NL82K2` (`0x37fa:0x8202`)
+```bash
+./scripts/setup_udev.sh
+```
 
-## Known limitations
+Pacman-managed reinstall from a local checkout:
 
-- Single-monitor flow only (no multi-monitor support).
-- Device strip count auto-detection is diagnostics-only; not auto-applied.
-- Desktop-entry launch context is still preferred for reliable KWin authorization.
+```bash
+./scripts/reinstall_local.sh
+./scripts/uninstall_local.sh
+# optional full purge:
+./scripts/uninstall_local.sh --purge-config
+```
+
+Local Arch package build: `./scripts/build_arch_package.sh`. See [docs/PACKAGING_AUR.md](docs/PACKAGING_AUR.md).
+
+## Release gate
+
+Run `./scripts/release_gate.sh` before tagging a release. CI must be green on `main`.
 
 ## License
 

@@ -17,6 +17,36 @@ _log = logging.getLogger(__name__)
 
 REFRESH_INTERVAL_MS = 1000
 
+_STATUS_OK_STYLE = "color: #2e7d32; font-weight: 600;"
+_STATUS_WARN_STYLE = "color: #b8860b; font-weight: 600;"
+_STATUS_ACTION_STYLE = "color: #c62828; font-weight: 600;"
+
+_WARNING_FIX_HINTS: tuple[tuple[str, str, str], ...] = (
+    (
+        "Capture monitor is unset",
+        "Mirroring may follow the wrong screen.",
+        (
+            "Set a capture monitor in Settings → Advanced → Capture, "
+            "or pick the screen in the portal tab."
+        ),
+    ),
+    (
+        "USB ACK miss rate is high",
+        "LED updates may stutter or lag.",
+        "Reconnect the strip, stop other apps using it, then refresh diagnostics.",
+    ),
+    (
+        "Portal screen restore state",
+        "The wrong monitor may be captured.",
+        "Open the Portal screen tab and use Forget saved screen choice, then restart mirroring.",
+    ),
+    (
+        "HDR/colour metadata confidence",
+        "Colours may look dull or tinted.",
+        "Try Display mode Auto or SDR in Settings → Everyday, then tune Colour settings.",
+    ),
+)
+
 _qt = load_qt()
 QDialog = _qt["QDialog"]
 QGridLayout = _qt["QGridLayout"]
@@ -162,6 +192,15 @@ class DiagnosticHubDialog(QDialog):
         mark_compact(bundle_btn)
         bundle_btn.clicked.connect(self._export_bundle)
         actions_layout.addWidget(bundle_btn)
+
+        copy_btn = QPushButton("Copy status summary")
+        mark_compact(copy_btn)
+        copy_btn.clicked.connect(self._copy_status_summary)
+        actions_layout.addWidget(copy_btn)
+
+        self._overview_guidance = QLabel("")
+        self._overview_guidance.setWordWrap(True)
+        actions_layout.addWidget(self._overview_guidance)
 
         self._overview_status = QPlainTextEdit()
         self._overview_status.setReadOnly(True)
@@ -358,9 +397,45 @@ class DiagnosticHubDialog(QDialog):
             return
         self._overview_status.setPlainText(str(result.get("message", "")))
         if result.get("ok"):
-            QMessageBox.information(self, "Bundle exported", str(result.get("message", "")))
+            saved = str(result.get("path") or path)
+            QMessageBox.information(
+                self,
+                "Bundle exported",
+                (
+                    f"Saved to:\n{saved}\n\n"
+                    "Contains a config snapshot, doctor output, and runtime logs. "
+                    "Review before sharing."
+                ),
+            )
         else:
             QMessageBox.warning(self, "Export failed", str(result.get("message", "")))
+
+    def _copy_status_summary(self) -> None:
+        from PyQt6.QtWidgets import QApplication
+
+        clipboard = QApplication.clipboard()
+        if clipboard is not None:
+            clipboard.setText(self._overview_status.toPlainText())
+
+    def _warning_guidance(self, warning: str) -> tuple[str, str]:
+        for prefix, meaning, fix in _WARNING_FIX_HINTS:
+            if prefix.lower() in warning.lower():
+                return meaning, fix
+        return (
+            "This may affect mirroring quality.",
+            "Open Help & Diagnostics and follow the troubleshooting guide.",
+        )
+
+    def _set_overview_status_style(self, key: str, *, level: str) -> None:
+        label = self._overview_labels.get(key)
+        if label is None:
+            return
+        style = {
+            "ok": _STATUS_OK_STYLE,
+            "warn": _STATUS_WARN_STYLE,
+            "action": _STATUS_ACTION_STYLE,
+        }.get(level, "")
+        label.setStyleSheet(style)
 
     def _forget_portal_token(self) -> None:
         try:
@@ -463,24 +538,54 @@ class DiagnosticHubDialog(QDialog):
             return
 
         running = bool(status.get("running"))
-        self._overview_labels["running"].setText("Active" if running else "Stopped")
+        running_text = "Active" if running else "Stopped"
+        self._overview_labels["running"].setText(running_text)
+        self._set_overview_status_style("running", level="ok" if running else "warn")
         backend = str(
             status.get("effective_capture_backend") or status.get("capture_backend") or "—"
         )
         self._overview_labels["backend"].setText(backend)
-        device = "Connected" if bool(status.get("device_discovered")) else "Not connected"
+        backend_level = "ok" if backend not in {"—", "mock"} else "warn"
+        self._set_overview_status_style("backend", level=backend_level)
+        device_connected = bool(status.get("device_discovered"))
+        device = "Connected" if device_connected else "Not connected"
         self._overview_labels["device"].setText(device)
-        self._overview_labels["calibration"].setText(str(status.get("calibration_status") or "—"))
+        self._set_overview_status_style("device", level="ok" if device_connected else "action")
+        calibration_status = str(status.get("calibration_status") or "—")
+        self._overview_labels["calibration"].setText(calibration_status)
+        cal_level = "ok" if "ready" in calibration_status.lower() else "warn"
+        self._set_overview_status_style("calibration", level=cal_level)
 
         warnings = status.get("runtime_warnings")
         warning_rows = warnings if isinstance(warnings, list) else []
-        self._overview_labels["warning_count"].setText(str(len(warning_rows)))
+        warning_count = len(warning_rows)
+        self._overview_labels["warning_count"].setText(str(warning_count))
+        self._set_overview_status_style(
+            "warning_count",
+            level="ok" if warning_count == 0 else "action",
+        )
         if warning_rows:
-            summary = "; ".join(str(row.get("message", row)) for row in warning_rows[:3])
+            first = str(warning_rows[0])
+            meaning, fix = self._warning_guidance(first)
+            summary = "; ".join(str(row) for row in warning_rows[:3])
             self._warnings_banner.setText(f"Heads up: {summary}")
+            self._overview_guidance.setText(f"What this means: {meaning}\nRecommended fix: {fix}")
             self._warnings_banner.setVisible(True)
         else:
+            self._overview_guidance.setText("")
             self._warnings_banner.setVisible(False)
+
+        summary_lines = [
+            f"Mirroring: {running_text}",
+            f"Capture backend: {backend}",
+            f"USB strip: {device}",
+            f"Calibration: {calibration_status}",
+            f"Warnings: {warning_count}",
+        ]
+        if warning_rows:
+            summary_lines.append("Warning details:")
+            summary_lines.extend(f"- {row}" for row in warning_rows[:5])
+        self._overview_status.setPlainText("\n".join(summary_lines))
 
         identity = status.get("latest_capture_source_identity")
         if isinstance(identity, dict):

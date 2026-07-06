@@ -53,10 +53,10 @@ def test_runtime_and_ui_fallbacks_match_balanced_profile_defaults(monkeypatch) -
 
     _qt, _app, _settings_dialog, settings = make_settings_dialog(monkeypatch)
     _qt2, _app2, _wizard_dialog, wizard = make_display_configurator(monkeypatch)
-    assert settings.edge_locality_combo.currentText() == "Balanced"
-    assert settings.sampling_quality_combo.currentText() == "Balanced"
-    assert wizard.edge_locality_combo.currentText() == "Balanced"
-    assert wizard.sampling_quality_combo.currentText() == "Balanced"
+    assert settings.edge_locality_combo.currentText() == "Balanced — recommended"
+    assert settings.sampling_quality_combo.currentText() == "Balanced — recommended"
+    assert wizard.edge_locality_combo.currentText() == "Balanced — recommended"
+    assert wizard.sampling_quality_combo.currentText() == "Balanced — recommended"
     assert settings.updated_config().hdr_transfer == "srgb"
     assert settings.updated_config().hdr_primaries == "bt709"
 

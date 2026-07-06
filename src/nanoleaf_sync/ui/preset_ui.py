@@ -30,17 +30,17 @@ from nanoleaf_sync.config.presets import (
 LAYOUT_PRESET_LABELS: tuple[tuple[str, str], ...] = (("Edge strip", LAYOUT_PRESET_EDGE_STRIP),)
 EDGE_LOCALITY_LABELS: tuple[tuple[str, str], ...] = (
     ("Tight", EDGE_LOCALITY_TIGHT),
-    ("Balanced", EDGE_LOCALITY_BALANCED),
+    ("Balanced — recommended", EDGE_LOCALITY_BALANCED),
     ("Wide", EDGE_LOCALITY_WIDE),
 )
 SAMPLING_QUALITY_LABELS: tuple[tuple[str, str], ...] = (
     ("Low", SAMPLING_QUALITY_LOW),
-    ("Balanced", SAMPLING_QUALITY_BALANCED),
+    ("Balanced — recommended", SAMPLING_QUALITY_BALANCED),
     ("High", SAMPLING_QUALITY_HIGH),
 )
 MOTION_PRESET_LABELS: tuple[tuple[str, str], ...] = (
     ("Calm", MOTION_PRESET_CALM),
-    ("Responsive", MOTION_PRESET_RESPONSIVE),
+    ("Responsive — recommended", MOTION_PRESET_RESPONSIVE),
     ("Dynamic", MOTION_PRESET_DYNAMIC),
 )
 PERFORMANCE_PROFILE_LABELS: tuple[tuple[str, str], ...] = (
@@ -65,7 +65,7 @@ LIGHT_SPREAD_LABELS: tuple[tuple[str, str], ...] = (
 DISPLAY_PRESET_LABELS: tuple[tuple[str, str], ...] = (
     ("SDR", DISPLAY_PRESET_SDR),
     ("HDR", DISPLAY_PRESET_HDR),
-    ("Auto", DISPLAY_PRESET_AUTO),
+    ("Auto — recommended", DISPLAY_PRESET_AUTO),
 )
 
 PERFORMANCE_PRIORITY_LABELS: tuple[tuple[str, str], ...] = (

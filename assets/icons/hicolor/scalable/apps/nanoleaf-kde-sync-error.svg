@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="nanoleaf-kde-sync error">
+  <rect x="4" y="4" width="120" height="120" rx="22" fill="#2a1212"/>
+  <rect x="12" y="14" width="104" height="70" rx="9" fill="none" stroke="#e05c5c" stroke-width="4.5"/>
+  <rect x="19" y="21" width="90" height="56" rx="5" fill="#e05c5c" opacity="0.25"/>
+  <line x1="44" y1="44" x2="84" y2="84" stroke="#e05c5c" stroke-width="8" stroke-linecap="round"/>
+  <line x1="84" y1="44" x2="44" y2="84" stroke="#e05c5c" stroke-width="8" stroke-linecap="round"/>
+  <rect x="12" y="109" width="28" height="14" rx="7" fill="#e05c5c" opacity="0.85"/>
+  <rect x="50" y="109" width="28" height="14" rx="7" fill="#e05c5c" opacity="0.65"/>
+  <rect x="88" y="109" width="28" height="14" rx="7" fill="#e05c5c" opacity="0.45"/>
+</svg>

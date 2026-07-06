@@ -1,0 +1,48 @@
+name: Colour or HDR issue
+description: Wrong colours, dull output, HDR tinting, or flicker
+title: "[colour] "
+labels: [bug, colour]
+body:
+  - type: dropdown
+    id: display_preset
+    attributes:
+      label: Display mode in Settings
+      options:
+        - Auto
+        - SDR
+        - HDR
+        - Unknown
+    validations:
+      required: true
+  - type: dropdown
+    id: desktop_hdr
+    attributes:
+      label: KDE desktop HDR enabled?
+      options:
+        - "Yes"
+        - "No"
+        - Unknown
+    validations:
+      required: true
+  - type: checkboxes
+    id: symptoms
+    attributes:
+      label: Symptoms
+      options:
+        - label: Colours too dull
+        - label: Whites look tinted
+        - label: Blacks do not turn off
+        - label: Flicker
+        - label: Wrong hue on edges
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Doctor / diagnostics output
+      description: Paste relevant output or support bundle notes
+      render: shell
