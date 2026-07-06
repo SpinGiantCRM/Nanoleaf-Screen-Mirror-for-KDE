@@ -67,7 +67,7 @@ def _resolve_user_doc(name: str) -> Path | None:
     safe_name = _sanitize_doc_name(name)
     if safe_name is None:
         return None
-    repo_root = Path(__file__).resolve().parents[2]
+    repo_root = Path(__file__).resolve().parents[3]
     for candidate in (
         _INSTALLED_DOC_ROOT / safe_name,
         repo_root / "docs" / safe_name,

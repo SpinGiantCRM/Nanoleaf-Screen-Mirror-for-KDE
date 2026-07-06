@@ -252,7 +252,7 @@ def _oklab_to_linear(oklab: np.ndarray) -> np.ndarray:
     # Subtract the epsilon that was added before cube root to recover true black.
     # Clip to zero to prevent negative values from floating-point rounding.
     lms = np.maximum(lms - _OKLAB_CBRT_EPSILON, 0.0)
-    return lms @ _M1_INV_T
+    return np.maximum(lms @ _M1_INV_T, 0.0)
 
 
 def _smoothstep(edge0: np.ndarray, edge1: np.ndarray, x: np.ndarray) -> np.ndarray:

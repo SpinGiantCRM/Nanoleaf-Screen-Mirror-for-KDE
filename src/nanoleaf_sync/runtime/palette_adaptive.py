@@ -123,7 +123,7 @@ def _patch_features(
 def _candidate_area_mean(flat: np.ndarray) -> np.ndarray:
     if flat.size == 0:
         return np.zeros(3, dtype=np.float32)
-    return flat.mean(axis=0)
+    return np.asarray(flat.mean(axis=0), dtype=np.float32)
 
 
 def _candidate_dominant_saturated_hue(

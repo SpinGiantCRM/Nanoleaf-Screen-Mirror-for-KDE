@@ -131,14 +131,16 @@ def scanout_metadata_for_fourcc(
     if fourcc in _FP16_FOURCCS:
         bit_depth = 16
         transfer = "linear"
+        primaries = "bt2020"
     elif fourcc in _10BIT_FOURCCS:
         bit_depth = 10
         transfer = "gamma22"
+        primaries = "bt2020"
     else:
         bit_depth = 8
         transfer = "srgb"
+        primaries = resolve_drm_primaries_label()
 
-    primaries = resolve_drm_primaries_label()
     if connector_colorspace:
         normalized = connector_colorspace.strip().lower()
         if "2020" in normalized:
