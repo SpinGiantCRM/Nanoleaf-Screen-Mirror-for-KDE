@@ -177,7 +177,8 @@ Config load (ConfigManager.validate_config)
 **Target:** CachyOS / KDE Plasma 6 Wayland, NL82K2, 48-zone manual count
 
 - [ ] Run `nanoleaf-kde-sync-doctor` — expect PASS on session-bus, kwin-screenshot2, hid-device, calibration
-- [ ] Run `nanoleaf-kde-sync-smoke-test --hardware` — capture + device open + optional test frame
+- [ ] Run `nanoleaf-kde-sync-smoke-test --hardware` — capture + device open
+- [ ] Run `nanoleaf-kde-sync-smoke-test --hardware --send-test-frame` — optional LED output sanity check
 - [ ] Launch tray from **desktop entry** (not bare terminal): `nanoleaf-kde-sync`
 - [ ] Authorize KWin screen capture when prompted; confirm diagnostics show `kwin-dbus` or intended backend
 - [ ] Settings → confirm manual zone count stays **48** after restart (device-reported count diagnostics-only)
@@ -211,4 +212,5 @@ Config load (ConfigManager.validate_config)
 | `tests/device/test_hid_transport.py` | transceive + close-inflight tests |
 | `tests/test_hid_transport_extended.py` | busy-device open retry test |
 | `tests/test_service_status.py` | kmsgrab fallback status + faster heal test |
+| `docs/SMOKE_TEST.md` | Hardware frame test requires `--hardware --send-test-frame` |
 | `AUDIT_REPORT.md` | Full audit report |
