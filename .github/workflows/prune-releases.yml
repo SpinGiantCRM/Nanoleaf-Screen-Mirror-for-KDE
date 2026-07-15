@@ -1,0 +1,47 @@
+name: Prune Old Releases
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: releases } = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+
+            const latest = releases.find(r => r.prerelease === false);
+            const latestPre = releases.find(r => r.prerelease === true);
+
+            const keep = new Set();
+            if (latest) keep.add(latest.tag_name);
+            if (latestPre) keep.add(latestPre.tag_name);
+
+            for (const rel of releases) {
+              if (keep.has(rel.tag_name)) continue;
+              console.log(`Deleting ${rel.tag_name}...`);
+              await github.rest.repos.deleteRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: rel.id
+              });
+              try {
+                await github.rest.git.deleteRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `tags/${rel.tag_name}`
+                });
+              } catch (e) {
+                console.log(`  tag ${rel.tag_name} already gone or protected`);
+              }
+            }
