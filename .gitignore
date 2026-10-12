@@ -20,6 +20,7 @@ dist/
 build/
 native/target/
 native/python-bridge/target/
+native/app/target/
 *.egg-info/
 
 packaging/arch/pkg/
