@@ -1,5 +1,5 @@
 //! SDR adaptive prepass: mixed-content classification and its dark-biased mean.
-//! Palette candidates, scoring and temporal selection remain in Python.
+//! Native decision path and guarded Python bridge path share reduction ordering.
 //! Borderline floating decisions explicitly defer to the reference implementation.
 
 use crate::sampling::{SdrRgb8Frame, SdrSampler, ZoneRect};
@@ -28,6 +28,15 @@ const MARGIN: f32 = 0.00001;
 
 impl SdrSampler {
     pub fn adaptive_prepass(&self, frame: &SdrRgb8Frame<'_>, zone: ZoneRect) -> AdaptiveSample {
+        self.adaptive(frame, zone, true)
+    }
+
+    /// Fully native evaluation, including decisions near float/quantization boundaries.
+    pub fn adaptive_native(&self, frame: &SdrRgb8Frame<'_>, zone: ZoneRect) -> AdaptiveSample {
+        self.adaptive(frame, zone, false)
+    }
+
+    fn adaptive(&self, frame: &SdrRgb8Frame<'_>, zone: ZoneRect, guarded: bool) -> AdaptiveSample {
         let empty = AdaptiveSample {
             decision: MixedDecision::Clear,
             mixed_rgb: [0; 3],
@@ -44,7 +53,7 @@ impl SdrSampler {
         }
         // Cap transient feature storage even for a single full-screen source zone.
         // Oversized patches preserve the Python decision/mean for this zone.
-        if width * height > 1_048_576 {
+        if guarded && width * height > 1_048_576 {
             return AdaptiveSample {
                 decision: MixedDecision::Reference,
                 mixed_rgb: [0; 3],
@@ -74,12 +83,12 @@ impl SdrSampler {
         let mean_lum = pairwise_sum(&lumas) / n;
         let deviations: Vec<_> = lumas.iter().map(|lum| (lum - mean_lum).powi(2)).collect();
         let std = (pairwise_sum(&deviations) / n).sqrt();
-        let decision = if (std - 0.042).abs() <= MARGIN {
+        let decision = if guarded && (std - 0.042).abs() <= MARGIN {
             MixedDecision::Reference
         } else if std > 0.042 {
             MixedDecision::Mixed
         } else {
-            classify_subtle(&pixels, mean_lum, std)
+            classify_subtle(&pixels, mean_lum, std, guarded)
         };
         if decision != MixedDecision::Mixed {
             return AdaptiveSample {
@@ -99,7 +108,7 @@ impl SdrSampler {
             lumas[middle]
         };
         let mut rgb = sums.map(|sum| sum / n);
-        if (median - 0.0058).abs() <= MARGIN {
+        if guarded && (median - 0.0058).abs() <= MARGIN {
             return AdaptiveSample {
                 decision: MixedDecision::Reference,
                 mixed_rgb: [0; 3],
@@ -127,9 +136,10 @@ impl SdrSampler {
         let encoded = rgb.map(encode_float);
         // Preserve the reference at quantization boundaries, too. This also
         // avoids propagating a one-code difference through temporal decisions.
-        if encoded
-            .iter()
-            .any(|code| (code.fract() - 0.5).abs() < 0.002)
+        if guarded
+            && encoded
+                .iter()
+                .any(|code| (code.fract() - 0.5).abs() < 0.002)
         {
             return AdaptiveSample {
                 decision: MixedDecision::Reference,
@@ -143,13 +153,13 @@ impl SdrSampler {
     }
 }
 
-fn classify_subtle(pixels: &[Pixel], mean_lum: f32, std: f32) -> MixedDecision {
+fn classify_subtle(pixels: &[Pixel], mean_lum: f32, std: f32, guarded: bool) -> MixedDecision {
     let delta = 0.003 + 0.038 * mean_lum;
     let mut prominent = 0;
     let mut max_sat = 0.0_f32;
     for pixel in pixels {
         let prominence = ((pixel.lum - mean_lum) / delta).clamp(0.0, 1.0);
-        if (prominence - 0.5).abs() <= MARGIN * 10.0 {
+        if guarded && (prominence - 0.5).abs() <= MARGIN * 10.0 {
             return MixedDecision::Reference;
         }
         if prominence > 0.5 {
@@ -158,7 +168,7 @@ fn classify_subtle(pixels: &[Pixel], mean_lum: f32, std: f32) -> MixedDecision {
         max_sat = max_sat.max(pixel.sat);
     }
     if prominent as f64 / (pixels.len() as f64) < 0.15 && max_sat > 0.25 {
-        if (std - 0.017).abs() <= MARGIN {
+        if guarded && (std - 0.017).abs() <= MARGIN {
             return MixedDecision::Reference;
         }
         if std > 0.017 {
@@ -178,7 +188,7 @@ fn classify_subtle(pixels: &[Pixel], mean_lum: f32, std: f32) -> MixedDecision {
     let mean_sin = pairwise_sum(&sin) / hues.len() as f32;
     let mean_cos = pairwise_sum(&cos) / hues.len() as f32;
     let coherence = (mean_sin * mean_sin + mean_cos * mean_cos).sqrt();
-    if (coherence - 0.85).abs() <= MARGIN {
+    if guarded && (coherence - 0.85).abs() <= MARGIN {
         return MixedDecision::Reference;
     }
     if coherence < 0.85 {
@@ -219,7 +229,7 @@ fn encode_float(linear: f32) -> f32 {
 // Match the reference's contiguous float32 reductions: eight accumulators in
 // blocks of 128, recursively split on an eight-element boundary. Channel means
 // above instead preserve the reference's strided, sequential RGB summation.
-fn pairwise_sum(values: &[f32]) -> f32 {
+pub(crate) fn pairwise_sum(values: &[f32]) -> f32 {
     let n = values.len();
     if n < 8 {
         return values.iter().fold(-0.0_f32, |sum, value| sum + value);

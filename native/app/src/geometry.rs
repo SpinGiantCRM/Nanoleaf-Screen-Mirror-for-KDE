@@ -91,13 +91,31 @@ pub fn pixel_zones(
         config.device_zone_count > 0,
         "Set the manual strip zone count before starting"
     );
-    let (zones, counts) = if config.zones.is_empty() {
-        edge_zones(
-            config.device_zone_count,
-            width,
-            height,
-            &config.edge_locality,
-        )
+    ensure!(width > 0 && height > 0, "Empty frame geometry");
+    let (mut zones, counts) = if config.zones.is_empty() {
+        if matches!(
+            config.layout_preset.as_str(),
+            "horizontal_debug" | "horizontal"
+        ) {
+            (
+                (0..config.device_zone_count)
+                    .map(|i| Rect {
+                        x: i as f64 / config.device_zone_count as f64,
+                        y: 0.0,
+                        w: 1.0 / config.device_zone_count as f64,
+                        h: 1.0,
+                    })
+                    .collect(),
+                [0; 4],
+            )
+        } else {
+            edge_zones(
+                config.device_zone_count,
+                width,
+                height,
+                &config.edge_locality,
+            )
+        }
     } else {
         let counts = if config.source_side_counts.len() == 4 {
             std::array::from_fn(|i| config.source_side_counts[i])
@@ -106,6 +124,27 @@ pub fn pixel_zones(
         };
         (config.zones.clone(), counts)
     };
+    if config.zones.is_empty()
+        && !matches!(
+            config.layout_preset.as_str(),
+            "horizontal_debug" | "horizontal"
+        )
+    {
+        let inset = config.layout_inset.clamp(0.0, 0.4);
+        let scale = config.layout_scale.clamp(0.5, 1.0);
+        if inset > 1e-6 || (scale - 1.0).abs() > 1e-6 {
+            for z in &mut zones {
+                let cx = 0.5 + (z.x + z.w * 0.5 - 0.5) * scale;
+                let cy = 0.5 + (z.y + z.h * 0.5 - 0.5) * scale;
+                z.w *= scale;
+                z.h *= scale;
+                z.x = (cx - z.w * 0.5).min(1.0 - inset - z.w).max(inset);
+                z.y = (cy - z.h * 0.5).min(1.0 - inset - z.h).max(inset);
+                z.w = z.w.min(1.0 - z.x).max(1e-6);
+                z.h = z.h.min(1.0 - z.y).max(1e-6);
+            }
+        }
+    }
     Ok((
         zones
             .into_iter()

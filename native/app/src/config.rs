@@ -97,6 +97,21 @@ pub struct Config {
     pub capture_monitor: String,
     pub output_channel_order: String,
     pub color_style: String,
+    pub accuracy_mode: bool,
+    pub motion_preset: String,
+    pub light_spread: String,
+    pub sampling_quality: String,
+    pub sync_mode: String,
+    pub layout_inset: f64,
+    pub layout_scale: f64,
+    pub zone_temporal_accumulation: bool,
+    pub zone_box_filter_sampling: bool,
+    pub blue_noise_dither: bool,
+    pub display_gamut: String,
+    pub virtual_zone_oversample: usize,
+    pub multi_moment_zone_colors: bool,
+    pub scene_adaptive_profiles: bool,
+    pub prefer_backend: String,
     pub sampling_mode: String,
     pub layout_preset: String,
     pub edge_locality: String,
@@ -132,6 +147,21 @@ impl Default for Config {
             capture_monitor: String::new(),
             output_channel_order: "grb".into(),
             color_style: "ambient".into(),
+            accuracy_mode: false,
+            motion_preset: "responsive".into(),
+            light_spread: "balanced".into(),
+            sampling_quality: "balanced".into(),
+            sync_mode: "standard".into(),
+            layout_inset: 0.0,
+            layout_scale: 1.0,
+            zone_temporal_accumulation: true,
+            zone_box_filter_sampling: true,
+            blue_noise_dither: true,
+            display_gamut: "auto".into(),
+            virtual_zone_oversample: 0,
+            multi_moment_zone_colors: false,
+            scene_adaptive_profiles: false,
+            prefer_backend: "auto".into(),
             sampling_mode: "auto".into(),
             layout_preset: "edge_strip".into(),
             edge_locality: "balanced".into(),
@@ -191,6 +221,10 @@ impl Config {
             self.smoothing_speed.is_finite() && (0.0..=4.0).contains(&self.smoothing_speed),
             "Invalid smoothing speed"
         );
+        ensure!(
+            self.layout_inset.is_finite() && self.layout_scale.is_finite(),
+            "Invalid layout transform"
+        );
         let mut order = self.output_channel_order.chars().collect::<Vec<_>>();
         order.sort_unstable();
         ensure!(order == ['b', 'g', 'r'], "Invalid output channel order");
@@ -204,10 +238,12 @@ impl Config {
             ensure!(
                 zone.x >= 0.0
                     && zone.y >= 0.0
-                    && zone.w > 0.0
-                    && zone.h > 0.0
-                    && zone.x + zone.w <= 1.000001
-                    && zone.y + zone.h <= 1.000001,
+                    && zone.w >= 0.0
+                    && zone.h >= 0.0
+                    && zone.x <= 1.0
+                    && zone.y <= 1.0
+                    && zone.w <= 1.0
+                    && zone.h <= 1.0,
                 "Invalid normalized zone"
             );
         }
