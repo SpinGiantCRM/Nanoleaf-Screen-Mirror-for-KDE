@@ -1,7 +1,7 @@
 # Offline Rust core prototype
 
 This workspace is an independently testable CPU/protocol prototype. It is not
-installed by PyPI, imported by the Python app, a daemon, or a capture/HID backend.
+installed by PyPI, automatically enabled by the Python app, a daemon, or a capture/HID backend.
 The recovered Python runtime remains the working implementation and fallback.
 The repository's existing license also covers this code; the crate is not
 published to crates.io.
@@ -84,8 +84,8 @@ loaded fixture, not a complete GUI/capture runtime. Native histograms retain eve
 pixel; no downscaling or sparse sampling is used.
 
 The probe is an offline diagnostic executable, not a per-frame subprocess design
-for mirroring. The next bridge must measure marshalling/copies and the complete
-processing path before changing runtime defaults.
+for mirroring. The optional [development bridge](python-bridge/README.md) measures
+marshalling/copies and the complete processing path. Runtime defaults stay unchanged.
 
 Parity permits at most one 8-bit code of rounding difference, absolute linear mean
 error <=1e-7 and variance error <=0.002 code-squared. Black, uniform grey/white and

@@ -45,6 +45,7 @@ from nanoleaf_sync.runtime.compositor import (
     zone_sdr_boost_undo_ratio,
 )
 from nanoleaf_sync.runtime.predictive_sync import PredictiveSyncParams, apply_predictive_sync
+from nanoleaf_sync.runtime.rust_sampling import BoxSampler
 from nanoleaf_sync.runtime.srgb import linear01_to_srgb_float, srgb_encoded_float_to_linear01
 from nanoleaf_sync.runtime.state import ZoneRect
 from nanoleaf_sync.runtime.zones import ZoneSamplingMeta, zone_colors_array_with_meta
@@ -104,6 +105,8 @@ class ColorPipelineParams:
     blue_noise_dither: bool = False
     multi_moment_zone_colors: bool = False
     use_zone_box_filter: bool = False
+    # Internal replay/prototype injection only; never persisted or auto-enabled.
+    box_sampler: BoxSampler | None = None
 
 
 _SCENE_PROFILES: dict[str, dict[str, object]] = {
@@ -444,6 +447,13 @@ def process_zone_colors(
             virtual_oversample=int(params.virtual_oversample),
             multi_moment_zone_colors=bool(params.multi_moment_zone_colors),
             use_zone_box_filter=bool(params.use_zone_box_filter),
+            box_sampler=(
+                params.box_sampler
+                if not params.compositor_hdr_mode
+                and getattr(params.color_context, "transfer", "srgb") == "srgb"
+                and getattr(params.color_context, "primaries", "bt709") == "bt709"
+                else None
+            ),
         )
     if raw_colors.size == 0:
         return []

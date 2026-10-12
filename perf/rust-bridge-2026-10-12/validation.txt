@@ -1,0 +1,50 @@
+Local verification 2026-10-12. No hosted CI, hardware, HDR or power claims.
+
+Python: 3.14.7
+Recorded performance extension: rustc 1.98.0 (88d9e12ae 2026-08-18), release
+Minimum-compiler correctness extension: rustc 1.85.0 (4d91de4e4 2025-02-17), release
+
+Native-aware full suite:
+NANOLEAF_RUST_BRIDGE=<explicit stable release extension path> .venv/bin/python -m pytest -q --timeout=60 --timeout-method=thread --durations=25 --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=75
+1614 passed in 49.07s; coverage 77.86% (75% gate passed)
+
+Targeted bridge suite:
+23 passed on each of the Rust 1.85 and 1.98 release extensions.
+Includes fake failure and malformed output fallback; native absence/wrong file
+type; unsupported-mode/HDR/gamut bypass; padded/reversed/channel-strided frames;
+privacy/clipping/variance; all neutrals; calibration/mapping/smoothing replay;
+accumulation and dither replay. The normal application never reads the test env var.
+
+Core preserved at Rust 1.77:
+cargo +1.77.0 test --manifest-path native/Cargo.toml --locked --offline
+9 contract tests passed
+cargo +1.77.0 fmt --manifest-path native/Cargo.toml --check
+cargo +1.77.0 clippy --manifest-path native/Cargo.toml --all-targets --locked --offline -- -D warnings
+Passed
+
+Bridge:
+PYO3_PYTHON=<development interpreter> PYO3_BUILD_EXTENSION_MODULE=1 cargo +1.85.0 build --manifest-path native/python-bridge/Cargo.toml --target-dir native/python-bridge/target/msrv --release --locked --offline
+Passed; actual embedded compiler checked in msrv-parity.json
+cargo +1.85.0 fmt --manifest-path native/python-bridge/Cargo.toml --check
+PYO3_PYTHON=<development interpreter> cargo +1.85.0 clippy --manifest-path native/python-bridge/Cargo.toml --all-targets --locked --offline -- -D warnings
+Passed (also passed at Rust 1.98)
+
+Python lint/type/security:
+.venv/bin/ruff check src/ tests/ scripts/build_rust_bridge.py scripts/benchmark_rust_bridge.py
+.venv/bin/ruff format --check src/ tests/ scripts/build_rust_bridge.py scripts/benchmark_rust_bridge.py
+Passed; 291 files formatted
+.venv/bin/mypy src/nanoleaf_sync --ignore-missing-imports --follow-imports=silent
+Passed; 111 source files
+.venv/bin/bandit -q -r src/nanoleaf_sync -c pyproject.toml
+Passed; existing nosec-warning messages, no failures
+
+Default Python performance gate:
+.venv/bin/python -m nanoleaf_sync.tools.benchmark --preset production --json perf/rust-bridge-2026-10-12/python-production.json --compare perf/baseline.json
+Passed. No native extension is enabled by this command.
+
+CI YAML parsed locally. Matrix adds Rust 1.85 bridge verification on Python 3.11
+and 3.14; hosted execution remains unverified.
+
+git diff --check passed.
+Config/calibration directory and desktop launcher hash snapshots unchanged.
+PyPI build/entry points/config schema and existing capture/HID paths unchanged.

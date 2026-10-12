@@ -19,6 +19,7 @@ venv/
 dist/
 build/
 native/target/
+native/python-bridge/target/
 *.egg-info/
 
 packaging/arch/pkg/

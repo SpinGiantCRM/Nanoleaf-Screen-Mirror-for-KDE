@@ -92,6 +92,35 @@ jobs:
         run: |
           python scripts/benchmark_rust_core.py --quick --iterations 3 --warmup 1 --repeats 1 --output native-parity.json
 
+  rust-bridge:
+    name: Optional Rust bridge (${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        python: ["3.11", "3.14"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install development verification dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gcc libegl1 libgl1 libxkbcommon0
+          pip install -e '.[test]'
+          rustup toolchain install 1.85.0 --profile minimal --component rustfmt --component clippy
+      - name: Build and verify the optional bridge
+        env:
+          RUSTUP_TOOLCHAIN: "1.85.0"
+        run: |
+          cargo fmt --manifest-path native/python-bridge/Cargo.toml --check
+          python scripts/build_rust_bridge.py
+          cargo clippy --manifest-path native/python-bridge/Cargo.toml --all-targets --locked --offline -- -D warnings
+          export NANOLEAF_RUST_BRIDGE="$(python -c 'import pathlib,sysconfig; print(pathlib.Path("native/target/bridge") / ("_nanoleaf_core" + sysconfig.get_config_var("EXT_SUFFIX")))')"
+          python -m pytest -q tests/test_rust_sampling_bridge.py --timeout=60 --timeout-method=thread
+          python scripts/benchmark_rust_bridge.py --bridge "$NANOLEAF_RUST_BRIDGE" --quick --iterations 3 --warmup 1 --repeats 1 --output bridge-parity.json
+
   benchmark:
     name: Performance baseline
     runs-on: ubuntu-latest

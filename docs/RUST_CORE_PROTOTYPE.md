@@ -1,6 +1,10 @@
 # First Rust core prototype: results and adoption limits
 
 Date: 2026-10-12, Australia/Adelaide. Branch: `codex/rust-core-prototype`.
+
+This records the first standalone prototype. The subsequent
+[optional in-process bridge](RUST_SAMPLER_BRIDGE.md) now measures copy/conversion
+overhead and the complete offline colour path; normal mirroring defaults remain unchanged.
 Python reference/fallback: recovered commit `6c2bbd5`, retained on
 `codex/recovery-rust-audit`. The live Python source, calibration/config schema,
 capture/USB paths, UI and installation were not changed by this prototype.

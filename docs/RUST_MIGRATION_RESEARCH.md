@@ -8,7 +8,7 @@ Recover the existing application before replacing it. A Rust runtime is worth pr
 
 The first live run **failed to mirror**, despite successful capture and USB commands. It captured and processed frames, discarded every processed frame as too old, and timed out before sending its first frame. This is a performance/startup interaction, not evidence that capture authorization or USB permissions are broken on this host. The first implementation computes the complete linear-light mean and variance from shared pixel histograms. A bounded live run then started in 235 ms, sent 288 frames and had no stale-output drops. This establishes an initial recovery, not long-term daily reliability.
 
-At the end of the initial recovery audit, no Rust speedup, power saving, physical colour accuracy or optical response had been measured. The [subsequent offline Rust core prototype](RUST_CORE_PROTOTYPE.md) now supplies CPU sampling and protocol parity evidence. It is not integrated into the app. The broader Rust architecture below remains a proposal with explicit adoption gates.
+At the end of the initial recovery audit, no Rust speedup, power saving, physical colour accuracy or optical response had been measured. The [subsequent offline Rust core prototype](RUST_CORE_PROTOTYPE.md) supplies CPU sampling and protocol parity evidence. The [optional in-process bridge](RUST_SAMPLER_BRIDGE.md) now measures copy overhead and the complete offline colour path. Neither is enabled in normal mirroring. The broader Rust architecture below remains a proposal with explicit adoption gates.
 
 ## Evidence and scope
 
