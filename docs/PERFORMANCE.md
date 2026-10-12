@@ -29,6 +29,10 @@ native-resolution sampler comparisons, live runtime/USB measurements and their
 verification limits. Its reproducible evidence is in
 [`perf/recovery-2026-10-12/`](../perf/recovery-2026-10-12/README.md).
 
+The [offline Rust core prototype](RUST_CORE_PROTOTYPE.md) compares full-pixel SDR
+zone mean/variance against the recovered Python sampler on identical fixtures.
+Its stage timings do not establish native app FPS, HID latency or power savings.
+
 ## Updating the baseline
 
 After intentional performance changes:

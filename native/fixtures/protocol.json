@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "requests": [
+    {"command": "02", "payload": "140a1e32283c", "expected": "020006140a1e32283c"},
+    {"command": "03", "payload": "", "expected": "030000"},
+    {"command": "07", "payload": "01", "expected": "07000101"},
+    {"command": "09", "payload": "10", "expected": "09000110"},
+    {"command": "0c", "payload": "", "expected": "0c0000"},
+    {"command": "ff", "payload": "abcd", "expected": "ff0002abcd"}
+  ],
+  "responses": [
+    {"command": "03", "frame": "8300020030", "expected": "30"},
+    {"command": "03", "frame": "8300020030000000", "expected": "30"},
+    {"command": "0c", "frame": "8c0007004e4c38324b31", "expected": "4e4c38324b31"},
+    {"command": "0c", "frame": "8c0007004e4c38324b32", "expected": "4e4c38324b32"},
+    {"command": "02", "frame": "82000100", "expected": ""},
+    {"command": "ff", "frame": "7f000100", "expected": ""},
+    {"command": "02", "frame": "82", "error": "short_read"},
+    {"command": "02", "frame": "82000200", "error": "short_read"},
+    {"command": "02", "frame": "83000100", "error": "response_type"},
+    {"command": "02", "frame": "820000", "error": "missing_status"},
+    {"command": "02", "frame": "82000107", "error": "command_failed"}
+  ]
+}

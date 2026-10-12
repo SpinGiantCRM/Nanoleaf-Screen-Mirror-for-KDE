@@ -1,0 +1,20 @@
+Date: 2026-10-12 Australia/Adelaide
+Branch: codex/rust-core-prototype
+Recovered Python reference branch: codex/recovery-rust-audit at 6c2bbd5
+Rust 1.77 offline contract tests: 9 passed
+Rust 1.98 release contract tests: 9 passed
+Rust format and Clippy (warnings denied): passed on 1.77 and 1.98
+Shared protocol vectors: 17 passed
+Malformed native frame/zone fixture rejections: 8 passed
+Full recorded sampler comparisons: 11 fixtures, 3 repeats, 30 timed samples after 5 warmups
+RGB parity: zero byte differences on all recorded fixtures
+Linear mean tolerance: 1e-7; variance tolerance: 0.002 code-squared; all passed
+MSRV Rust 1.77 release quick cross-language correctness: passed
+Python full suite: 1591 passed in 49.53s; coverage 77.52% (75% minimum)
+Python Ruff lint/format and source mypy (110 files): passed
+Python production benchmark: passed perf/baseline.json
+Workflow YAML: parsed locally; separate Rust fixture gate added
+Git diff vs recovered reference for src/, pyproject.toml, setup.py, assets/, packaging/: empty
+User config and launcher bytes: unchanged across native comparison and MSRV checks
+No native capture, USB I/O, UI/config migration or installation performed
+Hosted CI: not run for this local branch

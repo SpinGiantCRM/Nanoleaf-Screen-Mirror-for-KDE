@@ -65,6 +65,33 @@ jobs:
       - name: Run tests
         run: pytest -q --timeout=60 --timeout-method=thread --durations=25 --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=75
 
+  rust-core:
+    name: Rust core prototype contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install prototype verification dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gcc libegl1 libgl1 libxkbcommon0
+          pip install -e .
+          rustup toolchain install 1.77.0 --profile minimal --component rustfmt --component clippy
+      - name: Check Rust core at its minimum supported compiler
+        run: |
+          cargo +1.77.0 fmt --manifest-path native/Cargo.toml --check
+          cargo +1.77.0 clippy --manifest-path native/Cargo.toml --all-targets --locked --offline -- -D warnings
+          cargo +1.77.0 test --manifest-path native/Cargo.toml --locked --offline
+          cargo +1.77.0 build --manifest-path native/Cargo.toml --release --locked --offline
+      - name: Verify shared Python and Rust fixtures
+        run: |
+          python scripts/benchmark_rust_core.py --quick --iterations 3 --warmup 1 --repeats 1 --output native-parity.json
+
   benchmark:
     name: Performance baseline
     runs-on: ubuntu-latest

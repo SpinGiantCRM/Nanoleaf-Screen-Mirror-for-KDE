@@ -18,6 +18,7 @@ venv/
 *.toml.tmp.*
 dist/
 build/
+native/target/
 *.egg-info/
 
 packaging/arch/pkg/
