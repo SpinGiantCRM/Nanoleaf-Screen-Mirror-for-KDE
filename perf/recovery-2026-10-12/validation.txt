@@ -1,0 +1,16 @@
+Reference revision: 43fcf13381b5d842f9a5f495b226f8b8626d8121
+Date: 2026-10-12 Australia/Adelaide
+Python: repository venv 3.14.7
+Baseline: 1574 passed in 48.89s
+After patch: 1588 passed in 49.37s; coverage 77.55% (minimum 75%)
+Targeted sampling and colour guardrails: 49 passed in 0.15s
+ruff check src/ tests/ scripts/: passed
+ruff format --check src/ tests/ scripts/: passed
+mypy src/nanoleaf_sync --ignore-missing-imports --follow-imports=silent: passed (110 source files)
+Version alignment: 1.9.3
+New hosted CI/release/packaging/runtime pip-audit/Semgrep: not run in this audit
+Commit hooks: ruff, format, mypy, Bandit and Gitleaks passed
+Existing hosted status inspected: Weekly CI 37320549443 failed Python 3.11 runtime pip-audit step; Python 3.12/3.13 jobs passed. Failure logs denied HTTP 403; cause unverified.
+Three after-patch production benchmark runs: pass perf/baseline.json comparisons
+Headed KDE tray: Start/Stop/restart/Settings open-close passed; config and launcher bytes unchanged
+Two successful short live service windows: 288 and 292 frames, zero stale-output drops

@@ -9,7 +9,7 @@ from functools import lru_cache
 
 import numpy as np
 
-from nanoleaf_sync.capture._utils import zone_box_average
+from nanoleaf_sync.capture._utils import zone_box_statistics
 from nanoleaf_sync.color import RGBTuple
 from nanoleaf_sync.config.model import PrivacyZone
 from nanoleaf_sync.config.presets import SAMPLING_MODE_WAVELET_EDGE, edge_locality_profile
@@ -408,9 +408,9 @@ def _zone_colors_via_box_filter(
         if use_multi_moment:
             color, _selector = multi_moment_zone_color(patch)
             means[idx] = color
+            variances[idx] = float(np.var(patch.reshape(-1, 3).astype(np.float32), axis=0).mean())
         else:
-            means[idx] = zone_box_average(img, sample_rect, max_pixels=max_pixels)
-        variances[idx] = float(np.var(patch.reshape(-1, 3).astype(np.float32), axis=0).mean())
+            means[idx], variances[idx] = zone_box_statistics(img, sample_rect)
     return means, variances
 
 

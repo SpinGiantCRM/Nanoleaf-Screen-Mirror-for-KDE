@@ -1,0 +1,4798 @@
+{
+  "kind": "live-service-baseline",
+  "runtime_seconds": 10,
+  "fps_override": null,
+  "processing_instrumented": true,
+  "usb_initialize_ms": 64.01337100032833,
+  "device_model": "NL82K2",
+  "manual_zone_count": 48,
+  "usb_pattern_samples": [
+    {
+      "rgb": [
+        0,
+        0,
+        0
+      ],
+      "call_ms": 8.105060001980746,
+      "driver": {
+        "frame_build_ms": 0.025938999897334725,
+        "device_write_ms": 3.8969730012468062,
+        "flush_or_wait_ms": 4.0349560003960505,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          1.9098680022580083,
+          1.000299998850096,
+          0.9784080029930919
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 2.9727080000157002,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 1,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 2.9727080000157002,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        0
+      ],
+      "call_ms": 6.917562001035549,
+      "driver": {
+        "frame_build_ms": 0.02592999953776598,
+        "device_write_ms": 2.6817710022442043,
+        "flush_or_wait_ms": 4.018685998744331,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.690077999024652,
+          0.975132999883499,
+          1.0025740011769813
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 2.959602999908384,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 2,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 2.959602999908384,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        0
+      ],
+      "call_ms": 6.929765000677435,
+      "driver": {
+        "frame_build_ms": 0.02568900163169019,
+        "device_write_ms": 2.740775002166629,
+        "flush_or_wait_ms": 4.015409002022352,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7417960005113855,
+          0.9786689988686703,
+          1.0080549982376397
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 2.959904002636904,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 3,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 2.959904002636904,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        0
+      ],
+      "call_ms": 6.933241998922313,
+      "driver": {
+        "frame_build_ms": 0.026060002710437402,
+        "device_write_ms": 2.7462449979793746,
+        "flush_or_wait_ms": 4.021431002911413,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7494710007449612,
+          0.9955820023606066,
+          0.9892690031847451
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 2.965694002341479,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 4,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 2.965694002341479,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        0
+      ],
+      "call_ms": 6.951867002499057,
+      "driver": {
+        "frame_build_ms": 0.14676000137114897,
+        "device_write_ms": 2.637356999912299,
+        "flush_or_wait_ms": 4.019837000669213,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.6530979990202468,
+          0.9827169997151941,
+          0.9842500003287569
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 2.961576003144728,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 5,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 2.961576003144728,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        0
+      ],
+      "call_ms": 6.930977997399168,
+      "driver": {
+        "frame_build_ms": 0.023415002942783758,
+        "device_write_ms": 2.7589499986788724,
+        "flush_or_wait_ms": 4.018234998511616,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.752607000322314,
+          1.001251999696251,
+          0.9918639989336953
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 2.9633199992531445,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 6,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 2.9633199992531445,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        24,
+        24
+      ],
+      "call_ms": 14.525792998028919,
+      "driver": {
+        "frame_build_ms": 0.023976001102710143,
+        "device_write_ms": 2.7530580009624828,
+        "flush_or_wait_ms": 11.608311000600224,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7569760018668603,
+          0.9882970007311087,
+          0.9955019995686598
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 0,
+        "ack_arrival_ms": null,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 6,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 2.9633199992531445,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        24,
+        24
+      ],
+      "call_ms": 4.4223160002729855,
+      "driver": {
+        "frame_build_ms": 0.0291559990728274,
+        "device_write_ms": 3.163250999932643,
+        "flush_or_wait_ms": 1.0651039992808364,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          1.1637129973678384,
+          0.9872850023384672,
+          0.9998889981943648
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.007733997335890308,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 7,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.007733997335890308,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        24,
+        24
+      ],
+      "call_ms": 3.9354270011244807,
+      "driver": {
+        "frame_build_ms": 0.02187100108130835,
+        "device_write_ms": 2.7125109991175123,
+        "flush_or_wait_ms": 1.0683800028346013,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.6999569995969068,
+          0.9933080000337213,
+          1.0054000013042241
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.013376000424614176,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 8,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.013376000424614176,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        24,
+        24
+      ],
+      "call_ms": 3.9117609994718805,
+      "driver": {
+        "frame_build_ms": 0.025509001716272905,
+        "device_write_ms": 2.688345000933623,
+        "flush_or_wait_ms": 1.064623000274878,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.686030001816107,
+          0.9937169998011086,
+          0.9967940022761468
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.006431997462641448,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 9,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.006431997462641448,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        24,
+        24
+      ],
+      "call_ms": 3.969501998653868,
+      "driver": {
+        "frame_build_ms": 0.025468998501310125,
+        "device_write_ms": 2.712631001486443,
+        "flush_or_wait_ms": 1.0644130015862174,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7130220001272392,
+          0.9925959966494702,
+          0.9932569992088247
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.0079849996836856,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 10,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.0079849996836856,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        24,
+        24
+      ],
+      "call_ms": 3.921580002497649,
+      "driver": {
+        "frame_build_ms": 0.024847999156918377,
+        "device_write_ms": 2.677204000065103,
+        "flush_or_wait_ms": 1.0627089977788273,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.6944760025362484,
+          0.9803729990380816,
+          0.9885779982141685
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.006391997885657474,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 11,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.006391997885657474,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        0,
+        0
+      ],
+      "call_ms": 3.9493930016760714,
+      "driver": {
+        "frame_build_ms": 0.021981999452691525,
+        "device_write_ms": 2.706007999222493,
+        "flush_or_wait_ms": 1.0679599981813226,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7083429991325829,
+          0.9824670014495496,
+          0.9978659982152749
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.007243997970363125,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 12,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.007243997970363125,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        0,
+        0
+      ],
+      "call_ms": 3.949101999751292,
+      "driver": {
+        "frame_build_ms": 0.024275999749079347,
+        "device_write_ms": 2.680609999515582,
+        "flush_or_wait_ms": 1.0674690020096023,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.6862810005259234,
+          0.9939989977283403,
+          0.9868550005194265
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.007174003258114681,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 13,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.007174003258114681,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        0,
+        0
+      ],
+      "call_ms": 3.9045580015226733,
+      "driver": {
+        "frame_build_ms": 0.025367997295688838,
+        "device_write_ms": 2.6598000004014466,
+        "flush_or_wait_ms": 1.0640420005074702,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.6744179991073906,
+          0.9748320007929578,
+          0.9970739993150346
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.007483999070245773,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 14,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.007483999070245773,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        0,
+        0
+      ],
+      "call_ms": 3.924926000763662,
+      "driver": {
+        "frame_build_ms": 0.05441399844130501,
+        "device_write_ms": 2.581970999017358,
+        "flush_or_wait_ms": 1.0632010016706772,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.5763909975939896,
+          0.9967940022761468,
+          0.9973149972211104
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.00772500061430037,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 15,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.00772500061430037,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        0,
+        0
+      ],
+      "call_ms": 3.9306979997491,
+      "driver": {
+        "frame_build_ms": 0.03747099981410429,
+        "device_write_ms": 2.6866109983529896,
+        "flush_or_wait_ms": 1.0614370003168005,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.6849179990240373,
+          0.9936979986377992,
+          0.9946300015144516
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.0062920007621869445,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 16,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.0062920007621869445,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        0,
+        0
+      ],
+      "call_ms": 3.9882380006019957,
+      "driver": {
+        "frame_build_ms": 0.024447002942906693,
+        "device_write_ms": 2.7184720020159148,
+        "flush_or_wait_ms": 1.0684209992177784,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7104969990905374,
+          0.9860130012384616,
+          1.0082449989567976
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.00817600084701553,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 17,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.00817600084701553,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        24,
+        0
+      ],
+      "call_ms": 3.915929002687335,
+      "driver": {
+        "frame_build_ms": 0.022772997908759862,
+        "device_write_ms": 2.659368998138234,
+        "flush_or_wait_ms": 1.0659660001692828,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.6686470005661249,
+          0.9966440011339728,
+          0.9822459978749976
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.009438001143280417,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 18,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.009438001143280417,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        24,
+        0
+      ],
+      "call_ms": 3.8946780005062465,
+      "driver": {
+        "frame_build_ms": 0.024806999135762453,
+        "device_write_ms": 2.679107001313241,
+        "flush_or_wait_ms": 1.0615579994919244,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.680508997902507,
+          0.989009000477381,
+          1.0005510011978913
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.006242000381462276,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 19,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.006242000381462276,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        24,
+        0
+      ],
+      "call_ms": 3.949944999476429,
+      "driver": {
+        "frame_build_ms": 0.02209199737990275,
+        "device_write_ms": 2.7398429992899764,
+        "flush_or_wait_ms": 1.0628099989844486,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7447630014212336,
+          0.9858029989118222,
+          0.9986770019168034
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.007714999810559675,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 20,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.007714999810559675,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        24,
+        0
+      ],
+      "call_ms": 3.9718860025459435,
+      "driver": {
+        "frame_build_ms": 0.02376500196987763,
+        "device_write_ms": 2.704745998926228,
+        "flush_or_wait_ms": 1.0642930028552655,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.705858001310844,
+          0.9889989996736404,
+          0.9989479985961225
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.006623002263950184,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 21,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.006623002263950184,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        24,
+        0
+      ],
+      "call_ms": 3.910177998477593,
+      "driver": {
+        "frame_build_ms": 0.02230300015071407,
+        "device_write_ms": 2.6966299992636777,
+        "flush_or_wait_ms": 1.062750001437962,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.6962799998291302,
+          0.9955909990821965,
+          0.9937979993992485
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.006733000191161409,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 22,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.006733000191161409,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        24,
+        0
+      ],
+      "call_ms": 3.9594120025867596,
+      "driver": {
+        "frame_build_ms": 0.02002900146180764,
+        "device_write_ms": 2.751865999016445,
+        "flush_or_wait_ms": 1.068931000190787,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.731136002286803,
+          0.9928870022122283,
+          1.017462996969698
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.010749998182291165,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 23,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.010749998182291165,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        24
+      ],
+      "call_ms": 4.924625001876848,
+      "driver": {
+        "frame_build_ms": 0.022002001060172915,
+        "device_write_ms": 3.7085730000399053,
+        "flush_or_wait_ms": 1.0638809981173836,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          1.7150249987025745,
+          0.9856129981926642,
+          0.995119997242
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.007743998139631003,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 24,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.007743998139631003,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        24
+      ],
+      "call_ms": 3.930537000996992,
+      "driver": {
+        "frame_build_ms": 0.022602998797083274,
+        "device_write_ms": 2.712821999011794,
+        "flush_or_wait_ms": 1.0614780003379565,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7228809990920126,
+          0.9818350008572452,
+          0.996293001662707
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.0064829982875380665,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 25,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.0064829982875380665,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        24
+      ],
+      "call_ms": 3.943311003240524,
+      "driver": {
+        "frame_build_ms": 0.022913998691365123,
+        "device_write_ms": 2.7240529998380225,
+        "flush_or_wait_ms": 1.0645930015016347,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7242139981826767,
+          0.9937479990185238,
+          0.9953810003935359
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.007083999662427232,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 26,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.007083999662427232,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        24
+      ],
+      "call_ms": 3.948911999032134,
+      "driver": {
+        "frame_build_ms": 0.02040899926214479,
+        "device_write_ms": 2.638899997691624,
+        "flush_or_wait_ms": 1.0638419989845715,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.6416359974537045,
+          0.9965030003513675,
+          0.9891590016195551
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.007053000445012003,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 27,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.007053000445012003,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        24
+      ],
+      "call_ms": 3.9320800024142954,
+      "driver": {
+        "frame_build_ms": 0.03725100032170303,
+        "device_write_ms": 2.6019199976872187,
+        "flush_or_wait_ms": 1.0644529975252226,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.6011980003677309,
+          0.990803000604501,
+          0.990803000604501
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.007793998520355672,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 28,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.007793998520355672,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        24
+      ],
+      "call_ms": 2.8814040015276987,
+      "driver": {
+        "frame_build_ms": 0.023215001419885084,
+        "device_write_ms": 2.6952669977617916,
+        "flush_or_wait_ms": 0.01095100014936179,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.6939749982848298,
+          0.9923450015776325,
+          0.9946399986802135
+        ],
+        "write_blocking": true,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": null,
+        "live_send_policy": "response_required",
+        "response_wait_skipped": false,
+        "send_policy_transition_reason": "periodic ACK health check every 30 frames",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 1,
+        "ack_received_count": 28,
+        "ack_missed_count": 1,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "missed",
+        "last_ack_age_ms": 0.007793998520355672,
+        "uncertain_write_failures": 0
+      }
+    }
+  ],
+  "start_returned": true,
+  "service_start_call_ms": 234.5313879995956,
+  "start_process_cpu_ms": 97.71518200000007,
+  "window_seconds": 10.000086108000687,
+  "cpu_percent_one_core": 87.70189394652557,
+  "memory_kib": {
+    "Rss": 163952,
+    "Pss": 147030,
+    "Private_Clean": 20736,
+    "Private_Dirty": 124628
+  },
+  "processing_samples": [
+    {
+      "call_ms": 25.879377997625852,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 16.153060998476576,
+        "colour_processing_ms": 0.7024909973551985,
+        "smoothing_ms": 0.030910003260942176,
+        "led_calibration_ms": 0.14655899940407835,
+        "output_prepare_ms": 8.531224997568643
+      }
+    },
+    {
+      "call_ms": 12.910589000966866,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 11.695316999976058,
+        "colour_processing_ms": 0.2652769981068559,
+        "smoothing_ms": 0.34603099993546493,
+        "led_calibration_ms": 0.07379100134130567,
+        "output_prepare_ms": 0.3211030016245786
+      }
+    },
+    {
+      "call_ms": 9.113997999520507,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.544389998656698,
+        "colour_processing_ms": 0.5276480005704798,
+        "smoothing_ms": 0.41333899935125373,
+        "led_calibration_ms": 0.07790900053805672,
+        "output_prepare_ms": 0.3673920000437647
+      }
+    },
+    {
+      "call_ms": 9.06288899932406,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.899366999481572,
+        "colour_processing_ms": 0.2753160006250255,
+        "smoothing_ms": 0.37641900053131394,
+        "led_calibration_ms": 0.06532499901368283,
+        "output_prepare_ms": 0.23811500068404712
+      }
+    },
+    {
+      "call_ms": 8.843379997415468,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.720876998064341,
+        "colour_processing_ms": 0.2709969994612038,
+        "smoothing_ms": 0.36734199966304004,
+        "led_calibration_ms": 0.06908200157340616,
+        "output_prepare_ms": 0.23066100038704462
+      }
+    },
+    {
+      "call_ms": 8.209719002479687,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.977467000979232,
+        "colour_processing_ms": 0.21513100000447594,
+        "smoothing_ms": 0.3693850012496114,
+        "led_calibration_ms": 0.06957300138310529,
+        "output_prepare_ms": 0.3853759990306571
+      }
+    },
+    {
+      "call_ms": 8.520664003299316,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.441072000801796,
+        "colour_processing_ms": 0.2472020023560617,
+        "smoothing_ms": 0.3158529980282765,
+        "led_calibration_ms": 0.06286099960561842,
+        "output_prepare_ms": 0.23800400231266394
+      }
+    },
+    {
+      "call_ms": 8.770300999458414,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.708782999543473,
+        "colour_processing_ms": 0.2896740006690379,
+        "smoothing_ms": 0.29510300009860657,
+        "led_calibration_ms": 0.07037499744910747,
+        "output_prepare_ms": 0.2249490025860723
+      }
+    },
+    {
+      "call_ms": 8.102805997623364,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.052549997752067,
+        "colour_processing_ms": 0.22806599736213684,
+        "smoothing_ms": 0.34385700200800784,
+        "led_calibration_ms": 0.06358099926728755,
+        "output_prepare_ms": 0.23027999850455672
+      }
+    },
+    {
+      "call_ms": 8.18131599953631,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.19472199853044,
+        "colour_processing_ms": 0.2168239989259746,
+        "smoothing_ms": 0.28114700035075657,
+        "led_calibration_ms": 0.07140700108720921,
+        "output_prepare_ms": 0.23704200066276826
+      }
+    },
+    {
+      "call_ms": 9.107854999456322,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.931509000627557,
+        "colour_processing_ms": 0.2226249998784624,
+        "smoothing_ms": 0.39146700146375224,
+        "led_calibration_ms": 0.1041389987221919,
+        "output_prepare_ms": 0.2706970008148346
+      }
+    },
+    {
+      "call_ms": 7.679488000576384,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.593684000108624,
+        "colour_processing_ms": 0.22976800028118305,
+        "smoothing_ms": 0.3670920013973955,
+        "led_calibration_ms": 0.07707699842285365,
+        "output_prepare_ms": 0.22152300152811222
+      }
+    },
+    {
+      "call_ms": 8.957007001299644,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.653818000108004,
+        "colour_processing_ms": 0.22577100025955588,
+        "smoothing_ms": 0.5010569984733593,
+        "led_calibration_ms": 0.10368799848947674,
+        "output_prepare_ms": 0.2885710018745158
+      }
+    },
+    {
+      "call_ms": 8.431293001194717,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.304279999516439,
+        "colour_processing_ms": 0.23308500021812506,
+        "smoothing_ms": 0.30999299997347407,
+        "led_calibration_ms": 0.11672300024656579,
+        "output_prepare_ms": 0.27839100221171975
+      }
+    },
+    {
+      "call_ms": 9.516817000985611,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.329037998919375,
+        "colour_processing_ms": 0.229468998441007,
+        "smoothing_ms": 0.427586001023883,
+        "led_calibration_ms": 0.07397100125672296,
+        "output_prepare_ms": 0.257151998084737
+      }
+    },
+    {
+      "call_ms": 9.223627002938883,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.098197002254892,
+        "colour_processing_ms": 0.2500470000086352,
+        "smoothing_ms": 0.35545899663702585,
+        "led_calibration_ms": 0.06401200153050013,
+        "output_prepare_ms": 0.25118999838014133
+      }
+    },
+    {
+      "call_ms": 9.595096002158243,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.501166001224192,
+        "colour_processing_ms": 0.222454997128807,
+        "smoothing_ms": 0.3313730012450833,
+        "led_calibration_ms": 0.06435300019802526,
+        "output_prepare_ms": 0.28353100060485303
+      }
+    },
+    {
+      "call_ms": 9.232073000021046,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.008456003153697,
+        "colour_processing_ms": 0.28899199969600886,
+        "smoothing_ms": 0.2703259997360874,
+        "led_calibration_ms": 0.06932299947948195,
+        "output_prepare_ms": 0.32967000151984394
+      }
+    },
+    {
+      "call_ms": 8.134145999065368,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.173541001975536,
+        "colour_processing_ms": 0.2188480029872153,
+        "smoothing_ms": 0.2642740000737831,
+        "led_calibration_ms": 0.06626699905609712,
+        "output_prepare_ms": 0.22529000125359744
+      }
+    },
+    {
+      "call_ms": 8.999128000141354,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.838000001356704,
+        "colour_processing_ms": 0.27128900183015503,
+        "smoothing_ms": 0.3653469975688495,
+        "led_calibration_ms": 0.07780899977660738,
+        "output_prepare_ms": 0.22983900271356106
+      }
+    },
+    {
+      "call_ms": 8.748078002099646,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.617728999321116,
+        "colour_processing_ms": 0.23565000083181076,
+        "smoothing_ms": 0.37095899824635126,
+        "led_calibration_ms": 0.07671600178582594,
+        "output_prepare_ms": 0.2588739989732858
+      }
+    },
+    {
+      "call_ms": 8.337774001120124,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.223647000500932,
+        "colour_processing_ms": 0.24866500098141842,
+        "smoothing_ms": 0.32268599898088723,
+        "led_calibration_ms": 0.072288003138965,
+        "output_prepare_ms": 0.22077199901104905
+      }
+    },
+    {
+      "call_ms": 8.493411998642841,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.431544003338786,
+        "colour_processing_ms": 0.22771499789087102,
+        "smoothing_ms": 0.3389080011402257,
+        "led_calibration_ms": 0.06368100002873689,
+        "output_prepare_ms": 0.24899599884520285
+      }
+    },
+    {
+      "call_ms": 9.997755001677433,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.769960000587162,
+        "colour_processing_ms": 0.23239399888552725,
+        "smoothing_ms": 0.2636839999468066,
+        "led_calibration_ms": 0.06927200229256414,
+        "output_prepare_ms": 1.4571629981219303
+      }
+    },
+    {
+      "call_ms": 9.29130599979544,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.1704139993235,
+        "colour_processing_ms": 0.2497770001355093,
+        "smoothing_ms": 0.3121959998679813,
+        "led_calibration_ms": 0.08181600060197525,
+        "output_prepare_ms": 0.2592649980215356
+      }
+    },
+    {
+      "call_ms": 8.760161999816773,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.291966998309363,
+        "colour_processing_ms": 0.2193889995396603,
+        "smoothing_ms": 0.4434670008777175,
+        "led_calibration_ms": 0.08427099965047091,
+        "output_prepare_ms": 0.4959070029144641
+      }
+    },
+    {
+      "call_ms": 8.388019999983953,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.276316999195842,
+        "colour_processing_ms": 0.22477899983641692,
+        "smoothing_ms": 0.3948940029658843,
+        "led_calibration_ms": 0.07185799768194556,
+        "output_prepare_ms": 0.22727400209987536
+      }
+    },
+    {
+      "call_ms": 8.590937999542803,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.422146001772489,
+        "colour_processing_ms": 0.27892200159840286,
+        "smoothing_ms": 0.36566899871104397,
+        "led_calibration_ms": 0.07307900159503333,
+        "output_prepare_ms": 0.23620099818799645
+      }
+    },
+    {
+      "call_ms": 8.266348002507584,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.235258002765477,
+        "colour_processing_ms": 0.21974000264890492,
+        "smoothing_ms": 0.33181400067405775,
+        "led_calibration_ms": 0.06690699956379831,
+        "output_prepare_ms": 0.22917800015420653
+      }
+    },
+    {
+      "call_ms": 7.911861001048237,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.822010000178125,
+        "colour_processing_ms": 0.23251399761647917,
+        "smoothing_ms": 0.2980190001835581,
+        "led_calibration_ms": 0.06750900138285942,
+        "output_prepare_ms": 0.30342000172822736
+      }
+    },
+    {
+      "call_ms": 9.21185400147806,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.8110690010362305,
+        "colour_processing_ms": 0.38910300281713717,
+        "smoothing_ms": 0.2925890003098175,
+        "led_calibration_ms": 0.07418099994538352,
+        "output_prepare_ms": 0.31526299790129997
+      }
+    },
+    {
+      "call_ms": 8.798074002697831,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.720596000581281,
+        "colour_processing_ms": 0.22168300347402692,
+        "smoothing_ms": 0.37732099735876545,
+        "led_calibration_ms": 0.06431200017686933,
+        "output_prepare_ms": 0.22197400176082738
+      }
+    },
+    {
+      "call_ms": 9.455228999286192,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.4050430014031,
+        "colour_processing_ms": 0.23362599677057005,
+        "smoothing_ms": 0.28978400223422796,
+        "led_calibration_ms": 0.07425199873978272,
+        "output_prepare_ms": 0.2630220005812589
+      }
+    },
+    {
+      "call_ms": 9.086404999834485,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.128114001010545,
+        "colour_processing_ms": 0.22399799854611047,
+        "smoothing_ms": 0.2550370008975733,
+        "led_calibration_ms": 0.06708799992338754,
+        "output_prepare_ms": 0.2306809983565472
+      }
+    },
+    {
+      "call_ms": 9.205942002154188,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.162229001754895,
+        "colour_processing_ms": 0.22321700089378282,
+        "smoothing_ms": 0.2532929975131992,
+        "led_calibration_ms": 0.07950200233608484,
+        "output_prepare_ms": 0.30140599847072735
+      }
+    },
+    {
+      "call_ms": 8.579756999097299,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.454597001924412,
+        "colour_processing_ms": 0.2636839999468066,
+        "smoothing_ms": 0.3061150018766057,
+        "led_calibration_ms": 0.0718869996489957,
+        "output_prepare_ms": 0.2744839985098224
+      }
+    },
+    {
+      "call_ms": 9.344818001409294,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.7951379971636925,
+        "colour_processing_ms": 0.22537999757332727,
+        "smoothing_ms": 0.36220200126990676,
+        "led_calibration_ms": 0.07880100019974634,
+        "output_prepare_ms": 0.25460599863436073
+      }
+    },
+    {
+      "call_ms": 9.443556002224796,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.061246000579558,
+        "colour_processing_ms": 0.41113499901257455,
+        "smoothing_ms": 0.41194699952029623,
+        "led_calibration_ms": 0.08712600174476393,
+        "output_prepare_ms": 0.2596359991002828
+      }
+    },
+    {
+      "call_ms": 8.627867999166483,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.631265998497838,
+        "colour_processing_ms": 0.22122199879959226,
+        "smoothing_ms": 0.26915400303550996,
+        "led_calibration_ms": 0.06721799945808016,
+        "output_prepare_ms": 0.21671399736078456
+      }
+    },
+    {
+      "call_ms": 8.288330001960276,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.250137001392432,
+        "colour_processing_ms": 0.2654370000527706,
+        "smoothing_ms": 0.2752559994405601,
+        "led_calibration_ms": 0.06978300007176585,
+        "output_prepare_ms": 0.2189980004914105
+      }
+    },
+    {
+      "call_ms": 8.58601800064207,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.584385999507504,
+        "colour_processing_ms": 0.21678399934899062,
+        "smoothing_ms": 0.3000840006279759,
+        "led_calibration_ms": 0.07008299871813506,
+        "output_prepare_ms": 0.225571002374636
+      }
+    },
+    {
+      "call_ms": 8.721586997125996,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.550581998657435,
+        "colour_processing_ms": 0.27443399812909774,
+        "smoothing_ms": 0.3890730004059151,
+        "led_calibration_ms": 0.06411300273612142,
+        "output_prepare_ms": 0.23851499645388685
+      }
+    },
+    {
+      "call_ms": 8.63776700134622,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.345499001530698,
+        "colour_processing_ms": 0.3382360009709373,
+        "smoothing_ms": 0.32759600071585737,
+        "led_calibration_ms": 0.12245399921084754,
+        "output_prepare_ms": 0.3023270000994671
+      }
+    },
+    {
+      "call_ms": 9.535491997667123,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.437155000137864,
+        "colour_processing_ms": 0.21779600137961097,
+        "smoothing_ms": 0.30009300098754466,
+        "led_calibration_ms": 0.06785999721614644,
+        "output_prepare_ms": 0.2419620032014791
+      }
+    },
+    {
+      "call_ms": 8.54909800182213,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.34381600341294,
+        "colour_processing_ms": 0.3222250015824102,
+        "smoothing_ms": 0.3801359998760745,
+        "led_calibration_ms": 0.06606699753319845,
+        "output_prepare_ms": 0.22685300064040348
+      }
+    },
+    {
+      "call_ms": 8.662615000503138,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.579234999866458,
+        "colour_processing_ms": 0.22344700118992478,
+        "smoothing_ms": 0.3387769975233823,
+        "led_calibration_ms": 0.06843000301159918,
+        "output_prepare_ms": 0.233966999076074
+      }
+    },
+    {
+      "call_ms": 7.995890999154653,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.966315002500778,
+        "colour_processing_ms": 0.2190790000895504,
+        "smoothing_ms": 0.29676600024686195,
+        "led_calibration_ms": 0.06562600174220279,
+        "output_prepare_ms": 0.25093899967032485
+      }
+    },
+    {
+      "call_ms": 8.449918997939676,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.280735000676941,
+        "colour_processing_ms": 0.2146500009985175,
+        "smoothing_ms": 0.3023469980689697,
+        "led_calibration_ms": 0.07635600195499137,
+        "output_prepare_ms": 0.3753769997274503
+      }
+    },
+    {
+      "call_ms": 9.50637599817128,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.40323900047224,
+        "colour_processing_ms": 0.28603600003407337,
+        "smoothing_ms": 0.3410619974602014,
+        "led_calibration_ms": 0.06467300045187585,
+        "output_prepare_ms": 0.2148200001101941
+      }
+    },
+    {
+      "call_ms": 7.882706002419582,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.776483001885936,
+        "colour_processing_ms": 0.22546000036527403,
+        "smoothing_ms": 0.377791999198962,
+        "led_calibration_ms": 0.07641599950147793,
+        "output_prepare_ms": 0.24000800112844445
+      }
+    },
+    {
+      "call_ms": 9.420080998097546,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.322003999637673,
+        "colour_processing_ms": 0.24197300081141293,
+        "smoothing_ms": 0.3750260002561845,
+        "led_calibration_ms": 0.06740900062141009,
+        "output_prepare_ms": 0.2299089974258095
+      }
+    },
+    {
+      "call_ms": 8.46973599982448,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.342863998928806,
+        "colour_processing_ms": 0.2417719988443423,
+        "smoothing_ms": 0.40546400123275816,
+        "led_calibration_ms": 0.06565600051544607,
+        "output_prepare_ms": 0.228054999752203
+      }
+    },
+    {
+      "call_ms": 8.807312002318213,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.430972997099161,
+        "colour_processing_ms": 0.24863500220817514,
+        "smoothing_ms": 0.3280569981143344,
+        "led_calibration_ms": 0.0994100009847898,
+        "output_prepare_ms": 0.4754680012410972
+      }
+    },
+    {
+      "call_ms": 7.954341999720782,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.841035999968881,
+        "colour_processing_ms": 0.21885900059714913,
+        "smoothing_ms": 0.38523500188603066,
+        "led_calibration_ms": 0.06447299892897718,
+        "output_prepare_ms": 0.25083999935304746
+      }
+    },
+    {
+      "call_ms": 9.196164002787555,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.0529109982308,
+        "colour_processing_ms": 0.25984600142692216,
+        "smoothing_ms": 0.34893699921667576,
+        "led_calibration_ms": 0.07330000153160654,
+        "output_prepare_ms": 0.25090899725910276
+      }
+    },
+    {
+      "call_ms": 9.48251100271591,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.377128997381078,
+        "colour_processing_ms": 0.22728399926563725,
+        "smoothing_ms": 0.3368340003362391,
+        "led_calibration_ms": 0.07084499884513207,
+        "output_prepare_ms": 0.2731019994826056
+      }
+    },
+    {
+      "call_ms": 10.08662400272442,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.217965998483123,
+        "colour_processing_ms": 0.21828600074513815,
+        "smoothing_ms": 0.9191659992211498,
+        "led_calibration_ms": 0.16582700118306093,
+        "output_prepare_ms": 0.36116899718763307
+      }
+    },
+    {
+      "call_ms": 8.680830000230344,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.583524002257036,
+        "colour_processing_ms": 0.286165999568766,
+        "smoothing_ms": 0.33672299832687713,
+        "led_calibration_ms": 0.06608699914067984,
+        "output_prepare_ms": 0.21679400015273131
+      }
+    },
+    {
+      "call_ms": 8.731346999411471,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.665159999305615,
+        "colour_processing_ms": 0.22510000053443946,
+        "smoothing_ms": 0.364405001164414,
+        "led_calibration_ms": 0.06617699909838848,
+        "output_prepare_ms": 0.22402800095733255
+      }
+    },
+    {
+      "call_ms": 9.291776997997658,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.172759000444785,
+        "colour_processing_ms": 0.25929500043275766,
+        "smoothing_ms": 0.33130299925687723,
+        "led_calibration_ms": 0.06423300146707334,
+        "output_prepare_ms": 0.2459600000292994
+      }
+    },
+    {
+      "call_ms": 8.542916999431327,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.443335998686962,
+        "colour_processing_ms": 0.2901939988078084,
+        "smoothing_ms": 0.30886999957147054,
+        "led_calibration_ms": 0.07394100248347968,
+        "output_prepare_ms": 0.24080000002868474
+      }
+    },
+    {
+      "call_ms": 10.390113999164896,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 9.066285998414969,
+        "colour_processing_ms": 0.2812269995047245,
+        "smoothing_ms": 0.44958899889024906,
+        "led_calibration_ms": 0.10642300185281783,
+        "output_prepare_ms": 0.2531529971747659
+      }
+    },
+    {
+      "call_ms": 8.319609998579836,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.311745001061354,
+        "colour_processing_ms": 0.20924999989802018,
+        "smoothing_ms": 0.3299099989817478,
+        "led_calibration_ms": 0.06921200110809878,
+        "output_prepare_ms": 0.22240499674808234
+      }
+    },
+    {
+      "call_ms": 10.46640000276966,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.11372599855531,
+        "colour_processing_ms": 0.2195999986724928,
+        "smoothing_ms": 0.3205419998266734,
+        "led_calibration_ms": 0.06290999954217114,
+        "output_prepare_ms": 1.5493190003326163
+      }
+    },
+    {
+      "call_ms": 9.514542001852533,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.26990499990643,
+        "colour_processing_ms": 0.2730919986788649,
+        "smoothing_ms": 0.37533700015046634,
+        "led_calibration_ms": 0.0724179990356788,
+        "output_prepare_ms": 0.27915300233871676
+      }
+    },
+    {
+      "call_ms": 9.685418001026846,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.56543899863027,
+        "colour_processing_ms": 0.2317729995411355,
+        "smoothing_ms": 0.35017899790545925,
+        "led_calibration_ms": 0.07545400148956105,
+        "output_prepare_ms": 0.26042700119432993
+      }
+    },
+    {
+      "call_ms": 8.911911001632689,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.802832002198556,
+        "colour_processing_ms": 0.25776300026336685,
+        "smoothing_ms": 0.3009140018548351,
+        "led_calibration_ms": 0.0887099995452445,
+        "output_prepare_ms": 0.23467799837817438
+      }
+    },
+    {
+      "call_ms": 10.580889000266325,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 9.585879000951536,
+        "colour_processing_ms": 0.22149299911689013,
+        "smoothing_ms": 0.2558590022090357,
+        "led_calibration_ms": 0.06811999992351048,
+        "output_prepare_ms": 0.26405400058138184
+      }
+    },
+    {
+      "call_ms": 8.446972999081481,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.243613999889931,
+        "colour_processing_ms": 0.2967569998872932,
+        "smoothing_ms": 0.3382059985597152,
+        "led_calibration_ms": 0.06687800123472698,
+        "output_prepare_ms": 0.2681119985936675
+      }
+    },
+    {
+      "call_ms": 8.902822999516502,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.768387000396615,
+        "colour_processing_ms": 0.2541659996495582,
+        "smoothing_ms": 0.34776400207192637,
+        "led_calibration_ms": 0.06510399907710962,
+        "output_prepare_ms": 0.2257310006825719
+      }
+    },
+    {
+      "call_ms": 8.390936000068905,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.221963998745196,
+        "colour_processing_ms": 0.24220200066338293,
+        "smoothing_ms": 0.40976300078909844,
+        "led_calibration_ms": 0.08914000136428513,
+        "output_prepare_ms": 0.23173299996415153
+      }
+    },
+    {
+      "call_ms": 8.244296001066687,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.9622980008716695,
+        "colour_processing_ms": 0.2376140000706073,
+        "smoothing_ms": 0.4145319981034845,
+        "led_calibration_ms": 0.06610600030398928,
+        "output_prepare_ms": 0.2350489994569216
+      }
+    },
+    {
+      "call_ms": 10.045316001196625,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.679406997543992,
+        "colour_processing_ms": 0.2867579969461076,
+        "smoothing_ms": 0.5061360025138129,
+        "led_calibration_ms": 0.07710799764026888,
+        "output_prepare_ms": 0.2774400018097367
+      }
+    },
+    {
+      "call_ms": 9.249045000615297,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.128354002110427,
+        "colour_processing_ms": 0.22965800235397182,
+        "smoothing_ms": 0.34433799737598747,
+        "led_calibration_ms": 0.09781700282474048,
+        "output_prepare_ms": 0.227063999773236
+      }
+    },
+    {
+      "call_ms": 8.87960999898496,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.713813000009395,
+        "colour_processing_ms": 0.23725400023977272,
+        "smoothing_ms": 0.4279669992683921,
+        "led_calibration_ms": 0.07631599874002859,
+        "output_prepare_ms": 0.23513899941463023
+      }
+    },
+    {
+      "call_ms": 8.95656600187067,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.813232998159947,
+        "colour_processing_ms": 0.23080100072547793,
+        "smoothing_ms": 0.3939319976780098,
+        "led_calibration_ms": 0.0683310026943218,
+        "output_prepare_ms": 0.2596359991002828
+      }
+    },
+    {
+      "call_ms": 9.56687199868611,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.989058998646215,
+        "colour_processing_ms": 0.32558200109633617,
+        "smoothing_ms": 0.4993739967176225,
+        "led_calibration_ms": 0.1024350021907594,
+        "output_prepare_ms": 0.36421600088942796
+      }
+    },
+    {
+      "call_ms": 9.517096998024499,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.331673001521267,
+        "colour_processing_ms": 0.22716399689670652,
+        "smoothing_ms": 0.40658600119058974,
+        "led_calibration_ms": 0.07599500167998485,
+        "output_prepare_ms": 0.25738199838087894
+      }
+    },
+    {
+      "call_ms": 8.942669999669306,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.796600999427028,
+        "colour_processing_ms": 0.28192899844725616,
+        "smoothing_ms": 0.3440970031078905,
+        "led_calibration_ms": 0.07196699880296364,
+        "output_prepare_ms": 0.2482249983586371
+      }
+    },
+    {
+      "call_ms": 7.993446997716092,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.959641999856103,
+        "colour_processing_ms": 0.22854599956190214,
+        "smoothing_ms": 0.3409410019230563,
+        "led_calibration_ms": 0.06540499816765077,
+        "output_prepare_ms": 0.21778600057587028
+      }
+    },
+    {
+      "call_ms": 8.553316998586524,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.312024998100242,
+        "colour_processing_ms": 0.22439800159190781,
+        "smoothing_ms": 0.37071800034027547,
+        "led_calibration_ms": 0.06504399789264426,
+        "output_prepare_ms": 0.2327049987798091
+      }
+    },
+    {
+      "call_ms": 9.551451999868732,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.029376000195043,
+        "colour_processing_ms": 0.36491699938778765,
+        "smoothing_ms": 0.4494079985306598,
+        "led_calibration_ms": 0.08511300256941468,
+        "output_prepare_ms": 0.4021479981020093
+      }
+    },
+    {
+      "call_ms": 9.668456001236336,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.61459299994749,
+        "colour_processing_ms": 0.21726500199292786,
+        "smoothing_ms": 0.3455500009295065,
+        "led_calibration_ms": 0.0640519974695053,
+        "output_prepare_ms": 0.21738500072387978
+      }
+    },
+    {
+      "call_ms": 8.622568999271607,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.425772000715369,
+        "colour_processing_ms": 0.289673000224866,
+        "smoothing_ms": 0.38136899820528924,
+        "led_calibration_ms": 0.06729800225002691,
+        "output_prepare_ms": 0.23391699869534932
+      }
+    },
+    {
+      "call_ms": 9.287268003390636,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.148864002578193,
+        "colour_processing_ms": 0.22821600214228965,
+        "smoothing_ms": 0.35380599729251117,
+        "led_calibration_ms": 0.08091400013654493,
+        "output_prepare_ms": 0.2193889995396603
+      }
+    },
+    {
+      "call_ms": 9.247811998648103,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.9792600008659065,
+        "colour_processing_ms": 0.32615300006000325,
+        "smoothing_ms": 0.452373998996336,
+        "led_calibration_ms": 0.06661800216534175,
+        "output_prepare_ms": 0.23011899975244887
+      }
+    },
+    {
+      "call_ms": 9.449277000385337,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.075433001067722,
+        "colour_processing_ms": 0.24088999998639338,
+        "smoothing_ms": 0.3510899987304583,
+        "led_calibration_ms": 0.2017760016315151,
+        "output_prepare_ms": 0.3418629967200104
+      }
+    },
+    {
+      "call_ms": 8.884068000043044,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.502568998461356,
+        "colour_processing_ms": 0.29887100026826374,
+        "smoothing_ms": 0.4498089983826503,
+        "led_calibration_ms": 0.15318200166802853,
+        "output_prepare_ms": 0.23757400049362332
+      }
+    },
+    {
+      "call_ms": 8.213918998080771,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.184280999354087,
+        "colour_processing_ms": 0.23112199778552167,
+        "smoothing_ms": 0.33524999889777973,
+        "led_calibration_ms": 0.06697800199617632,
+        "output_prepare_ms": 0.21565199858741835
+      }
+    },
+    {
+      "call_ms": 8.594664999691304,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.11970799966366,
+        "colour_processing_ms": 0.2447480001137592,
+        "smoothing_ms": 0.5314349982654676,
+        "led_calibration_ms": 0.11200400331290439,
+        "output_prepare_ms": 0.39097699846024625
+      }
+    },
+    {
+      "call_ms": 8.10316699789837,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.041118002234725,
+        "colour_processing_ms": 0.23090100148692727,
+        "smoothing_ms": 0.3370439990248997,
+        "led_calibration_ms": 0.0710259992047213,
+        "output_prepare_ms": 0.24419599867542274
+      }
+    },
+    {
+      "call_ms": 9.004878000268945,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.812391002516961,
+        "colour_processing_ms": 0.22183300097822212,
+        "smoothing_ms": 0.3591759996197652,
+        "led_calibration_ms": 0.11707399971783161,
+        "output_prepare_ms": 0.3091299986408558
+      }
+    },
+    {
+      "call_ms": 8.758187002968043,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.180724998761434,
+        "colour_processing_ms": 0.34481800321373157,
+        "smoothing_ms": 0.5254939969745465,
+        "led_calibration_ms": 0.1015840025502257,
+        "output_prepare_ms": 0.35142100023222156
+      }
+    },
+    {
+      "call_ms": 10.60208999842871,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 9.463714999583317,
+        "colour_processing_ms": 0.26211099975625984,
+        "smoothing_ms": 0.39736899998388253,
+        "led_calibration_ms": 0.06472399763879366,
+        "output_prepare_ms": 0.2242580012534745
+      }
+    },
+    {
+      "call_ms": 8.48398400194128,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.284171999344835,
+        "colour_processing_ms": 0.273622998065548,
+        "smoothing_ms": 0.39022500277496874,
+        "led_calibration_ms": 0.06976299846428446,
+        "output_prepare_ms": 0.2636639983393252
+      }
+    },
+    {
+      "call_ms": 9.056426999450196,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.938432001537876,
+        "colour_processing_ms": 0.3220349972252734,
+        "smoothing_ms": 0.3324350000184495,
+        "led_calibration_ms": 0.06621700231335126,
+        "output_prepare_ms": 0.22000999888405204
+      }
+    },
+    {
+      "call_ms": 8.59100799789303,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.431313002598472,
+        "colour_processing_ms": 0.23336600133916363,
+        "smoothing_ms": 0.3520419995766133,
+        "led_calibration_ms": 0.0664569997752551,
+        "output_prepare_ms": 0.22931800049263984
+      }
+    },
+    {
+      "call_ms": 8.552545001293765,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.403049999993527,
+        "colour_processing_ms": 0.2181960007874295,
+        "smoothing_ms": 0.4038219994981773,
+        "led_calibration_ms": 0.07992199971340597,
+        "output_prepare_ms": 0.2710580010898411
+      }
+    },
+    {
+      "call_ms": 7.4422439975023735,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.40756799839437,
+        "colour_processing_ms": 0.22655300199403428,
+        "smoothing_ms": 0.31628400029148906,
+        "led_calibration_ms": 0.06670799848507158,
+        "output_prepare_ms": 0.24602000121376477
+      }
+    },
+    {
+      "call_ms": 7.900127999164397,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.781170999602182,
+        "colour_processing_ms": 0.2249589997518342,
+        "smoothing_ms": 0.4258439985278528,
+        "led_calibration_ms": 0.07068500053719617,
+        "output_prepare_ms": 0.21670400019502267
+      }
+    },
+    {
+      "call_ms": 7.465278999006841,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.462092998845037,
+        "colour_processing_ms": 0.21525099873542786,
+        "smoothing_ms": 0.3276650022598915,
+        "led_calibration_ms": 0.06386200038832612,
+        "output_prepare_ms": 0.21760599702247418
+      }
+    },
+    {
+      "call_ms": 9.554418000334408,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.389514001464704,
+        "colour_processing_ms": 0.23635099933017045,
+        "smoothing_ms": 0.34097200114047155,
+        "led_calibration_ms": 0.06777899761800654,
+        "output_prepare_ms": 0.3096920008829329
+      }
+    },
+    {
+      "call_ms": 7.976503999088891,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.912001997989137,
+        "colour_processing_ms": 0.23346600210061297,
+        "smoothing_ms": 0.32863700107554905,
+        "led_calibration_ms": 0.08013299884623848,
+        "output_prepare_ms": 0.24369599850615487
+      }
+    },
+    {
+      "call_ms": 7.71568600248429,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.64059299742803,
+        "colour_processing_ms": 0.2546360010455828,
+        "smoothing_ms": 0.351021000824403,
+        "led_calibration_ms": 0.06494399713119492,
+        "output_prepare_ms": 0.22542000078829005
+      }
+    },
+    {
+      "call_ms": 9.358514002087759,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.174973998393398,
+        "colour_processing_ms": 0.21903800006839447,
+        "smoothing_ms": 0.41137599691865034,
+        "led_calibration_ms": 0.08306800009449944,
+        "output_prepare_ms": 0.28547600231831893
+      }
+    },
+    {
+      "call_ms": 8.912542001780821,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.826267999917036,
+        "colour_processing_ms": 0.22746399918105453,
+        "smoothing_ms": 0.36947600165149197,
+        "led_calibration_ms": 0.06751899854862131,
+        "output_prepare_ms": 0.23164199956227094
+      }
+    },
+    {
+      "call_ms": 8.871835001627915,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.557213997642975,
+        "colour_processing_ms": 0.3093009981967043,
+        "smoothing_ms": 0.41407100070500746,
+        "led_calibration_ms": 0.07347999780904502,
+        "output_prepare_ms": 0.3314730020065326
+      }
+    },
+    {
+      "call_ms": 8.995660999062238,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.834854000975611,
+        "colour_processing_ms": 0.21593199926428497,
+        "smoothing_ms": 0.3847050029435195,
+        "led_calibration_ms": 0.06843099981779233,
+        "output_prepare_ms": 0.30789799711783417
+      }
+    },
+    {
+      "call_ms": 10.472371999640018,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 9.05305099877296,
+        "colour_processing_ms": 0.36571899909176864,
+        "smoothing_ms": 0.5006060018786229,
+        "led_calibration_ms": 0.07347000064328313,
+        "output_prepare_ms": 0.26538699967204593
+      }
+    },
+    {
+      "call_ms": 9.121642000536667,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.97768700067536,
+        "colour_processing_ms": 0.22809499932918698,
+        "smoothing_ms": 0.38426399987656623,
+        "led_calibration_ms": 0.06382200081134215,
+        "output_prepare_ms": 0.2224650015705265
+      }
+    },
+    {
+      "call_ms": 9.698523001134163,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.54257500031963,
+        "colour_processing_ms": 0.24132099861162715,
+        "smoothing_ms": 0.34277500162716024,
+        "led_calibration_ms": 0.067528999352362,
+        "output_prepare_ms": 0.2543160007917322
+      }
+    },
+    {
+      "call_ms": 8.197617000405444,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.956725999771152,
+        "colour_processing_ms": 0.2770690007309895,
+        "smoothing_ms": 0.3989219985669479,
+        "led_calibration_ms": 0.0670080007694196,
+        "output_prepare_ms": 0.2646549983182922
+      }
+    },
+    {
+      "call_ms": 8.10008999906131,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.875692000903655,
+        "colour_processing_ms": 0.24477799888700247,
+        "smoothing_ms": 0.3647459998319391,
+        "led_calibration_ms": 0.06702800237690099,
+        "output_prepare_ms": 0.3328559978399426
+      }
+    },
+    {
+      "call_ms": 8.04037700072513,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.916340000316268,
+        "colour_processing_ms": 0.22713400176144205,
+        "smoothing_ms": 0.3474329969321843,
+        "led_calibration_ms": 0.06386200038832612,
+        "output_prepare_ms": 0.28264000138733536
+      }
+    },
+    {
+      "call_ms": 8.749941000132822,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.531113998993533,
+        "colour_processing_ms": 0.2774299973680172,
+        "smoothing_ms": 0.3895640002156142,
+        "led_calibration_ms": 0.06857100015622564,
+        "output_prepare_ms": 0.27066700204159133
+      }
+    },
+    {
+      "call_ms": 8.8422980006726,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.669146998523502,
+        "colour_processing_ms": 0.250699002208421,
+        "smoothing_ms": 0.35692199890036136,
+        "led_calibration_ms": 0.0656849988445174,
+        "output_prepare_ms": 0.2621910025482066
+      }
+    },
+    {
+      "call_ms": 9.641453998483485,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.459427001071163,
+        "colour_processing_ms": 0.23120100013329647,
+        "smoothing_ms": 0.4221360031806398,
+        "led_calibration_ms": 0.08075499863480218,
+        "output_prepare_ms": 0.23676199998590164
+      }
+    },
+    {
+      "call_ms": 8.513920998666435,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.0724180004617665,
+        "colour_processing_ms": 0.3812180002569221,
+        "smoothing_ms": 0.40568499753135256,
+        "led_calibration_ms": 0.0729690000298433,
+        "output_prepare_ms": 0.2636540011735633
+      }
+    },
+    {
+      "call_ms": 7.860212001105538,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.794195996917551,
+        "colour_processing_ms": 0.2447970000503119,
+        "smoothing_ms": 0.32474099862156436,
+        "led_calibration_ms": 0.06416200267267413,
+        "output_prepare_ms": 0.24382599804084748
+      }
+    },
+    {
+      "call_ms": 8.17421200190438,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.119747999240644,
+        "colour_processing_ms": 0.22148299831314944,
+        "smoothing_ms": 0.365167001291411,
+        "led_calibration_ms": 0.06557500091730617,
+        "output_prepare_ms": 0.2208619989687577
+      }
+    },
+    {
+      "call_ms": 8.290303998364834,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.187347000581212,
+        "colour_processing_ms": 0.2288169998792,
+        "smoothing_ms": 0.41326000064145774,
+        "led_calibration_ms": 0.06574500002898276,
+        "output_prepare_ms": 0.21469000057550147
+      }
+    },
+    {
+      "call_ms": 9.521895997750107,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.409121001022868,
+        "colour_processing_ms": 0.22269500186666846,
+        "smoothing_ms": 0.3695859995787032,
+        "led_calibration_ms": 0.06636699981754646,
+        "output_prepare_ms": 0.2543160007917322
+      }
+    },
+    {
+      "call_ms": 8.74097500127391,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.574946997920051,
+        "colour_processing_ms": 0.31452099938178435,
+        "smoothing_ms": 0.3440870023041498,
+        "led_calibration_ms": 0.06721799945808016,
+        "output_prepare_ms": 0.23603099907631986
+      }
+    },
+    {
+      "call_ms": 9.86822699996992,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.539088998077204,
+        "colour_processing_ms": 0.22506999812321737,
+        "smoothing_ms": 0.4831320002267603,
+        "led_calibration_ms": 0.09193600271828473,
+        "output_prepare_ms": 0.315563000185648
+      }
+    },
+    {
+      "call_ms": 8.295102998090442,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.203698998637265,
+        "colour_processing_ms": 0.23326500013354234,
+        "smoothing_ms": 0.33734500175341964,
+        "led_calibration_ms": 0.08872900070855394,
+        "output_prepare_ms": 0.2386759988439735
+      }
+    },
+    {
+      "call_ms": 8.428678000200307,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.431664002069738,
+        "colour_processing_ms": 0.21103299877722748,
+        "smoothing_ms": 0.31708599999547005,
+        "led_calibration_ms": 0.06484400000772439,
+        "output_prepare_ms": 0.2207609977631364
+      }
+    },
+    {
+      "call_ms": 8.089651000773301,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.008275999396574,
+        "colour_processing_ms": 0.21836699670529924,
+        "smoothing_ms": 0.3282470024714712,
+        "led_calibration_ms": 0.06954299897188321,
+        "output_prepare_ms": 0.26323199926991947
+      }
+    },
+    {
+      "call_ms": 8.019467000849545,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.909497002197895,
+        "colour_processing_ms": 0.2330150018678978,
+        "smoothing_ms": 0.35874500099453144,
+        "led_calibration_ms": 0.07262899816851132,
+        "output_prepare_ms": 0.24275300165754743
+      }
+    },
+    {
+      "call_ms": 8.268221998150693,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.175284998083953,
+        "colour_processing_ms": 0.2579630017862655,
+        "smoothing_ms": 0.3371940001670737,
+        "led_calibration_ms": 0.06352099808282219,
+        "output_prepare_ms": 0.2228049997938797
+      }
+    },
+    {
+      "call_ms": 8.569876998080872,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.359236002230318,
+        "colour_processing_ms": 0.26337300005252473,
+        "smoothing_ms": 0.4314840007282328,
+        "led_calibration_ms": 0.06858100095996633,
+        "output_prepare_ms": 0.2612190000945702
+      }
+    },
+    {
+      "call_ms": 8.91894400047022,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.887826002843212,
+        "colour_processing_ms": 0.21778600057587028,
+        "smoothing_ms": 0.34453800253686495,
+        "led_calibration_ms": 0.06547500015585683,
+        "output_prepare_ms": 0.21710500004701316
+      }
+    },
+    {
+      "call_ms": 7.905199003289454,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.777254999178695,
+        "colour_processing_ms": 0.21312699755071662,
+        "smoothing_ms": 0.32050200024968944,
+        "led_calibration_ms": 0.06369100083247758,
+        "output_prepare_ms": 0.34871599928010255
+      }
+    },
+    {
+      "call_ms": 8.620283999334788,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.212094998976681,
+        "colour_processing_ms": 0.246891999267973,
+        "smoothing_ms": 0.4792649997398257,
+        "led_calibration_ms": 0.08604400136391632,
+        "output_prepare_ms": 0.38260099972831085
+      }
+    },
+    {
+      "call_ms": 8.223796998208854,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.191876000433695,
+        "colour_processing_ms": 0.21264699898893014,
+        "smoothing_ms": 0.32173400177271105,
+        "led_calibration_ms": 0.06414299787138589,
+        "output_prepare_ms": 0.22841600002720952
+      }
+    },
+    {
+      "call_ms": 8.250287999544526,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.275815998582402,
+        "colour_processing_ms": 0.21729499712819234,
+        "smoothing_ms": 0.2890520008804742,
+        "led_calibration_ms": 0.06375199882313609,
+        "output_prepare_ms": 0.21959000150673091
+      }
+    },
+    {
+      "call_ms": 8.555861000786535,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.406575998174958,
+        "colour_processing_ms": 0.21241600188659504,
+        "smoothing_ms": 0.3988620010204613,
+        "led_calibration_ms": 0.10363799810875207,
+        "output_prepare_ms": 0.25189100051647983
+      }
+    },
+    {
+      "call_ms": 8.263532999990275,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.229196999105625,
+        "colour_processing_ms": 0.22825599808129482,
+        "smoothing_ms": 0.2823590002662968,
+        "led_calibration_ms": 0.08328900003107265,
+        "output_prepare_ms": 0.260347002040362
+      }
+    },
+    {
+      "call_ms": 7.508189999498427,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.465489001129754,
+        "colour_processing_ms": 0.2206110002589412,
+        "smoothing_ms": 0.34896700162789784,
+        "led_calibration_ms": 0.06663699969067238,
+        "output_prepare_ms": 0.22198399892658927
+      }
+    },
+    {
+      "call_ms": 8.091874999081483,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.896160997712286,
+        "colour_processing_ms": 0.31304799995268695,
+        "smoothing_ms": 0.37762099964311346,
+        "led_calibration_ms": 0.06577599924639799,
+        "output_prepare_ms": 0.25849400117294863
+      }
+    },
+    {
+      "call_ms": 8.40701699780766,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.165665996581083,
+        "colour_processing_ms": 0.23817499823053367,
+        "smoothing_ms": 0.3671810009109322,
+        "led_calibration_ms": 0.09251599840354174,
+        "output_prepare_ms": 0.34056100048474036
+      }
+    },
+    {
+      "call_ms": 8.563976000004914,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.506156001909403,
+        "colour_processing_ms": 0.22387799981515855,
+        "smoothing_ms": 0.3330859981360845,
+        "led_calibration_ms": 0.06682700040983036,
+        "output_prepare_ms": 0.24820399994496256
+      }
+    },
+    {
+      "call_ms": 8.190383003238821,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.083838998369174,
+        "colour_processing_ms": 0.22949900085222907,
+        "smoothing_ms": 0.3290980021120049,
+        "led_calibration_ms": 0.07296999683603644,
+        "output_prepare_ms": 0.23327500093728304
+      }
+    },
+    {
+      "call_ms": 8.966997000243282,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.748109001113335,
+        "colour_processing_ms": 0.2701459998206701,
+        "smoothing_ms": 0.4320250009186566,
+        "led_calibration_ms": 0.0687120009388309,
+        "output_prepare_ms": 0.230609999562148
+      }
+    },
+    {
+      "call_ms": 8.363163000467466,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.330810996791115,
+        "colour_processing_ms": 0.2181570016546175,
+        "smoothing_ms": 0.33737400008249097,
+        "led_calibration_ms": 0.06603599831578322,
+        "output_prepare_ms": 0.22861700199428014
+      }
+    },
+    {
+      "call_ms": 8.856054999341723,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.740083001408493,
+        "colour_processing_ms": 0.21489000209840015,
+        "smoothing_ms": 0.3201020008418709,
+        "led_calibration_ms": 0.07614499918418005,
+        "output_prepare_ms": 0.2986209983646404
+      }
+    },
+    {
+      "call_ms": 9.18447200092487,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.111381997878198,
+        "colour_processing_ms": 0.21738500072387978,
+        "smoothing_ms": 0.35296499845571816,
+        "led_calibration_ms": 0.0663659993733745,
+        "output_prepare_ms": 0.25196199931087904
+      }
+    },
+    {
+      "call_ms": 8.962558000348508,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.650412000657525,
+        "colour_processing_ms": 0.3328660022816621,
+        "smoothing_ms": 0.43082299816887826,
+        "led_calibration_ms": 0.06666699846391566,
+        "output_prepare_ms": 0.2270640034112148
+      }
+    },
+    {
+      "call_ms": 8.369645998755004,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.279452998773195,
+        "colour_processing_ms": 0.220049998461036,
+        "smoothing_ms": 0.3538960008881986,
+        "led_calibration_ms": 0.06506399950012565,
+        "output_prepare_ms": 0.24755300182732753
+      }
+    },
+    {
+      "call_ms": 8.367492002435029,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.321823999518529,
+        "colour_processing_ms": 0.2143889978469815,
+        "smoothing_ms": 0.3488059992378112,
+        "led_calibration_ms": 0.07185800131992437,
+        "output_prepare_ms": 0.2283060020999983
+      }
+    },
+    {
+      "call_ms": 9.52813799813157,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.989349000126822,
+        "colour_processing_ms": 0.2263530004711356,
+        "smoothing_ms": 0.4780330018547829,
+        "led_calibration_ms": 0.10725499669206329,
+        "output_prepare_ms": 0.5465430003823712
+      }
+    },
+    {
+      "call_ms": 8.863028000632767,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.5928120022581425,
+        "colour_processing_ms": 0.27862199931405485,
+        "smoothing_ms": 0.4457120012375526,
+        "led_calibration_ms": 0.08068399984040298,
+        "output_prepare_ms": 0.22890699983690865
+      }
+    },
+    {
+      "call_ms": 7.751864999590907,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.755262998922262,
+        "colour_processing_ms": 0.21174400171730667,
+        "smoothing_ms": 0.3140500011795666,
+        "led_calibration_ms": 0.06333099736366421,
+        "output_prepare_ms": 0.2221140020992607
+      }
+    },
+    {
+      "call_ms": 8.370797997486079,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.247561999975005,
+        "colour_processing_ms": 0.2288169998792,
+        "smoothing_ms": 0.3876109985867515,
+        "led_calibration_ms": 0.06673700045212172,
+        "output_prepare_ms": 0.238274998991983
+      }
+    },
+    {
+      "call_ms": 9.12438700106577,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.833511001081206,
+        "colour_processing_ms": 0.3198199992766604,
+        "smoothing_ms": 0.42099400161532685,
+        "led_calibration_ms": 0.08395099939662032,
+        "output_prepare_ms": 0.26849300047615543
+      }
+    },
+    {
+      "call_ms": 9.277138000470586,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.876242998463567,
+        "colour_processing_ms": 0.2423230034764856,
+        "smoothing_ms": 0.36005799847771414,
+        "led_calibration_ms": 0.06650700015597977,
+        "output_prepare_ms": 0.4041819993290119
+      }
+    },
+    {
+      "call_ms": 8.197808001568774,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.066666999890003,
+        "colour_processing_ms": 0.2959949997602962,
+        "smoothing_ms": 0.34673199843382463,
+        "led_calibration_ms": 0.07310000000870787,
+        "output_prepare_ms": 0.22721400091541
+      }
+    },
+    {
+      "call_ms": 8.422266000707168,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.167199000832625,
+        "colour_processing_ms": 0.2339469974685926,
+        "smoothing_ms": 0.4668220026360359,
+        "led_calibration_ms": 0.08758699914324097,
+        "output_prepare_ms": 0.2643349980644416
+      }
+    },
+    {
+      "call_ms": 9.125198997935513,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.690447997447336,
+        "colour_processing_ms": 0.3883519966620952,
+        "smoothing_ms": 0.4156340000918135,
+        "led_calibration_ms": 0.06831000064266846,
+        "output_prepare_ms": 0.21835699953953736
+      }
+    },
+    {
+      "call_ms": 9.399413000210188,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.11791500018444,
+        "colour_processing_ms": 0.2977479998662602,
+        "smoothing_ms": 0.42395000127726234,
+        "led_calibration_ms": 0.06576599844265729,
+        "output_prepare_ms": 0.24184100038837641
+      }
+    },
+    {
+      "call_ms": 8.366969999769935,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.32263600002625,
+        "colour_processing_ms": 0.21537200154853053,
+        "smoothing_ms": 0.36615899807657115,
+        "led_calibration_ms": 0.06438300260924734,
+        "output_prepare_ms": 0.22266499945544638
+      }
+    },
+    {
+      "call_ms": 8.053520999965258,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.976615000894526,
+        "colour_processing_ms": 0.21481099975062534,
+        "smoothing_ms": 0.35468699934426695,
+        "led_calibration_ms": 0.071036000008462,
+        "output_prepare_ms": 0.25258199821109883
+      }
+    },
+    {
+      "call_ms": 9.193639001750853,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.996692998858634,
+        "colour_processing_ms": 0.26391400024294853,
+        "smoothing_ms": 0.3985110015491955,
+        "led_calibration_ms": 0.07961199662531726,
+        "output_prepare_ms": 0.24823400235618465
+      }
+    },
+    {
+      "call_ms": 8.763818001170876,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.716879001236521,
+        "colour_processing_ms": 0.21159400057513267,
+        "smoothing_ms": 0.366619999113027,
+        "led_calibration_ms": 0.06315100108622573,
+        "output_prepare_ms": 0.2275239967275411
+      }
+    },
+    {
+      "call_ms": 8.23439699888695,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.103477000782732,
+        "colour_processing_ms": 0.25657999867689796,
+        "smoothing_ms": 0.362612001481466,
+        "led_calibration_ms": 0.06558599852724001,
+        "output_prepare_ms": 0.22435799837694503
+      }
+    },
+    {
+      "call_ms": 8.739140997931827,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.649380000657402,
+        "colour_processing_ms": 0.25188099971273914,
+        "smoothing_ms": 0.357201999577228,
+        "led_calibration_ms": 0.06610700074816123,
+        "output_prepare_ms": 0.2365809996263124
+      }
+    },
+    {
+      "call_ms": 9.573735998856137,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.48319200304104,
+        "colour_processing_ms": 0.2199099981226027,
+        "smoothing_ms": 0.39387200013152324,
+        "led_calibration_ms": 0.06344099892885424,
+        "output_prepare_ms": 0.22995000108494423
+      }
+    },
+    {
+      "call_ms": 8.208087001548847,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.195603000582196,
+        "colour_processing_ms": 0.21941899831290357,
+        "smoothing_ms": 0.3392079997865949,
+        "led_calibration_ms": 0.06324100104393438,
+        "output_prepare_ms": 0.21049199858680367
+      }
+    },
+    {
+      "call_ms": 8.032120000279974,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.991834001382813,
+        "colour_processing_ms": 0.2058829995803535,
+        "smoothing_ms": 0.3490169983706437,
+        "led_calibration_ms": 0.0636709992249962,
+        "output_prepare_ms": 0.24348500301130116
+      }
+    },
+    {
+      "call_ms": 8.676121000462444,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.562703998701181,
+        "colour_processing_ms": 0.26789199910126626,
+        "smoothing_ms": 0.339849000738468,
+        "led_calibration_ms": 0.06680699880234897,
+        "output_prepare_ms": 0.22778499987907708
+      }
+    },
+    {
+      "call_ms": 9.024035000038566,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.993836999958148,
+        "colour_processing_ms": 0.2211419996456243,
+        "smoothing_ms": 0.32254600228043273,
+        "led_calibration_ms": 0.07191799886641093,
+        "output_prepare_ms": 0.230760000704322
+      }
+    },
+    {
+      "call_ms": 8.475458002067171,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.393271000182722,
+        "colour_processing_ms": 0.21622299755108543,
+        "smoothing_ms": 0.32370900225942023,
+        "led_calibration_ms": 0.06352099808282219,
+        "output_prepare_ms": 0.2378940007474739
+      }
+    },
+    {
+      "call_ms": 8.477671999571612,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.322474997636164,
+        "colour_processing_ms": 0.22236400036490522,
+        "smoothing_ms": 0.387399999453919,
+        "led_calibration_ms": 0.06602600115002133,
+        "output_prepare_ms": 0.25879399981931783
+      }
+    },
+    {
+      "call_ms": 8.96687700151233,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.745423001324525,
+        "colour_processing_ms": 0.23904699992272072,
+        "smoothing_ms": 0.33929800338228233,
+        "led_calibration_ms": 0.06855099854874425,
+        "output_prepare_ms": 0.35628999830805697
+      }
+    },
+    {
+      "call_ms": 8.331963003001874,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.165474999055732,
+        "colour_processing_ms": 0.26147899916395545,
+        "smoothing_ms": 0.36441600241232663,
+        "led_calibration_ms": 0.07777799692121334,
+        "output_prepare_ms": 0.2812080019793939
+      }
+    },
+    {
+      "call_ms": 7.867586999054765,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.732117999490583,
+        "colour_processing_ms": 0.2242679984192364,
+        "smoothing_ms": 0.3378750006959308,
+        "led_calibration_ms": 0.0650449983368162,
+        "output_prepare_ms": 0.23797399990144186
+      }
+    },
+    {
+      "call_ms": 9.469115000683814,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.49611699959496,
+        "colour_processing_ms": 0.21864700102014467,
+        "smoothing_ms": 0.26388400146970525,
+        "led_calibration_ms": 0.06770999971195124,
+        "output_prepare_ms": 0.23485799829359166
+      }
+    },
+    {
+      "call_ms": 9.412297000380931,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.247761998063652,
+        "colour_processing_ms": 0.23928700102260336,
+        "smoothing_ms": 0.3756480000447482,
+        "led_calibration_ms": 0.06669700087513775,
+        "output_prepare_ms": 0.25617899882490747
+      }
+    },
+    {
+      "call_ms": 9.057258001121227,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.913183002528967,
+        "colour_processing_ms": 0.23239400252350606,
+        "smoothing_ms": 0.4120169978705235,
+        "led_calibration_ms": 0.07600499884574674,
+        "output_prepare_ms": 0.24198200117098168
+      }
+    },
+    {
+      "call_ms": 8.85002299764892,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.515794000937603,
+        "colour_processing_ms": 0.4418930002429988,
+        "smoothing_ms": 0.38030699943192303,
+        "led_calibration_ms": 0.06604599911952391,
+        "output_prepare_ms": 0.21661400023731403
+      }
+    },
+    {
+      "call_ms": 9.311393998359563,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.31634399946779,
+        "colour_processing_ms": 0.22150299992063083,
+        "smoothing_ms": 0.26699999943957664,
+        "led_calibration_ms": 0.06842999937362038,
+        "output_prepare_ms": 0.22241500118980184
+      }
+    },
+    {
+      "call_ms": 9.622968998883152,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.333765999850584,
+        "colour_processing_ms": 0.260197000898188,
+        "smoothing_ms": 0.4249619996699039,
+        "led_calibration_ms": 0.10418899910291657,
+        "output_prepare_ms": 0.2961650025099516
+      }
+    },
+    {
+      "call_ms": 8.054934998654062,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.03955499920994,
+        "colour_processing_ms": 0.24385600045206957,
+        "smoothing_ms": 0.27810099709313363,
+        "led_calibration_ms": 0.06839000343461521,
+        "output_prepare_ms": 0.21729499712819234
+      }
+    },
+    {
+      "call_ms": 8.752687001106096,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.056686998112127,
+        "colour_processing_ms": 0.32024100073613226,
+        "smoothing_ms": 0.48673999845050275,
+        "led_calibration_ms": 0.11626199921010993,
+        "output_prepare_ms": 0.5621730015263893
+      }
+    },
+    {
+      "call_ms": 9.206915001414018,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.160715999110835,
+        "colour_processing_ms": 0.22606199854635634,
+        "smoothing_ms": 0.30245699963415973,
+        "led_calibration_ms": 0.07450300108757801,
+        "output_prepare_ms": 0.24272299924632534
+      }
+    },
+    {
+      "call_ms": 8.00488799723098,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.917372000316391,
+        "colour_processing_ms": 0.23366599998553284,
+        "smoothing_ms": 0.3444180001679342,
+        "led_calibration_ms": 0.0652150010864716,
+        "output_prepare_ms": 0.23176199829322286
+      }
+    },
+    {
+      "call_ms": 8.776372000284027,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.716978998359991,
+        "colour_processing_ms": 0.2327049987798091,
+        "smoothing_ms": 0.35304400080349296,
+        "led_calibration_ms": 0.06636699981754646,
+        "output_prepare_ms": 0.22287500178208575
+      }
+    },
+    {
+      "call_ms": 8.397950001381105,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.262982002430363,
+        "colour_processing_ms": 0.24811399998725392,
+        "smoothing_ms": 0.3614209999796003,
+        "led_calibration_ms": 0.07380100214504637,
+        "output_prepare_ms": 0.26443499882589094
+      }
+    },
+    {
+      "call_ms": 8.668295999086695,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.655301000340842,
+        "colour_processing_ms": 0.2497970017429907,
+        "smoothing_ms": 0.26228099886793643,
+        "led_calibration_ms": 0.0728189988876693,
+        "output_prepare_ms": 0.24008900072658435
+      }
+    },
+    {
+      "call_ms": 8.959793001849903,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.773075998557033,
+        "colour_processing_ms": 0.31861800016486086,
+        "smoothing_ms": 0.3622820004238747,
+        "led_calibration_ms": 0.06993400165811181,
+        "output_prepare_ms": 0.24239299818873405
+      }
+    },
+    {
+      "call_ms": 8.841285998641979,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.73253800070961,
+        "colour_processing_ms": 0.23953799973241985,
+        "smoothing_ms": 0.36303299930295907,
+        "led_calibration_ms": 0.06830100028309971,
+        "output_prepare_ms": 0.23972800045157783
+      }
+    },
+    {
+      "call_ms": 7.878767999500269,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.8720849994861055,
+        "colour_processing_ms": 0.2165240002796054,
+        "smoothing_ms": 0.3316630027256906,
+        "led_calibration_ms": 0.06487399878096767,
+        "output_prepare_ms": 0.2173749999201391
+      }
+    },
+    {
+      "call_ms": 8.9375999996264,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.3488560010446236,
+        "colour_processing_ms": 0.21946900233160704,
+        "smoothing_ms": 0.8420079975621775,
+        "led_calibration_ms": 0.06760900214430876,
+        "output_prepare_ms": 0.27466499886941165
+      }
+    },
+    {
+      "call_ms": 8.908433999749832,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.807571997545892,
+        "colour_processing_ms": 0.22811600138084032,
+        "smoothing_ms": 0.3488360016490333,
+        "led_calibration_ms": 0.0655959993309807,
+        "output_prepare_ms": 0.25822300085565075
+      }
+    },
+    {
+      "call_ms": 9.056416998646455,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.010890000150539,
+        "colour_processing_ms": 0.2371929986111354,
+        "smoothing_ms": 0.3405600000405684,
+        "led_calibration_ms": 0.06369200127664953,
+        "output_prepare_ms": 0.21689400091418065
+      }
+    },
+    {
+      "call_ms": 9.098056998482207,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.112483999866527,
+        "colour_processing_ms": 0.21604300127364695,
+        "smoothing_ms": 0.2767980004136916,
+        "led_calibration_ms": 0.06923299952177331,
+        "output_prepare_ms": 0.23648099886486307
+      }
+    },
+    {
+      "call_ms": 9.061106000444852,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.973758998559788,
+        "colour_processing_ms": 0.22988999990047887,
+        "smoothing_ms": 0.3915369998139795,
+        "led_calibration_ms": 0.06704800034640357,
+        "output_prepare_ms": 0.2206819990533404
+      }
+    },
+    {
+      "call_ms": 8.68602000264218,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.356310001341626,
+        "colour_processing_ms": 0.31776700052432716,
+        "smoothing_ms": 0.4678639998019207,
+        "led_calibration_ms": 0.08605399852967821,
+        "output_prepare_ms": 0.2672609989531338
+      }
+    },
+    {
+      "call_ms": 8.040806998906191,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.946977999177761,
+        "colour_processing_ms": 0.2338070007681381,
+        "smoothing_ms": 0.3323839991935529,
+        "led_calibration_ms": 0.0839809981698636,
+        "output_prepare_ms": 0.22956800239626318
+      }
+    },
+    {
+      "call_ms": 7.964511001773644,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.827369998063659,
+        "colour_processing_ms": 0.24188199677155353,
+        "smoothing_ms": 0.3758180027944036,
+        "led_calibration_ms": 0.0664469989715144,
+        "output_prepare_ms": 0.2464200006215833
+      }
+    },
+    {
+      "call_ms": 8.5074579983484,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.525512999563944,
+        "colour_processing_ms": 0.21457000184454955,
+        "smoothing_ms": 0.2857959989341907,
+        "led_calibration_ms": 0.06712799950037152,
+        "output_prepare_ms": 0.23332600176217966
+      }
+    },
+    {
+      "call_ms": 7.916249000118114,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.852747999801068,
+        "colour_processing_ms": 0.22718299806001596,
+        "smoothing_ms": 0.3614010020100977,
+        "led_calibration_ms": 0.06539500100188889,
+        "output_prepare_ms": 0.22358699789037928
+      }
+    },
+    {
+      "call_ms": 7.960443999763811,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.840044003183721,
+        "colour_processing_ms": 0.23617099941475317,
+        "smoothing_ms": 0.4114260009373538,
+        "led_calibration_ms": 0.07087500125635415,
+        "output_prepare_ms": 0.22057100068195723
+      }
+    },
+    {
+      "call_ms": 8.230570001614979,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.197787999757566,
+        "colour_processing_ms": 0.21532100072363392,
+        "smoothing_ms": 0.33746500048437156,
+        "led_calibration_ms": 0.06689799920422956,
+        "output_prepare_ms": 0.23044000045047142
+      }
+    },
+    {
+      "call_ms": 8.104338001430733,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.057147999148583,
+        "colour_processing_ms": 0.21404899962362833,
+        "smoothing_ms": 0.3312129992991686,
+        "led_calibration_ms": 0.06397199831553735,
+        "output_prepare_ms": 0.23742300254525617
+      }
+    },
+    {
+      "call_ms": 8.746034000068903,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.631685999513138,
+        "colour_processing_ms": 0.22530999922310002,
+        "smoothing_ms": 0.35420700078248046,
+        "led_calibration_ms": 0.07217800157377496,
+        "output_prepare_ms": 0.2730209998844657
+      }
+    },
+    {
+      "call_ms": 7.692821996897692,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.648597998719197,
+        "colour_processing_ms": 0.22074200023780577,
+        "smoothing_ms": 0.35076000131084584,
+        "led_calibration_ms": 0.06378199759637937,
+        "output_prepare_ms": 0.21321700114640407
+      }
+    },
+    {
+      "call_ms": 8.608440999523737,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.591599998704623,
+        "colour_processing_ms": 0.22151300072437152,
+        "smoothing_ms": 0.3287979998276569,
+        "led_calibration_ms": 0.06473299799836241,
+        "output_prepare_ms": 0.22413800252252258
+      }
+    },
+    {
+      "call_ms": 9.507999999186723,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.317405001434963,
+        "colour_processing_ms": 0.2464199969836045,
+        "smoothing_ms": 0.37898400114499964,
+        "led_calibration_ms": 0.07447200187016279,
+        "output_prepare_ms": 0.29613599690492265
+      }
+    },
+    {
+      "call_ms": 7.703373001277214,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.592270998226013,
+        "colour_processing_ms": 0.22788500064052641,
+        "smoothing_ms": 0.37723999776062556,
+        "led_calibration_ms": 0.06498500079032965,
+        "output_prepare_ms": 0.24393499916186556
+      }
+    },
+    {
+      "call_ms": 8.669929000461707,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.370115999947302,
+        "colour_processing_ms": 0.31556199974147603,
+        "smoothing_ms": 0.41044399767997675,
+        "led_calibration_ms": 0.07364100019913167,
+        "output_prepare_ms": 0.24280400248244405
+      }
+    },
+    {
+      "call_ms": 8.384072003536858,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.25393399989116,
+        "colour_processing_ms": 0.2354099997319281,
+        "smoothing_ms": 0.33063100272556767,
+        "led_calibration_ms": 0.06546499935211614,
+        "output_prepare_ms": 0.29519400050048716
+      }
+    },
+    {
+      "call_ms": 8.120388996758265,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.689896999887424,
+        "colour_processing_ms": 0.36945499959983863,
+        "smoothing_ms": 0.5303830002958421,
+        "led_calibration_ms": 0.06975300129852258,
+        "output_prepare_ms": 0.22950899801799096
+      }
+    },
+    {
+      "call_ms": 9.059301999513991,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.7660019996983465,
+        "colour_processing_ms": 0.25729099797899835,
+        "smoothing_ms": 0.4407520027598366,
+        "led_calibration_ms": 0.10602199836284854,
+        "output_prepare_ms": 0.31216700153890997
+      }
+    },
+    {
+      "call_ms": 8.134537001751596,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.833821997133782,
+        "colour_processing_ms": 0.22567099949810654,
+        "smoothing_ms": 0.41380100083188154,
+        "led_calibration_ms": 0.07741700028418563,
+        "output_prepare_ms": 0.3775209988816641
+      }
+    },
+    {
+      "call_ms": 7.457062998582842,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.3524929973937105,
+        "colour_processing_ms": 0.22044100114726461,
+        "smoothing_ms": 0.31982099972083233,
+        "led_calibration_ms": 0.06394199954229407,
+        "output_prepare_ms": 0.30252799842855893
+      }
+    },
+    {
+      "call_ms": 7.682081999519141,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.628360002650879,
+        "colour_processing_ms": 0.22941800125408918,
+        "smoothing_ms": 0.34036999932141043,
+        "led_calibration_ms": 0.0724380006431602,
+        "output_prepare_ms": 0.22321600044961087
+      }
+    },
+    {
+      "call_ms": 7.690567999816267,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.6898679979203735,
+        "colour_processing_ms": 0.21778600057587028,
+        "smoothing_ms": 0.3240990008634981,
+        "led_calibration_ms": 0.06288999793468975,
+        "output_prepare_ms": 0.22008100131643005
+      }
+    },
+    {
+      "call_ms": 7.987746001163032,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.842959999630693,
+        "colour_processing_ms": 0.22135300241643563,
+        "smoothing_ms": 0.33886699748109095,
+        "led_calibration_ms": 0.06973299969104119,
+        "output_prepare_ms": 0.32619300327496603
+      }
+    },
+    {
+      "call_ms": 7.709194000199204,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.599904998438433,
+        "colour_processing_ms": 0.22745400201529264,
+        "smoothing_ms": 0.37605899706250057,
+        "led_calibration_ms": 0.0677090029057581,
+        "output_prepare_ms": 0.2532739999878686
+      }
+    },
+    {
+      "call_ms": 7.685047999984818,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.634691999352071,
+        "colour_processing_ms": 0.22697399981552735,
+        "smoothing_ms": 0.33833599809440784,
+        "led_calibration_ms": 0.06546499935211614,
+        "output_prepare_ms": 0.2339570019103121
+      }
+    },
+    {
+      "call_ms": 8.454938997601857,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.163492002291605,
+        "colour_processing_ms": 0.23462899844162166,
+        "smoothing_ms": 0.4851260018767789,
+        "led_calibration_ms": 0.08589400022174232,
+        "output_prepare_ms": 0.28062599812983535
+      }
+    },
+    {
+      "call_ms": 8.08613399931346,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.922200998815242,
+        "colour_processing_ms": 0.29171700225560926,
+        "smoothing_ms": 0.3405110001040157,
+        "led_calibration_ms": 0.09012199734570459,
+        "output_prepare_ms": 0.24402599956374615
+      }
+    },
+    {
+      "call_ms": 8.068961000390118,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.889518997923005,
+        "colour_processing_ms": 0.24019900229177438,
+        "smoothing_ms": 0.4310330004955176,
+        "led_calibration_ms": 0.0679199984006118,
+        "output_prepare_ms": 0.2543059999879915
+      }
+    },
+    {
+      "call_ms": 9.781833003216889,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.765821999986656,
+        "colour_processing_ms": 0.22365699987858534,
+        "smoothing_ms": 0.33194400020875037,
+        "led_calibration_ms": 0.06652699812548235,
+        "output_prepare_ms": 0.21700400247937068
+      }
+    },
+    {
+      "call_ms": 7.636484999238746,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.628810999245616,
+        "colour_processing_ms": 0.22057099704397842,
+        "smoothing_ms": 0.33262600118177943,
+        "led_calibration_ms": 0.06327099981717765,
+        "output_prepare_ms": 0.20828700144193135
+      }
+    },
+    {
+      "call_ms": 9.109288999752607,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.034416001464706,
+        "colour_processing_ms": 0.21140300304978155,
+        "smoothing_ms": 0.38703999962308444,
+        "led_calibration_ms": 0.07383099728031084,
+        "output_prepare_ms": 0.2215730019088369
+      }
+    },
+    {
+      "call_ms": 9.32921799903852,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.034545000555227,
+        "colour_processing_ms": 0.31467100052395836,
+        "smoothing_ms": 0.4382469996926375,
+        "led_calibration_ms": 0.07386200013570487,
+        "output_prepare_ms": 0.27906199829885736
+      }
+    },
+    {
+      "call_ms": 10.209489002590999,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 9.133223997196183,
+        "colour_processing_ms": 0.22225499924388714,
+        "smoothing_ms": 0.3594670015445445,
+        "led_calibration_ms": 0.06982299964874983,
+        "output_prepare_ms": 0.22528000044985674
+      }
+    },
+    {
+      "call_ms": 9.272790000977693,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.211332999053411,
+        "colour_processing_ms": 0.2210220009146724,
+        "smoothing_ms": 0.34016000063274987,
+        "led_calibration_ms": 0.06744799975422211,
+        "output_prepare_ms": 0.23534999854746275
+      }
+    },
+    {
+      "call_ms": 8.517416998074623,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.1785009968152735,
+        "colour_processing_ms": 0.2719589974731207,
+        "smoothing_ms": 0.558177001948934,
+        "led_calibration_ms": 0.07501299842260778,
+        "output_prepare_ms": 0.24419600231340155
+      }
+    },
+    {
+      "call_ms": 8.597000000008848,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.518900998547906,
+        "colour_processing_ms": 0.2251899968541693,
+        "smoothing_ms": 0.3725810020114295,
+        "led_calibration_ms": 0.0659159995848313,
+        "output_prepare_ms": 0.22127299962448888
+      }
+    },
+    {
+      "call_ms": 8.458775999315549,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.436973999574548,
+        "colour_processing_ms": 0.2135680006176699,
+        "smoothing_ms": 0.350259000697406,
+        "led_calibration_ms": 0.07031399945844896,
+        "output_prepare_ms": 0.21400900004664436
+      }
+    },
+    {
+      "call_ms": 8.00580000213813,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.8224799979361705,
+        "colour_processing_ms": 0.24946600024122745,
+        "smoothing_ms": 0.34419800067553297,
+        "led_calibration_ms": 0.06560499969054945,
+        "output_prepare_ms": 0.21779600137961097
+      }
+    },
+    {
+      "call_ms": 7.780900999932783,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.750303000444546,
+        "colour_processing_ms": 0.21426000239443965,
+        "smoothing_ms": 0.3525729989632964,
+        "led_calibration_ms": 0.06403199950000271,
+        "output_prepare_ms": 0.2178960021410603
+      }
+    },
+    {
+      "call_ms": 7.966845998453209,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.727538999257376,
+        "colour_processing_ms": 0.21676399774150923,
+        "smoothing_ms": 0.4090809998160694,
+        "led_calibration_ms": 0.20336900342954323,
+        "output_prepare_ms": 0.2285859991388861
+      }
+    },
+    {
+      "call_ms": 8.008214997971663,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.783155997254653,
+        "colour_processing_ms": 0.2283059984620195,
+        "smoothing_ms": 0.4432460009411443,
+        "led_calibration_ms": 0.08379999781027436,
+        "output_prepare_ms": 0.28390200168360025
+      }
+    },
+    {
+      "call_ms": 8.27031500011799,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.28562500080443,
+        "colour_processing_ms": 0.20713599951704964,
+        "smoothing_ms": 0.30954100293456577,
+        "led_calibration_ms": 0.06429299901355989,
+        "output_prepare_ms": 0.21930900038569234
+      }
+    },
+    {
+      "call_ms": 8.114438001939561,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.1216819997061975,
+        "colour_processing_ms": 0.22334700042847544,
+        "smoothing_ms": 0.26476499988348223,
+        "led_calibration_ms": 0.0690220003889408,
+        "output_prepare_ms": 0.22343700038618408
+      }
+    },
+    {
+      "call_ms": 8.566992000851315,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.121541999367764,
+        "colour_processing_ms": 0.2872990007745102,
+        "smoothing_ms": 0.522347996593453,
+        "led_calibration_ms": 0.09002200022223406,
+        "output_prepare_ms": 0.28711800041492097
+      }
+    },
+    {
+      "call_ms": 8.572812999773305,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.272079998074332,
+        "colour_processing_ms": 0.274614998488687,
+        "smoothing_ms": 0.4127280008106027,
+        "led_calibration_ms": 0.08241799878305756,
+        "output_prepare_ms": 0.30756700289202854
+      }
+    },
+    {
+      "call_ms": 8.558787001675228,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.2987599996849895,
+        "colour_processing_ms": 0.2595860023575369,
+        "smoothing_ms": 0.4512109990173485,
+        "led_calibration_ms": 0.09004199819173664,
+        "output_prepare_ms": 0.25626000206102617
+      }
+    },
+    {
+      "call_ms": 8.651624000776792,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.5240309997752775,
+        "colour_processing_ms": 0.21978999939165078,
+        "smoothing_ms": 0.35474799733492546,
+        "led_calibration_ms": 0.06684700201731175,
+        "output_prepare_ms": 0.29561499832198024
+      }
+    },
+    {
+      "call_ms": 8.248723999713548,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.147902000724571,
+        "colour_processing_ms": 0.21959899822832085,
+        "smoothing_ms": 0.350108999555232,
+        "led_calibration_ms": 0.10234500223305076,
+        "output_prepare_ms": 0.22802599778515287
+      }
+    },
+    {
+      "call_ms": 9.342433000711026,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.140336998621933,
+        "colour_processing_ms": 0.2673700000741519,
+        "smoothing_ms": 0.42243699863320217,
+        "led_calibration_ms": 0.07183699926827103,
+        "output_prepare_ms": 0.22692399943480268
+      }
+    },
+    {
+      "call_ms": 8.32354799786117,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.1671490004519,
+        "colour_processing_ms": 0.2138780000677798,
+        "smoothing_ms": 0.42152499736403115,
+        "led_calibration_ms": 0.06484400000772439,
+        "output_prepare_ms": 0.279184001556132
+      }
+    },
+    {
+      "call_ms": 9.301084999606246,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.256008000898873,
+        "colour_processing_ms": 0.24786300127743743,
+        "smoothing_ms": 0.274002999503864,
+        "led_calibration_ms": 0.06997399759711698,
+        "output_prepare_ms": 0.24481800210196525
+      }
+    },
+    {
+      "call_ms": 9.04915299906861,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.690207999985432,
+        "colour_processing_ms": 0.2548869997553993,
+        "smoothing_ms": 0.39964300231076777,
+        "led_calibration_ms": 0.12038999921060167,
+        "output_prepare_ms": 0.36909499976900406
+      }
+    },
+    {
+      "call_ms": 7.6464240009954665,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.51059500160045,
+        "colour_processing_ms": 0.24864499937393703,
+        "smoothing_ms": 0.4062059997522738,
+        "led_calibration_ms": 0.06911200034664944,
+        "output_prepare_ms": 0.22068100224714726
+      }
+    },
+    {
+      "call_ms": 9.076084999833256,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.001712001714623,
+        "colour_processing_ms": 0.2252200029033702,
+        "smoothing_ms": 0.3671809972729534,
+        "led_calibration_ms": 0.06752900299034081,
+        "output_prepare_ms": 0.2175859990529716
+      }
+    },
+    {
+      "call_ms": 7.994239000254311,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.685008000204107,
+        "colour_processing_ms": 0.28971300343982875,
+        "smoothing_ms": 0.4079389982507564,
+        "led_calibration_ms": 0.08712699855095707,
+        "output_prepare_ms": 0.29567400270025246
+      }
+    },
+    {
+      "call_ms": 9.36193999950774,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.041649001825135,
+        "colour_processing_ms": 0.27079700157628395,
+        "smoothing_ms": 0.45977799891261384,
+        "led_calibration_ms": 0.08691599941812456,
+        "output_prepare_ms": 0.27709000278264284
+      }
+    },
+    {
+      "call_ms": 7.726907999312971,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.579697001143359,
+        "colour_processing_ms": 0.22996999905444682,
+        "smoothing_ms": 0.3641149996838067,
+        "led_calibration_ms": 0.07138600267353468,
+        "output_prepare_ms": 0.2828209981089458
+      }
+    },
+    {
+      "call_ms": 7.92031699893414,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.822551000368549,
+        "colour_processing_ms": 0.22616199930780567,
+        "smoothing_ms": 0.3658889982034452,
+        "led_calibration_ms": 0.080493999121245,
+        "output_prepare_ms": 0.22756399994250387
+      }
+    },
+    {
+      "call_ms": 9.393350999744143,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.980643000337295,
+        "colour_processing_ms": 0.24073999884421937,
+        "smoothing_ms": 0.5900770011066925,
+        "led_calibration_ms": 0.1596649999555666,
+        "output_prepare_ms": 0.23810499988030642
+      }
+    },
+    {
+      "call_ms": 9.620754997740733,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.108977999654599,
+        "colour_processing_ms": 0.24078999922494404,
+        "smoothing_ms": 0.352814000507351,
+        "led_calibration_ms": 0.06532499901368283,
+        "output_prepare_ms": 0.2391460002399981
+      }
+    },
+    {
+      "call_ms": 7.87226499960525,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.73983200249495,
+        "colour_processing_ms": 0.29876999906264246,
+        "smoothing_ms": 0.3537759985192679,
+        "led_calibration_ms": 0.06774900248274207,
+        "output_prepare_ms": 0.22881800032337196
+      }
+    },
+    {
+      "call_ms": 8.601007000834215,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.554959000117378,
+        "colour_processing_ms": 0.22903700300958008,
+        "smoothing_ms": 0.32694499896024354,
+        "led_calibration_ms": 0.06419299825211056,
+        "output_prepare_ms": 0.22817500212113373
+      }
+    },
+    {
+      "call_ms": 8.275985997897806,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.221944000775693,
+        "colour_processing_ms": 0.2217030014435295,
+        "smoothing_ms": 0.35530899913283065,
+        "led_calibration_ms": 0.07404099960695021,
+        "output_prepare_ms": 0.22321700089378282
+      }
+    },
+    {
+      "call_ms": 8.911160002753604,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.754400998237543,
+        "colour_processing_ms": 0.2511290003894828,
+        "smoothing_ms": 0.3883220015268307,
+        "led_calibration_ms": 0.07116599954315461,
+        "output_prepare_ms": 0.26244100081385113
+      }
+    },
+    {
+      "call_ms": 8.086955996986944,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.02238300073077,
+        "colour_processing_ms": 0.22992000231170096,
+        "smoothing_ms": 0.3473430006124545,
+        "led_calibration_ms": 0.08580400026403368,
+        "output_prepare_ms": 0.22271499983617105
+      }
+    },
+    {
+      "call_ms": 9.006631997181103,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.782403998135123,
+        "colour_processing_ms": 0.2830400007951539,
+        "smoothing_ms": 0.39410300087183714,
+        "led_calibration_ms": 0.08169599823304452,
+        "output_prepare_ms": 0.22626300051342696
+      }
+    },
+    {
+      "call_ms": 8.534680000593653,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.83591599954525,
+        "colour_processing_ms": 0.3257320022385102,
+        "smoothing_ms": 0.5797069970867597,
+        "led_calibration_ms": 0.12916700143250637,
+        "output_prepare_ms": 0.3551980007614475
+      }
+    },
+    {
+      "call_ms": 8.36027799959993,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.14308300302946,
+        "colour_processing_ms": 0.22231399998418055,
+        "smoothing_ms": 0.41862999933073297,
+        "led_calibration_ms": 0.07144600022002123,
+        "output_prepare_ms": 0.30682600117870606
+      }
+    },
+    {
+      "call_ms": 8.66243500058772,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.380095998087199,
+        "colour_processing_ms": 0.220239999180194,
+        "smoothing_ms": 0.4063769993081223,
+        "led_calibration_ms": 0.07085499964887276,
+        "output_prepare_ms": 0.3596970018406864
+      }
+    },
+    {
+      "call_ms": 8.483172001433559,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.4434970010770485,
+        "colour_processing_ms": 0.21163400015211664,
+        "smoothing_ms": 0.3308320010546595,
+        "led_calibration_ms": 0.06855099854874425,
+        "output_prepare_ms": 0.24348499937332235
+      }
+    },
+    {
+      "call_ms": 10.130447997653391,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.866124000633135,
+        "colour_processing_ms": 0.33980899752350524,
+        "smoothing_ms": 0.3932010004064068,
+        "led_calibration_ms": 0.07113600076991133,
+        "output_prepare_ms": 0.26676899869926274
+      }
+    },
+    {
+      "call_ms": 8.60438300151145,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.2935300013341475,
+        "colour_processing_ms": 0.3684430012071971,
+        "smoothing_ms": 0.38276099803624675,
+        "led_calibration_ms": 0.07151700265239924,
+        "output_prepare_ms": 0.3090499994868878
+      }
+    },
+    {
+      "call_ms": 8.778064999205526,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.631324999238132,
+        "colour_processing_ms": 0.24641100026201457,
+        "smoothing_ms": 0.3964570023526903,
+        "led_calibration_ms": 0.06817999746999703,
+        "output_prepare_ms": 0.22835700292489491
+      }
+    },
+    {
+      "call_ms": 8.989139001641888,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.71496499874047,
+        "colour_processing_ms": 0.23096099903341383,
+        "smoothing_ms": 0.40806900142342784,
+        "led_calibration_ms": 0.11637300121947192,
+        "output_prepare_ms": 0.3196299985575024
+      }
+    },
+    {
+      "call_ms": 8.487781000440009,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.3037500005739275,
+        "colour_processing_ms": 0.23969800167833455,
+        "smoothing_ms": 0.357924000127241,
+        "led_calibration_ms": 0.07326999912038445,
+        "output_prepare_ms": 0.30769699878874235
+      }
+    },
+    {
+      "call_ms": 8.450229997833958,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.277990000147838,
+        "colour_processing_ms": 0.2254009996249806,
+        "smoothing_ms": 0.3619009985413868,
+        "led_calibration_ms": 0.07388100129901432,
+        "output_prepare_ms": 0.31925999792292714
+      }
+    },
+    {
+      "call_ms": 9.178831001918297,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.883456997660687,
+        "colour_processing_ms": 0.22669300233246759,
+        "smoothing_ms": 0.5166859991732053,
+        "led_calibration_ms": 0.07763900066493079,
+        "output_prepare_ms": 0.26862300001084805
+      }
+    },
+    {
+      "call_ms": 8.595175997470506,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.498552000470227,
+        "colour_processing_ms": 0.2204810007242486,
+        "smoothing_ms": 0.3635139983089175,
+        "led_calibration_ms": 0.06748899977537803,
+        "output_prepare_ms": 0.2423229998385068
+      }
+    },
+    {
+      "call_ms": 9.313316997577203,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.001281999895582,
+        "colour_processing_ms": 0.28608600041479804,
+        "smoothing_ms": 0.4052639997098595,
+        "led_calibration_ms": 0.09907899948302656,
+        "output_prepare_ms": 0.28119700073148124
+      }
+    },
+    {
+      "call_ms": 8.303049002279295,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.163842001318699,
+        "colour_processing_ms": 0.3046219972020481,
+        "smoothing_ms": 0.3367429999343585,
+        "led_calibration_ms": 0.07354999979725108,
+        "output_prepare_ms": 0.23451800007023849
+      }
+    },
+    {
+      "call_ms": 8.08262700229534,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.952097999601392,
+        "colour_processing_ms": 0.2484340002411045,
+        "smoothing_ms": 0.3767500020330772,
+        "led_calibration_ms": 0.06651699732174166,
+        "output_prepare_ms": 0.2505390002625063
+      }
+    },
+    {
+      "call_ms": 9.190542998112505,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.971153998369118,
+        "colour_processing_ms": 0.2338659978704527,
+        "smoothing_ms": 0.4045430032419972,
+        "led_calibration_ms": 0.08908000017981976,
+        "output_prepare_ms": 0.26305299979867414
+      }
+    },
+    {
+      "call_ms": 8.259804999397602,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.091174000379397,
+        "colour_processing_ms": 0.22245500076678582,
+        "smoothing_ms": 0.4573439982777927,
+        "led_calibration_ms": 0.08307800089824013,
+        "output_prepare_ms": 0.2227260010840837
+      }
+    },
+    {
+      "call_ms": 7.7899879979668185,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.68214200049988,
+        "colour_processing_ms": 0.24019900229177438,
+        "smoothing_ms": 0.35657099942909554,
+        "led_calibration_ms": 0.0721180003893096,
+        "output_prepare_ms": 0.22747399998479523
+      }
+    },
+    {
+      "call_ms": 8.093938002275536,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.931479001650587,
+        "colour_processing_ms": 0.24621000193292275,
+        "smoothing_ms": 0.39991399899008684,
+        "led_calibration_ms": 0.07928099876153283,
+        "output_prepare_ms": 0.24352500258828513
+      }
+    },
+    {
+      "call_ms": 8.39770899983705,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.273462000739528,
+        "colour_processing_ms": 0.27774100090027787,
+        "smoothing_ms": 0.33198399978573434,
+        "led_calibration_ms": 0.07614499918418005,
+        "output_prepare_ms": 0.25843399998848327
+      }
+    },
+    {
+      "call_ms": 8.706238000740996,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.548597001004964,
+        "colour_processing_ms": 0.26534700009506196,
+        "smoothing_ms": 0.3965579999203328,
+        "led_calibration_ms": 0.07060400093905628,
+        "output_prepare_ms": 0.22699400142300874
+      }
+    },
+    {
+      "call_ms": 9.579757002939004,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 8.219999002903933,
+        "colour_processing_ms": 0.2544960007071495,
+        "smoothing_ms": 0.5101440001453739,
+        "led_calibration_ms": 0.13201199908507988,
+        "output_prepare_ms": 0.27734999821404926
+      }
+    },
+    {
+      "call_ms": 7.90767299986328,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.783495999115985,
+        "colour_processing_ms": 0.22656200235360302,
+        "smoothing_ms": 0.4098129975318443,
+        "led_calibration_ms": 0.0760850016376935,
+        "output_prepare_ms": 0.2296089987794403
+      }
+    },
+    {
+      "call_ms": 8.044955997320358,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 6.967607998376479,
+        "colour_processing_ms": 0.2226959986728616,
+        "smoothing_ms": 0.3393580009287689,
+        "led_calibration_ms": 0.07640599869773723,
+        "output_prepare_ms": 0.2550270000938326
+      }
+    },
+    {
+      "call_ms": 8.325351001985837,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.166897998104105,
+        "colour_processing_ms": 0.22452899793279357,
+        "smoothing_ms": 0.4147520012338646,
+        "led_calibration_ms": 0.0742109987186268,
+        "output_prepare_ms": 0.25172100140480325
+      }
+    },
+    {
+      "call_ms": 8.345148999069352,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.284223000169732,
+        "colour_processing_ms": 0.23019899890641682,
+        "smoothing_ms": 0.3419230015424546,
+        "led_calibration_ms": 0.06689799920422956,
+        "output_prepare_ms": 0.2223250012320932
+      }
+    },
+    {
+      "call_ms": 8.713422001164872,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 7.443667000188725,
+        "colour_processing_ms": 0.23790500199538656,
+        "smoothing_ms": 0.42807700083358213,
+        "led_calibration_ms": 0.07632599954376929,
+        "output_prepare_ms": 0.3036300004168879
+      }
+    },
+    {
+      "call_ms": 10.573796000244329,
+      "timings": {
+        "frame_convert_ms": 0.0,
+        "zone_sampling_ms": 9.509232000709744,
+        "colour_processing_ms": 0.22204400011105463,
+        "smoothing_ms": 0.3371339989826083,
+        "led_calibration_ms": 0.07402200208161958,
+        "output_prepare_ms": 0.2286159979121294
+      }
+    }
+  ],
+  "status": {
+    "running": true,
+    "last_error": null,
+    "capture_backend": "kmsgrab",
+    "last_error_kind": null,
+    "last_error_guidance": null,
+    "capture_path": "kwin-dbus",
+    "frames_sent": 288,
+    "latency_measurement": {
+      "live_mirroring_only": true,
+      "dropped_or_skipped_frames": 0,
+      "target_fps": 120.0,
+      "fps_cap": 120.0,
+      "fps_cap_reason": "FPS governor dynamic cap",
+      "effective_output_fps": 28.63525737753473,
+      "counters": {},
+      "flags": {
+        "ctx.capture_worker_active": true
+      },
+      "labels": {
+        "ctx.latest_capture_backend_name": "kmsgrab",
+        "no_pending_frame_rate_per_second": "0.00",
+        "capture_backend_method": "kwin-dbus",
+        "frame_seq": "288",
+        "capture_source_backend": "kmsgrab",
+        "capture_source_confidence": "fallback",
+        "capture_method": "kwin-dbus",
+        "frame_age_ms": "16.1",
+        "hid_flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "hid_frame_build_reason": "Measured inside driver send path.",
+        "hid_device_write_limited": "no",
+        "hid_reports_per_frame": "3",
+        "hid_bytes_per_report": "64",
+        "hid_total_frame_bytes": "147",
+        "hid_report_data_sizes": "64,64,19",
+        "hid_per_report_write_ms": "0.562,0.995,1.006",
+        "hid_write_blocking": "yes",
+        "hid_write_retry_policy": "none",
+        "hid_write_rate_limit_policy": "none",
+        "hid_write_read_calls": "1",
+        "hid_live_send_policy": "response_required",
+        "hid_response_wait_skipped": "no"
+      },
+      "stages": {
+        "loop_gap_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 34.92198400090274,
+          "p95_ms": 37.0556681005837,
+          "max_ms": 40.97949800052447
+        },
+        "pacing_wait_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "idle_wait_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 2.0,
+          "p95_ms": 2.0,
+          "max_ms": 2.0
+        },
+        "runtime_idle_wait_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 2.0,
+          "p95_ms": 2.0,
+          "max_ms": 2.0
+        },
+        "capture_wait_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "capture_call_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 18.951987000036752,
+          "p95_ms": 20.266838000679854,
+          "max_ms": 22.310311000182992
+        },
+        "runtime_capture_call_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 18.951987000036752,
+          "p95_ms": 20.266838000679854,
+          "max_ms": 22.310311000182992
+        },
+        "capture_worker_loop_gap_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 35.27311899961205,
+          "p95_ms": 36.89308300090488,
+          "max_ms": 39.20231300071464
+        },
+        "capture_success_interval_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 35.27311899961205,
+          "p95_ms": 36.89308300090488,
+          "max_ms": 39.20231300071464
+        },
+        "frame_handoff_wait_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "frame_available_wait_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 2.0,
+          "p95_ms": 2.0,
+          "max_ms": 2.0
+        },
+        "pending_frame_age_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 15.789651499289903,
+          "p95_ms": 17.294555450098414,
+          "max_ms": 18.093246999342227
+        },
+        "frame_processing_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 8.388126001591445,
+          "p95_ms": 9.460066350948182,
+          "max_ms": 10.412176998215728
+        },
+        "frame_convert_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "zone_sampling_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 7.3981605000881245,
+          "p95_ms": 8.498265599519073,
+          "max_ms": 9.585879000951536
+        },
+        "colour_processing_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 0.23286000032385346,
+          "p95_ms": 0.32558950115344487,
+          "max_ms": 0.4418930002429988
+        },
+        "smoothing_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 0.3632734988059383,
+          "p95_ms": 0.5008825019103823,
+          "max_ms": 0.9191659992211498
+        },
+        "led_calibration_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 0.06922250031493604,
+          "p95_ms": 0.10749244702310526,
+          "max_ms": 0.20336900342954323
+        },
+        "output_prepare_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 0.2425579987175297,
+          "p95_ms": 0.35977060160803376,
+          "max_ms": 1.5493190003326163
+        },
+        "actual_work_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 2.896021498600021,
+          "p95_ms": 3.3799371502027498,
+          "max_ms": 3.694025999720907
+        },
+        "hid_write_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 2.8695754990621936,
+          "p95_ms": 3.352839652688999,
+          "max_ms": 3.6657820019172505
+        },
+        "hid_frame_build_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 0.016822499674162827,
+          "p95_ms": 0.02159244741051225,
+          "max_ms": 0.12875599713879637
+        },
+        "hid_device_write_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 2.734603000135394,
+          "p95_ms": 3.2142841000677436,
+          "max_ms": 3.368813999259146
+        },
+        "hid_flush_or_wait_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 0.009578001481713727,
+          "p95_ms": 0.016441499974462197,
+          "max_ms": 0.2961149984912481
+        },
+        "hid_ack_arrival_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "end_to_end_live_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 15.785654497449286,
+          "p95_ms": 17.29079304914194,
+          "max_ms": 18.090240999299567
+        },
+        "inferred_unattributed_gap_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 31.86002999973425,
+          "p95_ms": 34.503823448176256,
+          "max_ms": 38.35655800139648
+        }
+      }
+    },
+    "lifecycle_state": "running",
+    "stale_output_dropped_frames": 0,
+    "duplicate_output_skipped_frames": 0,
+    "effective_capture_backend": "kwin-dbus",
+    "startup_state": "running"
+  },
+  "stop_returned": true,
+  "stop_call_ms": 9.787542996491538,
+  "running_after_stop": false,
+  "stopped_service_idle_cpu_percent_one_core": 0.0006100999999425483
+}

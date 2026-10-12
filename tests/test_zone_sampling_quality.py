@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
-from nanoleaf_sync.capture._utils import _resize_to_target, zone_box_average
+from nanoleaf_sync.capture._utils import _resize_to_target, zone_box_average, zone_box_statistics
 from nanoleaf_sync.config.model import PrivacyZone
 from nanoleaf_sync.runtime.color_pipeline import _apply_temporal_dither as apply_temporal_dither
 from nanoleaf_sync.runtime.color_pipeline import _load_dither_texture
@@ -45,6 +46,53 @@ def test_zone_box_average_includes_bottom_right_remainder_pixels() -> None:
     color = zone_box_average(frame, (0, 0, 33, 33), max_pixels=256)
     assert 68 <= int(color[0]) <= 70
     assert int(color[0]) == int(color[1]) == int(color[2])
+
+
+@pytest.mark.parametrize("shape", [(1, 1), (33, 37), (180, 240)])
+def test_zone_box_statistics_matches_full_pixel_reference(shape: tuple[int, int]) -> None:
+    rng = np.random.default_rng(42)
+    frame = rng.integers(0, 256, (*shape, 3), dtype=np.uint8)
+    color, variance = zone_box_statistics(frame, (0, 0, shape[1], shape[0]))
+    linear = srgb_u8_to_linear01(frame).astype(np.float64).reshape(-1, 3).mean(axis=0)
+    expected = linear01_to_srgb_u8(linear.astype(np.float32))
+    assert np.array_equal(color, expected)
+    expected_variance = np.var(frame.astype(np.float64).reshape(-1, 3), axis=0).mean()
+    assert variance == pytest.approx(expected_variance, abs=1e-9)
+
+
+@pytest.mark.parametrize("value", [0, 1, 16, 128, 203, 255])
+def test_zone_box_statistics_preserves_uniform_neutrals(value: int) -> None:
+    frame = np.full((19, 31, 3), value, dtype=np.uint8)
+    color, variance = zone_box_statistics(frame, (0, 0, 31, 19))
+    assert color.tolist() == [value] * 3
+    assert variance == 0.0
+
+
+def test_zone_box_statistics_clips_rectangle_and_preserves_source() -> None:
+    rng = np.random.default_rng(123)
+    frame = rng.integers(0, 256, (13, 17, 3), dtype=np.uint8)
+    original = frame.copy()
+    color, variance = zone_box_statistics(frame, (14, 9, 20, 20))
+    patch = frame[9:, 14:]
+    linear = srgb_u8_to_linear01(patch).astype(np.float64).reshape(-1, 3).mean(axis=0)
+    assert np.array_equal(color, linear01_to_srgb_u8(linear.astype(np.float32)))
+    assert variance == pytest.approx(np.var(patch.astype(np.float64), axis=(0, 1)).mean())
+    assert np.array_equal(frame, original)
+
+
+@pytest.mark.parametrize("zone", [(0, 0, 0, 1), (0, 0, 1, -1), (50, 50, 10, 10)])
+def test_zone_box_statistics_empty_zone(zone: tuple[int, int, int, int]) -> None:
+    color, variance = zone_box_statistics(np.full((8, 8, 3), 200, dtype=np.uint8), zone)
+    assert color.tolist() == [0, 0, 0]
+    assert variance == 0.0
+
+
+def test_zone_box_statistics_float_input_retains_decoding() -> None:
+    frame = np.asarray([[[10.5, 80.25, 140.5], [20.5, 90.25, 150.5]]], dtype=np.float32)
+    color, variance = zone_box_statistics(frame, (0, 0, 2, 1))
+    reference = linear01_to_srgb_u8(srgb_u8_to_linear01(frame).reshape(-1, 3).mean(axis=0))
+    assert np.array_equal(color, reference)
+    assert variance == pytest.approx(np.var(frame.reshape(-1, 3), axis=0).mean())
 
 
 def test_box_filter_shift_stability() -> None:

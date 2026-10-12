@@ -8,7 +8,9 @@ nanoleaf-kde-sync-benchmark
 
 Synthetic benchmark measuring zone sampling and full `process_frame` pipeline throughput. No KDE session or USB hardware required.
 
-Options are defined in `src/nanoleaf_sync/tools/benchmark.py` (resolution, zone count, iterations).
+Options are `--preset production`, `--json PATH`, and `--compare PATH`.
+Resolution, zone count and iteration count come from the preset in
+`src/nanoleaf_sync/tools/benchmark.py`.
 
 ## What it measures
 
@@ -20,6 +22,12 @@ Results are printed as mean/median milliseconds per iteration.
 ## Regression gate
 
 CI compares output against [`perf/baseline.json`](../perf/baseline.json). A regression fails the benchmark job when timings exceed baseline tolerances.
+
+These synthetic limits do not establish capture/output FPS or hardware usability.
+The [recovery and Rust migration research](RUST_MIGRATION_RESEARCH.md) includes
+native-resolution sampler comparisons, live runtime/USB measurements and their
+verification limits. Its reproducible evidence is in
+[`perf/recovery-2026-10-12/`](../perf/recovery-2026-10-12/README.md).
 
 ## Updating the baseline
 

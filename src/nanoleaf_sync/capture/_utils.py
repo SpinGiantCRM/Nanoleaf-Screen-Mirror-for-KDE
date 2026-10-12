@@ -83,9 +83,21 @@ def zone_box_average(
     ``max_pixels`` is retained for API compatibility with older approximate
     samplers; the release path now favours complete edge coverage.
     """
+    return zone_box_statistics(frame, zone)[0]
+
+
+def zone_box_statistics(
+    frame: np.ndarray,
+    zone: tuple[int, int, int, int],
+) -> tuple[np.ndarray, float]:
+    """Full-pixel linear-light mean and encoded-channel variance for one zone.
+
+    Byte histograms preserve every pixel while avoiding two float-sized patch
+    allocations. Float inputs retain the original decoding path.
+    """
     x, y, w, h = (int(zone[0]), int(zone[1]), int(zone[2]), int(zone[3]))
     if w <= 0 or h <= 0:
-        return np.zeros(3, dtype=np.uint8)
+        return np.zeros(3, dtype=np.uint8), 0.0
 
     frame_h, frame_w = frame.shape[:2]
     x = max(0, min(x, frame_w))
@@ -93,10 +105,25 @@ def zone_box_average(
     w = max(0, min(w, frame_w - x))
     h = max(0, min(h, frame_h - y))
     if w <= 0 or h <= 0:
-        return np.zeros(3, dtype=np.uint8)
+        return np.zeros(3, dtype=np.uint8), 0.0
 
     from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
 
     patch = frame[y : y + h, x : x + w, :3]
-    linear_mean = srgb_u8_to_linear01(patch).reshape(-1, 3).mean(axis=0)
-    return linear01_to_srgb_u8(linear_mean)
+    if patch.dtype != np.uint8:
+        linear_mean = srgb_u8_to_linear01(patch).reshape(-1, 3).mean(axis=0)
+        variance = float(np.var(patch.reshape(-1, 3).astype(np.float32), axis=0).mean())
+        return linear01_to_srgb_u8(linear_mean), variance
+
+    codes = np.arange(256, dtype=np.float64)
+    linear_codes = srgb_u8_to_linear01(np.arange(256, dtype=np.uint8))
+    linear_mean = np.empty(3, dtype=np.float32)
+    channel_variances = np.empty(3, dtype=np.float64)
+    pixel_count = w * h
+    for channel in range(3):
+        counts = np.bincount(patch[:, :, channel].ravel(), minlength=256)
+        linear_mean[channel] = np.dot(counts, linear_codes) / pixel_count
+        encoded_mean = np.dot(counts, codes) / pixel_count
+        second_moment = np.dot(counts, codes * codes) / pixel_count
+        channel_variances[channel] = max(0.0, second_moment - encoded_mean * encoded_mean)
+    return linear01_to_srgb_u8(linear_mean), float(channel_variances.mean())
