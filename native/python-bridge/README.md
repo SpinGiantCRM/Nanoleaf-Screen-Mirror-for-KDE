@@ -34,7 +34,7 @@ Normal tests run fake failure/bypass contracts without a native build; native
 parity tests skip unless the explicit path is supplied. CI builds the extension
 and runs these contracts on Python 3.11 and 3.14, with Rust 1.85.
 
-For a controlled replay, `load_rust_box_sampler(Path(...))` creates a callable.
+For a controlled replay, `load_rust_box_sampler(Path(...))` creates an instance.
 Inject it into an in-memory `ColorPipelineParams.box_sampler` using
 `dataclasses.replace`; this internal parameter is not an AppConfig setting and
 is not persisted. A normal configuration-derived parameter set leaves it `None`.
@@ -57,6 +57,42 @@ instance and falls back to Python for the same frame and subsequent frames.
 This is an experimental local extension, not an isolation boundary: process-fatal
 bugs in any loaded native library cannot be recovered by a Python exception handler.
 No native extension is required for the fallback.
+
+## Adaptive prepass (optional second kernel)
+
+The instance also exposes `adaptive_prepass`, injected into the internal
+`ColorPipelineParams.adaptive_prepass` field for SDR replay. It migrates mixed
+content classification (linear luma variance, saturation/prominence, hue
+coherence) and the mixed-content dark-biased linear mean. Palette candidate
+generation/scoring and temporal selection remain Python. Normal defaults leave
+both experimental fields `None`; no config migration or on-disk setting exists.
+
+The batch receives already masked, stepped and clipped rectangles. Status 0
+means clear, 1 means mixed with native RGB, and 2 explicitly requests the Python
+decision/mean for that zone. Decisions close to float/quantization boundaries,
+or zones above the 1,048,576-pixel scratch budget, use status 2. A malformed
+result or call exception disables the instance and resumes Python for the same
+frame. Older extensions without this method also fall back safely.
+
+Only after the prepass succeeds, the palette path skips its earlier full-frame
+integral mean: every valid palette zone overwrites that mean regardless of the
+classifier's decision. The unchanged Python fallback still uses its original
+path. Negative geometry that invalidates that proof also uses the original path.
+Default palette, letterbox and low-light mode transitions are preserved.
+
+```bash
+NANOLEAF_RUST_BRIDGE="$NANOLEAF_RUST_BRIDGE" .venv/bin/python -m pytest -q tests/test_rust_adaptive.py
+.venv/bin/python scripts/benchmark_rust_adaptive.py --bridge "$NANOLEAF_RUST_BRIDGE" --frames 24 --repeats 3 --output /tmp/adaptive-results.json
+```
+
+The new harness evolves palette/colour history with accumulation and dithering,
+and verifies exact RGB, selected modes, temporal states and GRB TLV parity. Its
+`--profile` mode records cProfile information separately from performance runs.
+The float32 reduction ordering is adapted from NumPy; retain
+[its BSD notice](../THIRD_PARTY_NOTICES.md) with any binary redistribution. The
+build helper copies that notice alongside its development extension.
+
+See the [adaptive migration results](../../docs/RUST_ADAPTIVE_MIGRATION.md).
 
 PyO3's documented [manual build and interpreter selection](https://pyo3.rs/v0.29.3/building-and-distribution)
 and [thread detachment](https://pyo3.rs/v0.29.3/parallelism.html) define the ABI and

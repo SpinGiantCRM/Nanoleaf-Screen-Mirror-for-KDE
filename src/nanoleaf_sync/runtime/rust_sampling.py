@@ -20,6 +20,10 @@ BoxSampler = Callable[
     [np.ndarray, Sequence[tuple[int, int, int, int]]],
     tuple[np.ndarray, np.ndarray] | None,
 ]
+AdaptivePrepass = Callable[
+    [np.ndarray, Sequence[tuple[int, int, int, int]]],
+    tuple[np.ndarray, np.ndarray] | None,
+]
 _log = logging.getLogger(__name__)
 
 
@@ -29,6 +33,8 @@ class RustBoxSampler:
         self.compiler = compiler
         self.disabled_reason: str | None = None
         self.successful_calls = 0
+        self.adaptive_calls = 0
+        self.adaptive_reference_zones = 0
 
     def __call__(
         self, image: np.ndarray, zones: Sequence[tuple[int, int, int, int]]
@@ -56,6 +62,35 @@ class RustBoxSampler:
             return None
         self.successful_calls += 1
         return colors, variances
+
+    def adaptive_prepass(
+        self, image: np.ndarray, zones: Sequence[tuple[int, int, int, int]]
+    ) -> tuple[np.ndarray, np.ndarray] | None:
+        if self.disabled_reason is not None:
+            return None
+        if image.dtype != np.uint8 or image.ndim != 3 or image.shape[2] != 3:
+            return None
+        height, width, _ = image.shape
+        try:
+            decisions, rgb = self._native.adaptive_prepass(
+                image.tobytes(order="C"), width, height, list(zones), "srgb"
+            )
+            if len(decisions) != len(zones) or len(rgb) != len(zones) * 3:
+                raise ValueError("Rust adaptive output length mismatch")
+            statuses = np.frombuffer(decisions, dtype=np.uint8).copy()
+            if (statuses > 2).any():
+                raise ValueError("Invalid Rust adaptive decision")
+            colors = np.frombuffer(rgb, dtype=np.uint8).reshape(len(zones), 3).copy()
+        except Exception as exc:
+            self.disabled_reason = f"{type(exc).__name__}: {exc}"
+            _log.warning(
+                "Disabling experimental Rust adaptive prepass; using Python: %s",
+                self.disabled_reason,
+            )
+            return None
+        self.adaptive_calls += 1
+        self.adaptive_reference_zones += int(np.count_nonzero(statuses == 2))
+        return statuses, colors
 
 
 def load_rust_box_sampler(path: Path) -> RustBoxSampler:

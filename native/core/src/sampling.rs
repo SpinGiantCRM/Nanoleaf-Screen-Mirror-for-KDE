@@ -29,10 +29,10 @@ pub struct ZoneRect {
 
 /// Borrowed RGB8 pixels, with checked dimensions and explicit byte stride.
 pub struct SdrRgb8Frame<'a> {
-    data: &'a [u8],
-    width: usize,
-    height: usize,
-    stride: usize,
+    pub(crate) data: &'a [u8],
+    pub(crate) width: usize,
+    pub(crate) height: usize,
+    pub(crate) stride: usize,
 }
 
 impl<'a> SdrRgb8Frame<'a> {
@@ -71,7 +71,7 @@ pub struct ZoneSample {
 }
 
 pub struct SdrSampler {
-    linear_codes: [f32; 256],
+    pub(crate) linear_codes: [f32; 256],
 }
 
 impl Default for SdrSampler {

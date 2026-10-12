@@ -61,12 +61,54 @@ impl BoxSampler {
         }
         Ok((PyBytes::new(py, &rgb), PyBytes::new(py, &variance)))
     }
+
+    fn adaptive_prepass<'py>(
+        &self,
+        py: Python<'py>,
+        pixels: &Bound<'py, PyBytes>,
+        width: usize,
+        height: usize,
+        zones: Vec<(i64, i64, i64, i64)>,
+        transfer: &str,
+    ) -> PyResult<(Bound<'py, PyBytes>, Bound<'py, PyBytes>)> {
+        if transfer != "srgb" {
+            return Err(PyValueError::new_err("Only explicit SDR sRGB is supported"));
+        }
+        if zones.len() > u16::MAX as usize / 3 {
+            return Err(PyValueError::new_err("Too many zones for one strip frame"));
+        }
+        let stride = width
+            .checked_mul(3)
+            .ok_or_else(|| PyValueError::new_err("Invalid width"))?;
+        let frame = SdrRgb8Frame::new(pixels.as_bytes(), width, height, stride)
+            .map_err(|error| PyValueError::new_err(error.to_string()))?;
+        let (decisions, colors) = py.detach(|| {
+            let mut decisions = Vec::with_capacity(zones.len());
+            let mut colors = Vec::with_capacity(zones.len() * 3);
+            for (x, y, width, height) in zones {
+                let result = self.sampler.adaptive_prepass(
+                    &frame,
+                    ZoneRect {
+                        x,
+                        y,
+                        width,
+                        height,
+                    },
+                );
+                decisions.push(result.decision as u8);
+                colors.extend_from_slice(&result.mixed_rgb);
+            }
+            (decisions, colors)
+        });
+        Ok((PyBytes::new(py, &decisions), PyBytes::new(py, &colors)))
+    }
 }
 
 #[pymodule]
 fn _nanoleaf_core(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<BoxSampler>()?;
     module.add("ABI_VERSION", 1)?;
+    module.add("ADAPTIVE_ABI_VERSION", 1)?;
     module.add("COMPILER", env!("NANOLEAF_CORE_BUILD_RUSTC"))?;
     Ok(())
 }

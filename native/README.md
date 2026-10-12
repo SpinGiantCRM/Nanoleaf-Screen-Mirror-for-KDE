@@ -13,6 +13,9 @@ The core has no third-party dependencies and forbids unsafe Rust. Its modules ar
 - `sampling`: checked, borrowed SDR sRGB RGB8 buffers with explicit byte stride;
   full-pixel linear means and encoded-channel variance using reusable lookup data
   and stack histograms. Callers supply already anchored/masked source rectangles.
+- `adaptive`: allocation-bounded SDR mixed-content classification and dark-biased
+  means for the optional palette prepass. Borderline numerical decisions use the
+  Python reference; palette scores and temporal selection are not ported here.
 - `nanoleaf-core-probe`: bounded fixture reader, protocol oracle and release-build
   microbenchmark executable. It never opens USB, D-Bus, DRM or user configuration.
 

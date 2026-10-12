@@ -39,6 +39,9 @@ def main() -> None:
     destination = ROOT / "native/target/bridge" / f"_nanoleaf_core{suffix}"
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(ROOT / "native/python-bridge/target/release/lib_nanoleaf_core.so", destination)
+    shutil.copy2(
+        ROOT / "native/THIRD_PARTY_NOTICES.md", destination.parent / "THIRD_PARTY_NOTICES.md"
+    )
     print(destination)
 
 
