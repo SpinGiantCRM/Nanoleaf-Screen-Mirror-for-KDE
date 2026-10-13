@@ -1,0 +1,294 @@
+{
+  "date": "2026-10-14",
+  "audited_commit": "926668a66027169f86e4cc2cbe63abab145711f3",
+  "scope": "Fresh offline colour and packet replay, native software tests, spec-value conversion probe and read-only USB descriptor inspection. No new capture, LED output, optical or power testing.",
+  "software_tests": {
+    "app_gui": 64,
+    "core": 17,
+    "stream": 4
+  },
+  "offline": {
+    "cases": 18,
+    "frames_per_case": 4,
+    "repeats": 3,
+    "exact_packet_comparisons": 216,
+    "maximum_sampled_code_delta": 0,
+    "maximum_output_code_delta": 0,
+    "binary_sha256": "e0b41f2609a10c5d4f030fe9b3629e8f70259d10810919cee410df998ea937ed",
+    "same_binary_as_final_production_spatial_replay": true,
+    "native_source_changes_since_final_replay": [
+      "native/app/src/main.rs",
+      "native/app/src/package.rs"
+    ],
+    "temporal_accumulation": false,
+    "dither": false,
+    "timings": [
+      {
+        "size": [
+          640,
+          360
+        ],
+        "style": "reference",
+        "sequence": "flashes_scene_cuts_neutrals",
+        "median_of_run_medians_ms": {
+          "python": 2.5771274999897287,
+          "rust": 0.12188099999999999
+        }
+      },
+      {
+        "size": [
+          640,
+          360
+        ],
+        "style": "reference",
+        "sequence": "mixed_dark_noise",
+        "median_of_run_medians_ms": {
+          "python": 2.4907339998208045,
+          "rust": 0.119316
+        }
+      },
+      {
+        "size": [
+          640,
+          360
+        ],
+        "style": "reference",
+        "sequence": "calibrated_privacy_letterbox",
+        "median_of_run_medians_ms": {
+          "python": 2.535118000196235,
+          "rust": 0.14055650000000003
+        }
+      },
+      {
+        "size": [
+          640,
+          360
+        ],
+        "style": "ambient",
+        "sequence": "flashes_scene_cuts_neutrals",
+        "median_of_run_medians_ms": {
+          "python": 70.65719150023142,
+          "rust": 0.143762
+        }
+      },
+      {
+        "size": [
+          640,
+          360
+        ],
+        "style": "ambient",
+        "sequence": "mixed_dark_noise",
+        "median_of_run_medians_ms": {
+          "python": 46.80333799979053,
+          "rust": 0.238512
+        }
+      },
+      {
+        "size": [
+          640,
+          360
+        ],
+        "style": "ambient",
+        "sequence": "calibrated_privacy_letterbox",
+        "median_of_run_medians_ms": {
+          "python": 2.844704999915848,
+          "rust": 0.1453005
+        }
+      },
+      {
+        "size": [
+          2560,
+          1440
+        ],
+        "style": "reference",
+        "sequence": "flashes_scene_cuts_neutrals",
+        "median_of_run_medians_ms": {
+          "python": 8.557899999686924,
+          "rust": 1.0043024999999999
+        }
+      },
+      {
+        "size": [
+          2560,
+          1440
+        ],
+        "style": "reference",
+        "sequence": "mixed_dark_noise",
+        "median_of_run_medians_ms": {
+          "python": 7.978527499744814,
+          "rust": 1.3994870000000001
+        }
+      },
+      {
+        "size": [
+          2560,
+          1440
+        ],
+        "style": "reference",
+        "sequence": "calibrated_privacy_letterbox",
+        "median_of_run_medians_ms": {
+          "python": 8.550380999622575,
+          "rust": 1.1942525000000002
+        }
+      },
+      {
+        "size": [
+          2560,
+          1440
+        ],
+        "style": "ambient",
+        "sequence": "flashes_scene_cuts_neutrals",
+        "median_of_run_medians_ms": {
+          "python": 356.283506499949,
+          "rust": 1.6576714999999997
+        }
+      },
+      {
+        "size": [
+          2560,
+          1440
+        ],
+        "style": "ambient",
+        "sequence": "mixed_dark_noise",
+        "median_of_run_medians_ms": {
+          "python": 362.21859850002147,
+          "rust": 1.9167725
+        }
+      },
+      {
+        "size": [
+          2560,
+          1440
+        ],
+        "style": "ambient",
+        "sequence": "calibrated_privacy_letterbox",
+        "median_of_run_medians_ms": {
+          "python": 7.133423500818026,
+          "rust": 1.4560995
+        }
+      },
+      {
+        "size": [
+          3840,
+          2160
+        ],
+        "style": "reference",
+        "sequence": "flashes_scene_cuts_neutrals",
+        "median_of_run_medians_ms": {
+          "python": 12.231180000071618,
+          "rust": 1.9380380000000001
+        }
+      },
+      {
+        "size": [
+          3840,
+          2160
+        ],
+        "style": "reference",
+        "sequence": "mixed_dark_noise",
+        "median_of_run_medians_ms": {
+          "python": 12.018913500014605,
+          "rust": 1.948623
+        }
+      },
+      {
+        "size": [
+          3840,
+          2160
+        ],
+        "style": "reference",
+        "sequence": "calibrated_privacy_letterbox",
+        "median_of_run_medians_ms": {
+          "python": 13.019769499805989,
+          "rust": 2.5734725000000003
+        }
+      },
+      {
+        "size": [
+          3840,
+          2160
+        ],
+        "style": "ambient",
+        "sequence": "flashes_scene_cuts_neutrals",
+        "median_of_run_medians_ms": {
+          "python": 980.6786109998029,
+          "rust": 3.8874535
+        }
+      },
+      {
+        "size": [
+          3840,
+          2160
+        ],
+        "style": "ambient",
+        "sequence": "mixed_dark_noise",
+        "median_of_run_medians_ms": {
+          "python": 982.1747750002032,
+          "rust": 4.332199500000001
+        }
+      },
+      {
+        "size": [
+          3840,
+          2160
+        ],
+        "style": "ambient",
+        "sequence": "calibrated_privacy_letterbox",
+        "median_of_run_medians_ms": {
+          "python": 12.222409000059997,
+          "rust": 2.918995
+        }
+      }
+    ]
+  },
+  "portal_type_probe": {
+    "spec_string_id_to_u32": "IncorrectType",
+    "spec_u64_serial_to_String": "IncorrectType"
+  },
+  "usb_descriptor": {
+    "model": "NL82K2",
+    "speed_mbps": 12,
+    "interrupt_in": {
+      "address": "0x82",
+      "max_packet_bytes": 64,
+      "bInterval": 1
+    },
+    "interrupt_out": {
+      "address": "0x02",
+      "max_packet_bytes": 64,
+      "bInterval": 1
+    },
+    "no_new_usb_transactions": true
+  },
+  "calibration_config_sha256": "b470ea82ac1568cf99f4762f6914e4aa295bd3422527e9eb3ca046b52272d1a4",
+  "upstream": {
+    "kwin_v6_7_5_commit": "ab7df7ccb7c6af20f4b279cd6220f7cd3d2267d7",
+    "kwin_master_commit": "db6e482628aacc4543bd6d6a78b455960cd90c5e",
+    "downloaded_source_sha256": {
+      "kwin-layer-6.7.5.cpp": "e71d9148b0980cd342966a5b3e1f8038b5cddc53bc8597473fa7afda4d2f27e3",
+      "kwin-outputlayer-6.7.5.cpp": "83c4eec49406806979e545fab942119fe69b999b8f34152532ae8b4d970c6acb",
+      "kwin-outputlayer-6.7.5.h": "bb11bbba55f8fbce523670492e259a6089d262bbdfec0e0c74accc093d0c19cd",
+      "kwin-screen-6.7.5.cpp": "9dd9457d830dd6298b64f166780f7685b43b58ba96e4b250652983cb36296572",
+      "kwin-screenshotlayer-6.7.5.cpp": "6443b6aacecc6178801997018db8f616490297a2e512c5a45cd926b6c723255a",
+      "kwin-source-6.7.5.cpp": "a2873c722ce3e6e7eeb1073ff5db267ab8bb90cb4a1e6d9594b7851889e40833",
+      "kwin-source-master.cpp": "17d51166bf878658594795375c463f24dd7fd3d4e1228df5bb45171974ecc805",
+      "kwin-stream-6.7.5.cpp": "2ea1b302419e090c65777fc1377a567011d482f98a32070f2505b12893161752",
+      "kwin-stream-master.cpp": "7cc980555511c172081f6ffe0409b9e7d84298865f09aa63dd52ea3e0ce575d2"
+    }
+  },
+  "colour_contract_probe": {
+    "chroma_compression_0_vs_0_6_unchanged": [
+      "red",
+      "green",
+      "blue",
+      "nonneutral_mid_tone",
+      "neutral"
+    ],
+    "reversed_smoothstep_edges": [
+      0.03,
+      0.01
+    ],
+    "gain_0_42_effectively_clamped_to_0_5": true,
+    "gamma_0_7_effectively_clamped_to_1": true
+  }
+}
