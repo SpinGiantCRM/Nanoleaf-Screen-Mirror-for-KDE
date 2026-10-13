@@ -110,6 +110,24 @@ fn choice(ui: &mut egui::Ui, label: &str, value: &mut String, options: &[&str]) 
 }
 fn profile_ui(ui: &mut egui::Ui, p: &mut LedProfile) {
     ui.small("Use your measured profile. These adjustments affect emitted colour.");
+    for (name, saved, minimum, maximum) in [
+        ("Red gain", p.red_gain, 0.5, 1.5),
+        ("Green gain", p.green_gain, 0.5, 1.5),
+        ("Blue gain", p.blue_gain, 0.5, 1.5),
+        ("LED gamma", p.led_gamma, 1.0, 4.0),
+        ("White balance", p.white_balance_temperature, -1.0, 1.0),
+        ("Neutral luminance", p.neutral_luminance_gain, 0.7, 1.5),
+        ("Chroma compression", p.chroma_compression, 0.0, 0.6),
+        ("Black cutoff", p.black_luminance_cutoff, 0.0, 0.03),
+        ("Black knee", p.black_luminance_knee, 0.0005, 0.03),
+    ] {
+        let effective = saved.clamp(minimum, maximum);
+        if saved != effective {
+            ui.small(format!(
+                "{name}: saved {saved}, used as {effective}. Your saved value is preserved."
+            ));
+        }
+    }
     ui.add(
         egui::Slider::new(&mut p.red_gain, 0.5..=1.5)
             .clamping(egui::SliderClamping::Edits)
@@ -206,7 +224,13 @@ impl Settings {
         ui.add_space(8.0);
         if let Some(s) = &self.status {
             ui.label(&s.message);
-            ui.small(format!("{} · {:.1} FPS", s.model, s.effective_fps));
+            ui.small(format!(
+                "{} · {:.1} acknowledged packets/s",
+                s.model, s.effective_fps
+            ));
+            if !s.preview {
+                ui.small("Capture: SDR sRGB, including on HDR desktops · active calibration: SDR");
+            }
         } else {
             ui.label("The native tray service is not running.");
         }
@@ -373,7 +397,7 @@ impl Settings {
             ui.add(egui::Slider::new(&mut self.draft.layout_scale,0.5..=1.0).clamping(egui::SliderClamping::Edits).text("Layout scale"));
             ui.separator();ui.checkbox(&mut self.hdr_profile,"Edit HDR profile");if self.hdr_profile{profile_ui(ui,&mut self.draft.led_calibration_profile_hdr);}else{profile_ui(ui,&mut self.draft.led_calibration_profile_sdr);}
             ui.small("KWin screenshots already contain SDR sRGB colour. The SDR LED profile applies to that capture even on an HDR desktop. Your HDR profile is retained.");
-            if let Some(s)=&self.status{ui.separator();ui.label(format!("Capture {:.2} ms · colour {:.2} ms · USB {:.2} ms",s.capture_ms,s.processing_ms,s.usb_ms));ui.label(format!("Response {:.2} ms · {} acknowledged frames · {} missed deadlines",s.response_ms,s.frames,s.missed_deadlines));ui.small(format!("{} inferred packets (included in acknowledged frames)",s.predicted_frames));ui.label(format!("Manual {} · reported {} · connections {}",s.manual_zones,s.reported_zones,s.reconnects));ui.label(&s.backend);}
+            if let Some(s)=&self.status{ui.separator();ui.label(format!("Capture {:.2} ms · colour {:.2} ms · USB {:.2} ms",s.capture_ms,s.processing_ms,s.usb_ms));ui.label(format!("Software response {:.2} ms · {} acknowledged packets · {} missed deadlines",s.response_ms,s.frames,s.missed_deadlines));ui.small("Response runs from capture request / stream timestamp to USB acknowledgement; emitted-light delay is not measured.");ui.small(format!("{} inferred packets (included in acknowledged packets)",s.predicted_frames));ui.label(format!("Manual {} · reported {} · connections {}",s.manual_zones,s.reported_zones,s.reconnects));ui.label(&s.backend);}
         });
         }
         if !self.message.is_empty() {

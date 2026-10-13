@@ -384,7 +384,7 @@ fn run_application(
         *pw::keys::NODE_DONT_RECONNECT => "true",
     };
     if let Some(serial) = &session.serial {
-        properties.insert(*pw::keys::TARGET_OBJECT, serial.as_str());
+        properties.insert(*pw::keys::TARGET_OBJECT, serial.to_string());
     }
     let stream = pw::stream::StreamBox::new(&core, "Nanoleaf native capture probe", properties)?;
     let maximum_fps = application.as_ref().map(|a| a.config.fps).unwrap_or(30);

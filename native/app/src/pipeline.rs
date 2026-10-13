@@ -340,8 +340,8 @@ pub fn validate_mirroring(c: &Config) -> Result<()> {
     Ok(())
 }
 impl Pipeline {
-    /// Old Python fixture arithmetic, including encoded-space accumulation and
-    /// black-transition glow. Verification only; never selected by the service.
+    /// Old Python fixture arithmetic, including encoded-space accumulation,
+    /// black-transition glow and ineffective chroma controls. Offline only.
     pub fn legacy_black_hold_oracle() -> Self {
         Self {
             legacy_black_hold_oracle: true,
@@ -798,7 +798,12 @@ impl Pipeline {
         };
         let cal = calibration(c);
         for rgb in &mut mapped {
-            *rgb = colour::apply_profile(*rgb, style, cal).map(f32::from);
+            *rgb = if self.legacy_black_hold_oracle {
+                colour::apply_profile_legacy_oracle(*rgb, style, cal)
+            } else {
+                colour::apply_profile(*rgb, style, cal)
+            }
+            .map(f32::from);
         }
         if !accuracy {
             self.blend.neighbors(&mut mapped, &c.light_spread);

@@ -159,8 +159,9 @@ jobs:
       - name: Verify complete colour and protocol replay
         run: |
           python scripts/benchmark_native_app.py --quick --legacy-black-hold-oracle --frames 12 --repeats 1 --output native-application-parity.json
-          python scripts/benchmark_native_app.py --quick --no-accumulation --sampling-mode peak_luma --frames 4 --repeats 1 --output native-peak-parity.json
-          python scripts/benchmark_native_app.py --quick --no-accumulation --sampling-mode vivid_weighted --frames 4 --repeats 1 --output native-vivid-parity.json
+          python scripts/benchmark_native_app.py --quick --legacy-black-hold-oracle --no-accumulation --sampling-mode peak_luma --frames 4 --repeats 1 --output native-peak-parity.json
+          python scripts/benchmark_native_app.py --quick --legacy-black-hold-oracle --no-accumulation --sampling-mode vivid_weighted --frames 4 --repeats 1 --output native-vivid-parity.json
+          python scripts/benchmark_native_app.py --quick --production-comparison --no-accumulation --frames 4 --repeats 1 --output native-production-comparison.json
 
   rust-streaming:
     name: Rust streaming permission and interop contracts

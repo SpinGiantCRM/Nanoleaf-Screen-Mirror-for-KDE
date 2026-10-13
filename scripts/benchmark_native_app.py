@@ -122,9 +122,14 @@ def main():
         "--legacy-black-hold-oracle",
         action="store_true",
         help=(
-            "Verify retained Python arithmetic, including its known black-transition glow; "
+            "Verify historical Python arithmetic, including black glow and chroma-control bugs; "
             "not production timings"
         ),
+    )
+    p.add_argument(
+        "--production-comparison",
+        action="store_true",
+        help="Measure corrected production colours and record intentional differences from Python",
     )
     p.add_argument(
         "--sampling-mode", choices=("auto", "peak_luma", "vivid_weighted"), default="auto"
@@ -133,6 +138,12 @@ def main():
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--binary", type=Path, default=Path("native/app/target/release/replay"))
     args = p.parse_args()
+    if args.production_comparison == args.legacy_black_hold_oracle:
+        p.error("Select exactly one of --production-comparison or --legacy-black-hold-oracle")
+    if args.production_comparison and not args.no_accumulation:
+        p.error(
+            "Use --no-accumulation to isolate production colour corrections from temporal changes"
+        )
     result = dict(
         scope=(
             "Complete offline colour + GRB TLV. "
@@ -140,6 +151,11 @@ def main():
         ),
         reference_commit="d982cf9",
         native_legacy_black_hold_oracle=args.legacy_black_hold_oracle,
+        comparison_kind=(
+            "production_colour_difference_measurement"
+            if args.production_comparison
+            else "historical_python_parity"
+        ),
         temporal_accumulation=not args.no_accumulation,
         dither=(
             "Disabled equally for parity; native corrected sub-code dither is tested separately."
@@ -255,7 +271,9 @@ def main():
                                 ),
                             )
                             exact_packets += py["tlv"] == rs["tlv"]
-                        if sample_delta > 1 or output_delta > 1:
+                        if sample_delta > 1 or (
+                            output_delta > 1 and not args.production_comparison
+                        ):
                             args.output.with_suffix(".failure.json").write_text(
                                 json.dumps(
                                     dict(

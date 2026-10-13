@@ -97,6 +97,16 @@ fn smoothstep(lo: f32, hi: f32, x: f32) -> f32 {
 }
 
 pub fn apply_profile(rgb: [f32; 3], style: Style, cal: LedCalibration) -> [u8; 3] {
+    profile(rgb, style, cal, false)
+}
+
+/// Historical Python arithmetic, including its reversed chroma transition.
+/// Offline regression oracle only; never use for device output.
+pub fn apply_profile_legacy_oracle(rgb: [f32; 3], style: Style, cal: LedCalibration) -> [u8; 3] {
+    profile(rgb, style, cal, true)
+}
+
+fn profile(rgb: [f32; 3], style: Style, cal: LedCalibration, legacy: bool) -> [u8; 3] {
     let mut linear = std::array::from_fn(|c| decode_srgb(rgb[c]) * cal.gains[c].clamp(0.5, 1.5));
     if let Some(matrix) = cal.matrix {
         linear = matrix
@@ -139,7 +149,13 @@ pub fn apply_profile(rgb: [f32; 3], style: Style, cal: LedCalibration) -> [u8; 3
     lum = (lum * (1.0 + (cal.neutral_gain.clamp(0.7, 1.5) - 1.0) * weight)).clamp(0.0, 1.0)
         * black_gate;
     chroma *= black_gate;
-    let cart = smoothstep(0.03, 0.01, chroma);
+    // smoothstep requires ascending edges. The Cartesian limit avoids polar
+    // instability close to neutral; saturated colours must use mapped chroma.
+    let cart = if legacy {
+        smoothstep(0.03, 0.01, chroma)
+    } else {
+        1.0 - smoothstep(0.01, 0.03, chroma)
+    };
     let lab = [
         lum,
         a * cart + chroma * h.cos() * (1.0 - cart),

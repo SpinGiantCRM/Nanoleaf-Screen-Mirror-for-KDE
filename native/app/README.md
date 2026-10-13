@@ -1,9 +1,9 @@
 # Rust application
 
-The experimental replacement runs capture, calibrated colour processing, USB,
+The native application runs capture, calibrated colour processing, USB,
 tray and settings entirely in Rust. It does not require Python, Qt or the old C
-DRM helper. Development is on `codex/full-rust-rewrite`; the installed Python
-application and its launcher remain the reference and fallback.
+DRM helper. The rewrite is merged; colour/capture correctness improvements remain
+incremental. The Python application remains the historical reference and fallback.
 
 The priority is **colour accuracy > latency/FPS > resource usage**. Optional portal/Vulkan streaming is integrated and tested; native DRM/raw HDR
 and optional analysis modes still require verification.
@@ -54,11 +54,14 @@ The manual count and four anchors remain authoritative.
 cargo fmt --manifest-path native/app/Cargo.toml --check
 cargo clippy --manifest-path native/app/Cargo.toml --features gui --all-targets --locked --offline -- -D warnings
 cargo test --manifest-path native/app/Cargo.toml --features gui --locked --offline
-.venv/bin/python scripts/benchmark_native_app.py --frames 12 --repeats 3 --output /tmp/native-replay.json
+.venv/bin/python scripts/benchmark_native_app.py --legacy-black-hold-oracle --frames 12 --repeats 3 --output /tmp/native-replay.json
+.venv/bin/python scripts/benchmark_native_app.py --production-comparison --no-accumulation --frames 4 --repeats 3 --output /tmp/native-production.json
 ```
 
-Offline replay compares evolving colour values and GRB packets against the
-preserved Python implementation. It excludes capture, USB and optical timing.
+Historical replay compares evolving colour values and GRB packets against the
+preserved Python implementation. Production comparison records intentional colour
+corrections; independent accuracy tests validate them. Neither includes capture,
+USB or optical timing. See [colour/capture corrections](../../docs/COLOUR_STREAM_CORRECTNESS.md).
 Live probes are separate and drive the connected strip:
 
 ```bash
@@ -109,8 +112,8 @@ always processed. Pure sampling reuse uses exact pixel equality with a 16 MiB
 cap. Run the full reference replay with either policy explicitly:
 
 ```sh
-.venv/bin/python scripts/benchmark_native_app.py --sampling-mode peak_luma --frames 4 --repeats 1 --output /tmp/peak-parity.json
-.venv/bin/python scripts/benchmark_native_app.py --sampling-mode vivid_weighted --frames 4 --repeats 1 --output /tmp/vivid-parity.json
+.venv/bin/python scripts/benchmark_native_app.py --legacy-black-hold-oracle --sampling-mode peak_luma --frames 4 --repeats 1 --output /tmp/peak-parity.json
+.venv/bin/python scripts/benchmark_native_app.py --legacy-black-hold-oracle --sampling-mode vivid_weighted --frames 4 --repeats 1 --output /tmp/vivid-parity.json
 .venv/bin/python scripts/generate_highlight_reference.py
 ```
 
