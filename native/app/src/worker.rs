@@ -18,6 +18,7 @@ pub struct Prepared {
     pub started: Instant,
     pub backend: String,
     pub parity_verified: bool,
+    pub highlight_cache: (usize, u64),
 }
 struct Latest {
     value: Mutex<Option<Result<Prepared, String>>>,
@@ -88,6 +89,7 @@ impl Producer {
                         started: start,
                         backend: "kwin-dbus (SDR display-referred)".into(),
                         parity_verified: false,
+                        highlight_cache: out.highlight_cache,
                     })
                 })();
                 if cancel.load(Ordering::Acquire) {
@@ -164,6 +166,7 @@ mod tests {
                     started: Instant::now(),
                     backend: "fixture".into(),
                     parity_verified: false,
+                    highlight_cache: (0, 0),
                 }),
                 &tx,
             );

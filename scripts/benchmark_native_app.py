@@ -110,6 +110,9 @@ def main():
     p.add_argument("--frames", type=int, default=12)
     p.add_argument("--repeats", type=int, default=3)
     p.add_argument("--quick", action="store_true")
+    p.add_argument(
+        "--sampling-mode", choices=("auto", "peak_luma", "vivid_weighted"), default="auto"
+    )
     p.add_argument("--quality", choices=("high", "balanced", "low"), default="high")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--binary", type=Path, default=Path("native/app/target/release/replay"))
@@ -126,6 +129,7 @@ def main():
         frames=args.frames,
         repeats=args.repeats,
         quality=args.quality,
+        sampling_mode=args.sampling_mode,
         host=dict(platform=platform.platform(), python=platform.python_version()),
         source_sha256={
             str(path): hashlib.sha256(path.read_bytes()).hexdigest()
@@ -151,6 +155,7 @@ def main():
                     device_zone_count=48,
                     blue_noise_dither=False,
                     sampling_quality=args.quality,
+                    sampling_mode=args.sampling_mode,
                 )
                 if name == "calibrated_privacy_letterbox":
                     c.privacy_zones = [PrivacyZone(x=0.15, y=0.2, w=0.3, h=0.4)]
@@ -168,7 +173,7 @@ def main():
                     text = (
                         "schema_version=2\ndevice_zone_count=48\n"
                         f'color_style="{style}"\nblue_noise_dither=false\n'
-                        f'sampling_quality="{args.quality}"\ncorner_anchor_top_left=2\n'
+                        f'sampling_quality="{args.quality}"\nsampling_mode="{args.sampling_mode}"\ncorner_anchor_top_left=2\n'
                         "corner_anchor_top_right=17\ncorner_anchor_bottom_right=26\n"
                         "corner_anchor_bottom_left=41\n"
                     )

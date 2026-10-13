@@ -494,6 +494,7 @@ fn run_inner(
                     started: frame_start,
                     backend: "Exclusive setup preview".into(),
                     parity_verified: false,
+                    highlight_cache: (0, 0),
                 }));
             }
             if capture.is_none() {
@@ -518,6 +519,7 @@ fn run_inner(
                     started,
                     backend,
                     parity_verified: _,
+                    highlight_cache: _,
                 } = prepared;
                 state.backend = backend;
                 let usb_start = Instant::now();

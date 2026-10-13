@@ -110,6 +110,86 @@ impl SdrSampler {
         Ok(sum.map(|v| encode_srgb(v as f32)))
     }
 
+    /// Existing highlight policies, with mixed/dark content guards. Full pixel
+    /// coverage and float64 linear-light accumulation preserve neutral precision.
+    /// `peak` selects the upper luminance quartile; otherwise prominence-weighted.
+    /// The boolean reports the existing area-average guard, for diagnostics.
+    pub fn highlight_mean(&self, pixels: &[[u8; 3]], peak: bool) -> Result<([u8; 3], bool), Error> {
+        if pixels.is_empty() {
+            return Ok(([0; 3], true));
+        }
+        if pixels.iter().all(|p| *p == pixels[0]) {
+            let maximum = *pixels[0].iter().max().unwrap();
+            return Ok((pixels[0], self.linear_codes[maximum as usize] < 0.0144));
+        }
+        let flat: Vec<u8> = pixels.iter().flatten().copied().collect();
+        let view = SdrRgb8Frame::new(&flat, pixels.len(), 1, pixels.len() * 3)?;
+        let rect = ZoneRect {
+            x: 0,
+            y: 0,
+            width: pixels.len() as i64,
+            height: 1,
+        };
+        let mixed = self.adaptive_native(&view, rect);
+        if mixed.decision == crate::adaptive::MixedDecision::Mixed {
+            return Ok((mixed.mixed_rgb, true));
+        }
+        let maximum = pixels.iter().flatten().copied().max().unwrap_or(0);
+        if self.linear_codes[maximum as usize] < 0.0144 {
+            return Ok((self.sample_zone(&view, rect).srgb, true));
+        }
+        let luminance: Vec<f32> = pixels
+            .iter()
+            .map(|p| 0.2126 * f32::from(p[0]) + 0.7152 * f32::from(p[1]) + 0.0722 * f32::from(p[2]))
+            .collect();
+        let weights: Vec<f32> = if peak {
+            let mut sorted = luminance.clone();
+            let index = (sorted.len() - 1) as f64 * 0.75;
+            let lower = index.floor() as usize;
+            let upper = index.ceil() as usize;
+            let (before, upper_value, _) = sorted.select_nth_unstable_by(upper, f32::total_cmp);
+            let high = *upper_value;
+            let low = if lower == upper {
+                high
+            } else {
+                before.iter().copied().fold(f32::NEG_INFINITY, f32::max)
+            };
+            let cutoff =
+                (f64::from(low) * (1.0 - index.fract()) + f64::from(high) * index.fract()) as f32;
+            luminance
+                .iter()
+                .map(|&v| if v >= cutoff { 1.0 } else { 0.0 })
+                .collect()
+        } else {
+            let mean =
+                luminance.iter().map(|&v| f64::from(v)).sum::<f64>() as f32 / pixels.len() as f32;
+            let delta = 10.0 + 55.0 * (mean / 255.0).clamp(0.0, 1.0);
+            pixels
+                .iter()
+                .zip(&luminance)
+                .map(|(p, &lum)| {
+                    let max = f32::from(*p.iter().max().unwrap());
+                    let min = f32::from(*p.iter().min().unwrap());
+                    let saturation = (max - min) / max.max(1.0);
+                    let prominence = ((lum - mean) / delta).clamp(0.0, 1.0);
+                    (0.30 + 0.35 * saturation + 0.20 * (lum / 255.0).powf(0.7).clamp(0.0, 1.0))
+                        * prominence
+                })
+                .collect()
+        };
+        let weight_sum = weights.iter().map(|&w| f64::from(w)).sum::<f64>();
+        if weight_sum <= 0.0 {
+            return Ok((self.sample_zone(&view, rect).srgb, false));
+        }
+        let mut sum = [0.0_f64; 3];
+        for (pixel, &weight) in pixels.iter().zip(&weights) {
+            for c in 0..3 {
+                sum[c] += f64::from(self.linear_codes[pixel[c] as usize]) * f64::from(weight);
+            }
+        }
+        Ok((sum.map(|v| encode_srgb((v / weight_sum) as f32)), false))
+    }
+
     pub fn sample_into(
         &self,
         frame: &SdrRgb8Frame<'_>,

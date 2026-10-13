@@ -193,7 +193,7 @@ impl Application {
         } else {
             "xdg-portal / Vulkan DMA-BUF / direct SDR samples"
         };
-        let record = serde_json::json!({"schema":1,"colors":output.colors,"times":output.times,"capture_ms":capture_ms,"prepared_age_ms":age,"source_pts_ns":header.map(|h|h.pts()),"backend":backend,"parity_exact":parity_exact});
+        let record = serde_json::json!({"schema":1,"colors":output.colors,"times":output.times,"capture_ms":capture_ms,"prepared_age_ms":age,"source_pts_ns":header.map(|h|h.pts()),"backend":backend,"parity_exact":parity_exact,"highlight_cache":output.highlight_cache});
         let stdout = std::io::stdout();
         let mut stdout = stdout.lock();
         serde_json::to_writer(&mut stdout, &record)?;

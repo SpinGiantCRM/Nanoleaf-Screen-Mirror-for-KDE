@@ -102,3 +102,18 @@ it does not silently switch capture interfaces. Exact sparse letterbox analysis
 and box histograms share the full calibrated output pipeline. Pixel-dependent
 analysis retains complete CPU pixels in the helper. [Streaming/Vulkan implementation and evidence](../../docs/RUST_STREAM_VULKAN.md)
 remain experimental; the normal capture backend is unchanged.
+
+Peak-luminance and vivid-weighted modes are implemented in Advanced sampling.
+They preserve black/neutral and mixed/dark/letterbox guards; changed pixels are
+always processed. Pure sampling reuse uses exact pixel equality with a 16 MiB
+cap. Run the full reference replay with either policy explicitly:
+
+```sh
+.venv/bin/python scripts/benchmark_native_app.py --sampling-mode peak_luma --frames 4 --repeats 1 --output /tmp/peak-parity.json
+.venv/bin/python scripts/benchmark_native_app.py --sampling-mode vivid_weighted --frames 4 --repeats 1 --output /tmp/vivid-parity.json
+.venv/bin/python scripts/generate_highlight_reference.py
+```
+
+These modes use CPU pixels in the capture worker. Reference/accuracy continues
+full GPU box sampling where compatible. Remaining optional analysis and prediction
+policies remain gated; their saved configuration is preserved.

@@ -16,6 +16,8 @@ struct Record {
     source_pts_ns: Option<i64>,
     backend: String,
     parity_exact: Option<bool>,
+    #[serde(default)]
+    highlight_cache: (usize, u64),
 }
 fn prepared(record: Record, manual: usize) -> Result<Prepared> {
     ensure!(
@@ -35,6 +37,10 @@ fn prepared(record: Record, manual: usize) -> Result<Prepared> {
         .iter()
         .all(|v| v.is_finite() && (0.0..=10_000.0).contains(v)),
         "Invalid capture timings"
+    );
+    ensure!(
+        record.highlight_cache.0 <= 16 * 1024 * 1024,
+        "Invalid highlight cache accounting"
     );
     ensure!(
         record.backend.starts_with("xdg-portal / Vulkan DMA-BUF /") && record.backend.len() <= 128,
@@ -57,6 +63,7 @@ fn prepared(record: Record, manual: usize) -> Result<Prepared> {
             .context("Capture timestamp overflow")?,
         backend: record.backend,
         parity_verified: record.parity_exact == Some(true),
+        highlight_cache: record.highlight_cache,
     })
 }
 fn helper() -> Result<PathBuf> {
@@ -240,6 +247,7 @@ mod tests {
             prepared_age_ms: 2.0,
             source_pts_ns: None,
             parity_exact: None,
+            highlight_cache: (0, 0),
             backend: "xdg-portal / Vulkan DMA-BUF / direct SDR samples".into(),
         };
         assert!(prepared(record(), 4).is_ok());

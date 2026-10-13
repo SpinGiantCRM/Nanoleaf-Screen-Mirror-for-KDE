@@ -1,0 +1,1783 @@
+{
+  "scope": "Complete offline colour + GRB TLV. Capture, USB, GUI, power and optical response excluded.",
+  "reference_commit": "d982cf9",
+  "dither": "Disabled equally for parity; native corrected sub-code dither is tested separately.",
+  "frames": 4,
+  "repeats": 1,
+  "quality": "high",
+  "sampling_mode": "peak_luma",
+  "host": {
+    "platform": "Linux-7.2.9-2-cachyos-bore-x86_64-with-glibc2.44",
+    "python": "3.14.7"
+  },
+  "source_sha256": {
+    "native/core/src/adaptive.rs": "936a72d2763e543faeda8a2fd037c21669729890014545e5b97b16c6d976d438",
+    "native/core/src/bin/probe.rs": "4ec282105d5b1967104a03a139563465d117ddbcd8d2c19f8f96a2bbae0cc539",
+    "native/core/src/blending.rs": "dd0e8bba5ad142c4e80da81fde256c4dbc57d95a78dc2a03bbef8c5fe1344721",
+    "native/core/src/colour.rs": "61da631a380b16e3d92cec808d511baa8a6fdf218f894e7b22ca56abf8ed44ee",
+    "native/core/src/lib.rs": "4bbc2770719858c2a305a20a7c131705f023c8a0baa6be876d9cc17765be1e85",
+    "native/core/src/palette.rs": "df4b241a83321bfd5b3b4d91634ebc1421319c197e703451ca37c69ff74f4b59",
+    "native/core/src/protocol.rs": "2ba8467ef3cba3664e09f7c0a59afd1683deea2a72f38537da248ff0880d9985",
+    "native/core/src/sampling.rs": "5dc2e0282aec0fffb41f1abff68e11c522b2addd3f1ef74d1b280afc350fd151",
+    "native/app/src/bin/decode_probe.rs": "2974a7a67b29e3dc1d22b1f948864ed6ba0f89dde6766f4f99d5794a3d18fe82",
+    "native/app/src/bin/replay.rs": "75120306d3822897ae05cb2dd38039755704084eb7f575bed9d34b72f4889cbe",
+    "native/app/src/capture.rs": "506999cd604160b772a448795fbc6380cb2be70cf83777b369eb45e3f8fdb972",
+    "native/app/src/config.rs": "0aafbc0d4f2dc045bb3c3c6467611853007ff5827b3e45c1052ed493ca58c16e",
+    "native/app/src/device.rs": "c41a716ca8f9309a7f9b79b618b5fee9ed9d9221d1969f8e8786f4e17b1e5104",
+    "native/app/src/geometry.rs": "69e70e31d4d49ab7ec74a5c120d0d89eb9d47775629f4bc1d5bf9688aab7ccd1",
+    "native/app/src/highlight.rs": "ef866b83c7bb25bc728af07844a3f7d1fd96ed24c3d9ff08c2b7a6335aeaf9d3",
+    "native/app/src/launcher.rs": "38359d8a1e5c5c366305f76e870009cbf26bc0aa20ef9b845cc27983ee102e92",
+    "native/app/src/lib.rs": "761eaca8042eda774e0ac007cc6d6a3c1285178a65e59bd57bcbebdd29727af9",
+    "native/app/src/main.rs": "cdf1b7c18e6fdc50b707921828f72e82a2f3736076f7fa10bec7a330454ecb1a",
+    "native/app/src/pipeline.rs": "eaecca112aeec0abd35e71427e406bb7a041ce82a733edf19c7b3ff078bf8dfb",
+    "native/app/src/portal_file.rs": "f1931dd2ea5895d60fd307028977fc3f2c744c7ff8492ed05e28c450987d506d",
+    "native/app/src/priority.rs": "2b772cdd56227109da7edeff62aeecbaeb3a960852b5dba56263e8e8d9e0725e",
+    "native/app/src/probe.rs": "6bd1b486746de35aba8b3d45f0f2f3e080b7689d3f69e2b663882b6b39ad93fa",
+    "native/app/src/profile.rs": "e5948835d647aa30aac68ee1f3933f4ceb0ca705c9cea9e54ca7f989a93610da",
+    "native/app/src/screens.rs": "61b48e850b42f33b770b232c879dc1e0c6832bc9a5d9f22824c36602ddea6874",
+    "native/app/src/service.rs": "c4c6801ed9def77165c95287bccd2f12f536ae6b8b2fb2f22cf95b82a090a6ab",
+    "native/app/src/spatial.rs": "5041234e21b61f80b60c31730e8f0e3b906683a440769960a0fc83adb0891469",
+    "native/app/src/stream_worker.rs": "f00e77ddd7ba1f05d345b5188ed9fc00a73d258a48da739724c7ed16666a669c",
+    "native/app/src/tray.rs": "2a83f115a15e000b48ee42115d35d486825dc94a8f26eee24bb60885abbe5fc3",
+    "native/app/src/ui.rs": "8d92e666e927c749d8abdbf8212d67264508eb1b08b6c8343fbe22fdaa5e9aa6",
+    "native/app/src/worker.rs": "127853a626c29409f62aed65b2a8d43117708a77fb23836a9e10eeaf9156bd9f",
+    "src/nanoleaf_sync/__init__.py": "7761b59521aacb1a88981322e652b8301f685c185e5fda2deed86c22656e7e86",
+    "src/nanoleaf_sync/_coerce.py": "9dd75ccd6cd7e40aad7685b3e97cddb45b44fd6113b54738fee76ebf4341c740",
+    "src/nanoleaf_sync/capture/__init__.py": "3bbb92eccd62f86cab8c068e6b9e61ea04c240cd4038acbac9e4c95da65b7df5",
+    "src/nanoleaf_sync/capture/_drm_helper_bridge.py": "67f14afddc794595c46a5286ae8dd8ad168189c79ed9ed28598baa6fb668d839",
+    "src/nanoleaf_sync/capture/_drm_master_fd.py": "0d03a099ccfbe2c81ee70c33e69980267d5662a2501f8dde9d3b3453d5b297d2",
+    "src/nanoleaf_sync/capture/_drm_zone_sampler.py": "14067d59773ca32ff6d1b7579ac2386b9760db83a94dc6654c06e8980f01cfc3",
+    "src/nanoleaf_sync/capture/_utils.py": "ba0a02c8c13fb06023220d18ae90fc49b6146f48fc86fe43f5310cb7d33fa087",
+    "src/nanoleaf_sync/capture/auto_probe.py": "0bcd09b49be3540285c94bddce20673c1517f6808c90791b34beb24dfd367bf3",
+    "src/nanoleaf_sync/capture/backend_selection.py": "9f420c4ca23328c52c1f1dce040b13ef5bd7ca53c2c77def4ba42c5d7c69806f",
+    "src/nanoleaf_sync/capture/dimensions.py": "5dad6633f610e6ec74ea559eb80637e127d60f92e6c3d098ca79c119e66773f5",
+    "src/nanoleaf_sync/capture/drm_vendor.py": "21a064b59aad4789428fe811d13475ba7177b0b623d1ce83902dd9e757459f42",
+    "src/nanoleaf_sync/capture/drm_zone_sampling.py": "8b64fd08998e27013a49164fb7e9fb531127b46b2bd4855c9a3bea6b826733c7",
+    "src/nanoleaf_sync/capture/errors.py": "53b3bde05188a97d525511c79951f37fcbc7339353069a87d1f286ec1c177956",
+    "src/nanoleaf_sync/capture/factory.py": "404286b129e65724bc658dc83ff229a1dae57ba74cddef29a2504aecdaaa09e1",
+    "src/nanoleaf_sync/capture/interfaces.py": "77cc738da7f7ed7b7188cdd61e3a43ebe398e8623f6c54f3c7c4501c77c2306a",
+    "src/nanoleaf_sync/capture/kmsgrab.py": "bfad10ce964207751e78e11dce49ad3020c9ef92fefcb5799936409a6efbb023",
+    "src/nanoleaf_sync/capture/kwin_dbus.py": "9b8114f2745a3be08230adf52a0be6d8ec64e095002fa4cc71acf0dede1b9476",
+    "src/nanoleaf_sync/capture/latency_probe.py": "fceab7e05c5c0b660d70ccdab03dacad400ad4ba4c07edd703c5811440dafda4",
+    "src/nanoleaf_sync/capture/mock_capture.py": "cfb32d8881e28c91c69f147dc015df73d5e3149dab8804106860840b211ebd71",
+    "src/nanoleaf_sync/capture/probe_models.py": "909b17fbdd71eeb831152c111b53004c114b6d2e28e67cb1705589524b44b434",
+    "src/nanoleaf_sync/capture/probe_timing.py": "da8138f06965573787d21f1d9a11c77e0a70701052e1e7422a56ff8e70e83b15",
+    "src/nanoleaf_sync/capture/replay_capture.py": "b59a5c7cfca6e7ffa77f2241ef9bcc3ebc3a82332eafcff630230589e7ed3ca7",
+    "src/nanoleaf_sync/capture/source_context.py": "3d6fc576530221e5454d26cda7edbad661a0e26e03be7d3369257f20bc27d6af",
+    "src/nanoleaf_sync/capture/source_identity.py": "c319a58d49cc6734584e3b43d4fa1a5b62af34613856f4e6f189df5205346706",
+    "src/nanoleaf_sync/capture/vulkan_sampler.py": "5bf66f89cdf7c61aa4beeac7fe9a45489ee038ee3fa3a546515ba5faaf20cfad",
+    "src/nanoleaf_sync/capture/xdg_portal.py": "257a89ef26b15e75dc5bc267f034a88b431c5633ea47dcfefd15a74aaca37f04",
+    "src/nanoleaf_sync/color/__init__.py": "020add33e13dd23993c7f35fce2e2fcd2ae693604ba658c93f3a6a01cd32be2b",
+    "src/nanoleaf_sync/color/capture_metadata.py": "d95054b012dc324819176f5ef8ad7d7fb252b9d107a15f5e3b05f54074f4faa8",
+    "src/nanoleaf_sync/color/hdr.py": "c77fad834694d1856074df1101543270fee1223705920b19ad165852c5c19bb6",
+    "src/nanoleaf_sync/color/metadata_hysteresis.py": "f03179d126fc02046137f2f5193a8afbe43ea416075669518339d9d12287686e",
+    "src/nanoleaf_sync/color/primaries.py": "f9ec1bd222a06f5e8506289a3fea3172d1762a9bdd898fbcd462508eba0adb50",
+    "src/nanoleaf_sync/color/zone_mapper.py": "a762f4dc4309fbe8516a11f85c7a5069828dcfef335e78594f199e07b1b383dd",
+    "src/nanoleaf_sync/compat/__init__.py": "105a71a46fd1ab9c3446b34d0cb091e02f685ff18ae162191bd09c1cf366e8bb",
+    "src/nanoleaf_sync/compat/kde_version.py": "d3d090ec24cbb05c9e394738488cae7160ccb034ed939204d41c9d3c47b64318",
+    "src/nanoleaf_sync/compat/kwin_probe.py": "21a317dfefee8be3da858ccb22edde29466b6c2cf9af03ada4394bd319a96764",
+    "src/nanoleaf_sync/compat/portal_probe.py": "abf8b2c196afeba55c1ccef3bee6129c26d8f98696fab69a9d8a9411f3000622",
+    "src/nanoleaf_sync/compat/update_checker.py": "af6fbbc762d2c485cfc1aaa37f579da2d98c9facf31e45d708c188056ae65d96",
+    "src/nanoleaf_sync/compat/version_snapshot.py": "d3926d9b19dd55e08b297233bfa19fa40fddf114f67a945eacc616376054d0ca",
+    "src/nanoleaf_sync/config/__init__.py": "700221559b9f119c107c07cbd291f5ad7a7f231666a74890c67ae8da6836021d",
+    "src/nanoleaf_sync/config/led_calibration_profile_io.py": "6e9a43627bf6ece34c9f97a235ec9ac11517a9b5f86fe156d791a98ac92c1cc9",
+    "src/nanoleaf_sync/config/model.py": "6aac0111d4b21097b37c658dfd7400c5a1e89f830926b2d943c86c5c72406ac9",
+    "src/nanoleaf_sync/config/normalize.py": "d17b2940ee28a3397df065bba6be0abd0cc1f496c4e2aeb8deaa4a97b65f7c57",
+    "src/nanoleaf_sync/config/presets.py": "0f166e61cfbbf94ab8c21b87aa5b653efe7e344e1b73ec5a11b653a211804ea2",
+    "src/nanoleaf_sync/config/store.py": "9abe4627e9a4a0706ed4e5e6ebd80ffe2b754deedfd0fb73f6798bffb11d5062",
+    "src/nanoleaf_sync/desktop_entry.py": "39b8927647e6e853ba92bf28737d54034ada19ba839466b6a7a8fde2d46f5e72",
+    "src/nanoleaf_sync/device/__init__.py": "d38b3516df6b0c770751a6deffc436de054d09e6a3878913b6fad75cebdb4e50",
+    "src/nanoleaf_sync/device/hid_transport.py": "0445a6c9d1ef90fe973fce93b803b12e9763c4b678f67be6e929dc4c3696c44d",
+    "src/nanoleaf_sync/device/interfaces.py": "b5b39b642d2d315d154fa39f7696514e6432c56dc3a739789e3ab5555fc2c7a9",
+    "src/nanoleaf_sync/device/protocol.py": "a96a31c3066dbdef4c9b09bcc0d15e13d929631957d56e57e0accaec02b0f110",
+    "src/nanoleaf_sync/device/send_policy.py": "495e39f5c52e12024f80c92c61c7f76163d3e6beada6867e8a2cd26c162a103f",
+    "src/nanoleaf_sync/device/transport_profiler.py": "4a078d810bbeb92db549e1c56ed0edec18799004bd2f96dde31f2c97c68c805e",
+    "src/nanoleaf_sync/device/usb_driver.py": "c88861b5e1cd3d12afa7e76478f6ea054f50af44a3653558abbffd81c062aa5d",
+    "src/nanoleaf_sync/runtime/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "src/nanoleaf_sync/runtime/anchor_calibration.py": "4392e4fefb7866107983df9b9bca00ca334803d9a4eae013865bd9c1001018a6",
+    "src/nanoleaf_sync/runtime/blending.py": "ad75553054d704a941dcd6a6b30999664ff16daa89265605013ac3e8dc283415",
+    "src/nanoleaf_sync/runtime/calibration_resolver.py": "cbd6361ba86b83800e86faaaa7a76f07ee77c918e1e501e1fc292667e16f94da",
+    "src/nanoleaf_sync/runtime/color_accuracy_diagnostics.py": "d7dd422de6c5dfa3961e73fafcd1f9ed9c552314c5b3993b1e8c7dc570eee9ed",
+    "src/nanoleaf_sync/runtime/color_context.py": "6afe238d335add5ed13f5f392de5d539582dc1c6da1604d90549b3f9ae1ab63f",
+    "src/nanoleaf_sync/runtime/color_domain.py": "b3c1c17a44faf6e83fd7e058737da78885550f231a533281d7b72d9f4ede301d",
+    "src/nanoleaf_sync/runtime/color_pipeline.py": "0e2c4683fe9c84eb2dbb3b6afc5c282c798891215c30266768869cb26da0668d",
+    "src/nanoleaf_sync/runtime/color_processing.py": "1f49ed545408a4abb20f26c2a1e47d021e098d56e1988a84df6eda92773f940a",
+    "src/nanoleaf_sync/runtime/colour_path_diagnostics.py": "7ea3e6c7b2c7fef7000ed9cba34d686f4041d418dd15817bc719b4dd07df9f8f",
+    "src/nanoleaf_sync/runtime/compositor.py": "43d89a3a02357806af62e809c798bd7b3e7a0ad46347556f85429805703d1935",
+    "src/nanoleaf_sync/runtime/content_bounds.py": "ab40cd1a9b66ee49dfcd0a1c3f776b1c4a3ae82dfb60f4840772c90161b84ef7",
+    "src/nanoleaf_sync/runtime/diagnostics_exports.py": "2e74bb9b325cbcbf0e88bb8eb325ba53b92f82ec355a5061eac28713db1b7c29",
+    "src/nanoleaf_sync/runtime/edge_locality_diagnostics.py": "06b937e13b8ea499460d74bbb5d9c9c366b07bf043cdfb2061840dec63c18d85",
+    "src/nanoleaf_sync/runtime/engine_frame.py": "3672535f268b8ad8cd1495f2ab010effa5808eb930a0f98ab9dd35d11c151bce",
+    "src/nanoleaf_sync/runtime/engine_loop.py": "591786d5d0c3f500a6c972d5d5fccc5228e01ec06397ea3a31c37c2ba80b3de0",
+    "src/nanoleaf_sync/runtime/engine_loop_capture.py": "04bdf97f36fedffb949166672b0a33141a2382d315bcde7e5efc6e2ed6df98b7",
+    "src/nanoleaf_sync/runtime/engine_loop_context.py": "29f911d2ab8ab91bc310ba607955da99cf5331070eabae52934847375e5b491c",
+    "src/nanoleaf_sync/runtime/engine_loop_hid.py": "8111e29c56e9af41d5a2c28ccc13723502ea57cb20b46624caebd054228f1a5e",
+    "src/nanoleaf_sync/runtime/engine_loop_process.py": "73dbc71806ee1ce1e5f84244c52a401b8a3337be3b3381548493fc199dc46bc9",
+    "src/nanoleaf_sync/runtime/engine_loop_supervisor.py": "e96db0c4190a797cf76879ba930403175038d45686c915843b865b74ad0872ad",
+    "src/nanoleaf_sync/runtime/errors.py": "199ee41db50ae86bc70fbb059265dbed923bec4d78bb2851d6fe1dcb7d22e0d6",
+    "src/nanoleaf_sync/runtime/fps_governor.py": "8f16eb2bf6307ebd7ef53d5b8374ec8e5a4530fc838e004b470f0a6372edecab",
+    "src/nanoleaf_sync/runtime/frame_context.py": "9d84b81cb15669fc219b06d39e38a413bcacee60ab99342880c84a82e736c7ae",
+    "src/nanoleaf_sync/runtime/guided_calibration.py": "d77f6121fb2d19d32cdef51670e22ef48c30965d0b9648a966f9e646bdfe9d4a",
+    "src/nanoleaf_sync/runtime/output_session.py": "2f855edf9cafda739a0dd611926b4c242dc1f64aed2fbfef14973fed089802d4",
+    "src/nanoleaf_sync/runtime/palette_adaptive.py": "1fa474e61eaf6fa8becdda039635113c29ae84b7883433c0f2abdf11a06b908e",
+    "src/nanoleaf_sync/runtime/palette_temporal.py": "9c5c74bc19961b96c264bd31573a85a2043978bbfa067a44516be54924c0b97a",
+    "src/nanoleaf_sync/runtime/pattern_generator.py": "13eb503da794dcb6dfc5f6f526d155c7c58daef05f61d298b4fb3a2e307fdce9",
+    "src/nanoleaf_sync/runtime/predictive_sync.py": "f9e36e784759b367cc97952ba4bb8ad12cc65690ca4bbd6266b2878431918143",
+    "src/nanoleaf_sync/runtime/processing.py": "b9479556002f40c7deaebcb13705b3b3a8fecb041d4f1ef09f9cb1ec399fe3d0",
+    "src/nanoleaf_sync/runtime/readiness_check.py": "6550a206412a519fcaf7a6b0bdf7e32266233f20bdbf1c6ffb6d71d4af662687",
+    "src/nanoleaf_sync/runtime/ring_buf.py": "85722f24eb29702d4c60d45deae731922c2de3cabc8ef10703bd667c0d357881",
+    "src/nanoleaf_sync/runtime/rust_sampling.py": "2e5306cd12f6244c8335ce0bbb411c0d98430f47ce215d925087f41cf005b846",
+    "src/nanoleaf_sync/runtime/srgb.py": "0a8cb1a09b56dcd264b1ff8ad92cd465d0e91538e62844ba0ba4d6c4ec5979e1",
+    "src/nanoleaf_sync/runtime/startup.py": "0528127c95b4c39fec829caf3d9c5502203dd605dbc45a3fc512d1dd7d69722e",
+    "src/nanoleaf_sync/runtime/state.py": "c26a33cbbf6020925f082fb3f3133ccc6865e13ba583d58e2db774232cdfb0a1",
+    "src/nanoleaf_sync/runtime/status_warnings.py": "c26fa65597f9100defe48266a20de9a2b3701fa4c1d85bda7576e22537c60c9c",
+    "src/nanoleaf_sync/runtime/virtual_zones.py": "14a4a8597717b40da593c25152eed533627ba7f98571657530a8485a00795bfc",
+    "src/nanoleaf_sync/runtime/zone_accumulator.py": "c7853b216f4674a2edeca959253a95f240deee310a4585d69e6385d7ff6d80f5",
+    "src/nanoleaf_sync/runtime/zone_derivation.py": "58681d81463175dd7ce6dc938d74131d17743244e3171f621ed73f2302e093b8",
+    "src/nanoleaf_sync/runtime/zone_presets.py": "a07034f751a8257e01341ed64e2b29eb328f1d6ad60f6d13a954d71c4893791b",
+    "src/nanoleaf_sync/runtime/zones.py": "77a70662b25e8dee6ef16c5af78443758d088142b36513b37482052ed152857a",
+    "src/nanoleaf_sync/service.py": "fc3c287db07016906d9ac3e77b0c36d10447014be6814ecccfb2163d20f965ea",
+    "src/nanoleaf_sync/tools/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "src/nanoleaf_sync/tools/autostart.py": "28a68051a62baf26507c511f662c7d5946fb0ef1fd22eaa4a7f974705c5e0777",
+    "src/nanoleaf_sync/tools/benchmark.py": "cce8654d1efd14fa81902eff7e07a3138ba81d00aafdc0ae088611b6dcda413d",
+    "src/nanoleaf_sync/tools/color_kmeans.py": "18acd13cb2b858c8561fa764c0ad29a1d2a5d282b3cc557183e2f593c68f3306",
+    "src/nanoleaf_sync/tools/colour_path_probe.py": "86d53d11f62a99e457673e5b2853ddae6cde65985ccd2f093b97975d98d0afac",
+    "src/nanoleaf_sync/tools/config_init.py": "619c233676d0dd67d44f62272281e9b8d09a320cb587fff3eb205044db493d16",
+    "src/nanoleaf_sync/tools/diagnostic_bundle.py": "1e30d0af9e377afa47ba07677a3bcc933908b17d9114fb073af08772c77154f5",
+    "src/nanoleaf_sync/tools/doctor.py": "0d0983916b2a36b6c709ca83f772ef3fe86d3edf1714f2128eed208f0ce3231d",
+    "src/nanoleaf_sync/tools/flicker_lab.py": "e1bcc46838cc6c91700ab38115de64b2e9a8b0549babde9bb08864c0db8ce75c",
+    "src/nanoleaf_sync/tools/output_format.py": "e09e4e152d8522f9a8294aea0c201e1ca5b3855992659072dc1e753942e3177a",
+    "src/nanoleaf_sync/tools/portal_tools.py": "fed7b5e80f72ca11427acaeef452b87d8720750a075f7997f52182647f65cefd",
+    "src/nanoleaf_sync/tools/reset.py": "c9dca0bbad13060143df5acbf2465e1922ce44c04a2062b50a6f6c153a3a1477",
+    "src/nanoleaf_sync/tools/setcap_helper.py": "b37d08d6140904b921965c94d09bb3c54e9bf393ce01f584d5039752388aceba",
+    "src/nanoleaf_sync/tools/setup_permissions.py": "ee1661d2d2d24a1b3cf11e398f855286397e05da0144b97c292ca194675e84c7",
+    "src/nanoleaf_sync/tools/smoke_test.py": "e22c90c97a41df210c1dd5b69f2c5758f85826ba566d450c1a1e7b17aae7393a",
+    "src/nanoleaf_sync/ui/__init__.py": "7db5a38dab33d929fd4337e5e79afd58db18d3e2aefb2df2853c9dc017d328e7",
+    "src/nanoleaf_sync/ui/calibration_flow.py": "d1a05e3873d5be1306f733a782f54abe3dd2568fb4a4fb618864037e37992b7d",
+    "src/nanoleaf_sync/ui/calibration_preview.py": "8d47935dd0b61669d8b837ca155111e2bc39060ec8ce38278d16735c33d11b1e",
+    "src/nanoleaf_sync/ui/calibration_state.py": "b404ee2a1a4829d72025d0c7651334c955a2fb4c942d0041bb578b0c86a8fd17",
+    "src/nanoleaf_sync/ui/calibration_widget.py": "9d159f46810145c68fffa43f31292585ae481a271d7db7abc72eadefaa771ef9",
+    "src/nanoleaf_sync/ui/command_results_dialog.py": "8c6760c6d93c8ac26c0ec07a97e0e09ed0e218e10d574f24ce2219a493e6bf08",
+    "src/nanoleaf_sync/ui/diagnostic_hub_dialog.py": "5eb44114b01b062c38f19a6004b708d9c4da9118d13647681c0591e61e4bd8f7",
+    "src/nanoleaf_sync/ui/display_configurator.py": "9ba421cf01b27977f17632175235d99467b49b4d02b6879737337495f3e94c23",
+    "src/nanoleaf_sync/ui/guided_calibration_dialog.py": "a69acad1018c1d8ac63fa7d9d5b5327f0f016ffe572bb23ed9d2dd1afc24e5aa",
+    "src/nanoleaf_sync/ui/layout_helpers.py": "66eafc453692b8e07170e807b8211cb9dc5f1ada01d1542a5427659445735560",
+    "src/nanoleaf_sync/ui/led_color_calibration_dialog.py": "19a40e0aa73390edccb913450e9819649551fb50e938403549ff7a31267c2614",
+    "src/nanoleaf_sync/ui/live_diagnostics.py": "4ce6fe76ebaa513d7f9d90bf21d8f4e4136b99bd4cb350dd1b09be988b7a5ae9",
+    "src/nanoleaf_sync/ui/preset_ui.py": "aa6e83631859eb47ca9714e96f2ea6515af9bd3baa338dfb951b6fff4caa2924",
+    "src/nanoleaf_sync/ui/qt_lazy.py": "6168f1ff6e59555d6756b6d610e43ef4ff9174cfe554293ca6edc29b3155922f",
+    "src/nanoleaf_sync/ui/settings_dialog.py": "b632c7ce4446361dbcb3542d609d8039e37317d037c4ab0e8bbed709a4d765ea",
+    "src/nanoleaf_sync/ui/settings_dialog_handlers.py": "21145803f0bd9693de5c67dd099ac2b0692c8861d59b9d36f4bdc1eb3488e1cb",
+    "src/nanoleaf_sync/ui/settings_dialog_handlers_ext.py": "c5b463b04fba8e347ad6f6cd48e03cdd84b523c22d31ece6becfd173b16432b5",
+    "src/nanoleaf_sync/ui/settings_dialog_layout.py": "ed5fdb097ad95cecdbfbe1be7ae9a1cebda5979e78f6e7631049a828693dfc5d",
+    "src/nanoleaf_sync/ui/settings_dialog_shared.py": "387dc6f5e93d059bcf714ba57d9cea58c11849f4d72cd6bb772b50e69fbbda25",
+    "src/nanoleaf_sync/ui/settings_dialog_widget.py": "164140e234c4fe3a06e7ff10c9e893ab16e589bc4045c20c7c4144510a4514c2",
+    "src/nanoleaf_sync/ui/tray_app.py": "bc61d0a6ea2df5c1e9380d10eb26fa784b2c790214d5c883228973bda346fb7d",
+    "src/nanoleaf_sync/ui/zone_calibration.py": "de9135fb28606414345fdcfcfbb00647fb8fd540700f225c8c6f4045d14632b5"
+  },
+  "binary_sha256": "b61c379c3d3381774a843685d876a05bfbc73abcf84f7841117b0704aef0a1bc",
+  "cases": [
+    {
+      "size": [
+        640,
+        360
+      ],
+      "style": "reference",
+      "sequence": "flashes_scene_cuts_neutrals",
+      "frame_hashes": [
+        "829052ab29d4643f73edf281fc6e5af4e4a74ecf1d59b319a503ad24558045ca",
+        "8c0cbe01d18c7cd45ef473f69e5d945d2416db2527ffdff18b53208b790fe86a",
+        "829052ab29d4643f73edf281fc6e5af4e4a74ecf1d59b319a503ad24558045ca",
+        "8c0cbe01d18c7cd45ef473f69e5d945d2416db2527ffdff18b53208b790fe86a"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 2.5892775011016056,
+              "p95_ms": 2.657958997588139,
+              "samples_ms": [
+                2.4468850024277344,
+                2.657958997588139,
+                2.566133000073023,
+                2.612422002130188
+              ]
+            },
+            "rust": {
+              "median_ms": 0.13680599999999998,
+              "p95_ms": 0.204671,
+              "samples_ms": [
+                0.130599,
+                0.204671,
+                0.143013,
+                0.12040999999999999
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 0.119514,
+              "p95_ms": 0.179643,
+              "samples_ms": [
+                0.1202,
+                0.179643,
+                0.11882799999999999,
+                0.09708599999999999
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.023419500000000003,
+              "p95_ms": 0.024547000000000013,
+              "samples_ms": [
+                0.009859000000000007,
+                0.024547000000000013,
+                0.023724999999999996,
+                0.02311400000000001
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t    4680 kB",
+            "VmRSS:\t    4680 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        640,
+        360
+      ],
+      "style": "reference",
+      "sequence": "mixed_dark_noise",
+      "frame_hashes": [
+        "bb8bd68201f2a666f8b2613926f4e254115a110195deb4812febaf988dfbe708",
+        "bb8bd68201f2a666f8b2613926f4e254115a110195deb4812febaf988dfbe708",
+        "bb8bd68201f2a666f8b2613926f4e254115a110195deb4812febaf988dfbe708",
+        "bb8bd68201f2a666f8b2613926f4e254115a110195deb4812febaf988dfbe708"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 2.539327000704361,
+              "p95_ms": 2.5998280034400523,
+              "samples_ms": [
+                2.2852170004625805,
+                2.539982997404877,
+                2.5998280034400523,
+                2.538671004003845
+              ]
+            },
+            "rust": {
+              "median_ms": 0.1576965,
+              "p95_ms": 0.161148,
+              "samples_ms": [
+                0.142743,
+                0.161148,
+                0.15817199999999998,
+                0.157221
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 0.129292,
+              "p95_ms": 0.131311,
+              "samples_ms": [
+                0.129928,
+                0.131311,
+                0.128656,
+                0.127523
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.029305999999999985,
+              "p95_ms": 0.029477000000000003,
+              "samples_ms": [
+                0.012324000000000002,
+                0.029477000000000003,
+                0.029205999999999982,
+                0.029405999999999988
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t    4684 kB",
+            "VmRSS:\t    4684 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        640,
+        360
+      ],
+      "style": "reference",
+      "sequence": "calibrated_privacy_letterbox",
+      "frame_hashes": [
+        "b4919791ca5747a266659777b9d9858d10b3455e26f23bfc4eb5b186102f6797",
+        "adaf17fa75c7b8a1b2e2659e2b54c1c15ccf287fbc32ea76ea76874a29b3fc5f",
+        "b4919791ca5747a266659777b9d9858d10b3455e26f23bfc4eb5b186102f6797",
+        "8c0cbe01d18c7cd45ef473f69e5d945d2416db2527ffdff18b53208b790fe86a"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 2.748782000708161,
+              "p95_ms": 3.1228869993356057,
+              "samples_ms": [
+                2.570702003140468,
+                2.7356069986126386,
+                3.1228869993356057,
+                2.7619570028036833
+              ]
+            },
+            "rust": {
+              "median_ms": 0.143905,
+              "p95_ms": 0.228356,
+              "samples_ms": [
+                0.142923,
+                0.228356,
+                0.14488700000000002,
+                0.131681
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 0.1266475,
+              "p95_ms": 0.20483099999999999,
+              "samples_ms": [
+                0.132103,
+                0.20483099999999999,
+                0.121192,
+                0.108207
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.023194500000000007,
+              "p95_ms": 0.023335000000000022,
+              "samples_ms": [
+                0.010169000000000011,
+                0.02320500000000003,
+                0.023335000000000022,
+                0.023183999999999982
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t    5700 kB",
+            "VmRSS:\t    4788 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        640,
+        360
+      ],
+      "style": "ambient",
+      "sequence": "flashes_scene_cuts_neutrals",
+      "frame_hashes": [
+        "829052ab29d4643f73edf281fc6e5af4e4a74ecf1d59b319a503ad24558045ca",
+        "8c0cbe01d18c7cd45ef473f69e5d945d2416db2527ffdff18b53208b790fe86a",
+        "829052ab29d4643f73edf281fc6e5af4e4a74ecf1d59b319a503ad24558045ca",
+        "8c0cbe01d18c7cd45ef473f69e5d945d2416db2527ffdff18b53208b790fe86a"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 23.44598049967317,
+              "p95_ms": 24.415132000285666,
+              "samples_ms": [
+                24.415132000285666,
+                23.28100599697791,
+                23.44837500277208,
+                23.443585996574257
+              ]
+            },
+            "rust": {
+              "median_ms": 0.1166435,
+              "p95_ms": 0.12811499999999998,
+              "samples_ms": [
+                0.118006,
+                0.115281,
+                0.12811499999999998,
+                0.108056
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 0.0972055,
+              "p95_ms": 0.10788700000000001,
+              "samples_ms": [
+                0.10788700000000001,
+                0.09109400000000001,
+                0.103317,
+                0.083319
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.024215999999999994,
+              "p95_ms": 0.02455699999999998,
+              "samples_ms": [
+                0.009728,
+                0.023914999999999992,
+                0.02455699999999998,
+                0.024516999999999997
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t    4760 kB",
+            "VmRSS:\t    4760 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        640,
+        360
+      ],
+      "style": "ambient",
+      "sequence": "mixed_dark_noise",
+      "frame_hashes": [
+        "bb8bd68201f2a666f8b2613926f4e254115a110195deb4812febaf988dfbe708",
+        "bb8bd68201f2a666f8b2613926f4e254115a110195deb4812febaf988dfbe708",
+        "bb8bd68201f2a666f8b2613926f4e254115a110195deb4812febaf988dfbe708",
+        "bb8bd68201f2a666f8b2613926f4e254115a110195deb4812febaf988dfbe708"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 22.939733498787973,
+              "p95_ms": 23.39145699806977,
+              "samples_ms": [
+                23.39145699806977,
+                23.041608001221903,
+                22.822318998805713,
+                22.837858996354043
+              ]
+            },
+            "rust": {
+              "median_ms": 0.10888300000000001,
+              "p95_ms": 0.135629,
+              "samples_ms": [
+                0.135629,
+                0.10669400000000001,
+                0.108267,
+                0.109499
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 0.0842965,
+              "p95_ms": 0.12572,
+              "samples_ms": [
+                0.12572,
+                0.082818,
+                0.08363,
+                0.08496300000000001
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.02397599999999999,
+              "p95_ms": 0.024375999999999995,
+              "samples_ms": [
+                0.009519,
+                0.02363599999999999,
+                0.024375999999999995,
+                0.02431599999999999
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t    4780 kB",
+            "VmRSS:\t    4780 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        640,
+        360
+      ],
+      "style": "ambient",
+      "sequence": "calibrated_privacy_letterbox",
+      "frame_hashes": [
+        "b4919791ca5747a266659777b9d9858d10b3455e26f23bfc4eb5b186102f6797",
+        "adaf17fa75c7b8a1b2e2659e2b54c1c15ccf287fbc32ea76ea76874a29b3fc5f",
+        "b4919791ca5747a266659777b9d9858d10b3455e26f23bfc4eb5b186102f6797",
+        "8c0cbe01d18c7cd45ef473f69e5d945d2416db2527ffdff18b53208b790fe86a"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 2.9620949972013477,
+              "p95_ms": 25.3610200015828,
+              "samples_ms": [
+                2.456394002365414,
+                3.111054000328295,
+                2.8131359940744005,
+                25.3610200015828
+              ]
+            },
+            "rust": {
+              "median_ms": 0.14427050000000002,
+              "p95_ms": 0.25117,
+              "samples_ms": [
+                0.143324,
+                0.25117,
+                0.133826,
+                0.145217
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 0.12426300000000001,
+              "p95_ms": 0.222966,
+              "samples_ms": [
+                0.12776500000000002,
+                0.222966,
+                0.108888,
+                0.12076100000000001
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.024326500000000008,
+              "p95_ms": 0.027803000000000022,
+              "samples_ms": [
+                0.014246999999999982,
+                0.027803000000000022,
+                0.024477000000000013,
+                0.024176000000000003
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t    5860 kB",
+            "VmRSS:\t    5860 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        2560,
+        1440
+      ],
+      "style": "reference",
+      "sequence": "flashes_scene_cuts_neutrals",
+      "frame_hashes": [
+        "28af07f4b4c63ce445bae2c72906a6a18f8b182fa81137b60022303693f76458",
+        "2720510f33a199a3169bd289ee70e3cd7eca052dd73d39b6a602579f9e8e9900",
+        "28af07f4b4c63ce445bae2c72906a6a18f8b182fa81137b60022303693f76458",
+        "2720510f33a199a3169bd289ee70e3cd7eca052dd73d39b6a602579f9e8e9900"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 7.695264001085889,
+              "p95_ms": 7.964137999806553,
+              "samples_ms": [
+                7.2738289964036085,
+                7.894014001067262,
+                7.964137999806553,
+                7.496514001104515
+              ]
+            },
+            "rust": {
+              "median_ms": 0.9878075,
+              "p95_ms": 1.028124,
+              "samples_ms": [
+                1.028124,
+                1.024848,
+                0.9339339999999999,
+                0.950767
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 0.963176,
+              "p95_ms": 1.0178150000000001,
+              "samples_ms": [
+                1.0178150000000001,
+                0.999971,
+                0.908306,
+                0.926381
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.024280999999999997,
+              "p95_ms": 0.02479700000000007,
+              "samples_ms": [
+                0.009808000000000039,
+                0.02451700000000001,
+                0.02479700000000007,
+                0.024044999999999983
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t   14856 kB",
+            "VmRSS:\t   14856 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        2560,
+        1440
+      ],
+      "style": "reference",
+      "sequence": "mixed_dark_noise",
+      "frame_hashes": [
+        "e3f1ed3849e78913d50a9419ac3c38ac9bed3f3f856ea41bcba9c855a48fbd3e",
+        "e3f1ed3849e78913d50a9419ac3c38ac9bed3f3f856ea41bcba9c855a48fbd3e",
+        "e3f1ed3849e78913d50a9419ac3c38ac9bed3f3f856ea41bcba9c855a48fbd3e",
+        "e3f1ed3849e78913d50a9419ac3c38ac9bed3f3f856ea41bcba9c855a48fbd3e"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 7.959057998959906,
+              "p95_ms": 8.872995000274386,
+              "samples_ms": [
+                6.784313001844566,
+                7.353221000812482,
+                8.872995000274386,
+                8.56489499710733
+              ]
+            },
+            "rust": {
+              "median_ms": 0.9631405,
+              "p95_ms": 0.990172,
+              "samples_ms": [
+                0.945036,
+                0.9812449999999999,
+                0.990172,
+                0.942571
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 0.945883,
+              "p95_ms": 0.964252,
+              "samples_ms": [
+                0.9347570000000001,
+                0.957009,
+                0.964252,
+                0.918324
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.023729999999999973,
+              "p95_ms": 0.025107999999999908,
+              "samples_ms": [
+                0.009527999999999981,
+                0.02379500000000001,
+                0.025107999999999908,
+                0.023664999999999936
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t   14824 kB",
+            "VmRSS:\t   14824 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        2560,
+        1440
+      ],
+      "style": "reference",
+      "sequence": "calibrated_privacy_letterbox",
+      "frame_hashes": [
+        "0f009dd09ca2c371eba2ab0d466e23654dea63a31be97c0517d2e537d3c75eb1",
+        "3e92d0f1a681afe00fe87066027eca1a1fdac8b2fdda7697fe1a04802b776462",
+        "0f009dd09ca2c371eba2ab0d466e23654dea63a31be97c0517d2e537d3c75eb1",
+        "2720510f33a199a3169bd289ee70e3cd7eca052dd73d39b6a602579f9e8e9900"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 7.37742649653228,
+              "p95_ms": 7.505371999286581,
+              "samples_ms": [
+                7.472537996363826,
+                7.505371999286581,
+                7.282314996700734,
+                7.231708004837856
+              ]
+            },
+            "rust": {
+              "median_ms": 1.270733,
+              "p95_ms": 1.628322,
+              "samples_ms": [
+                1.081086,
+                1.628322,
+                1.096535,
+                1.444931
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 1.2429095000000001,
+              "p95_ms": 1.603645,
+              "samples_ms": [
+                1.071066,
+                1.603645,
+                1.072529,
+                1.41329
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.023805500000000035,
+              "p95_ms": 0.031100000000000128,
+              "samples_ms": [
+                0.009408000000000083,
+                0.024256000000000055,
+                0.023355000000000015,
+                0.031100000000000128
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t   36252 kB",
+            "VmRSS:\t   14932 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        2560,
+        1440
+      ],
+      "style": "ambient",
+      "sequence": "flashes_scene_cuts_neutrals",
+      "frame_hashes": [
+        "28af07f4b4c63ce445bae2c72906a6a18f8b182fa81137b60022303693f76458",
+        "2720510f33a199a3169bd289ee70e3cd7eca052dd73d39b6a602579f9e8e9900",
+        "28af07f4b4c63ce445bae2c72906a6a18f8b182fa81137b60022303693f76458",
+        "2720510f33a199a3169bd289ee70e3cd7eca052dd73d39b6a602579f9e8e9900"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 260.10729399786214,
+              "p95_ms": 265.45819899911294,
+              "samples_ms": [
+                255.98912600253243,
+                265.45819899911294,
+                260.2480529967579,
+                259.9665349989664
+              ]
+            },
+            "rust": {
+              "median_ms": 1.358636,
+              "p95_ms": 1.747078,
+              "samples_ms": [
+                1.747078,
+                1.3617519999999999,
+                1.35552,
+                1.352013
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 1.3335979999999998,
+              "p95_ms": 1.736258,
+              "samples_ms": [
+                1.736258,
+                1.336604,
+                1.330592,
+                1.325954
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.024611999999999967,
+              "p95_ms": 0.025368999999999975,
+              "samples_ms": [
+                0.010028999999999844,
+                0.02463700000000002,
+                0.024586999999999914,
+                0.025368999999999975
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t   17916 kB",
+            "VmRSS:\t   17916 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        2560,
+        1440
+      ],
+      "style": "ambient",
+      "sequence": "mixed_dark_noise",
+      "frame_hashes": [
+        "e3f1ed3849e78913d50a9419ac3c38ac9bed3f3f856ea41bcba9c855a48fbd3e",
+        "e3f1ed3849e78913d50a9419ac3c38ac9bed3f3f856ea41bcba9c855a48fbd3e",
+        "e3f1ed3849e78913d50a9419ac3c38ac9bed3f3f856ea41bcba9c855a48fbd3e",
+        "e3f1ed3849e78913d50a9419ac3c38ac9bed3f3f856ea41bcba9c855a48fbd3e"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 261.4143665014126,
+              "p95_ms": 268.15684500616044,
+              "samples_ms": [
+                258.958258003986,
+                263.8704749988392,
+                268.15684500616044,
+                255.94555200223112
+              ]
+            },
+            "rust": {
+              "median_ms": 1.8029245,
+              "p95_ms": 2.18191,
+              "samples_ms": [
+                2.003698,
+                1.3786040000000002,
+                2.18191,
+                1.602151
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 1.7843944999999999,
+              "p95_ms": 2.153786,
+              "samples_ms": [
+                1.993079,
+                1.353556,
+                2.153786,
+                1.57571
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.02492799999999995,
+              "p95_ms": 0.02737199999999973,
+              "samples_ms": [
+                0.010019,
+                0.024426999999999977,
+                0.02737199999999973,
+                0.025428999999999924
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t   17872 kB",
+            "VmRSS:\t   17872 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        2560,
+        1440
+      ],
+      "style": "ambient",
+      "sequence": "calibrated_privacy_letterbox",
+      "frame_hashes": [
+        "0f009dd09ca2c371eba2ab0d466e23654dea63a31be97c0517d2e537d3c75eb1",
+        "3e92d0f1a681afe00fe87066027eca1a1fdac8b2fdda7697fe1a04802b776462",
+        "0f009dd09ca2c371eba2ab0d466e23654dea63a31be97c0517d2e537d3c75eb1",
+        "2720510f33a199a3169bd289ee70e3cd7eca052dd73d39b6a602579f9e8e9900"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 6.956452500162413,
+              "p95_ms": 254.97850400279276,
+              "samples_ms": [
+                6.8376150011317804,
+                7.075289999193046,
+                6.699131001369096,
+                254.97850400279276
+              ]
+            },
+            "rust": {
+              "median_ms": 1.5446515,
+              "p95_ms": 2.0372329999999996,
+              "samples_ms": [
+                1.111023,
+                1.956568,
+                1.132735,
+                2.0372329999999996
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 1.5185865,
+              "p95_ms": 2.012476,
+              "samples_ms": [
+                1.100333,
+                1.930258,
+                1.1069149999999999,
+                2.012476
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.024747000000000186,
+              "p95_ms": 0.02557900000000024,
+              "samples_ms": [
+                0.009998999999999869,
+                0.02557900000000024,
+                0.025258000000000225,
+                0.024236000000000146
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t   36380 kB",
+            "VmRSS:\t   36380 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        3840,
+        2160
+      ],
+      "style": "reference",
+      "sequence": "flashes_scene_cuts_neutrals",
+      "frame_hashes": [
+        "0a8415833f259a4badb29eae4fa5dff40eaf47890620d3cc46dfdab6c7bda282",
+        "ae673cb2f379caa7769ddc4ca4040938fbb426b0a1a2ff536d085f49f0a685db",
+        "0a8415833f259a4badb29eae4fa5dff40eaf47890620d3cc46dfdab6c7bda282",
+        "ae673cb2f379caa7769ddc4ca4040938fbb426b0a1a2ff536d085f49f0a685db"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 13.127308498951606,
+              "p95_ms": 13.95787100045709,
+              "samples_ms": [
+                12.529340994660743,
+                13.635524002893362,
+                13.95787100045709,
+                12.61909299500985
+              ]
+            },
+            "rust": {
+              "median_ms": 2.1052475,
+              "p95_ms": 2.3568830000000003,
+              "samples_ms": [
+                2.021944,
+                2.0387560000000002,
+                2.1717389999999996,
+                2.3568830000000003
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 2.0791180000000002,
+              "p95_ms": 2.3307539999999998,
+              "samples_ms": [
+                2.010612,
+                2.0119550000000004,
+                2.146281,
+                2.3307539999999998
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.024872499999999853,
+              "p95_ms": 0.02543799999999985,
+              "samples_ms": [
+                0.01045000000000007,
+                0.02543799999999985,
+                0.024596999999999536,
+                0.02514800000000017
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t   28344 kB",
+            "VmRSS:\t   28344 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        3840,
+        2160
+      ],
+      "style": "reference",
+      "sequence": "mixed_dark_noise",
+      "frame_hashes": [
+        "a4aa20c4c98a9838699557410ce3b8660b70f6e697c08f412254746c66a60ae1",
+        "a4aa20c4c98a9838699557410ce3b8660b70f6e697c08f412254746c66a60ae1",
+        "a4aa20c4c98a9838699557410ce3b8660b70f6e697c08f412254746c66a60ae1",
+        "a4aa20c4c98a9838699557410ce3b8660b70f6e697c08f412254746c66a60ae1"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 13.377036000747466,
+              "p95_ms": 14.434111006266903,
+              "samples_ms": [
+                13.319591002073139,
+                12.954813995747827,
+                14.434111006266903,
+                13.434480999421794
+              ]
+            },
+            "rust": {
+              "median_ms": 2.033616,
+              "p95_ms": 2.046681,
+              "samples_ms": [
+                2.0223340000000003,
+                2.0438549999999998,
+                2.046681,
+                2.023377
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 2.0101465,
+              "p95_ms": 2.017305,
+              "samples_ms": [
+                2.0082479999999996,
+                2.017305,
+                2.012045,
+                1.99869
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.024742000000000153,
+              "p95_ms": 0.0338750000000001,
+              "samples_ms": [
+                0.0130950000000003,
+                0.025549000000000266,
+                0.0338750000000001,
+                0.02393500000000004
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t   28324 kB",
+            "VmRSS:\t   28324 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        3840,
+        2160
+      ],
+      "style": "reference",
+      "sequence": "calibrated_privacy_letterbox",
+      "frame_hashes": [
+        "fd486665ca239f5aee62efb37e9b33842c5e0f9a00dbfbc47ec9f99f37bd3e20",
+        "52869b0f4b3f3539ca6599c117cfebf81abc7f807ebf48ee268b8d0f475c6ca8",
+        "fd486665ca239f5aee62efb37e9b33842c5e0f9a00dbfbc47ec9f99f37bd3e20",
+        "ae673cb2f379caa7769ddc4ca4040938fbb426b0a1a2ff536d085f49f0a685db"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 14.592031999200117,
+              "p95_ms": 15.020450999145396,
+              "samples_ms": [
+                15.020450999145396,
+                14.461493003182113,
+                14.529813000990544,
+                14.65425099740969
+              ]
+            },
+            "rust": {
+              "median_ms": 2.9480585,
+              "p95_ms": 3.656968,
+              "samples_ms": [
+                2.704358,
+                3.656968,
+                2.600539,
+                3.1917590000000002
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 2.925004,
+              "p95_ms": 3.622312,
+              "samples_ms": [
+                2.692565,
+                3.622312,
+                2.570411,
+                3.1574429999999998
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.031190000000000273,
+              "p95_ms": 0.03344400000000025,
+              "samples_ms": [
+                0.01051000000000002,
+                0.03344400000000025,
+                0.029106000000000076,
+                0.03327400000000047
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t   76716 kB",
+            "VmRSS:\t   28468 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        3840,
+        2160
+      ],
+      "style": "ambient",
+      "sequence": "flashes_scene_cuts_neutrals",
+      "frame_hashes": [
+        "0a8415833f259a4badb29eae4fa5dff40eaf47890620d3cc46dfdab6c7bda282",
+        "ae673cb2f379caa7769ddc4ca4040938fbb426b0a1a2ff536d085f49f0a685db",
+        "0a8415833f259a4badb29eae4fa5dff40eaf47890620d3cc46dfdab6c7bda282",
+        "ae673cb2f379caa7769ddc4ca4040938fbb426b0a1a2ff536d085f49f0a685db"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 754.097984994587,
+              "p95_ms": 773.9245289994869,
+              "samples_ms": [
+                745.9170339934644,
+                743.7622760044178,
+                773.9245289994869,
+                762.2789359957096
+              ]
+            },
+            "rust": {
+              "median_ms": 3.4253355,
+              "p95_ms": 5.148607999999999,
+              "samples_ms": [
+                5.148607999999999,
+                3.143997,
+                3.336967,
+                3.5137039999999997
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 3.3930029999999998,
+              "p95_ms": 5.134431,
+              "samples_ms": [
+                5.134431,
+                3.1125570000000002,
+                3.301989,
+                3.4840169999999997
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.02925549999999988,
+              "p95_ms": 0.033825000000000216,
+              "samples_ms": [
+                0.012232999999999272,
+                0.029946999999999502,
+                0.033825000000000216,
+                0.028564000000000256
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t   35180 kB",
+            "VmRSS:\t   35180 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        3840,
+        2160
+      ],
+      "style": "ambient",
+      "sequence": "mixed_dark_noise",
+      "frame_hashes": [
+        "a4aa20c4c98a9838699557410ce3b8660b70f6e697c08f412254746c66a60ae1",
+        "a4aa20c4c98a9838699557410ce3b8660b70f6e697c08f412254746c66a60ae1",
+        "a4aa20c4c98a9838699557410ce3b8660b70f6e697c08f412254746c66a60ae1",
+        "a4aa20c4c98a9838699557410ce3b8660b70f6e697c08f412254746c66a60ae1"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 740.5637574993307,
+              "p95_ms": 755.9521009970922,
+              "samples_ms": [
+                734.3689629997243,
+                740.7649430024321,
+                755.9521009970922,
+                740.3625719962292
+              ]
+            },
+            "rust": {
+              "median_ms": 3.4153054999999997,
+              "p95_ms": 4.5234630000000005,
+              "samples_ms": [
+                4.5234630000000005,
+                3.32346,
+                3.126754,
+                3.507151
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 3.384683,
+              "p95_ms": 4.5093060000000005,
+              "samples_ms": [
+                4.5093060000000005,
+                3.2918309999999997,
+                3.09291,
+                3.477535
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.029551000000000327,
+              "p95_ms": 0.032592000000000176,
+              "samples_ms": [
+                0.012904999999999056,
+                0.030428000000000566,
+                0.032592000000000176,
+                0.02867400000000009
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t   35324 kB",
+            "VmRSS:\t   35324 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        3840,
+        2160
+      ],
+      "style": "ambient",
+      "sequence": "calibrated_privacy_letterbox",
+      "frame_hashes": [
+        "fd486665ca239f5aee62efb37e9b33842c5e0f9a00dbfbc47ec9f99f37bd3e20",
+        "52869b0f4b3f3539ca6599c117cfebf81abc7f807ebf48ee268b8d0f475c6ca8",
+        "fd486665ca239f5aee62efb37e9b33842c5e0f9a00dbfbc47ec9f99f37bd3e20",
+        "ae673cb2f379caa7769ddc4ca4040938fbb426b0a1a2ff536d085f49f0a685db"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 4,
+          "metrics": {
+            "python": {
+              "median_ms": 14.150547998724505,
+              "p95_ms": 771.8410099987523,
+              "samples_ms": [
+                14.189162000548095,
+                13.907565000408795,
+                14.111933996900916,
+                771.8410099987523
+              ]
+            },
+            "rust": {
+              "median_ms": 3.670073,
+              "p95_ms": 5.3951590000000005,
+              "samples_ms": [
+                3.7195679999999998,
+                3.620578,
+                2.9006629999999998,
+                5.3951590000000005
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 3.6426550000000004,
+              "p95_ms": 5.3640099999999995,
+              "samples_ms": [
+                3.6930560000000003,
+                3.592254,
+                2.872068,
+                5.3640099999999995
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.027167000000000163,
+              "p95_ms": 0.029285999999999923,
+              "samples_ms": [
+                0.02388599999999963,
+                0.027032000000000167,
+                0.02730200000000016,
+                0.029285999999999923
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t   76736 kB",
+            "VmRSS:\t   76736 kB"
+          ]
+        }
+      ]
+    }
+  ]
+}

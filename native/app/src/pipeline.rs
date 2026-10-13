@@ -22,6 +22,8 @@ pub struct ProcessingTimes {
 #[derive(Default)]
 pub struct Pipeline {
     sampler: SdrSampler,
+    highlight: crate::highlight::Cache,
+    disable_highlight_cache: bool,
     palette: Vec<TemporalState>,
     accumulation: Vec<[f64; 3]>,
     previous_sample: Vec<[u8; 3]>,
@@ -38,6 +40,7 @@ pub struct Output {
     pub sampled: Vec<[u8; 3]>,
     pub modes: Vec<String>,
     pub times: ProcessingTimes,
+    pub highlight_cache: (usize, u64),
 }
 struct PreparedSamples {
     raw: Vec<[u8; 3]>,
@@ -311,7 +314,12 @@ pub fn validate_mirroring(c: &Config) -> Result<()> {
         accuracy
             || matches!(
                 c.sampling_mode.as_str(),
-                "auto" | "palette_adaptive" | "edge_direct" | "area_average"
+                "auto"
+                    | "palette_adaptive"
+                    | "edge_direct"
+                    | "area_average"
+                    | "peak_luma"
+                    | "vivid_weighted"
             ),
         "Sampling mode {} awaits native verification; use the Python fallback",
         c.sampling_mode
@@ -335,6 +343,16 @@ pub fn validate_mirroring(c: &Config) -> Result<()> {
     Ok(())
 }
 impl Pipeline {
+    /// Verification path; same arithmetic, with exact-patch reuse disabled.
+    pub fn without_highlight_cache() -> Self {
+        Self {
+            disable_highlight_cache: true,
+            ..Default::default()
+        }
+    }
+    pub fn highlight_cache_statistics(&self) -> (usize, u64) {
+        self.highlight.statistics()
+    }
     /// Quantization history must reflect acknowledged output, not queued frames.
     pub fn override_sent(&mut self, sent: &[[u8; 3]]) {
         if self.previous_sent != sent {
@@ -371,7 +389,7 @@ impl Pipeline {
         } else {
             &c.sampling_mode
         };
-        if !accuracy && mode == "palette_adaptive" {
+        if !accuracy && matches!(mode, "palette_adaptive" | "peak_luma" | "vivid_weighted") {
             let mut peaks: Vec<u8> = self
                 .previous_sample
                 .iter()
@@ -387,7 +405,14 @@ impl Pipeline {
             }
         }
         ensure!(
-            matches!(mode, "palette_adaptive" | "edge_direct" | "area_average"),
+            matches!(
+                mode,
+                "palette_adaptive"
+                    | "edge_direct"
+                    | "area_average"
+                    | "peak_luma"
+                    | "vivid_weighted"
+            ),
             "Sampling mode {mode} awaits native verification; use the Python fallback"
         );
         let masked = mask(frame, c);
@@ -405,12 +430,17 @@ impl Pipeline {
                 _ => 2,
             }
         };
+        if matches!(mode, "peak_luma" | "vivid_weighted") {
+            self.highlight.reset(zones.len());
+        } else {
+            self.highlight.clear();
+        }
         let mut mixed_ms = 0.0;
         let mut palette_ms = 0.0;
         let mut raw = Vec::with_capacity(zones.len());
         let mut modes = Vec::with_capacity(zones.len());
         for (index, z) in zones.into_iter().enumerate() {
-            if mode != "palette_adaptive" && c.zone_box_filter_sampling {
+            if matches!(mode, "edge_direct" | "area_average") && c.zone_box_filter_sampling {
                 let z = if c.zone_box_filter_sampling {
                     anchor(z, frame.width, frame.height)
                 } else {
@@ -450,6 +480,17 @@ impl Pipeline {
                     let i = (row * frame.width + col) * 3;
                     patch.push([bytes[i], bytes[i + 1], bytes[i + 2]]);
                 }
+            }
+            if matches!(mode, "peak_luma" | "vivid_weighted") {
+                let (color, fallback) = if self.disable_highlight_cache {
+                    self.sampler.highlight_mean(&patch, mode == "peak_luma")?
+                } else {
+                    self.highlight
+                        .sample(&self.sampler, index, patch, mode == "peak_luma")?
+                };
+                raw.push(color);
+                modes.push(if fallback { "area_average" } else { mode }.to_string());
+                continue;
             }
             if mode != "palette_adaptive" {
                 let pw = (x1 - x).div_ceil(stride);
@@ -765,6 +806,7 @@ impl Pipeline {
         self.frame_index += 1;
         let total_ms = started.elapsed().as_secs_f64() * 1000.0;
         Ok(Output {
+            highlight_cache: self.highlight.statistics(),
             colors,
             sampled: raw,
             modes,

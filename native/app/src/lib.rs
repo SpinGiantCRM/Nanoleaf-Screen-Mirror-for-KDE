@@ -3,6 +3,7 @@ pub mod capture;
 pub mod config;
 pub mod device;
 pub mod geometry;
+mod highlight;
 pub mod launcher;
 pub mod pipeline;
 #[cfg(feature = "gui")]

@@ -270,6 +270,35 @@ preserves both calibration profiles and the entire calibration table exactly.
 No physical unplug, suspend/resume, NL82K1 emitted-light, colourimeter, optical
 timing or sustained thermal/power testing has been claimed.
 
+2026-10-13 native policy follow-up: `peak_luma` and `vivid_weighted` are now
+implemented and exposed in Advanced / Troubleshooting. Both retain mixed-content,
+low-light, global dark-scene and letterbox fallbacks. The core uses complete
+configured patch coverage and float64 linear-light accumulation. Uniform RGB
+patches remain exact; peak selection uses exact order statistics instead of a
+full sort. A cache capped at 16 MiB reuses pure sampling results only after
+byte-for-byte patch and mode equality. It caches no calibration/output/ACK
+history and invalidates changed pixels; colour accuracy is not approximated.
+
+Evidence is in `perf/rust-highlight-policies-2026-10-13`: 118 golden cases,
+all 256 uniform grey codes for both modes, black/neutral guards, and cached vs
+uncached complete outputs across repeats, cuts and privacy masks. Complete
+Python/native replay at 640×360, 2560×1440 and 3840×2160 covers reference and
+ambient styles with four evolving frames per fixture. Both refined and final cached
+runs matched every sample, final colour and GRB packet exactly (72 frames per
+mode). These short, often uniform synthetic sequences are not typical-game
+speedup claims. The initial 4K peak kernel cost 46–50 ms; restored global guards
+and uniform fast paths reduced those fixtures to 3–5 ms. On the changing real
+desktop, read-only peak processing then cost 39.278 ms and vivid 29.036 ms,
+which the synthetic averages had hidden. Exact-patch reuse/order-statistic
+selection reduced later windows to 3.761 ms and 3.302 ms respectively. The
+peak run retained 6,952,320 bytes and recorded 11,813 exact hits. These live
+windows used copied configs, high quality, full CPU pixel policies in the Vulkan
+capture child and no USB output. A final live recheck of the unchanged reference configuration
+verified 242 more complete GPU/CPU colour outputs exactly. Local native tests now
+total 43, with minimum-compiler core/app and streaming Clippy/tests passing.
+Desktop content varies; retain both slow and refined records, and do not
+generalize them to uncached moving scenes.
+
 Remaining adoption gates:
 
 1. Complete optional sampling/analysis policy and UI parity, or explicitly retire

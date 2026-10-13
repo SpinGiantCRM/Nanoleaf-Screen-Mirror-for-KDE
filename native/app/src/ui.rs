@@ -340,7 +340,7 @@ impl Settings {
                 ));
             }
             ui.group(|ui|{
-            choice(ui,"Sampling",&mut self.draft.sampling_mode,&["auto","palette_adaptive","edge_direct","area_average"]);choice(ui,"Sampling quality",&mut self.draft.sampling_quality,&["high","balanced","low"]);choice(ui,"Motion preset",&mut self.draft.motion_preset,&["responsive","calm","dynamic"]);choice(ui,"Light spread",&mut self.draft.light_spread,&["off","precise","balanced","soft"]);
+            choice(ui,"Sampling",&mut self.draft.sampling_mode,&["auto","palette_adaptive","edge_direct","area_average","peak_luma","vivid_weighted"]);choice(ui,"Sampling quality",&mut self.draft.sampling_quality,&["high","balanced","low"]);choice(ui,"Motion preset",&mut self.draft.motion_preset,&["responsive","calm","dynamic"]);choice(ui,"Light spread",&mut self.draft.light_spread,&["off","precise","balanced","soft"]);
             ui.checkbox(&mut self.draft.accuracy_mode,"Accuracy mode");ui.checkbox(&mut self.draft.blue_noise_dither,"Sub-code temporal dithering");ui.checkbox(&mut self.draft.zone_temporal_accumulation,"Temporal sample accumulation");
             ui.separator();ui.checkbox(&mut self.hdr_profile,"Edit HDR profile");if self.hdr_profile{profile_ui(ui,&mut self.draft.led_calibration_profile_hdr);}else{profile_ui(ui,&mut self.draft.led_calibration_profile_sdr);}
             ui.small("KWin screenshots already contain SDR sRGB colour. The SDR LED profile applies to that capture even on an HDR desktop. Your HDR profile is retained.");
