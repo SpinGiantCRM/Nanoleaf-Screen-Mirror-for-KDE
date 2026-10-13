@@ -5,8 +5,11 @@ pub mod device;
 pub mod geometry;
 pub mod launcher;
 pub mod pipeline;
+#[cfg(feature = "gui")]
+pub mod portal_file;
 pub mod priority;
 pub mod probe;
+pub mod profile;
 pub mod screens;
 pub mod service;
 pub mod spatial;

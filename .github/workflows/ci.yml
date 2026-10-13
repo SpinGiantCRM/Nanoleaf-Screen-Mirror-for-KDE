@@ -106,7 +106,7 @@ jobs:
       - name: Install native build and oracle dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq pkg-config libegl1-mesa-dev libgl1-mesa-dev libxkbcommon-dev libwayland-dev
+          sudo apt-get install -y -qq pkg-config dbus-daemon libegl1-mesa-dev libgl1-mesa-dev libxkbcommon-dev libwayland-dev
           pip install -e .
           rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
           cargo +1.95.0 fetch --manifest-path native/app/Cargo.toml --locked

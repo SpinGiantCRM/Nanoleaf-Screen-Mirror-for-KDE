@@ -31,6 +31,8 @@ pub fn open(path: &Path) -> anyhow::Result<()> {
                 preview_zone: 0,
                 screens: crate::screens::names().unwrap_or_default(),
                 hdr_profile: false,
+                picker: None,
+                profile_action: None,
             }))
         }),
     )
@@ -47,9 +49,44 @@ struct Settings {
     preview_zone: usize,
     screens: Vec<String>,
     hdr_profile: bool,
+    picker: Option<crate::portal_file::Picker>,
+    profile_action: Option<ProfileAction>,
+}
+enum ProfileAction {
+    Import,
+    Export(String, LedProfile),
 }
 impl eframe::App for Settings {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        if let Some(result) = self.picker.as_ref().and_then(|p| p.result()) {
+            self.picker = None;
+            self.message = match (result, self.profile_action.take()) {
+                (Ok(Some(path)), Some(ProfileAction::Import)) => {
+                    match crate::profile::load(&path) {
+                        Ok((preset, profile)) => {
+                            self.hdr_profile = preset == "hdr";
+                            if self.hdr_profile {
+                                self.draft.led_calibration_profile_hdr = profile;
+                            } else {
+                                self.draft.led_calibration_profile_sdr = profile;
+                            }
+                            "Profile imported into the draft. Save / Apply to use it.".into()
+                        }
+                        Err(e) => format!("Profile not imported: {e}"),
+                    }
+                }
+                (Ok(Some(path)), Some(ProfileAction::Export(preset, profile))) => {
+                    match crate::profile::export(&path, &preset, &profile) {
+                        Ok(Some(_)) => "Profile exported. The previous file was backed up.".into(),
+                        Ok(None) => "Profile exported.".into(),
+                        Err(e) => format!("Profile not exported: {e}"),
+                    }
+                }
+                (Ok(None), _) => "File selection cancelled".into(),
+                (Err(e), _) => format!("File selection unavailable: {e}"),
+                _ => "File selection cancelled".into(),
+            };
+        }
         if self.last_poll.elapsed() > Duration::from_secs(1) {
             self.status = service::send(&Control::Status).ok();
             self.last_poll = Instant::now();
@@ -258,6 +295,32 @@ impl Settings {
         ui.separator();
         ui.checkbox(&mut self.advanced, "Advanced / Troubleshooting");
         if self.advanced {
+            if self.picker.is_some() {
+                ui.label("Choose the profile file in KDE's file dialog.");
+                if ui.button("Cancel file selection").clicked() {
+                    self.picker = None;
+                    self.profile_action = None;
+                    self.message = "File selection cancelled".into();
+                }
+            } else {
+                ui.horizontal(|ui| {
+                    if ui.button("Import measured profile…").clicked() {
+                        self.picker = Some(crate::portal_file::Picker::start(None));
+                        self.profile_action = Some(ProfileAction::Import);
+                    }
+                    if ui.button("Export current profile…").clicked() {
+                        let (preset, profile) = if self.hdr_profile {
+                            ("hdr", self.draft.led_calibration_profile_hdr.clone())
+                        } else {
+                            ("sdr", self.draft.led_calibration_profile_sdr.clone())
+                        };
+                        self.picker = Some(crate::portal_file::Picker::start(Some(format!(
+                            "nanoleaf-led-{preset}.json"
+                        ))));
+                        self.profile_action = Some(ProfileAction::Export(preset.into(), profile));
+                    }
+                });
+            }
             choice(
                 ui,
                 "Performance priority",
