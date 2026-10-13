@@ -1,173 +1,76 @@
 # Nanoleaf Screen Mirror for KDE
 
 [![CI](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/actions/workflows/ci.yml/badge.svg)](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/actions/workflows/ci.yml)
-[![Latest release](https://img.shields.io/github/v/release/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE)](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/releases)
-[![PyPI](https://img.shields.io/pypi/v/nanoleaf-kde-sync)](https://pypi.org/project/nanoleaf-kde-sync/)
-[![Python](https://img.shields.io/pypi/pyversions/nanoleaf-kde-sync)](https://pypi.org/project/nanoleaf-kde-sync/)
+[![Native bundle](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/actions/workflows/native-bundle.yml/badge.svg)](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/actions/workflows/native-bundle.yml)
 [![License](https://img.shields.io/github/license/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE)](LICENSE)
-[![KDE Plasma 6](https://img.shields.io/badge/KDE%20Plasma-6-blue)](https://kde.org/plasma-desktop/)
 
-Mirror your screen edge colours to a supported Nanoleaf USB light strip on KDE Plasma 6.
+A Rust tray application that mirrors screen-edge colours to one Nanoleaf
+NL82K1/NL82K2 USB strip on KDE Plasma Wayland. It includes settings, manual strip
+setup, calibration, acknowledged USB output and reconnect recovery. The settings
+window opens on demand; Stop pauses mirroring while keeping the tray available.
 
-Built for:
+Colour accuracy takes priority over latency/FPS, then system resource usage.
+KWin capture remains the automatic backend. Optional permission-mediated
+PipeWire/Vulkan streaming is available in Advanced, with exact zone sampling and
+safe worker recovery. Reference/accuracy mode bypasses prediction and appearance
+policies. Black turns off immediately and temporal accumulation blends in linear
+light. Conservative 4D prediction is opt-in and disabled with dithering.
 
-- KDE Plasma 6 on Linux
-- Wayland sessions
-- Nanoleaf USB strips NL82K1 / NL82K2
-- Single-monitor edge mirroring
+## Install and start
 
-The app runs from your system tray, guides you through strip setup, lets you calibrate corner mapping, and includes diagnostics when capture, USB, or colour output needs fixing.
+See [native installation, upgrade and rollback](docs/NATIVE_INSTALL.md) for the
+complete requirements and instructions. Use a native release asset when available,
+or the **nanoleaf-native-linux-x86_64** artifact from a passing **Native Rust bundle**
+run on `main`. CI artifacts are test builds; a green build does not verify emitted
+light on every device or desktop.
 
-## Works best with / not supported yet
-
-**Works best with:**
-
-- KDE Plasma 6 (Wayland recommended)
-- Nanoleaf USB strips: `NL82K1` (`0x37fa:0x8201`) or `NL82K2` (`0x37fa:0x8202`)
-- Single-monitor setups
-
-**Not supported yet:**
-
-- Multi-monitor mirroring
-- Multiple strips
-- Non-KDE desktops as the primary target
-
-## Privacy and safety
-
-This app reads your screen locally through KDE capture APIs and sends colour values to a supported USB HID strip. It does not run a network server. Diagnostics exports are local and should be reviewed before sharing. See [Security](docs/SECURITY.md) for the full threat model.
-
-## Install
-
-**Recommended:**
+From a source checkout with the documented development dependencies installed:
 
 ```bash
-pipx install nanoleaf-kde-sync
-nanoleaf-kde-sync-setup-permissions
-nanoleaf-kde-sync-doctor
-nanoleaf-kde-sync
+bash scripts/build_native_bundle.sh dist/native
+./dist/native/bin/nanoleaf-native --install-native
 ```
 
-After installing permissions, log out and back in, then reconnect the strip.
+For a downloaded archive, extract it and run
+`./native/bin/nanoleaf-native --install-native`. Open **Nanoleaf Screen Mirror
+(Rust)** from KDE's application launcher, then Settings to select the monitor and
+manually configure the strip's LED count, corner anchors and channel order.
+Save / Apply keeps Settings open. `nanoleaf-native --doctor` checks readiness
+without driving the LEDs.
 
-On distros without PEP 668 restrictions you can use `pip install nanoleaf-kde-sync` instead of pipx.
+Existing calibration and unknown configuration fields are retained in
+`~/.config/nanoleaf-kde-sync/config.toml`. Validated saves create private backups.
+The native installer keeps previous versions for rollback and does not enable
+login startup automatically. Never run two applications against the strip.
 
-Arch package maintainers: see [docs/PACKAGING_AUR.md](docs/PACKAGING_AUR.md) for local build and AUR publish steps.
+## Scope and colour limits
 
-## Quick start
+One selected monitor, one USB strip and an authoritative manual LED count.
+Streaming is opt-in on the verified KDE path. Captured SDR display-referred pixels
+are not treated as raw HDR; unsupported raw PQ/HLG/FP16 formats and native
+privileged DRM capture fail explicitly. No extra DRM capabilities are required
+by the Rust app. Use the [legacy fallback](docs/LEGACY_PYTHON.md) when its existing
+DRM path is needed.
 
-| Step | Command / action | What should happen |
-| ---- | ---------------- | ------------------ |
-| 1 | `pipx install nanoleaf-kde-sync` | CLI commands become available |
-| 2 | `nanoleaf-kde-sync-setup-permissions` | udev rules installed; DRM setcap command printed if needed |
-| 3 | Log out/in, reconnect strip | USB permissions take effect |
-| 4 | `nanoleaf-kde-sync-doctor` | Device/capture checks show OK or clear fixes |
-| 5 | `nanoleaf-kde-sync` | Tray icon appears |
-| 6 | Tray → **Set up strip…** | Wizard completes; test pattern reaches the strip |
-| 7 | **Start** | LEDs follow screen edges |
+The NL82K2 was tested with real output and physical USB reconnect; the user
+confirmed colours resumed. NL82K1 emitted light, physical suspend/resume,
+externally revoked portal permission, optical latency, colourimeter accuracy,
+power and sustained game load remain unverified.
 
-Optional first-run helpers:
+## Evidence and development
 
-```bash
-nanoleaf-kde-sync-init-config
-nanoleaf-kde-sync-smoke-test
-```
+- [Research and architecture](docs/RUST_MIGRATION_RESEARCH.md)
+- [Completion, measured performance and verification limits](docs/RUST_NATIVE_COMPLETION.md)
+- [Streaming Vulkan backend](docs/RUST_STREAM_VULKAN.md)
+- [Native application development](native/app/README.md)
+- [Preserved Python fallback](docs/LEGACY_PYTHON.md)
 
-Service-only mode:
+Rust contracts, colour/protocol replay, recovery and packaging tests run in CI.
+The preserved Python implementation remains a regression reference, with its
+full version matrix checked weekly. Benchmark evidence lives in `perf/` and
+separates software timing from unmeasured optical response.
 
-```bash
-nanoleaf-kde-sync-service
-```
-
-## If something looks wrong
-
-1. Open tray → **Help & Diagnostics**
-2. Click **Refresh**
-3. Export a support bundle if asking for help
-4. Use **Reset** only if calibration or config is clearly broken
-
-See [Troubleshooting](docs/TROUBLESHOOTING.md) for symptom-based guidance.
-
-## Core commands
-
-- `nanoleaf-kde-sync` — tray app (recommended)
-- `nanoleaf-kde-sync-setup-permissions` — install udev rules and print DRM helper guidance
-- `nanoleaf-kde-sync-doctor` — environment/device diagnostics
-- `nanoleaf-kde-sync-smoke-test` — quick functional sanity check
-- `nanoleaf-kde-sync-init-config` — generate default config
-- `nanoleaf-kde-sync-service` — headless runtime service
-- `nanoleaf-kde-sync-autostart` — manage KDE autostart integration
-- `nanoleaf-kde-sync-reset` — reset config/calibration/diagnostic cache safely
-- `nanoleaf-kde-sync-benchmark` — synthetic pipeline performance benchmark (developers/diagnostics)
-
-## First-run setup
-
-1. Start the tray app (`nanoleaf-kde-sync`).
-2. Complete the setup wizard.
-3. Keep **manual strip zone count** set to your real hardware value.
-4. Run a calibration test pattern and assign TL/TR/BR/BL anchors.
-
-Manual strip count is authoritative for runtime, mapping, and calibration. Device-reported count is diagnostics-only unless you explicitly apply a new value.
-
-See the [User guide](docs/USER_GUIDE.md) for a full walkthrough. See [Diagnostics](docs/DIAGNOSTICS.md), [Performance](docs/PERFORMANCE.md), and [Roadmap](docs/ROADMAP.md) for advanced topics.
-
-## HDR / SDR notes
-
-- `Display preset = SDR`: SDR-safe defaults.
-- `Display preset = HDR`: HDR-first defaults.
-- `Display preset = Auto`: follows compositor capability.
-
-On Plasma HDR desktops, verify SDR white reference and compositor HDR settings in app diagnostics before tuning brightness.
-
-## Reset commands
-
-```bash
-nanoleaf-kde-sync-reset app-config --stop-runtime
-nanoleaf-kde-sync-reset calibration --stop-runtime
-nanoleaf-kde-sync-reset diagnostics --stop-runtime
-```
-
-## Documentation
-
-- [User guide](docs/USER_GUIDE.md)
-- [Hardware setup](docs/HARDWARE_SETUP.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [Smoke test](docs/SMOKE_TEST.md)
-- [Security](docs/SECURITY.md)
-- [Contributing](CONTRIBUTING.md)
-
-Installed packages also ship docs under `/usr/share/doc/nanoleaf-kde-sync/`.
-
-## Developer / local checkout only
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .[test]
-pre-commit install
-pre-commit run --all-files
-```
-
-Udev rules from a git checkout:
-
-```bash
-./scripts/setup_udev.sh
-```
-
-Pacman-managed reinstall from a local checkout:
-
-```bash
-./scripts/reinstall_local.sh
-./scripts/uninstall_local.sh
-# optional full purge:
-./scripts/uninstall_local.sh --purge-config
-```
-
-Local Arch package build: `./scripts/build_arch_package.sh`. See [docs/PACKAGING_AUR.md](docs/PACKAGING_AUR.md).
-
-## Release gate
-
-Run `./scripts/release_gate.sh` before tagging a release. CI must be green on `main`.
-
-## License
-
-Source-available non-commercial license — see [LICENSE](LICENSE). Redistribution terms apply; read before packaging or mirroring.
+Release history and tags are retained for recovery. Artifact cleanup only removes
+old artifacts and protects the newest native download for main and open pull
+requests. Native release tags use `native-vX.Y.Z`; publishing a Python release
+requires the separate explicit legacy workflow.

@@ -1,0 +1,21 @@
+[package]
+name = "nanoleaf-linux-gpu"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.95"
+publish = false
+license-file = "../../LICENSE"
+[workspace]
+[dependencies]
+anyhow = "1.0"
+serde_json = "1.0"
+nanoleaf-vulkan-probe = { path = "../gpu-probe" }
+nanoleaf-core = { path = "../core" }
+wgpu = { version = "=30.0.1", default-features = false, features = ["std", "parking_lot", "vulkan", "wgsl"] }
+ash = "0.38"
+pipewire = { version = "=0.10.1", features = ["v0_3_65"] }
+libc = "0.2"
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+[lints.clippy]
+undocumented_unsafe_blocks = "deny"

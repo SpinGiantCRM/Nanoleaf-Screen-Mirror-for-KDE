@@ -1,0 +1,138 @@
+{
+  "kind": "offline-synthetic-and-import-baseline",
+  "python": "3.14.7",
+  "kernel": "7.2.9-2-cachyos-bore",
+  "imports": {
+    "interpreter": {
+      "import_ms": 0.00014999386621639132,
+      "memory_kib": {
+        "Rss": 12408,
+        "Pss": 5790
+      },
+      "sleep_idle_cpu_percent_one_core": 0.0008570999999999752,
+      "spawn_import_exit_minus_sleep_ms": 16.748950998589862
+    },
+    "numpy": {
+      "import_ms": 46.16072500357404,
+      "memory_kib": {
+        "Rss": 29512,
+        "Pss": 17795
+      },
+      "sleep_idle_cpu_percent_one_core": 14.7656196,
+      "spawn_import_exit_minus_sleep_ms": 68.60475599387428
+    },
+    "service_import": {
+      "import_ms": 138.86569999885978,
+      "memory_kib": {
+        "Rss": 52120,
+        "Pss": 35135
+      },
+      "sleep_idle_cpu_percent_one_core": 0.0008926500000006055,
+      "spawn_import_exit_minus_sleep_ms": 168.52086200378835
+    },
+    "tray_import": {
+      "import_ms": 135.20732300094096,
+      "memory_kib": {
+        "Rss": 73588,
+        "Pss": 54275
+      },
+      "sleep_idle_cpu_percent_one_core": 0.000970350000001341,
+      "spawn_import_exit_minus_sleep_ms": 168.6677609977778
+    },
+    "qt_application_only": {
+      "import_ms": 11.702901996613946,
+      "memory_kib": {
+        "Rss": 39016,
+        "Pss": 27526
+      },
+      "sleep_idle_cpu_percent_one_core": 0.0008054999999999868,
+      "spawn_import_exit_minus_sleep_ms": 34.48844700324116
+    }
+  },
+  "production_runs": [
+    {
+      "preset": "production",
+      "width": 640,
+      "height": 360,
+      "zone_count": 48,
+      "iterations": 120,
+      "warmup": 10,
+      "metrics": {
+        "zone_sampling": {
+          "p95_ms": 2.176982001401484,
+          "median_ms": 1.7640344958635978,
+          "max_ms": 3.166269001667388,
+          "samples": 120
+        },
+        "colour_pipeline": {
+          "p95_ms": 24.984736999613233,
+          "median_ms": 22.9090319990064,
+          "max_ms": 26.896793002379127,
+          "samples": 120
+        },
+        "hid_frame_build": {
+          "p95_ms": 0.011051000910811126,
+          "median_ms": 0.010665498848538846,
+          "max_ms": 0.014769000699743629,
+          "samples": 120
+        }
+      }
+    },
+    {
+      "preset": "production",
+      "width": 640,
+      "height": 360,
+      "zone_count": 48,
+      "iterations": 120,
+      "warmup": 10,
+      "metrics": {
+        "zone_sampling": {
+          "p95_ms": 1.8337880028411746,
+          "median_ms": 1.6911609964154195,
+          "max_ms": 1.9636960059870034,
+          "samples": 120
+        },
+        "colour_pipeline": {
+          "p95_ms": 23.14906499668723,
+          "median_ms": 22.23512150158058,
+          "max_ms": 24.865598999895155,
+          "samples": 120
+        },
+        "hid_frame_build": {
+          "p95_ms": 0.012033000530209392,
+          "median_ms": 0.011862997780553997,
+          "max_ms": 0.019086000975221395,
+          "samples": 120
+        }
+      }
+    },
+    {
+      "preset": "production",
+      "width": 640,
+      "height": 360,
+      "zone_count": 48,
+      "iterations": 120,
+      "warmup": 10,
+      "metrics": {
+        "zone_sampling": {
+          "p95_ms": 1.7335459997411817,
+          "median_ms": 1.6849884996190667,
+          "max_ms": 2.6949900056933984,
+          "samples": 120
+        },
+        "colour_pipeline": {
+          "p95_ms": 26.69514899753267,
+          "median_ms": 23.044054501951905,
+          "max_ms": 27.51988200179767,
+          "samples": 120
+        },
+        "hid_frame_build": {
+          "p95_ms": 0.012172997230663896,
+          "median_ms": 0.011066498700529337,
+          "max_ms": 0.023255000996869057,
+          "samples": 120
+        }
+      }
+    }
+  ]
+}

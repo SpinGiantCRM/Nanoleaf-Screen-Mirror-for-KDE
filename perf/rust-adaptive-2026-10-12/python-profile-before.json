@@ -1,0 +1,3610 @@
+{
+  "reference_commit": "920f575",
+  "scope": "cProfile overhead included; SDR synthetic default modes; no capture or USB",
+  "reports": [
+    {
+      "size": [
+        640,
+        360
+      ],
+      "frames": 12,
+      "profiled_wall_seconds": 0.3168611770015559,
+      "functions": [
+        {
+          "file": "<stdin>",
+          "line": 22,
+          "name": "replay",
+          "calls": 1,
+          "self_seconds": 8.9802e-05,
+          "cumulative_seconds": 0.316832002
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/engine_frame.py",
+          "line": 518,
+          "name": "process_frame",
+          "calls": 12,
+          "self_seconds": 0.00041899000000000005,
+          "cumulative_seconds": 0.31638038900000004
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_pipeline.py",
+          "line": 264,
+          "name": "process_zone_colors",
+          "calls": 12,
+          "self_seconds": 0.0008514540000000001,
+          "cumulative_seconds": 0.315713275
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 1060,
+          "name": "zone_colors_array_with_meta",
+          "calls": 12,
+          "self_seconds": 8.6723e-05,
+          "cumulative_seconds": 0.30330916
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 662,
+          "name": "zone_colors_array",
+          "calls": 12,
+          "self_seconds": 0.003718508,
+          "cumulative_seconds": 0.30322102300000003
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 386,
+          "name": "palette_adaptive_zone_color",
+          "calls": 376,
+          "self_seconds": 0.0029695050000000003,
+          "cumulative_seconds": 0.19022829900000002
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 255,
+          "name": "palette_adaptive_zone_frame",
+          "calls": 376,
+          "self_seconds": 0.006700442,
+          "cumulative_seconds": 0.167029375
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 537,
+          "name": "detect_zone_patch_mixed_content",
+          "calls": 576,
+          "self_seconds": 0.020897132000000002,
+          "cumulative_seconds": 0.06346605300000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'reduce' of 'numpy.ufunc' objects>",
+          "calls": 27024,
+          "self_seconds": 0.04545318,
+          "cumulative_seconds": 0.04545318
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/_methods.py",
+          "line": 115,
+          "name": "_mean",
+          "calls": 6512,
+          "self_seconds": 0.017600001,
+          "cumulative_seconds": 0.041413803000000006
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 175,
+          "name": "_candidate_peak_luma",
+          "calls": 376,
+          "self_seconds": 0.004052092,
+          "cumulative_seconds": 0.038103332000000004
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 129,
+          "name": "_candidate_dominant_saturated_hue",
+          "calls": 376,
+          "self_seconds": 0.009750084000000001,
+          "cumulative_seconds": 0.032327807
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/srgb.py",
+          "line": 62,
+          "name": "linear01_to_srgb_float",
+          "calls": 1880,
+          "self_seconds": 0.0032908990000000003,
+          "cumulative_seconds": 0.030330890000000003
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 1199,
+          "name": "_zone_means_optimized",
+          "calls": 12,
+          "self_seconds": 0.001918626,
+          "cumulative_seconds": 0.030163151000000003
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'mean' of 'numpy.ndarray' objects>",
+          "calls": 3960,
+          "self_seconds": 0.001405465,
+          "cumulative_seconds": 0.028978652
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 3827,
+          "name": "_ureduce",
+          "calls": 600,
+          "self_seconds": 0.00102005,
+          "cumulative_seconds": 0.025875403
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/srgb.py",
+          "line": 32,
+          "name": "linear01_to_srgb_encoded",
+          "calls": 2128,
+          "self_seconds": 0.014074866,
+          "cumulative_seconds": 0.025532706000000002
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 2245,
+          "name": "clip",
+          "calls": 9012,
+          "self_seconds": 0.005695327,
+          "cumulative_seconds": 0.023997976
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'cumsum' of 'numpy.ndarray' objects>",
+          "calls": 24,
+          "self_seconds": 0.023492081,
+          "cumulative_seconds": 0.023492081
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4267,
+          "name": "quantile",
+          "calls": 376,
+          "self_seconds": 0.000574625,
+          "cumulative_seconds": 0.022549490000000002
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4512,
+          "name": "_quantile_unchecked",
+          "calls": 376,
+          "self_seconds": 0.00047055,
+          "cumulative_seconds": 0.020640174
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4651,
+          "name": "_quantile_ureduce_func",
+          "calls": 376,
+          "self_seconds": 0.000430741,
+          "cumulative_seconds": 0.019342928000000002
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 48,
+          "name": "_wrapfunc",
+          "calls": 9388,
+          "self_seconds": 0.0033670650000000002,
+          "cumulative_seconds": 0.018812718000000003
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4726,
+          "name": "_quantile",
+          "calls": 376,
+          "self_seconds": 0.004021618,
+          "cumulative_seconds": 0.018721622
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_temporal.py",
+          "line": 150,
+          "name": "stabilize_palette_zone",
+          "calls": 376,
+          "self_seconds": 0.004281051,
+          "cumulative_seconds": 0.016499215
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 3871,
+          "name": "std",
+          "calls": 952,
+          "self_seconds": 0.001049439,
+          "cumulative_seconds": 0.015946562
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 3737,
+          "name": "mean",
+          "calls": 2552,
+          "self_seconds": 0.002045926,
+          "cumulative_seconds": 0.015886542
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 107,
+          "name": "_patch_features",
+          "calls": 376,
+          "self_seconds": 0.003925904,
+          "cumulative_seconds": 0.015379066
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/_methods.py",
+          "line": 217,
+          "name": "_std",
+          "calls": 952,
+          "self_seconds": 0.001508416,
+          "cumulative_seconds": 0.014897123000000002
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 196,
+          "name": "_score_candidate",
+          "calls": 1880,
+          "self_seconds": 0.003967646,
+          "cumulative_seconds": 0.013746679000000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'max' of 'numpy.ndarray' objects>",
+          "calls": 1704,
+          "self_seconds": 0.000690821,
+          "cumulative_seconds": 0.013239131000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/_methods.py",
+          "line": 148,
+          "name": "_var",
+          "calls": 952,
+          "self_seconds": 0.009146211000000001,
+          "cumulative_seconds": 0.013153398
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'clip' of 'numpy.ndarray' objects>",
+          "calls": 8636,
+          "self_seconds": 0.0024360230000000003,
+          "cumulative_seconds": 0.012901266000000002
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 621,
+          "name": "_dark_biased_patch_mean",
+          "calls": 200,
+          "self_seconds": 0.00113262,
+          "cumulative_seconds": 0.012775590000000002
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/_methods.py",
+          "line": 39,
+          "name": "_amax",
+          "calls": 1704,
+          "self_seconds": 0.00036512000000000003,
+          "cumulative_seconds": 0.01254831
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 66,
+          "name": "_wrapreduction",
+          "calls": 9180,
+          "self_seconds": 0.006018817,
+          "cumulative_seconds": 0.011420752000000001
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 66,
+          "name": "_hue_degrees",
+          "calls": 376,
+          "self_seconds": 0.007600542,
+          "cumulative_seconds": 0.011133414000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/_methods.py",
+          "line": 96,
+          "name": "_clip",
+          "calls": 9012,
+          "self_seconds": 0.011017636,
+          "cumulative_seconds": 0.011017636
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'min' of 'numpy.ndarray' objects>",
+          "calls": 1328,
+          "self_seconds": 0.000410866,
+          "cumulative_seconds": 0.010795314
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/_methods.py",
+          "line": 43,
+          "name": "_amin",
+          "calls": 1328,
+          "self_seconds": 0.000290747,
+          "cumulative_seconds": 0.010384448000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 3049,
+          "name": "max",
+          "calls": 5748,
+          "self_seconds": 0.00253154,
+          "cumulative_seconds": 0.009959977
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/srgb.py",
+          "line": 44,
+          "name": "srgb_u8_to_linear01",
+          "calls": 1200,
+          "self_seconds": 0.009374243,
+          "cumulative_seconds": 0.009374243
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/_methods.py",
+          "line": 73,
+          "name": "_count_reduce_items",
+          "calls": 7464,
+          "self_seconds": 0.007427230000000001,
+          "cumulative_seconds": 0.008619929
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 150,
+          "name": "_candidate_saturated_highlight",
+          "calls": 376,
+          "self_seconds": 0.001169929,
+          "cumulative_seconds": 0.008483529
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 123,
+          "name": "_candidate_area_mean",
+          "calls": 752,
+          "self_seconds": 0.0004894340000000001,
+          "cumulative_seconds": 0.008069828000000001
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_temporal.py",
+          "line": 76,
+          "name": "_rgb_chroma",
+          "calls": 1504,
+          "self_seconds": 0.001954672,
+          "cumulative_seconds": 0.007647794
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 3914,
+          "name": "median",
+          "calls": 224,
+          "self_seconds": 0.000165756,
+          "cumulative_seconds": 0.005871535000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 3187,
+          "name": "min",
+          "calls": 3432,
+          "self_seconds": 0.001408518,
+          "cumulative_seconds": 0.005400833000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4003,
+          "name": "_median",
+          "calls": 224,
+          "self_seconds": 0.0010283,
+          "cumulative_seconds": 0.005322777000000001
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/srgb.py",
+          "line": 51,
+          "name": "linear01_to_srgb_u8",
+          "calls": 248,
+          "self_seconds": 0.000628368,
+          "cumulative_seconds": 0.004697484
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'any' of 'numpy.ndarray' objects>",
+          "calls": 4668,
+          "self_seconds": 0.001309905,
+          "cumulative_seconds": 0.004654709
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/_methods.py",
+          "line": 55,
+          "name": "_any",
+          "calls": 6396,
+          "self_seconds": 0.001448704,
+          "cumulative_seconds": 0.004551781
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4691,
+          "name": "_get_indexes",
+          "calls": 376,
+          "self_seconds": 0.0021647980000000003,
+          "cumulative_seconds": 0.004311119
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 97,
+          "name": "_meaningful_sat_mask",
+          "calls": 1504,
+          "self_seconds": 0.004020748,
+          "cumulative_seconds": 0.004020748
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_temporal.py",
+          "line": 34,
+          "name": "to_dict",
+          "calls": 952,
+          "self_seconds": 0.0016924230000000002,
+          "cumulative_seconds": 0.003919986
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 343,
+          "name": "adaptive_one_euro_blend",
+          "calls": 12,
+          "self_seconds": 0.001159162,
+          "cumulative_seconds": 0.0034918680000000004
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.round>",
+          "calls": 7392,
+          "self_seconds": 0.003084016,
+          "cumulative_seconds": 0.003084016
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numeric.py",
+          "line": 97,
+          "name": "zeros_like",
+          "calls": 1504,
+          "self_seconds": 0.002302184,
+          "cumulative_seconds": 0.003012982
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_arraysetops_impl.py",
+          "line": 145,
+          "name": "unique",
+          "calls": 376,
+          "self_seconds": 0.000399576,
+          "cumulative_seconds": 0.002985371
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 438,
+          "name": "apply_color_style_and_led_calibration_with_diagnostics",
+          "calls": 12,
+          "self_seconds": 0.000722933,
+          "cumulative_seconds": 0.0026944990000000004
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_arraysetops_impl.py",
+          "line": 350,
+          "name": "_unique1d",
+          "calls": 376,
+          "self_seconds": 0.0010460130000000002,
+          "cumulative_seconds": 0.002433746
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'any' of 'numpy.generic' objects>",
+          "calls": 1728,
+          "self_seconds": 0.001162618,
+          "cumulative_seconds": 0.002369595
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numerictypes.py",
+          "line": 411,
+          "name": "issubdtype",
+          "calls": 1352,
+          "self_seconds": 0.000989752,
+          "cumulative_seconds": 0.0023098190000000003
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'astype' of 'numpy.ndarray' objects>",
+          "calls": 5344,
+          "self_seconds": 0.0021482840000000003,
+          "cumulative_seconds": 0.0021482840000000003
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'partition' of 'numpy.ndarray' objects>",
+          "calls": 600,
+          "self_seconds": 0.002108716,
+          "cumulative_seconds": 0.002108716
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method numpy.asarray>",
+          "calls": 6456,
+          "self_seconds": 0.002088309,
+          "cumulative_seconds": 0.002088309
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_temporal.py",
+          "line": 81,
+          "name": "_rgb_hue_degrees_single",
+          "calls": 752,
+          "self_seconds": 0.001000327,
+          "cumulative_seconds": 0.0018206810000000002
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.issubclass>",
+          "calls": 16728,
+          "self_seconds": 0.0018192710000000001,
+          "cumulative_seconds": 0.0018192710000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4594,
+          "name": "_lerp",
+          "calls": 376,
+          "self_seconds": 0.0016660380000000001,
+          "cumulative_seconds": 0.0016660380000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 2474,
+          "name": "any",
+          "calls": 376,
+          "self_seconds": 0.000303131,
+          "cumulative_seconds": 0.0015649370000000002
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_temporal.py",
+          "line": 43,
+          "name": "<genexpr>",
+          "calls": 3808,
+          "self_seconds": 0.000565456,
+          "cumulative_seconds": 0.00150978
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 250,
+          "name": "_pick_raw_best",
+          "calls": 376,
+          "self_seconds": 0.00050852,
+          "cumulative_seconds": 0.001479901
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.isinstance>",
+          "calls": 11956,
+          "self_seconds": 0.0014744270000000002,
+          "cumulative_seconds": 0.0014744270000000002
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.getattr>",
+          "calls": 11460,
+          "self_seconds": 0.001392236,
+          "cumulative_seconds": 0.001392236
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 732,
+          "name": "partition",
+          "calls": 224,
+          "self_seconds": 0.000121359,
+          "cumulative_seconds": 0.00131583
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 86,
+          "name": "_wrapreduction_any_all",
+          "calls": 376,
+          "self_seconds": 0.000491408,
+          "cumulative_seconds": 0.001261806
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 50,
+          "name": "as_dict",
+          "calls": 376,
+          "self_seconds": 0.00041055700000000003,
+          "cumulative_seconds": 0.001249721
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method numpy.asanyarray>",
+          "calls": 11628,
+          "self_seconds": 0.001239525,
+          "cumulative_seconds": 0.001239525
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numerictypes.py",
+          "line": 229,
+          "name": "issubclass_",
+          "calls": 2704,
+          "self_seconds": 0.0007615250000000001,
+          "cumulative_seconds": 0.0012164320000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4534,
+          "name": "_quantile_is_valid",
+          "calls": 376,
+          "self_seconds": 0.000421294,
+          "cumulative_seconds": 0.001188826
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 201,
+          "name": "apply_neighbor_blend",
+          "calls": 12,
+          "self_seconds": 0.0006647300000000001,
+          "cumulative_seconds": 0.001077256
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 406,
+          "name": "apply_dark_zone_output",
+          "calls": 12,
+          "self_seconds": 0.000201448,
+          "cumulative_seconds": 0.0010177130000000002
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'clip' of 'numpy.generic' objects>",
+          "calls": 376,
+          "self_seconds": 0.00045737100000000004,
+          "cumulative_seconds": 0.001009764
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_utils_impl.py",
+          "line": 407,
+          "name": "_median_nancheck",
+          "calls": 224,
+          "self_seconds": 0.000370033,
+          "cumulative_seconds": 0.0010039480000000002
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'items' of 'dict' objects>",
+          "calls": 9932,
+          "self_seconds": 0.0009694770000000001,
+          "cumulative_seconds": 0.0009694770000000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method numpy.lib.array_utils.normalize_axis_index>",
+          "calls": 8828,
+          "self_seconds": 0.00096679,
+          "cumulative_seconds": 0.00096679
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.sorted>",
+          "calls": 376,
+          "self_seconds": 0.000717733,
+          "cumulative_seconds": 0.0009400620000000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.hasattr>",
+          "calls": 6760,
+          "self_seconds": 0.0008950690000000001,
+          "cumulative_seconds": 0.0008950690000000001
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/content_bounds.py",
+          "line": 31,
+          "name": "detect_content_bounds",
+          "calls": 12,
+          "self_seconds": 8.7538e-05,
+          "cumulative_seconds": 0.000885069
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 1259,
+          "name": "argmax",
+          "calls": 376,
+          "self_seconds": 0.00034415000000000004,
+          "cumulative_seconds": 0.000854219
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4570,
+          "name": "_get_gamma",
+          "calls": 376,
+          "self_seconds": 0.000587699,
+          "cumulative_seconds": 0.000838821
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 2240,
+          "name": "_clip_dispatcher",
+          "calls": 9012,
+          "self_seconds": 0.000825023,
+          "cumulative_seconds": 0.000825023
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'reshape' of 'numpy.ndarray' objects>",
+          "calls": 1340,
+          "self_seconds": 0.0007050330000000001,
+          "cumulative_seconds": 0.0007050330000000001
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 330,
+          "name": "stabilize_dark_zone_samples",
+          "calls": 12,
+          "self_seconds": 0.000217044,
+          "cumulative_seconds": 0.0006617740000000001
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 317,
+          "name": "oklch_to_rgb_u8_hybrid",
+          "calls": 12,
+          "self_seconds": 2.7826e-05,
+          "cumulative_seconds": 0.00062387
+        },
+        {
+          "file": "/usr/lib/python3.14/dataclasses.py",
+          "line": 1763,
+          "name": "replace",
+          "calls": 24,
+          "self_seconds": 3.2085e-05,
+          "cumulative_seconds": 0.000609935
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'get' of 'dict' objects>",
+          "calls": 4244,
+          "self_seconds": 0.000566083,
+          "cumulative_seconds": 0.000566083
+        },
+        {
+          "file": "/usr/lib/python3.14/dataclasses.py",
+          "line": 1782,
+          "name": "_replace",
+          "calls": 24,
+          "self_seconds": 0.000284377,
+          "cumulative_seconds": 0.000561473
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 258,
+          "name": "_smoothstep",
+          "calls": 72,
+          "self_seconds": 0.00034744,
+          "cumulative_seconds": 0.000519727
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method numpy.zeros>",
+          "calls": 1576,
+          "self_seconds": 0.000513718,
+          "cumulative_seconds": 0.000513718
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 133,
+          "name": "<lambda>",
+          "calls": 376,
+          "self_seconds": 0.000490572,
+          "cumulative_seconds": 0.000490572
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'sort' of 'numpy.ndarray' objects>",
+          "calls": 376,
+          "self_seconds": 0.00045813200000000004,
+          "cumulative_seconds": 0.00045813200000000004
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.max>",
+          "calls": 3576,
+          "self_seconds": 0.00045812500000000004,
+          "cumulative_seconds": 0.00045812500000000004
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 3044,
+          "name": "_max_dispatcher",
+          "calls": 5748,
+          "self_seconds": 0.000435947,
+          "cumulative_seconds": 0.000435947
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/content_bounds.py",
+          "line": 11,
+          "name": "_row_luma",
+          "calls": 24,
+          "self_seconds": 0.00014894000000000002,
+          "cumulative_seconds": 0.00043012100000000005
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'flatten' of 'numpy.ndarray' objects>",
+          "calls": 976,
+          "self_seconds": 0.00041071900000000004,
+          "cumulative_seconds": 0.00041071900000000004
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method numpy._core._multiarray_umath._unique_hash>",
+          "calls": 376,
+          "self_seconds": 0.00037629000000000004,
+          "cumulative_seconds": 0.00037629000000000004
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/content_bounds.py",
+          "line": 21,
+          "name": "_col_luma",
+          "calls": 24,
+          "self_seconds": 0.00016824100000000002,
+          "cumulative_seconds": 0.000365329
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/srgb.py",
+          "line": 57,
+          "name": "srgb_encoded_float_to_linear01",
+          "calls": 24,
+          "self_seconds": 5.8765000000000004e-05,
+          "cumulative_seconds": 0.00031279500000000004
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 144,
+          "name": "_hyst_gte",
+          "calls": 60,
+          "self_seconds": 0.000296443,
+          "cumulative_seconds": 0.000301523
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'argmax' of 'numpy.ndarray' objects>",
+          "calls": 376,
+          "self_seconds": 0.00029238,
+          "cumulative_seconds": 0.00029238
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/ma/core.py",
+          "line": 6878,
+          "name": "is_masked",
+          "calls": 376,
+          "self_seconds": 0.000145234,
+          "cumulative_seconds": 0.000282288
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/multiarray.py",
+          "line": 115,
+          "name": "empty_like",
+          "calls": 3860,
+          "self_seconds": 0.000272696,
+          "cumulative_seconds": 0.000272696
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 642,
+          "name": "_sampling_meta_from_plan",
+          "calls": 12,
+          "self_seconds": 8.279500000000001e-05,
+          "cumulative_seconds": 0.000270145
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numeric.py",
+          "line": 483,
+          "name": "count_nonzero",
+          "calls": 376,
+          "self_seconds": 0.00010749,
+          "cumulative_seconds": 0.00025417800000000003
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 38,
+          "name": "_wrapit",
+          "calls": 84,
+          "self_seconds": 8.8208e-05,
+          "cumulative_seconds": 0.00024062800000000003
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 3732,
+          "name": "_mean_dispatcher",
+          "calls": 2552,
+          "self_seconds": 0.000236213,
+          "cumulative_seconds": 0.000236213
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 192,
+          "name": "apply_display_gamut_adaptation",
+          "calls": 12,
+          "self_seconds": 5.1029e-05,
+          "cumulative_seconds": 0.00023586100000000002
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 3182,
+          "name": "_min_dispatcher",
+          "calls": 3432,
+          "self_seconds": 0.000224264,
+          "cumulative_seconds": 0.000224264
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 251,
+          "name": "<lambda>",
+          "calls": 1880,
+          "self_seconds": 0.000222329,
+          "cumulative_seconds": 0.000222329
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numeric.py",
+          "line": 400,
+          "name": "full_like",
+          "calls": 144,
+          "self_seconds": 0.00019035500000000002,
+          "cumulative_seconds": 0.00021088900000000002
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/shape_base.py",
+          "line": 378,
+          "name": "stack",
+          "calls": 36,
+          "self_seconds": 0.000182547,
+          "cumulative_seconds": 0.000207137
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_arraysetops_impl.py",
+          "line": 958,
+          "name": "isin",
+          "calls": 12,
+          "self_seconds": 2.5837e-05,
+          "cumulative_seconds": 0.00020363
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.len>",
+          "calls": 1532,
+          "self_seconds": 0.00020126100000000002,
+          "cumulative_seconds": 0.00020126100000000002
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.min>",
+          "calls": 1212,
+          "self_seconds": 0.000182277,
+          "cumulative_seconds": 0.000182277
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/srgb.py",
+          "line": 21,
+          "name": "srgb_eotf_to_linear01",
+          "calls": 24,
+          "self_seconds": 0.00017303900000000002,
+          "cumulative_seconds": 0.00017524400000000002
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'take' of 'numpy.ndarray' objects>",
+          "calls": 224,
+          "self_seconds": 0.000173362,
+          "cumulative_seconds": 0.000173362
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 105,
+          "name": "_hyst_lt",
+          "calls": 168,
+          "self_seconds": 0.00015900700000000002,
+          "cumulative_seconds": 0.000173184
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 650,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 0.000172442,
+          "cumulative_seconds": 0.000172442
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 200,
+          "name": "normalize_preset",
+          "calls": 300,
+          "self_seconds": 0.00011731600000000001,
+          "cumulative_seconds": 0.000171635
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_arraysetops_impl.py",
+          "line": 806,
+          "name": "_isin",
+          "calls": 12,
+          "self_seconds": 0.000110823,
+          "cumulative_seconds": 0.00016599600000000001
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 274,
+          "name": "_reconstruct_oklab_from_polar",
+          "calls": 12,
+          "self_seconds": 7.1677e-05,
+          "cumulative_seconds": 0.000163573
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'ravel' of 'numpy.ndarray' objects>",
+          "calls": 776,
+          "self_seconds": 0.00015924100000000002,
+          "cumulative_seconds": 0.00015924100000000002
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 744,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 0.00015358,
+          "cumulative_seconds": 0.00015358
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method numpy._core._multiarray_umath.count_nonzero>",
+          "calls": 376,
+          "self_seconds": 0.00014668800000000002,
+          "cumulative_seconds": 0.00014668800000000002
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/multiarray.py",
+          "line": 1088,
+          "name": "copyto",
+          "calls": 1672,
+          "self_seconds": 0.000143747,
+          "cumulative_seconds": 0.000143747
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 238,
+          "name": "_linear_to_oklab",
+          "calls": 12,
+          "self_seconds": 0.00014157900000000002,
+          "cumulative_seconds": 0.00014157900000000002
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numeric.py",
+          "line": 91,
+          "name": "_zeros_like_dispatcher",
+          "calls": 1504,
+          "self_seconds": 0.000141322,
+          "cumulative_seconds": 0.000141322
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/ma/core.py",
+          "line": 1411,
+          "name": "getmask",
+          "calls": 376,
+          "self_seconds": 8.832000000000001e-05,
+          "cumulative_seconds": 0.000137054
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 264,
+          "name": "_cofb_cartesian_gate",
+          "calls": 12,
+          "self_seconds": 1.8512e-05,
+          "cumulative_seconds": 0.00013361200000000002
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 433,
+          "name": "effective_motion_and_smoothing",
+          "calls": 12,
+          "self_seconds": 3.2967000000000005e-05,
+          "cumulative_seconds": 0.00013251200000000002
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 379,
+          "name": "apply_output_quantization_hold_with_mask",
+          "calls": 12,
+          "self_seconds": 5.5507e-05,
+          "cumulative_seconds": 0.000128944
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_arraysetops_impl.py",
+          "line": 131,
+          "name": "_unpack_tuple",
+          "calls": 376,
+          "self_seconds": 9.280900000000001e-05,
+          "cumulative_seconds": 0.00012284900000000002
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'strip' of 'str' objects>",
+          "calls": 784,
+          "self_seconds": 0.000110309,
+          "cumulative_seconds": 0.000110309
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 224,
+          "name": "_planckian_white_balance_gains",
+          "calls": 12,
+          "self_seconds": 2.1306000000000002e-05,
+          "cumulative_seconds": 0.00010232700000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 3866,
+          "name": "_std_dispatcher",
+          "calls": 952,
+          "self_seconds": 0.000101162,
+          "cumulative_seconds": 0.000101162
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_domain.py",
+          "line": 35,
+          "name": "to_linear_srgb",
+          "calls": 12,
+          "self_seconds": 3.2494000000000004e-05,
+          "cumulative_seconds": 0.00010074300000000001
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 131,
+          "name": "_hyst_gt",
+          "calls": 84,
+          "self_seconds": 7.6263e-05,
+          "cumulative_seconds": 9.9968e-05
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'wrap' of 'numpy._core._multiarray_umath._array_converter' objects>",
+          "calls": 460,
+          "self_seconds": 9.8702e-05,
+          "cumulative_seconds": 9.8702e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 314,
+          "name": "is_four_d_sync",
+          "calls": 72,
+          "self_seconds": 3.0115000000000002e-05,
+          "cumulative_seconds": 8.6162e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 690,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 8.614500000000001e-05,
+          "cumulative_seconds": 8.614500000000001e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/ma/core.py",
+          "line": 6685,
+          "name": "isMaskedArray",
+          "calls": 224,
+          "self_seconds": 5.3514e-05,
+          "cumulative_seconds": 8.430300000000001e-05
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'tolist' of 'numpy.ndarray' objects>",
+          "calls": 192,
+          "self_seconds": 8.359e-05,
+          "cumulative_seconds": 8.359e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_domain.py",
+          "line": 20,
+          "name": "infer_color_domain",
+          "calls": 12,
+          "self_seconds": 3.2709e-05,
+          "cumulative_seconds": 7.312800000000001e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 684,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 7.223100000000001e-05,
+          "cumulative_seconds": 7.223100000000001e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 249,
+          "name": "_oklab_to_linear",
+          "calls": 12,
+          "self_seconds": 7.214600000000001e-05,
+          "cumulative_seconds": 7.214600000000001e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 259,
+          "name": "is_accuracy_mode",
+          "calls": 84,
+          "self_seconds": 2.8829e-05,
+          "cumulative_seconds": 6.902400000000001e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 332,
+          "name": "effective_light_spread_for_sync",
+          "calls": 12,
+          "self_seconds": 9.997000000000001e-06,
+          "cumulative_seconds": 6.6487e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/shape_base.py",
+          "line": 368,
+          "name": "_stack_dispatcher",
+          "calls": 36,
+          "self_seconds": 2.9783000000000003e-05,
+          "cumulative_seconds": 5.6793e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 681,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 5.6478000000000004e-05,
+          "cumulative_seconds": 5.6478000000000004e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 297,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 5.5921e-05,
+          "cumulative_seconds": 5.5921e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 677,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 5.3105e-05,
+          "cumulative_seconds": 5.3105e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 298,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 5.0213e-05,
+          "cumulative_seconds": 5.0213e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 678,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.9049000000000004e-05,
+          "cumulative_seconds": 4.9049000000000004e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 299,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.886e-05,
+          "cumulative_seconds": 4.886e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 679,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.8644000000000004e-05,
+          "cumulative_seconds": 4.8644000000000004e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 687,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.8364e-05,
+          "cumulative_seconds": 4.8364e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 680,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.8307000000000004e-05,
+          "cumulative_seconds": 4.8307000000000004e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 685,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.8088000000000004e-05,
+          "cumulative_seconds": 4.8088000000000004e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 686,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.7942e-05,
+          "cumulative_seconds": 4.7942e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 688,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.7895e-05,
+          "cumulative_seconds": 4.7895e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 689,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.7625000000000006e-05,
+          "cumulative_seconds": 4.7625000000000006e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 392,
+          "name": "effective_zone_sampling_stride_for_sync",
+          "calls": 12,
+          "self_seconds": 1.1796e-05,
+          "cumulative_seconds": 4.4585e-05
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'append' of 'list' objects>",
+          "calls": 224,
+          "self_seconds": 4.3638000000000005e-05,
+          "cumulative_seconds": 4.3638000000000005e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 2469,
+          "name": "_any_dispatcher",
+          "calls": 376,
+          "self_seconds": 4.3543e-05,
+          "cumulative_seconds": 4.3543e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 99,
+          "name": "_prev_mask",
+          "calls": 312,
+          "self_seconds": 4.2962e-05,
+          "cumulative_seconds": 4.2962e-05
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'lower' of 'str' objects>",
+          "calls": 408,
+          "self_seconds": 4.2877e-05,
+          "cumulative_seconds": 4.2877e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4262,
+          "name": "_quantile_dispatcher",
+          "calls": 376,
+          "self_seconds": 4.1933e-05,
+          "cumulative_seconds": 4.1933e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 266,
+          "name": "effective_light_spread",
+          "calls": 12,
+          "self_seconds": 1.0896e-05,
+          "cumulative_seconds": 4.1902e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_temporal.py",
+          "line": 113,
+          "name": "detect_zone_scene_cut",
+          "calls": 376,
+          "self_seconds": 4.1543000000000005e-05,
+          "cumulative_seconds": 4.1543000000000005e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/multiarray.py",
+          "line": 197,
+          "name": "concatenate",
+          "calls": 412,
+          "self_seconds": 3.9599000000000005e-05,
+          "cumulative_seconds": 3.9599000000000005e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 403,
+          "name": "effective_zone_sampling_engine_for_sync",
+          "calls": 12,
+          "self_seconds": 8.644e-06,
+          "cumulative_seconds": 3.6088000000000004e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 236,
+          "name": "motion_profile",
+          "calls": 12,
+          "self_seconds": 2.2163e-05,
+          "cumulative_seconds": 3.578e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numeric.py",
+          "line": 323,
+          "name": "full",
+          "calls": 24,
+          "self_seconds": 2.3994e-05,
+          "cumulative_seconds": 3.5585e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 355,
+          "name": "effective_motion_preset_for_sync",
+          "calls": 12,
+          "self_seconds": 7.142e-06,
+          "cumulative_seconds": 3.4756000000000004e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_arraysetops_impl.py",
+          "line": 139,
+          "name": "_unique_dispatcher",
+          "calls": 376,
+          "self_seconds": 3.4692e-05,
+          "cumulative_seconds": 3.4692e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/multiarray.py",
+          "line": 909,
+          "name": "bincount",
+          "calls": 376,
+          "self_seconds": 3.4448e-05,
+          "cumulative_seconds": 3.4448e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 425,
+          "name": "predictive_sync_enabled_for_sync",
+          "calls": 12,
+          "self_seconds": 8.357e-06,
+          "cumulative_seconds": 3.3283e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numeric.py",
+          "line": 479,
+          "name": "_count_nonzero_dispatcher",
+          "calls": 376,
+          "self_seconds": 3.321e-05,
+          "cumulative_seconds": 3.321e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 134,
+          "name": "<lambda>",
+          "calls": 376,
+          "self_seconds": 3.3007000000000004e-05,
+          "cumulative_seconds": 3.3007000000000004e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 1255,
+          "name": "_argmax_dispatcher",
+          "calls": 376,
+          "self_seconds": 3.0477000000000003e-05,
+          "cumulative_seconds": 3.0477000000000003e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_pipeline.py",
+          "line": 217,
+          "name": "_resolve_robust_sampling_mode",
+          "calls": 12,
+          "self_seconds": 1.8838e-05,
+          "cumulative_seconds": 2.9627000000000003e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 285,
+          "name": "effective_sampling_mode",
+          "calls": 12,
+          "self_seconds": 8.84e-06,
+          "cumulative_seconds": 2.7133000000000003e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/shape_base.py",
+          "line": 206,
+          "name": "_arrays_for_stack_dispatcher",
+          "calls": 36,
+          "self_seconds": 1.3755000000000001e-05,
+          "cumulative_seconds": 2.701e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 106,
+          "name": "_get_integral_buffer",
+          "calls": 12,
+          "self_seconds": 1.1956e-05,
+          "cumulative_seconds": 2.4437e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 3909,
+          "name": "_median_dispatcher",
+          "calls": 224,
+          "self_seconds": 2.3077000000000003e-05,
+          "cumulative_seconds": 2.3077000000000003e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 324,
+          "name": "effective_edge_locality_for_sync",
+          "calls": 12,
+          "self_seconds": 4.889e-06,
+          "cumulative_seconds": 2.2622e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 247,
+          "name": "analyzer_mode_for_presets",
+          "calls": 12,
+          "self_seconds": 7.019e-06,
+          "cumulative_seconds": 1.9719000000000002e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 303,
+          "name": "effective_zone_sampling_engine",
+          "calls": 12,
+          "self_seconds": 9.86e-06,
+          "cumulative_seconds": 1.9678e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 361,
+          "name": "effective_sampling_quality_for_sync",
+          "calls": 12,
+          "self_seconds": 5.4980000000000006e-06,
+          "cumulative_seconds": 1.9304e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 728,
+          "name": "_partition_dispatcher",
+          "calls": 224,
+          "self_seconds": 1.7764e-05,
+          "cumulative_seconds": 1.7764e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/content_bounds.py",
+          "line": 74,
+          "name": "letterbox_margins_significant",
+          "calls": 12,
+          "self_seconds": 1.7494000000000002e-05,
+          "cumulative_seconds": 1.7494000000000002e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/compositor.py",
+          "line": 43,
+          "name": "effective_sdr_boost",
+          "calls": 12,
+          "self_seconds": 1.2425e-05,
+          "cumulative_seconds": 1.7233000000000003e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_arraysetops_impl.py",
+          "line": 820,
+          "name": "<genexpr>",
+          "calls": 36,
+          "self_seconds": 1.7013e-05,
+          "cumulative_seconds": 1.7013e-05
+        },
+        {
+          "file": "/usr/lib/python3.14/dataclasses.py",
+          "line": 1472,
+          "name": "_is_dataclass_instance",
+          "calls": 24,
+          "self_seconds": 1.0518e-05,
+          "cumulative_seconds": 1.6377000000000003e-05
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method time.perf_counter>",
+          "calls": 84,
+          "self_seconds": 1.5367e-05,
+          "cumulative_seconds": 1.5367e-05
+        },
+        {
+          "file": "<string>",
+          "line": 2,
+          "name": "__init__",
+          "calls": 12,
+          "self_seconds": 1.4908e-05,
+          "cumulative_seconds": 1.4908e-05
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'as_arrays' of 'numpy._core._multiarray_umath._array_converter' objects>",
+          "calls": 84,
+          "self_seconds": 1.4578000000000002e-05,
+          "cumulative_seconds": 1.4578000000000002e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 227,
+          "name": "sampling_quality_to_zone_stride",
+          "calls": 12,
+          "self_seconds": 7.294000000000001e-06,
+          "cumulative_seconds": 1.3485e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numeric.py",
+          "line": 393,
+          "name": "_full_like_dispatcher",
+          "calls": 144,
+          "self_seconds": 1.0887000000000001e-05,
+          "cumulative_seconds": 1.0887000000000001e-05
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'disable' of '_lsprof.Profiler' objects>",
+          "calls": 1,
+          "self_seconds": 1.062e-05,
+          "cumulative_seconds": 1.062e-05
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method numpy.empty>",
+          "calls": 24,
+          "self_seconds": 9.410000000000001e-06,
+          "cumulative_seconds": 9.410000000000001e-06
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_pipeline.py",
+          "line": 184,
+          "name": "_resolve_live_sampling_mode",
+          "calls": 12,
+          "self_seconds": 6.131e-06,
+          "cumulative_seconds": 8.515e-06
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 78,
+          "name": "_ensure_rgb_u8",
+          "calls": 12,
+          "self_seconds": 7.372000000000001e-06,
+          "cumulative_seconds": 7.372000000000001e-06
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'copy' of 'numpy.ndarray' objects>",
+          "calls": 12,
+          "self_seconds": 6.604000000000001e-06,
+          "cumulative_seconds": 6.604000000000001e-06
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 157,
+          "name": "_scene_activity_hysteresis",
+          "calls": 12,
+          "self_seconds": 6.593e-06,
+          "cumulative_seconds": 6.593e-06
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.abs>",
+          "calls": 24,
+          "self_seconds": 6.322000000000001e-06,
+          "cumulative_seconds": 6.322000000000001e-06
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'values' of 'dict' objects>",
+          "calls": 24,
+          "self_seconds": 4.488e-06,
+          "cumulative_seconds": 4.488e-06
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 278,
+          "name": "compute_adaptive_step",
+          "calls": 12,
+          "self_seconds": 3.4160000000000004e-06,
+          "cumulative_seconds": 4.4380000000000005e-06
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/multiarray.py",
+          "line": 406,
+          "name": "where",
+          "calls": 48,
+          "self_seconds": 4.289e-06,
+          "cumulative_seconds": 4.289e-06
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method '__enter__' of '_thread.lock' objects>",
+          "calls": 12,
+          "self_seconds": 3.396e-06,
+          "cumulative_seconds": 3.396e-06
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method '__exit__' of '_thread.lock' objects>",
+          "calls": 12,
+          "self_seconds": 3.3860000000000003e-06,
+          "cumulative_seconds": 3.3860000000000003e-06
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_arraysetops_impl.py",
+          "line": 953,
+          "name": "_isin_dispatcher",
+          "calls": 12,
+          "self_seconds": 1.804e-06,
+          "cumulative_seconds": 1.804e-06
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 449,
+          "name": "<genexpr>",
+          "calls": 12,
+          "self_seconds": 1.8030000000000001e-06,
+          "cumulative_seconds": 1.8030000000000001e-06
+        }
+      ]
+    },
+    {
+      "size": [
+        2560,
+        1440
+      ],
+      "frames": 12,
+      "profiled_wall_seconds": 1.366353233999689,
+      "functions": [
+        {
+          "file": "<stdin>",
+          "line": 22,
+          "name": "replay",
+          "calls": 1,
+          "self_seconds": 0.000107305,
+          "cumulative_seconds": 1.366322245
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/engine_frame.py",
+          "line": 518,
+          "name": "process_frame",
+          "calls": 12,
+          "self_seconds": 0.000455793,
+          "cumulative_seconds": 1.365797192
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_pipeline.py",
+          "line": 264,
+          "name": "process_zone_colors",
+          "calls": 12,
+          "self_seconds": 0.000906815,
+          "cumulative_seconds": 1.3650873250000002
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 1060,
+          "name": "zone_colors_array_with_meta",
+          "calls": 12,
+          "self_seconds": 8.0876e-05,
+          "cumulative_seconds": 1.352160873
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 662,
+          "name": "zone_colors_array",
+          "calls": 12,
+          "self_seconds": 0.004453529,
+          "cumulative_seconds": 1.3520786260000002
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 386,
+          "name": "palette_adaptive_zone_color",
+          "calls": 376,
+          "self_seconds": 0.003271922,
+          "cumulative_seconds": 0.513582565
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 255,
+          "name": "palette_adaptive_zone_frame",
+          "calls": 376,
+          "self_seconds": 0.007725065000000001,
+          "cumulative_seconds": 0.48954868100000004
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 1199,
+          "name": "_zone_means_optimized",
+          "calls": 12,
+          "self_seconds": 0.014647214,
+          "cumulative_seconds": 0.48801388
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'reduce' of 'numpy.ufunc' objects>",
+          "calls": 27024,
+          "self_seconds": 0.415234139,
+          "cumulative_seconds": 0.415234139
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'cumsum' of 'numpy.ndarray' objects>",
+          "calls": 24,
+          "self_seconds": 0.412640699,
+          "cumulative_seconds": 0.412640699
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 537,
+          "name": "detect_zone_patch_mixed_content",
+          "calls": 576,
+          "self_seconds": 0.07526164,
+          "cumulative_seconds": 0.3015973
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'max' of 'numpy.ndarray' objects>",
+          "calls": 1704,
+          "self_seconds": 0.000811141,
+          "cumulative_seconds": 0.151223575
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/_methods.py",
+          "line": 39,
+          "name": "_amax",
+          "calls": 1704,
+          "self_seconds": 0.00041962600000000004,
+          "cumulative_seconds": 0.150412434
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/_methods.py",
+          "line": 115,
+          "name": "_mean",
+          "calls": 6512,
+          "self_seconds": 0.01950037,
+          "cumulative_seconds": 0.144630053
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'min' of 'numpy.ndarray' objects>",
+          "calls": 1328,
+          "self_seconds": 0.000564727,
+          "cumulative_seconds": 0.14059504
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/_methods.py",
+          "line": 43,
+          "name": "_amin",
+          "calls": 1328,
+          "self_seconds": 0.00031924300000000003,
+          "cumulative_seconds": 0.14003031300000002
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 107,
+          "name": "_patch_features",
+          "calls": 376,
+          "self_seconds": 0.00833505,
+          "cumulative_seconds": 0.13480338
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'mean' of 'numpy.ndarray' objects>",
+          "calls": 3960,
+          "self_seconds": 0.001648691,
+          "cumulative_seconds": 0.12870525500000002
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 129,
+          "name": "_candidate_dominant_saturated_hue",
+          "calls": 376,
+          "self_seconds": 0.055923769000000005,
+          "cumulative_seconds": 0.127813482
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/srgb.py",
+          "line": 44,
+          "name": "srgb_u8_to_linear01",
+          "calls": 1200,
+          "self_seconds": 0.09979806100000001,
+          "cumulative_seconds": 0.09979806100000001
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 175,
+          "name": "_candidate_peak_luma",
+          "calls": 376,
+          "self_seconds": 0.024477691000000003,
+          "cumulative_seconds": 0.08815702
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 123,
+          "name": "_candidate_area_mean",
+          "calls": 752,
+          "self_seconds": 0.0005435850000000001,
+          "cumulative_seconds": 0.050232872000000005
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 621,
+          "name": "_dark_biased_patch_mean",
+          "calls": 200,
+          "self_seconds": 0.0028522870000000002,
+          "cumulative_seconds": 0.041132163
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 3827,
+          "name": "_ureduce",
+          "calls": 600,
+          "self_seconds": 0.001057388,
+          "cumulative_seconds": 0.040786814000000005
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 66,
+          "name": "_hue_degrees",
+          "calls": 376,
+          "self_seconds": 0.03257852,
+          "cumulative_seconds": 0.036982993000000006
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/srgb.py",
+          "line": 62,
+          "name": "linear01_to_srgb_float",
+          "calls": 1880,
+          "self_seconds": 0.00314146,
+          "cumulative_seconds": 0.030876834000000002
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 150,
+          "name": "_candidate_saturated_highlight",
+          "calls": 376,
+          "self_seconds": 0.0016366260000000002,
+          "cumulative_seconds": 0.030732182
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4267,
+          "name": "quantile",
+          "calls": 376,
+          "self_seconds": 0.000608302,
+          "cumulative_seconds": 0.028153366000000003
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/srgb.py",
+          "line": 32,
+          "name": "linear01_to_srgb_encoded",
+          "calls": 2128,
+          "self_seconds": 0.014833208,
+          "cumulative_seconds": 0.027306438000000002
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 2245,
+          "name": "clip",
+          "calls": 9012,
+          "self_seconds": 0.006228363000000001,
+          "cumulative_seconds": 0.02703722
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4512,
+          "name": "_quantile_unchecked",
+          "calls": 376,
+          "self_seconds": 0.0005054500000000001,
+          "cumulative_seconds": 0.026224873000000003
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4651,
+          "name": "_quantile_ureduce_func",
+          "calls": 376,
+          "self_seconds": 0.00045803200000000004,
+          "cumulative_seconds": 0.024890901
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4726,
+          "name": "_quantile",
+          "calls": 376,
+          "self_seconds": 0.004448205,
+          "cumulative_seconds": 0.024043052000000002
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 48,
+          "name": "_wrapfunc",
+          "calls": 9388,
+          "self_seconds": 0.0034688540000000004,
+          "cumulative_seconds": 0.021397768
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 3871,
+          "name": "std",
+          "calls": 952,
+          "self_seconds": 0.0013173360000000001,
+          "cumulative_seconds": 0.021009515000000003
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 3737,
+          "name": "mean",
+          "calls": 2552,
+          "self_seconds": 0.002172938,
+          "cumulative_seconds": 0.019746427
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/_methods.py",
+          "line": 217,
+          "name": "_std",
+          "calls": 952,
+          "self_seconds": 0.0016907860000000001,
+          "cumulative_seconds": 0.019692179
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/_methods.py",
+          "line": 148,
+          "name": "_var",
+          "calls": 952,
+          "self_seconds": 0.011476723000000001,
+          "cumulative_seconds": 0.017759336
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_temporal.py",
+          "line": 150,
+          "name": "stabilize_palette_zone",
+          "calls": 376,
+          "self_seconds": 0.004741472,
+          "cumulative_seconds": 0.016860701000000002
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 3914,
+          "name": "median",
+          "calls": 224,
+          "self_seconds": 0.00022173,
+          "cumulative_seconds": 0.015289121000000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'clip' of 'numpy.ndarray' objects>",
+          "calls": 8636,
+          "self_seconds": 0.0025239620000000003,
+          "cumulative_seconds": 0.015153264000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4003,
+          "name": "_median",
+          "calls": 224,
+          "self_seconds": 0.0013489230000000001,
+          "cumulative_seconds": 0.014611439
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'partition' of 'numpy.ndarray' objects>",
+          "calls": 600,
+          "self_seconds": 0.014224990000000002,
+          "cumulative_seconds": 0.014224990000000002
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 196,
+          "name": "_score_candidate",
+          "calls": 1880,
+          "self_seconds": 0.00392147,
+          "cumulative_seconds": 0.014053463
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/_methods.py",
+          "line": 96,
+          "name": "_clip",
+          "calls": 9012,
+          "self_seconds": 0.013308487,
+          "cumulative_seconds": 0.013308487
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 66,
+          "name": "_wrapreduction",
+          "calls": 9180,
+          "self_seconds": 0.006356867,
+          "cumulative_seconds": 0.011921909000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 3049,
+          "name": "max",
+          "calls": 5748,
+          "self_seconds": 0.0026598470000000003,
+          "cumulative_seconds": 0.010508139000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/_methods.py",
+          "line": 73,
+          "name": "_count_reduce_items",
+          "calls": 7464,
+          "self_seconds": 0.008684097,
+          "cumulative_seconds": 0.009984437
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 732,
+          "name": "partition",
+          "calls": 224,
+          "self_seconds": 0.0001476,
+          "cumulative_seconds": 0.009650652000000001
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_temporal.py",
+          "line": 76,
+          "name": "_rgb_chroma",
+          "calls": 1504,
+          "self_seconds": 0.00185614,
+          "cumulative_seconds": 0.0075447280000000005
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 97,
+          "name": "_meaningful_sat_mask",
+          "calls": 1504,
+          "self_seconds": 0.006753348,
+          "cumulative_seconds": 0.006753348
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/srgb.py",
+          "line": 51,
+          "name": "linear01_to_srgb_u8",
+          "calls": 248,
+          "self_seconds": 0.0006976850000000001,
+          "cumulative_seconds": 0.0058394960000000004
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 3187,
+          "name": "min",
+          "calls": 3432,
+          "self_seconds": 0.00141186,
+          "cumulative_seconds": 0.005485477000000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'any' of 'numpy.ndarray' objects>",
+          "calls": 4668,
+          "self_seconds": 0.001484948,
+          "cumulative_seconds": 0.005230181
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/_methods.py",
+          "line": 55,
+          "name": "_any",
+          "calls": 6396,
+          "self_seconds": 0.0012946610000000001,
+          "cumulative_seconds": 0.0049504860000000005
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4691,
+          "name": "_get_indexes",
+          "calls": 376,
+          "self_seconds": 0.002348095,
+          "cumulative_seconds": 0.0047539520000000005
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_temporal.py",
+          "line": 34,
+          "name": "to_dict",
+          "calls": 952,
+          "self_seconds": 0.001836666,
+          "cumulative_seconds": 0.004286108
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numeric.py",
+          "line": 97,
+          "name": "zeros_like",
+          "calls": 1504,
+          "self_seconds": 0.003431303,
+          "cumulative_seconds": 0.004177774
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.round>",
+          "calls": 7392,
+          "self_seconds": 0.003420457,
+          "cumulative_seconds": 0.003420457
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 343,
+          "name": "adaptive_one_euro_blend",
+          "calls": 12,
+          "self_seconds": 0.001284816,
+          "cumulative_seconds": 0.003369454
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_arraysetops_impl.py",
+          "line": 145,
+          "name": "unique",
+          "calls": 376,
+          "self_seconds": 0.00045071900000000003,
+          "cumulative_seconds": 0.0032614410000000003
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'astype' of 'numpy.ndarray' objects>",
+          "calls": 5344,
+          "self_seconds": 0.00294378,
+          "cumulative_seconds": 0.00294378
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 438,
+          "name": "apply_color_style_and_led_calibration_with_diagnostics",
+          "calls": 12,
+          "self_seconds": 0.0008218460000000001,
+          "cumulative_seconds": 0.002885009
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'any' of 'numpy.generic' objects>",
+          "calls": 1728,
+          "self_seconds": 0.001411294,
+          "cumulative_seconds": 0.0026165470000000003
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_arraysetops_impl.py",
+          "line": 350,
+          "name": "_unique1d",
+          "calls": 376,
+          "self_seconds": 0.001090068,
+          "cumulative_seconds": 0.002606871
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numerictypes.py",
+          "line": 411,
+          "name": "issubdtype",
+          "calls": 1352,
+          "self_seconds": 0.0011329180000000001,
+          "cumulative_seconds": 0.002573385
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.issubclass>",
+          "calls": 16728,
+          "self_seconds": 0.002130318,
+          "cumulative_seconds": 0.002130318
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method numpy.asarray>",
+          "calls": 6456,
+          "self_seconds": 0.0021287100000000002,
+          "cumulative_seconds": 0.0021287100000000002
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_temporal.py",
+          "line": 81,
+          "name": "_rgb_hue_degrees_single",
+          "calls": 752,
+          "self_seconds": 0.0009746440000000001,
+          "cumulative_seconds": 0.0017934740000000002
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.isinstance>",
+          "calls": 11956,
+          "self_seconds": 0.0016685900000000002,
+          "cumulative_seconds": 0.0016685900000000002
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 2474,
+          "name": "any",
+          "calls": 376,
+          "self_seconds": 0.000310645,
+          "cumulative_seconds": 0.001605735
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4594,
+          "name": "_lerp",
+          "calls": 376,
+          "self_seconds": 0.001560666,
+          "cumulative_seconds": 0.001560666
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_temporal.py",
+          "line": 43,
+          "name": "<genexpr>",
+          "calls": 3808,
+          "self_seconds": 0.000590555,
+          "cumulative_seconds": 0.001521727
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.getattr>",
+          "calls": 11460,
+          "self_seconds": 0.0015036210000000001,
+          "cumulative_seconds": 0.0015036210000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numerictypes.py",
+          "line": 229,
+          "name": "issubclass_",
+          "calls": 2704,
+          "self_seconds": 0.000812834,
+          "cumulative_seconds": 0.001332732
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 50,
+          "name": "as_dict",
+          "calls": 376,
+          "self_seconds": 0.000430373,
+          "cumulative_seconds": 0.0013204430000000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method numpy.asanyarray>",
+          "calls": 11628,
+          "self_seconds": 0.001305147,
+          "cumulative_seconds": 0.001305147
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 86,
+          "name": "_wrapreduction_any_all",
+          "calls": 376,
+          "self_seconds": 0.0005895550000000001,
+          "cumulative_seconds": 0.00129509
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 250,
+          "name": "_pick_raw_best",
+          "calls": 376,
+          "self_seconds": 0.000263861,
+          "cumulative_seconds": 0.001278393
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_utils_impl.py",
+          "line": 407,
+          "name": "_median_nancheck",
+          "calls": 224,
+          "self_seconds": 0.0004966220000000001,
+          "cumulative_seconds": 0.001261958
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4534,
+          "name": "_quantile_is_valid",
+          "calls": 376,
+          "self_seconds": 0.000304317,
+          "cumulative_seconds": 0.001165388
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'clip' of 'numpy.generic' objects>",
+          "calls": 376,
+          "self_seconds": 0.00042218400000000004,
+          "cumulative_seconds": 0.001101369
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/content_bounds.py",
+          "line": 31,
+          "name": "detect_content_bounds",
+          "calls": 12,
+          "self_seconds": 7.848800000000001e-05,
+          "cumulative_seconds": 0.001065062
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.hasattr>",
+          "calls": 6760,
+          "self_seconds": 0.0010484280000000001,
+          "cumulative_seconds": 0.0010484280000000001
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 201,
+          "name": "apply_neighbor_blend",
+          "calls": 12,
+          "self_seconds": 0.000579402,
+          "cumulative_seconds": 0.001036017
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method numpy.lib.array_utils.normalize_axis_index>",
+          "calls": 8828,
+          "self_seconds": 0.001028943,
+          "cumulative_seconds": 0.001028943
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 406,
+          "name": "apply_dark_zone_output",
+          "calls": 12,
+          "self_seconds": 0.000212451,
+          "cumulative_seconds": 0.0010249900000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 1259,
+          "name": "argmax",
+          "calls": 376,
+          "self_seconds": 0.000399008,
+          "cumulative_seconds": 0.000987919
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.sorted>",
+          "calls": 376,
+          "self_seconds": 0.0007463950000000001,
+          "cumulative_seconds": 0.000983389
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'items' of 'dict' objects>",
+          "calls": 9932,
+          "self_seconds": 0.000978239,
+          "cumulative_seconds": 0.000978239
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4570,
+          "name": "_get_gamma",
+          "calls": 376,
+          "self_seconds": 0.000656739,
+          "cumulative_seconds": 0.0008752930000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 2240,
+          "name": "_clip_dispatcher",
+          "calls": 9012,
+          "self_seconds": 0.000839759,
+          "cumulative_seconds": 0.000839759
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'reshape' of 'numpy.ndarray' objects>",
+          "calls": 1340,
+          "self_seconds": 0.0008207920000000001,
+          "cumulative_seconds": 0.0008207920000000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'flatten' of 'numpy.ndarray' objects>",
+          "calls": 976,
+          "self_seconds": 0.0007069610000000001,
+          "cumulative_seconds": 0.0007069610000000001
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 330,
+          "name": "stabilize_dark_zone_samples",
+          "calls": 12,
+          "self_seconds": 0.00022045900000000002,
+          "cumulative_seconds": 0.000704057
+        },
+        {
+          "file": "/usr/lib/python3.14/dataclasses.py",
+          "line": 1763,
+          "name": "replace",
+          "calls": 24,
+          "self_seconds": 3.4229e-05,
+          "cumulative_seconds": 0.0006718220000000001
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 317,
+          "name": "oklch_to_rgb_u8_hybrid",
+          "calls": 12,
+          "self_seconds": 2.8655000000000003e-05,
+          "cumulative_seconds": 0.0006426190000000001
+        },
+        {
+          "file": "/usr/lib/python3.14/dataclasses.py",
+          "line": 1782,
+          "name": "_replace",
+          "calls": 24,
+          "self_seconds": 0.000290645,
+          "cumulative_seconds": 0.0006199430000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 133,
+          "name": "<lambda>",
+          "calls": 376,
+          "self_seconds": 0.000611464,
+          "cumulative_seconds": 0.000611464
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.max>",
+          "calls": 3576,
+          "self_seconds": 0.000546882,
+          "cumulative_seconds": 0.000546882
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'get' of 'dict' objects>",
+          "calls": 4244,
+          "self_seconds": 0.000539898,
+          "cumulative_seconds": 0.000539898
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method numpy.zeros>",
+          "calls": 1576,
+          "self_seconds": 0.000539476,
+          "cumulative_seconds": 0.000539476
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 258,
+          "name": "_smoothstep",
+          "calls": 72,
+          "self_seconds": 0.00035913700000000004,
+          "cumulative_seconds": 0.000536061
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/content_bounds.py",
+          "line": 11,
+          "name": "_row_luma",
+          "calls": 24,
+          "self_seconds": 0.000180287,
+          "cumulative_seconds": 0.000503885
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/content_bounds.py",
+          "line": 21,
+          "name": "_col_luma",
+          "calls": 24,
+          "self_seconds": 0.00012355500000000002,
+          "cumulative_seconds": 0.000480617
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'sort' of 'numpy.ndarray' objects>",
+          "calls": 376,
+          "self_seconds": 0.00045572500000000003,
+          "cumulative_seconds": 0.00045572500000000003
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numeric.py",
+          "line": 483,
+          "name": "count_nonzero",
+          "calls": 376,
+          "self_seconds": 0.00014649200000000002,
+          "cumulative_seconds": 0.000450177
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method numpy._core._multiarray_umath._unique_hash>",
+          "calls": 376,
+          "self_seconds": 0.000447168,
+          "cumulative_seconds": 0.000447168
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 3044,
+          "name": "_max_dispatcher",
+          "calls": 5748,
+          "self_seconds": 0.00039713300000000003,
+          "cumulative_seconds": 0.00039713300000000003
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 642,
+          "name": "_sampling_meta_from_plan",
+          "calls": 12,
+          "self_seconds": 0.00010592500000000001,
+          "cumulative_seconds": 0.00038259100000000005
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_arraysetops_impl.py",
+          "line": 958,
+          "name": "isin",
+          "calls": 12,
+          "self_seconds": 3.8173e-05,
+          "cumulative_seconds": 0.000337936
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'argmax' of 'numpy.ndarray' objects>",
+          "calls": 376,
+          "self_seconds": 0.000333324,
+          "cumulative_seconds": 0.000333324
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/srgb.py",
+          "line": 57,
+          "name": "srgb_encoded_float_to_linear01",
+          "calls": 24,
+          "self_seconds": 6.5746e-05,
+          "cumulative_seconds": 0.000333117
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/ma/core.py",
+          "line": 6878,
+          "name": "is_masked",
+          "calls": 376,
+          "self_seconds": 0.000159277,
+          "cumulative_seconds": 0.000324296
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method numpy._core._multiarray_umath.count_nonzero>",
+          "calls": 376,
+          "self_seconds": 0.00030368500000000004,
+          "cumulative_seconds": 0.00030368500000000004
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_arraysetops_impl.py",
+          "line": 806,
+          "name": "_isin",
+          "calls": 12,
+          "self_seconds": 0.00020936200000000002,
+          "cumulative_seconds": 0.000282656
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/multiarray.py",
+          "line": 115,
+          "name": "empty_like",
+          "calls": 3860,
+          "self_seconds": 0.000282078,
+          "cumulative_seconds": 0.000282078
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 38,
+          "name": "_wrapit",
+          "calls": 84,
+          "self_seconds": 9.5493e-05,
+          "cumulative_seconds": 0.000279287
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.len>",
+          "calls": 1532,
+          "self_seconds": 0.00027922200000000003,
+          "cumulative_seconds": 0.00027922200000000003
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 200,
+          "name": "normalize_preset",
+          "calls": 300,
+          "self_seconds": 0.00021126,
+          "cumulative_seconds": 0.000265796
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 192,
+          "name": "apply_display_gamut_adaptation",
+          "calls": 12,
+          "self_seconds": 6.4847e-05,
+          "cumulative_seconds": 0.000264175
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 3732,
+          "name": "_mean_dispatcher",
+          "calls": 2552,
+          "self_seconds": 0.000260025,
+          "cumulative_seconds": 0.000260025
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 650,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 0.000255785,
+          "cumulative_seconds": 0.000255785
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_adaptive.py",
+          "line": 251,
+          "name": "<lambda>",
+          "calls": 1880,
+          "self_seconds": 0.000236994,
+          "cumulative_seconds": 0.000236994
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numeric.py",
+          "line": 400,
+          "name": "full_like",
+          "calls": 144,
+          "self_seconds": 0.00020291300000000001,
+          "cumulative_seconds": 0.00022426700000000003
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 3182,
+          "name": "_min_dispatcher",
+          "calls": 3432,
+          "self_seconds": 0.00022271900000000002,
+          "cumulative_seconds": 0.00022271900000000002
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/shape_base.py",
+          "line": 378,
+          "name": "stack",
+          "calls": 36,
+          "self_seconds": 0.00019510800000000002,
+          "cumulative_seconds": 0.00022181500000000002
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'take' of 'numpy.ndarray' objects>",
+          "calls": 224,
+          "self_seconds": 0.000210456,
+          "cumulative_seconds": 0.000210456
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/srgb.py",
+          "line": 21,
+          "name": "srgb_eotf_to_linear01",
+          "calls": 24,
+          "self_seconds": 0.00018246400000000002,
+          "cumulative_seconds": 0.00018470200000000002
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 105,
+          "name": "_hyst_lt",
+          "calls": 168,
+          "self_seconds": 0.000162324,
+          "cumulative_seconds": 0.00017692
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'ravel' of 'numpy.ndarray' objects>",
+          "calls": 776,
+          "self_seconds": 0.000174036,
+          "cumulative_seconds": 0.000174036
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_arraysetops_impl.py",
+          "line": 131,
+          "name": "_unpack_tuple",
+          "calls": 376,
+          "self_seconds": 9.681900000000001e-05,
+          "cumulative_seconds": 0.000172089
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.min>",
+          "calls": 1212,
+          "self_seconds": 0.00017113300000000002,
+          "cumulative_seconds": 0.00017113300000000002
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 259,
+          "name": "is_accuracy_mode",
+          "calls": 84,
+          "self_seconds": 3.1308e-05,
+          "cumulative_seconds": 0.000166283
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/ma/core.py",
+          "line": 1411,
+          "name": "getmask",
+          "calls": 376,
+          "self_seconds": 9.3732e-05,
+          "cumulative_seconds": 0.000165019
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 433,
+          "name": "effective_motion_and_smoothing",
+          "calls": 12,
+          "self_seconds": 3.4863e-05,
+          "cumulative_seconds": 0.000164713
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 274,
+          "name": "_reconstruct_oklab_from_polar",
+          "calls": 12,
+          "self_seconds": 8.357e-05,
+          "cumulative_seconds": 0.00016162900000000002
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 744,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 0.000158646,
+          "cumulative_seconds": 0.000158646
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 264,
+          "name": "_cofb_cartesian_gate",
+          "calls": 12,
+          "self_seconds": 2.2483e-05,
+          "cumulative_seconds": 0.00015318300000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/multiarray.py",
+          "line": 1088,
+          "name": "copyto",
+          "calls": 1672,
+          "self_seconds": 0.000151244,
+          "cumulative_seconds": 0.000151244
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 3866,
+          "name": "_std_dispatcher",
+          "calls": 952,
+          "self_seconds": 0.000146161,
+          "cumulative_seconds": 0.000146161
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 238,
+          "name": "_linear_to_oklab",
+          "calls": 12,
+          "self_seconds": 0.000139195,
+          "cumulative_seconds": 0.000139195
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numeric.py",
+          "line": 91,
+          "name": "_zeros_like_dispatcher",
+          "calls": 1504,
+          "self_seconds": 0.000133974,
+          "cumulative_seconds": 0.000133974
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 379,
+          "name": "apply_output_quantization_hold_with_mask",
+          "calls": 12,
+          "self_seconds": 5.5531e-05,
+          "cumulative_seconds": 0.00012770200000000002
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'strip' of 'str' objects>",
+          "calls": 784,
+          "self_seconds": 0.000113004,
+          "cumulative_seconds": 0.000113004
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 224,
+          "name": "_planckian_white_balance_gains",
+          "calls": 12,
+          "self_seconds": 2.2411000000000003e-05,
+          "cumulative_seconds": 0.000110532
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'wrap' of 'numpy._core._multiarray_umath._array_converter' objects>",
+          "calls": 460,
+          "self_seconds": 0.000107094,
+          "cumulative_seconds": 0.000107094
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_domain.py",
+          "line": 35,
+          "name": "to_linear_srgb",
+          "calls": 12,
+          "self_seconds": 3.6981000000000004e-05,
+          "cumulative_seconds": 0.00010022000000000001
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/ma/core.py",
+          "line": 6685,
+          "name": "isMaskedArray",
+          "calls": 224,
+          "self_seconds": 6.232e-05,
+          "cumulative_seconds": 9.8034e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_domain.py",
+          "line": 20,
+          "name": "infer_color_domain",
+          "calls": 12,
+          "self_seconds": 3.8480000000000004e-05,
+          "cumulative_seconds": 8.6816e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 131,
+          "name": "_hyst_gt",
+          "calls": 84,
+          "self_seconds": 7.8451e-05,
+          "cumulative_seconds": 8.4027e-05
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'tolist' of 'numpy.ndarray' objects>",
+          "calls": 192,
+          "self_seconds": 8.3727e-05,
+          "cumulative_seconds": 8.3727e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 314,
+          "name": "is_four_d_sync",
+          "calls": 72,
+          "self_seconds": 3.21e-05,
+          "cumulative_seconds": 8.2137e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 249,
+          "name": "_oklab_to_linear",
+          "calls": 12,
+          "self_seconds": 7.3841e-05,
+          "cumulative_seconds": 7.3841e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 297,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 7.060700000000001e-05,
+          "cumulative_seconds": 7.060700000000001e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 332,
+          "name": "effective_light_spread_for_sync",
+          "calls": 12,
+          "self_seconds": 1.0365e-05,
+          "cumulative_seconds": 6.738600000000001e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 144,
+          "name": "_hyst_gte",
+          "calls": 60,
+          "self_seconds": 6.0229e-05,
+          "cumulative_seconds": 6.482200000000001e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 677,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 6.0865e-05,
+          "cumulative_seconds": 6.0865e-05
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'append' of 'list' objects>",
+          "calls": 224,
+          "self_seconds": 5.0509e-05,
+          "cumulative_seconds": 5.0509e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 298,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.9380000000000005e-05,
+          "cumulative_seconds": 4.9380000000000005e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 678,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.8715000000000004e-05,
+          "cumulative_seconds": 4.8715000000000004e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 689,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.8311000000000006e-05,
+          "cumulative_seconds": 4.8311000000000006e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 681,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.8289000000000005e-05,
+          "cumulative_seconds": 4.8289000000000005e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 686,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.8273000000000004e-05,
+          "cumulative_seconds": 4.8273000000000004e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 688,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.8253e-05,
+          "cumulative_seconds": 4.8253e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 680,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.8070000000000006e-05,
+          "cumulative_seconds": 4.8070000000000006e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 299,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.8025e-05,
+          "cumulative_seconds": 4.8025e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 679,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.7995000000000004e-05,
+          "cumulative_seconds": 4.7995000000000004e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 687,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.7726000000000004e-05,
+          "cumulative_seconds": 4.7726000000000004e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 684,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.7694e-05,
+          "cumulative_seconds": 4.7694e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 685,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.7683000000000004e-05,
+          "cumulative_seconds": 4.7683000000000004e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 690,
+          "name": "<genexpr>",
+          "calls": 588,
+          "self_seconds": 4.7352e-05,
+          "cumulative_seconds": 4.7352e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/shape_base.py",
+          "line": 368,
+          "name": "_stack_dispatcher",
+          "calls": 36,
+          "self_seconds": 1.7665e-05,
+          "cumulative_seconds": 4.7132e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 266,
+          "name": "effective_light_spread",
+          "calls": 12,
+          "self_seconds": 1.1563000000000001e-05,
+          "cumulative_seconds": 4.6880000000000005e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 392,
+          "name": "effective_zone_sampling_stride_for_sync",
+          "calls": 12,
+          "self_seconds": 1.3125e-05,
+          "cumulative_seconds": 4.5966e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 4262,
+          "name": "_quantile_dispatcher",
+          "calls": 376,
+          "self_seconds": 4.5711e-05,
+          "cumulative_seconds": 4.5711e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/palette_temporal.py",
+          "line": 113,
+          "name": "detect_zone_scene_cut",
+          "calls": 376,
+          "self_seconds": 4.5693000000000004e-05,
+          "cumulative_seconds": 4.5693000000000004e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 3909,
+          "name": "_median_dispatcher",
+          "calls": 224,
+          "self_seconds": 4.5324e-05,
+          "cumulative_seconds": 4.5324e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 2469,
+          "name": "_any_dispatcher",
+          "calls": 376,
+          "self_seconds": 4.5292000000000006e-05,
+          "cumulative_seconds": 4.5292000000000006e-05
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'lower' of 'str' objects>",
+          "calls": 408,
+          "self_seconds": 4.4095000000000004e-05,
+          "cumulative_seconds": 4.4095000000000004e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 236,
+          "name": "motion_profile",
+          "calls": 12,
+          "self_seconds": 2.748e-05,
+          "cumulative_seconds": 4.3123e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/multiarray.py",
+          "line": 197,
+          "name": "concatenate",
+          "calls": 412,
+          "self_seconds": 4.1987e-05,
+          "cumulative_seconds": 4.1987e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numeric.py",
+          "line": 323,
+          "name": "full",
+          "calls": 24,
+          "self_seconds": 2.7021e-05,
+          "cumulative_seconds": 4.0085e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 425,
+          "name": "predictive_sync_enabled_for_sync",
+          "calls": 12,
+          "self_seconds": 1.028e-05,
+          "cumulative_seconds": 3.8954e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 403,
+          "name": "effective_zone_sampling_engine_for_sync",
+          "calls": 12,
+          "self_seconds": 9.763000000000001e-06,
+          "cumulative_seconds": 3.7592e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/multiarray.py",
+          "line": 909,
+          "name": "bincount",
+          "calls": 376,
+          "self_seconds": 3.6568e-05,
+          "cumulative_seconds": 3.6568e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_arraysetops_impl.py",
+          "line": 139,
+          "name": "_unique_dispatcher",
+          "calls": 376,
+          "self_seconds": 3.6326000000000004e-05,
+          "cumulative_seconds": 3.6326000000000004e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numeric.py",
+          "line": 479,
+          "name": "_count_nonzero_dispatcher",
+          "calls": 376,
+          "self_seconds": 3.6106e-05,
+          "cumulative_seconds": 3.6106e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 355,
+          "name": "effective_motion_preset_for_sync",
+          "calls": 12,
+          "self_seconds": 8.07e-06,
+          "cumulative_seconds": 3.5255e-05
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'values' of 'dict' objects>",
+          "calls": 24,
+          "self_seconds": 3.5156e-05,
+          "cumulative_seconds": 3.5156e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 134,
+          "name": "<lambda>",
+          "calls": 376,
+          "self_seconds": 3.4628e-05,
+          "cumulative_seconds": 3.4628e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_pipeline.py",
+          "line": 217,
+          "name": "_resolve_robust_sampling_mode",
+          "calls": 12,
+          "self_seconds": 2.2482000000000003e-05,
+          "cumulative_seconds": 3.3185e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 1255,
+          "name": "_argmax_dispatcher",
+          "calls": 376,
+          "self_seconds": 3.21e-05,
+          "cumulative_seconds": 3.21e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 106,
+          "name": "_get_integral_buffer",
+          "calls": 12,
+          "self_seconds": 1.3416000000000002e-05,
+          "cumulative_seconds": 3.1991e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/shape_base.py",
+          "line": 206,
+          "name": "_arrays_for_stack_dispatcher",
+          "calls": 36,
+          "self_seconds": 1.3727000000000001e-05,
+          "cumulative_seconds": 2.9467e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 285,
+          "name": "effective_sampling_mode",
+          "calls": 12,
+          "self_seconds": 8.839000000000001e-06,
+          "cumulative_seconds": 2.7995000000000002e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_arraysetops_impl.py",
+          "line": 820,
+          "name": "<genexpr>",
+          "calls": 36,
+          "self_seconds": 2.5721000000000003e-05,
+          "cumulative_seconds": 2.5721000000000003e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 99,
+          "name": "_prev_mask",
+          "calls": 312,
+          "self_seconds": 2.4765e-05,
+          "cumulative_seconds": 2.4765e-05
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method time.perf_counter>",
+          "calls": 84,
+          "self_seconds": 2.213e-05,
+          "cumulative_seconds": 2.213e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 324,
+          "name": "effective_edge_locality_for_sync",
+          "calls": 12,
+          "self_seconds": 5.533e-06,
+          "cumulative_seconds": 2.1472e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/compositor.py",
+          "line": 43,
+          "name": "effective_sdr_boost",
+          "calls": 12,
+          "self_seconds": 1.5062e-05,
+          "cumulative_seconds": 2.1342e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/content_bounds.py",
+          "line": 74,
+          "name": "letterbox_margins_significant",
+          "calls": 12,
+          "self_seconds": 2.105e-05,
+          "cumulative_seconds": 2.105e-05
+        },
+        {
+          "file": "<string>",
+          "line": 2,
+          "name": "__init__",
+          "calls": 12,
+          "self_seconds": 2.0881000000000002e-05,
+          "cumulative_seconds": 2.0881000000000002e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 303,
+          "name": "effective_zone_sampling_engine",
+          "calls": 12,
+          "self_seconds": 9.739000000000001e-06,
+          "cumulative_seconds": 2.0117e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 247,
+          "name": "analyzer_mode_for_presets",
+          "calls": 12,
+          "self_seconds": 7.442e-06,
+          "cumulative_seconds": 1.9306e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 361,
+          "name": "effective_sampling_quality_for_sync",
+          "calls": 12,
+          "self_seconds": 5.364000000000001e-06,
+          "cumulative_seconds": 1.9266e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/fromnumeric.py",
+          "line": 728,
+          "name": "_partition_dispatcher",
+          "calls": 224,
+          "self_seconds": 1.8718000000000003e-05,
+          "cumulative_seconds": 1.8718000000000003e-05
+        },
+        {
+          "file": "/usr/lib/python3.14/dataclasses.py",
+          "line": 1472,
+          "name": "_is_dataclass_instance",
+          "calls": 24,
+          "self_seconds": 1.1380000000000001e-05,
+          "cumulative_seconds": 1.7650000000000002e-05
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'as_arrays' of 'numpy._core._multiarray_umath._array_converter' objects>",
+          "calls": 84,
+          "self_seconds": 1.5172000000000001e-05,
+          "cumulative_seconds": 1.5172000000000001e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/config/presets.py",
+          "line": 227,
+          "name": "sampling_quality_to_zone_stride",
+          "calls": 12,
+          "self_seconds": 7.413000000000001e-06,
+          "cumulative_seconds": 1.3575000000000001e-05
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method numpy.empty>",
+          "calls": 24,
+          "self_seconds": 1.1170000000000001e-05,
+          "cumulative_seconds": 1.1170000000000001e-05
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/numeric.py",
+          "line": 393,
+          "name": "_full_like_dispatcher",
+          "calls": 144,
+          "self_seconds": 1.0729e-05,
+          "cumulative_seconds": 1.0729e-05
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'disable' of '_lsprof.Profiler' objects>",
+          "calls": 1,
+          "self_seconds": 1.026e-05,
+          "cumulative_seconds": 1.026e-05
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 78,
+          "name": "_ensure_rgb_u8",
+          "calls": 12,
+          "self_seconds": 8.767000000000001e-06,
+          "cumulative_seconds": 8.767000000000001e-06
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_pipeline.py",
+          "line": 184,
+          "name": "_resolve_live_sampling_mode",
+          "calls": 12,
+          "self_seconds": 6.172e-06,
+          "cumulative_seconds": 8.697e-06
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/blending.py",
+          "line": 157,
+          "name": "_scene_activity_hysteresis",
+          "calls": 12,
+          "self_seconds": 8.154e-06,
+          "cumulative_seconds": 8.154e-06
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method 'copy' of 'numpy.ndarray' objects>",
+          "calls": 12,
+          "self_seconds": 7.525000000000001e-06,
+          "cumulative_seconds": 7.525000000000001e-06
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<built-in method builtins.abs>",
+          "calls": 24,
+          "self_seconds": 7.348000000000001e-06,
+          "cumulative_seconds": 7.348000000000001e-06
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/zones.py",
+          "line": 278,
+          "name": "compute_adaptive_step",
+          "calls": 12,
+          "self_seconds": 3.4490000000000004e-06,
+          "cumulative_seconds": 4.571e-06
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/_core/multiarray.py",
+          "line": 406,
+          "name": "where",
+          "calls": 48,
+          "self_seconds": 4.389000000000001e-06,
+          "cumulative_seconds": 4.389000000000001e-06
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method '__exit__' of '_thread.lock' objects>",
+          "calls": 12,
+          "self_seconds": 3.625e-06,
+          "cumulative_seconds": 3.625e-06
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "name": "<method '__enter__' of '_thread.lock' objects>",
+          "calls": 12,
+          "self_seconds": 3.5280000000000004e-06,
+          "cumulative_seconds": 3.5280000000000004e-06
+        },
+        {
+          "file": "./.venv/lib/python3.14/site-packages/numpy/lib/_arraysetops_impl.py",
+          "line": 953,
+          "name": "_isin_dispatcher",
+          "calls": 12,
+          "self_seconds": 2.838e-06,
+          "cumulative_seconds": 2.838e-06
+        },
+        {
+          "file": "./src/nanoleaf_sync/runtime/color_processing.py",
+          "line": 449,
+          "name": "<genexpr>",
+          "calls": 12,
+          "self_seconds": 1.474e-06,
+          "cumulative_seconds": 1.474e-06
+        }
+      ]
+    }
+  ]
+}

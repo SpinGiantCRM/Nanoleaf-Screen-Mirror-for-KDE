@@ -1,0 +1,25 @@
+{
+  "scope": "On-demand Rust settings GUI in isolated KWin, separate GUI process only; no compositor or optical power attribution",
+  "seconds": 2.0013204610004323,
+  "cpu_percent_one_core": 0.0,
+  "before": {
+    "cpu_seconds": 0.25,
+    "memory_kib": {
+      "Rss": 123920,
+      "Pss": 81046,
+      "Private_Clean": 14108,
+      "Private_Dirty": 31708
+    },
+    "fd_count": 21
+  },
+  "after": {
+    "cpu_seconds": 0.25,
+    "memory_kib": {
+      "Rss": 123920,
+      "Pss": 81046,
+      "Private_Clean": 14108,
+      "Private_Dirty": 31708
+    },
+    "fd_count": 21
+  }
+}

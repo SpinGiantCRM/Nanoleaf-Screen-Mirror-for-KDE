@@ -9,7 +9,7 @@ from functools import lru_cache
 
 import numpy as np
 
-from nanoleaf_sync.capture._utils import zone_box_average
+from nanoleaf_sync.capture._utils import zone_box_statistics
 from nanoleaf_sync.color import RGBTuple
 from nanoleaf_sync.config.model import PrivacyZone
 from nanoleaf_sync.config.presets import SAMPLING_MODE_WAVELET_EDGE, edge_locality_profile
@@ -18,6 +18,7 @@ from nanoleaf_sync.runtime.palette_adaptive import (
     palette_adaptive_zone_frame,
 )
 from nanoleaf_sync.runtime.palette_temporal import ZonePaletteTemporalState
+from nanoleaf_sync.runtime.rust_sampling import AdaptivePrepass, BoxSampler
 from nanoleaf_sync.runtime.srgb import linear01_to_srgb_u8, srgb_u8_to_linear01
 
 ZoneRect = tuple[int, int, int, int]
@@ -391,9 +392,23 @@ def _zone_colors_via_box_filter(
     use_multi_moment: bool = True,
     edge_anchor: bool = True,
     max_pixels: int = 256,
+    box_sampler: BoxSampler | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     img = _apply_privacy_mask(_ensure_rgb_u8(image), privacy_zones)
     h, w, _ = img.shape
+    if box_sampler is not None and not use_multi_moment and image.dtype == np.uint8:
+        effective_rects = [edge_anchored_rect(z, w, h) if edge_anchor else z for z in zones]
+        # Legacy slicing skips some negative/out-of-bounds rectangles before its
+        # statistics helper clamps them. Keep that observable behaviour unchanged.
+        effective_rects = [
+            rect
+            if img[rect[1] : rect[1] + rect[3], rect[0] : rect[0] + rect[2], :].size
+            else (0, 0, 0, 0)
+            for rect in effective_rects
+        ]
+        native_result = box_sampler(img, effective_rects)
+        if native_result is not None:
+            return native_result
     means = np.zeros((len(zones), 3), dtype=np.uint8)
     variances = np.zeros(len(zones), dtype=np.float32)
     for idx, zone in enumerate(zones):
@@ -408,9 +423,9 @@ def _zone_colors_via_box_filter(
         if use_multi_moment:
             color, _selector = multi_moment_zone_color(patch)
             means[idx] = color
+            variances[idx] = float(np.var(patch.reshape(-1, 3).astype(np.float32), axis=0).mean())
         else:
-            means[idx] = zone_box_average(img, sample_rect, max_pixels=max_pixels)
-        variances[idx] = float(np.var(patch.reshape(-1, 3).astype(np.float32), axis=0).mean())
+            means[idx], variances[idx] = zone_box_statistics(img, sample_rect)
     return means, variances
 
 
@@ -666,6 +681,8 @@ def zone_colors_array(
     virtual_oversample: int = 0,
     multi_moment_zone_colors: bool = False,
     edge_anchor_sampling: bool = True,
+    box_sampler: BoxSampler | None = None,
+    adaptive_prepass: AdaptivePrepass | None = None,
 ) -> np.ndarray | tuple[np.ndarray, ZoneSamplingMeta]:
     """
     Given a list of screen regions and an image, return average RGB per zone.
@@ -706,6 +723,7 @@ def zone_colors_array(
             privacy_zones=privacy_zones,
             use_multi_moment=multi_moment_zone_colors,
             edge_anchor=edge_anchor_sampling,
+            box_sampler=box_sampler,
         )
         if return_meta:
             rects = tuple((int(z[0]), int(z[1]), int(z[2]), int(z[3])) for z in zones)
@@ -750,9 +768,21 @@ def zone_colors_array(
         ZonePaletteTemporalState.from_dict(dict(row)) for row in (palette_temporal_states or ())
     ]
     if valid.any():
+        native_adaptive = None
+        if (
+            normalized_sampling_mode == "palette_adaptive"
+            and adaptive_prepass is not None
+            and image.dtype == np.uint8
+            and not np.any(valid & ((x1 <= x0) | (y1 <= y0)))
+        ):
+            native_rects = [
+                (int(x0[i]), int(y0[i]), int(x1[i] - x0[i]), int(y1[i] - y0[i]))
+                for i in range(len(zones))
+            ]
+            native_adaptive = adaptive_prepass(img, native_rects)
         normalized_engine = str(engine or "auto").strip().lower()
         selected_engine = normalized_engine
-        if normalized_engine == "auto":
+        if normalized_engine == "auto" and native_adaptive is None:
             cache_key = (zones_key, w, h, step, str(edge_locality), normalized_sampling_mode)
             selected_engine = _AUTO_ENGINE_CACHE.get(cache_key, "")
             if not selected_engine:
@@ -772,7 +802,11 @@ def zone_colors_array(
                     weight_plans=weight_plans,
                 )
                 _AUTO_ENGINE_CACHE[cache_key] = selected_engine
-        if selected_engine == "legacy":
+        if native_adaptive is not None:
+            # Every valid palette zone overwrites these means below. Avoid full
+            # frame conversion/integral passes only after the opt-in prepass succeeds.
+            pass
+        elif selected_engine == "legacy":
             means = _zone_means_legacy(
                 image=img,
                 x0=x0,
@@ -865,10 +899,20 @@ def zone_colors_array(
                 patch_u8 = img[y0[idx] : y1[idx], x0[idx] : x1[idx]]
                 if patch_u8.size == 0:
                     continue
-                if detect_zone_patch_mixed_content(patch_u8):
+                native_status = int(native_adaptive[0][idx]) if native_adaptive is not None else 2
+                mixed = (
+                    native_status == 1
+                    if native_status != 2
+                    else detect_zone_patch_mixed_content(patch_u8)
+                )
+                if mixed:
                     per_zone_mixed[idx] = True
                     per_zone_modes[idx] = "area_mean"
-                    means[idx] = _dark_biased_patch_mean(patch_u8)
+                    means[idx] = (
+                        native_adaptive[1][idx]
+                        if native_status == 1 and native_adaptive is not None
+                        else _dark_biased_patch_mean(patch_u8)
+                    )
                     mean_rgb = means[idx]
                     per_zone_palette[idx] = {
                         "selected_sampling_algorithm": "area_mean",
@@ -1060,6 +1104,8 @@ def zone_colors_array_with_meta(
     use_zone_box_filter: bool = False,
     virtual_oversample: int = 0,
     multi_moment_zone_colors: bool = False,
+    box_sampler: BoxSampler | None = None,
+    adaptive_prepass: AdaptivePrepass | None = None,
 ) -> tuple[np.ndarray, ZoneSamplingMeta]:
     out = zone_colors_array(
         image,
@@ -1080,6 +1126,8 @@ def zone_colors_array_with_meta(
         use_zone_box_filter=use_zone_box_filter,
         virtual_oversample=virtual_oversample,
         multi_moment_zone_colors=multi_moment_zone_colors,
+        box_sampler=box_sampler,
+        adaptive_prepass=adaptive_prepass,
         return_meta=True,
     )
     assert isinstance(out, tuple)  # nosec B101

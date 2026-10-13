@@ -1,0 +1,18 @@
+{
+  "size": [
+    640,
+    360
+  ],
+  "style": "ambient",
+  "sequence": "mixed_dark_noise",
+  "quality": "balanced",
+  "invalid_comparison_reason": "Harness applied balanced to Python but hardcoded high for Rust. Not evidence of colour regression.",
+  "actual_quality": {
+    "python": "balanced",
+    "rust": "high"
+  },
+  "comparison_invalid": true,
+  "max_sampled_code_delta": 2,
+  "max_output_code_delta": 2,
+  "raw_debug_vectors_archived_locally": true
+}

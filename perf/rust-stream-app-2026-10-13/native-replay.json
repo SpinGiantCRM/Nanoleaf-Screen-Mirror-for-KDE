@@ -1,0 +1,1049 @@
+{
+  "scope": "Complete offline colour + GRB TLV. Capture, USB, GUI, power and optical response excluded.",
+  "reference_commit": "d982cf9",
+  "dither": "Disabled equally for parity; native corrected sub-code dither is tested separately.",
+  "frames": 12,
+  "repeats": 1,
+  "quality": "high",
+  "host": {
+    "platform": "Linux-7.2.9-2-cachyos-bore-x86_64-with-glibc2.44",
+    "python": "3.14.7"
+  },
+  "source_sha256": {
+    "native/core/src/adaptive.rs": "936a72d2763e543faeda8a2fd037c21669729890014545e5b97b16c6d976d438",
+    "native/core/src/bin/probe.rs": "4ec282105d5b1967104a03a139563465d117ddbcd8d2c19f8f96a2bbae0cc539",
+    "native/core/src/blending.rs": "dd0e8bba5ad142c4e80da81fde256c4dbc57d95a78dc2a03bbef8c5fe1344721",
+    "native/core/src/colour.rs": "61da631a380b16e3d92cec808d511baa8a6fdf218f894e7b22ca56abf8ed44ee",
+    "native/core/src/lib.rs": "4bbc2770719858c2a305a20a7c131705f023c8a0baa6be876d9cc17765be1e85",
+    "native/core/src/palette.rs": "df4b241a83321bfd5b3b4d91634ebc1421319c197e703451ca37c69ff74f4b59",
+    "native/core/src/protocol.rs": "2ba8467ef3cba3664e09f7c0a59afd1683deea2a72f38537da248ff0880d9985",
+    "native/core/src/sampling.rs": "e6ab6b528498e9b664e8a4bcd75cee620953979ae8742395bfef1932c8fd8b09",
+    "native/app/src/bin/decode_probe.rs": "2974a7a67b29e3dc1d22b1f948864ed6ba0f89dde6766f4f99d5794a3d18fe82",
+    "native/app/src/bin/replay.rs": "75120306d3822897ae05cb2dd38039755704084eb7f575bed9d34b72f4889cbe",
+    "native/app/src/capture.rs": "506999cd604160b772a448795fbc6380cb2be70cf83777b369eb45e3f8fdb972",
+    "native/app/src/config.rs": "0aafbc0d4f2dc045bb3c3c6467611853007ff5827b3e45c1052ed493ca58c16e",
+    "native/app/src/device.rs": "c41a716ca8f9309a7f9b79b618b5fee9ed9d9221d1969f8e8786f4e17b1e5104",
+    "native/app/src/geometry.rs": "69e70e31d4d49ab7ec74a5c120d0d89eb9d47775629f4bc1d5bf9688aab7ccd1",
+    "native/app/src/launcher.rs": "38359d8a1e5c5c366305f76e870009cbf26bc0aa20ef9b845cc27983ee102e92",
+    "native/app/src/lib.rs": "e0db780b492b7a8cbe4e0e328d7122f200fc329684710be17c78e18bf45bfda6",
+    "native/app/src/main.rs": "d1a790fe8e949c691e0a28d06b12f8522c8524e4f29d8810ecee002d8cf8dc39",
+    "native/app/src/pipeline.rs": "fe9b49ce00d91554eb110253d307f8740f6b6f5919d4012981525cbc9ee68606",
+    "native/app/src/portal_file.rs": "f1931dd2ea5895d60fd307028977fc3f2c744c7ff8492ed05e28c450987d506d",
+    "native/app/src/priority.rs": "2b772cdd56227109da7edeff62aeecbaeb3a960852b5dba56263e8e8d9e0725e",
+    "native/app/src/probe.rs": "06f385b9d837106057fa1fb5001b60d3c0515d0fc7a9bec34f9833792e63afdb",
+    "native/app/src/profile.rs": "e5948835d647aa30aac68ee1f3933f4ceb0ca705c9cea9e54ca7f989a93610da",
+    "native/app/src/screens.rs": "61b48e850b42f33b770b232c879dc1e0c6832bc9a5d9f22824c36602ddea6874",
+    "native/app/src/service.rs": "841d6a875058dca4f1b58ec92a678387cc6fdb843525842e45ea04115508a6b3",
+    "native/app/src/spatial.rs": "5041234e21b61f80b60c31730e8f0e3b906683a440769960a0fc83adb0891469",
+    "native/app/src/stream_worker.rs": "263db28182c91988f32a447fc605bb2d22c047a39c8487145dc9dcee67b79883",
+    "native/app/src/tray.rs": "2a83f115a15e000b48ee42115d35d486825dc94a8f26eee24bb60885abbe5fc3",
+    "native/app/src/ui.rs": "e17eeb698a212ac63093b232e3ad2d1c453fb13b7839a0521b519eed33218a68",
+    "native/app/src/worker.rs": "5b3876412b3f15e8a9aff77a6f646f607bc5f6190fb6fd543bb39752f2f138ac",
+    "src/nanoleaf_sync/__init__.py": "7761b59521aacb1a88981322e652b8301f685c185e5fda2deed86c22656e7e86",
+    "src/nanoleaf_sync/_coerce.py": "9dd75ccd6cd7e40aad7685b3e97cddb45b44fd6113b54738fee76ebf4341c740",
+    "src/nanoleaf_sync/capture/__init__.py": "3bbb92eccd62f86cab8c068e6b9e61ea04c240cd4038acbac9e4c95da65b7df5",
+    "src/nanoleaf_sync/capture/_drm_helper_bridge.py": "67f14afddc794595c46a5286ae8dd8ad168189c79ed9ed28598baa6fb668d839",
+    "src/nanoleaf_sync/capture/_drm_master_fd.py": "0d03a099ccfbe2c81ee70c33e69980267d5662a2501f8dde9d3b3453d5b297d2",
+    "src/nanoleaf_sync/capture/_drm_zone_sampler.py": "14067d59773ca32ff6d1b7579ac2386b9760db83a94dc6654c06e8980f01cfc3",
+    "src/nanoleaf_sync/capture/_utils.py": "ba0a02c8c13fb06023220d18ae90fc49b6146f48fc86fe43f5310cb7d33fa087",
+    "src/nanoleaf_sync/capture/auto_probe.py": "0bcd09b49be3540285c94bddce20673c1517f6808c90791b34beb24dfd367bf3",
+    "src/nanoleaf_sync/capture/backend_selection.py": "9f420c4ca23328c52c1f1dce040b13ef5bd7ca53c2c77def4ba42c5d7c69806f",
+    "src/nanoleaf_sync/capture/dimensions.py": "5dad6633f610e6ec74ea559eb80637e127d60f92e6c3d098ca79c119e66773f5",
+    "src/nanoleaf_sync/capture/drm_vendor.py": "21a064b59aad4789428fe811d13475ba7177b0b623d1ce83902dd9e757459f42",
+    "src/nanoleaf_sync/capture/drm_zone_sampling.py": "8b64fd08998e27013a49164fb7e9fb531127b46b2bd4855c9a3bea6b826733c7",
+    "src/nanoleaf_sync/capture/errors.py": "53b3bde05188a97d525511c79951f37fcbc7339353069a87d1f286ec1c177956",
+    "src/nanoleaf_sync/capture/factory.py": "404286b129e65724bc658dc83ff229a1dae57ba74cddef29a2504aecdaaa09e1",
+    "src/nanoleaf_sync/capture/interfaces.py": "77cc738da7f7ed7b7188cdd61e3a43ebe398e8623f6c54f3c7c4501c77c2306a",
+    "src/nanoleaf_sync/capture/kmsgrab.py": "bfad10ce964207751e78e11dce49ad3020c9ef92fefcb5799936409a6efbb023",
+    "src/nanoleaf_sync/capture/kwin_dbus.py": "9b8114f2745a3be08230adf52a0be6d8ec64e095002fa4cc71acf0dede1b9476",
+    "src/nanoleaf_sync/capture/latency_probe.py": "fceab7e05c5c0b660d70ccdab03dacad400ad4ba4c07edd703c5811440dafda4",
+    "src/nanoleaf_sync/capture/mock_capture.py": "cfb32d8881e28c91c69f147dc015df73d5e3149dab8804106860840b211ebd71",
+    "src/nanoleaf_sync/capture/probe_models.py": "909b17fbdd71eeb831152c111b53004c114b6d2e28e67cb1705589524b44b434",
+    "src/nanoleaf_sync/capture/probe_timing.py": "da8138f06965573787d21f1d9a11c77e0a70701052e1e7422a56ff8e70e83b15",
+    "src/nanoleaf_sync/capture/replay_capture.py": "b59a5c7cfca6e7ffa77f2241ef9bcc3ebc3a82332eafcff630230589e7ed3ca7",
+    "src/nanoleaf_sync/capture/source_context.py": "3d6fc576530221e5454d26cda7edbad661a0e26e03be7d3369257f20bc27d6af",
+    "src/nanoleaf_sync/capture/source_identity.py": "c319a58d49cc6734584e3b43d4fa1a5b62af34613856f4e6f189df5205346706",
+    "src/nanoleaf_sync/capture/vulkan_sampler.py": "5bf66f89cdf7c61aa4beeac7fe9a45489ee038ee3fa3a546515ba5faaf20cfad",
+    "src/nanoleaf_sync/capture/xdg_portal.py": "257a89ef26b15e75dc5bc267f034a88b431c5633ea47dcfefd15a74aaca37f04",
+    "src/nanoleaf_sync/color/__init__.py": "020add33e13dd23993c7f35fce2e2fcd2ae693604ba658c93f3a6a01cd32be2b",
+    "src/nanoleaf_sync/color/capture_metadata.py": "d95054b012dc324819176f5ef8ad7d7fb252b9d107a15f5e3b05f54074f4faa8",
+    "src/nanoleaf_sync/color/hdr.py": "c77fad834694d1856074df1101543270fee1223705920b19ad165852c5c19bb6",
+    "src/nanoleaf_sync/color/metadata_hysteresis.py": "f03179d126fc02046137f2f5193a8afbe43ea416075669518339d9d12287686e",
+    "src/nanoleaf_sync/color/primaries.py": "f9ec1bd222a06f5e8506289a3fea3172d1762a9bdd898fbcd462508eba0adb50",
+    "src/nanoleaf_sync/color/zone_mapper.py": "a762f4dc4309fbe8516a11f85c7a5069828dcfef335e78594f199e07b1b383dd",
+    "src/nanoleaf_sync/compat/__init__.py": "105a71a46fd1ab9c3446b34d0cb091e02f685ff18ae162191bd09c1cf366e8bb",
+    "src/nanoleaf_sync/compat/kde_version.py": "d3d090ec24cbb05c9e394738488cae7160ccb034ed939204d41c9d3c47b64318",
+    "src/nanoleaf_sync/compat/kwin_probe.py": "21a317dfefee8be3da858ccb22edde29466b6c2cf9af03ada4394bd319a96764",
+    "src/nanoleaf_sync/compat/portal_probe.py": "abf8b2c196afeba55c1ccef3bee6129c26d8f98696fab69a9d8a9411f3000622",
+    "src/nanoleaf_sync/compat/update_checker.py": "af6fbbc762d2c485cfc1aaa37f579da2d98c9facf31e45d708c188056ae65d96",
+    "src/nanoleaf_sync/compat/version_snapshot.py": "d3926d9b19dd55e08b297233bfa19fa40fddf114f67a945eacc616376054d0ca",
+    "src/nanoleaf_sync/config/__init__.py": "700221559b9f119c107c07cbd291f5ad7a7f231666a74890c67ae8da6836021d",
+    "src/nanoleaf_sync/config/led_calibration_profile_io.py": "6e9a43627bf6ece34c9f97a235ec9ac11517a9b5f86fe156d791a98ac92c1cc9",
+    "src/nanoleaf_sync/config/model.py": "6aac0111d4b21097b37c658dfd7400c5a1e89f830926b2d943c86c5c72406ac9",
+    "src/nanoleaf_sync/config/normalize.py": "d17b2940ee28a3397df065bba6be0abd0cc1f496c4e2aeb8deaa4a97b65f7c57",
+    "src/nanoleaf_sync/config/presets.py": "0f166e61cfbbf94ab8c21b87aa5b653efe7e344e1b73ec5a11b653a211804ea2",
+    "src/nanoleaf_sync/config/store.py": "9abe4627e9a4a0706ed4e5e6ebd80ffe2b754deedfd0fb73f6798bffb11d5062",
+    "src/nanoleaf_sync/desktop_entry.py": "39b8927647e6e853ba92bf28737d54034ada19ba839466b6a7a8fde2d46f5e72",
+    "src/nanoleaf_sync/device/__init__.py": "d38b3516df6b0c770751a6deffc436de054d09e6a3878913b6fad75cebdb4e50",
+    "src/nanoleaf_sync/device/hid_transport.py": "0445a6c9d1ef90fe973fce93b803b12e9763c4b678f67be6e929dc4c3696c44d",
+    "src/nanoleaf_sync/device/interfaces.py": "b5b39b642d2d315d154fa39f7696514e6432c56dc3a739789e3ab5555fc2c7a9",
+    "src/nanoleaf_sync/device/protocol.py": "a96a31c3066dbdef4c9b09bcc0d15e13d929631957d56e57e0accaec02b0f110",
+    "src/nanoleaf_sync/device/send_policy.py": "495e39f5c52e12024f80c92c61c7f76163d3e6beada6867e8a2cd26c162a103f",
+    "src/nanoleaf_sync/device/transport_profiler.py": "4a078d810bbeb92db549e1c56ed0edec18799004bd2f96dde31f2c97c68c805e",
+    "src/nanoleaf_sync/device/usb_driver.py": "c88861b5e1cd3d12afa7e76478f6ea054f50af44a3653558abbffd81c062aa5d",
+    "src/nanoleaf_sync/runtime/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "src/nanoleaf_sync/runtime/anchor_calibration.py": "4392e4fefb7866107983df9b9bca00ca334803d9a4eae013865bd9c1001018a6",
+    "src/nanoleaf_sync/runtime/blending.py": "ad75553054d704a941dcd6a6b30999664ff16daa89265605013ac3e8dc283415",
+    "src/nanoleaf_sync/runtime/calibration_resolver.py": "cbd6361ba86b83800e86faaaa7a76f07ee77c918e1e501e1fc292667e16f94da",
+    "src/nanoleaf_sync/runtime/color_accuracy_diagnostics.py": "d7dd422de6c5dfa3961e73fafcd1f9ed9c552314c5b3993b1e8c7dc570eee9ed",
+    "src/nanoleaf_sync/runtime/color_context.py": "6afe238d335add5ed13f5f392de5d539582dc1c6da1604d90549b3f9ae1ab63f",
+    "src/nanoleaf_sync/runtime/color_domain.py": "b3c1c17a44faf6e83fd7e058737da78885550f231a533281d7b72d9f4ede301d",
+    "src/nanoleaf_sync/runtime/color_pipeline.py": "0e2c4683fe9c84eb2dbb3b6afc5c282c798891215c30266768869cb26da0668d",
+    "src/nanoleaf_sync/runtime/color_processing.py": "1f49ed545408a4abb20f26c2a1e47d021e098d56e1988a84df6eda92773f940a",
+    "src/nanoleaf_sync/runtime/colour_path_diagnostics.py": "7ea3e6c7b2c7fef7000ed9cba34d686f4041d418dd15817bc719b4dd07df9f8f",
+    "src/nanoleaf_sync/runtime/compositor.py": "43d89a3a02357806af62e809c798bd7b3e7a0ad46347556f85429805703d1935",
+    "src/nanoleaf_sync/runtime/content_bounds.py": "ab40cd1a9b66ee49dfcd0a1c3f776b1c4a3ae82dfb60f4840772c90161b84ef7",
+    "src/nanoleaf_sync/runtime/diagnostics_exports.py": "2e74bb9b325cbcbf0e88bb8eb325ba53b92f82ec355a5061eac28713db1b7c29",
+    "src/nanoleaf_sync/runtime/edge_locality_diagnostics.py": "06b937e13b8ea499460d74bbb5d9c9c366b07bf043cdfb2061840dec63c18d85",
+    "src/nanoleaf_sync/runtime/engine_frame.py": "3672535f268b8ad8cd1495f2ab010effa5808eb930a0f98ab9dd35d11c151bce",
+    "src/nanoleaf_sync/runtime/engine_loop.py": "591786d5d0c3f500a6c972d5d5fccc5228e01ec06397ea3a31c37c2ba80b3de0",
+    "src/nanoleaf_sync/runtime/engine_loop_capture.py": "04bdf97f36fedffb949166672b0a33141a2382d315bcde7e5efc6e2ed6df98b7",
+    "src/nanoleaf_sync/runtime/engine_loop_context.py": "29f911d2ab8ab91bc310ba607955da99cf5331070eabae52934847375e5b491c",
+    "src/nanoleaf_sync/runtime/engine_loop_hid.py": "8111e29c56e9af41d5a2c28ccc13723502ea57cb20b46624caebd054228f1a5e",
+    "src/nanoleaf_sync/runtime/engine_loop_process.py": "73dbc71806ee1ce1e5f84244c52a401b8a3337be3b3381548493fc199dc46bc9",
+    "src/nanoleaf_sync/runtime/engine_loop_supervisor.py": "e96db0c4190a797cf76879ba930403175038d45686c915843b865b74ad0872ad",
+    "src/nanoleaf_sync/runtime/errors.py": "199ee41db50ae86bc70fbb059265dbed923bec4d78bb2851d6fe1dcb7d22e0d6",
+    "src/nanoleaf_sync/runtime/fps_governor.py": "8f16eb2bf6307ebd7ef53d5b8374ec8e5a4530fc838e004b470f0a6372edecab",
+    "src/nanoleaf_sync/runtime/frame_context.py": "9d84b81cb15669fc219b06d39e38a413bcacee60ab99342880c84a82e736c7ae",
+    "src/nanoleaf_sync/runtime/guided_calibration.py": "d77f6121fb2d19d32cdef51670e22ef48c30965d0b9648a966f9e646bdfe9d4a",
+    "src/nanoleaf_sync/runtime/output_session.py": "2f855edf9cafda739a0dd611926b4c242dc1f64aed2fbfef14973fed089802d4",
+    "src/nanoleaf_sync/runtime/palette_adaptive.py": "1fa474e61eaf6fa8becdda039635113c29ae84b7883433c0f2abdf11a06b908e",
+    "src/nanoleaf_sync/runtime/palette_temporal.py": "9c5c74bc19961b96c264bd31573a85a2043978bbfa067a44516be54924c0b97a",
+    "src/nanoleaf_sync/runtime/pattern_generator.py": "13eb503da794dcb6dfc5f6f526d155c7c58daef05f61d298b4fb3a2e307fdce9",
+    "src/nanoleaf_sync/runtime/predictive_sync.py": "f9e36e784759b367cc97952ba4bb8ad12cc65690ca4bbd6266b2878431918143",
+    "src/nanoleaf_sync/runtime/processing.py": "b9479556002f40c7deaebcb13705b3b3a8fecb041d4f1ef09f9cb1ec399fe3d0",
+    "src/nanoleaf_sync/runtime/readiness_check.py": "6550a206412a519fcaf7a6b0bdf7e32266233f20bdbf1c6ffb6d71d4af662687",
+    "src/nanoleaf_sync/runtime/ring_buf.py": "85722f24eb29702d4c60d45deae731922c2de3cabc8ef10703bd667c0d357881",
+    "src/nanoleaf_sync/runtime/rust_sampling.py": "2e5306cd12f6244c8335ce0bbb411c0d98430f47ce215d925087f41cf005b846",
+    "src/nanoleaf_sync/runtime/srgb.py": "0a8cb1a09b56dcd264b1ff8ad92cd465d0e91538e62844ba0ba4d6c4ec5979e1",
+    "src/nanoleaf_sync/runtime/startup.py": "0528127c95b4c39fec829caf3d9c5502203dd605dbc45a3fc512d1dd7d69722e",
+    "src/nanoleaf_sync/runtime/state.py": "c26a33cbbf6020925f082fb3f3133ccc6865e13ba583d58e2db774232cdfb0a1",
+    "src/nanoleaf_sync/runtime/status_warnings.py": "c26fa65597f9100defe48266a20de9a2b3701fa4c1d85bda7576e22537c60c9c",
+    "src/nanoleaf_sync/runtime/virtual_zones.py": "14a4a8597717b40da593c25152eed533627ba7f98571657530a8485a00795bfc",
+    "src/nanoleaf_sync/runtime/zone_accumulator.py": "c7853b216f4674a2edeca959253a95f240deee310a4585d69e6385d7ff6d80f5",
+    "src/nanoleaf_sync/runtime/zone_derivation.py": "58681d81463175dd7ce6dc938d74131d17743244e3171f621ed73f2302e093b8",
+    "src/nanoleaf_sync/runtime/zone_presets.py": "a07034f751a8257e01341ed64e2b29eb328f1d6ad60f6d13a954d71c4893791b",
+    "src/nanoleaf_sync/runtime/zones.py": "77a70662b25e8dee6ef16c5af78443758d088142b36513b37482052ed152857a",
+    "src/nanoleaf_sync/service.py": "fc3c287db07016906d9ac3e77b0c36d10447014be6814ecccfb2163d20f965ea",
+    "src/nanoleaf_sync/tools/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "src/nanoleaf_sync/tools/autostart.py": "28a68051a62baf26507c511f662c7d5946fb0ef1fd22eaa4a7f974705c5e0777",
+    "src/nanoleaf_sync/tools/benchmark.py": "cce8654d1efd14fa81902eff7e07a3138ba81d00aafdc0ae088611b6dcda413d",
+    "src/nanoleaf_sync/tools/color_kmeans.py": "18acd13cb2b858c8561fa764c0ad29a1d2a5d282b3cc557183e2f593c68f3306",
+    "src/nanoleaf_sync/tools/colour_path_probe.py": "86d53d11f62a99e457673e5b2853ddae6cde65985ccd2f093b97975d98d0afac",
+    "src/nanoleaf_sync/tools/config_init.py": "619c233676d0dd67d44f62272281e9b8d09a320cb587fff3eb205044db493d16",
+    "src/nanoleaf_sync/tools/diagnostic_bundle.py": "1e30d0af9e377afa47ba07677a3bcc933908b17d9114fb073af08772c77154f5",
+    "src/nanoleaf_sync/tools/doctor.py": "0d0983916b2a36b6c709ca83f772ef3fe86d3edf1714f2128eed208f0ce3231d",
+    "src/nanoleaf_sync/tools/flicker_lab.py": "e1bcc46838cc6c91700ab38115de64b2e9a8b0549babde9bb08864c0db8ce75c",
+    "src/nanoleaf_sync/tools/output_format.py": "e09e4e152d8522f9a8294aea0c201e1ca5b3855992659072dc1e753942e3177a",
+    "src/nanoleaf_sync/tools/portal_tools.py": "fed7b5e80f72ca11427acaeef452b87d8720750a075f7997f52182647f65cefd",
+    "src/nanoleaf_sync/tools/reset.py": "c9dca0bbad13060143df5acbf2465e1922ce44c04a2062b50a6f6c153a3a1477",
+    "src/nanoleaf_sync/tools/setcap_helper.py": "b37d08d6140904b921965c94d09bb3c54e9bf393ce01f584d5039752388aceba",
+    "src/nanoleaf_sync/tools/setup_permissions.py": "ee1661d2d2d24a1b3cf11e398f855286397e05da0144b97c292ca194675e84c7",
+    "src/nanoleaf_sync/tools/smoke_test.py": "e22c90c97a41df210c1dd5b69f2c5758f85826ba566d450c1a1e7b17aae7393a",
+    "src/nanoleaf_sync/ui/__init__.py": "7db5a38dab33d929fd4337e5e79afd58db18d3e2aefb2df2853c9dc017d328e7",
+    "src/nanoleaf_sync/ui/calibration_flow.py": "d1a05e3873d5be1306f733a782f54abe3dd2568fb4a4fb618864037e37992b7d",
+    "src/nanoleaf_sync/ui/calibration_preview.py": "8d47935dd0b61669d8b837ca155111e2bc39060ec8ce38278d16735c33d11b1e",
+    "src/nanoleaf_sync/ui/calibration_state.py": "b404ee2a1a4829d72025d0c7651334c955a2fb4c942d0041bb578b0c86a8fd17",
+    "src/nanoleaf_sync/ui/calibration_widget.py": "9d159f46810145c68fffa43f31292585ae481a271d7db7abc72eadefaa771ef9",
+    "src/nanoleaf_sync/ui/command_results_dialog.py": "8c6760c6d93c8ac26c0ec07a97e0e09ed0e218e10d574f24ce2219a493e6bf08",
+    "src/nanoleaf_sync/ui/diagnostic_hub_dialog.py": "5eb44114b01b062c38f19a6004b708d9c4da9118d13647681c0591e61e4bd8f7",
+    "src/nanoleaf_sync/ui/display_configurator.py": "9ba421cf01b27977f17632175235d99467b49b4d02b6879737337495f3e94c23",
+    "src/nanoleaf_sync/ui/guided_calibration_dialog.py": "a69acad1018c1d8ac63fa7d9d5b5327f0f016ffe572bb23ed9d2dd1afc24e5aa",
+    "src/nanoleaf_sync/ui/layout_helpers.py": "66eafc453692b8e07170e807b8211cb9dc5f1ada01d1542a5427659445735560",
+    "src/nanoleaf_sync/ui/led_color_calibration_dialog.py": "19a40e0aa73390edccb913450e9819649551fb50e938403549ff7a31267c2614",
+    "src/nanoleaf_sync/ui/live_diagnostics.py": "4ce6fe76ebaa513d7f9d90bf21d8f4e4136b99bd4cb350dd1b09be988b7a5ae9",
+    "src/nanoleaf_sync/ui/preset_ui.py": "aa6e83631859eb47ca9714e96f2ea6515af9bd3baa338dfb951b6fff4caa2924",
+    "src/nanoleaf_sync/ui/qt_lazy.py": "6168f1ff6e59555d6756b6d610e43ef4ff9174cfe554293ca6edc29b3155922f",
+    "src/nanoleaf_sync/ui/settings_dialog.py": "b632c7ce4446361dbcb3542d609d8039e37317d037c4ab0e8bbed709a4d765ea",
+    "src/nanoleaf_sync/ui/settings_dialog_handlers.py": "21145803f0bd9693de5c67dd099ac2b0692c8861d59b9d36f4bdc1eb3488e1cb",
+    "src/nanoleaf_sync/ui/settings_dialog_handlers_ext.py": "c5b463b04fba8e347ad6f6cd48e03cdd84b523c22d31ece6becfd173b16432b5",
+    "src/nanoleaf_sync/ui/settings_dialog_layout.py": "ed5fdb097ad95cecdbfbe1be7ae9a1cebda5979e78f6e7631049a828693dfc5d",
+    "src/nanoleaf_sync/ui/settings_dialog_shared.py": "387dc6f5e93d059bcf714ba57d9cea58c11849f4d72cd6bb772b50e69fbbda25",
+    "src/nanoleaf_sync/ui/settings_dialog_widget.py": "164140e234c4fe3a06e7ff10c9e893ab16e589bc4045c20c7c4144510a4514c2",
+    "src/nanoleaf_sync/ui/tray_app.py": "bc61d0a6ea2df5c1e9380d10eb26fa784b2c790214d5c883228973bda346fb7d",
+    "src/nanoleaf_sync/ui/zone_calibration.py": "de9135fb28606414345fdcfcfbb00647fb8fd540700f225c8c6f4045d14632b5"
+  },
+  "binary_sha256": "c7eb764b99c31d54416f8a645786ef9717679fe7bde91516502838b893ac607f",
+  "cases": [
+    {
+      "size": [
+        96,
+        64
+      ],
+      "style": "reference",
+      "sequence": "flashes_scene_cuts_neutrals",
+      "frame_hashes": [
+        "04475fad67bd07bc23a46499bc4b5113733704d557a02f45edcae1740b78b2c4",
+        "08d121dab3a9c94a3cd5670e806ab9049c729ab87a1d29a419f11625bc73cbc6",
+        "04475fad67bd07bc23a46499bc4b5113733704d557a02f45edcae1740b78b2c4",
+        "08d121dab3a9c94a3cd5670e806ab9049c729ab87a1d29a419f11625bc73cbc6",
+        "04475fad67bd07bc23a46499bc4b5113733704d557a02f45edcae1740b78b2c4",
+        "08d121dab3a9c94a3cd5670e806ab9049c729ab87a1d29a419f11625bc73cbc6",
+        "8a56784c794f331e6cd8a68fd021334e4033fb7ee783e706f9963e0693f399e0",
+        "8a56784c794f331e6cd8a68fd021334e4033fb7ee783e706f9963e0693f399e0",
+        "8a56784c794f331e6cd8a68fd021334e4033fb7ee783e706f9963e0693f399e0",
+        "8a56784c794f331e6cd8a68fd021334e4033fb7ee783e706f9963e0693f399e0",
+        "2766eb2118971158db4a8789dee8802e31a85c9d5169907b187404a804c42a37",
+        "f7b586904e3678145aa47e4232587c913139cef0102d6d8e9276fc80c35cbad3"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 12,
+          "metrics": {
+            "python": {
+              "median_ms": 2.4972689971036743,
+              "p95_ms": 3.534786999807693,
+              "samples_ms": [
+                2.5233089982066303,
+                2.3261739988811314,
+                2.450640997267328,
+                2.501286995538976,
+                2.35485900338972,
+                2.4493279997841455,
+                3.534786999807693,
+                2.185986995755229,
+                2.4932509986683726,
+                4.724594997242093,
+                3.0905910025467165,
+                2.9121109982952476
+              ]
+            },
+            "rust": {
+              "median_ms": 0.079106,
+              "p95_ms": 0.085743,
+              "samples_ms": [
+                0.056527999999999995,
+                0.069963,
+                0.079051,
+                0.085743,
+                0.100051,
+                0.07008400000000001,
+                0.063311,
+                0.064803,
+                0.079161,
+                0.08031400000000001,
+                0.08514200000000001,
+                0.085213
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 0.0529105,
+              "p95_ms": 0.064082,
+              "samples_ms": [
+                0.046779,
+                0.046217999999999995,
+                0.049484,
+                0.056337,
+                0.060636,
+                0.046438,
+                0.046268,
+                0.046268,
+                0.058121,
+                0.059692999999999996,
+                0.064152,
+                0.064082
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.020799500000000002,
+              "p95_ms": 0.029335999999999987,
+              "samples_ms": [
+                0.009377999999999997,
+                0.023565000000000016,
+                0.029335999999999987,
+                0.02914599999999999,
+                0.039084,
+                0.023454999999999997,
+                0.016883000000000016,
+                0.018315000000000005,
+                0.020739,
+                0.020359000000000002,
+                0.020680000000000004,
+                0.020860000000000004
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t    4228 kB",
+            "VmRSS:\t    4228 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        96,
+        64
+      ],
+      "style": "reference",
+      "sequence": "mixed_dark_noise",
+      "frame_hashes": [
+        "2c43e0c28d70a8d44fe4ec897c4b44a55a3635897fddea9ba01741a18447ccc7",
+        "2c43e0c28d70a8d44fe4ec897c4b44a55a3635897fddea9ba01741a18447ccc7",
+        "2c43e0c28d70a8d44fe4ec897c4b44a55a3635897fddea9ba01741a18447ccc7",
+        "2c43e0c28d70a8d44fe4ec897c4b44a55a3635897fddea9ba01741a18447ccc7",
+        "b6b007c102329812f0bf0a34e97bf2faa75eec8e01118bddf04a79c3cad62a6b",
+        "7f37a75353c3bb5fc7be820b1e888cf7f6ccbe3c908c7b8aa1bc1bea9176b027",
+        "8ed2cf475e2c30e20d7d803cb0153722fe74f25ebdd9e89bcbeca8760628c680",
+        "7894e95631d730dd2a8c85f88bd207b30fbf9cbf839fb1819dfac372d79864f3",
+        "0bb45108fe10c7a3490d9d90d7204e5db2695908742699823658a67a37e40591",
+        "0bdd3951bf0e025704b447129d40a5c0bd80a0193bde3ed03a13889ce9a7308c",
+        "fed87a732fad853749a3301992e83e47fb7ad6ff78867333a6e2194a383f70f7",
+        "9798988586bb598158338cec76387b4157b5e0b8c265eb5566d065689cd64d33"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 12,
+          "metrics": {
+            "python": {
+              "median_ms": 2.790102498693159,
+              "p95_ms": 3.1265289944713004,
+              "samples_ms": [
+                2.419381999061443,
+                2.557003994297702,
+                2.872555000067223,
+                3.0900589990778826,
+                3.1265289944713004,
+                2.2630739986198023,
+                3.1054389983182773,
+                2.5743959995452315,
+                2.61921199853532,
+                3.23387399839703,
+                2.707649997319095,
+                3.0847189991618507
+              ]
+            },
+            "rust": {
+              "median_ms": 0.0693925,
+              "p95_ms": 0.077999,
+              "samples_ms": [
+                0.057189,
+                0.06918200000000001,
+                0.069603,
+                0.074042,
+                0.064793,
+                0.06464299999999999,
+                0.064743,
+                0.06453300000000001,
+                0.077558,
+                0.07437099999999999,
+                0.077999,
+                0.09556300000000001
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 0.04729,
+              "p95_ms": 0.057479,
+              "samples_ms": [
+                0.047731,
+                0.045906999999999996,
+                0.046409000000000006,
+                0.050596999999999996,
+                0.046848999999999995,
+                0.046829,
+                0.046848999999999995,
+                0.04676,
+                0.057479,
+                0.056126999999999996,
+                0.054374,
+                0.075083
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.018901,
+              "p95_ms": 0.023294000000000002,
+              "samples_ms": [
+                0.009176999999999998,
+                0.023103999999999993,
+                0.02302399999999999,
+                0.023294000000000002,
+                0.017784,
+                0.017653999999999996,
+                0.017734000000000007,
+                0.017602999999999987,
+                0.019807999999999992,
+                0.01799400000000001,
+                0.023353999999999993,
+                0.020278000000000004
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t    4100 kB",
+            "VmRSS:\t    4100 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        96,
+        64
+      ],
+      "style": "reference",
+      "sequence": "calibrated_privacy_letterbox",
+      "frame_hashes": [
+        "9990a01411bc8bda96d0c8b6d42fa19a5ce78d39735f53067a6a7eb5cdda57d6",
+        "2b9ca823fff9a26379d4e18e580d67ea0a946c2edc239153c88ce6d72bf2722f",
+        "9990a01411bc8bda96d0c8b6d42fa19a5ce78d39735f53067a6a7eb5cdda57d6",
+        "08d121dab3a9c94a3cd5670e806ab9049c729ab87a1d29a419f11625bc73cbc6",
+        "04475fad67bd07bc23a46499bc4b5113733704d557a02f45edcae1740b78b2c4",
+        "08d121dab3a9c94a3cd5670e806ab9049c729ab87a1d29a419f11625bc73cbc6",
+        "8a56784c794f331e6cd8a68fd021334e4033fb7ee783e706f9963e0693f399e0",
+        "8a56784c794f331e6cd8a68fd021334e4033fb7ee783e706f9963e0693f399e0",
+        "8a56784c794f331e6cd8a68fd021334e4033fb7ee783e706f9963e0693f399e0",
+        "8a56784c794f331e6cd8a68fd021334e4033fb7ee783e706f9963e0693f399e0",
+        "2766eb2118971158db4a8789dee8802e31a85c9d5169907b187404a804c42a37",
+        "f7b586904e3678145aa47e4232587c913139cef0102d6d8e9276fc80c35cbad3"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 12,
+          "metrics": {
+            "python": {
+              "median_ms": 2.751448999333661,
+              "p95_ms": 3.2519289961783215,
+              "samples_ms": [
+                2.675538999028504,
+                3.2539820022066124,
+                2.418199001112953,
+                2.7495699978317134,
+                2.5688660025480203,
+                2.7533280008356087,
+                2.6376979949418455,
+                3.009626001585275,
+                2.7236109963268973,
+                3.231518996472005,
+                2.8366870028548874,
+                3.2519289961783215
+              ]
+            },
+            "rust": {
+              "median_ms": 0.074267,
+              "p95_ms": 0.0941,
+              "samples_ms": [
+                0.072839,
+                0.0941,
+                0.075695,
+                0.072308,
+                0.07879,
+                0.077087,
+                0.068631,
+                0.08933999999999999,
+                0.10370800000000001,
+                0.070405,
+                0.069432,
+                0.06823
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 0.0522645,
+              "p95_ms": 0.072107,
+              "samples_ms": [
+                0.060294999999999994,
+                0.06890099999999999,
+                0.051928,
+                0.048884000000000004,
+                0.051928999999999996,
+                0.053461999999999996,
+                0.049915,
+                0.072107,
+                0.081766,
+                0.051047,
+                0.0526,
+                0.051298
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.0200985,
+              "p95_ms": 0.023544999999999996,
+              "samples_ms": [
+                0.012043000000000005,
+                0.02488700000000002,
+                0.023544999999999996,
+                0.023254000000000004,
+                0.023174000000000007,
+                0.02343500000000001,
+                0.018494999999999998,
+                0.017003000000000004,
+                0.021702,
+                0.01675200000000001,
+                0.016651999999999993,
+                0.016742
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.0,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t    4212 kB",
+            "VmRSS:\t    4212 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        96,
+        64
+      ],
+      "style": "ambient",
+      "sequence": "flashes_scene_cuts_neutrals",
+      "frame_hashes": [
+        "04475fad67bd07bc23a46499bc4b5113733704d557a02f45edcae1740b78b2c4",
+        "08d121dab3a9c94a3cd5670e806ab9049c729ab87a1d29a419f11625bc73cbc6",
+        "04475fad67bd07bc23a46499bc4b5113733704d557a02f45edcae1740b78b2c4",
+        "08d121dab3a9c94a3cd5670e806ab9049c729ab87a1d29a419f11625bc73cbc6",
+        "04475fad67bd07bc23a46499bc4b5113733704d557a02f45edcae1740b78b2c4",
+        "08d121dab3a9c94a3cd5670e806ab9049c729ab87a1d29a419f11625bc73cbc6",
+        "8a56784c794f331e6cd8a68fd021334e4033fb7ee783e706f9963e0693f399e0",
+        "8a56784c794f331e6cd8a68fd021334e4033fb7ee783e706f9963e0693f399e0",
+        "8a56784c794f331e6cd8a68fd021334e4033fb7ee783e706f9963e0693f399e0",
+        "8a56784c794f331e6cd8a68fd021334e4033fb7ee783e706f9963e0693f399e0",
+        "2766eb2118971158db4a8789dee8802e31a85c9d5169907b187404a804c42a37",
+        "f7b586904e3678145aa47e4232587c913139cef0102d6d8e9276fc80c35cbad3"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 12,
+          "metrics": {
+            "python": {
+              "median_ms": 21.551651498157298,
+              "p95_ms": 22.89150100114057,
+              "samples_ms": [
+                19.64450100058457,
+                21.304054993379395,
+                21.7992480029352,
+                21.88408099755179,
+                23.579171000164934,
+                22.533527997438796,
+                22.39272899896605,
+                20.207034001941793,
+                21.176771995669696,
+                22.89150100114057,
+                16.570984000281896,
+                5.973915998765733
+              ]
+            },
+            "rust": {
+              "median_ms": 0.041524500000000006,
+              "p95_ms": 0.05249,
+              "samples_ms": [
+                0.030477999999999998,
+                0.044796,
+                0.046168,
+                0.053813,
+                0.05249,
+                0.045306000000000006,
+                0.045687,
+                0.037381,
+                0.038253,
+                0.037481,
+                0.035708,
+                0.032693
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 0.0205945,
+              "p95_ms": 0.027643,
+              "samples_ms": [
+                0.020489,
+                0.020599,
+                0.021341000000000002,
+                0.02059,
+                0.027643,
+                0.02063,
+                0.028114,
+                0.020018,
+                0.02082,
+                0.020148,
+                0.018416000000000002,
+                0.015198999999999999
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.017363000000000003,
+              "p95_ms": 0.024647000000000002,
+              "samples_ms": [
+                0.009699,
+                0.024016000000000003,
+                0.024636999999999996,
+                0.032973,
+                0.024647000000000002,
+                0.024506000000000003,
+                0.017393000000000006,
+                0.017193,
+                0.017261999999999996,
+                0.017182999999999997,
+                0.017112000000000002,
+                0.017333
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0009070000000000009,
+              "p95_ms": 0.000936000000000001,
+              "samples_ms": [
+                0.000872000000000001,
+                0.0008710000000000011,
+                0.0009030000000000009,
+                0.000880000000000001,
+                0.000911000000000001,
+                0.0008830000000000011,
+                0.005369999999999999,
+                0.000936000000000001,
+                0.000861000000000001,
+                0.0009220000000000012,
+                0.0009130000000000012,
+                0.0009320000000000011
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.012134000000000004,
+              "p95_ms": 0.014277000000000001,
+              "samples_ms": [
+                0.012063000000000004,
+                0.012343000000000002,
+                0.012413000000000006,
+                0.012364000000000003,
+                0.017054000000000003,
+                0.012205000000000004,
+                0.014277000000000001,
+                0.011822,
+                0.011923,
+                0.011802000000000002,
+                0.009526999999999997,
+                0.0036200000000000017
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t    4124 kB",
+            "VmRSS:\t    4124 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        96,
+        64
+      ],
+      "style": "ambient",
+      "sequence": "mixed_dark_noise",
+      "frame_hashes": [
+        "2c43e0c28d70a8d44fe4ec897c4b44a55a3635897fddea9ba01741a18447ccc7",
+        "2c43e0c28d70a8d44fe4ec897c4b44a55a3635897fddea9ba01741a18447ccc7",
+        "2c43e0c28d70a8d44fe4ec897c4b44a55a3635897fddea9ba01741a18447ccc7",
+        "2c43e0c28d70a8d44fe4ec897c4b44a55a3635897fddea9ba01741a18447ccc7",
+        "b6b007c102329812f0bf0a34e97bf2faa75eec8e01118bddf04a79c3cad62a6b",
+        "7f37a75353c3bb5fc7be820b1e888cf7f6ccbe3c908c7b8aa1bc1bea9176b027",
+        "8ed2cf475e2c30e20d7d803cb0153722fe74f25ebdd9e89bcbeca8760628c680",
+        "7894e95631d730dd2a8c85f88bd207b30fbf9cbf839fb1819dfac372d79864f3",
+        "0bb45108fe10c7a3490d9d90d7204e5db2695908742699823658a67a37e40591",
+        "0bdd3951bf0e025704b447129d40a5c0bd80a0193bde3ed03a13889ce9a7308c",
+        "fed87a732fad853749a3301992e83e47fb7ad6ff78867333a6e2194a383f70f7",
+        "9798988586bb598158338cec76387b4157b5e0b8c265eb5566d065689cd64d33"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 12,
+          "metrics": {
+            "python": {
+              "median_ms": 8.104582499072421,
+              "p95_ms": 23.903348999738228,
+              "samples_ms": [
+                23.903348999738228,
+                23.19733300100779,
+                21.66489200317301,
+                24.647687998367473,
+                9.056151000550017,
+                7.871943998907227,
+                8.337220999237616,
+                7.617980001668911,
+                3.836051997495815,
+                4.1720709996297956,
+                4.671424001571722,
+                4.040931999043096
+              ]
+            },
+            "rust": {
+              "median_ms": 0.0506315,
+              "p95_ms": 0.060375,
+              "samples_ms": [
+                0.030307999999999998,
+                0.044474999999999994,
+                0.045957,
+                0.044465000000000005,
+                0.44569899999999996,
+                0.060375,
+                0.058451,
+                0.059874000000000004,
+                0.054434,
+                0.046829,
+                0.0577,
+                0.043593
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 0.032457,
+              "p95_ms": 0.04199,
+              "samples_ms": [
+                0.02059,
+                0.020689000000000003,
+                0.021651,
+                0.020299,
+                0.426313,
+                0.041909999999999996,
+                0.040667,
+                0.04199,
+                0.03635,
+                0.028614999999999998,
+                0.036299,
+                0.025699
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.017898999999999998,
+              "p95_ms": 0.023995,
+              "samples_ms": [
+                0.009406999999999999,
+                0.023604999999999998,
+                0.024125999999999998,
+                0.023995,
+                0.019116000000000022,
+                0.017854000000000002,
+                0.017634000000000004,
+                0.017723999999999997,
+                0.017844000000000006,
+                0.017943999999999998,
+                0.021130000000000003,
+                0.017583
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.0234765,
+              "p95_ms": 0.035288,
+              "samples_ms": [
+                0.0008830000000000011,
+                0.000840000000000001,
+                0.0008130000000000009,
+                0.000820000000000001,
+                0.41676400000000013,
+                0.034935,
+                0.03386599999999999,
+                0.035288,
+                0.029754999999999997,
+                0.020555,
+                0.026398,
+                0.018557999999999998
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.0,
+              "p95_ms": 0.012234,
+              "samples_ms": [
+                0.012132,
+                0.012234,
+                0.012492000000000003,
+                0.012053000000000001,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t    4464 kB",
+            "VmRSS:\t    4464 kB"
+          ]
+        }
+      ]
+    },
+    {
+      "size": [
+        96,
+        64
+      ],
+      "style": "ambient",
+      "sequence": "calibrated_privacy_letterbox",
+      "frame_hashes": [
+        "9990a01411bc8bda96d0c8b6d42fa19a5ce78d39735f53067a6a7eb5cdda57d6",
+        "2b9ca823fff9a26379d4e18e580d67ea0a946c2edc239153c88ce6d72bf2722f",
+        "9990a01411bc8bda96d0c8b6d42fa19a5ce78d39735f53067a6a7eb5cdda57d6",
+        "08d121dab3a9c94a3cd5670e806ab9049c729ab87a1d29a419f11625bc73cbc6",
+        "04475fad67bd07bc23a46499bc4b5113733704d557a02f45edcae1740b78b2c4",
+        "08d121dab3a9c94a3cd5670e806ab9049c729ab87a1d29a419f11625bc73cbc6",
+        "8a56784c794f331e6cd8a68fd021334e4033fb7ee783e706f9963e0693f399e0",
+        "8a56784c794f331e6cd8a68fd021334e4033fb7ee783e706f9963e0693f399e0",
+        "8a56784c794f331e6cd8a68fd021334e4033fb7ee783e706f9963e0693f399e0",
+        "8a56784c794f331e6cd8a68fd021334e4033fb7ee783e706f9963e0693f399e0",
+        "2766eb2118971158db4a8789dee8802e31a85c9d5169907b187404a804c42a37",
+        "f7b586904e3678145aa47e4232587c913139cef0102d6d8e9276fc80c35cbad3"
+      ],
+      "runs": [
+        {
+          "max_sampled_code_delta": 0,
+          "max_output_code_delta": 0,
+          "exact_packets": 12,
+          "metrics": {
+            "python": {
+              "median_ms": 21.752454500528984,
+              "p95_ms": 24.383434996707365,
+              "samples_ms": [
+                2.47034800122492,
+                2.8974319939152338,
+                3.427323004871141,
+                22.600727003009524,
+                23.042148000968155,
+                22.70361300179502,
+                20.904181998048443,
+                24.422367998340633,
+                23.003663998679258,
+                24.383434996707365,
+                19.014751000213437,
+                7.4477250018389896
+              ]
+            },
+            "rust": {
+              "median_ms": 0.058281,
+              "p95_ms": 0.07228799999999999,
+              "samples_ms": [
+                0.057669,
+                0.07228799999999999,
+                0.103678,
+                0.07155700000000001,
+                0.071687,
+                0.066196,
+                0.05767,
+                0.058892,
+                0.057608999999999994,
+                0.0575,
+                0.052840000000000005,
+                0.041469
+              ]
+            }
+          },
+          "native_stages": {
+            "sampling_ms": {
+              "median_ms": 0.0361495,
+              "p95_ms": 0.047961,
+              "samples_ms": [
+                0.047630000000000006,
+                0.047961,
+                0.06828000000000001,
+                0.038904,
+                0.041219,
+                0.035789,
+                0.033584,
+                0.035547999999999996,
+                0.035067,
+                0.03651,
+                0.031079,
+                0.023484
+              ]
+            },
+            "colour_ms": {
+              "median_ms": 0.0230135,
+              "p95_ms": 0.032000999999999995,
+              "samples_ms": [
+                0.009698999999999992,
+                0.024065999999999997,
+                0.034996999999999986,
+                0.032000999999999995,
+                0.030077,
+                0.029956999999999998,
+                0.023343999999999997,
+                0.022683000000000002,
+                0.022251999999999994,
+                0.020769999999999997,
+                0.021491,
+                0.017584
+              ]
+            },
+            "mixed_ms": {
+              "median_ms": 0.000872000000000001,
+              "p95_ms": 0.0009420000000000011,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.0010620000000000015,
+                0.0009420000000000011,
+                0.0009330000000000011,
+                0.000872000000000001,
+                0.000852000000000001,
+                0.0008740000000000011,
+                0.0008600000000000011,
+                0.000892000000000001,
+                0.000872000000000001
+              ]
+            },
+            "palette_ms": {
+              "median_ms": 0.015053000000000004,
+              "p95_ms": 0.020289000000000005,
+              "samples_ms": [
+                0.0,
+                0.0,
+                0.0,
+                0.021840000000000005,
+                0.020289000000000005,
+                0.018582,
+                0.014018000000000003,
+                0.016869000000000006,
+                0.016088000000000005,
+                0.016228999999999997,
+                0.013128,
+                0.004009000000000001
+              ]
+            }
+          },
+          "native_memory": [
+            "VmHWM:\t    4236 kB",
+            "VmRSS:\t    4236 kB"
+          ]
+        }
+      ]
+    }
+  ]
+}

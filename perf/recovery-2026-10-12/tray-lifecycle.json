@@ -1,0 +1,61 @@
+{
+  "kind": "headed-tray-lifecycle",
+  "optional_update_check_disabled": true,
+  "events": [
+    {
+      "label": "auto_started_existing_config",
+      "running": true,
+      "tray_visible": true,
+      "quit_finalized": false,
+      "frames_sent": 118,
+      "last_error": null,
+      "startup_state": "running"
+    },
+    {
+      "label": "after_stop_event_loop_alive",
+      "running": false,
+      "tray_visible": true,
+      "quit_finalized": false,
+      "frames_sent": 118,
+      "last_error": null,
+      "startup_state": "idle"
+    },
+    {
+      "label": "after_restart",
+      "running": true,
+      "tray_visible": true,
+      "quit_finalized": false,
+      "frames_sent": 138,
+      "last_error": null,
+      "startup_state": "running"
+    },
+    {
+      "label": "after_second_stop",
+      "running": false,
+      "tray_visible": true,
+      "quit_finalized": false,
+      "frames_sent": 138,
+      "last_error": null,
+      "startup_state": "idle"
+    },
+    {
+      "label": "settings_closed_without_save",
+      "running": false,
+      "tray_visible": true,
+      "quit_finalized": false,
+      "frames_sent": 138,
+      "last_error": null,
+      "startup_state": "idle"
+    }
+  ],
+  "constructor_ms": 169.23503099678783,
+  "settings_dialog_visible": true,
+  "stopped_tray_idle_cpu_percent_one_core": 0.0062271500000044,
+  "stopped_tray_memory_kib": {
+    "Rss": 260440,
+    "Pss": 232290
+  },
+  "event_loop_exit": 0,
+  "config_bytes_unchanged": true,
+  "launcher_bytes_unchanged": true
+}

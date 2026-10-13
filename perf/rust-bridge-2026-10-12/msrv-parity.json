@@ -1,0 +1,260 @@
+{
+  "scope": "Offline in-process SDR replay; no capture, USB I/O or power measurement",
+  "reference_commit": "6c2bbd5",
+  "python": "3.14.7",
+  "kernel": "7.2.9-2-cachyos-bore",
+  "compiler": "rustc 1.85.0 (4d91de4e4 2025-02-17)",
+  "bridge_sha256": "c2396b84e93156ddfb9c3b9aaf2787a5b746906893c78ac2c16ab9e5883c4e94",
+  "iterations": 3,
+  "warmup": 1,
+  "repeats": 1,
+  "history": "fixed output history (0,0,0); accumulator/dither disabled equally",
+  "order": "paired calls alternate order per iteration/repeat; no concurrent builds/tests",
+  "cases": [
+    {
+      "size": [
+        73,
+        41
+      ],
+      "zones": 48,
+      "profile": "box",
+      "frame_sha256": "2e15952fa0ac3972d64611e70d6d6ca5cbc2bde388063e3c9a14bbc7fbabbc47",
+      "runs": [
+        {
+          "metrics": {
+            "python_sample": {
+              "median_ms": 1.464947999920696,
+              "p95_ms": 1.4948039970477112,
+              "samples_ms": [
+                1.464947999920696,
+                1.4948039970477112,
+                1.4491280016954988
+              ]
+            },
+            "python_pipeline_tlv": {
+              "median_ms": 2.137362003850285,
+              "p95_ms": 2.5070170013350435,
+              "samples_ms": [
+                2.137362003850285,
+                2.5070170013350435,
+                2.0171319993096404
+              ]
+            },
+            "python_cpu_pipeline_tlv": {
+              "median_ms": 2.117291999999993,
+              "p95_ms": 2.442373000000053,
+              "samples_ms": [
+                2.117291999999993,
+                2.442373000000053,
+                2.0051489999999283
+              ]
+            },
+            "rust_sample": {
+              "median_ms": 0.08551299833925441,
+              "p95_ms": 0.09914900147123262,
+              "samples_ms": [
+                0.09914900147123262,
+                0.08551299833925441,
+                0.08236699795816094
+              ]
+            },
+            "rust_pipeline_tlv": {
+              "median_ms": 0.6523760021082126,
+              "p95_ms": 0.7573060065624304,
+              "samples_ms": [
+                0.6523760021082126,
+                0.7573060065624304,
+                0.642686994979158
+              ]
+            },
+            "rust_cpu_pipeline_tlv": {
+              "median_ms": 0.6540999999999908,
+              "p95_ms": 0.7568519999998635,
+              "samples_ms": [
+                0.6540999999999908,
+                0.7568519999998635,
+                0.6399720000000997
+              ]
+            }
+          },
+          "frame_copy": {
+            "median_ms": 0.0015529949450865388,
+            "p95_ms": 0.001553002221044153,
+            "samples_ms": [
+              0.001553002221044153,
+              0.0015529949450865388,
+              0.0012320015230216086
+            ]
+          },
+          "native_full_pipeline_calls": 3,
+          "native_total_calls_including_warmup": 8,
+          "exact_sample_rgb_and_grb_tlv_parity": true
+        }
+      ]
+    },
+    {
+      "size": [
+        73,
+        41
+      ],
+      "zones": 48,
+      "profile": "calibrated_privacy_letterbox",
+      "frame_sha256": "1109c250fb1c59de9e52b8423140e37bf322fb4a3b171c803869b44617a066f1",
+      "runs": [
+        {
+          "metrics": {
+            "python_sample": {
+              "median_ms": 1.4704880013596267,
+              "p95_ms": 1.6408039955422282,
+              "samples_ms": [
+                1.6408039955422282,
+                1.4704880013596267,
+                1.408860000083223
+              ]
+            },
+            "python_pipeline_tlv": {
+              "median_ms": 2.171385996916797,
+              "p95_ms": 2.2083169969846494,
+              "samples_ms": [
+                2.2083169969846494,
+                2.079261001199484,
+                2.171385996916797
+              ]
+            },
+            "python_cpu_pipeline_tlv": {
+              "median_ms": 2.149740999999983,
+              "p95_ms": 2.204262999999873,
+              "samples_ms": [
+                2.204262999999873,
+                2.0728560000000673,
+                2.149740999999983
+              ]
+            },
+            "rust_sample": {
+              "median_ms": 0.08599399734521285,
+              "p95_ms": 0.08648500079289079,
+              "samples_ms": [
+                0.08492199413012713,
+                0.08599399734521285,
+                0.08648500079289079
+              ]
+            },
+            "rust_pipeline_tlv": {
+              "median_ms": 0.7476079990738072,
+              "p95_ms": 0.8504439974785782,
+              "samples_ms": [
+                0.8504439974785782,
+                0.7457940009771846,
+                0.7476079990738072
+              ]
+            },
+            "rust_cpu_pipeline_tlv": {
+              "median_ms": 0.7447490000001,
+              "p95_ms": 0.8376350000001143,
+              "samples_ms": [
+                0.8376350000001143,
+                0.7431769999999283,
+                0.7447490000001
+              ]
+            }
+          },
+          "frame_copy": {
+            "median_ms": 0.0013020035112276673,
+            "p95_ms": 0.001343003532383591,
+            "samples_ms": [
+              0.001343003532383591,
+              0.0013020035112276673,
+              0.0012730015441775322
+            ]
+          },
+          "native_full_pipeline_calls": 3,
+          "native_total_calls_including_warmup": 8,
+          "exact_sample_rgb_and_grb_tlv_parity": true
+        }
+      ]
+    },
+    {
+      "size": [
+        73,
+        41
+      ],
+      "zones": 48,
+      "profile": "default_colour_modes_control",
+      "frame_sha256": "2e15952fa0ac3972d64611e70d6d6ca5cbc2bde388063e3c9a14bbc7fbabbc47",
+      "runs": [
+        {
+          "metrics": {
+            "python_sample": {
+              "median_ms": 1.452903998142574,
+              "p95_ms": 1.4572530053555965,
+              "samples_ms": [
+                1.4515619986923411,
+                1.4572530053555965,
+                1.452903998142574
+              ]
+            },
+            "python_pipeline_tlv": {
+              "median_ms": 4.474533998291008,
+              "p95_ms": 4.603080000379123,
+              "samples_ms": [
+                4.474533998291008,
+                4.603080000379123,
+                4.440579999936745
+              ]
+            },
+            "python_cpu_pipeline_tlv": {
+              "median_ms": 4.46391200000007,
+              "p95_ms": 4.574800999999962,
+              "samples_ms": [
+                4.46391200000007,
+                4.574800999999962,
+                4.4257809999999065
+              ]
+            },
+            "rust_sample": {
+              "median_ms": 0.08579400309827179,
+              "p95_ms": 0.09286699787480757,
+              "samples_ms": [
+                0.09286699787480757,
+                0.08464200072921813,
+                0.08579400309827179
+              ]
+            },
+            "rust_pipeline_tlv": {
+              "median_ms": 4.455839000002015,
+              "p95_ms": 4.508388999965973,
+              "samples_ms": [
+                4.455839000002015,
+                4.508388999965973,
+                4.394019997562282
+              ]
+            },
+            "rust_cpu_pipeline_tlv": {
+              "median_ms": 4.422766000000022,
+              "p95_ms": 4.450847000000202,
+              "samples_ms": [
+                4.422766000000022,
+                4.450847000000202,
+                4.3424869999999505
+              ]
+            }
+          },
+          "frame_copy": {
+            "median_ms": 0.0013829994713887572,
+            "p95_ms": 0.0015220066416077316,
+            "samples_ms": [
+              0.0013620010577142239,
+              0.0015220066416077316,
+              0.0013829994713887572
+            ]
+          },
+          "native_full_pipeline_calls": 0,
+          "native_total_calls_including_warmup": 4,
+          "exact_sample_rgb_and_grb_tlv_parity": true
+        }
+      ]
+    }
+  ],
+  "config_calibration_launcher_hashes_unchanged": true,
+  "purpose": "MSRV correctness verification; timings are not performance evidence"
+}

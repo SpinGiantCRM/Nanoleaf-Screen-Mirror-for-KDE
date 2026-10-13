@@ -1,0 +1,15 @@
+[package]
+name = "nanoleaf-core"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77"
+publish = false
+license-file = "../../LICENSE"
+description = "Offline Nanoleaf single-strip core prototype; not a device service"
+
+[[bin]]
+name = "nanoleaf-core-probe"
+path = "src/bin/probe.rs"
+
+[lints.rust]
+unsafe_code = "forbid"

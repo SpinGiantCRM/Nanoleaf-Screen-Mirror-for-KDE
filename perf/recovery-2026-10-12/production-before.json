@@ -1,0 +1,28 @@
+{
+  "height": 360,
+  "iterations": 120,
+  "metrics": {
+    "colour_pipeline": {
+      "max_ms": 28.537223999592243,
+      "median_ms": 23.09645199966326,
+      "p95_ms": 26.860812002269085,
+      "samples": 120
+    },
+    "hid_frame_build": {
+      "max_ms": 0.054453998018288985,
+      "median_ms": 0.011737500244635157,
+      "p95_ms": 0.015068999346112832,
+      "samples": 120
+    },
+    "zone_sampling": {
+      "max_ms": 4.6486179999192245,
+      "median_ms": 4.266874500899576,
+      "p95_ms": 4.323937999288319,
+      "samples": 120
+    }
+  },
+  "preset": "production",
+  "warmup": 10,
+  "width": 640,
+  "zone_count": 48
+}

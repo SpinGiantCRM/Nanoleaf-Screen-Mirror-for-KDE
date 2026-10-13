@@ -1,0 +1,1600 @@
+{
+  "kind": "live-service-baseline",
+  "runtime_seconds": 10,
+  "usb_initialize_ms": 62.36940099915955,
+  "device_model": "NL82K2",
+  "manual_zone_count": 48,
+  "usb_pattern_samples": [
+    {
+      "rgb": [
+        0,
+        0,
+        0
+      ],
+      "call_ms": 8.079631999862613,
+      "driver": {
+        "frame_build_ms": 0.020228999346727505,
+        "device_write_ms": 3.9110789984988514,
+        "flush_or_wait_ms": 4.027762999612605,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          1.9210089994885493,
+          0.983718997304095,
+          0.9979360002034809
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 2.972718000819441,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 1,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 2.972718000819441,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        0
+      ],
+      "call_ms": 6.949542999791447,
+      "driver": {
+        "frame_build_ms": 0.022322998120216653,
+        "device_write_ms": 2.7379290004319046,
+        "flush_or_wait_ms": 4.031349999422673,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7382400035567116,
+          0.987256000371417,
+          1.0017740023613442
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 2.9713250005443115,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 2,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 2.9713250005443115,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        0
+      ],
+      "call_ms": 6.944622997252736,
+      "driver": {
+        "frame_build_ms": 0.020960000256309286,
+        "device_write_ms": 2.7607730007730424,
+        "flush_or_wait_ms": 4.0340449995710514,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7282509977812879,
+          0.9927959981723689,
+          0.996864000626374
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 2.9775369985145517,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 3,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 2.9775369985145517,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        0
+      ],
+      "call_ms": 6.942730000446318,
+      "driver": {
+        "frame_build_ms": 0.02063899955828674,
+        "device_write_ms": 2.7759920012613293,
+        "flush_or_wait_ms": 4.032040997117292,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7796900026733056,
+          0.995952999801375,
+          0.9907720013870858
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 2.9779679971397854,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 4,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 2.9779679971397854,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        0
+      ],
+      "call_ms": 6.9420189975062385,
+      "driver": {
+        "frame_build_ms": 0.02306399983353913,
+        "device_write_ms": 2.773487998638302,
+        "flush_or_wait_ms": 4.023735000373563,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7692590006627142,
+          0.9946400023181923,
+          0.9994489992095623
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 2.9687300011573825,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 5,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 2.9687300011573825,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        0
+      ],
+      "call_ms": 6.948301001102664,
+      "driver": {
+        "frame_build_ms": 0.019997998606413603,
+        "device_write_ms": 2.783445997920353,
+        "flush_or_wait_ms": 4.028062998258974,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7900590026110876,
+          0.9905719998641871,
+          0.9912030000123195
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 2.9734189993178006,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 6,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 2.9734189993178006,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        24,
+        24
+      ],
+      "call_ms": 14.495906001684489,
+      "driver": {
+        "frame_build_ms": 0.020108000171603635,
+        "device_write_ms": 2.7696199977071956,
+        "flush_or_wait_ms": 11.58397499966668,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7737870000710245,
+          0.9897310010273941,
+          0.9945889978553168
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 0,
+        "ack_arrival_ms": null,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 6,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 2.9734189993178006,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        24,
+        24
+      ],
+      "call_ms": 4.4108439979027025,
+      "driver": {
+        "frame_build_ms": 0.020650000806199387,
+        "device_write_ms": 3.2181860005948693,
+        "flush_or_wait_ms": 1.0601049980323296,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          1.216001997818239,
+          0.9944490011548623,
+          0.9979659989767242
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.005780999345006421,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 7,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.005780999345006421,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        24,
+        24
+      ],
+      "call_ms": 3.979339999204967,
+      "driver": {
+        "frame_build_ms": 0.022813997929915786,
+        "device_write_ms": 2.773256001091795,
+        "flush_or_wait_ms": 1.0611069992592093,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7819840029696934,
+          0.9896800002024975,
+          0.9906720006256364
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.006332000339170918,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 8,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.006332000339170918,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        24,
+        24
+      ],
+      "call_ms": 3.99241500053904,
+      "driver": {
+        "frame_build_ms": 0.020159000996500254,
+        "device_write_ms": 2.7921430009882897,
+        "flush_or_wait_ms": 1.0618979977152776,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7903200021246448,
+          0.9922249992087018,
+          0.9999290014093276
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.007003000064287335,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 9,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.007003000064287335,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        24,
+        24
+      ],
+      "call_ms": 3.9439329993911088,
+      "driver": {
+        "frame_build_ms": 0.023114000214263797,
+        "device_write_ms": 2.7275590000499506,
+        "flush_or_wait_ms": 1.0640430009516422,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7284309976967052,
+          0.9931370004778728,
+          0.9945290003088303
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.006433001544792205,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 10,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.006433001544792205,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        24,
+        24
+      ],
+      "call_ms": 3.925356999388896,
+      "driver": {
+        "frame_build_ms": 0.021912001102464274,
+        "device_write_ms": 2.6891259985859506,
+        "flush_or_wait_ms": 1.0613069971441291,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.6920919986441731,
+          0.9947289981937502,
+          0.9906019986374304
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.006152000423753634,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 11,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.006152000423753634,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        0,
+        0
+      ],
+      "call_ms": 3.981865000241669,
+      "driver": {
+        "frame_build_ms": 0.02052899799309671,
+        "device_write_ms": 2.780770999379456,
+        "flush_or_wait_ms": 1.0611770012474153,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7828950001567136,
+          0.9943290024239104,
+          0.9923649995471351
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.006242000381462276,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 12,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.006242000381462276,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        0,
+        0
+      ],
+      "call_ms": 3.9837390031607356,
+      "driver": {
+        "frame_build_ms": 0.019277002138551325,
+        "device_write_ms": 2.7906190007342957,
+        "flush_or_wait_ms": 1.0622089976095594,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.793745002738433,
+          0.9904209982778411,
+          0.9962430012819823
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.006161997589515522,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 13,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.006161997589515522,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        0,
+        0
+      ],
+      "call_ms": 3.95799000034458,
+      "driver": {
+        "frame_build_ms": 0.024756998755037785,
+        "device_write_ms": 2.733761000854429,
+        "flush_or_wait_ms": 1.0630910001054872,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7240230006573256,
+          0.9986770019168034,
+          0.999498999590287
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.0067929977376479656,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 14,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.0067929977376479656,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        0,
+        0
+      ],
+      "call_ms": 3.9182840009743813,
+      "driver": {
+        "frame_build_ms": 0.0250470002356451,
+        "device_write_ms": 2.677665001101559,
+        "flush_or_wait_ms": 1.0615569990477525,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.6742680016031954,
+          0.9896909978124313,
+          1.0027160024037585
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.00652199742035009,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 15,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.00652199742035009,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        0,
+        0
+      ],
+      "call_ms": 4.006702001788653,
+      "driver": {
+        "frame_build_ms": 0.023574997612740844,
+        "device_write_ms": 2.7745899969886523,
+        "flush_or_wait_ms": 1.0646339978848118,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7765129994368181,
+          0.9876059993985109,
+          0.9982459996535908
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.0072639995778445154,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 16,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.0072639995778445154,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        24,
+        0,
+        0
+      ],
+      "call_ms": 3.9553450005769264,
+      "driver": {
+        "frame_build_ms": 0.025708999601192772,
+        "device_write_ms": 2.7097560014226474,
+        "flush_or_wait_ms": 1.0615470018819906,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7034729969745968,
+          0.9959020026144572,
+          0.9976250003091991
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.007224000000860542,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 17,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.007224000000860542,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        24,
+        0
+      ],
+      "call_ms": 3.900499999872409,
+      "driver": {
+        "frame_build_ms": 0.025909001124091446,
+        "device_write_ms": 2.6716329994087573,
+        "flush_or_wait_ms": 1.0600649984553456,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.6635369973082561,
+          0.9972850020858459,
+          0.9998800014727749
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.006823000148870051,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 18,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.006823000148870051,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        24,
+        0
+      ],
+      "call_ms": 3.936417997465469,
+      "driver": {
+        "frame_build_ms": 0.020078001398360357,
+        "device_write_ms": 2.7474269991216715,
+        "flush_or_wait_ms": 1.059965001331875,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7455340019077994,
+          0.9969950006052386,
+          0.9950000021490268
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.006232003215700388,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 19,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.006232003215700388,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        24,
+        0
+      ],
+      "call_ms": 3.944534000765998,
+      "driver": {
+        "frame_build_ms": 0.021610998373944312,
+        "device_write_ms": 2.7189529973838944,
+        "flush_or_wait_ms": 1.060465001501143,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7123010000213981,
+          1.0009120014728978,
+          0.9945290003088303
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.006852998922113329,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 20,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.006852998922113329,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        24,
+        0
+      ],
+      "call_ms": 3.938161000405671,
+      "driver": {
+        "frame_build_ms": 0.02185199991799891,
+        "device_write_ms": 2.7379990024201106,
+        "flush_or_wait_ms": 1.0603649971017148,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7420980000460986,
+          0.9891190020425711,
+          0.9965629978978541
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.006471997039625421,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 21,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.006471997039625421,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        24,
+        0
+      ],
+      "call_ms": 3.944733998650918,
+      "driver": {
+        "frame_build_ms": 0.02130100256181322,
+        "device_write_ms": 2.745273002801696,
+        "flush_or_wait_ms": 1.0597739965305664,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7528380010626279,
+          0.9913040012179408,
+          0.9912030000123195
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.005739999323850498,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 22,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.005739999323850498,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        24,
+        0
+      ],
+      "call_ms": 3.9522279985249043,
+      "driver": {
+        "frame_build_ms": 0.020920000679325312,
+        "device_write_ms": 2.7541800009203143,
+        "flush_or_wait_ms": 1.0612769983708858,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.763588999689091,
+          0.9824560002016369,
+          0.991643999441294
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.006653001037193462,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 23,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.006653001037193462,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        24
+      ],
+      "call_ms": 3.9456259983126074,
+      "driver": {
+        "frame_build_ms": 0.022101998183643445,
+        "device_write_ms": 2.733571000135271,
+        "flush_or_wait_ms": 1.0615979990689084,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7354950030276086,
+          0.9918239993567113,
+          0.9958219998225104
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.006592999852728099,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 24,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.006592999852728099,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        24
+      ],
+      "call_ms": 3.944423999200808,
+      "driver": {
+        "frame_build_ms": 0.024226003006333485,
+        "device_write_ms": 2.72243899962632,
+        "flush_or_wait_ms": 1.062799998180708,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7358050024777185,
+          0.9788400020624977,
+          0.9948100014298689
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.0069929992605466396,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 25,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.0069929992605466396,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        24
+      ],
+      "call_ms": 3.9355970002361573,
+      "driver": {
+        "frame_build_ms": 0.024536999262636527,
+        "device_write_ms": 2.691540001251269,
+        "flush_or_wait_ms": 1.0613679987727664,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.6987849992583506,
+          0.9832079995248932,
+          0.996983999357326
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.007063998054945841,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 26,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.007063998054945841,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        24
+      ],
+      "call_ms": 3.9390630008711014,
+      "driver": {
+        "frame_build_ms": 0.023354998120339587,
+        "device_write_ms": 2.718963001825614,
+        "flush_or_wait_ms": 1.0608769989630673,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.725796002370771,
+          0.9868849992926698,
+          0.9946200007107109
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.007013997674221173,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 27,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.007013997674221173,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        24
+      ],
+      "call_ms": 3.9451650009141304,
+      "driver": {
+        "frame_build_ms": 0.024777000362519175,
+        "device_write_ms": 2.7185629987798166,
+        "flush_or_wait_ms": 1.058792000549147,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.7187020019046031,
+          0.9912940004142001,
+          0.9964230011973996
+        ],
+        "write_blocking": false,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": 0.00725299832993187,
+        "live_send_policy": "nonblocking_drain",
+        "response_wait_skipped": true,
+        "send_policy_transition_reason": "multi-report frame requires bounded drain",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 0,
+        "ack_received_count": 28,
+        "ack_missed_count": 0,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "received",
+        "last_ack_age_ms": 0.00725299832993187,
+        "uncertain_write_failures": 0
+      }
+    },
+    {
+      "rgb": [
+        0,
+        0,
+        24
+      ],
+      "call_ms": 2.885631998651661,
+      "driver": {
+        "frame_build_ms": 0.024095999833662063,
+        "device_write_ms": 2.682092002942227,
+        "flush_or_wait_ms": 0.011021002137567848,
+        "device_limited": false,
+        "flush_or_wait_reason": "Measured as HID response wait/read time in transport transceive path.",
+        "reports_per_frame": 3,
+        "bytes_per_report": 64,
+        "total_frame_bytes": 147,
+        "report_data_sizes": [
+          64,
+          64,
+          19
+        ],
+        "per_report_write_ms": [
+          0.6763720011804253,
+          0.999388998025097,
+          0.9893099995679222
+        ],
+        "write_blocking": true,
+        "write_retry_policy": "none",
+        "write_rate_limit_policy": "none",
+        "write_read_calls": 1,
+        "ack_arrival_ms": null,
+        "live_send_policy": "response_required",
+        "response_wait_skipped": false,
+        "send_policy_transition_reason": "periodic ACK health check every 30 frames",
+        "probed_report_size": null,
+        "mailbox_writes_skipped": 0,
+        "ack_expected_count": 1,
+        "ack_received_count": 28,
+        "ack_missed_count": 1,
+        "ack_backlog_estimate": 0,
+        "last_ack_status": "missed",
+        "last_ack_age_ms": 0.00725299832993187,
+        "uncertain_write_failures": 0
+      }
+    }
+  ],
+  "start_returned": true,
+  "service_start_call_ms": 5000.222141999984,
+  "window_seconds": 10.000061962997279,
+  "cpu_percent_one_core": 3.6787280354984695,
+  "memory_kib": {
+    "Rss": 162500,
+    "Pss": 145708,
+    "Private_Clean": 20728,
+    "Private_Dirty": 123304
+  },
+  "status": {
+    "running": false,
+    "last_error": "Start failed before first frame: capture backend produced no frame within 5.0s (backend=kmsgrab, method=kwin-dbus).",
+    "capture_backend": null,
+    "last_error_kind": "capture-timeout",
+    "last_error_guidance": "Check capture backend readiness and retry.",
+    "capture_path": null,
+    "frames_sent": 0,
+    "latency_measurement": {
+      "live_mirroring_only": true,
+      "dropped_or_skipped_frames": 74,
+      "target_fps": 60.0,
+      "fps_cap": 60.0,
+      "fps_cap_reason": "FPS governor dynamic cap",
+      "effective_output_fps": 0.0,
+      "counters": {
+        "stale_output_dropped_frames": 66,
+        "capture_buffer_dropped_frames": 8
+      },
+      "flags": {
+        "ctx.capture_worker_active": true
+      },
+      "labels": {
+        "ctx.latest_capture_backend_name": "kmsgrab",
+        "no_pending_frame_rate_per_second": "1.59",
+        "capture_backend_method": "kwin-dbus",
+        "stale_drop_reason": "frame_age_ms=83.9>60.0",
+        "max_send_age_ms": "60.0"
+      },
+      "stages": {
+        "loop_gap_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "pacing_wait_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "idle_wait_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 2.0,
+          "p95_ms": 2.0,
+          "max_ms": 2.0
+        },
+        "runtime_idle_wait_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 2.0,
+          "p95_ms": 2.0,
+          "max_ms": 2.0
+        },
+        "capture_wait_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "capture_call_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 17.735163499310147,
+          "p95_ms": 19.40320799985784,
+          "max_ms": 20.75741500084405
+        },
+        "runtime_capture_call_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 17.735163499310147,
+          "p95_ms": 19.40320799985784,
+          "max_ms": 20.75741500084405
+        },
+        "capture_worker_loop_gap_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 17.794310999306617,
+          "p95_ms": 19.717098999535665,
+          "max_ms": 20.822559999942314
+        },
+        "capture_success_interval_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 17.86056199853192,
+          "p95_ms": 33.55574899978819,
+          "max_ms": 37.440639000124065
+        },
+        "frame_handoff_wait_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "frame_available_wait_ms": {
+          "available": true,
+          "sample_count": 240,
+          "median_ms": 2.0,
+          "p95_ms": 2.0,
+          "max_ms": 2.0
+        },
+        "pending_frame_age_ms": {
+          "available": true,
+          "sample_count": 66,
+          "median_ms": 83.78392600025109,
+          "p95_ms": 95.89465700082656,
+          "max_ms": 98.60796400243999
+        },
+        "frame_processing_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "frame_convert_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "zone_sampling_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "colour_processing_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "smoothing_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "led_calibration_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "output_prepare_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "actual_work_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "hid_write_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "hid_frame_build_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "hid_device_write_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "hid_flush_or_wait_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "hid_ack_arrival_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "end_to_end_live_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        },
+        "inferred_unattributed_gap_ms": {
+          "available": false,
+          "sample_count": 0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0
+        }
+      }
+    },
+    "lifecycle_state": "failed",
+    "stale_output_dropped_frames": 66,
+    "duplicate_output_skipped_frames": 0,
+    "effective_capture_backend": "kmsgrab",
+    "startup_state": "error"
+  },
+  "stop_returned": true,
+  "stop_call_ms": 0.003345998266013339,
+  "running_after_stop": false,
+  "stopped_service_idle_cpu_percent_one_core": 0.0005390000000105033
+}

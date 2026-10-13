@@ -1,0 +1,28 @@
+Local checkpoint verification 2026-10-12
+
+Full native-aware Python suite with requested timeout/durations/coverage flags:
+1636 passed in 66.72s; coverage 77.92%, above the 75% gate.
+The first run found an inherited IndexError on deliberate inverted geometry;
+the corrected test checks preservation of that reference failure on both paths.
+
+Rust 1.77 core: 14 contract tests passed (9 existing + 5 adaptive).
+Rust 1.77 core format/Clippy all-targets -D warnings passed.
+Rust 1.85 bridge release build and format/Clippy all-targets -D warnings passed.
+Rust 1.85 release bridge+adaptive Python tests: 45 passed.
+Rust 1.98 release targeted bridge/adaptive/palette tests passed (59 before adding
+the inverted-geometry regression; the final full suite includes that regression).
+400 deterministic cross-language decision/mean cases: zero accepted mismatches,
+34 conservative reference decisions in that corpus.
+
+Ruff src/tests/scripts passed; format check 298 files passed.
+Mypy 111 source files passed.
+Bandit source scan passed, with existing nosec warnings.
+Default Python production performance budget gate passed, Rust disabled.
+git diff --check passed.
+
+Unprofiled results.json: 9 cases x 3 repeats x 24 paired frames; exact sampled RGB,
+selected modes, temporal states and GRB TLV parity. Config/calibration directory
+and launcher hashes unchanged. No test/build ran during this timing comparison.
+Profile files are separately labelled and are not performance measurements.
+msrv-parity.json: compiler-embedded Rust 1.85 quick correctness comparison only.
+No hardware/capture/HDR/optical/power/native-app performance claim is established.

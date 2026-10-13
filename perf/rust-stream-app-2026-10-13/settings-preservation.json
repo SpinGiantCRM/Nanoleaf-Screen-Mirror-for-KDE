@@ -1,0 +1,10 @@
+{
+  "scope": "Actual Rust settings on isolated KDE Wayland with copied user configuration, no service or HID output",
+  "capture_backend_saved": "xdg-portal",
+  "calibration_table_preserved": true,
+  "sdr_profile_preserved": true,
+  "hdr_profile_preserved": true,
+  "save_kept_settings_open": true,
+  "exact_original_backup": true,
+  "real_config_sha256": "b470ea82ac1568cf99f4762f6914e4aa295bd3422527e9eb3ca046b52272d1a4"
+}

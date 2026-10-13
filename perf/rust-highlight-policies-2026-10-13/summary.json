@@ -1,0 +1,146 @@
+{
+  "scope": "Synthetic complete colour/GRB protocol replay, identical frame bytes and manual calibrated mapping; high quality, dithering disabled equally; no capture, USB, GPU, optical or whole-system measurements",
+  "caveat": "Four evolving frames per fixture, three resolutions, reference and ambient styles. These fixtures contain many uniform patches and do not establish typical game speedups. Samples/source/binary hashes remain in raw reports.",
+  "reports": {
+    "peak-before-refinement.json": {
+      "cases": 18,
+      "frames_each": 4,
+      "maximum_sampled_code_difference": 0,
+      "maximum_output_code_difference": 0,
+      "exact_packet_frames": 72,
+      "4k_ambient": [
+        {
+          "sequence": "flashes_scene_cuts_neutrals",
+          "python_median_ms": 769.1310129994235,
+          "rust_median_ms": 48.3021705
+        },
+        {
+          "sequence": "mixed_dark_noise",
+          "python_median_ms": 757.2095420000551,
+          "rust_median_ms": 50.469347
+        },
+        {
+          "sequence": "calibrated_privacy_letterbox",
+          "python_median_ms": 13.008753998292377,
+          "rust_median_ms": 45.879091
+        }
+      ]
+    },
+    "peak-refined.json": {
+      "cases": 18,
+      "frames_each": 4,
+      "maximum_sampled_code_difference": 0,
+      "maximum_output_code_difference": 0,
+      "exact_packet_frames": 72,
+      "4k_ambient": [
+        {
+          "sequence": "flashes_scene_cuts_neutrals",
+          "python_median_ms": 740.078986997105,
+          "rust_median_ms": 4.527102000000001
+        },
+        {
+          "sequence": "mixed_dark_noise",
+          "python_median_ms": 753.652230498119,
+          "rust_median_ms": 4.940485000000001
+        },
+        {
+          "sequence": "calibrated_privacy_letterbox",
+          "python_median_ms": 14.15781700052321,
+          "rust_median_ms": 3.2950375000000003
+        }
+      ]
+    },
+    "vivid-refined.json": {
+      "cases": 18,
+      "frames_each": 4,
+      "maximum_sampled_code_difference": 0,
+      "maximum_output_code_difference": 0,
+      "exact_packet_frames": 72,
+      "4k_ambient": [
+        {
+          "sequence": "flashes_scene_cuts_neutrals",
+          "python_median_ms": 862.9386554966914,
+          "rust_median_ms": 4.7403255
+        },
+        {
+          "sequence": "mixed_dark_noise",
+          "python_median_ms": 860.4165164979349,
+          "rust_median_ms": 5.1508115
+        },
+        {
+          "sequence": "calibrated_privacy_letterbox",
+          "python_median_ms": 13.196269996115007,
+          "rust_median_ms": 3.6684245
+        }
+      ]
+    },
+    "peak-final.json": {
+      "cases": 18,
+      "frames_each": 4,
+      "maximum_sampled_code_difference": 0,
+      "maximum_output_code_difference": 0,
+      "exact_packet_frames": 72
+    },
+    "vivid-final.json": {
+      "cases": 18,
+      "frames_each": 4,
+      "maximum_sampled_code_difference": 0,
+      "maximum_output_code_difference": 0,
+      "exact_packet_frames": 72
+    }
+  },
+  "tests": {
+    "golden_highlight_cases": 118,
+    "uniform_codes_per_mode": 256,
+    "native_app_test_count": 43,
+    "core_minimum": "1.77.0",
+    "app_minimum": "1.95.0"
+  },
+  "live_windows": {
+    "peak-live": {
+      "frames": 93,
+      "error": null,
+      "usb_output": false,
+      "copied_config": true,
+      "processing_median_ms": 39.278302,
+      "capture_median_ms": 15.068449
+    },
+    "peak-final-live": {
+      "frames": 258,
+      "error": null,
+      "usb_output": false,
+      "copied_config": true,
+      "processing_median_ms": 3.7611,
+      "capture_median_ms": 12.151861,
+      "last_highlight_cache_bytes_hits": [
+        6952320,
+        11813
+      ]
+    },
+    "vivid-live": {
+      "frames": 121,
+      "error": null,
+      "usb_output": false,
+      "copied_config": true,
+      "processing_median_ms": 29.035697,
+      "capture_median_ms": 15.906568
+    },
+    "vivid-final-live": {
+      "frames": 219,
+      "error": null,
+      "usb_output": false,
+      "copied_config": true,
+      "processing_median_ms": 3.302371,
+      "capture_median_ms": 13.045203,
+      "last_highlight_cache_bytes_hits": [
+        6952320,
+        890
+      ]
+    }
+  },
+  "default_reference_recheck": {
+    "frames": 242,
+    "exact_frames": 242,
+    "error": null
+  }
+}

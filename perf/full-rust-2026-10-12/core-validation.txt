@@ -1,0 +1,46 @@
+    Finished test [unoptimized + debuginfo] target(s) in 0.02s
+     Running unittests src/lib.rs (native/target/debug/deps/nanoleaf_core-73470cdd9ba15975)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/probe.rs (native/target/debug/deps/nanoleaf_core_probe-3282d65fcd81191c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/adaptive.rs (native/target/debug/deps/adaptive-42403d26c0f51faa)
+
+running 5 tests
+test empty_clipped_and_negative_rectangles_are_safe ... ok
+test neutral_checkerboard_is_mixed_with_linear_mean ... ok
+test padded_rows_match_compact_rows ... ok
+test scratch_budget_exhaustion_requests_reference ... ok
+test every_uniform_neutral_is_clear ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/contracts.rs (native/target/debug/deps/contracts-eba39b7871ca04c6)
+
+running 11 tests
+test get_length_reply_is_one_byte_and_never_a_tlv_length_integer ... ok
+test malformed_and_failed_responses_are_distinct ... ok
+test manual_count_and_channel_order_are_explicit ... ok
+test invalid_buffers_and_output_sizes_fail_without_panics ... ok
+test models_and_ids_stay_specific_to_supported_nanoleaf ... ok
+test mixed_black_white_uses_linear_light ... ok
+test stride_padding_clipping_and_remainder_pixels ... ok
+test tlv_length_boundaries_and_padding ... ok
+test spatial_weighted_linear_mean_preserves_neutrals_and_rejects_bad_weights ... ok
+test response_length_sweep_never_accepts_truncated_payloads ... ok
+test all_uniform_neutrals_are_exact_and_black_is_valid ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests nanoleaf-core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

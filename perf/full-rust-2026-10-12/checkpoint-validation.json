@@ -1,0 +1,25 @@
+{
+  "rust_app": {
+    "passed": 30,
+    "compiler": "1.95.0"
+  },
+  "rust_core": {
+    "passed": 16,
+    "compiler": "1.77.0"
+  },
+  "python": {
+    "passed": 1636,
+    "coverage_gate_percent": 75
+  },
+  "live-final-ack-recovery.json": {
+    "controller_state_restored": true
+  },
+  "lifecycle-final.json": {
+    "controller_state_restored": true
+  },
+  "lifecycle-adaptive.json": {
+    "controller_state_restored": true
+  },
+  "real_configuration_sha256": "b470ea82ac1568cf99f4762f6914e4aa295bd3422527e9eb3ca046b52272d1a4",
+  "native_binary_sha256": "6eaf3300c285b943bbe866ce3fa0e87e4092d34466bd95bdde8a673f16d26db4"
+}

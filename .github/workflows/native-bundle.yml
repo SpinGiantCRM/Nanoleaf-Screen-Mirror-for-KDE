@@ -1,0 +1,93 @@
+name: Native Rust bundle
+
+concurrency:
+  group: native-bundle-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'release' }}
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "native/**"
+      - "scripts/build_native_bundle.sh"
+      - "scripts/generate_native_notices.py"
+      - "docs/NATIVE_INSTALL.md"
+      - "assets/udev/**"
+      - "LICENSE"
+      - ".github/workflows/native-bundle.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  native-bundle:
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'native-v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Verify native release tag
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python - <<'PY'
+          import os, tomllib
+          version = tomllib.load(open("native/app/Cargo.toml", "rb"))["package"]["version"]
+          assert os.environ["RELEASE_TAG"] == "native-v" + version, "Native release tag/version mismatch"
+          PY
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pkg-config dbus-daemon libegl1-mesa-dev libgl1-mesa-dev libxkbcommon-dev libwayland-dev libpipewire-0.3-dev libudev-dev libclang-dev
+          rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
+      - name: Verify native contracts
+        run: |
+          cargo +1.95.0 test --locked --manifest-path native/app/Cargo.toml --features gui
+          cargo +1.95.0 clippy --locked --manifest-path native/app/Cargo.toml --features gui --all-targets -- -D warnings
+          cargo +1.95.0 test --locked --manifest-path native/stream-probe/Cargo.toml
+      - name: Build complete bundle
+        run: bash scripts/build_native_bundle.sh dist/native
+      - name: Verify artifact starts without capture or USB output
+        run: |
+          dist/native/bin/nanoleaf-native --version
+          python - <<'PY'
+          import subprocess
+          result = subprocess.run(["dist/native/bin/nanoleaf-native-capture", "--invalid-probe-option"], capture_output=True, text=True)
+          assert result.returncode != 0 and "Unknown probe option" in result.stderr
+          PY
+      # Full real KDE cache/launcher and CLI rollback smoke checks run locally.
+      # Unit tests above cover installer checksum, rollback and recovery logic.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nanoleaf-native-linux-x86_64
+          path: |
+            dist/native.tar.gz
+          if-no-files-found: error
+
+  publish-native:
+    if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'native-v')
+    needs: native-bundle
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nanoleaf-native-linux-x86_64
+          path: dist
+      - name: Attach native archive and checksum to the published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          (cd dist && sha256sum native.tar.gz > native.tar.gz.sha256)
+          gh release upload "$RELEASE_TAG" dist/native.tar.gz dist/native.tar.gz.sha256 --repo "$GITHUB_REPOSITORY"

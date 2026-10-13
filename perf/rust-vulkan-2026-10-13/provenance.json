@@ -1,0 +1,19 @@
+{
+  "reference_checkpoint": "5531880",
+  "compiler": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+  "binary_sha256": "ba9957ef2393789780d2cece235e6a33d309d0648612ea0887f8d4202f474cc3",
+  "source_sha256": {
+    "native/gpu-probe/src/lib.rs": "1e3505bfaebeb49fd7d6e5981688907cf6884529640ef12091f278ae44d322aa",
+    "native/gpu-probe/src/main.rs": "37001ff2790eb0749e2328c45069b8c837c83e0e37c2f1cf68a57a7df899f3b8",
+    "native/gpu-probe/src/zones.wgsl": "931ff0dac0edf6552dc38e880d8b907b96093a2bf2cb2de3005053313c519de6",
+    "native/core/src/adaptive.rs": "936a72d2763e543faeda8a2fd037c21669729890014545e5b97b16c6d976d438",
+    "native/core/src/bin/probe.rs": "4ec282105d5b1967104a03a139563465d117ddbcd8d2c19f8f96a2bbae0cc539",
+    "native/core/src/blending.rs": "dd0e8bba5ad142c4e80da81fde256c4dbc57d95a78dc2a03bbef8c5fe1344721",
+    "native/core/src/colour.rs": "61da631a380b16e3d92cec808d511baa8a6fdf218f894e7b22ca56abf8ed44ee",
+    "native/core/src/lib.rs": "4bbc2770719858c2a305a20a7c131705f023c8a0baa6be876d9cc17765be1e85",
+    "native/core/src/palette.rs": "df4b241a83321bfd5b3b4d91634ebc1421319c197e703451ca37c69ff74f4b59",
+    "native/core/src/protocol.rs": "2ba8467ef3cba3664e09f7c0a59afd1683deea2a72f38537da248ff0880d9985",
+    "native/core/src/sampling.rs": "e6ab6b528498e9b664e8a4bcd75cee620953979ae8742395bfef1932c8fd8b09"
+  },
+  "lock_sha256": "1ed6ae71b8ace394b8a0f9cd0933059b465b9e1e3f32fea3fbd5b9ad49104c36"
+}

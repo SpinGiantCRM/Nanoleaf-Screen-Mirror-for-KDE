@@ -18,6 +18,11 @@ venv/
 *.toml.tmp.*
 dist/
 build/
+native/target/
+native/python-bridge/target/
+native/app/target/
+native/gpu-probe/target/
+native/stream-probe/target/
 *.egg-info/
 
 packaging/arch/pkg/
@@ -38,3 +43,5 @@ NANOLEAF_*_AUDIT.md
 AGENTS.md
 docs/ai/
 scripts/ai/
+
+native/linux-gpu/target/

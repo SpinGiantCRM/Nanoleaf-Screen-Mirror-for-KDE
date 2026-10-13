@@ -32,6 +32,7 @@ TEST_HINT_PREFIXES = (
     "tests/test_zone_calibration.py",
     "tests/test_zone_derivation.py",
     "tests/test_runtime_zones.py",
+    "tests/test_zone_sampling_quality.py",
 )
 
 
