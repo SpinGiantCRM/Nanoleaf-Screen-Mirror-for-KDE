@@ -21,6 +21,10 @@ use std::{
     rc::Rc,
     time::{Duration, Instant},
 };
+// SPA's append-only buffers ABI assigns metaType key 7. Older PipeWire headers
+// (including Ubuntu 24.04) omit its Rust binding. Keep the same wire property:
+// https://gitlab.freedesktop.org/pipewire/pipewire/-/blob/master/spa/include/spa/param/buffers.h
+const PARAM_BUFFERS_META_TYPE: u32 = 7;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 enum Mode {
     #[default]
@@ -507,10 +511,7 @@ fn run_application(
         id: spa::param::ParamType::Buffers.as_raw(),
         properties: vec![
             spa::pod::Property::new(spa::sys::SPA_PARAM_BUFFERS_blocks, spa::pod::Value::Int(1)),
-            spa::pod::Property::new(
-                spa::sys::SPA_PARAM_BUFFERS_metaType,
-                spa::pod::Value::Int(0),
-            ),
+            spa::pod::Property::new(PARAM_BUFFERS_META_TYPE, spa::pod::Value::Int(0)),
             spa::pod::Property::new(
                 spa::sys::SPA_PARAM_BUFFERS_dataType,
                 spa::pod::Value::Int(if mode == Mode::Dma {

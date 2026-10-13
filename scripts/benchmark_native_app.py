@@ -225,7 +225,12 @@ def main():
                             else:
                                 native = json.loads(
                                     subprocess.check_output(
-                                        [str(args.binary.resolve()), str(manifest)], text=True
+                                        # The local operator deliberately selects the replay
+                                        # executable; argv stays separate and no shell runs.
+                                        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args  # noqa: E501
+                                        [str(args.binary.resolve()), str(manifest)],
+                                        text=True,
+                                        shell=False,
                                     )
                                 )
                                 results[side] = native["runs"][0]

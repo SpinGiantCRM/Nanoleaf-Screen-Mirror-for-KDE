@@ -131,6 +131,8 @@ def main():
         ),
     )
     child = subprocess.Popen(
+        # Local operator-selected native build, with separate argv and no shell.
+        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args  # noqa: E501
         [
             str(args.binary.resolve()),
             "--stream-live-probe" if args.stream else "--live-probe",
@@ -140,6 +142,7 @@ def main():
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        shell=False,
     )
     try:
         deadline = time.monotonic() + 5

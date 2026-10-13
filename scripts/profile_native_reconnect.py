@@ -34,9 +34,12 @@ def main():
     error = args.output.with_suffix(".stderr.log")
     with raw.open("w") as stdout, error.open("w") as stderr:
         child = subprocess.Popen(
+            # Local operator-selected native build, with separate argv and no shell.
+            # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args  # noqa: E501
             [str(args.binary.resolve()), "--live-probe", str(args.config), "30"],
             stdout=stdout,
             stderr=stderr,
+            shell=False,
         )
         end = time.monotonic() + 45
         try:
