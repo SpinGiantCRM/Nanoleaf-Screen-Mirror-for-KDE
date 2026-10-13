@@ -11,18 +11,18 @@ use toml_edit::{DocumentMut, Item};
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct LedProfile {
-    pub red_gain: f32,
-    pub green_gain: f32,
-    pub blue_gain: f32,
-    pub led_gamma: f32,
-    pub white_balance_temperature: f32,
-    pub chroma_compression: f32,
-    pub neutral_luminance_gain: f32,
-    pub black_luminance_cutoff: f32,
-    pub black_luminance_knee: f32,
-    pub dark_sample_stabilize_on: f32,
-    pub dark_sample_stabilize_off: f32,
-    pub color_matrix: Vec<f32>,
+    pub red_gain: f64,
+    pub green_gain: f64,
+    pub blue_gain: f64,
+    pub led_gamma: f64,
+    pub white_balance_temperature: f64,
+    pub chroma_compression: f64,
+    pub neutral_luminance_gain: f64,
+    pub black_luminance_cutoff: f64,
+    pub black_luminance_knee: f64,
+    pub dark_sample_stabilize_on: f64,
+    pub dark_sample_stabilize_off: f64,
+    pub color_matrix: Vec<f64>,
 }
 impl Default for LedProfile {
     fn default() -> Self {
@@ -88,9 +88,9 @@ pub struct Config {
     pub schema_version: u32,
     pub calibration_schema_version: u32,
     pub fps: u32,
-    pub brightness: f32,
-    pub smoothing: f32,
-    pub smoothing_speed: f32,
+    pub brightness: f64,
+    pub smoothing: f64,
+    pub smoothing_speed: f64,
     pub device_vid: u16,
     pub device_pid: u16,
     pub device_zone_count: usize,
@@ -126,8 +126,8 @@ pub struct Config {
     pub compositor_hdr_mode: bool,
     pub hdr_transfer: String,
     pub hdr_primaries: String,
-    pub hdr_max_nits: f32,
-    pub sdr_boost_nits: f32,
+    pub hdr_max_nits: f64,
+    pub sdr_boost_nits: f64,
     pub calibration: Calibration,
     pub led_calibration_profile_sdr: LedProfile,
     pub led_calibration_profile_hdr: LedProfile,
@@ -224,6 +224,19 @@ impl Config {
         ensure!(
             self.layout_inset.is_finite() && self.layout_scale.is_finite(),
             "Invalid layout transform"
+        );
+        ensure!(
+            self.source_side_counts.is_empty()
+                || (self.source_side_counts.len() == 4
+                    && self.source_side_counts.iter().all(|&v| v <= 512)),
+            "Invalid source side counts"
+        );
+        ensure!(
+            matches!(
+                self.color_style.as_str(),
+                "reference" | "natural" | "ambient" | "vivid" | "punchy"
+            ),
+            "Unknown colour style"
         );
         let mut order = self.output_channel_order.chars().collect::<Vec<_>>();
         order.sort_unstable();
@@ -393,6 +406,17 @@ impl Store {
         }
         let mut config: Config = toml::Value::Table(values).try_into()?;
         config.schema_version = 2;
+        config.color_style = config.color_style.trim().to_ascii_lowercase();
+        config.sampling_mode = config.sampling_mode.trim().to_ascii_lowercase();
+        config.sampling_quality = config.sampling_quality.trim().to_ascii_lowercase();
+        config.edge_locality = config.edge_locality.trim().to_ascii_lowercase();
+        config.motion_preset = config.motion_preset.trim().to_ascii_lowercase();
+        config.light_spread = config.light_spread.trim().to_ascii_lowercase();
+        config.performance_priority = config.performance_priority.trim().to_ascii_lowercase();
+        config.sync_mode = config.sync_mode.trim().to_ascii_lowercase();
+        config.output_channel_order = config.output_channel_order.trim().to_ascii_lowercase();
+        config.calibration.output_channel_order = config.output_channel_order.clone();
+        config.capture_monitor = config.capture_monitor.trim().to_string();
         config.validate()?;
         Ok(Self {
             path: path.into(),

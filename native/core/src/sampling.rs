@@ -90,6 +90,25 @@ impl Default for SdrSampler {
 }
 
 impl SdrSampler {
+    /// Linear-light reduction using caller-supplied, normalized spatial weights.
+    /// Preserve float32 weight values with a float64 reduction, as the reference
+    /// does. Do not renormalize a calibrated spatial kernel after rounding it.
+    pub fn weighted_mean(&self, pixels: &[[u8; 3]], weights: &[f32]) -> Result<[u8; 3], Error> {
+        if pixels.len() != weights.len() {
+            return Err(Error::OutputLength);
+        }
+        if weights.iter().any(|w| !w.is_finite() || *w < 0.0) {
+            return Err(Error::InvalidDimensions);
+        }
+        let mut sum = [0.0_f64; 3];
+        for (pixel, &weight) in pixels.iter().zip(weights) {
+            for c in 0..3 {
+                sum[c] += f64::from(self.linear_codes[pixel[c] as usize]) * f64::from(weight);
+            }
+        }
+        Ok(sum.map(|v| encode_srgb(v as f32)))
+    }
+
     pub fn sample_into(
         &self,
         frame: &SdrRgb8Frame<'_>,

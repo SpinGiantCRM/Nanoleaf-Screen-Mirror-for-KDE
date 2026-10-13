@@ -37,11 +37,17 @@ impl Strip {
                         model: String::new(),
                         reported_count: 0,
                     };
-                    let bytes = strip.request(0x0c, &[])?;
-                    strip.model = protocol::parse_model(&bytes)?.to_string();
-                    let length = strip.request(0x03, &[])?;
-                    ensure!(length.len() == 2, "Invalid device length reply");
-                    strip.reported_count = u16::from_be_bytes([length[0], length[1]]) as usize;
+                    let initialized = (|| -> Result<()> {
+                        let bytes = strip.request(0x0c, &[])?;
+                        strip.model = protocol::parse_model(&bytes)?.to_string();
+                        let length = strip.request(0x03, &[])?;
+                        strip.reported_count = protocol::parse_reported_count(&length)?;
+                        Ok(())
+                    })();
+                    if let Err(error) = initialized {
+                        errors.push(error.to_string());
+                        continue;
+                    }
                     // reported_count is diagnostics only, never runtime geometry.
                     return Ok(strip);
                 }
@@ -52,47 +58,7 @@ impl Strip {
     }
 
     pub fn request(&mut self, command: u8, payload: &[u8]) -> Result<Vec<u8>> {
-        // Drain old reports before a new acknowledged transaction.
-        let mut raw = [0_u8; 1024];
-        for _ in 0..16 {
-            if self.handle.read_timeout(&mut raw, 0)? == 0 {
-                break;
-            }
-        }
-        for report in reports(&protocol::encode_request(command, payload)?) {
-            ensure!(
-                self.handle.write(&report)? == report.len(),
-                "Short HID report write"
-            );
-        }
-        let started = Instant::now();
-        let timeout = Duration::from_millis(250);
-        let mut direct = vec![];
-        let mut prefixed = vec![];
-        while started.elapsed() < timeout {
-            let Some(remaining) = timeout.checked_sub(started.elapsed()) else {
-                break;
-            };
-            let left = remaining.as_millis().min(25) as i32;
-            let size = self.handle.read_timeout(&mut raw, left)?;
-            if size == 0 {
-                continue;
-            }
-            direct.extend_from_slice(&raw[..size]);
-            if size > 1 {
-                prefixed.extend_from_slice(&raw[1..size]);
-            }
-            for candidate in [&direct, &prefixed] {
-                if candidate.len() >= 3 && candidate[0] == command.wrapping_add(0x80) {
-                    let length = u16::from_be_bytes([candidate[1], candidate[2]]) as usize;
-                    if candidate.len() >= length + 3 {
-                        return Ok(protocol::parse_response(command, candidate)?.to_vec());
-                    }
-                }
-            }
-            ensure!(direct.len() <= 65538, "Oversized HID response");
-        }
-        bail!("Strip acknowledgement timed out")
+        transact(&self.handle, command, payload)
     }
 
     pub fn frame(&mut self, colors: &[[u8; 3]]) -> Result<()> {
@@ -116,14 +82,107 @@ impl Strip {
     pub fn black(&mut self) -> Result<()> {
         self.frame(&vec![[0; 3]; self.count])
     }
+    pub fn restore_controller(&mut self, power: &[u8], brightness: &[u8]) -> bool {
+        // Attempt both restorations even when one fails, then verify readback.
+        let b = self.request(0x09, brightness).is_ok();
+        let p = self.request(0x07, power).is_ok();
+        let verified_b = self.request(0x08, &[]).is_ok_and(|v| v == brightness);
+        let verified_p = self.request(0x06, &[]).is_ok_and(|v| v == power);
+        b && p && verified_b && verified_p
+    }
 }
 
-pub fn reports(request: &[u8]) -> Vec<[u8; 65]> {
+/// Injected report I/O for protocol failure/recovery tests; no raw USB in tests.
+pub trait ReportIo {
+    fn write(&self, report: &[u8]) -> Result<usize>;
+    fn read_timeout(&self, buffer: &mut [u8], timeout_ms: i32) -> Result<usize>;
+}
+impl ReportIo for HidDevice {
+    fn write(&self, report: &[u8]) -> Result<usize> {
+        Ok(HidDevice::write(self, report)?)
+    }
+    fn read_timeout(&self, buffer: &mut [u8], timeout_ms: i32) -> Result<usize> {
+        Ok(HidDevice::read_timeout(self, buffer, timeout_ms)?)
+    }
+}
+pub fn transact(handle: &impl ReportIo, command: u8, payload: &[u8]) -> Result<Vec<u8>> {
+    // Drain old reports before a new acknowledged transaction.
+    let mut raw = [0_u8; 1024];
+    for _ in 0..16 {
+        if handle.read_timeout(&mut raw, 0)? == 0 {
+            break;
+        }
+    }
+    for report in reports(&protocol::encode_request(command, payload)?) {
+        ensure!(
+            handle.write(&report)? == report.len(),
+            "Short HID report write"
+        );
+    }
+    let started = Instant::now();
+    let timeout = Duration::from_millis(250);
+    let mut direct = vec![];
+    let mut prefixed = vec![];
+    while started.elapsed() < timeout {
+        let Some(remaining) = timeout.checked_sub(started.elapsed()) else {
+            break;
+        };
+        let left = remaining.as_millis().min(25) as i32;
+        let size = handle.read_timeout(&mut raw, left)?;
+        if size == 0 {
+            continue;
+        }
+        direct.extend_from_slice(&raw[..size]);
+        if size > 1 {
+            prefixed.extend_from_slice(&raw[1..size]);
+        }
+        for candidate in [&direct, &prefixed] {
+            if let Some(payload) = matching_response(command, candidate)? {
+                return Ok(payload);
+            }
+        }
+        ensure!(direct.len() <= 65538, "Oversized HID response");
+    }
+    bail!("Strip acknowledgement timed out")
+}
+
+fn matching_response(command: u8, mut bytes: &[u8]) -> Result<Option<Vec<u8>>> {
+    // A late ACK for another command must not hide the current ACK behind it.
+    // Skip whole, complete TLVs, never scan their payload for a matching byte.
+    let mut skipped_tlv = false;
+    while bytes.len() >= 3 {
+        if bytes[0] == 0 {
+            if !skipped_tlv {
+                break;
+            }
+            bytes = &bytes[1..];
+            continue;
+        }
+        if !(0x80..=0x8f).contains(&bytes[0]) {
+            break;
+        }
+        let length = u16::from_be_bytes([bytes[1], bytes[2]]) as usize;
+        if bytes.len() < length + 3 {
+            break;
+        }
+        if bytes[0] == command.wrapping_add(0x80) {
+            return Ok(Some(protocol::parse_response(command, bytes)?.to_vec()));
+        }
+        bytes = &bytes[length + 3..];
+        skipped_tlv = true;
+    }
+    Ok(None)
+}
+
+/// Keep the final report short, as the verified Python transport does. Padding
+/// after the TLV is unnecessary; preserve the reference's exact report lengths.
+pub fn reports(request: &[u8]) -> Vec<Vec<u8>> {
     request
         .chunks(64)
         .map(|chunk| {
-            let mut report = [0; 65];
-            report[1..1 + chunk.len()].copy_from_slice(chunk);
+            let mut report = Vec::with_capacity(chunk.len() + 1);
+            report.push(0);
+            report.extend_from_slice(chunk);
             report
         })
         .collect()
@@ -133,7 +192,7 @@ pub fn reports(request: &[u8]) -> Vec<[u8; 65]> {
 mod tests {
     use super::*;
     #[test]
-    fn exact_tlv_bytes_survive_report_padding_and_ids() {
+    fn exact_tlv_bytes_survive_report_ids_without_tail_padding() {
         let colors = vec![[10, 20, 30]; 48];
         let tlv =
             protocol::encode_zone_frame(&colors, 48, ChannelOrder::parse("grb").unwrap()).unwrap();
@@ -144,7 +203,10 @@ mod tests {
             .iter()
             .flat_map(|chunk| chunk[1..].iter().copied())
             .collect();
-        assert_eq!(&joined[..tlv.len()], &tlv);
-        assert!(joined[tlv.len()..].iter().all(|&byte| byte == 0));
+        assert_eq!(joined, tlv);
+        assert_eq!(
+            chunks.iter().map(Vec::len).collect::<Vec<_>>(),
+            [65, 65, 20]
+        );
     }
 }

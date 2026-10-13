@@ -4,7 +4,7 @@ use rustix::event::{poll, PollFd, PollFlags, Timespec};
 use std::collections::HashMap;
 use std::os::fd::OwnedFd;
 use std::time::{Duration, Instant};
-use zbus::blocking::{Connection, Proxy};
+use zbus::blocking::Proxy;
 use zbus::zvariant::{Fd, OwnedValue, Value};
 
 pub struct Frame {
@@ -12,8 +12,15 @@ pub struct Frame {
     pub height: usize,
     pub pixels: Vec<u8>,
 }
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct CaptureTimes {
+    pub reply_ms: f64,
+    pub pipe_ms: f64,
+    pub decode_ms: f64,
+    pub format: usize,
+}
 pub struct KwinCapture {
-    connection: Connection,
+    proxy: Proxy<'static>,
     monitor: String,
 }
 impl KwinCapture {
@@ -21,27 +28,30 @@ impl KwinCapture {
         let connection = zbus::blocking::connection::Builder::session()?
             .method_timeout(Duration::from_secs(2))
             .build()?;
-        Ok(Self {
+        let proxy = Proxy::new_owned(
             connection,
-            monitor,
-        })
-    }
-    pub fn capture(&self) -> Result<Frame> {
-        let proxy = Proxy::new(
-            &self.connection,
             "org.kde.KWin.ScreenShot2",
             "/org/kde/KWin/ScreenShot2",
             "org.kde.KWin.ScreenShot2",
         )?;
+        Ok(Self { proxy, monitor })
+    }
+    pub fn capture(&self) -> Result<Frame> {
+        Ok(self.capture_timed()?.0)
+    }
+    pub fn capture_timed(&self) -> Result<(Frame, CaptureTimes)> {
+        let started = Instant::now();
         let (read, write) = rustix::pipe::pipe()?;
         let fd = Fd::from(&write);
         let options: HashMap<&str, Value<'_>> =
             HashMap::from([("native-resolution", Value::from(true))]);
         let reply: HashMap<String, OwnedValue> = if self.monitor.is_empty() {
-            proxy.call("CaptureActiveScreen", &(options, fd))?
+            self.proxy.call("CaptureActiveScreen", &(options, fd))?
         } else {
-            proxy.call("CaptureScreen", &(&self.monitor, options, fd))?
+            self.proxy
+                .call("CaptureScreen", &(&self.monitor, options, fd))?
         };
+        let reply_ms = started.elapsed().as_secs_f64() * 1000.0;
         drop(write);
         let kind = <&str>::try_from(reply.get("type").context("Missing capture type")?)?;
         ensure!(kind == "raw", "Unsupported capture payload type");
@@ -66,8 +76,21 @@ impl KwinCapture {
             .checked_mul(height)
             .context("Capture size overflow")?;
         ensure!(size <= 128 * 1024 * 1024, "Capture exceeds 128 MiB");
+        let pipe_start = Instant::now();
         let data = read_frame(&read, size, Duration::from_secs(2))?;
-        decode(&data, width, height, stride, format)
+        let pipe_ms = pipe_start.elapsed().as_secs_f64() * 1000.0;
+        let decode_start = Instant::now();
+        let frame = decode(&data, width, height, stride, format)?;
+        let decode_ms = decode_start.elapsed().as_secs_f64() * 1000.0;
+        Ok((
+            frame,
+            CaptureTimes {
+                reply_ms,
+                pipe_ms,
+                decode_ms,
+                format,
+            },
+        ))
     }
 }
 
@@ -113,11 +136,82 @@ pub fn decode(
         data.len() >= stride.checked_mul(height).context("Capture overflow")?,
         "Truncated raw frame"
     );
-    let mut pixels = Vec::with_capacity(width * height * 3);
+    let output_size = width
+        .checked_mul(height)
+        .and_then(|n| n.checked_mul(3))
+        .context("RGB size overflow")?;
+    // Common KWin screenshots are opaque. Check alpha rather than assuming it;
+    // a separate loop permits packed channel conversion without per-pixel
+    // format dispatch or unpremultiplication. Transparent frames retain the
+    // validated generic path below.
+    let argb = matches!(format, 4..=6);
+    let rgba = matches!(format, 16..=18);
+    let alpha_offset = if argb && cfg!(target_endian = "big") {
+        0
+    } else {
+        3
+    };
+    let premultiplied = matches!(format, 6 | 18);
+    let opaque = (argb || rgba)
+        && (!premultiplied
+            || (0..height).all(|row| {
+                data[row * stride..row * stride + width * 4]
+                    .chunks_exact(4)
+                    .all(|p| p[alpha_offset] == 255)
+            }));
+    if opaque {
+        let mut pixels = vec![0; output_size];
+        for row in 0..height {
+            for (source, destination) in data[row * stride..row * stride + width * 4]
+                .chunks_exact(4)
+                .zip(pixels[row * width * 3..(row + 1) * width * 3].chunks_exact_mut(3))
+            {
+                if rgba {
+                    destination.copy_from_slice(&source[..3]);
+                } else if cfg!(target_endian = "little") {
+                    destination.copy_from_slice(&[source[2], source[1], source[0]]);
+                } else {
+                    destination.copy_from_slice(&source[1..4]);
+                }
+            }
+        }
+        return Ok(Frame {
+            width,
+            height,
+            pixels,
+        });
+    }
+    let mut pixels = Vec::with_capacity(output_size);
+    if format == 6 {
+        for row in 0..height {
+            for pixel in data[row * stride..row * stride + width * 4].chunks_exact(4) {
+                let word = u32::from_ne_bytes([pixel[0], pixel[1], pixel[2], pixel[3]]);
+                let alpha = (word >> 24) as u8;
+                let rgb = [(word >> 16) as u8, (word >> 8) as u8, word as u8];
+                let rgb = if alpha < 255 {
+                    rgb.map(|code| {
+                        if alpha == 0 {
+                            0
+                        } else {
+                            ((u32::from(code) * 255 + u32::from(alpha) / 2) / u32::from(alpha))
+                                .min(255) as u8
+                        }
+                    })
+                } else {
+                    rgb
+                };
+                pixels.extend_from_slice(&rgb);
+            }
+        }
+        return Ok(Frame {
+            width,
+            height,
+            pixels,
+        });
+    }
     for row in 0..height {
-        for pixel in
-            data[row * stride..row * stride + width * bytes_per_pixel].chunks_exact(bytes_per_pixel)
-        {
+        let source = &data[row * stride..row * stride + width * bytes_per_pixel];
+        for pixel in source.chunks_exact(bytes_per_pixel) {
             let (rgb, alpha, premultiplied) = match format {
                 4..=6 => {
                     let word = u32::from_ne_bytes(pixel.try_into()?);
@@ -131,7 +225,7 @@ pub fn decode(
                 29 => ([pixel[2], pixel[1], pixel[0]], 255, false),
                 _ => ([pixel[0], pixel[1], pixel[2]], 255, false),
             };
-            let rgb = if premultiplied {
+            let rgb = if premultiplied && alpha < 255 {
                 rgb.map(|code| {
                     if alpha == 0 {
                         0

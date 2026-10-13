@@ -213,3 +213,33 @@ fn response_length_sweep_never_accepts_truncated_payloads() {
         }
     }
 }
+
+#[test]
+fn get_length_reply_is_one_byte_and_never_a_tlv_length_integer() {
+    use nanoleaf_core::protocol::{parse_reported_count, parse_response};
+    let body = parse_response(0x03, &[0x83, 0, 2, 0, 48]).unwrap();
+    assert_eq!(parse_reported_count(body).unwrap(), 48);
+    assert_eq!(parse_reported_count(&[255]).unwrap(), 255);
+    assert_eq!(parse_reported_count(&[0]).unwrap(), 0);
+    assert!(parse_reported_count(&[]).is_err());
+    assert!(parse_reported_count(&[0, 48]).is_err());
+}
+#[test]
+fn spatial_weighted_linear_mean_preserves_neutrals_and_rejects_bad_weights() {
+    let sampler = nanoleaf_core::sampling::SdrSampler::default();
+    for code in 0..=255 {
+        assert_eq!(
+            sampler.weighted_mean(&[[code; 3]; 4], &[0.25; 4]).unwrap(),
+            [code; 3]
+        );
+    }
+    assert_eq!(
+        sampler
+            .weighted_mean(&[[0; 3], [255; 3]], &[0.5; 2])
+            .unwrap(),
+        [188; 3]
+    );
+    assert!(sampler.weighted_mean(&[[0; 3]], &[]).is_err());
+    assert!(sampler.weighted_mean(&[[0; 3]], &[f32::NAN]).is_err());
+    assert!(sampler.weighted_mean(&[[0; 3]], &[-1.0]).is_err());
+}

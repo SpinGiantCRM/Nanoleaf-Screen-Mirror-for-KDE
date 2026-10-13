@@ -1,8 +1,10 @@
-# Offline Rust core prototype
+# Rust colour and protocol core
 
 This workspace is an independently testable CPU/protocol prototype. It is not
 installed by PyPI, automatically enabled by the Python app, a daemon, or a capture/HID backend.
-The recovered Python runtime remains the working implementation and fallback.
+The recovered Python runtime remains installed as the reference and fallback.
+The separate [Rust application](app/README.md) now supplies capture, USB, tray
+and a native UI; the core itself remains independent of those adapters.
 The repository's existing license also covers this code; the crate is not
 published to crates.io.
 
@@ -15,12 +17,16 @@ The core has no third-party dependencies and forbids unsafe Rust. Its modules ar
   and stack histograms. Callers supply already anchored/masked source rectangles.
 - `adaptive`: allocation-bounded SDR mixed-content classification and dark-biased
   means for the optional palette prepass. Borderline numerical decisions use the
-  Python reference; palette scores and temporal selection are not ported here.
+  Python reference in the optional bridge; the application uses the native policy.
+- `palette`: candidate scores, mixed-content guards and temporal selection.
+- `colour`: measured LED calibration, sRGB/Oklab style and black/neutral handling.
+- `blending`: temporal and neighboring-zone colour processing.
 - `nanoleaf-core-probe`: bounded fixture reader, protocol oracle and release-build
   microbenchmark executable. It never opens USB, D-Bus, DRM or user configuration.
 
 The sampler accepts an explicit SDR byte contract. It does not decode PQ, HLG,
-FP16, colour primaries, display metadata, alpha, or run LED calibration/smoothing.
+FP16, colour primaries, display metadata or alpha. Calibration and smoothing
+operate separately on small, explicitly SDR zone arrays.
 The fixture reader rejects HDR-labelled input instead of silently treating it as
 SDR. Empty/clipped zones produce black; a valid all-black frame is not an error.
 No strip length is detected or promoted. GRB remains an explicit output choice,

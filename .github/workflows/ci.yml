@@ -92,6 +92,33 @@ jobs:
         run: |
           python scripts/benchmark_rust_core.py --quick --iterations 3 --warmup 1 --repeats 1 --output native-parity.json
 
+  rust-application:
+    name: Rust application colour and lifecycle contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install native build and oracle dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pkg-config libegl1-mesa-dev libgl1-mesa-dev libxkbcommon-dev libwayland-dev
+          pip install -e .
+          rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
+          cargo +1.95.0 fetch --manifest-path native/app/Cargo.toml --locked
+      - name: Verify Rust application at its minimum compiler
+        run: |
+          cargo +1.95.0 fmt --manifest-path native/app/Cargo.toml --check
+          cargo +1.95.0 clippy --manifest-path native/app/Cargo.toml --features gui --all-targets --locked --offline -- -D warnings
+          cargo +1.95.0 test --manifest-path native/app/Cargo.toml --features gui --locked --offline
+          cargo +1.95.0 build --manifest-path native/app/Cargo.toml --features gui --release --locked --offline
+      - name: Verify complete colour and protocol replay
+        run: python scripts/benchmark_native_app.py --quick --frames 12 --repeats 1 --output native-application-parity.json
+
   rust-bridge:
     name: Optional Rust bridge (${{ matrix.python }})
     runs-on: ubuntu-latest

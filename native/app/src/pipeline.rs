@@ -15,6 +15,8 @@ use std::time::Instant;
 pub struct ProcessingTimes {
     pub sampling_ms: f64,
     pub colour_ms: f64,
+    pub mixed_ms: f64,
+    pub palette_ms: f64,
     pub total_ms: f64,
 }
 #[derive(Default)]
@@ -49,20 +51,20 @@ fn calibration(c: &Config) -> LedCalibration {
     // Never decode these bytes as PQ or adapt them from panel primaries again.
     let p = &c.led_calibration_profile_sdr;
     LedCalibration {
-        gains: [p.red_gain, p.green_gain, p.blue_gain],
+        gains: [p.red_gain as f32, p.green_gain as f32, p.blue_gain as f32],
         matrix: if p.color_matrix.len() == 9 {
             Some(std::array::from_fn(|r| {
-                std::array::from_fn(|c| p.color_matrix[r * 3 + c])
+                std::array::from_fn(|c| p.color_matrix[r * 3 + c].clamp(-4.0, 4.0) as f32)
             }))
         } else {
             None
         },
-        white_balance: p.white_balance_temperature,
-        chroma_compression: p.chroma_compression,
-        neutral_gain: p.neutral_luminance_gain,
-        black_cutoff: p.black_luminance_cutoff,
-        black_knee: p.black_luminance_knee,
-        gamma: p.led_gamma,
+        white_balance: p.white_balance_temperature as f32,
+        chroma_compression: p.chroma_compression as f32,
+        neutral_gain: p.neutral_luminance_gain as f32,
+        black_cutoff: p.black_luminance_cutoff as f32,
+        black_knee: p.black_luminance_knee as f32,
+        gamma: p.led_gamma as f32,
     }
 }
 fn mask(frame: &Frame, c: &Config) -> Option<Vec<u8>> {
@@ -158,9 +160,56 @@ fn anchor(mut z: ZoneRect, w: usize, h: usize) -> ZoneRect {
     }
     z
 }
+/// Reject unverified policies and incomplete physical mapping before opening USB.
+/// Loading/editing such configurations remains supported and non-destructive.
+pub fn validate_mirroring(c: &Config) -> Result<()> {
+    c.validate()?;
+    ensure!(
+        !c.multi_moment_zone_colors && c.virtual_zone_oversample == 0 && !c.scene_adaptive_profiles,
+        "This optional analysis is awaiting native parity verification; use the Python fallback"
+    );
+    let accuracy = c.accuracy_mode || matches!(c.color_style.as_str(), "reference" | "natural");
+    ensure!(
+        accuracy
+            || matches!(
+                c.sampling_mode.as_str(),
+                "auto" | "palette_adaptive" | "edge_direct" | "area_average"
+            ),
+        "Sampling mode {} awaits native verification; use the Python fallback",
+        c.sampling_mode
+    );
+    ensure!(
+        accuracy || c.sync_mode != "4d",
+        "Predictive colour output awaits native validation; use the Python fallback"
+    );
+    ensure!(
+        (4..=512).contains(&c.device_zone_count),
+        "Complete strip setup with a manual count and four corner anchors"
+    );
+    let mut anchors = c.anchors();
+    anchors.sort_unstable();
+    ensure!(
+        anchors[0] >= 0
+            && anchors[3] < c.device_zone_count as i64
+            && anchors.windows(2).all(|a| a[0] != a[1]),
+        "Complete four distinct corner anchors before mirroring"
+    );
+    Ok(())
+}
 impl Pipeline {
+    /// Quantization history must reflect acknowledged output, not queued frames.
+    pub fn override_sent(&mut self, sent: &[[u8; 3]]) {
+        if self.previous_sent != sent {
+            self.quant_hold.fill(false);
+            self.previous_sent = sent.to_vec();
+        }
+    }
     pub fn process(&mut self, frame: &Frame, c: &Config) -> Result<Output> {
-        c.validate()?;
+        validate_mirroring(c)?;
+        ensure!(
+            frame.width > 0 && frame.height > 0,
+            "Empty capture geometry"
+        );
         ensure!(
             frame.pixels.len()
                 == frame
@@ -218,10 +267,12 @@ impl Pipeline {
                 _ => 2,
             }
         };
+        let mut mixed_ms = 0.0;
+        let mut palette_ms = 0.0;
         let mut raw = Vec::with_capacity(zones.len());
         let mut modes = Vec::with_capacity(zones.len());
         for (index, z) in zones.into_iter().enumerate() {
-            if mode != "palette_adaptive" {
+            if mode != "palette_adaptive" && c.zone_box_filter_sampling {
                 let z = if c.zone_box_filter_sampling {
                     anchor(z, frame.width, frame.height)
                 } else {
@@ -262,20 +313,58 @@ impl Pipeline {
                     patch.push([bytes[i], bytes[i + 1], bytes[i + 2]]);
                 }
             }
+            if mode != "palette_adaptive" {
+                let pw = (x1 - x).div_ceil(stride);
+                let ph = (y1 - y).div_ceil(stride);
+                let weights =
+                    crate::spatial::weights([sx, sy, pw, ph], [sw, sh], mode, &c.edge_locality);
+                let color = if let Some(weights) = weights {
+                    self.sampler.weighted_mean(&patch, &weights)?
+                } else if patch.is_empty() {
+                    [0; 3]
+                } else {
+                    let flat: Vec<_> = patch.iter().flatten().copied().collect();
+                    let v = SdrRgb8Frame::new(&flat, patch.len(), 1, patch.len() * 3)?;
+                    self.sampler
+                        .sample_zone(
+                            &v,
+                            ZoneRect {
+                                x: 0,
+                                y: 0,
+                                width: patch.len() as i64,
+                                height: 1,
+                            },
+                        )
+                        .srgb
+                };
+                raw.push(color);
+                modes.push(mode.to_string());
+                continue;
+            }
             let (mut color, name) = if patch.is_empty() {
                 ([0; 3], "area_mean".to_string())
             } else {
-                let flat: Vec<u8> = patch.iter().flatten().copied().collect();
-                let patch_view = SdrRgb8Frame::new(&flat, patch.len(), 1, patch.len() * 3)?;
-                let mixed = self.sampler.adaptive_native(
-                    &patch_view,
-                    ZoneRect {
-                        x: 0,
-                        y: 0,
-                        width: patch.len() as i64,
-                        height: 1,
-                    },
-                );
+                let uniform = patch.iter().all(|p| *p == patch[0]);
+                let phase = Instant::now();
+                let mixed = if uniform {
+                    nanoleaf_core::adaptive::AdaptiveSample {
+                        decision: MixedDecision::Clear,
+                        mixed_rgb: [0; 3],
+                    }
+                } else {
+                    let flat: Vec<u8> = patch.iter().flatten().copied().collect();
+                    let patch_view = SdrRgb8Frame::new(&flat, patch.len(), 1, patch.len() * 3)?;
+                    self.sampler.adaptive_native(
+                        &patch_view,
+                        ZoneRect {
+                            x: 0,
+                            y: 0,
+                            width: patch.len() as i64,
+                            height: 1,
+                        },
+                    )
+                };
+                mixed_ms += phase.elapsed().as_secs_f64() * 1000.0;
                 if mixed.decision == MixedDecision::Mixed {
                     let rgb = mixed.mixed_rgb;
                     self.palette[index] = TemporalState {
@@ -288,7 +377,10 @@ impl Pipeline {
                     };
                     (rgb, "area_mean".to_string())
                 } else {
-                    let pf = self.sampler.palette_frame(&patch);
+                    let phase = Instant::now();
+                    let pf = self
+                        .sampler
+                        .palette_frame(if uniform { &patch[..1] } else { &patch });
                     let mut temporal = palette::stabilize(
                         &pf,
                         &self.palette[index],
@@ -302,6 +394,7 @@ impl Pipeline {
                     temporal.confidence =
                         (temporal.confidence * 10000.0).round_ties_even() / 10000.0;
                     self.palette[index] = temporal;
+                    palette_ms += phase.elapsed().as_secs_f64() * 1000.0;
                     (rgb, name)
                 }
             };
@@ -392,7 +485,8 @@ impl Pipeline {
         }
         if c.brightness != 1.0 {
             for rgb in &mut mapped {
-                *rgb = rgb.map(|x| colour::encode_srgb(colour::decode_srgb(x) * c.brightness));
+                *rgb =
+                    rgb.map(|x| colour::encode_srgb(colour::decode_srgb(x) * c.brightness as f32));
             }
         }
         let (preset, minimum, speed) = if accuracy {
@@ -413,8 +507,13 @@ impl Pipeline {
                 (c.smoothing_speed * b).clamp(0.0, 4.0),
             )
         };
-        self.blend
-            .smooth(&mut mapped, &self.previous_smooth, minimum, speed, preset);
+        self.blend.smooth(
+            &mut mapped,
+            &self.previous_smooth,
+            minimum as f32,
+            speed as f32,
+            preset,
+        );
         for rgb in &mut mapped {
             let peak = rgb.iter().copied().fold(0.0, f32::max);
             let gray = colour::encode_srgb(luma(rgb.map(colour::decode_srgb))).round_ties_even();
@@ -426,7 +525,9 @@ impl Pipeline {
         if self.quant_hold.len() != mapped.len() {
             self.quant_hold = vec![false; mapped.len()];
         }
-        if self.previous_sent.len() == mapped.len() {
+        // Holding an integer output before temporal quantization destroys its
+        // fractional duty cycle. Use the legacy hold only when dither is off.
+        if !c.blue_noise_dither && self.previous_sent.len() == mapped.len() {
             for (i, rgb) in mapped.iter_mut().enumerate() {
                 let old = self.previous_sent[i].map(f32::from);
                 let delta = (0..3).map(|k| (rgb[k] - old[k]).abs()).fold(0.0, f32::max);
@@ -452,6 +553,8 @@ impl Pipeline {
             modes,
             times: ProcessingTimes {
                 sampling_ms,
+                mixed_ms,
+                palette_ms,
                 colour_ms: total_ms - sampling_ms,
                 total_ms,
             },

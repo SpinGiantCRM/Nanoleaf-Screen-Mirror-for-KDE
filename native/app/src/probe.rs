@@ -1,0 +1,45 @@
+//! Bounded read-only capture/colour attribution. No screen pixels or USB are saved.
+use crate::{capture::KwinCapture, config::Store, pipeline::Pipeline};
+use anyhow::{ensure, Result};
+use std::{
+    path::Path,
+    time::{Duration, Instant},
+};
+pub fn capture(path: &Path, seconds: f64) -> Result<()> {
+    ensure!(
+        seconds.is_finite() && (0.1..=30.0).contains(&seconds),
+        "Probe duration must be .1 to 30 seconds"
+    );
+    let store = Store::load(path)?;
+    let capture = KwinCapture::new(store.config.capture_monitor.clone())?;
+    let mut pipeline = Pipeline::default();
+    let start = Instant::now();
+    let mut samples = Vec::new();
+    let mut size = (0, 0);
+    let mut first_ms = 0.0;
+    while start.elapsed() < Duration::from_secs_f64(seconds) {
+        let frame_start = Instant::now();
+        let (frame, capture_times) = capture.capture_timed()?;
+        let capture_ms = frame_start.elapsed().as_secs_f64() * 1000.0;
+        size = (frame.width, frame.height);
+        let out = pipeline.process(&frame, &store.config)?;
+        if samples.is_empty() {
+            first_ms = start.elapsed().as_secs_f64() * 1000.0;
+        }
+        samples.push(serde_json::json!({"capture_ms":capture_ms,"reply_ms":capture_times.reply_ms,"pipe_ms":capture_times.pipe_ms,"decode_ms":capture_times.decode_ms,"qt_format":capture_times.format,"processing_ms":out.times.total_ms,"sampling_ms":out.times.sampling_ms,"colour_ms":out.times.colour_ms,"response_ms":frame_start.elapsed().as_secs_f64()*1000.0}));
+        let target = Duration::from_secs_f64(1.0 / store.config.fps as f64);
+        if let Some(remaining) = target.checked_sub(frame_start.elapsed()) {
+            std::thread::sleep(remaining);
+        }
+    }
+    let proc = std::fs::read_to_string("/proc/self/status").unwrap_or_default();
+    let memory: Vec<_> = proc
+        .lines()
+        .filter(|l| l.starts_with("VmRSS:") || l.starts_with("VmHWM:") || l.starts_with("Threads:"))
+        .collect();
+    println!(
+        "{}",
+        serde_json::json!({"scope":"Real KWin SDR screenshot and complete native colour path; no USB or optical measurements","width":size.0,"height":size.1,"elapsed_seconds":start.elapsed().as_secs_f64(),"first_output_ms":first_ms,"frames":samples.len(),"samples":samples,"memory":memory})
+    );
+    Ok(())
+}

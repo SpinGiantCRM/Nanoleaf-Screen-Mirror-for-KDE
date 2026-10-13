@@ -1,0 +1,26 @@
+{
+  "scope": "Separate native Settings window idle in isolated KWin Wayland; compositor and GPU costs excluded; not main-desktop power measurement.",
+  "seconds": 5.001313028995355,
+  "cpu_percent_one_core": 0.19994749262892583,
+  "before": {
+    "cpu_seconds": 0.05,
+    "memory_kib": {
+      "Rss": 119552,
+      "Pss": 77150,
+      "Private_Clean": 12480,
+      "Private_Dirty": 29564
+    },
+    "fd_count": 21
+  },
+  "after": {
+    "cpu_seconds": 0.06,
+    "memory_kib": {
+      "Rss": 119552,
+      "Pss": 77124,
+      "Private_Clean": 12480,
+      "Private_Dirty": 29564
+    },
+    "fd_count": 21
+  },
+  "binary_sha256": "61a8281f9f5822d9a0ceddb84b390e9ed27525c7387dfb76b9c1de69ece00db7"
+}

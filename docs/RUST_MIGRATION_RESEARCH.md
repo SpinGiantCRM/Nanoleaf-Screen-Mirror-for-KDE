@@ -4,6 +4,12 @@ Date: 2026-10-12 (Australia/Adelaide). Reference revision: `43fcf13381b5d842f9a5
 
 ## Decision
 
+Update: the user's later full Rust request establishes a Python-free runtime and
+UI as the destination. The [implemented Rust application and measured
+refinement](RUST_APPLICATION_MIGRATION.md) now run real capture and NL82K2 output.
+The original audit below remains historical evidence; its proposal-only status
+does not describe the current implementation. The Python fallback is preserved.
+
 Recover the existing application before replacing it. A Rust runtime is worth prototyping, especially native zone sampling and event-driven capture. An entire Python-free application is a valid destination, but replacing the UI first is poorly supported by the evidence. Keep the Python implementation and installed PyPI application as the reference and fallback while comparing native components independently.
 
 The first live run **failed to mirror**, despite successful capture and USB commands. It captured and processed frames, discarded every processed frame as too old, and timed out before sending its first frame. This is a performance/startup interaction, not evidence that capture authorization or USB permissions are broken on this host. The first implementation computes the complete linear-light mean and variance from shared pixel histograms. A bounded live run then started in 235 ms, sent 288 frames and had no stale-output drops. This establishes an initial recovery, not long-term daily reliability.

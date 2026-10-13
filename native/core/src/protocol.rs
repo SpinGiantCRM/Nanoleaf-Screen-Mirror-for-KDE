@@ -53,6 +53,15 @@ pub fn parse_model(payload: &[u8]) -> Result<&str, Error> {
     }
 }
 
+/// GET_LENGTH body is a single byte; the TLV *payload length* is big-endian u16.
+/// The reported count is diagnostics only. It never supersedes manual calibration.
+pub fn parse_reported_count(payload: &[u8]) -> Result<usize, Error> {
+    if payload.len() != 1 {
+        return Err(Error::ShortRead);
+    }
+    Ok(usize::from(payload[0]))
+}
+
 pub fn encode_request(command: u8, payload: &[u8]) -> Result<Vec<u8>, Error> {
     let length = u16::try_from(payload.len()).map_err(|_| Error::PayloadTooLarge)?;
     let mut frame = Vec::with_capacity(3 + payload.len());

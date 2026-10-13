@@ -1,48 +1,81 @@
-# Native application work in progress
+# Rust application
 
-The replacement application is entirely Rust, including its settings UI. It is
-being built incrementally on `codex/full-rust-rewrite`. It is not ready to replace
-normal mirroring. The recovered Python application remains installed and is the
-reference/fallback until full colour/capture/output/lifecycle gates pass.
+The experimental replacement runs capture, calibrated colour processing, USB,
+tray and settings entirely in Rust. It does not require Python, Qt or the old C
+DRM helper. Development is on `codex/full-rust-rewrite`; the installed Python
+application and its launcher remain the reference and fallback.
 
-The priority order is colour accuracy, latency/FPS, then resource usage. Predictive
-or perceived-FPS features follow core refinement. No optimisation may bypass
-colour-domain/metadata validation or silently change a measured calibration.
+The priority is **colour accuracy > latency/FPS > resource usage**. Native
+streaming/DRM/GPU capture and optional analysis modes still require verification.
+This is a working native application checkpoint, not a feature-complete release.
+See [implementation, measurements and remaining gates](../../docs/RUST_APPLICATION_MIGRATION.md).
 
-Current modules:
+## Build and run locally
 
-- `config`: version-aware, read-only startup import of existing TOML and LED profiles;
-  comment/unknown-key-preserving edits, exact backups, atomic/fsynced writes, stale
-  save rejection and the same advisory lock as the Python config manager.
-- `geometry`: the single-strip edge layout and corner-anchor mapping; shared
-  Python/Rust geometry golden tests are still required before enabling output.
-- `capture`: KWin ScreenShot2 through Rust zbus, bounded descriptor reads and
-  explicit raw-format decoding. Unsupported colour formats fail instead of
-  being silently interpreted as bytes. Portal/streaming/native DRM remain pending.
-- `device`: Rust hidraw-native hidapi for NL82K1/NL82K2, manual count authority,
-  TLV/report framing and acknowledged writes. Recovery/ownership and hardware
-  validation remain pending. No device is opened by the preflight/settings modes.
-- `ui`: Rust eframe/egui on Wayland, opened separately from the eventual tray service.
-  Settings Save/Apply keeps the window open. UI has been launched in an isolated
-  Wayland session using a copied configuration, not the real settings file.
-- `nanoleaf-core::colour`: measured LED calibration/style/Oklab transforms;
-  8,288 oracle colours currently match the Python reference exactly on this host.
-
-Dependencies are locked. Native app requires Rust 1.95 for the GUI framework;
-the standalone colour/protocol core still supports Rust 1.77. UI uses `glow`,
-not a browser runtime. Frameworks: [eframe](https://docs.rs/eframe/0.36.2/eframe/),
-[ksni](https://docs.rs/ksni/0.3.6/ksni/),
-[zbus](https://docs.rs/zbus/5.19.0/zbus/),
-[hidapi Linux native backend](https://docs.rs/hidapi/2.6.7/hidapi/).
+Rust 1.95 or later is required for the GUI; the independent core supports 1.77.
+Dependencies are locked. The first build downloads dependencies; subsequent
+builds can add `--offline`.
 
 ```bash
-cargo test --manifest-path native/app/Cargo.toml --locked --offline
-cargo run --manifest-path native/app/Cargo.toml -- --preflight /path/to/copied-config.toml
-cargo run --manifest-path native/app/Cargo.toml --features gui -- --settings /path/to/copied-config.toml
+cargo build --manifest-path native/app/Cargo.toml --features gui --release --locked
+native/app/target/release/nanoleaf-native --preflight
+native/app/target/release/nanoleaf-native --install-launcher
+native/app/target/release/nanoleaf-native --daemon
 ```
 
-Neither command starts capture or LED output. The real config has only been read
-for preflight and copied into ignored local test storage. Normal install/autostart
-and launchers are unchanged. Do not interpret UI/preflight measurements as complete
-app performance. Full native pipeline, tray/service control, setup/calibration UI,
-HDR/SDR metadata, reconnect and lifecycle validation must precede adoption.
+The separate native desktop entry authorizes the canonical Rust executable for
+KWin ScreenShot2 using KDE's standard permission declaration. Moving the binary
+requires updating that entry. It does not overwrite the Python launcher or change
+autostart. Stop/quit the fallback before native LED output; run one application
+at a time. The older fallback does not participate in the native output lease.
+
+`--daemon` honours your existing `start_on_launch`; `--run` starts immediately.
+`--headless` omits the tray but also honours `start_on_launch`. A second argument
+selects a configuration file. Loading/preflight/settings alone never write config
+or open USB. Missing calibration and unverified colour policies prevent Start.
+
+```bash
+native/app/target/release/nanoleaf-native --settings /path/to/copied-config.toml
+native/app/target/release/nanoleaf-native --status
+native/app/target/release/nanoleaf-native --stop
+native/app/target/release/nanoleaf-native --start
+native/app/target/release/nanoleaf-native --quit
+```
+
+Stop keeps the tray/service alive, clears the LEDs and releases capture/USB.
+Setup previews pause mirroring and expire after ten seconds. Settings Save/Apply
+keeps the window open; it preserves unknown keys/comments and both measured
+profiles, rejects stale saves, and retains an exact backup before an atomic save.
+The manual count and four anchors remain authoritative.
+
+## Verification and profiling
+
+```bash
+cargo fmt --manifest-path native/app/Cargo.toml --check
+cargo clippy --manifest-path native/app/Cargo.toml --features gui --all-targets --locked --offline -- -D warnings
+cargo test --manifest-path native/app/Cargo.toml --features gui --locked --offline
+.venv/bin/python scripts/benchmark_native_app.py --frames 12 --repeats 3 --output /tmp/native-replay.json
+```
+
+Offline replay compares evolving colour values and GRB packets against the
+preserved Python implementation. It excludes capture, USB and optical timing.
+Live probes are separate and drive the connected strip:
+
+```bash
+native/app/target/release/nanoleaf-native --capture-probe /path/to/config.toml 5
+native/app/target/release/nanoleaf-native --live-probe /path/to/config.toml 8
+.venv/bin/python scripts/profile_native_lifecycle.py --output /tmp/native-lifecycle.json
+```
+
+Capture probe has no USB output. Live probe limits controller brightness to 10,
+restores power/brightness and verifies their readback, and fails if no frames were
+acknowledged or restoration cannot be verified. Lifecycle profiling adds Stop,
+exclusive preview and restart with real USB; it does not modify saved settings.
+Measurements exclude emitted-light latency, colourimeter accuracy, total system
+power, compositor/GPU cost and the separate settings process.
+
+Frameworks: [eframe/egui](https://docs.rs/eframe/0.36.2/eframe/),
+[ksni](https://docs.rs/ksni/0.3.6/ksni/),
+[zbus](https://docs.rs/zbus/5.19.0/zbus/),
+[hidapi](https://docs.rs/hidapi/2.6.7/hidapi/).
+The GUI's OpenGL renderer is not GPU zone sampling.

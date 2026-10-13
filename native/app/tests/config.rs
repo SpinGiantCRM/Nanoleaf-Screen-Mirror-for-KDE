@@ -108,3 +108,24 @@ fn no_op_save_does_not_create_backup_or_touch_bytes() {
     assert_eq!(fs::read_dir(&f.root).unwrap().count(), 1);
     assert_eq!(fs::read_to_string(&f.file).unwrap(), text);
 }
+
+#[test]
+fn source_count_overflow_and_unknown_colour_policy_fail_read_only() {
+    for text in [
+        "device_zone_count=48\nsource_side_counts=[9223372036854775807,9223372036854775807,1,1]\n",
+        "device_zone_count=48\ncolor_style='unknown-new-policy'\n",
+    ] {
+        let f = Fixture::new(text);
+        assert!(Store::load(&f.file).is_err());
+        assert_eq!(fs::read_to_string(&f.file).unwrap(), text);
+    }
+}
+#[test]
+fn legacy_enum_case_normalizes_only_in_memory() {
+    let text="schema_version=1\ndevice_zone_count=48\noutput_channel_order='RGB'\ncolor_style='REFERENCE'\n";
+    let f = Fixture::new(text);
+    let s = Store::load(&f.file).unwrap();
+    assert_eq!(s.config.output_channel_order, "rgb");
+    assert_eq!(s.config.color_style, "reference");
+    assert_eq!(fs::read_to_string(&f.file).unwrap(), text);
+}

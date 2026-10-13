@@ -3,6 +3,14 @@ pub mod capture;
 pub mod config;
 pub mod device;
 pub mod geometry;
+pub mod launcher;
 pub mod pipeline;
+pub mod priority;
+pub mod probe;
+pub mod screens;
+pub mod service;
+pub mod spatial;
+pub mod tray;
 #[cfg(feature = "gui")]
 pub mod ui;
+pub mod worker;

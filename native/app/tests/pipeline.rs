@@ -8,6 +8,9 @@ use serde::Deserialize;
 struct Case {
     style: String,
     quality: String,
+    sampling: String,
+    box_filter: bool,
+    locality: String,
     anchors: [i64; 4],
     width: usize,
     height: usize,
@@ -28,6 +31,9 @@ fn evolving_full_pipeline_matches_reference_except_corrected_dither() {
         let mut c = Config {
             color_style: case.style.clone(),
             sampling_quality: case.quality.clone(),
+            sampling_mode: case.sampling.clone(),
+            zone_box_filter_sampling: case.box_filter,
+            edge_locality: case.locality.clone(),
             device_zone_count: 48,
             blue_noise_dither: false,
             ..Default::default()
@@ -94,4 +100,35 @@ fn dither_is_bounded_neutral_and_black_remains_off() {
         .sum::<f32>()
         / 8.0;
     assert_eq!(average, 128.25);
+}
+
+#[test]
+fn steady_neutral_dither_keeps_fractional_brightness_instead_of_integer_hold() {
+    use nanoleaf_core::colour::{decode_srgb, encode_srgb};
+    let mut c = Config {
+        device_zone_count: 4,
+        color_style: "reference".into(),
+        brightness: 0.5,
+        blue_noise_dither: true,
+        letterbox_detection: false,
+        ..Default::default()
+    };
+    c.calibration.corner_anchor_top_left = 0;
+    c.calibration.corner_anchor_top_right = 1;
+    c.calibration.corner_anchor_bottom_right = 2;
+    c.calibration.corner_anchor_bottom_left = 3;
+    let frame = Frame {
+        width: 32,
+        height: 24,
+        pixels: vec![128; 32 * 24 * 3],
+    };
+    let mut p = Pipeline::default();
+    let mut sum = 0.0;
+    for _ in 0..8 {
+        let out = p.process(&frame, &c).unwrap();
+        assert_eq!(out.colors[0], [out.colors[0][0]; 3]);
+        sum += out.colors[0][0] as f32;
+    }
+    let target = encode_srgb(decode_srgb(128.0) * 0.5);
+    assert!((sum / 8.0 - target).abs() < 0.07, "{sum} vs {target}");
 }

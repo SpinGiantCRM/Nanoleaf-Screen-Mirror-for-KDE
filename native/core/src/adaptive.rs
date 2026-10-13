@@ -22,6 +22,7 @@ struct Pixel {
     rgb: [f32; 3],
     lum: f32,
     sat: f32,
+    codes: [u8; 3],
 }
 
 const MARGIN: f32 = 0.00001;
@@ -75,7 +76,12 @@ impl SdrSampler {
                 let min = rgb[0].min(rgb[1]).min(rgb[2]);
                 let lum = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
                 let sat = (max - min) / max.max(0.0001);
-                pixels.push(Pixel { rgb, lum, sat });
+                pixels.push(Pixel {
+                    rgb,
+                    lum,
+                    sat,
+                    codes: [codes[0], codes[1], codes[2]],
+                });
                 lumas.push(lum);
             }
         }
@@ -175,18 +181,29 @@ fn classify_subtle(pixels: &[Pixel], mean_lum: f32, std: f32, guarded: bool) -> 
             return MixedDecision::Mixed;
         }
     }
-    let hues: Vec<_> = pixels
-        .iter()
-        .filter(|pixel| pixel.sat > 0.2)
-        .map(|pixel| hue(pixel.rgb))
-        .collect();
-    if hues.len() < 8 {
+    // Low-light scenes repeat a small RGB code space. Cache exact f32 trig
+    // values; every pixel still contributes in the original reduction order.
+    let mut sin = Vec::with_capacity(pixels.len());
+    let mut cos = Vec::with_capacity(pixels.len());
+    for pixel in pixels.iter().filter(|p| p.sat > 0.2) {
+        let (s, c) = if pixel.codes.iter().all(|&v| v < 32) {
+            let index = usize::from(pixel.codes[0]) * 1024
+                + usize::from(pixel.codes[1]) * 32
+                + usize::from(pixel.codes[2]);
+            let [s, c] = dark_trig()[index];
+            (s, c)
+        } else {
+            let h = hue(pixel.rgb);
+            (h.sin(), h.cos())
+        };
+        sin.push(s);
+        cos.push(c);
+    }
+    if sin.len() < 8 {
         return MixedDecision::Clear;
     }
-    let sin: Vec<_> = hues.iter().map(|angle| angle.sin()).collect();
-    let cos: Vec<_> = hues.iter().map(|angle| angle.cos()).collect();
-    let mean_sin = pairwise_sum(&sin) / hues.len() as f32;
-    let mean_cos = pairwise_sum(&cos) / hues.len() as f32;
+    let mean_sin = pairwise_sum(&sin) / sin.len() as f32;
+    let mean_cos = pairwise_sum(&cos) / sin.len() as f32;
     let coherence = (mean_sin * mean_sin + mean_cos * mean_cos).sqrt();
     if guarded && (coherence - 0.85).abs() <= MARGIN {
         return MixedDecision::Reference;
@@ -196,6 +213,21 @@ fn classify_subtle(pixels: &[Pixel], mean_lum: f32, std: f32, guarded: bool) -> 
     } else {
         MixedDecision::Clear
     }
+}
+
+fn dark_trig() -> &'static [[f32; 2]] {
+    static TABLE: std::sync::OnceLock<Vec<[f32; 2]>> = std::sync::OnceLock::new();
+    TABLE.get_or_init(|| {
+        let sampler = SdrSampler::default();
+        (0..32768)
+            .map(|index| {
+                let rgb =
+                    [index / 1024, index / 32 % 32, index % 32].map(|v| sampler.linear_codes[v]);
+                let h = hue(rgb);
+                [h.sin(), h.cos()]
+            })
+            .collect()
+    })
 }
 
 fn hue(rgb: [f32; 3]) -> f32 {

@@ -1,0 +1,191 @@
+........................................................................ [  4%]
+........................................................................ [  8%]
+........................................................................ [ 13%]
+........................................................................ [ 17%]
+........................................................................ [ 22%]
+........................................................................ [ 26%]
+........................................................................ [ 30%]
+........................................................................ [ 35%]
+........................................................................ [ 39%]
+........................................................................ [ 44%]
+........................................................................ [ 48%]
+........................................................................ [ 52%]
+........................................................................ [ 57%]
+........................................................................ [ 61%]
+........................................................................ [ 66%]
+........................................................................ [ 70%]
+........................................................................ [ 74%]
+........................................................................ [ 79%]
+........................................................................ [ 83%]
+........................................................................ [ 88%]
+........................................................................ [ 92%]
+........................................................................ [ 96%]
+....................................................                     [100%]
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.14.7-final-0 ________________
+
+Name                                                      Stmts   Miss  Cover   Missing
+---------------------------------------------------------------------------------------
+src/nanoleaf_sync/__init__.py                                14      4    71%   14-17
+src/nanoleaf_sync/_coerce.py                                 48     16    67%   12, 16, 18-21, 27, 31-34, 41, 46, 53, 59, 65
+src/nanoleaf_sync/capture/__init__.py                         8      0   100%
+src/nanoleaf_sync/capture/_drm_helper_bridge.py             160     69    57%   53-56, 69, 73-79, 84, 87-101, 107, 109, 118, 144-151, 153-154, 167, 182-184, 193-218, 233, 237-238, 242-256
+src/nanoleaf_sync/capture/_drm_master_fd.py                  45     45     0%   1-58
+src/nanoleaf_sync/capture/_drm_zone_sampler.py              819    485    41%   369-373, 377, 388-394, 403-405, 410-412, 467-468, 474-476, 479-480, 485, 498-499, 507, 533-534, 552-558, 563-576, 581-597, 601-603, 606-607, 610-642, 645-661, 664-679, 682-723, 727-738, 740-742, 745-790, 793-827, 830-837, 840-851, 854-868, 871-892, 895-910, 963-971, 986, 988, 1011-1064, 1075-1123, 1139, 1151, 1168-1202, 1217-1219, 1224-1226, 1230, 1238-1240, 1247-1248, 1252-1258, 1277, 1286, 1322-1329, 1337-1411, 1415, 1419, 1423, 1427, 1432, 1437, 1441, 1445, 1455-1457, 1464, 1467-1468
+src/nanoleaf_sync/capture/_utils.py                          69      0   100%
+src/nanoleaf_sync/capture/auto_probe.py                     141     10    93%   29, 114-115, 132, 157-163, 170-171, 216-217
+src/nanoleaf_sync/capture/backend_selection.py               25      1    96%   45
+src/nanoleaf_sync/capture/dimensions.py                     106     21    80%   46-48, 54-56, 61, 78-84, 99-101, 106, 111, 113-115
+src/nanoleaf_sync/capture/drm_vendor.py                     126     40    68%   31-32, 36-53, 67-71, 104, 111, 115-117, 145-151, 170, 174, 178-182
+src/nanoleaf_sync/capture/drm_zone_sampling.py               85     69    19%   24-30, 34-42, 58-140
+src/nanoleaf_sync/capture/errors.py                           1      0   100%
+src/nanoleaf_sync/capture/factory.py                        298     63    79%   27-29, 124, 182-183, 191-192, 198, 250-260, 398-412, 486-524, 556, 673-674, 679-680, 693-696
+src/nanoleaf_sync/capture/interfaces.py                       6      0   100%
+src/nanoleaf_sync/capture/kmsgrab.py                        256     58    77%   28, 129, 133-134, 149-153, 155-159, 184, 188-192, 199-200, 208-211, 232, 247-262, 271, 301-302, 312-314, 320-322, 332-333, 346, 353, 358, 363, 434, 439, 495
+src/nanoleaf_sync/capture/kwin_dbus.py                      637    135    79%   55, 91, 176, 184, 192, 250-251, 263, 277-281, 305-306, 327-329, 335-339, 343-345, 361, 381, 389-396, 440, 487-489, 504-506, 535-539, 567-571, 591, 616-620, 623, 661, 673, 680, 684-685, 714, 719-721, 737-741, 780, 790-791, 804, 808, 810, 814-820, 849, 883, 893-900, 908, 911, 916, 924-944, 956-957, 966, 986, 992, 1002-1004, 1012, 1019, 1028, 1034-1044, 1047-1059, 1085, 1089-1090, 1098-1099, 1111, 1115-1121, 1124
+src/nanoleaf_sync/capture/latency_probe.py                  134      3    98%   104, 112, 209
+src/nanoleaf_sync/capture/mock_capture.py                    30      0   100%
+src/nanoleaf_sync/capture/probe_models.py                    53      0   100%
+src/nanoleaf_sync/capture/probe_timing.py                    31      1    97%   34
+src/nanoleaf_sync/capture/replay_capture.py                  42     42     0%   1-72
+src/nanoleaf_sync/capture/source_context.py                 121     42    65%   18-21, 23, 29-32, 34, 91, 100, 109-114, 118, 154-174, 211, 215, 228, 232, 238
+src/nanoleaf_sync/capture/source_identity.py                 59     11    81%   70, 78, 90-93, 134-135, 140-142
+src/nanoleaf_sync/capture/vulkan_sampler.py                 139     54    61%   23, 29-30, 34-36, 53-70, 77-105, 166-167, 203-205, 207, 217-218, 220-221, 238-241, 245, 252, 255, 260, 263-264, 269, 272-273
+src/nanoleaf_sync/capture/xdg_portal.py                     702    300    57%   36, 41-47, 50-56, 61-78, 81-91, 94-111, 213, 221, 229, 231, 248-254, 257-270, 281, 304-312, 315-332, 341-446, 524-535, 577, 579, 583, 585, 589, 659-667, 672-673, 680-684, 687-719, 749, 752, 762-764, 769-771, 777, 786, 788, 790, 795, 797-798, 802-804, 807-812, 818-820, 862-863, 870, 881-884, 890-896, 914, 918-920, 934, 939-940, 958, 965, 977-983, 1003, 1008, 1019, 1029-1030, 1038-1040, 1043-1074, 1077-1115, 1129-1130, 1146-1147
+src/nanoleaf_sync/color/__init__.py                           4      0   100%
+src/nanoleaf_sync/color/capture_metadata.py                 205     26    87%   69, 76, 85, 87-88, 108-109, 119, 122, 124-126, 136-137, 155, 159-161, 176, 217, 273, 338-342
+src/nanoleaf_sync/color/hdr.py                              228     31    86%   65, 72, 110, 125, 131, 134, 140, 161, 169, 192-202, 245, 251-252, 270, 287-288, 290-291, 375, 404, 408, 413, 424
+src/nanoleaf_sync/color/metadata_hysteresis.py               44     15    66%   42, 46-57, 60-62
+src/nanoleaf_sync/color/primaries.py                        196     61    69%   253, 257, 268-269, 272-273, 291, 311-351, 368-412, 451, 455-457
+src/nanoleaf_sync/color/zone_mapper.py                       28      3    89%   21, 29, 54
+src/nanoleaf_sync/compat/__init__.py                          6      0   100%
+src/nanoleaf_sync/compat/kde_version.py                     112     30    73%   31, 46-48, 58, 70, 74-76, 80, 100-101, 113-132, 148, 157
+src/nanoleaf_sync/compat/kwin_probe.py                       96      6    94%   64, 91, 120, 122, 165, 173
+src/nanoleaf_sync/compat/portal_probe.py                     86     10    88%   71, 73, 122-129
+src/nanoleaf_sync/compat/update_checker.py                  166     46    72%   38-43, 65, 68-69, 71, 78, 89-91, 109, 114-115, 145-146, 161-175, 226, 233-235, 251, 290-316, 327-330
+src/nanoleaf_sync/compat/version_snapshot.py                 65      3    95%   49-51
+src/nanoleaf_sync/config/__init__.py                          3      0   100%
+src/nanoleaf_sync/config/led_calibration_profile_io.py       38      8    79%   27, 49, 53, 63-68
+src/nanoleaf_sync/config/model.py                           170      1    99%   276
+src/nanoleaf_sync/config/normalize.py                       305     20    93%   198-200, 203-206, 259, 276, 285, 386, 434-435, 451, 499, 602-604, 608-611, 621, 930
+src/nanoleaf_sync/config/presets.py                         199     15    92%   277-282, 295, 298-300, 311, 321, 346, 377-384
+src/nanoleaf_sync/config/store.py                           173     22    87%   33, 79-84, 98-99, 133-134, 147-150, 249-250, 270-271, 274-275, 277-280
+src/nanoleaf_sync/desktop_entry.py                          155     10    94%   64, 67, 78, 114, 206, 249-259
+src/nanoleaf_sync/device/__init__.py                          3      0   100%
+src/nanoleaf_sync/device/hid_transport.py                   513     87    83%   60-63, 90, 111, 116, 129-130, 136, 160, 163, 174-180, 193, 198, 211-212, 218-219, 225-226, 241, 262, 307-309, 315-317, 324, 332, 335-336, 343-344, 362, 400, 402, 406, 410, 425-433, 443, 446-447, 470-473, 487, 522, 526-529, 571-584, 626, 635, 649, 666-669, 673, 706-709, 733
+src/nanoleaf_sync/device/interfaces.py                       16      0   100%
+src/nanoleaf_sync/device/protocol.py                         75      0   100%
+src/nanoleaf_sync/device/send_policy.py                      49      6    88%   54, 83, 96-103, 125
+src/nanoleaf_sync/device/transport_profiler.py               48      7    85%   57-64
+src/nanoleaf_sync/device/usb_driver.py                      399     66    83%   120, 139, 180, 224-225, 237, 297, 322, 332-337, 351, 356, 361, 390, 397-398, 415, 477-492, 514-516, 518-520, 535-568, 612-618, 698-700, 720-725, 739
+src/nanoleaf_sync/runtime/__init__.py                         0      0   100%
+src/nanoleaf_sync/runtime/anchor_calibration.py              85      2    98%   124, 138
+src/nanoleaf_sync/runtime/blending.py                       304     11    96%   173-175, 180-182, 190, 333, 360-368, 633
+src/nanoleaf_sync/runtime/calibration_resolver.py           122      6    95%   49, 145, 164, 179, 209-210
+src/nanoleaf_sync/runtime/color_accuracy_diagnostics.py      72     10    86%   35, 46, 48, 50, 53, 55, 58, 60, 63, 82
+src/nanoleaf_sync/runtime/color_context.py                   57      9    84%   45, 52, 58, 60, 64, 67-69, 91
+src/nanoleaf_sync/runtime/color_domain.py                    32      5    84%   23, 25, 28, 39, 47
+src/nanoleaf_sync/runtime/color_pipeline.py                 351     30    91%   163, 173-179, 211-214, 259, 287, 291, 313-327, 352, 384, 467, 493, 779, 820
+src/nanoleaf_sync/runtime/color_processing.py               337     11    97%   188, 212, 219, 232, 339, 370-376, 389, 409, 566-567
+src/nanoleaf_sync/runtime/colour_path_diagnostics.py        151     18    88%   51-57, 65, 185, 254, 331-336, 349-350
+src/nanoleaf_sync/runtime/compositor.py                      55      2    96%   33, 86
+src/nanoleaf_sync/runtime/content_bounds.py                  90     13    86%   38, 42, 70, 82, 113-121
+src/nanoleaf_sync/runtime/diagnostics_exports.py            345     35    90%   71, 75-78, 386, 402, 423-427, 429, 443, 666-705, 711, 716
+src/nanoleaf_sync/runtime/edge_locality_diagnostics.py       41      0   100%
+src/nanoleaf_sync/runtime/engine_frame.py                   243     38    84%   67, 108, 198-201, 204-208, 211-214, 217-218, 224-225, 228-229, 285, 428-431, 465-468, 471, 509-515
+src/nanoleaf_sync/runtime/engine_loop.py                     13      0   100%
+src/nanoleaf_sync/runtime/engine_loop_capture.py            100      9    91%   33-35, 38, 57-59, 100, 113
+src/nanoleaf_sync/runtime/engine_loop_context.py             53      0   100%
+src/nanoleaf_sync/runtime/engine_loop_hid.py                189     34    82%   64-66, 125-126, 151-177, 185-202, 446-455, 470-503
+src/nanoleaf_sync/runtime/engine_loop_process.py            230     59    74%   51-53, 56, 74-81, 91-92, 94, 103, 114, 123-124, 144, 193-194, 247, 253-254, 262-268, 276-277, 310, 427-487, 508-509, 515-521
+src/nanoleaf_sync/runtime/engine_loop_supervisor.py          80     19    76%   84-116, 120, 127-145, 153-159
+src/nanoleaf_sync/runtime/errors.py                          77      9    88%   31-32, 38, 47-48, 116, 203-208
+src/nanoleaf_sync/runtime/fps_governor.py                   161     13    92%   39, 47-50, 78, 90, 211-215, 221
+src/nanoleaf_sync/runtime/frame_context.py                   43      0   100%
+src/nanoleaf_sync/runtime/guided_calibration.py             110     29    74%   56, 63-71, 100-115, 121-122, 128, 166-174
+src/nanoleaf_sync/runtime/output_session.py                  48      2    96%   34-35
+src/nanoleaf_sync/runtime/palette_adaptive.py               214     21    90%   76, 113-114, 125, 142, 158, 170, 183, 187, 230, 241-247, 260-274, 356, 406
+src/nanoleaf_sync/runtime/palette_temporal.py               193     63    67%   99-100, 104-110, 204-228, 249-252, 263-266, 285-287, 298, 334-376, 380
+src/nanoleaf_sync/runtime/pattern_generator.py               98     98     0%   1-145
+src/nanoleaf_sync/runtime/predictive_sync.py                111     17    85%   60, 78, 94, 113-114, 138, 145, 167, 187, 202-208, 228-229
+src/nanoleaf_sync/runtime/processing.py                      48      4    92%   17, 20, 39, 58
+src/nanoleaf_sync/runtime/readiness_check.py                122     10    92%   189, 198, 207, 216, 225, 234, 244, 253, 262, 271
+src/nanoleaf_sync/runtime/ring_buf.py                       109     16    85%   74-75, 109, 133-138, 154-159, 167
+src/nanoleaf_sync/runtime/rust_sampling.py                   70      3    96%   45, 72, 104
+src/nanoleaf_sync/runtime/srgb.py                            36      2    94%   17-18
+src/nanoleaf_sync/runtime/startup.py                        236     14    94%   27-29, 79, 98-99, 134-136, 158-159, 174-175, 183
+src/nanoleaf_sync/runtime/state.py                          381     46    88%   276-303, 314-322, 332-333, 361, 383-384, 389-390, 398-403, 407-408, 411-413, 418-419, 425-426
+src/nanoleaf_sync/runtime/status_warnings.py                 35      4    89%   18, 29, 39, 44
+src/nanoleaf_sync/runtime/virtual_zones.py                   43      3    93%   52-53, 56
+src/nanoleaf_sync/runtime/zone_accumulator.py                25      5    80%   27, 29-30, 44-45
+src/nanoleaf_sync/runtime/zone_derivation.py                 86      7    92%   29, 47, 82-90, 162, 193
+src/nanoleaf_sync/runtime/zone_presets.py                    91      8    91%   49-58
+src/nanoleaf_sync/runtime/zones.py                          673     47    93%   130, 182, 220-221, 233, 239-243, 274, 301, 336-338, 539, 543, 557, 570, 612, 623, 636-637, 696, 850, 854, 876, 879, 890-892, 901, 962-966, 997-1005, 1018, 1146, 1150, 1176, 1199, 1254, 1336
+src/nanoleaf_sync/service.py                                701     94    87%   115-118, 217, 220, 224, 232, 246, 320, 360, 479, 506, 575-581, 595, 610, 624-645, 648, 654, 779-780, 783-788, 800-803, 805, 807, 842-844, 847-849, 852-867, 883-884, 902-909, 951, 965, 972-977, 983, 1001, 1004-1009, 1106, 1144-1145, 1151, 1169, 1201, 1205, 1208-1209, 1216, 1218, 1234-1236, 1248, 1250, 1258, 1271-1273, 1303-1314, 1336-1339
+src/nanoleaf_sync/tools/__init__.py                           0      0   100%
+src/nanoleaf_sync/tools/autostart.py                         42     11    74%   45-51, 65-67, 71, 76
+src/nanoleaf_sync/tools/benchmark.py                        121     15    88%   48, 100-101, 180, 184, 187-188, 192, 226-228, 232, 242-244
+src/nanoleaf_sync/tools/color_kmeans.py                      35      1    97%   67
+src/nanoleaf_sync/tools/colour_path_probe.py                 21      7    67%   38-44
+src/nanoleaf_sync/tools/config_init.py                       24      0   100%
+src/nanoleaf_sync/tools/diagnostic_bundle.py                 71     71     0%   1-197
+src/nanoleaf_sync/tools/doctor.py                           329     37    89%   121-128, 165, 193, 219, 246, 258-259, 272, 356, 370-371, 486-488, 505-507, 527-529, 545, 563, 574-580, 630, 753-762
+src/nanoleaf_sync/tools/flicker_lab.py                       75      3    96%   129, 148, 151
+src/nanoleaf_sync/tools/output_format.py                     20      1    95%   16
+src/nanoleaf_sync/tools/portal_tools.py                      70     47    33%   10, 17, 39-40, 44-58, 62, 66-119
+src/nanoleaf_sync/tools/reset.py                             26      0   100%
+src/nanoleaf_sync/tools/setcap_helper.py                     93     66    29%   17, 21, 25-29, 33-39, 43-44, 48-64, 68, 73, 78, 89-133
+src/nanoleaf_sync/tools/setup_permissions.py                 48     48     0%   3-93
+src/nanoleaf_sync/tools/smoke_test.py                        99      9    91%   60, 86, 90, 108, 142, 168-169, 174-175
+src/nanoleaf_sync/ui/__init__.py                              7      4    43%   7-11
+src/nanoleaf_sync/ui/calibration_flow.py                     38      7    82%   7-9, 29, 39, 50, 68
+src/nanoleaf_sync/ui/calibration_preview.py                  46     31    33%   30-44, 61-88, 111-124, 147-186
+src/nanoleaf_sync/ui/calibration_state.py                   205     45    78%   76, 125-128, 192, 211, 266-267, 291-321, 338-340, 345-348, 375-381, 386, 388, 392, 437, 457-463, 470, 480
+src/nanoleaf_sync/ui/calibration_widget.py                  111      7    94%   80-81, 83-84, 89-90, 145
+src/nanoleaf_sync/ui/command_results_dialog.py               40     28    30%   23-50, 60-68
+src/nanoleaf_sync/ui/diagnostic_hub_dialog.py               421    103    76%   371-376, 379-411, 414-418, 421-424, 432, 441-448, 457-464, 474-481, 492-507, 517, 520-528, 568-573, 586-587, 592-597, 608-615, 633, 640
+src/nanoleaf_sync/ui/display_configurator.py                868    173    80%   59-68, 73, 76, 79, 84, 87, 92, 95, 100, 103, 138-139, 142-143, 535, 611-613, 616-617, 734, 749-754, 757-760, 770-780, 783-801, 821-826, 829-837, 840-848, 870, 885, 935, 937, 982-995, 1086, 1091, 1099, 1172-1174, 1228-1232, 1287, 1455-1460, 1468-1470, 1472, 1484-1485, 1491, 1496-1498, 1500, 1601-1606, 1609-1618, 1621-1634, 1637-1644, 1647-1649, 1652-1654, 1657-1665, 1676, 1678, 1710-1713, 1717, 1719, 1727, 1733-1738, 1741-1746, 1751
+src/nanoleaf_sync/ui/guided_calibration_dialog.py            92     92     0%   1-158
+src/nanoleaf_sync/ui/layout_helpers.py                       83      7    92%   9-12, 21, 37, 48
+src/nanoleaf_sync/ui/led_color_calibration_dialog.py         66      1    98%   114
+src/nanoleaf_sync/ui/live_diagnostics.py                    286      3    99%   240-242
+src/nanoleaf_sync/ui/preset_ui.py                            23      1    96%   97
+src/nanoleaf_sync/ui/qt_lazy.py                               7      0   100%
+src/nanoleaf_sync/ui/settings_dialog.py                      30      9    70%   80-84, 87, 90, 93, 96
+src/nanoleaf_sync/ui/settings_dialog_handlers.py            450    174    61%   65-67, 70-90, 93-94, 97-98, 101, 140, 179, 263, 459-476, 479-492, 495-502, 518-523, 530-531, 619-626, 630, 633, 635-640, 644-648, 653-655, 668-672, 677-688, 691-702, 705-709, 714, 717-721, 726-736, 739-762, 765-771, 791, 811, 816-818, 822, 832-841, 844-846, 849-851, 854-855, 872, 898, 902-920
+src/nanoleaf_sync/ui/settings_dialog_handlers_ext.py        375    189    50%   64-74, 77-82, 90-91, 108, 113-117, 120-121, 131-133, 136-138, 141-142, 145-147, 150-151, 154-165, 175, 183, 194-200, 203, 206-230, 233-273, 276-285, 288-292, 309, 312-345, 360, 362, 367-371, 375, 380-392, 395-406, 409-449, 452-458, 461-487, 499-534, 551-571, 606, 632, 640, 646, 652, 662-664, 670-671, 687-698, 721-722
+src/nanoleaf_sync/ui/settings_dialog_layout.py              359      5    99%   34-38
+src/nanoleaf_sync/ui/settings_dialog_shared.py               36     11    69%   38-39, 42-43, 46, 51-52, 55, 60-61, 64
+src/nanoleaf_sync/ui/settings_dialog_widget.py              440     14    97%   92-94, 257, 320, 322, 330, 334, 442-447, 741
+src/nanoleaf_sync/ui/tray_app.py                           1052    502    52%   62, 77, 153, 157-171, 175-182, 215-259, 263-276, 281-400, 404, 414-415, 418-431, 448, 459-460, 475-476, 486-488, 503, 508, 511, 523, 598, 642-645, 648-651, 673-677, 683-719, 722-740, 743-766, 888, 897, 899, 913, 917-923, 927, 965-987, 997, 1016-1021, 1039, 1052-1054, 1069-1076, 1119-1129, 1132-1148, 1156-1188, 1208, 1259, 1266, 1272, 1289-1331, 1345-1355, 1358-1362, 1365-1445, 1448, 1453-1462, 1470-1481, 1489, 1494-1502, 1505-1512, 1520-1539, 1542-1543, 1550-1551, 1558-1574, 1582, 1585-1630, 1635-1650, 1658-1660, 1669, 1674-1676, 1683, 1690-1691, 1694, 1699, 1730-1733, 1762, 1776-1784
+src/nanoleaf_sync/ui/zone_calibration.py                     52      5    90%   173-176, 185
+---------------------------------------------------------------------------------------
+TOTAL                                                     20359   4495    78%
+Required test coverage of 75% reached. Total coverage: 77.92%
+============================= slowest 25 durations =============================
+5.16s call     tests/test_service_robustness.py::test_stop_does_not_close_shared_backends_from_caller_thread
+5.16s call     tests/test_service_robustness.py::test_stop_detaches_stuck_runtime_and_reports_not_running
+5.08s call     tests/test_state_machine.py::test_stale_mirroring_generation_blocks_output_writes
+3.69s call     tests/test_benchmark_tool.py::test_run_benchmark_production_preset_has_expected_metrics
+3.46s call     tests/test_benchmark_tool.py::test_compare_against_baseline_passes_for_generous_budgets
+3.42s call     tests/test_benchmark_tool.py::test_main_writes_json_and_compares
+2.14s call     tests/test_tray_restart_output_guard.py::test_stale_mirroring_generation_drops_output_until_rebound
+2.01s call     tests/device/test_hid_transport.py::test_transceive_raises_on_malformed_continuous_data
+2.00s call     tests/device/test_hid_transport.py::test_transceive_times_out_on_empty_read
+1.26s call     tests/test_sampling_diagnostics.py::test_synthetic_side_colours_map_to_expected_edges
+1.18s call     tests/test_cleanup_qol_pass.py::test_runtime_and_ui_fallbacks_match_balanced_profile_defaults
+0.50s call     tests/test_runtime_startup.py::test_reinitialize_backends_exposes_none_between_close_and_reinstall
+0.42s call     tests/test_sampling_diagnostics.py::test_left_purple_remains_local_and_far_side_stays_neutral
+0.41s call     tests/test_sampling_diagnostics.py::test_bottom_left_green_block_stays_local
+0.41s call     tests/test_sampling_diagnostics.py::test_per_zone_differences_survive_processing
+0.38s call     tests/test_rust_adaptive.py::test_native_fuzzed_decisions_and_mixed_rgb
+0.21s call     tests/test_service_robustness.py::test_service_can_restart_after_stop
+0.20s call     tests/device/test_hid_transport.py::test_write_payload_timeout_raises_on_blocking_handle
+0.20s call     tests/test_service_status_modes.py::test_service_each_boot_policy_across_multiple_instances
+0.19s call     tests/test_service_status_modes.py::test_service_each_boot_policy_probes_once_per_process_under_concurrent_starts
+0.19s call     tests/test_service_status_modes.py::test_service_each_boot_policy_second_instance_uses_in_memory_winner_cache
+0.17s call     tests/device/test_hid_transport.py::test_close_waits_for_inflight_write_thread
+0.17s call     tests/test_screen_capture.py::test_kmsgrab_converts_hdr_before_any_resizing
+0.16s call     tests/test_service_status.py::test_capture_mode_replay_is_explicit
+0.15s call     tests/test_service_status_modes.py::TestServiceStatusAndMode::test_capture_mode_mock
+1636 passed in 51.54s

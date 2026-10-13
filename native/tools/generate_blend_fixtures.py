@@ -1,8 +1,10 @@
 """Generate native temporal stage oracles from the preserved Python implementation."""
 
-from pathlib import Path
 import json
+from pathlib import Path
+
 import numpy as np
+
 from nanoleaf_sync.runtime.blending import (
     BlendHysteresisState,
     adaptive_one_euro_blend,

@@ -378,12 +378,20 @@ impl SdrSampler {
             }
         };
         let mut ordered = lumas.clone();
-        ordered.sort_unstable_by(f32::total_cmp);
         let index = (ordered.len() - 1) as f64 * 0.75;
         let base = index.floor() as usize;
-        let fraction = index - base as f64;
-        let cutoff = (f64::from(ordered[base])
-            + (f64::from(ordered[index.ceil() as usize]) - f64::from(ordered[base])) * fraction)
+        ordered.select_nth_unstable_by(base, f32::total_cmp);
+        let lower = ordered[base];
+        let upper = if index.ceil() as usize == base {
+            lower
+        } else {
+            ordered[base + 1..]
+                .iter()
+                .copied()
+                .fold(f32::INFINITY, f32::min)
+        };
+        let cutoff = (f64::from(lower)
+            + (f64::from(upper) - f64::from(lower)) * (index - base as f64))
             as f32;
         let peak: Vec<_> = pixels.iter().filter(|p| p.lum >= cutoff).collect();
         let peak_coverage = peak.len() as f64 / n;
