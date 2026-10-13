@@ -4,7 +4,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0 # Legacy Python: security alerts retained; ordinary version PRs disabled.
     groups:
       python-runtime:
         patterns:
@@ -27,3 +27,18 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+
+  - package-ecosystem: cargo
+    directories:
+      - /native
+      - /native/app
+      - /native/stream-probe
+      - /native/gpu-probe
+      - /native/linux-gpu
+      - /native/python-bridge
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      native-rust:
+        patterns: ["*"]

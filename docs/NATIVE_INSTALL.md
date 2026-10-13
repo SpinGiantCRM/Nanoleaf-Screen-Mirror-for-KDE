@@ -7,7 +7,7 @@ both applications against the strip at once.
 
 ## Build and install
 
-Pull requests that change native code or packaging build a Linux x86_64 bundle
+Main-branch pushes and pull requests that change native code or packaging build a Linux x86_64 bundle
 in GitHub Actions. Open the **Native Rust bundle** run for the commit you want,
 download the **nanoleaf-native-linux-x86_64** artifact, unzip it, then extract
 `native.tar.gz`. Install with `./native/bin/nanoleaf-native --install-native`.
@@ -103,6 +103,19 @@ nanoleaf-native --autostart off
 Only the native autostart entry is managed. It starts the tray; the existing
 **Start mirroring when the tray launches** setting determines whether mirroring
 starts. Leave the Python autostart disabled when enabling native mirroring.
+
+## Releases and legacy fallback
+
+Rust is the primary application. A published `native-vX.Y.Z` release builds and
+attaches the native archive and checksum only when the tag matches the native
+application version. Publishing a native release never publishes Python to PyPI.
+Existing releases and tags are retained. Python publishing is available only
+through the manual **Legacy Python release** workflow, with a separate opt-in
+PyPI switch; normal releases do not trigger it.
+
+The [legacy Python reference](LEGACY_PYTHON.md) retains its installation and
+recovery instructions. The default PR pipeline checks one Python version as the
+compatibility oracle; weekly checks retain the full legacy version matrix.
 
 ## Scope and verification limits
 

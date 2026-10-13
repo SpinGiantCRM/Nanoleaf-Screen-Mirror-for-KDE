@@ -1,6 +1,14 @@
 name: Native Rust bundle
 
+concurrency:
+  group: native-bundle-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'release' }}
+
 on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
   pull_request:
     paths:
@@ -17,13 +25,24 @@ permissions:
 
 jobs:
   native-bundle:
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'native-v')
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
+      - name: Verify native release tag
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python - <<'PY'
+          import os, tomllib
+          version = tomllib.load(open("native/app/Cargo.toml", "rb"))["package"]["version"]
+          assert os.environ["RELEASE_TAG"] == "native-v" + version, "Native release tag/version mismatch"
+          PY
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
@@ -52,3 +71,23 @@ jobs:
           path: |
             dist/native.tar.gz
           if-no-files-found: error
+
+  publish-native:
+    if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'native-v')
+    needs: native-bundle
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nanoleaf-native-linux-x86_64
+          path: dist
+      - name: Attach native archive and checksum to the published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          (cd dist && sha256sum native.tar.gz > native.tar.gz.sha256)
+          gh release upload "$RELEASE_TAG" dist/native.tar.gz dist/native.tar.gz.sha256 --repo "$GITHUB_REPOSITORY"

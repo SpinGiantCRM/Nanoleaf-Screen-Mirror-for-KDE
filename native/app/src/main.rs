@@ -27,8 +27,8 @@ fn main() -> Result<()> {
             let prefix = args.get(2).map(PathBuf::from).unwrap_or(PathBuf::from(std::env::var_os("HOME").context("Home directory")?).join(".local"));
             let data = nanoleaf_native::package::user_data()?;
             if command == "--uninstall-native" {
-                nanoleaf_native::package::autostart(false)?;
                 nanoleaf_native::package::uninstall(&prefix, &data)?;
+                nanoleaf_native::package::autostart(false)?;
                 nanoleaf_native::package::refresh_desktop()?;
                 println!("Native command removed; versions, calibration and Python fallback are retained.");
                 return Ok(());

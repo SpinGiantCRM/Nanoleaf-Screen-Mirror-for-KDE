@@ -322,21 +322,6 @@ pub fn refresh_desktop() -> Result<()> {
 }
 /// An opt-in tray autostart entry; never alters the Python autostart file.
 pub fn autostart(enabled: bool) -> Result<()> {
-    let data = user_data()?;
-    let launcher = regular(&data.join("applications/org.spingiantcrm.NanoleafNative.desktop"))?;
-    // Use the managed command for login, so upgrades and rollback take effect.
-    let mut launcher = launcher;
-    if let Some(exec) = std::str::from_utf8(&launcher)?.lines().find_map(|line| {
-        line.strip_prefix("Exec=\"")
-            .and_then(|v| v.strip_suffix("\" --daemon"))
-    }) {
-        let exe = PathBuf::from(exec);
-        if let Some(prefix) = exe.ancestors().nth(5) {
-            if prefix.join("lib/nanoleaf-native/install.json").is_file() {
-                launcher = desktop(&prefix.join("bin/nanoleaf-native"))?.into_bytes();
-            }
-        }
-    }
     let config = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .unwrap_or(
@@ -352,6 +337,21 @@ pub fn autostart(enabled: bool) -> Result<()> {
         );
     }
     if enabled {
+        let data = user_data()?;
+        let mut launcher =
+            regular(&data.join("applications/org.spingiantcrm.NanoleafNative.desktop"))?;
+        // Use the managed command for login, so upgrades and rollback take effect.
+        if let Some(exec) = std::str::from_utf8(&launcher)?.lines().find_map(|line| {
+            line.strip_prefix("Exec=\"")
+                .and_then(|v| v.strip_suffix("\" --daemon"))
+        }) {
+            let exe = PathBuf::from(exec);
+            if let Some(prefix) = exe.ancestors().nth(5) {
+                if prefix.join("lib/nanoleaf-native/install.json").is_file() {
+                    launcher = desktop(&prefix.join("bin/nanoleaf-native"))?.into_bytes();
+                }
+            }
+        }
         let mut content = b"# Managed by nanoleaf-native\n".to_vec();
         content.extend(launcher);
         atomic(&path, &content, 0o600)?;

@@ -130,6 +130,8 @@ def main():
         assert not native_autostart.exists()
         run(installed, "--uninstall-native", prefix)
         assert not installed.exists() and first.is_file() and second.is_file()
+        # Cleanup stays usable after the installer's launcher has been removed.
+        run(exe, "--autostart", "off")
         assert config.read_text() == original
         assert fallback.read_text() == "original Python fallback launcher"
         assert fallback_autostart.read_text() == "original Python fallback autostart"

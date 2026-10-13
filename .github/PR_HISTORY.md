@@ -317,3 +317,5 @@ When exact PR titles are unavailable, entries explicitly avoid inference.
 - #316 — focused implementation — advanced settings separation delivered — lesson: good; implement requested UI with targeted tests.
 - #317 — docs/planning deferral — menu revamp planning doc only
 - #333 — DRM zone sampler, pipeline restructure, ICC profile, FPS governor, cleanup (5-phase audit implementation) — lesson: bad example; avoid plan-only deferrals unless requested.
+
+- #360 — Restore daily usability and add the complete Rust application — reviewed Rust service/UI, colour/recovery/packaging and native-first repository maintenance; preserve calibration and the legacy fallback, and distinguish software checks from hardware limits.
