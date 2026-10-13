@@ -132,3 +132,112 @@ fn steady_neutral_dither_keeps_fractional_brightness_instead_of_integer_hold() {
     let target = encode_srgb(decode_srgb(128.0) * 0.5);
     assert!((sum / 8.0 - target).abs() < 0.07, "{sum} vs {target}");
 }
+
+#[test]
+fn external_sdr_statistics_preserve_the_full_colour_and_ack_history_pipeline() {
+    use nanoleaf_core::sampling::{SdrRgb8Frame, SdrSampler};
+    use nanoleaf_native::pipeline::direct_plan;
+    for style in ["reference", "ambient", "vivid"] {
+        for dither in [false, true] {
+            let mut c = Config {
+                device_zone_count: 48,
+                color_style: style.into(),
+                sampling_mode: "area_average".into(),
+                letterbox_detection: false,
+                blue_noise_dither: dither,
+                zone_temporal_accumulation: true,
+                brightness: 0.73,
+                ..Default::default()
+            };
+            c.calibration.corner_anchor_top_left = 0;
+            c.calibration.corner_anchor_top_right = 12;
+            c.calibration.corner_anchor_bottom_right = 24;
+            c.calibration.corner_anchor_bottom_left = 36;
+            c.led_calibration_profile_sdr.red_gain = 0.873123456789;
+            c.led_calibration_profile_sdr.color_matrix =
+                vec![1.0, 0.02, 0.0, 0.01, 0.98, 0.01, 0.0, 0.02, 1.0];
+            let (mut cpu, mut external) = (Pipeline::default(), Pipeline::default());
+            let sampler = SdrSampler::default();
+            for index in 0..40 {
+                let mut frame = Frame {
+                    width: 96,
+                    height: 64,
+                    pixels: Vec::new(),
+                };
+                for pixel in 0..96 * 64 {
+                    let rgb = match index % 8 {
+                        0 => [0; 3],
+                        1 => [255; 3],
+                        2 => [128; 3],
+                        3 => [9; 3],
+                        _ => [
+                            ((pixel + index * 11) % 256) as u8,
+                            ((pixel * 17 + index * 19) % 256) as u8,
+                            ((pixel * 43 + index * 7) % 256) as u8,
+                        ],
+                    };
+                    frame.pixels.extend_from_slice(&rgb);
+                }
+                let plan = direct_plan(&c, 96, 64).unwrap();
+                let view = SdrRgb8Frame::new(&frame.pixels, 96, 64, 96 * 3).unwrap();
+                let samples: Vec<_> = plan
+                    .zones
+                    .iter()
+                    .map(|&z| sampler.sample_zone(&view, z))
+                    .collect();
+                let expected = cpu.process(&frame, &c).unwrap();
+                let actual = external.process_sdr_samples(96, 64, &samples, &c).unwrap();
+                assert_eq!(
+                    actual.sampled, expected.sampled,
+                    "{style} {dither} frame {index}"
+                );
+                assert_eq!(
+                    actual.colors, expected.colors,
+                    "{style} {dither} frame {index}"
+                );
+                assert_eq!(actual.modes, expected.modes);
+                // The USB actor can skip a queued frame. Both paths must use the
+                // colours actually acknowledged, including an unrelated preview.
+                let ack = if index % 9 == 0 {
+                    vec![[60, 20, 30]; 48]
+                } else {
+                    expected.colors
+                };
+                cpu.override_sent(&ack);
+                external.override_sent(&ack);
+            }
+        }
+    }
+}
+#[test]
+fn direct_sampling_cannot_silently_disable_pixel_dependent_policies() {
+    use nanoleaf_native::pipeline::direct_plan;
+    let mut c = Config {
+        device_zone_count: 4,
+        color_style: "reference".into(),
+        letterbox_detection: false,
+        ..Default::default()
+    };
+    c.calibration.corner_anchor_top_left = 0;
+    c.calibration.corner_anchor_top_right = 1;
+    c.calibration.corner_anchor_bottom_right = 2;
+    c.calibration.corner_anchor_bottom_left = 3;
+    assert!(direct_plan(&c, 32, 24).is_ok());
+    c.letterbox_detection = true;
+    assert!(direct_plan(&c, 32, 24).is_err());
+    c.letterbox_detection = false;
+    c.privacy_zones.push(Rect {
+        x: 0.1,
+        y: 0.1,
+        w: 0.2,
+        h: 0.2,
+    });
+    assert!(direct_plan(&c, 32, 24).is_err());
+    c.privacy_zones.clear();
+    c.zone_box_filter_sampling = false;
+    assert!(direct_plan(&c, 32, 24).is_err());
+    c.zone_box_filter_sampling = true;
+    c.color_style = "ambient".into();
+    c.sampling_mode = "palette_adaptive".into();
+    assert!(direct_plan(&c, 32, 24).is_err());
+}

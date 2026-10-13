@@ -79,3 +79,13 @@ Frameworks: [eframe/egui](https://docs.rs/eframe/0.36.2/eframe/),
 [zbus](https://docs.rs/zbus/5.19.0/zbus/),
 [hidapi](https://docs.rs/hidapi/2.6.7/hidapi/).
 The GUI's OpenGL renderer is not GPU zone sampling.
+
+Measured-profile import/export is available in Advanced / Troubleshooting through
+KDE's file chooser. Import changes the draft only; Save / Apply applies it while
+keeping Settings open. Profiles retain the Python-compatible schema, float64
+calibration values and private atomic exports with exact backups.
+
+The optional GPU samples interface shares the full output colour pipeline, but
+requires compatible full-pixel box policies. Pixel-dependent analysis keeps the
+CPU path. [Streaming/Vulkan implementation and evidence](../../docs/RUST_STREAM_VULKAN.md)
+remain experimental; the normal capture backend is unchanged.

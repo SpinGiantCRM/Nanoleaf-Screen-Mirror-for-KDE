@@ -1,5 +1,12 @@
 # Rust application migration and measured refinement
 
+2026-10-13 follow-up: [genuine portal/PipeWire DMA-BUF Vulkan capture](RUST_STREAM_VULKAN.md)
+now has live parity, resource and synchronization evidence. It remains an
+isolated experiment; the normal capture path and Python fallback are preserved.
+Native KDE measured-profile import/export is implemented and verified on copied
+configuration. GPU zone statistics now share the app's existing complete colour
+pipeline, with pixel-dependent policies explicitly retaining the pixel path.
+
 Date: 2026-10-12. Branch: `codex/full-rust-rewrite`.
 Update 2026-10-13: a [separate hardware Vulkan prototype](RUST_VULKAN_PROTOTYPE.md)
 now demonstrates exact zone parity on the RTX 4080 SUPER. Its measured benefit

@@ -6,7 +6,7 @@ use nanoleaf_core::{
     blending::BlendState,
     colour::{self, LedCalibration, Style},
     palette::{self, Algorithm, TemporalState},
-    sampling::{SdrRgb8Frame, SdrSampler, ZoneRect},
+    sampling::{SdrRgb8Frame, SdrSampler, ZoneRect, ZoneSample},
 };
 use serde::Serialize;
 use std::time::Instant;
@@ -38,6 +38,54 @@ pub struct Output {
     pub sampled: Vec<[u8; 3]>,
     pub modes: Vec<String>,
     pub times: ProcessingTimes,
+}
+struct PreparedSamples {
+    raw: Vec<[u8; 3]>,
+    modes: Vec<String>,
+    mapping: Vec<usize>,
+    mixed_ms: f64,
+    palette_ms: f64,
+    started: Instant,
+}
+/// The capture provider must preserve these exact configured rectangles. No
+/// LED count or calibration is inferred from capture or controller metadata.
+pub struct DirectPlan {
+    pub zones: Vec<ZoneRect>,
+    mapping: Vec<usize>,
+    mode: &'static str,
+}
+/// Plan full-pixel box sampling only where no pixel-dependent policy is lost.
+/// A backend must keep CPU capture/processing for unsupported policies.
+pub fn direct_plan(c: &Config, width: usize, height: usize) -> Result<DirectPlan> {
+    validate_mirroring(c)?;
+    ensure!(
+        width > 0 && height > 0 && width <= 16384 && height <= 16384,
+        "Invalid direct frame dimensions"
+    );
+    let accuracy = c.accuracy_mode || matches!(c.color_style.as_str(), "reference" | "natural");
+    ensure!(
+        accuracy || matches!(c.sampling_mode.as_str(), "edge_direct" | "area_average"),
+        "Adaptive sampling requires the pixel path"
+    );
+    ensure!(
+        c.zone_box_filter_sampling && !c.letterbox_detection && c.privacy_zones.is_empty(),
+        "Weighted sampling, letterbox detection and privacy masks require the pixel path"
+    );
+    let (zones, counts) = geometry::pixel_zones(c, width, height)?;
+    let mapping = geometry::calibrated_mapping(c, zones.len(), counts)?;
+    let zones = zones
+        .into_iter()
+        .map(|z| anchor(z, width, height))
+        .collect();
+    Ok(DirectPlan {
+        zones,
+        mapping,
+        mode: if accuracy || c.sampling_mode == "edge_direct" {
+            "edge_direct"
+        } else {
+            "area_average"
+        },
+    })
 }
 fn luma(rgb: [f32; 3]) -> f32 {
     0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
@@ -415,6 +463,75 @@ impl Pipeline {
         if mode != "palette_adaptive" {
             self.palette.fill(TemporalState::default());
         }
+        self.finish(
+            c,
+            PreparedSamples {
+                raw,
+                modes,
+                mapping,
+                mixed_ms,
+                palette_ms,
+                started,
+            },
+        )
+    }
+    /// Consume validated SDR zone statistics through the SAME colour/mapping/
+    /// temporal pipeline as CPU pixels. Caller establishes sRGB metadata first.
+    pub fn process_sdr_samples(
+        &mut self,
+        width: usize,
+        height: usize,
+        samples: &[ZoneSample],
+        c: &Config,
+    ) -> Result<Output> {
+        let started = Instant::now();
+        let plan = direct_plan(c, width, height)?;
+        ensure!(
+            samples.len() == plan.zones.len(),
+            "Direct sample count differs from configured zones"
+        );
+        for (sample, zone) in samples.iter().zip(&plan.zones) {
+            let x = zone.x.clamp(0, width as i64);
+            let y = zone.y.clamp(0, height as i64);
+            let w = zone.width.max(0).min(width as i64 - x) as u64;
+            let h = zone.height.max(0).min(height as i64 - y) as u64;
+            ensure!(
+                sample.pixel_count == w * h && (sample.pixel_count != 0 || sample.srgb == [0; 3]),
+                "Direct zone sample is incomplete"
+            );
+            ensure!(
+                sample
+                    .linear_rgb
+                    .iter()
+                    .all(|v| v.is_finite() && (0.0..=1.0).contains(v))
+                    && sample.encoded_variance.is_finite()
+                    && sample.encoded_variance >= 0.0,
+                "Invalid SDR statistics"
+            );
+        }
+        self.palette = vec![TemporalState::default(); samples.len()];
+        self.finish(
+            c,
+            PreparedSamples {
+                raw: samples.iter().map(|s| s.srgb).collect(),
+                modes: vec![plan.mode.to_string(); samples.len()],
+                mapping: plan.mapping,
+                mixed_ms: 0.0,
+                palette_ms: 0.0,
+                started,
+            },
+        )
+    }
+    fn finish(&mut self, c: &Config, input: PreparedSamples) -> Result<Output> {
+        let PreparedSamples {
+            mut raw,
+            modes,
+            mapping,
+            mixed_ms,
+            palette_ms,
+            started,
+        } = input;
+        let accuracy = c.accuracy_mode || matches!(c.color_style.as_str(), "reference" | "natural");
         if c.zone_temporal_accumulation {
             if self.accumulation.len() != raw.len() {
                 self.accumulation = raw.iter().map(|v| v.map(f64::from)).collect();
