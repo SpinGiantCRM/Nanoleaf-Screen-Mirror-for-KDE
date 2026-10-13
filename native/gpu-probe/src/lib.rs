@@ -252,3 +252,6 @@ impl VulkanSampler {
         ))
     }
 }
+
+mod texture;
+pub use texture::TextureSampler;

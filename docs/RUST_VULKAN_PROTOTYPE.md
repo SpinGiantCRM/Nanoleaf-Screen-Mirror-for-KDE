@@ -1,5 +1,9 @@
 # Measured Rust Vulkan sampling prototype
 
+The subsequent [streaming/DMA-BUF experiment](RUST_STREAM_VULKAN.md) now
+implements genuine shared-frame import and documents live results. This document
+retains the original uploaded-frame baseline and its adoption decision.
+
 Date: 2026-10-13. Built after the native application checkpoint `5531880`.
 The normal Rust application and Python fallback are unchanged by this separate
 prototype. Neither enables GPU sampling automatically.
