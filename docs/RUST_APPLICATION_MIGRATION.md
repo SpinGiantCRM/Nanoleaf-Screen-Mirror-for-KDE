@@ -1,17 +1,13 @@
 # Rust application migration and measured refinement
 
-2026-10-13 follow-up: [genuine portal/PipeWire DMA-BUF Vulkan capture](RUST_STREAM_VULKAN.md)
-now has live parity, resource and synchronization evidence. It remains an
-isolated experiment; the normal capture path and Python fallback are preserved.
+2026-10-13 follow-up: [integrated portal/PipeWire DMA-BUF Vulkan capture](RUST_STREAM_VULKAN.md)
+now runs as an optional supervised app backend with complete colour parity,
+real USB/lifecycle and resource evidence. Reference/letterbox zone sampling stays
+on the GPU; pixel-dependent analysis keeps exact pixels in the capture child.
 Native KDE measured-profile import/export is implemented and verified on copied
-configuration. GPU zone statistics now share the app's existing complete colour
-pipeline, with pixel-dependent policies explicitly retaining the pixel path.
+configuration. KWin remains the default and Python remains the working fallback.
 
-Date: 2026-10-12. Branch: `codex/full-rust-rewrite`.
-Update 2026-10-13: a [separate hardware Vulkan prototype](RUST_VULKAN_PROTOTYPE.md)
-now demonstrates exact zone parity on the RTX 4080 SUPER. Its measured benefit
-does not justify enabling it in the application; frame import/streaming and GPU
-adaptive analysis remain pending.
+Date: 2026-10-12; updated 2026-10-13. Branch: `codex/full-rust-rewrite`.
 Priority: **colour accuracy > latency/FPS > system performance**, including when
 the target FPS cannot be reached. Predictive output follows core validation.
 
@@ -20,8 +16,8 @@ the target FPS cannot be reached. Predictive output follows core validation.
 The repository now contains a working entirely Rust capture/colour/USB service,
 KDE system tray, and on-demand Rust settings/calibration application. This is an
 implemented and hardware-tested migration checkpoint. It is not yet a complete
-replacement release: alternative capture backends, some optional analysis modes,
-and predictive output remain behind verification gates.
+replacement release: native DRM/raw HDR, some optional analysis modes, prediction and replacement
+packaging remain behind verification gates.
 
 The recovered Python implementation remains installed, unchanged, and available
 through its existing launcher. Its calibration, real configuration, autostart,
@@ -53,7 +49,7 @@ destination. Retaining the hybrid as a reversible fallback remains useful.
 | Python mapping/config | Rust single-strip geometry and versioned TOML import/edit | Unknown settings and both measured profiles retained |
 | PyQt tray/settings | Rust `ksni` tray and on-demand `eframe/egui` Wayland process | Guided wizard, profile-file UX and other optional UI parity remain |
 | Python HID | Rust `hidapi` native Linux backend and strict TLV/ACK transport | Both model contracts; live NL82K2, NL82K1 hardware not available |
-| Python KWin/Qt decoding | Rust `zbus`, descriptor reads, validated raw QImage decoding | Portal/PipeWire/native DRM streaming not adopted |
+| Python KWin/Qt decoding | Rust `zbus`, raw QImage decoding and supervised portal/PipeWire/Vulkan worker | Portal is opt-in; DRM/raw HDR remain gated |
 | C DRM helper | Unused by native KWin application | Preserved for existing fallback, not removed or granted new privileges |
 
 The capture/colour worker owns its D-Bus connection, raw frame and pipeline state.
@@ -242,7 +238,7 @@ edits, so simply rendering an advanced profile cannot mutate a saved value.
 | Portal + PipeWire | Preferred next streaming prototype. Must preserve permission/restore-token lifecycle, explicitly select one monitor, bound queued buffers, and establish format/colour metadata before adopting. |
 | DMA-BUF | A transport/memory path, not a colour-processing algorithm. Requires plane offsets, strides, modifiers, ownership/synchronization and driver interoperability tests; CPU mapping/copies can erase its benefit. |
 | DRM/KMS | Existing helper remains fallback infrastructure. Native replacement must not inherit privileged KWin-fd discovery or add capabilities without a demonstrated need. Host helper readiness was not established by the recovery audit. |
-| Vulkan compute | Requires a real compute shader over a correctly imported frame, linear-light zone reduction, explicit synchronization and GPU-vs-CPU parity. The egui OpenGL renderer does not satisfy this requirement. Prototype before default; do not claim it implemented. |
+| Vulkan compute | Requires a real compute shader over a correctly imported frame, linear-light zone reduction, explicit synchronization and GPU-vs-CPU parity. The egui OpenGL renderer does not satisfy this requirement. Genuine imported-frame compute is now implemented and parity-tested as an opt-in backend; raw HDR/adoption remain gated. |
 
 See the [original primary-source research](RUST_MIGRATION_RESEARCH.md) for capture,
 HDR metadata, HID and UI alternatives. Current KWin authorization matched the
@@ -279,8 +275,8 @@ Remaining adoption gates:
 1. Complete optional sampling/analysis policy and UI parity, or explicitly retire
    a feature only with correctness evidence. Unsupported policies fail before
    opening USB and leave their persisted configuration intact.
-2. Validate native streaming permission, reconnect, format and HDR contracts;
-   compare GPU compute only after correct stream/import synchronization exists.
+2. Sustain the now integrated native streaming permission/recovery checks;
+   broaden explicit synchronization/format and raw HDR contracts before adoption.
 3. Long-run and physical reconnect/suspend tests, controller-model verification,
    full-app GUI-inclusive resource measurement and measured optical colour/latency.
 4. Packaging/desktop integration and migration/rollback validation before

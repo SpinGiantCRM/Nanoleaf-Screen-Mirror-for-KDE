@@ -32,8 +32,10 @@ fn main() -> Result<()> {
             height: 5,
         },
     ];
-    let sampler = TextureSampler::new(device, queue, 96, 64, &zones)?;
+    let mut sampler = TextureSampler::new(device, queue, 96, 64, &zones)?;
     let mut comparisons = 0;
+    let mut region_comparisons = 0;
+    let mut updated_zone_comparisons = 0;
     let mut results = Vec::new();
     for format in [
         wgpu::TextureFormat::Bgra8Unorm,
@@ -102,6 +104,25 @@ fn main() -> Result<()> {
                 sampler.diagnostic_rgb(&texture)? == rgb,
                 "Texture diagnostic conversion mismatch"
             );
+            for rect in [
+                [0, 0, 96, 1],
+                [0, 63, 96, 1],
+                [23, 7, 1, 41],
+                [17, 13, 29, 19],
+            ] {
+                let mut expected = Vec::new();
+                for y in rect[1]..rect[1] + rect[3] {
+                    for x in rect[0]..rect[0] + rect[2] {
+                        let i = (y as usize * 96 + x as usize) * 3;
+                        expected.extend_from_slice(&rgb[i..i + 3]);
+                    }
+                }
+                ensure!(
+                    sampler.region_rgb(&texture, rect)? == expected,
+                    "Region extraction changed encoded pixels"
+                );
+                region_comparisons += 1;
+            }
             let view = SdrRgb8Frame::new(&rgb, 96, 64, 96 * 3)?;
             let cpu = SdrSampler::default();
             let (samples, timings) = sampler.sample(&texture)?;
@@ -116,12 +137,34 @@ fn main() -> Result<()> {
                 );
                 comparisons += 1;
             }
+            let moved: Vec<_> = zones
+                .iter()
+                .map(|z| ZoneRect {
+                    x: z.x + 3,
+                    y: z.y + 2,
+                    ..*z
+                })
+                .collect();
+            sampler.set_zones(&moved)?;
+            let (updated, _) = sampler.sample(&texture)?;
+            for (actual, &zone) in updated.iter().zip(&moved) {
+                let expected = cpu.sample_zone(&view, zone);
+                ensure!(
+                    actual.srgb == expected.srgb
+                        && actual.linear_rgb == expected.linear_rgb
+                        && actual.encoded_variance == expected.encoded_variance
+                        && actual.pixel_count == expected.pixel_count,
+                    "Updated texture zones changed colours"
+                );
+                updated_zone_comparisons += 1;
+            }
+            sampler.set_zones(&zones)?;
             results.push(serde_json::json!({"format":format!("{format:?}"),"pattern":pattern,"all_fields_exact":true,"timings":timings}));
         }
     }
     println!(
         "{}",
-        serde_json::json!({"adapter":adapter,"scope":"Synthetic Vulkan texture shader and diagnostic readback oracle; DMA-BUF import not exercised by this test","zone_comparisons":comparisons,"cases":results})
+        serde_json::json!({"adapter":adapter,"scope":"Synthetic Vulkan texture shader and diagnostic readback oracle; DMA-BUF import not exercised by this test","zone_comparisons":comparisons,"region_comparisons":region_comparisons,"updated_zone_comparisons":updated_zone_comparisons,"cases":results})
     );
     Ok(())
 }

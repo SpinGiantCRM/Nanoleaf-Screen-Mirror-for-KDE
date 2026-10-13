@@ -323,6 +323,13 @@ impl Settings {
             }
             choice(
                 ui,
+                "Capture",
+                &mut self.draft.capture_backend,
+                &["auto", "kwin-dbus", "xdg-portal"],
+            );
+            ui.small("Streaming uses the portal permission and a separate capture worker. KWin capture remains the fallback.");
+            choice(
+                ui,
                 "Performance priority",
                 &mut self.draft.performance_priority,
                 &["normal", "high", "very_high"],
@@ -358,6 +365,7 @@ impl Settings {
         doc["fps"] = toml_edit::value(self.draft.fps as i64);
         for (key, val) in [
             ("capture_monitor", &self.draft.capture_monitor),
+            ("capture_backend", &self.draft.capture_backend),
             ("color_style", &self.draft.color_style),
             ("sampling_mode", &self.draft.sampling_mode),
             ("sampling_quality", &self.draft.sampling_quality),

@@ -194,25 +194,57 @@ fn open_strip(store: &Store) -> Result<Strip> {
     Ok(s)
 }
 pub fn run(path: &Path, start: bool, tray: bool) -> Result<()> {
-    run_inner(path, start, tray, None)
+    run_inner(path, start, tray, None, None)
 }
 pub fn run_profile(path: &Path, seconds: f64) -> Result<()> {
     ensure!(
         seconds.is_finite() && (1.0..=30.0).contains(&seconds),
         "Live probe duration must be 1 to 30 seconds"
     );
-    run_inner(path, true, true, Some(Duration::from_secs_f64(seconds)))
+    run_inner(
+        path,
+        true,
+        true,
+        Some(Duration::from_secs_f64(seconds)),
+        None,
+    )
 }
-fn run_inner(path: &Path, start: bool, tray: bool, profile: Option<Duration>) -> Result<()> {
+pub fn run_stream_profile(path: &Path, seconds: f64) -> Result<()> {
+    ensure!(
+        seconds.is_finite() && (1.0..=30.0).contains(&seconds),
+        "Live probe duration must be 1 to 30 seconds"
+    );
+    run_inner(
+        path,
+        true,
+        true,
+        Some(Duration::from_secs_f64(seconds)),
+        Some("xdg-portal"),
+    )
+}
+fn run_inner(
+    path: &Path,
+    start: bool,
+    tray: bool,
+    profile: Option<Duration>,
+    backend: Option<&str>,
+) -> Result<()> {
     let mut start_time = Instant::now();
     let paths = Paths::new()?;
     let _instance = lease(&paths.root.join("service.lock"))?;
     let mut store = Store::load(path)?;
+    if let Some(backend) = backend {
+        store.config.capture_backend = backend.into();
+    }
     let (tx, rx) = mpsc::channel();
     let mut state = Status {
         manual_zones: store.config.device_zone_count,
         message: "Stopped".into(),
-        backend: "kwin-dbus (SDR display-referred)".into(),
+        backend: if store.config.capture_backend == "xdg-portal" {
+            "xdg-portal / requesting stream".into()
+        } else {
+            "kwin-dbus (SDR display-referred)".into()
+        },
         priority: crate::priority::apply(&store.config.performance_priority),
         ..Default::default()
     };
@@ -303,6 +335,9 @@ fn run_inner(path: &Path, start: bool, tray: bool, profile: Option<Duration>) ->
                             let _ = strip.black();
                         }
                         store = s;
+                        if let Some(backend) = backend {
+                            store.config.capture_backend = backend.into();
+                        }
                         state.priority = crate::priority::apply(&store.config.performance_priority);
                         strip = None;
                         capture = None;
@@ -457,6 +492,8 @@ fn run_inner(path: &Path, start: bool, tray: bool, profile: Option<Duration>) ->
                     times: ProcessingTimes::default(),
                     capture_ms: 0.0,
                     started: frame_start,
+                    backend: "Exclusive setup preview".into(),
+                    parity_verified: false,
                 }));
             }
             if capture.is_none() {
@@ -479,7 +516,10 @@ fn run_inner(path: &Path, start: bool, tray: bool, profile: Option<Duration>) ->
                     times,
                     capture_ms,
                     started,
+                    backend,
+                    parity_verified: _,
                 } = prepared;
+                state.backend = backend;
                 let usb_start = Instant::now();
                 let result = strip.as_mut().unwrap().frame(&colors);
                 state.usb_ms = usb_start.elapsed().as_secs_f64() * 1000.0;
@@ -517,6 +557,20 @@ fn run_inner(path: &Path, start: bool, tray: bool, profile: Option<Duration>) ->
                     let _ = s.black();
                 }
                 capture = None;
+                if store.config.capture_backend == "xdg-portal" {
+                    // Sharing denial/revocation is not permission to acquire the
+                    // screen again or switch to another capture interface.
+                    if let (Some(s), Some((power, brightness))) = (&mut strip, &original_controller)
+                    {
+                        restored = s.restore_controller(power, brightness);
+                    }
+                    state.running = false;
+                    state.effective_fps = 0.0;
+                    strip = None;
+                    output_owner = None;
+                    state.message =
+                        format!("Screen sharing stopped: {e}. Start to request it again.");
+                }
                 deadline = Instant::now() + Duration::from_secs(2);
                 publish(&shared, &state);
                 continue;
@@ -570,7 +624,7 @@ fn run_inner(path: &Path, start: bool, tray: bool, profile: Option<Duration>) ->
             .collect();
         println!(
             "{}",
-            serde_json::json!({"scope":"Native tray, live KWin native-resolution SDR capture, colour pipeline and real USB ACK. No optical colour/response measurement.","status":state,"samples":samples,"controller_power_brightness_restored":restored,"memory":memory})
+            serde_json::json!({"scope":"Native tray/service, live native-resolution SDR capture, colour pipeline and real USB ACK. Backend is recorded per sample. No optical colour/response measurement.","status":state,"samples":samples,"controller_power_brightness_restored":restored,"memory":memory})
         );
     }
     drop(output_owner);

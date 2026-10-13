@@ -1,4 +1,5 @@
 //! Bounded permission-mediated stream experiment. No configuration or USB writes.
+mod application;
 mod frame;
 mod gpu;
 mod permission;
@@ -47,6 +48,7 @@ struct State {
     device: Option<(wgpu::Device, wgpu::Queue)>,
     adapter: serde_json::Value,
     layout: Option<(usize, usize)>,
+    application: Option<application::Application>,
 }
 fn zones(width: usize, height: usize) -> Vec<ZoneRect> {
     let mut result = Vec::new();
@@ -75,6 +77,20 @@ fn zones(width: usize, height: usize) -> Vec<ZoneRect> {
 fn process(buffer: &mut pw::buffer::Buffer<'_>, state: &mut State) -> Result<()> {
     let started = Instant::now();
     let format = state.format.context("No negotiated video format")?;
+    if state.application.is_some() {
+        ensure!(
+            (format.transfer_function() == 0
+                || format.transfer_function() == spa::sys::SPA_VIDEO_TRANSFER_SRGB)
+                && (format.color_primaries() == 0
+                    || format.color_primaries() == spa::sys::SPA_VIDEO_COLOR_PRIMARIES_BT709)
+                && (format.color_range() == 0
+                    || format.color_range() == spa::sys::SPA_VIDEO_COLOR_RANGE_0_255)
+                && (format.color_matrix() == 0
+                    || format.color_matrix() == spa::sys::SPA_VIDEO_COLOR_MATRIX_RGB),
+            "Stream metadata contradicts the verified sRGB contract"
+        );
+    }
+
     let header = buffer.find_meta::<spa::buffer::meta::MetaHeader>().cloned();
     if let Some(h) = &header {
         ensure!(
@@ -208,7 +224,11 @@ fn process_dma(
 ) -> Result<()> {
     let (width, height) = (format.size().width, format.size().height);
     if state.layout != Some((width as usize, height as usize)) {
-        state.zones = zones(width as usize, height as usize);
+        state.zones = if let Some(app) = &state.application {
+            app.zones(width as usize, height as usize)?
+        } else {
+            zones(width as usize, height as usize)
+        };
         let (device, queue) = state.device.as_ref().context("Vulkan device unavailable")?;
         state.texture = Some(nanoleaf_linux_gpu::DmaSampler::new(
             device.clone(),
@@ -220,10 +240,28 @@ fn process_dma(
         state.layout = Some((width as usize, height as usize));
     }
     let sampler = state.texture.as_mut().context("No GPU texture sampler")?;
-    let diagnostic = state.frames.is_multiple_of(30);
-    let sampled = sampler.sample(buffer, format, diagnostic)?;
+    let diagnostic = if let Some(app) = &state.application {
+        app.needs_pixels(width as usize, height as usize)
+    } else {
+        state.frames.is_multiple_of(30)
+    };
+    let (sampled, bounds) = if let Some(app) = state
+        .application
+        .as_ref()
+        .filter(|a| !a.needs_pixels(width as usize, height as usize))
+    {
+        sampler.plan_sample(buffer, format, app.parity(), |reader| {
+            app.plan(width as usize, height as usize, reader)
+        })?
+    } else {
+        (sampler.sample(buffer, format, diagnostic)?, None)
+    };
     let mut comparisons = 0;
-    if let Some(rgb) = &sampled.diagnostic_rgb {
+    if let Some(rgb) = sampled
+        .diagnostic_rgb
+        .as_ref()
+        .filter(|_| state.application.is_none())
+    {
         let view = SdrRgb8Frame::new(rgb, width as usize, height as usize, width as usize * 3)?;
         let cpu = SdrSampler::default();
         for (a, &zone) in sampled.samples.iter().zip(&state.zones) {
@@ -238,13 +276,38 @@ fn process_dma(
             comparisons += 1;
         }
     }
+    if let Some(app) = &mut state.application {
+        app.frame(
+            width as usize,
+            height as usize,
+            sampled,
+            bounds,
+            header.as_ref(),
+            started,
+        )?;
+        state.frames += 1;
+        return Ok(());
+    }
     let timings = sampled.timings;
     state.frames += 1;
     state.timings.push(serde_json::json!({"sequence":header.as_ref().map(|h|h.seq()),"pts_ns":header.as_ref().map(|h|h.pts()),"pts_age_ms":pts_age(header.as_ref()),"memory":"DMA-BUF","vulkan":timings,"diagnostic_full_readback":diagnostic,"colour_comparisons":comparisons,"callback_ms":started.elapsed().as_secs_f64()*1000.0}));
     Ok(())
 }
 fn main() -> Result<()> {
+    // This is an isolated capture executable. A panic must not unwind and
+    // requeue a producer buffer while GPU work might still be pending.
+    std::panic::set_hook(Box::new(|info| {
+        eprintln!("Capture worker panicked: {info}");
+        std::process::exit(2)
+    }));
     let args: Vec<_> = std::env::args().skip(1).collect();
+    if args.first().is_some_and(|a| a == "--worker") {
+        ensure!(
+            args.len() == 1,
+            "Worker takes configuration through private stdin"
+        );
+        return application::run();
+    }
     ensure!(
         args.len() <= 1,
         "Usage: nanoleaf-stream-probe [--gpu-upload|--dma-buf|--suite]"
@@ -299,6 +362,15 @@ fn run(
     mode: Mode,
     prepared: Option<&(wgpu::Device, wgpu::Queue, serde_json::Value)>,
 ) -> Result<serde_json::Value> {
+    run_application(session, fd, mode, prepared, None)
+}
+fn run_application(
+    session: &portal::Session,
+    fd: std::os::fd::OwnedFd,
+    mode: Mode,
+    prepared: Option<&(wgpu::Device, wgpu::Queue, serde_json::Value)>,
+    application: Option<application::Application>,
+) -> Result<serde_json::Value> {
     pw::init();
     let mainloop = pw::main_loop::MainLoopRc::new(None)?;
     let context = pw::context::ContextRc::new(&mainloop, None)?;
@@ -311,15 +383,32 @@ fn run(
         properties.insert(*pw::keys::TARGET_OBJECT, serial.as_str());
     }
     let stream = pw::stream::StreamBox::new(&core, "Nanoleaf native capture probe", properties)?;
+    let maximum_fps = application.as_ref().map(|a| a.config.fps).unwrap_or(30);
     let shared = Rc::new(RefCell::new(State {
         mode,
+        application,
         device: prepared.map(|(d, q, _)| (d.clone(), q.clone())),
         adapter: prepared.map(|(_, _, i)| i.clone()).unwrap_or_default(),
         ..Default::default()
     }));
     let state = shared.clone();
+    let failed = shared.clone();
+    let core_listener = core
+        .add_listener_local()
+        .error(move |_, _, code, message| {
+            let mut state = failed.borrow_mut();
+            if state.errors.len() < 16 {
+                state
+                    .errors
+                    .push(format!("PipeWire connection failed ({code}): {message}"));
+            }
+        })
+        .register();
     let _listener=stream.add_local_listener_with_user_data(state)
-        .state_changed(|_,state,_,new| {if let pw::stream::StreamState::Error(error)=new {state.borrow_mut().errors.push(error);}})
+        .state_changed(|_,state,old,new| {
+            if let pw::stream::StreamState::Error(error)=new {state.borrow_mut().errors.push(error);}
+            else if matches!(new,pw::stream::StreamState::Unconnected) && matches!(old,pw::stream::StreamState::Streaming | pw::stream::StreamState::Paused) {state.borrow_mut().errors.push("Screen sharing ended".into());}
+        })
         .param_changed(|_,state,id,param| {
             if id!=spa::param::ParamType::Format.as_raw(){return;}
             let Some(param)=param else {state.borrow_mut().format=None;return;};
@@ -371,9 +460,15 @@ fn run(
             Choice,
             Range,
             Fraction,
-            spa::utils::Fraction { num: 30, denom: 1 },
+            spa::utils::Fraction {
+                num: maximum_fps,
+                denom: 1
+            },
             spa::utils::Fraction { num: 0, denom: 1 },
-            spa::utils::Fraction { num: 30, denom: 1 }
+            spa::utils::Fraction {
+                num: maximum_fps,
+                denom: 1
+            }
         ),
     );
     let mut formats = vec![format];
@@ -466,10 +561,23 @@ fn run(
     )?;
     let resources_before = resources::snapshot();
     let started = Instant::now();
-    while started.elapsed() < Duration::from_secs(8) {
+    while shared
+        .borrow()
+        .application
+        .as_ref()
+        .map(|a| !a.cancelled())
+        .unwrap_or_else(|| started.elapsed() < Duration::from_secs(8))
+    {
         mainloop
             .loop_()
             .iterate(pw::loop_::Timeout::Finite(Duration::from_millis(100)));
+        if session.closed() {
+            shared
+                .borrow_mut()
+                .errors
+                .push("Screen-sharing permission ended".into());
+            break;
+        }
         if !shared.borrow().errors.is_empty() {
             break;
         }
@@ -484,6 +592,7 @@ fn run(
     drop(_listener);
     drop(stream);
     drop(shared);
+    drop(core_listener);
     drop(core);
     drop(context);
     drop(mainloop);

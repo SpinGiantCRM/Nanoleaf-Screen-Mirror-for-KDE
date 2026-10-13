@@ -241,3 +241,66 @@ fn direct_sampling_cannot_silently_disable_pixel_dependent_policies() {
     c.sampling_mode = "palette_adaptive".into();
     assert!(direct_plan(&c, 32, 24).is_err());
 }
+
+#[test]
+fn exact_sparse_letterbox_analysis_matches_full_pixel_processing() {
+    use nanoleaf_core::sampling::{SdrRgb8Frame, SdrSampler};
+    use nanoleaf_native::pipeline::{detect_content_bounds, direct_plan_with_bounds, encoded_mean};
+    let mut c = Config {
+        device_zone_count: 48,
+        color_style: "reference".into(),
+        letterbox_detection: true,
+        ..Default::default()
+    };
+    c.calibration.corner_anchor_top_left = 0;
+    c.calibration.corner_anchor_top_right = 12;
+    c.calibration.corner_anchor_bottom_right = 24;
+    c.calibration.corner_anchor_bottom_left = 36;
+    let (mut full, mut sparse) = (Pipeline::default(), Pipeline::default());
+    let sampler = SdrSampler::default();
+    for bars in [(0, 0), (16, 0), (0, 24), (16, 24), (32, 40)] {
+        for level in [0, 4, 5, 20, 128, 255] {
+            let (w, h) = (160, 96);
+            let mut pixels = vec![0_u8; w * h * 3];
+            for y in bars.0..h - bars.0 {
+                for x in bars.1..w - bars.1 {
+                    pixels[(y * w + x) * 3..(y * w + x) * 3 + 3].copy_from_slice(&[level; 3]);
+                }
+            }
+            let bounds = detect_content_bounds(
+                w,
+                h,
+                |y| encoded_mean(&pixels[y * w * 3..(y + 1) * w * 3]),
+                |x, top, bottom| {
+                    let data: Vec<_> = (top..bottom)
+                        .flat_map(|y| pixels[(y * w + x) * 3..(y * w + x) * 3 + 3].iter().copied())
+                        .collect();
+                    encoded_mean(&data)
+                },
+            )
+            .unwrap();
+            let plan = direct_plan_with_bounds(&c, w, h, Some(bounds)).unwrap();
+            let view = SdrRgb8Frame::new(&pixels, w, h, w * 3).unwrap();
+            let samples: Vec<_> = plan
+                .zones
+                .iter()
+                .map(|&z| sampler.sample_zone(&view, z))
+                .collect();
+            let expected = full
+                .process(
+                    &Frame {
+                        width: w,
+                        height: h,
+                        pixels,
+                    },
+                    &c,
+                )
+                .unwrap();
+            let actual = sparse
+                .process_sdr_samples_with_bounds(w, h, &samples, &c, Some(bounds))
+                .unwrap();
+            assert_eq!(actual.sampled, expected.sampled, "{bars:?} {level}");
+            assert_eq!(actual.colors, expected.colors, "{bars:?} {level}");
+        }
+    }
+}

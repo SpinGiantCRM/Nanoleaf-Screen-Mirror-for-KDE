@@ -16,8 +16,7 @@ reduce the captured image resolution.
 contains the small, documented unsafe Linux/Vulkan boundary. `native/gpu-probe`
 contains the safe texture compute shader and the existing upload experiment.
 Normal application/core code still forbids unsafe code. This boundary is
-experimental and must run in an isolated capture process before application
-adoption: a GPU completion failure terminates that probe rather than returning
+experimental and runs in a supervised capture child for the optional app backend: a GPU completion failure terminates that probe rather than returning
 a buffer that the GPU may still be reading. It is not linked into the normal
 tray process.
 
@@ -80,12 +79,30 @@ Evidence:
   produced exactly equal sampled and final LED codes through both entry points,
   including calibrated matrices, brightness, dither and skipped-output history.
 
-The app interface explicitly rejects pixel-dependent policies (adaptive palette,
-weighted sampling, privacy masks and letterbox detection) for the statistics-only
-path. It does not turn them off. In particular, the user's existing configuration
-has letterbox detection enabled and remains unchanged. A complete backend needs
-pixel/analysis support or the existing CPU path for those policies before it can
-replace capture in daily use. The normal app still uses KWin ScreenShot2.
+The optional native app backend now supervises this capture child. Only small
+prepared colour records cross into the tray/HID actor; GPU ownership and full
+screen buffers stay in the child. The child receives a validated configuration
+snapshot, and actual USB acknowledgements feed its temporal/quantization history.
+Only the latest prepared frame is retained. Stop kills/releases the owned capture
+child while keeping the tray alive; sharing denial, revocation or child failure
+stops mirroring and requires an explicit Start rather than switching interfaces.
+
+Exact letterbox detection shares the CPU detector's ordered float32 luminance
+calculation and threshold. It reads only the necessary texture rows/columns,
+remaps the configured zones, then computes complete integer zone histograms.
+After eight sparse copies, broad bars or black screens use one full readback for
+the same detector, bounding GPU round trips without reducing pixel coverage.
+Privacy masks, weighted kernels and adaptive palette analysis keep the full-pixel
+CPU path inside the child; their configured policies are never silently disabled.
+
+The real user's reference/high/letterbox configuration passed 360 live complete
+CPU/GPU pipeline comparisons: sampled colours, final calibrated LED codes and
+sampling modes were exactly equal on every delivered frame. Validation mode
+reads back reference pixels and is excluded from performance measurements.
+Another 30 synthetic letterbox/threshold cases, 40 exact row/column extraction
+comparisons and 40 changed-zone hardware comparisons passed. Real configuration
+and both profiles remain unchanged. KWin is still the default; `xdg-portal` is
+explicitly selectable in Advanced / Troubleshooting.
 
 ## Measurements and limitations
 
@@ -131,7 +148,69 @@ memory saving, system power reduction or USB/optical latency improvement is
 claimed. The real calibration/config hash stayed
 `b470ea82ac1568cf99f4762f6914e4aa295bd3422527e9eb3ca046b52272d1a4`.
 
+## Integrated app measurements and lifecycle (2026-10-13)
+
+Raw records and source/binary hashes are in `perf/rust-stream-app-2026-10-13`.
+These sequential five-second active windows use the same unchanged manual-48,
+reference/high/letterbox configuration and actual NL82K2 USB acknowledgements.
+The changing desktop is not controlled identical content. CPU includes all
+threads and 20 Hz status requests; GPU/compositor/settings processes are excluded.
+The final streaming window overlapped an isolated settings UI validation; its
+shared graphics libraries affect PSS apportionment. RSS sums double-count shared
+pages. No whole-system power reduction is claimed.
+
+| Native backend | Parent + capture-child CPU, one core | Summed RSS | Capture / colour median | USB ACK median | Rolling ACK FPS median |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| KWin Screenshot2 | 59.68% | 80,224 KiB | 23.595 / 4.237 ms | 7.851 ms | 35.36 |
+| Portal + Vulkan DMA-BUF | 4.18% | 144,768 KiB | 1.629 / 0.038 ms | 20.996 ms | 47.81 |
+
+The initial integrated full-readback run produced 300 acknowledged frames and
+measured 21.674 ms capture / 3.912 ms colour medians. Sparse letterbox analysis
+substantially reduces that avoidable readback. Earlier sparse runs measured
+4.298 ms capture with USB active and 11.147 ms in a read-only worker test;
+retain variability rather than promise a fixed capture speed. The read-only
+worker delivered 455 frames in eight seconds, no prepared drops. The final USB
+window deliberately coalesced 50 excess prepared frames while acknowledging 238
+new frames, avoiding a backlog. These are separate workload windows, not dropped
+display-frame counts or claimed 60 FPS physical output.
+
+Streaming response is compositor presentation PTS-to-USB ACK (median 34.780 ms);
+KWin response starts at the screenshot request (36.366 ms). The origins differ,
+so subtracting those columns is invalid. Neither measures optical end-to-end
+latency. USB acknowledgements are currently the dominant streaming stage; further
+colour-math micro-optimization has little measured benefit and must not remove
+ACKs, calibration or accuracy guards.
+
+Real checks passed Stop with no capture child, exclusive zone preview, restart,
+SIGTERM of only the owned capture child, continued tray availability, no automatic
+capture reacquisition after failure, explicit restart and final controller
+power/brightness restoration with readback. No physical unplug/suspend or NL82K1
+hardware check was performed. A private D-Bus fixture verifies Session.Closed and
+connection loss even without a PipeWire error. Fatal restricted-remote PipeWire
+errors also stop the worker. Actual isolated KDE settings Save/Apply selected
+`xdg-portal`, kept the window open and preserved the complete calibration table,
+both measured profiles and an exact copied-config backup.
+
+Local gates passed: 38 native app tests, four capture/permission tests, Rust 1.95.0
+Clippy/format, complete Python/native colour/protocol replay, 1,613 Python tests
+(23 optional-bridge skips), 77.83% coverage, Ruff/format, mypy and diff checks.
+A hardware-independent streaming CI job was added; hosted CI has not been run.
+This completes the integrated Vulkan checkpoint, not all feature/adoption gates.
+
 ## Reproduce
+
+```sh
+cargo build --release --features gui --locked --manifest-path native/app/Cargo.toml
+cargo build --release --bins --locked --manifest-path native/stream-probe/Cargo.toml
+# Read-only eight seconds AFTER capture permission/first frame:
+NANOLEAF_STREAM_PARITY=1 native/app/target/release/nanoleaf-native \
+  --stream-capture-probe /path/to/config.toml 8
+native/app/target/release/nanoleaf-native --stream-capture-probe /path/to/config.toml 8
+# Bounded actual strip output, brightness limit + restoration/readback:
+native/app/target/release/nanoleaf-native --stream-live-probe /path/to/config.toml 8
+.venv/bin/python scripts/profile_native_lifecycle.py --stream --output /tmp/stream-lifecycle.json
+```
+
 
 Build requirements include PipeWire development headers, pkg-config/Clang,
 Rust 1.95+, and a hardware Vulkan driver for live GPU tests.
@@ -149,9 +228,9 @@ cargo +1.95.0 test --manifest-path native/stream-probe/Cargo.toml --locked
 ```
 
 The GUI/USB fallback, desktop launcher, autostart, helper capabilities and saved
-calibration were not replaced. The next app work is permission/stream lifecycle
-integration with the complete colour policy and UI, followed by sustained
-recovery checks. Predictive output remains after those core gates.
+calibration were not replaced. Remaining app work includes optional sampling/
+analysis parity, prediction after core refinement, standalone packaging/rollback,
+and sustained/physical recovery tests. Raw HDR and DRM remain gated.
 
 ## Primary contracts researched
 
@@ -160,6 +239,7 @@ recovery checks. Predictive output remains after those core gates.
 - [KWin monitor source](https://raw.githubusercontent.com/KDE/kwin/Plasma/6.7/src/plugins/screencast/outputscreencastsource.cpp),
   [format/sync negotiation](https://raw.githubusercontent.com/KDE/kwin/Plasma/6.7/src/plugins/screencast/screencaststream.cpp),
   [default sRGB output layer](https://raw.githubusercontent.com/KDE/kwin/Plasma/6.7/src/core/outputlayer.h).
+- [Portal session closure contract](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.Session.html).
 - [Vulkan external-memory interoperability](https://docs.vulkan.org/guide/latest/extensions/external.html).
 
 KWin's private Wayland screencast protocol explicitly discourages regular-client

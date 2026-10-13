@@ -88,6 +88,7 @@ pub struct Config {
     pub schema_version: u32,
     pub calibration_schema_version: u32,
     pub fps: u32,
+    pub capture_backend: String,
     pub brightness: f64,
     pub smoothing: f64,
     pub smoothing_speed: f64,
@@ -138,6 +139,7 @@ impl Default for Config {
             schema_version: 2,
             calibration_schema_version: 1,
             fps: 60,
+            capture_backend: "auto".into(),
             brightness: 1.0,
             smoothing: 0.5,
             smoothing_speed: 0.75,
@@ -187,6 +189,13 @@ impl Default for Config {
 
 impl Config {
     pub fn validate(&self) -> Result<()> {
+        ensure!(
+            matches!(
+                self.capture_backend.as_str(),
+                "auto" | "kwin-dbus" | "xdg-portal" | "kmsgrab"
+            ),
+            "Unknown capture backend"
+        );
         ensure!(
             self.schema_version <= 2,
             "Future configuration schema; use the original application"
@@ -406,6 +415,10 @@ impl Store {
         }
         let mut config: Config = toml::Value::Table(values).try_into()?;
         config.schema_version = 2;
+        config.capture_backend = config.capture_backend.trim().to_ascii_lowercase();
+        if matches!(config.capture_backend.as_str(), "kwin" | "kwin_dbus") {
+            config.capture_backend = "kwin-dbus".into();
+        }
         config.color_style = config.color_style.trim().to_ascii_lowercase();
         config.sampling_mode = config.sampling_mode.trim().to_ascii_lowercase();
         config.sampling_quality = config.sampling_quality.trim().to_ascii_lowercase();

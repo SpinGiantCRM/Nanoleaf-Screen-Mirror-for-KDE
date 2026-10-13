@@ -18,6 +18,7 @@ pipewire = { version = "=0.10.1", features = ["v0_3_65"] }
 nanoleaf-linux-gpu = { path = "../linux-gpu" }
 wgpu = { version = "=30.0.1", default-features = false, features = ["std", "parking_lot", "vulkan", "wgsl"] }
 nanoleaf-core = { path = "../core" }
+nanoleaf-native = { path = "../app" }
 nanoleaf-vulkan-probe = { path = "../gpu-probe" }
 
 [profile.release]

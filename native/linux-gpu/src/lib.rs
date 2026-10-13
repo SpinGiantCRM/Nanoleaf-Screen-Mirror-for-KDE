@@ -207,6 +207,52 @@ fn wait_producer(fd: BorrowedFd<'_>) -> Result<()> {
     Ok(())
 }
 
+/// Read exact encoded pixels while the imported texture is exclusively owned.
+/// No texture/device handles are exposed or can escape to the caller.
+pub struct RegionReader<'a> {
+    sampler: &'a nanoleaf_vulkan_probe::TextureSampler,
+    texture: &'a wgpu::Texture,
+    bytes: usize,
+    reads: usize,
+    full: Option<Vec<u8>>,
+}
+impl RegionReader<'_> {
+    fn region(&mut self, rect: [u32; 4]) -> Result<Vec<u8>> {
+        // Black screens/wide bars can require hundreds of detector reads. After
+        // eight sparse copies, read once and run the SAME ordered CPU analysis.
+        // This bounds GPU round trips without skipping or approximating pixels.
+        if self.reads >= 8 && self.full.is_none() {
+            let rgb = self.sampler.diagnostic_rgb(self.texture)?;
+            self.bytes += rgb.len();
+            self.full = Some(rgb);
+        }
+        if let Some(rgb) = &self.full {
+            let width = self.texture.width() as usize;
+            ensure!(
+                rect[0] + rect[2] <= self.texture.width()
+                    && rect[1] + rect[3] <= self.texture.height(),
+                "Invalid analysis rectangle"
+            );
+            let mut result = Vec::with_capacity(rect[2] as usize * rect[3] as usize * 3);
+            for y in rect[1]..rect[1] + rect[3] {
+                let i = (y as usize * width + rect[0] as usize) * 3;
+                result.extend_from_slice(&rgb[i..i + rect[2] as usize * 3]);
+            }
+            return Ok(result);
+        }
+        let result = self.sampler.region_rgb(self.texture, rect)?;
+        self.reads += 1;
+        self.bytes += result.len();
+        Ok(result)
+    }
+    pub fn row(&mut self, y: u32) -> Result<Vec<u8>> {
+        self.region([0, y, self.texture.width(), 1])
+    }
+    pub fn column(&mut self, x: u32, top: u32, bottom: u32) -> Result<Vec<u8>> {
+        ensure!(bottom > top, "Invalid analysis column");
+        self.region([x, top, 1, bottom - top])
+    }
+}
 /// A GPU sampler that exposes only colour statistics and optional diagnostic
 /// bytes. Imported textures cannot escape the dequeued PipeWire buffer lifetime.
 pub struct DmaSampler {
@@ -250,6 +296,63 @@ impl DmaSampler {
             )?,
             cache: HashMap::new(),
         })
+    }
+    pub fn plan_sample<T>(
+        &mut self,
+        buffer: &mut Buffer<'_>,
+        format: spa::param::video::VideoInfoRaw,
+        diagnostic: bool,
+        plan: impl FnOnce(&mut RegionReader<'_>) -> Result<(Vec<nanoleaf_core::sampling::ZoneRect>, T)>,
+    ) -> Result<(SampledFrame, T)> {
+        let device = self.sampler.device().clone();
+        let queue = self.sampler.queue().clone();
+        let sampler = &mut self.sampler;
+        let started = Instant::now();
+        let mut stages = serde_json::Value::Null;
+        let (mut sampled, context) = with_texture(
+            &mut self.cache,
+            &mut stages,
+            &device,
+            &queue,
+            buffer,
+            format,
+            |texture| {
+                let (zones, context, bytes, full) = {
+                    let mut reader = RegionReader {
+                        sampler,
+                        texture,
+                        bytes: 0,
+                        reads: 0,
+                        full: None,
+                    };
+                    let (zones, context) = plan(&mut reader)?;
+                    (zones, context, reader.bytes, reader.full)
+                };
+                sampler.set_zones(&zones)?;
+                let diagnostic_rgb = if diagnostic {
+                    Some(match full {
+                        Some(rgb) => rgb,
+                        None => sampler.diagnostic_rgb(texture)?,
+                    })
+                } else {
+                    None
+                };
+                let (samples, mut timings) = sampler.sample(texture)?;
+                timings["analysis_rgb_bytes"] = serde_json::json!(bytes);
+                Ok((
+                    SampledFrame {
+                        samples,
+                        diagnostic_rgb,
+                        timings,
+                    },
+                    context,
+                ))
+            },
+        )?;
+        sampled.timings["interop"] = stages;
+        sampled.timings["complete_frame_ms"] =
+            serde_json::json!(started.elapsed().as_secs_f64() * 1000.0);
+        Ok((sampled, context))
     }
     pub fn sample(
         &mut self,

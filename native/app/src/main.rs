@@ -23,7 +23,9 @@ fn main() -> Result<()> {
             Ok(())
         }
         "--capture-probe" => nanoleaf_native::probe::capture(&path, duration()?),
+        "--stream-capture-probe" => nanoleaf_native::probe::stream_capture(&path,duration()?),
         "--live-probe" => service::run_profile(&path, duration()?),
+        "--stream-live-probe" => service::run_stream_profile(&path,duration()?),
         "--daemon" => service::run(&path, false, true),
         "--run" => service::run(&path, true, true),
         "--headless" => service::run(&path, false, false),
@@ -54,6 +56,6 @@ fn main() -> Result<()> {
         }
         #[cfg(feature = "gui")]
         "--settings" => nanoleaf_native::ui::open(&path),
-        _ => bail!("Use --daemon, --run, --headless, --settings, --preflight, --start, --stop, --status, --reload, --quit, --install-launcher, --capture-probe or --live-probe. Optional second argument: existing config path."),
+        _ => bail!("Use --daemon, --run, --headless, --settings, --preflight, --start, --stop, --status, --reload, --quit, --install-launcher, --capture-probe, --stream-capture-probe, --live-probe or --stream-live-probe. Optional second argument: existing config path."),
     }
 }

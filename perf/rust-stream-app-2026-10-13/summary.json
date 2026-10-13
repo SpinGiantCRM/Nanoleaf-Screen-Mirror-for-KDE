@@ -1,0 +1,270 @@
+{
+  "scope": "Sequential changing-desktop runs, actual unchanged reference/high/letterbox configuration; no optical colour/latency, total GPU/system power or controlled identical-content claim.",
+  "host": "CachyOS KDE Plasma 6.7.5 Wayland; RTX 4080 SUPER NVIDIA 615.78.08; DP-1 native 3840x2160; NL82K2 manual 48",
+  "record_notes": {
+    "live-parity.json": "360 frames verified before adding the fatal PipeWire core-error listener; capture permission wait included in duration, exclude it from rates.",
+    "live-capture.json": "Pre-core-error-listener normal worker run.",
+    "kwin-lifecycle.json": "Native binary before CLI-help-only edit. No capture helper used.",
+    "texture-oracle.json": "40 static, 40 region, 40 dynamic-zone comparisons before RegionReader full-readback guard; guards do not change TextureSampler.",
+    "stream-lifecycle.json": "Final source and binary hashes recorded. Includes USB acknowledgements, Stop/preview/restart and SIGTERM of only the owned capture child."
+  },
+  "cpu_definition": "Percent of one CPU core across all threads, includes 20 Hz status queries; summed parent/child RSS double-counts shared pages. PSS is available in raw records. GPU/compositor/settings processes excluded.",
+  "kwin-lifecycle.json": {
+    "active": {
+      "seconds": 5.026582348000375,
+      "parent_cpu_percent_one_core": 59.68269874646399,
+      "capture_child_cpu_percent_one_core": 0.0,
+      "combined_cpu_percent_one_core": 59.68269874646399,
+      "summed_rss_kib": 80224,
+      "summed_pss_kib": 77568,
+      "acknowledged_frame_delta": 176,
+      "prepared_drop_delta": 0,
+      "capture_ms": {
+        "median": 23.594614999999997,
+        "p95": 26.343467999999998
+      },
+      "processing_ms": {
+        "median": 4.237436,
+        "p95": 5.162014
+      },
+      "usb_ms": {
+        "median": 7.851157499999999,
+        "p95": 17.736635
+      },
+      "response_ms": {
+        "median": 36.366352000000006,
+        "p95": 46.381281
+      },
+      "effective_fps": {
+        "median": 35.36204036081053,
+        "p95": 35.92720214737685
+      }
+    },
+    "stopped": {
+      "seconds": 2.008834950000164,
+      "parent_cpu_percent_one_core": 0.0,
+      "capture_child_cpu_percent_one_core": 0.0,
+      "combined_cpu_percent_one_core": 0.0,
+      "summed_rss_kib": 80384,
+      "summed_pss_kib": 77601,
+      "acknowledged_frame_delta": 0,
+      "prepared_drop_delta": 0,
+      "capture_ms": {
+        "median": 25.727193,
+        "p95": 25.727193
+      },
+      "processing_ms": {
+        "median": 3.853128,
+        "p95": 3.853128
+      },
+      "usb_ms": {
+        "median": 19.241905,
+        "p95": 19.241905
+      },
+      "response_ms": {
+        "median": 48.837244,
+        "p95": 48.837244
+      },
+      "effective_fps": {
+        "median": 0.0,
+        "p95": 0.0
+      }
+    },
+    "restart": {
+      "seconds": 3.0162525170017034,
+      "parent_cpu_percent_one_core": 57.024403305256435,
+      "capture_child_cpu_percent_one_core": 0.0,
+      "combined_cpu_percent_one_core": 57.024403305256435,
+      "summed_rss_kib": 85416,
+      "summed_pss_kib": 82633,
+      "acknowledged_frame_delta": 110,
+      "prepared_drop_delta": 0,
+      "capture_ms": {
+        "median": 22.932468,
+        "p95": 25.372927999999998
+      },
+      "processing_ms": {
+        "median": 3.4184545,
+        "p95": 4.061526000000001
+      },
+      "usb_ms": {
+        "median": 19.7145215,
+        "p95": 20.164716
+      },
+      "response_ms": {
+        "median": 46.0958325,
+        "p95": 48.523376999999996
+      },
+      "effective_fps": {
+        "median": 33.81730236216144,
+        "p95": 36.704992141223094
+      }
+    },
+    "controller_restoration_verified": true,
+    "config_fallback_preserved": true
+  },
+  "stream-lifecycle.json": {
+    "active": {
+      "seconds": 5.022363074000168,
+      "parent_cpu_percent_one_core": 0.5973283802460314,
+      "capture_child_cpu_percent_one_core": 3.583970281476189,
+      "combined_cpu_percent_one_core": 4.18129866172222,
+      "summed_rss_kib": 144768,
+      "summed_pss_kib": 97971,
+      "acknowledged_frame_delta": 238,
+      "prepared_drop_delta": 50,
+      "capture_ms": {
+        "median": 1.629318,
+        "p95": 4.3179669999999994
+      },
+      "processing_ms": {
+        "median": 0.037516499999999994,
+        "p95": 0.044975999999999995
+      },
+      "usb_ms": {
+        "median": 20.995667500000003,
+        "p95": 21.001603
+      },
+      "response_ms": {
+        "median": 34.780013000000004,
+        "p95": 43.342487999999996
+      },
+      "effective_fps": {
+        "median": 47.80710892865107,
+        "p95": 47.80738304973756
+      }
+    },
+    "stopped": {
+      "seconds": 2.008437390999461,
+      "parent_cpu_percent_one_core": 0.0,
+      "capture_child_cpu_percent_one_core": 0.0,
+      "combined_cpu_percent_one_core": 0.0,
+      "summed_rss_kib": 23244,
+      "summed_pss_kib": 18430,
+      "acknowledged_frame_delta": 0,
+      "prepared_drop_delta": 0,
+      "capture_ms": {
+        "median": 2.076651,
+        "p95": 2.076651
+      },
+      "processing_ms": {
+        "median": 0.035948,
+        "p95": 0.035948
+      },
+      "usb_ms": {
+        "median": 20.993558999999998,
+        "p95": 20.993558999999998
+      },
+      "response_ms": {
+        "median": 39.898625,
+        "p95": 39.898625
+      },
+      "effective_fps": {
+        "median": 0.0,
+        "p95": 0.0
+      }
+    },
+    "restart": {
+      "seconds": 3.013791042001685,
+      "parent_cpu_percent_one_core": 0.33180800727837645,
+      "capture_child_cpu_percent_one_core": 3.649888080062138,
+      "combined_cpu_percent_one_core": 3.9816960873405147,
+      "summed_rss_kib": 144740,
+      "summed_pss_kib": 97669,
+      "acknowledged_frame_delta": 145,
+      "prepared_drop_delta": 25,
+      "capture_ms": {
+        "median": 1.4214065,
+        "p95": 11.419765
+      },
+      "processing_ms": {
+        "median": 0.033684000000000006,
+        "p95": 0.044225
+      },
+      "usb_ms": {
+        "median": 20.9908285,
+        "p95": 20.998669
+      },
+      "response_ms": {
+        "median": 37.090267499999996,
+        "p95": 57.200415
+      },
+      "effective_fps": {
+        "median": 37.401854985746354,
+        "p95": 48.851958195401366
+      }
+    },
+    "worker_failure_stopped_service": {
+      "seconds": 2.009517007994873,
+      "parent_cpu_percent_one_core": 0.0,
+      "capture_child_cpu_percent_one_core": 0.0,
+      "combined_cpu_percent_one_core": 0.0,
+      "summed_rss_kib": 24996,
+      "summed_pss_kib": 20182,
+      "acknowledged_frame_delta": 0,
+      "prepared_drop_delta": 0,
+      "capture_ms": {
+        "median": 3.666935,
+        "p95": 3.666935
+      },
+      "processing_ms": {
+        "median": 0.035778000000000004,
+        "p95": 0.035778000000000004
+      },
+      "usb_ms": {
+        "median": 19.999192,
+        "p95": 19.999192
+      },
+      "response_ms": {
+        "median": 40.485375999999995,
+        "p95": 40.485375999999995
+      },
+      "effective_fps": {
+        "median": 0.0,
+        "p95": 0.0
+      }
+    },
+    "worker_failure_recovery": {
+      "seconds": 2.010348525000154,
+      "parent_cpu_percent_one_core": 0.4974261863374781,
+      "capture_child_cpu_percent_one_core": 3.979409490699822,
+      "combined_cpu_percent_one_core": 4.4768356770373,
+      "summed_rss_kib": 144552,
+      "summed_pss_kib": 97438,
+      "acknowledged_frame_delta": 93,
+      "prepared_drop_delta": 20,
+      "capture_ms": {
+        "median": 1.565817,
+        "p95": 5.206703
+      },
+      "processing_ms": {
+        "median": 0.03683,
+        "p95": 0.039715999999999994
+      },
+      "usb_ms": {
+        "median": 20.995383,
+        "p95": 20.99921
+      },
+      "response_ms": {
+        "median": 34.719626,
+        "p95": 47.292006
+      },
+      "effective_fps": {
+        "median": 35.670506325180384,
+        "p95": 47.80701893648371
+      }
+    },
+    "controller_restoration_verified": true,
+    "config_fallback_preserved": true
+  },
+  "response_origin": "KWin: screenshot request-to-USB ACK; streaming: compositor presentation PTS-to-USB ACK. Do not directly subtract response columns or call them optical latency.",
+  "tests": {
+    "native_app": 38,
+    "stream": 4,
+    "python_passed": 1613,
+    "python_skipped": 23,
+    "python_coverage": "77.83%",
+    "clippy_minimum_compiler": "1.95.0",
+    "hosted_ci": "not run"
+  }
+}

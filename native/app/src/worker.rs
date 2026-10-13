@@ -16,6 +16,8 @@ pub struct Prepared {
     pub times: ProcessingTimes,
     pub capture_ms: f64,
     pub started: Instant,
+    pub backend: String,
+    pub parity_verified: bool,
 }
 struct Latest {
     value: Mutex<Option<Result<Prepared, String>>>,
@@ -41,9 +43,13 @@ pub struct Producer {
     stop: Arc<AtomicBool>,
     thread: std::thread::JoinHandle<()>,
     sent: Arc<Mutex<Vec<[u8; 3]>>>,
+    child: Option<Arc<Mutex<std::process::Child>>>,
 }
 impl Producer {
     pub fn spawn(config: Config, tx: mpsc::Sender<Control>) -> Self {
+        if config.capture_backend == "xdg-portal" {
+            return Self::spawn_stream(config, tx);
+        }
         let latest = Arc::new(Latest {
             value: Mutex::new(None),
             dropped: AtomicU64::new(0),
@@ -80,6 +86,8 @@ impl Producer {
                         times: out.times,
                         capture_ms,
                         started: start,
+                        backend: "kwin-dbus (SDR display-referred)".into(),
+                        parity_verified: false,
                     })
                 })();
                 if cancel.load(Ordering::Acquire) {
@@ -106,6 +114,7 @@ impl Producer {
             stop,
             thread,
             sent,
+            child: None,
         }
     }
     pub fn take(&self) -> Option<Result<Prepared, String>> {
@@ -127,6 +136,11 @@ impl Drop for Producer {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Release);
         self.thread.thread().unpark();
+        if let Some(child) = &self.child {
+            if let Ok(mut child) = child.lock() {
+                let _ = child.kill();
+            }
+        }
     }
 }
 
@@ -148,6 +162,8 @@ mod tests {
                     times: ProcessingTimes::default(),
                     capture_ms: 0.0,
                     started: Instant::now(),
+                    backend: "fixture".into(),
+                    parity_verified: false,
                 }),
                 &tx,
             );
@@ -160,3 +176,6 @@ mod tests {
         );
     }
 }
+
+#[path = "stream_worker.rs"]
+mod stream;

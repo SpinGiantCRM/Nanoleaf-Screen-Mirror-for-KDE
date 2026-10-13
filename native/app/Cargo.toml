@@ -16,10 +16,11 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 toml = "0.9"
 toml_edit = "0.23"
-rustix = { version = "1.1", features = ["fs", "event", "pipe", "process", "net"] }
+rustix = { version = "1.1", features = ["fs", "event", "pipe", "process", "net", "time"] }
 zbus = "=5.19.0"
 hidapi = { version = "=2.6.7", default-features = false, features = ["linux-native-basic-udev"] }
 wayland-client = "=0.31.15"
+wayland-protocols = { version = "=0.32.13", features = ["client", "unstable"] }
 ksni = { version = "=0.3.6", default-features = false, features = ["async-io", "blocking"] }
 eframe = { version = "=0.36.2", default-features = false, features = ["default_fonts", "glow", "wayland", "accesskit"], optional = true }
 url = { version = "2.5", optional = true }

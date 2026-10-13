@@ -4,6 +4,10 @@ use anyhow::{ensure, Context, Result};
 use std::{
     collections::HashMap,
     os::fd::OwnedFd,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use zbus::{
@@ -19,6 +23,8 @@ pub struct Session {
     pub node: u32,
     pub serial: Option<String>,
     pub size: Option<(i32, i32)>,
+    pub position: Option<(i32, i32)>,
+    closed: Arc<AtomicBool>,
 }
 impl Drop for Session {
     fn drop(&mut self) {
@@ -30,7 +36,25 @@ impl Drop for Session {
         ) {
             let _: zbus::Result<()> = proxy.call("Close", &());
         }
+        let _ = self.connection.clone().close();
     }
+}
+fn watch_closed(connection: &Connection, path: &OwnedObjectPath) -> Result<Arc<AtomicBool>> {
+    let watcher = Proxy::new_owned(
+        connection.clone(),
+        DEST,
+        path.clone(),
+        "org.freedesktop.portal.Session",
+    )?;
+    let mut closures = watcher.receive_signal("Closed")?;
+    let closed = Arc::new(AtomicBool::new(false));
+    let flag = closed.clone();
+    std::thread::spawn(move || {
+        // EOF also means capture permission can no longer be established.
+        let _ = closures.next();
+        flag.store(true, Ordering::Release);
+    });
+    Ok(closed)
 }
 fn token() -> Result<String> {
     Ok(format!(
@@ -80,6 +104,9 @@ where
     Ok(values)
 }
 impl Session {
+    pub fn closed(&self) -> bool {
+        self.closed.load(Ordering::Acquire)
+    }
     pub fn remote(&self) -> Result<OwnedFd> {
         let portal = Proxy::new(&self.connection, DEST, PATH, IFACE)?;
         let fd: zbus::zvariant::OwnedFd = portal.call(
@@ -128,7 +155,11 @@ impl Session {
             node: 0,
             serial: None,
             size: None,
+            position: None,
+            closed: Arc::new(AtomicBool::new(false)),
         };
+        // Subscribe before Start, including a closure emitted before its reply.
+        session.closed = watch_closed(&connection, &session.path)?;
         let permission = crate::permission::Permission::user()?;
         let restore = permission.load()?;
         // A submitted token is single-use. Remove only our own token before
@@ -180,9 +211,79 @@ impl Session {
         if let Some(value) = streams[0].1.get("size") {
             session.size = Some(value.try_clone()?.try_into()?);
         }
+        if let Some(value) = streams[0].1.get("position") {
+            session.position = Some(value.try_clone()?.try_into()?);
+        }
         let fd = session.remote()?;
         drop(portal);
         let _ = finish.send(());
         Ok((session, fd))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{
+        io::{BufRead, BufReader},
+        process::{Child, Command, Stdio},
+        time::Instant,
+    };
+    struct Bus(Child);
+    impl Drop for Bus {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+    #[test]
+    fn permission_closure_and_bus_loss_are_observed_without_pipewire() {
+        let child = Command::new("dbus-daemon")
+            .args(["--session", "--nofork", "--print-address=1"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        let mut bus = Bus(child);
+        let mut address = String::new();
+        BufReader::new(bus.0.stdout.take().unwrap())
+            .read_line(&mut address)
+            .unwrap();
+        let server = zbus::blocking::connection::Builder::address(address.trim())
+            .unwrap()
+            .name(DEST)
+            .unwrap()
+            .build()
+            .unwrap();
+        let client = zbus::blocking::connection::Builder::address(address.trim())
+            .unwrap()
+            .build()
+            .unwrap();
+        let path: OwnedObjectPath = "/org/freedesktop/portal/desktop/session/test/one"
+            .try_into()
+            .unwrap();
+        let closed = watch_closed(&client, &path).unwrap();
+        assert!(!closed.load(Ordering::Acquire));
+        server
+            .emit_signal(
+                None::<&str>,
+                path.clone(),
+                "org.freedesktop.portal.Session",
+                "Closed",
+                &(HashMap::<String, OwnedValue>::new(),),
+            )
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while !closed.load(Ordering::Acquire) {
+            assert!(Instant::now() < deadline, "Closed signal was missed");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let disconnected = watch_closed(&client, &path).unwrap();
+        let _ = client.clone().close();
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while !disconnected.load(Ordering::Acquire) {
+            assert!(Instant::now() < deadline, "Connection loss was missed");
+            std::thread::sleep(Duration::from_millis(5));
+        }
     }
 }

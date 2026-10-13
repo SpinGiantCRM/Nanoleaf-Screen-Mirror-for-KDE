@@ -68,7 +68,7 @@ impl TextureSampler {
         let zones = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Texture zones"),
             contents: &rects,
-            usage: wgpu::BufferUsages::STORAGE,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
         });
         let mut params = Vec::new();
         for value in [width, height, 0, pixels.len() as u32] {
@@ -192,8 +192,39 @@ impl TextureSampler {
             serde_json::json!({"uploaded_frame_bytes":0,"readback_bytes":self.readback.size(),"compute_readback_reduce_ms":started.elapsed().as_secs_f64()*1000.0}),
         ))
     }
+    pub fn set_zones(&mut self, zones: &[ZoneRect]) -> Result<()> {
+        ensure!(
+            zones.len() == self.pixels.len(),
+            "Zone count cannot change within a stream generation"
+        );
+        let mut bytes = Vec::new();
+        self.pixels.clear();
+        for z in zones {
+            let x = z.x.clamp(0, i64::from(self.width)) as u32;
+            let y = z.y.clamp(0, i64::from(self.height)) as u32;
+            let w = z.width.max(0).min(i64::from(self.width - x)) as u32;
+            let h = z.height.max(0).min(i64::from(self.height - y)) as u32;
+            self.pixels.push(u64::from(w) * u64::from(h));
+            for v in [x, y, w, h] {
+                bytes.extend_from_slice(&v.to_le_bytes());
+            }
+        }
+        self.queue.write_buffer(&self.zones, 0, &bytes);
+        Ok(())
+    }
     /// Diagnostic oracle only. Full-frame readback is not the normal sample path.
     pub fn diagnostic_rgb(&self, texture: &wgpu::Texture) -> Result<Vec<u8>> {
+        self.region_rgb(texture, [0, 0, self.width, self.height])
+    }
+    pub fn region_rgb(&self, texture: &wgpu::Texture, rect: [u32; 4]) -> Result<Vec<u8>> {
+        let [x, y, width, height] = rect;
+        ensure!(
+            width > 0
+                && height > 0
+                && x.checked_add(width).is_some_and(|r| r <= self.width)
+                && y.checked_add(height).is_some_and(|b| b <= self.height),
+            "Analysis region out of bounds"
+        );
         ensure!(
             texture.width() == self.width && texture.height() == self.height,
             "Diagnostic size mismatch"
@@ -202,8 +233,8 @@ impl TextureSampler {
             texture.usage().contains(wgpu::TextureUsages::COPY_SRC),
             "Diagnostic readback not enabled for this texture"
         );
-        let stride = (self.width * 4).div_ceil(256) * 256;
-        let size = u64::from(stride) * u64::from(self.height);
+        let stride = (width * 4).div_ceil(256) * 256;
+        let size = u64::from(stride) * u64::from(height);
         ensure!(size <= 128 * 1024 * 1024, "Diagnostic frame size limit");
         let readback = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Diagnostic frame readback only"),
@@ -216,7 +247,7 @@ impl TextureSampler {
             wgpu::TexelCopyTextureInfo {
                 texture,
                 mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
+                origin: wgpu::Origin3d { x, y, z: 0 },
                 aspect: wgpu::TextureAspect::All,
             },
             wgpu::TexelCopyBufferInfo {
@@ -224,12 +255,12 @@ impl TextureSampler {
                 layout: wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(stride),
-                    rows_per_image: Some(self.height),
+                    rows_per_image: Some(height),
                 },
             },
             wgpu::Extent3d {
-                width: self.width,
-                height: self.height,
+                width,
+                height,
                 depth_or_array_layers: 1,
             },
         );
@@ -245,9 +276,9 @@ impl TextureSampler {
         })?;
         rx.recv_timeout(Duration::from_secs(2))??;
         let data = readback.slice(..).get_mapped_range()?;
-        let mut rgb = Vec::with_capacity(self.width as usize * self.height as usize * 3);
+        let mut rgb = Vec::with_capacity(width as usize * height as usize * 3);
         for row in data.chunks_exact(stride as usize) {
-            for pixel in row[..self.width as usize * 4].as_chunks::<4>().0 {
+            for pixel in row[..width as usize * 4].as_chunks::<4>().0 {
                 if pixel[3] == 0 {
                     rgb.extend_from_slice(&[0; 3]);
                 } else if texture.format() == wgpu::TextureFormat::Bgra8Unorm {

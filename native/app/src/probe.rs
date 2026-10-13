@@ -43,3 +43,50 @@ pub fn capture(path: &Path, seconds: f64) -> Result<()> {
     );
     Ok(())
 }
+
+/// Exercise the complete streaming worker without opening a HID device.
+pub fn stream_capture(path: &Path, seconds: f64) -> Result<()> {
+    ensure!(
+        seconds.is_finite() && (0.1..=30.0).contains(&seconds),
+        "Probe duration must be .1 to 30 seconds"
+    );
+    let mut config = Store::load(path)?.config;
+    config.capture_backend = "xdg-portal".into();
+    crate::pipeline::validate_mirroring(&config)?;
+    let (tx, rx) = std::sync::mpsc::channel();
+    let producer = crate::worker::Producer::spawn(config, tx);
+    let started = Instant::now();
+    let mut samples = Vec::new();
+    let mut error = None;
+    let mut first_frame: Option<Instant> = None;
+    while first_frame
+        .map(|first| first.elapsed() < Duration::from_secs_f64(seconds))
+        .unwrap_or_else(|| started.elapsed() < Duration::from_secs(120))
+    {
+        let _ = rx.recv_timeout(Duration::from_millis(100));
+        if let Some(frame) = producer.take() {
+            match frame {
+                Ok(frame) => {
+                    first_frame.get_or_insert_with(Instant::now);
+                    samples.push(serde_json::json!({"capture_ms":frame.capture_ms,"processing":frame.times,"prepared_age_ms":frame.started.elapsed().as_secs_f64()*1000.0,"backend":frame.backend,"manual_output_count":frame.colors.len(),"parity_verified":frame.parity_verified}));
+                }
+                Err(e) => {
+                    error = Some(e);
+                    break;
+                }
+            }
+        }
+    }
+    let dropped = producer.dropped();
+    drop(producer);
+    println!(
+        "{}",
+        serde_json::json!({"scope":"Supervised streaming worker and full native colour processing; no USB or optical measurement, no saved pixels/config changes","frames":samples.len(),"duration_ms":started.elapsed().as_secs_f64()*1000.0,"first_frame_ms":first_frame.map(|f|f.duration_since(started).as_secs_f64()*1000.0),"dropped_prepared_frames":dropped,"samples":samples,"error":error})
+    );
+    ensure!(
+        error.is_none() && !samples.is_empty(),
+        "Streaming capture probe failed: {}",
+        error.unwrap_or_else(|| "No frames".into())
+    );
+    Ok(())
+}

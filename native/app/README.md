@@ -5,8 +5,8 @@ tray and settings entirely in Rust. It does not require Python, Qt or the old C
 DRM helper. Development is on `codex/full-rust-rewrite`; the installed Python
 application and its launcher remain the reference and fallback.
 
-The priority is **colour accuracy > latency/FPS > resource usage**. Native
-streaming/DRM/GPU capture and optional analysis modes still require verification.
+The priority is **colour accuracy > latency/FPS > resource usage**. Optional portal/Vulkan streaming is integrated and tested; native DRM/raw HDR
+and optional analysis modes still require verification.
 This is a working native application checkpoint, not a feature-complete release.
 See [implementation, measurements and remaining gates](../../docs/RUST_APPLICATION_MIGRATION.md).
 
@@ -85,7 +85,20 @@ KDE's file chooser. Import changes the draft only; Save / Apply applies it while
 keeping Settings open. Profiles retain the Python-compatible schema, float64
 calibration values and private atomic exports with exact backups.
 
-The optional GPU samples interface shares the full output colour pipeline, but
-requires compatible full-pixel box policies. Pixel-dependent analysis keeps the
-CPU path. [Streaming/Vulkan implementation and evidence](../../docs/RUST_STREAM_VULKAN.md)
+Advanced / Troubleshooting can explicitly select `xdg-portal`, using the separate
+streaming helper. Auto continues to use KWin. Build the helper beside a standalone
+application as `nanoleaf-native-capture`, or build its development workspace:
+
+```sh
+cargo build --release --bins --locked --manifest-path native/stream-probe/Cargo.toml
+native/app/target/release/nanoleaf-native --stream-capture-probe /path/to/config.toml 8
+NANOLEAF_STREAM_PARITY=1 native/app/target/release/nanoleaf-native --stream-capture-probe /path/to/config.toml 8
+.venv/bin/python scripts/profile_native_lifecycle.py --stream --output /tmp/stream-lifecycle.json
+```
+
+The worker verifies a single selected monitor and the researched KWin 6.7 sRGB
+contract. Denial, revocation or worker failure stops sharing and requires Start;
+it does not silently switch capture interfaces. Exact sparse letterbox analysis
+and box histograms share the full calibrated output pipeline. Pixel-dependent
+analysis retains complete CPU pixels in the helper. [Streaming/Vulkan implementation and evidence](../../docs/RUST_STREAM_VULKAN.md)
 remain experimental; the normal capture backend is unchanged.

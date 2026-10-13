@@ -1,6 +1,6 @@
 //! Stateful single-strip processing. Capture pixels carry an explicit SDR contract.
 use crate::{capture::Frame, config::Config, geometry};
-use anyhow::{ensure, Result};
+use anyhow::{ensure, Context, Result};
 use nanoleaf_core::{
     adaptive::MixedDecision,
     blending::BlendState,
@@ -11,7 +11,7 @@ use nanoleaf_core::{
 use serde::Serialize;
 use std::time::Instant;
 
-#[derive(Default, Clone, Debug, Serialize)]
+#[derive(Default, Clone, Debug, Serialize, serde::Deserialize)]
 pub struct ProcessingTimes {
     pub sampling_ms: f64,
     pub colour_ms: f64,
@@ -57,6 +57,14 @@ pub struct DirectPlan {
 /// Plan full-pixel box sampling only where no pixel-dependent policy is lost.
 /// A backend must keep CPU capture/processing for unsupported policies.
 pub fn direct_plan(c: &Config, width: usize, height: usize) -> Result<DirectPlan> {
+    direct_plan_with_bounds(c, width, height, None)
+}
+pub fn direct_plan_with_bounds(
+    c: &Config,
+    width: usize,
+    height: usize,
+    bounds: Option<ContentBounds>,
+) -> Result<DirectPlan> {
     validate_mirroring(c)?;
     ensure!(
         width > 0 && height > 0 && width <= 16384 && height <= 16384,
@@ -68,10 +76,15 @@ pub fn direct_plan(c: &Config, width: usize, height: usize) -> Result<DirectPlan
         "Adaptive sampling requires the pixel path"
     );
     ensure!(
-        c.zone_box_filter_sampling && !c.letterbox_detection && c.privacy_zones.is_empty(),
-        "Weighted sampling, letterbox detection and privacy masks require the pixel path"
+        c.zone_box_filter_sampling && (!c.letterbox_detection || bounds.is_some()) && c.privacy_zones.is_empty(),
+        "Weighted/privacy policies require pixels; letterbox sampling requires verified content bounds"
     );
-    let (zones, counts) = geometry::pixel_zones(c, width, height)?;
+    let (mut zones, counts) = geometry::pixel_zones(c, width, height)?;
+    if c.letterbox_detection {
+        let bounds = bounds.context("Missing content bounds")?;
+        bounds.validate(width, height)?;
+        remap_content_bounds(width, height, bounds, &mut zones);
+    }
     let mapping = geometry::calibrated_mapping(c, zones.len(), counts)?;
     let zones = zones
         .into_iter()
@@ -145,22 +158,95 @@ fn content_zones(frame: &Frame, zones: &mut [ZoneRect]) -> bool {
             frame.pixels[o + 2] as f32,
         ])
     };
-    let row = |y: usize| (0..w).map(|x| rgb(x, y)).sum::<f32>() / w as f32;
-    let top = (0..h).step_by(8).find(|&y| row(y) > 4.0).unwrap_or(0);
-    let bottom = (top + 1..h)
-        .rev()
-        .step_by(8)
-        .find(|&y| row(y) > 4.0)
-        .map(|y| y + 1)
-        .unwrap_or(h);
-    let col = |x: usize| (top..bottom).map(|y| rgb(x, y)).sum::<f32>() / (bottom - top) as f32;
-    let left = (0..w).step_by(8).find(|&x| col(x) > 4.0).unwrap_or(0);
-    let right = (left + 1..w)
-        .rev()
-        .step_by(8)
-        .find(|&x| col(x) > 4.0)
-        .map(|x| x + 1)
-        .unwrap_or(w);
+    let bounds = detect_content_bounds(
+        w,
+        h,
+        |y| Ok((0..w).map(|x| rgb(x, y)).sum::<f32>() / w as f32),
+        |x, top, bottom| Ok((top..bottom).map(|y| rgb(x, y)).sum::<f32>() / (bottom - top) as f32),
+    )
+    .expect("Validated frame geometry");
+    remap_content_bounds(w, h, bounds, zones)
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ContentBounds {
+    pub left: usize,
+    pub top: usize,
+    pub right: usize,
+    pub bottom: usize,
+}
+impl ContentBounds {
+    pub fn validate(self, w: usize, h: usize) -> Result<()> {
+        ensure!(
+            self.left < self.right && self.top < self.bottom && self.right <= w && self.bottom <= h,
+            "Invalid content bounds"
+        );
+        Ok(())
+    }
+}
+/// Same float32 luma and ordered sum as the CPU frame detector. Providers return
+/// full encoded RGB8 pixels, not a downscaled approximation.
+pub fn encoded_mean(pixels: &[u8]) -> Result<f32> {
+    ensure!(
+        !pixels.is_empty() && pixels.len().is_multiple_of(3),
+        "Invalid analysis pixels"
+    );
+    Ok(pixels
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .map(|p| luma(p.map(f32::from)))
+        .sum::<f32>()
+        / (pixels.len() / 3) as f32)
+}
+pub fn detect_content_bounds(
+    w: usize,
+    h: usize,
+    mut row: impl FnMut(usize) -> Result<f32>,
+    mut col: impl FnMut(usize, usize, usize) -> Result<f32>,
+) -> Result<ContentBounds> {
+    ensure!(w > 0 && h > 0, "Empty content geometry");
+    let mut top = 0;
+    for y in (0..h).step_by(8) {
+        if row(y)? > 4.0 {
+            top = y;
+            break;
+        }
+    }
+    let mut bottom = h;
+    for y in (top + 1..h).rev().step_by(8) {
+        if row(y)? > 4.0 {
+            bottom = y + 1;
+            break;
+        }
+    }
+    let mut left = 0;
+    for x in (0..w).step_by(8) {
+        if col(x, top, bottom)? > 4.0 {
+            left = x;
+            break;
+        }
+    }
+    let mut right = w;
+    for x in (left + 1..w).rev().step_by(8) {
+        if col(x, top, bottom)? > 4.0 {
+            right = x + 1;
+            break;
+        }
+    }
+    Ok(ContentBounds {
+        left,
+        top,
+        right,
+        bottom,
+    })
+}
+fn remap_content_bounds(w: usize, h: usize, bounds: ContentBounds, zones: &mut [ZoneRect]) -> bool {
+    let ContentBounds {
+        left,
+        top,
+        right,
+        bottom,
+    } = bounds;
     let horizontal = top as f64 / h as f64 >= 0.08 && (h - bottom) as f64 / h as f64 >= 0.08;
     let vertical = left as f64 / w as f64 >= 0.08 && (w - right) as f64 / w as f64 >= 0.08;
     if !(horizontal || vertical)
@@ -212,6 +298,10 @@ fn anchor(mut z: ZoneRect, w: usize, h: usize) -> ZoneRect {
 /// Loading/editing such configurations remains supported and non-destructive.
 pub fn validate_mirroring(c: &Config) -> Result<()> {
     c.validate()?;
+    ensure!(
+        c.capture_backend != "kmsgrab",
+        "Native DRM capture awaits verification; use the working fallback"
+    );
     ensure!(
         !c.multi_moment_zone_colors && c.virtual_zone_oversample == 0 && !c.scene_adaptive_profiles,
         "This optional analysis is awaiting native parity verification; use the Python fallback"
@@ -484,8 +574,18 @@ impl Pipeline {
         samples: &[ZoneSample],
         c: &Config,
     ) -> Result<Output> {
+        self.process_sdr_samples_with_bounds(width, height, samples, c, None)
+    }
+    pub fn process_sdr_samples_with_bounds(
+        &mut self,
+        width: usize,
+        height: usize,
+        samples: &[ZoneSample],
+        c: &Config,
+        bounds: Option<ContentBounds>,
+    ) -> Result<Output> {
         let started = Instant::now();
-        let plan = direct_plan(c, width, height)?;
+        let plan = direct_plan_with_bounds(c, width, height, bounds)?;
         ensure!(
             samples.len() == plan.zones.len(),
             "Direct sample count differs from configured zones"

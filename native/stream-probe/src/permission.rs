@@ -22,7 +22,10 @@ impl Permission {
     pub fn load(&self) -> Result<Option<String>> {
         let fd = match rustix::fs::open(
             &self.path,
-            rustix::fs::OFlags::RDONLY | rustix::fs::OFlags::NOFOLLOW | rustix::fs::OFlags::CLOEXEC,
+            rustix::fs::OFlags::RDONLY
+                | rustix::fs::OFlags::NOFOLLOW
+                | rustix::fs::OFlags::CLOEXEC
+                | rustix::fs::OFlags::NONBLOCK,
             rustix::fs::Mode::empty(),
         ) {
             Ok(fd) => fd,
