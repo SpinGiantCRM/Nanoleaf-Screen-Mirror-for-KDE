@@ -12,6 +12,7 @@ use std::sync::{
 };
 use std::time::{Duration, Instant};
 pub struct Prepared {
+    pub unquantized_rgb: Option<Vec<[f32; 3]>>,
     pub colors: Vec<[u8; 3]>,
     pub times: ProcessingTimes,
     pub capture_ms: f64,
@@ -83,6 +84,7 @@ impl Producer {
                     }
                     let out = pipeline.process(&frame, &config)?;
                     Ok(Prepared {
+                        unquantized_rgb: Some(out.unquantized_rgb),
                         colors: out.colors,
                         times: out.times,
                         capture_ms,
@@ -160,6 +162,7 @@ mod tests {
         for n in 0..3 {
             slot.put(
                 Ok(Prepared {
+                    unquantized_rgb: None,
                     colors: vec![[n; 3]; 48],
                     times: ProcessingTimes::default(),
                     capture_ms: 0.0,

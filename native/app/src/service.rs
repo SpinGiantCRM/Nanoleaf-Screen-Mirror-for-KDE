@@ -11,7 +11,7 @@ use std::{
     fs::{self, File, OpenOptions},
     io::{BufRead, BufReader, Read, Write},
     os::unix::{
-        fs::{MetadataExt, OpenOptionsExt, PermissionsExt},
+        fs::{FileTypeExt, MetadataExt, OpenOptionsExt, PermissionsExt},
         net::{UnixListener, UnixStream},
     },
     path::{Path, PathBuf},
@@ -42,6 +42,10 @@ pub struct Status {
     pub manual_zones: usize,
     pub reported_zones: usize,
     pub frames: u64,
+    #[serde(default)]
+    pub predicted_frames: u64,
+    #[serde(default)]
+    pub prediction_enabled: bool,
     pub missed_deadlines: u64,
     pub dropped_frames: u64,
     pub capture_ms: f64,
@@ -60,6 +64,20 @@ pub struct Paths {
     pub socket: PathBuf,
 }
 impl Paths {
+    /// Hold the service lease throughout an install/rollback. A stale socket
+    /// from a crashed service is recoverable; a live tray must be quit first.
+    pub fn maintenance(&self) -> Result<File> {
+        let guard = lease(&self.root.join("service.lock"))
+            .context("Quit the native tray before changing installed versions")?;
+        if let Ok(meta) = fs::symlink_metadata(&self.socket) {
+            ensure!(
+                meta.file_type().is_socket(),
+                "Unexpected native control socket file"
+            );
+            fs::remove_file(&self.socket)?;
+        }
+        Ok(guard)
+    }
     pub fn new() -> Result<Self> {
         let root = PathBuf::from(
             std::env::var_os("XDG_RUNTIME_DIR")
@@ -276,7 +294,10 @@ fn run_inner(
     let mut output_owner = None;
     let mut strip: Option<Strip> = None;
     let mut capture: Option<Producer> = None;
+    let mut watchdog = CaptureWatchdog::default();
     let mut preview = None;
+    let mut predictor = crate::prediction::Predictor::default();
+    let mut usb_history = std::collections::VecDeque::<Duration>::new();
     let mut retry = Instant::now();
     let mut deadline = Instant::now();
     let mut fps_epoch = Instant::now();
@@ -301,15 +322,30 @@ fn run_inner(
                 }
                 Control::Status => {}
                 Control::Quit => {
+                    // Release capture before reporting: a slow stdout consumer
+                    // must never keep screen sharing or hardware ownership alive.
+                    state.running = false;
+                    state.preview = false;
+                    state.effective_fps = 0.0;
+                    state.message = "Stopped".into();
+                    drop(capture.take());
+                    predictor.reset();
+                    usb_history.clear();
+                    watchdog.reset();
                     if let Some(s) = &mut strip {
                         let _ = s.black();
                         if let Some((power, brightness)) = &original_controller {
                             restored = s.restore_controller(power, brightness);
                         }
                     }
+                    drop(strip.take());
+                    publish(&shared, &state);
                     break;
                 }
                 Control::Stop => {
+                    predictor.reset();
+                    usb_history.clear();
+                    watchdog.reset();
                     state.running = false;
                     state.preview = false;
                     state.effective_fps = 0.0;
@@ -334,6 +370,9 @@ fn run_inner(
                         if let Some(strip) = &mut strip {
                             let _ = strip.black();
                         }
+                        predictor.reset();
+                        usb_history.clear();
+                        watchdog.reset();
                         store = s;
                         if let Some(backend) = backend {
                             store.config.capture_backend = backend.into();
@@ -377,7 +416,11 @@ fn run_inner(
                         state.running = true;
                         state.preview = false;
                         preview = None;
+                        predictor.reset();
+                        usb_history.clear();
+                        watchdog.reset();
                         state.frames = 0;
+                        state.predicted_frames = 0;
                         state.missed_deadlines = 0;
                         fps_epoch = Instant::now();
                         epoch_frames = 0;
@@ -401,6 +444,9 @@ fn run_inner(
                             }
                         }
                     } {
+                        predictor.reset();
+                        usb_history.clear();
+                        watchdog.reset();
                         state.running = false;
                         state.preview = true;
                         capture = None;
@@ -449,6 +495,9 @@ fn run_inner(
                                 "Invalid controller state; cannot safely run live probe"
                             );
                             original_controller = Some((power, brightness));
+                        }
+                        if profile.is_some() {
+                            // Reapply the bounded test limit after every reconnect.
                             s.request(0x09, &[10])?;
                         }
                         if store.config.auto_turn_on || profile.is_some() {
@@ -488,6 +537,7 @@ fn run_inner(
                     colors.fill(rgb);
                 }
                 return Ok(Some(Prepared {
+                    unquantized_rgb: None,
                     colors,
                     times: ProcessingTimes::default(),
                     capture_ms: 0.0,
@@ -498,6 +548,7 @@ fn run_inner(
                 }));
             }
             if capture.is_none() {
+                watchdog.start(Instant::now(), store.config.fps);
                 capture = Some(Producer::spawn(store.config.clone(), tx.clone()));
             }
             match capture.as_ref().unwrap().take() {
@@ -506,14 +557,60 @@ fn run_inner(
                 None => Ok(None),
             }
         })();
+        let mut predicted = false;
+        let work = match work {
+            Ok(None) => match predictor.predict_with_budget(
+                &store.config,
+                Instant::now(),
+                usb_history
+                    .iter()
+                    .copied()
+                    .max()
+                    .unwrap_or(Duration::from_millis(250)),
+            ) {
+                Some(colors) => {
+                    predicted = true;
+                    Ok(Some(Prepared {
+                        unquantized_rgb: None,
+                        colors,
+                        times: ProcessingTimes::default(),
+                        capture_ms: 0.0,
+                        started: Instant::now(),
+                        backend: state.backend.clone(),
+                        parity_verified: false,
+                        highlight_cache: (0, 0),
+                    }))
+                }
+                None => {
+                    if watchdog.expired(Instant::now()) {
+                        Err(anyhow::anyhow!(
+                            "Capture stalled; no fresh frame within the recovery deadline"
+                        ))
+                    } else {
+                        deadline = predictor
+                            .deadline(&store.config)
+                            .unwrap_or_else(|| {
+                                watchdog
+                                    .deadline()
+                                    .unwrap_or_else(|| Instant::now() + Duration::from_secs(30))
+                            })
+                            .min(
+                                watchdog
+                                    .deadline()
+                                    .unwrap_or_else(|| Instant::now() + Duration::from_secs(30)),
+                            );
+                        continue;
+                    }
+                }
+            },
+            other => other,
+        };
         match work {
-            Ok(None) => {
-                deadline = Instant::now() + Duration::from_secs(30);
-                continue;
-            }
+            Ok(None) => unreachable!(),
             Ok(Some(prepared)) => {
                 let Prepared {
-                    colors,
+                    mut colors,
+                    unquantized_rgb,
                     times,
                     capture_ms,
                     started,
@@ -522,15 +619,30 @@ fn run_inner(
                     highlight_cache: _,
                 } = prepared;
                 state.backend = backend;
+                if store.config.blue_noise_dither && !state.preview {
+                    if let Some(rgb) = unquantized_rgb {
+                        colors = crate::pipeline::quantize_acknowledged(&rgb, state.frames);
+                    }
+                }
                 let usb_start = Instant::now();
                 let result = strip.as_mut().unwrap().frame(&colors);
                 state.usb_ms = usb_start.elapsed().as_secs_f64() * 1000.0;
                 match result {
                     Ok(()) => {
+                        usb_history.push_back(usb_start.elapsed());
+                        if usb_history.len() > 32 {
+                            usb_history.pop_front();
+                        }
                         state.frames += 1;
-                        state.capture_ms = capture_ms;
-                        state.processing_ms = times.total_ms;
-                        state.response_ms = started.elapsed().as_secs_f64() * 1000.0;
+                        if predicted {
+                            state.predicted_frames += 1;
+                        } else if !state.preview {
+                            watchdog.frame(Instant::now());
+                            predictor.observe(&colors, Instant::now());
+                            state.capture_ms = capture_ms;
+                            state.processing_ms = times.total_ms;
+                            state.response_ms = started.elapsed().as_secs_f64() * 1000.0;
+                        }
                         if let Some(producer) = &capture {
                             producer.acknowledge(&colors);
                             state.dropped_frames = producer.dropped();
@@ -546,6 +658,9 @@ fn run_inner(
                         }
                     }
                     Err(e) => {
+                        predictor.reset();
+                        usb_history.clear();
+                        watchdog.reset();
                         state.message = format!("USB recovery: {e}");
                         strip = None;
                         capture = None;
@@ -554,6 +669,9 @@ fn run_inner(
                 }
             }
             Err(e) => {
+                predictor.reset();
+                usb_history.clear();
+                watchdog.reset();
                 state.message = format!("Capture/colour recovery: {e}");
                 if let Some(s) = &mut strip {
                     let _ = s.black();
@@ -595,8 +713,20 @@ fn run_inner(
         } else if state.preview {
             deadline = Instant::now() + Duration::from_millis(250);
         } else if capture.is_some() {
-            deadline = Instant::now() + Duration::from_secs(30);
+            deadline = predictor
+                .deadline(&store.config)
+                .unwrap_or_else(|| {
+                    watchdog
+                        .deadline()
+                        .unwrap_or_else(|| Instant::now() + Duration::from_secs(30))
+                })
+                .min(
+                    watchdog
+                        .deadline()
+                        .unwrap_or_else(|| Instant::now() + Duration::from_secs(30)),
+                );
         }
+        state.prediction_enabled = crate::prediction::enabled(&store.config);
         if profile.is_some() {
             samples.push(state.clone());
         }
@@ -616,6 +746,10 @@ fn run_inner(
             }
         }
     }
+    drop(capture.take());
+    drop(strip.take());
+    drop(output_owner);
+    let _ = fs::remove_file(&paths.socket);
     if profile.is_some() {
         let proc = std::fs::read_to_string("/proc/self/status").unwrap_or_default();
         let memory: Vec<_> = proc
@@ -629,8 +763,6 @@ fn run_inner(
             serde_json::json!({"scope":"Native tray/service, live native-resolution SDR capture, colour pipeline and real USB ACK. Backend is recorded per sample. No optical colour/response measurement.","status":state,"samples":samples,"controller_power_brightness_restored":restored,"memory":memory})
         );
     }
-    drop(output_owner);
-    let _ = fs::remove_file(&paths.socket);
     if profile.is_some() {
         ensure!(
             !samples.is_empty() && samples.iter().any(|s| s.frames > 0),
@@ -648,4 +780,31 @@ pub fn require_service() -> Result<()> {
         bail!("Start the native tray before controlling the strip");
     }
     Ok(())
+}
+
+/// First permission acquisition has a bounded 120-second allowance. Once a
+/// frame is acknowledged, silence expires at two seconds or three target
+/// periods. Prediction packets never refresh this watchdog.
+#[derive(Default)]
+pub struct CaptureWatchdog {
+    deadline: Option<Instant>,
+    period: Duration,
+}
+impl CaptureWatchdog {
+    pub fn reset(&mut self) {
+        *self = Self::default();
+    }
+    pub fn start(&mut self, now: Instant, fps: u32) {
+        self.period = Duration::from_secs_f64(3.0 / fps.max(1) as f64).max(Duration::from_secs(2));
+        self.deadline = Some(now + Duration::from_secs(120));
+    }
+    pub fn frame(&mut self, now: Instant) {
+        self.deadline = Some(now + self.period);
+    }
+    pub fn deadline(&self) -> Option<Instant> {
+        self.deadline
+    }
+    pub fn expired(&self, now: Instant) -> bool {
+        self.deadline.is_some_and(|d| now >= d)
+    }
 }

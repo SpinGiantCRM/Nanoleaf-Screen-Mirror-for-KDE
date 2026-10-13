@@ -103,6 +103,7 @@ pub struct Config {
     pub light_spread: String,
     pub sampling_quality: String,
     pub sync_mode: String,
+    pub predictive_sync_strength: f64,
     pub layout_inset: f64,
     pub layout_scale: f64,
     pub zone_temporal_accumulation: bool,
@@ -154,6 +155,7 @@ impl Default for Config {
             light_spread: "balanced".into(),
             sampling_quality: "balanced".into(),
             sync_mode: "standard".into(),
+            predictive_sync_strength: 0.35,
             layout_inset: 0.0,
             layout_scale: 1.0,
             zone_temporal_accumulation: true,
@@ -189,6 +191,15 @@ impl Default for Config {
 
 impl Config {
     pub fn validate(&self) -> Result<()> {
+        ensure!(
+            matches!(self.sync_mode.as_str(), "standard" | "4d"),
+            "Unknown sync mode"
+        );
+        ensure!(
+            self.predictive_sync_strength.is_finite()
+                && (0.0..=1.0).contains(&self.predictive_sync_strength),
+            "Invalid prediction strength"
+        );
         ensure!(
             matches!(
                 self.capture_backend.as_str(),
@@ -322,6 +333,31 @@ pub struct Store {
     pub document: DocumentMut,
 }
 impl Store {
+    /// First launch creates an unconfigured, stopped application. Existing bytes
+    /// are never rewritten and a concurrent creator always wins.
+    pub fn initialize(path: &Path) -> Result<()> {
+        if fs::symlink_metadata(path).is_ok() {
+            return Ok(());
+        }
+        let parent = path.parent().context("Configuration parent")?;
+        fs::create_dir_all(parent)?;
+        let content = toml::to_string_pretty(&Config::default())?;
+        match OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(path)
+        {
+            Ok(mut file) => {
+                file.write_all(content.as_bytes())?;
+                file.sync_all()?;
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(e) => return Err(e.into()),
+        }
+        Ok(())
+    }
+
     pub fn load(path: &Path) -> Result<Self> {
         let original = fs::read(path).context("Read existing configuration")?;
         Self::parse(path, original)

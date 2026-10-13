@@ -1,0 +1,16 @@
+{
+  "cpu": 4.5790736353179415,
+  "rss_kib": 146648,
+  "pss_kib": 132557,
+  "capture_ms": 5.5829825,
+  "colour_ms": 0.0422105,
+  "usb_ms": 20.9935695,
+  "response_ms": 39.6944385,
+  "fps": 47.8070902635811,
+  "startup_ms": 292.064832,
+  "ack_delta": 237,
+  "drops": 44,
+  "nice": 4,
+  "restored": true,
+  "exact_comparisons": 117
+}

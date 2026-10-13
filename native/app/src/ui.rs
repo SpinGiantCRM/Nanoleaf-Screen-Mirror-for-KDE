@@ -268,6 +268,12 @@ impl Settings {
         ui.checkbox(&mut self.setup, "Strip setup and calibration");
         if self.setup {
             ui.group(|ui|{
+            egui::ComboBox::from_label("Strip model")
+                .selected_text(if self.draft.device_pid == 0x8201 { "NL82K1" } else { "NL82K2" })
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut self.draft.device_pid, 0x8201, "NL82K1");
+                    ui.selectable_value(&mut self.draft.device_pid, 0x8202, "NL82K2");
+                });
             ui.label("Manual zone count");ui.add(egui::DragValue::new(&mut self.draft.device_zone_count).range(0..=512));
             self.preview_zone=self.preview_zone.min(self.draft.device_zone_count.saturating_sub(1));
             ui.horizontal(|ui|{ui.label("Preview zone");ui.add(egui::DragValue::new(&mut self.preview_zone).range(0..=self.draft.device_zone_count.saturating_sub(1)));if ui.button("Locate zone").clicked(){self.control(Control::Preview{rgb:[80;3],zone:Some(self.preview_zone)});}});
@@ -295,6 +301,20 @@ impl Settings {
         ui.separator();
         ui.checkbox(&mut self.advanced, "Advanced / Troubleshooting");
         if self.advanced {
+            ui.horizontal(|ui| {
+                if ui.button("Launch native tray at login").clicked() {
+                    self.message = crate::package::autostart(true)
+                        .map(|_| {
+                            "Native tray login launch enabled. Python startup is unchanged.".into()
+                        })
+                        .unwrap_or_else(|e| e.to_string());
+                }
+                if ui.button("Disable native login launch").clicked() {
+                    self.message = crate::package::autostart(false)
+                        .map(|_| "Native login launch disabled.".into())
+                        .unwrap_or_else(|e| e.to_string());
+                }
+            });
             if self.picker.is_some() {
                 ui.label("Choose the profile file in KDE's file dialog.");
                 if ui.button("Cancel file selection").clicked() {
@@ -340,11 +360,20 @@ impl Settings {
                 ));
             }
             ui.group(|ui|{
-            choice(ui,"Sampling",&mut self.draft.sampling_mode,&["auto","palette_adaptive","edge_direct","area_average","peak_luma","vivid_weighted"]);choice(ui,"Sampling quality",&mut self.draft.sampling_quality,&["high","balanced","low"]);choice(ui,"Motion preset",&mut self.draft.motion_preset,&["responsive","calm","dynamic"]);choice(ui,"Light spread",&mut self.draft.light_spread,&["off","precise","balanced","soft"]);
-            ui.checkbox(&mut self.draft.accuracy_mode,"Accuracy mode");ui.checkbox(&mut self.draft.blue_noise_dither,"Sub-code temporal dithering");ui.checkbox(&mut self.draft.zone_temporal_accumulation,"Temporal sample accumulation");
+            choice(ui,"Sync mode",&mut self.draft.sync_mode,&["standard","4d"]);
+            ui.small("4D adds at most one inferred packet per frame, within one colour code. Reference/accuracy and dithering disable it. It never raises capture FPS.");
+            choice(ui,"Sampling",&mut self.draft.sampling_mode,&["auto","palette_adaptive","edge_direct","area_average","peak_luma","vivid_weighted","wavelet"]);choice(ui,"Sampling quality",&mut self.draft.sampling_quality,&["high","balanced","low"]);choice(ui,"Motion preset",&mut self.draft.motion_preset,&["responsive","calm","dynamic"]);choice(ui,"Light spread",&mut self.draft.light_spread,&["off","precise","balanced","soft"]);
+            ui.checkbox(&mut self.draft.accuracy_mode,"Accuracy mode");
+            ui.checkbox(&mut self.draft.multi_moment_zone_colors,"Dominant colour from actual zone pixels");
+            ui.checkbox(&mut self.draft.scene_adaptive_profiles,"Respond faster to changing scenes");
+            ui.small("Reference/accuracy bypass appearance policies. Legacy virtual oversampling requests full pixel coverage; physical zone count and privacy masks remain authoritative.");ui.checkbox(&mut self.draft.blue_noise_dither,"Sub-code temporal dithering");ui.checkbox(&mut self.draft.zone_temporal_accumulation,"Temporal sample accumulation");
+            ui.checkbox(&mut self.draft.zone_box_filter_sampling,"Full-area box sampling");
+            choice(ui,"Edge depth",&mut self.draft.edge_locality,&["tight","balanced","wide"]);
+            ui.add(egui::Slider::new(&mut self.draft.layout_inset,0.0..=0.4).clamping(egui::SliderClamping::Edits).text("Layout inset"));
+            ui.add(egui::Slider::new(&mut self.draft.layout_scale,0.5..=1.0).clamping(egui::SliderClamping::Edits).text("Layout scale"));
             ui.separator();ui.checkbox(&mut self.hdr_profile,"Edit HDR profile");if self.hdr_profile{profile_ui(ui,&mut self.draft.led_calibration_profile_hdr);}else{profile_ui(ui,&mut self.draft.led_calibration_profile_sdr);}
             ui.small("KWin screenshots already contain SDR sRGB colour. The SDR LED profile applies to that capture even on an HDR desktop. Your HDR profile is retained.");
-            if let Some(s)=&self.status{ui.separator();ui.label(format!("Capture {:.2} ms · colour {:.2} ms · USB {:.2} ms",s.capture_ms,s.processing_ms,s.usb_ms));ui.label(format!("Response {:.2} ms · {} acknowledged frames · {} missed deadlines",s.response_ms,s.frames,s.missed_deadlines));ui.label(format!("Manual {} · reported {} · connections {}",s.manual_zones,s.reported_zones,s.reconnects));ui.label(&s.backend);}
+            if let Some(s)=&self.status{ui.separator();ui.label(format!("Capture {:.2} ms · colour {:.2} ms · USB {:.2} ms",s.capture_ms,s.processing_ms,s.usb_ms));ui.label(format!("Response {:.2} ms · {} acknowledged frames · {} missed deadlines",s.response_ms,s.frames,s.missed_deadlines));ui.small(format!("{} inferred packets (included in acknowledged frames)",s.predicted_frames));ui.label(format!("Manual {} · reported {} · connections {}",s.manual_zones,s.reported_zones,s.reconnects));ui.label(&s.backend);}
         });
         }
         if !self.message.is_empty() {
@@ -358,6 +387,8 @@ impl Settings {
             ("brightness", self.draft.brightness),
             ("smoothing", self.draft.smoothing),
             ("smoothing_speed", self.draft.smoothing_speed),
+            ("layout_inset", self.draft.layout_inset),
+            ("layout_scale", self.draft.layout_scale),
         ] {
             doc[key] = toml_edit::value(val);
         }
@@ -372,6 +403,8 @@ impl Settings {
             ("motion_preset", &self.draft.motion_preset),
             ("light_spread", &self.draft.light_spread),
             ("performance_priority", &self.draft.performance_priority),
+            ("sync_mode", &self.draft.sync_mode),
+            ("edge_locality", &self.draft.edge_locality),
             ("output_channel_order", &self.draft.output_channel_order),
         ] {
             doc[key] = toml_edit::value(val.clone());
@@ -386,9 +419,18 @@ impl Settings {
                 self.draft.zone_temporal_accumulation,
             ),
             ("reverse_zones", self.draft.reverse_zones),
+            (
+                "multi_moment_zone_colors",
+                self.draft.multi_moment_zone_colors,
+            ),
+            (
+                "scene_adaptive_profiles",
+                self.draft.scene_adaptive_profiles,
+            ),
         ] {
             doc[key] = toml_edit::value(val);
         }
+        doc["device_pid"] = toml_edit::value(self.draft.device_pid as i64);
         doc["device_zone_count"] = toml_edit::value(self.draft.device_zone_count as i64);
         doc["calibration"]["device_zone_count"] =
             toml_edit::value(self.draft.device_zone_count as i64);

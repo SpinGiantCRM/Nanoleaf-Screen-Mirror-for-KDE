@@ -1,5 +1,10 @@
 # Nanoleaf Screen Mirror for KDE
 
+The independent Rust application now includes its service, tray, settings/calibration UI,
+Vulkan streaming option and guarded prediction. See [native installation and rollback](docs/NATIVE_INSTALL.md)
+and [completion, benchmarks and verification limits](docs/RUST_NATIVE_COMPLETION.md).
+The Python installation below remains the working fallback.
+
 [![CI](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/actions/workflows/ci.yml/badge.svg)](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE)](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/releases)
 [![PyPI](https://img.shields.io/pypi/v/nanoleaf-kde-sync)](https://pypi.org/project/nanoleaf-kde-sync/)

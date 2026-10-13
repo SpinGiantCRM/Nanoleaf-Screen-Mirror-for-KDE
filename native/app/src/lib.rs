@@ -1,13 +1,16 @@
 //! Native single-strip application. Python is used only as a test oracle.
+pub mod analysis;
 pub mod capture;
 pub mod config;
 pub mod device;
 pub mod geometry;
 mod highlight;
 pub mod launcher;
+pub mod package;
 pub mod pipeline;
 #[cfg(feature = "gui")]
 pub mod portal_file;
+pub mod prediction;
 pub mod priority;
 pub mod probe;
 pub mod profile;

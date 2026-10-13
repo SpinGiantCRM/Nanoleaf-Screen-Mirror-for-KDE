@@ -177,7 +177,8 @@ impl Application {
                 ensure!(
                     reference.sampled == output.sampled
                         && reference.colors == output.colors
-                        && reference.modes == output.modes,
+                        && reference.modes == output.modes
+                        && reference.unquantized_rgb == output.unquantized_rgb,
                     "Complete GPU/CPU colour pipeline parity failed"
                 );
                 Some(true)
@@ -193,7 +194,7 @@ impl Application {
         } else {
             "xdg-portal / Vulkan DMA-BUF / direct SDR samples"
         };
-        let record = serde_json::json!({"schema":1,"colors":output.colors,"times":output.times,"capture_ms":capture_ms,"prepared_age_ms":age,"source_pts_ns":header.map(|h|h.pts()),"backend":backend,"parity_exact":parity_exact,"highlight_cache":output.highlight_cache});
+        let record = serde_json::json!({"schema":1,"colors":output.colors,"unquantized_rgb":output.unquantized_rgb,"times":output.times,"capture_ms":capture_ms,"prepared_age_ms":age,"source_pts_ns":header.map(|h|h.pts()),"backend":backend,"parity_exact":parity_exact,"highlight_cache":output.highlight_cache});
         let stdout = std::io::stdout();
         let mut stdout = stdout.lock();
         serde_json::to_writer(&mut stdout, &record)?;

@@ -24,6 +24,7 @@ pub struct Pipeline {
     sampler: SdrSampler,
     highlight: crate::highlight::Cache,
     disable_highlight_cache: bool,
+    legacy_black_hold_oracle: bool,
     palette: Vec<TemporalState>,
     accumulation: Vec<[f64; 3]>,
     previous_sample: Vec<[u8; 3]>,
@@ -36,6 +37,7 @@ pub struct Pipeline {
     motion: f64,
 }
 pub struct Output {
+    pub unquantized_rgb: Vec<[f32; 3]>,
     pub colors: Vec<[u8; 3]>,
     pub sampled: Vec<[u8; 3]>,
     pub modes: Vec<String>,
@@ -75,7 +77,9 @@ pub fn direct_plan_with_bounds(
     );
     let accuracy = c.accuracy_mode || matches!(c.color_style.as_str(), "reference" | "natural");
     ensure!(
-        accuracy || matches!(c.sampling_mode.as_str(), "edge_direct" | "area_average"),
+        accuracy
+            || (matches!(c.sampling_mode.as_str(), "edge_direct" | "area_average")
+                && !c.multi_moment_zone_colors),
         "Adaptive sampling requires the pixel path"
     );
     ensure!(
@@ -305,10 +309,6 @@ pub fn validate_mirroring(c: &Config) -> Result<()> {
         c.capture_backend != "kmsgrab",
         "Native DRM capture awaits verification; use the working fallback"
     );
-    ensure!(
-        !c.multi_moment_zone_colors && c.virtual_zone_oversample == 0 && !c.scene_adaptive_profiles,
-        "This optional analysis is awaiting native parity verification; use the Python fallback"
-    );
     let accuracy = c.accuracy_mode || matches!(c.color_style.as_str(), "reference" | "natural");
     ensure!(
         accuracy
@@ -320,13 +320,10 @@ pub fn validate_mirroring(c: &Config) -> Result<()> {
                     | "area_average"
                     | "peak_luma"
                     | "vivid_weighted"
+                    | "wavelet"
             ),
         "Sampling mode {} awaits native verification; use the Python fallback",
         c.sampling_mode
-    );
-    ensure!(
-        accuracy || c.sync_mode != "4d",
-        "Predictive colour output awaits native validation; use the Python fallback"
     );
     ensure!(
         (4..=512).contains(&c.device_zone_count),
@@ -343,6 +340,15 @@ pub fn validate_mirroring(c: &Config) -> Result<()> {
     Ok(())
 }
 impl Pipeline {
+    /// Old Python fixture arithmetic, including encoded-space accumulation and
+    /// black-transition glow. Verification only; never selected by the service.
+    pub fn legacy_black_hold_oracle() -> Self {
+        Self {
+            legacy_black_hold_oracle: true,
+            ..Default::default()
+        }
+    }
+
     /// Verification path; same arithmetic, with exact-patch reuse disabled.
     pub fn without_highlight_cache() -> Self {
         Self {
@@ -375,8 +381,6 @@ impl Pipeline {
                     .unwrap_or(0),
             "Invalid RGB frame"
         );
-        // Unported optional analysis never silently changes a user's colour policy.
-        ensure!(!c.multi_moment_zone_colors&&c.virtual_zone_oversample==0&&!c.scene_adaptive_profiles,"This optional analysis is awaiting native parity verification; use the Python fallback");
         let started = Instant::now();
         let (mut zones, counts) = geometry::pixel_zones(c, frame.width, frame.height)?;
         let mapping = geometry::calibrated_mapping(c, zones.len(), counts)?;
@@ -412,6 +416,7 @@ impl Pipeline {
                     | "area_average"
                     | "peak_luma"
                     | "vivid_weighted"
+                    | "wavelet"
             ),
             "Sampling mode {mode} awaits native verification; use the Python fallback"
         );
@@ -421,7 +426,7 @@ impl Pipeline {
         if self.palette.len() != zones.len() {
             self.palette = vec![TemporalState::default(); zones.len()];
         }
-        let stride = if accuracy {
+        let stride = if accuracy || c.virtual_zone_oversample > 0 {
             1
         } else {
             match c.sampling_quality.as_str() {
@@ -446,8 +451,25 @@ impl Pipeline {
                 } else {
                     z
                 };
-                raw.push(self.sampler.sample_zone(&view, z).srgb);
-                modes.push(mode.to_string());
+                if !accuracy && c.multi_moment_zone_colors {
+                    let x = z.x.clamp(0, frame.width as i64) as usize;
+                    let y = z.y.clamp(0, frame.height as i64) as usize;
+                    let x1 = (z.x + z.width).clamp(x as i64, frame.width as i64) as usize;
+                    let y1 = (z.y + z.height).clamp(y as i64, frame.height as i64) as usize;
+                    let patch: Vec<_> = (y..y1)
+                        .flat_map(|row| {
+                            (x..x1).map(move |col| {
+                                let i = (row * frame.width + col) * 3;
+                                [bytes[i], bytes[i + 1], bytes[i + 2]]
+                            })
+                        })
+                        .collect();
+                    raw.push(crate::analysis::multi_moment(&self.sampler, &patch)?);
+                    modes.push("multi_moment_actual_mean".to_string());
+                } else {
+                    raw.push(self.sampler.sample_zone(&view, z).srgb);
+                    modes.push(mode.to_string());
+                }
                 continue;
             }
             let x = z.x.clamp(0, frame.width as i64) as usize;
@@ -490,6 +512,15 @@ impl Pipeline {
                 };
                 raw.push(color);
                 modes.push(if fallback { "area_average" } else { mode }.to_string());
+                continue;
+            }
+            if mode == "wavelet" {
+                raw.push(crate::analysis::wavelet(
+                    &self.sampler,
+                    &patch,
+                    (x1 - x).div_ceil(stride),
+                )?);
+                modes.push("wavelet_linear_detail".to_string());
                 continue;
             }
             if mode != "palette_adaptive" {
@@ -673,21 +704,51 @@ impl Pipeline {
             started,
         } = input;
         let accuracy = c.accuracy_mode || matches!(c.color_style.as_str(), "reference" | "natural");
+        let black: Vec<bool> = raw.iter().map(|rgb| *rgb == [0; 3]).collect();
         if c.zone_temporal_accumulation {
             if self.accumulation.len() != raw.len() {
-                self.accumulation = raw.iter().map(|v| v.map(f64::from)).collect();
+                self.accumulation = raw
+                    .iter()
+                    .map(|v| {
+                        v.map(|code| {
+                            if self.legacy_black_hold_oracle {
+                                f64::from(code)
+                            } else {
+                                f64::from(colour::decode_srgb(f32::from(code)))
+                            }
+                        })
+                    })
+                    .collect();
             } else {
                 let a = 0.05 + 0.45 * (self.motion / 64.0).clamp(0.0, 1.0);
                 for (acc, rgb) in self.accumulation.iter_mut().zip(&raw) {
+                    if !self.legacy_black_hold_oracle && *rgb == [0; 3] {
+                        *acc = [0.0; 3];
+                        continue;
+                    }
                     for k in 0..3 {
-                        acc[k] = (1.0 - a) * acc[k] + a * f64::from(rgb[k]);
+                        let current = if self.legacy_black_hold_oracle {
+                            f64::from(rgb[k])
+                        } else {
+                            f64::from(colour::decode_srgb(f32::from(rgb[k])))
+                        };
+                        acc[k] = (1.0 - a) * acc[k] + a * current;
                     }
                 }
             }
             raw = self
                 .accumulation
                 .iter()
-                .map(|v| v.map(|x| x.round_ties_even().clamp(0.0, 255.0) as u8))
+                .map(|v| {
+                    v.map(|x| {
+                        let encoded = if self.legacy_black_hold_oracle {
+                            x
+                        } else {
+                            f64::from(colour::encode_srgb(x as f32))
+                        };
+                        encoded.round_ties_even().clamp(0.0, 255.0) as u8
+                    })
+                })
                 .collect();
         }
         let sampling_ms = started.elapsed().as_secs_f64() * 1000.0;
@@ -708,6 +769,7 @@ impl Pipeline {
             0.0
         };
         self.previous_sample = raw.clone();
+        let mapped_black: Vec<_> = mapping.iter().map(|&i| black[i]).collect();
         let mut mapped: Vec<[f32; 3]> =
             mapping.into_iter().map(|i| raw[i].map(f32::from)).collect();
         if self.dark_hold.len() != mapped.len() {
@@ -716,11 +778,11 @@ impl Pipeline {
         for (i, rgb) in mapped.iter_mut().enumerate() {
             let y = luma(rgb.map(colour::decode_srgb));
             let held = if self.frame_index == 0 {
-                y < 0.008
+                y < c.led_calibration_profile_sdr.dark_sample_stabilize_on as f32
             } else if self.dark_hold[i] {
-                y <= 0.025
+                y <= c.led_calibration_profile_sdr.dark_sample_stabilize_off as f32
             } else {
-                y < 0.008
+                y < c.led_calibration_profile_sdr.dark_sample_stabilize_on as f32
             };
             self.dark_hold[i] = held;
             if held {
@@ -765,6 +827,14 @@ impl Pipeline {
                 (c.smoothing_speed * b).clamp(0.0, 4.0),
             )
         };
+        // Scene adaptation may improve response, but cannot override colour
+        // style, calibration, capture FPS or the user's physical mapping.
+        let (preset, minimum, speed) =
+            if c.scene_adaptive_profiles && !accuracy && self.motion > 15.0 {
+                ("responsive", minimum.max(0.8), speed.max(1.0))
+            } else {
+                (preset, minimum, speed)
+            };
         self.blend.smooth(
             &mut mapped,
             &self.previous_smooth,
@@ -779,13 +849,24 @@ impl Pipeline {
             let off = smoothstep(4.0, 16.0, peak);
             *rgb = rgb.map(|x| (x * (1.0 - achro) + gray * achro) * off);
         }
+        for (rgb, black) in mapped.iter_mut().zip(mapped_black) {
+            if black && !self.legacy_black_hold_oracle {
+                *rgb = [0.0; 3];
+            }
+        }
         self.previous_smooth = mapped.clone();
         if self.quant_hold.len() != mapped.len() {
             self.quant_hold = vec![false; mapped.len()];
         }
         // Holding an integer output before temporal quantization destroys its
         // fractional duty cycle. Use the legacy hold only when dither is off.
-        if !c.blue_noise_dither && self.previous_sent.len() == mapped.len() {
+        // Inferred ACKs must not steer later measured source colours through
+        // integer hold hysteresis. In opt-in prediction mode, quantize each
+        // observed result directly; actual ACK history still records reality.
+        if !c.blue_noise_dither
+            && !crate::prediction::enabled(c)
+            && self.previous_sent.len() == mapped.len()
+        {
             for (i, rgb) in mapped.iter_mut().enumerate() {
                 let old = self.previous_sent[i].map(f32::from);
                 let delta = (0..3).map(|k| (rgb[k] - old[k]).abs()).fold(0.0, f32::max);
@@ -806,6 +887,7 @@ impl Pipeline {
         self.frame_index += 1;
         let total_ms = started.elapsed().as_secs_f64() * 1000.0;
         Ok(Output {
+            unquantized_rgb: mapped,
             highlight_cache: self.highlight.statistics(),
             colors,
             sampled: raw,
@@ -838,4 +920,13 @@ pub fn quantize(rgb: [f32; 3], dither: bool, frame: usize, zone: usize) -> [u8; 
             (x + noise).round_ties_even().clamp(0.0, 255.0) as u8
         }
     })
+}
+
+/// Use acknowledged packet cadence for real output; dropped prepared frames
+/// must not skip or repeat temporal dither phases on the physical strip.
+pub fn quantize_acknowledged(rgb: &[[f32; 3]], acknowledged: u64) -> Vec<[u8; 3]> {
+    rgb.iter()
+        .enumerate()
+        .map(|(i, &v)| quantize(v, true, (acknowledged % 8) as usize, i))
+        .collect()
 }

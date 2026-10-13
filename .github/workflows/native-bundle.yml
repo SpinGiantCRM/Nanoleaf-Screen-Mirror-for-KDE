@@ -1,0 +1,45 @@
+name: Native Rust bundle
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-bundle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pkg-config dbus-daemon libegl1-mesa-dev libgl1-mesa-dev libxkbcommon-dev libwayland-dev libpipewire-0.3-dev libudev-dev libclang-dev
+          rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
+      - name: Verify native contracts
+        run: |
+          cargo +1.95.0 test --locked --manifest-path native/app/Cargo.toml --features gui
+          cargo +1.95.0 clippy --locked --manifest-path native/app/Cargo.toml --features gui --all-targets -- -D warnings
+          cargo +1.95.0 test --locked --manifest-path native/stream-probe/Cargo.toml
+      - name: Build complete bundle
+        run: bash scripts/build_native_bundle.sh dist/native
+      - name: Verify artifact starts without capture or USB output
+        run: |
+          dist/native/bin/nanoleaf-native --version
+          python - <<'PY'
+          import subprocess
+          result = subprocess.run(["dist/native/bin/nanoleaf-native-capture", "--invalid-probe-option"], capture_output=True, text=True)
+          assert result.returncode != 0 and "Unknown probe option" in result.stderr
+          PY
+      # Full real KDE cache/launcher and CLI rollback smoke checks run locally.
+      # Unit tests above cover installer checksum, rollback and recovery logic.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nanoleaf-native-linux-x86_64
+          path: |
+            dist/native.tar.gz
+          if-no-files-found: error

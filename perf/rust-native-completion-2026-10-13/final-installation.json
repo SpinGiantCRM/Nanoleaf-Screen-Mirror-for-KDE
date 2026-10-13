@@ -1,0 +1,10 @@
+{
+  "binary_sha256": "ceff4b73b6056a38b9472738c895cc61f9b6d53a1d6ac907602df6c97ef29823",
+  "helper_sha256": "258f269c9fb6d6bedf469f84e96d58b1b20eee6f74f0117786912fb3293128f3",
+  "version_directory": "a5755055e508ec1be588bb3fee6f7ec269fd57838a472f68022f204a868759d3",
+  "real_upgrade_and_two_way_rollback_passed": true,
+  "final_version_selected": true,
+  "configuration_and_python_files_unchanged": true,
+  "native_autostart_enabled": false,
+  "archive_sha256": "4a875cb210775f8fb269c9637d46fb28f97885f9db2120cb297bc12904a04496"
+}

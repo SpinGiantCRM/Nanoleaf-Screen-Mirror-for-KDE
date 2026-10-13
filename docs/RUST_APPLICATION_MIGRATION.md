@@ -299,23 +299,22 @@ total 43, with minimum-compiler core/app and streaming Clippy/tests passing.
 Desktop content varies; retain both slow and refined records, and do not
 generalize them to uncached moving scenes.
 
-Remaining adoption gates:
+Current completion follow-up (2026-10-13): the Rust app now includes conservative
+prediction, corrected optional analysis, a capture-silence watchdog and independent
+native install/upgrade/rollback packaging. A real NL82K2 unplug/reconnect recovered
+and the user confirmed visible colours. Installed worker termination/stall, Stop,
+exclusive preview, restart, normal KWin authorization, copied-config GUI saves and
+relocation/rollback have been verified. See [the completion and recovery report](RUST_NATIVE_COMPLETION.md)
+for precise measurements, intentional colour corrections, preserved fallback and
+remaining physical verification limits.
 
-1. Complete optional sampling/analysis policy and UI parity, or explicitly retire
-   a feature only with correctness evidence. Unsupported policies fail before
-   opening USB and leave their persisted configuration intact.
-2. Sustain the now integrated native streaming permission/recovery checks;
-   broaden explicit synchronization/format and raw HDR contracts before adoption.
-3. Long-run and physical reconnect/suspend tests, controller-model verification,
-   full-app GUI-inclusive resource measurement and measured optical colour/latency.
-4. Packaging/desktop integration and migration/rollback validation before
-   replacing the normal launcher or removing Python.
-5. Predictive/perceived-FPS refinement after those core gates: measure prediction
-   error, clamp extrapolation, reset on cuts/stalls, keep neutrals/black correct,
-   and disable it in reference/accuracy mode. Extra writes are not captured FPS.
+The remaining limits are sustained workload/power/optical testing, physical
+suspend and NL82K1 light verification, actual external permission revocation, and
+unverified raw HDR/native privileged DRM formats. Those are explicit verification
+or backend-adoption limits, not silently enabled unfinished application paths.
+Streaming remains an advanced choice and no Python release/launcher was replaced.
 
-Stop micro-optimizing a stage when its measured cost is small relative to capture
-or acknowledged USB and further changes risk fidelity. Current profile/style
-math is already inexpensive; removing calibration, colour guards or ACKs to
-inflate FPS is unacceptable. Capture transport is the next major architecture
-experiment; the existing working fallback remains the regression reference.
+Stop optimizing a stage when its measured cost is small relative to capture or
+acknowledged USB and further changes risk fidelity. The current shared colour
+stage is about 0.04 ms in the final reference window, while USB is about 21 ms.
+Calibration, colour guards and ACKs remain intact.

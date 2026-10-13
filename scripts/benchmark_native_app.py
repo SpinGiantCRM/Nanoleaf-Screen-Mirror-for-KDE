@@ -111,6 +111,22 @@ def main():
     p.add_argument("--repeats", type=int, default=3)
     p.add_argument("--quick", action="store_true")
     p.add_argument(
+        "--no-accumulation",
+        action="store_true",
+        help=(
+            "Compare production spatial/colour processing without the corrected "
+            "temporal accumulator"
+        ),
+    )
+    p.add_argument(
+        "--legacy-black-hold-oracle",
+        action="store_true",
+        help=(
+            "Verify retained Python arithmetic, including its known black-transition glow; "
+            "not production timings"
+        ),
+    )
+    p.add_argument(
         "--sampling-mode", choices=("auto", "peak_luma", "vivid_weighted"), default="auto"
     )
     p.add_argument("--quality", choices=("high", "balanced", "low"), default="high")
@@ -123,6 +139,8 @@ def main():
             "Capture, USB, GUI, power and optical response excluded."
         ),
         reference_commit="d982cf9",
+        native_legacy_black_hold_oracle=args.legacy_black_hold_oracle,
+        temporal_accumulation=not args.no_accumulation,
         dither=(
             "Disabled equally for parity; native corrected sub-code dither is tested separately."
         ),
@@ -156,6 +174,7 @@ def main():
                     blue_noise_dither=False,
                     sampling_quality=args.quality,
                     sampling_mode=args.sampling_mode,
+                    zone_temporal_accumulation=not args.no_accumulation,
                 )
                 if name == "calibrated_privacy_letterbox":
                     c.privacy_zones = [PrivacyZone(x=0.15, y=0.2, w=0.3, h=0.4)]
@@ -177,13 +196,21 @@ def main():
                         "corner_anchor_top_right=17\ncorner_anchor_bottom_right=26\n"
                         "corner_anchor_bottom_left=41\n"
                     )
+                    if args.no_accumulation:
+                        text += "zone_temporal_accumulation=false\n"
                     if c.privacy_zones:
                         text += "privacy_zones=[{x=0.15,y=0.2,w=0.3,h=0.4}]\n"
                     cfg.write_text(text)
                     manifest = root / "manifest.json"
                     manifest.write_text(
                         json.dumps(
-                            dict(config=str(cfg), frames=list(map(str, paths)), warmup=3, repeats=1)
+                            dict(
+                                config=str(cfg),
+                                frames=list(map(str, paths)),
+                                warmup=3,
+                                repeats=1,
+                                legacy_black_hold_oracle=args.legacy_black_hold_oracle,
+                            )
                         )
                     )
                     python_run(c, fixtures(w, h, name, min(3, args.frames)), w, h)

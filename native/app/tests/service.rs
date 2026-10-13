@@ -69,3 +69,45 @@ fn stopped_service_controls_never_open_capture_or_usb_and_keep_configuration_exa
     assert!(!socket.exists());
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn capture_watchdog_allows_permission_then_expires_stalls_and_resets_on_recovery() {
+    use nanoleaf_native::service::CaptureWatchdog;
+    let now = Instant::now();
+    let mut w = CaptureWatchdog::default();
+    assert!(!w.expired(now));
+    w.start(now, 60);
+    assert!(!w.expired(now + Duration::from_secs(119)));
+    assert!(w.expired(now + Duration::from_secs(120)));
+    w.frame(now);
+    assert!(!w.expired(now + Duration::from_millis(1999)));
+    assert!(w.expired(now + Duration::from_secs(2)));
+    w.reset();
+    assert_eq!(w.deadline(), None);
+    w.start(now, 1);
+    w.frame(now);
+    assert!(!w.expired(now + Duration::from_millis(2999)));
+    assert!(w.expired(now + Duration::from_secs(3)));
+}
+
+#[test]
+fn maintenance_recovers_a_crash_socket_but_never_interrupts_a_live_service() {
+    use nanoleaf_native::service::Paths;
+    use std::os::unix::net::UnixListener;
+    let root = std::env::temp_dir().join(format!("nanoleaf-maintenance-{}", std::process::id()));
+    fs::create_dir(&root).unwrap();
+    let paths = Paths {
+        socket: root.join("control.sock"),
+        root: root.clone(),
+    };
+    let socket = UnixListener::bind(&paths.socket).unwrap();
+    drop(socket);
+    let guard = paths.maintenance().unwrap();
+    assert!(!paths.socket.exists());
+    assert!(paths.maintenance().is_err());
+    drop(guard);
+    fs::write(&paths.socket, "unrelated file").unwrap();
+    assert!(paths.maintenance().is_err());
+    assert_eq!(fs::read_to_string(&paths.socket).unwrap(), "unrelated file");
+    fs::remove_dir_all(root).unwrap();
+}

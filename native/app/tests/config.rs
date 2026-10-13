@@ -129,3 +129,20 @@ fn legacy_enum_case_normalizes_only_in_memory() {
     assert_eq!(s.config.color_style, "reference");
     assert_eq!(fs::read_to_string(&f.file).unwrap(), text);
 }
+
+#[test]
+fn first_launch_initializes_only_absent_configuration_and_is_safe_for_existing_bytes() {
+    let root = std::env::temp_dir().join(format!("nanoleaf-init-{}", std::process::id()));
+    let path = root.join("config.toml");
+    nanoleaf_native::config::Store::initialize(&path).unwrap();
+    let store = nanoleaf_native::config::Store::load(&path).unwrap();
+    assert_eq!(store.config.device_zone_count, 0);
+    assert!(!store.config.start_on_launch);
+    std::fs::write(&path, "calibration to preserve exactly").unwrap();
+    nanoleaf_native::config::Store::initialize(&path).unwrap();
+    assert_eq!(
+        std::fs::read_to_string(&path).unwrap(),
+        "calibration to preserve exactly"
+    );
+    std::fs::remove_dir_all(root).unwrap();
+}

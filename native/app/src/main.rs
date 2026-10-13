@@ -17,7 +17,42 @@ fn main() -> Result<()> {
     });
     let duration =
         || -> Result<f64> { Ok(args.get(3).map(|s| s.parse()).transpose()?.unwrap_or(8.0)) };
+    if matches!(command, "--daemon" | "--run" | "--headless" | "--settings") {
+        Store::initialize(&path)?;
+    }
     match command {
+        "--version" => { println!("nanoleaf-native {}", env!("CARGO_PKG_VERSION")); Ok(()) }
+        "--install-native" | "--rollback-native" | "--uninstall-native" => {
+            let _maintenance = service::Paths::new()?.maintenance()?;
+            let prefix = args.get(2).map(PathBuf::from).unwrap_or(PathBuf::from(std::env::var_os("HOME").context("Home directory")?).join(".local"));
+            let data = nanoleaf_native::package::user_data()?;
+            if command == "--uninstall-native" {
+                nanoleaf_native::package::autostart(false)?;
+                nanoleaf_native::package::uninstall(&prefix, &data)?;
+                nanoleaf_native::package::refresh_desktop()?;
+                println!("Native command removed; versions, calibration and Python fallback are retained.");
+                return Ok(());
+            }
+            let installed = if command == "--install-native" {
+                let exe = std::env::current_exe()?.canonicalize()?;
+                let bundle = exe.parent().and_then(std::path::Path::parent).context("Bundle directory")?;
+                nanoleaf_native::package::install(bundle, &prefix, &data)?
+            } else { nanoleaf_native::package::rollback(&prefix, &data)? };
+            nanoleaf_native::package::refresh_desktop()?;
+            println!("Installed {}. Your configuration and Python fallback are unchanged.", installed.display()); Ok(())
+        }
+        "--autostart" => {
+            let enable = match args.get(2).map(String::as_str) { Some("on") => true, Some("off") => false, _ => bail!("Use --autostart on or --autostart off") };
+            nanoleaf_native::package::autostart(enable)?; Ok(())
+        }
+        "--doctor" => {
+            let config = Store::load(&path);
+            let ready = config.as_ref().ok().map(|s|nanoleaf_native::pipeline::validate_mirroring(&s.config));
+            let hid = hidapi::HidApi::new()?;
+            let strips:Vec<_> = hid.device_list().filter(|d| nanoleaf_core::protocol::supports_usb(d.vendor_id(),d.product_id())).map(|d|serde_json::json!({"vid":d.vendor_id(),"pid":d.product_id(),"interface":d.interface_number()})).collect();
+            let helper = std::env::current_exe()?.parent().context("Executable directory")?.join("nanoleaf-native-capture");
+            println!("{}",serde_json::json!({"configuration_read_only":true,"configuration_error":config.as_ref().err().map(ToString::to_string),"mirroring_ready":ready.as_ref().is_some_and(|r|r.is_ok()),"readiness_error":ready.and_then(|r|r.err()).map(|e|e.to_string()),"usb_devices_detected":strips,"usb_output_tested":false,"stream_helper_present":helper.is_file(),"wayland_session":std::env::var_os("WAYLAND_DISPLAY").is_some(),"privileged_access_required":false})); Ok(())
+        }
         "--install-launcher" => {
             println!("{}", nanoleaf_native::launcher::install()?.display());
             Ok(())
@@ -56,6 +91,6 @@ fn main() -> Result<()> {
         }
         #[cfg(feature = "gui")]
         "--settings" => nanoleaf_native::ui::open(&path),
-        _ => bail!("Use --daemon, --run, --headless, --settings, --preflight, --start, --stop, --status, --reload, --quit, --install-launcher, --capture-probe, --stream-capture-probe, --live-probe or --stream-live-probe. Optional second argument: existing config path."),
+        _ => bail!("Use --version, --doctor, --install-native, --rollback-native, --uninstall-native, --autostart on/off, --daemon, --run, --headless, --settings, --preflight, --start, --stop, --status, --reload, --quit, --install-launcher, --capture-probe, --stream-capture-probe, --live-probe or --stream-live-probe. Optional second argument: existing config path."),
     }
 }

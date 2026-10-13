@@ -10,6 +10,8 @@ struct Manifest {
     frames: Vec<PathBuf>,
     repeats: usize,
     warmup: usize,
+    #[serde(default)]
+    legacy_black_hold_oracle: bool,
 }
 fn frame(path: &std::path::Path) -> Result<Frame> {
     let mut f = std::fs::File::open(path)?;
@@ -63,14 +65,21 @@ fn main() -> Result<()> {
         "Invalid bounded replay"
     );
     let order = ChannelOrder::parse(&c.output_channel_order)?;
-    let mut warm = Pipeline::default();
+    let pipeline = || {
+        if manifest.legacy_black_hold_oracle {
+            Pipeline::legacy_black_hold_oracle()
+        } else {
+            Pipeline::default()
+        }
+    };
+    let mut warm = pipeline();
     for file in manifest.frames.iter().cycle().take(manifest.warmup) {
         warm.process(&frame(file)?, &c)?;
     }
     drop(warm);
     let mut runs = Vec::new();
     for _ in 0..manifest.repeats {
-        let mut pipeline = Pipeline::default();
+        let mut pipeline = pipeline();
         let mut samples = Vec::new();
         for file in &manifest.frames {
             let input = frame(file)?;

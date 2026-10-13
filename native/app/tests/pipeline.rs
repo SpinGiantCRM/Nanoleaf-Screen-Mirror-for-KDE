@@ -23,7 +23,7 @@ struct Oracle {
     colors: Vec<[u8; 3]>,
 }
 #[test]
-fn evolving_full_pipeline_matches_reference_except_corrected_dither() {
+fn legacy_oracle_arithmetic_matches_python_before_documented_black_correction() {
     let cases: Vec<Case> =
         serde_json::from_str(include_str!("../../fixtures/pipeline.json")).unwrap();
     let mut maximum = 0;
@@ -51,7 +51,7 @@ fn evolving_full_pipeline_matches_reference_except_corrected_dither() {
                 h: 0.4,
             });
         }
-        let mut p = Pipeline::default();
+        let mut p = Pipeline::legacy_black_hold_oracle();
         for (index, oracle) in case.frames.into_iter().enumerate() {
             let frame = Frame {
                 width: case.width,
@@ -303,4 +303,126 @@ fn exact_sparse_letterbox_analysis_matches_full_pixel_processing() {
             assert_eq!(actual.colors, expected.colors, "{bars:?} {level}");
         }
     }
+}
+
+#[test]
+fn black_transition_immediately_turns_off_without_accumulation_or_smoothing_ghosts() {
+    let mut c = Config {
+        device_zone_count: 4,
+        color_style: "reference".into(),
+        letterbox_detection: false,
+        zone_temporal_accumulation: true,
+        blue_noise_dither: true,
+        ..Default::default()
+    };
+    c.calibration.corner_anchor_top_left = 0;
+    c.calibration.corner_anchor_top_right = 1;
+    c.calibration.corner_anchor_bottom_right = 2;
+    c.calibration.corner_anchor_bottom_left = 3;
+    let mut p = Pipeline::default();
+    let mut frame = Frame {
+        width: 32,
+        height: 24,
+        pixels: vec![255; 32 * 24 * 3],
+    };
+    assert!(p
+        .process(&frame, &c)
+        .unwrap()
+        .colors
+        .iter()
+        .all(|v| v[0] > 200));
+    frame.pixels.fill(0);
+    assert_eq!(p.process(&frame, &c).unwrap().colors, vec![[0; 3]; 4]);
+}
+
+#[test]
+fn inferred_acknowledgements_cannot_change_later_captured_colour_outputs() {
+    let mut c = Config {
+        device_zone_count: 4,
+        sync_mode: "4d".into(),
+        color_style: "ambient".into(),
+        letterbox_detection: false,
+        blue_noise_dither: false,
+        ..Default::default()
+    };
+    c.calibration.corner_anchor_top_left = 0;
+    c.calibration.corner_anchor_top_right = 1;
+    c.calibration.corner_anchor_bottom_right = 2;
+    c.calibration.corner_anchor_bottom_left = 3;
+    let (mut real, mut inferred) = (Pipeline::default(), Pipeline::default());
+    for index in 0..128 {
+        let code = if index == 40 { 0 } else { 40 + index as u8 };
+        let frame = Frame {
+            width: 32,
+            height: 24,
+            pixels: vec![code; 32 * 24 * 3],
+        };
+        let expected = real.process(&frame, &c).unwrap();
+        let actual = inferred.process(&frame, &c).unwrap();
+        assert_eq!(actual.colors, expected.colors, "source frame {index}");
+        real.override_sent(&expected.colors);
+        let forecast: Vec<_> = actual
+            .colors
+            .iter()
+            .map(|rgb| rgb.map(|v| if v == 0 { 0 } else { v.saturating_add(1) }))
+            .collect();
+        inferred.override_sent(&forecast);
+    }
+}
+
+#[test]
+fn temporal_accumulation_preserves_linear_light_energy_in_colour_transitions() {
+    use nanoleaf_core::colour::encode_srgb;
+    let mut c = Config {
+        device_zone_count: 4,
+        color_style: "reference".into(),
+        letterbox_detection: false,
+        zone_temporal_accumulation: true,
+        ..Default::default()
+    };
+    c.calibration.corner_anchor_top_left = 0;
+    c.calibration.corner_anchor_top_right = 1;
+    c.calibration.corner_anchor_bottom_right = 2;
+    c.calibration.corner_anchor_bottom_left = 3;
+    let mut p = Pipeline::default();
+    let frame = |rgb: [u8; 3]| Frame {
+        width: 32,
+        height: 24,
+        pixels: std::iter::repeat_n(rgb, 32 * 24).flatten().collect(),
+    };
+    p.process(&frame([255, 0, 0]), &c).unwrap();
+    let out = p.process(&frame([0, 255, 0]), &c).unwrap();
+    let expected = [
+        encode_srgb(0.95).round_ties_even() as u8,
+        encode_srgb(0.05).round_ties_even() as u8,
+        0,
+    ];
+    assert_eq!(out.sampled, vec![expected; 4]);
+    assert_eq!(expected, [249, 63, 0]);
+    for code in 0..=255 {
+        let mut p = Pipeline::default();
+        for _ in 0..4 {
+            assert_eq!(
+                p.process(&frame([code; 3]), &c).unwrap().sampled,
+                vec![[code; 3]; 4]
+            );
+        }
+    }
+}
+
+#[test]
+fn actual_ack_cadence_preserves_fractional_neutral_brightness_when_prepared_frames_drop() {
+    use nanoleaf_native::pipeline::quantize_acknowledged;
+    let mut sum = 0;
+    for ack in 0..8 {
+        // Any number of prepared frames may coalesce while the previous packet
+        // awaits ACK. Only the actual output sequence selects the dither phase.
+        for _ in 0..7 {
+            let colors = quantize_acknowledged(&[[128.25; 3]], ack);
+            assert_eq!(colors[0], [colors[0][0]; 3]);
+            assert_eq!(quantize_acknowledged(&[[0.0; 3]], ack), vec![[0; 3]]);
+        }
+        sum += u32::from(quantize_acknowledged(&[[128.25; 3]], ack)[0][0]);
+    }
+    assert_eq!(sum as f32 / 8.0, 128.25);
 }

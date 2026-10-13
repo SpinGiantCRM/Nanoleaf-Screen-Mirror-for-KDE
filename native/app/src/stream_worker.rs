@@ -10,6 +10,8 @@ use std::{
 struct Record {
     schema: u32,
     colors: Vec<[u8; 3]>,
+    #[serde(default)]
+    unquantized_rgb: Option<Vec<[f32; 3]>>,
     times: ProcessingTimes,
     capture_ms: f64,
     prepared_age_ms: f64,
@@ -38,6 +40,16 @@ fn prepared(record: Record, manual: usize) -> Result<Prepared> {
         .all(|v| v.is_finite() && (0.0..=10_000.0).contains(v)),
         "Invalid capture timings"
     );
+    if let Some(rgb) = &record.unquantized_rgb {
+        ensure!(
+            rgb.len() == manual
+                && rgb
+                    .iter()
+                    .flatten()
+                    .all(|v| v.is_finite() && (0.0..=255.0).contains(v)),
+            "Invalid unquantized colour frame"
+        );
+    }
     ensure!(
         record.highlight_cache.0 <= 16 * 1024 * 1024,
         "Invalid highlight cache accounting"
@@ -55,6 +67,7 @@ fn prepared(record: Record, manual: usize) -> Result<Prepared> {
         Duration::from_secs_f64(record.prepared_age_ms / 1000.0)
     };
     Ok(Prepared {
+        unquantized_rgb: record.unquantized_rgb,
         colors: record.colors,
         times: record.times,
         capture_ms: record.capture_ms,
@@ -242,6 +255,7 @@ mod tests {
         let record = || Record {
             schema: 1,
             colors: vec![[128; 3]; 4],
+            unquantized_rgb: None,
             times: ProcessingTimes::default(),
             capture_ms: 1.0,
             prepared_age_ms: 2.0,
@@ -252,6 +266,18 @@ mod tests {
         };
         assert!(prepared(record(), 4).is_ok());
         assert!(prepared(record(), 5).is_err());
+        let mut r = record();
+        r.unquantized_rgb = Some(vec![[128.25; 3]; 4]);
+        assert!(prepared(r, 4).is_ok());
+        let mut r = record();
+        r.unquantized_rgb = Some(vec![[f32::NAN; 3]; 4]);
+        assert!(prepared(r, 4).is_err());
+        let mut r = record();
+        r.unquantized_rgb = Some(vec![[256.0; 3]; 4]);
+        assert!(prepared(r, 4).is_err());
+        let mut r = record();
+        r.unquantized_rgb = Some(vec![[128.0; 3]; 5]);
+        assert!(prepared(r, 4).is_err());
         let mut r = record();
         r.schema = 2;
         assert!(prepared(r, 4).is_err());
