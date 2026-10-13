@@ -24,6 +24,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # The calibration gate needs the real PR base and merge history.
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v6

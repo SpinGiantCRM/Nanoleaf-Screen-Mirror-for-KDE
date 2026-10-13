@@ -58,6 +58,22 @@ def test_guardrails_fails_when_calibration_changes_without_tests(
     assert module.main() == 1
 
 
+def test_guardrails_accepts_zone_sampling_colour_regressions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_guardrails_module()
+    monkeypatch.setattr(sys, "argv", GUARDRAILS_ARGV)
+    monkeypatch.setattr(
+        module,
+        "_git_changed_files",
+        lambda _base, _head: [
+            "src/nanoleaf_sync/runtime/zones.py",
+            "tests/test_zone_sampling_quality.py",
+        ],
+    )
+    assert module.main() == 0
+
+
 def test_guardrails_skips_when_git_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
     module = _load_guardrails_module()
     monkeypatch.setattr(sys, "argv", GUARDRAILS_ARGV)

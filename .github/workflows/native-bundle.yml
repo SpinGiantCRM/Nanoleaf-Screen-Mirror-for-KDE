@@ -2,6 +2,15 @@ name: Native Rust bundle
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "native/**"
+      - "scripts/build_native_bundle.sh"
+      - "scripts/generate_native_notices.py"
+      - "docs/NATIVE_INSTALL.md"
+      - "assets/udev/**"
+      - "LICENSE"
+      - ".github/workflows/native-bundle.yml"
 
 permissions:
   contents: read
@@ -9,7 +18,7 @@ permissions:
 jobs:
   native-bundle:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6

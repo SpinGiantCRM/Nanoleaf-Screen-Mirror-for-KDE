@@ -7,6 +7,14 @@ both applications against the strip at once.
 
 ## Build and install
 
+Pull requests that change native code or packaging build a Linux x86_64 bundle
+in GitHub Actions. Open the **Native Rust bundle** run for the commit you want,
+download the **nanoleaf-native-linux-x86_64** artifact, unzip it, then extract
+`native.tar.gz`. Install with `./native/bin/nanoleaf-native --install-native`.
+These are test builds, not replacements for the published Python release.
+The Ubuntu-built binaries require compatible system libraries and a working
+KDE Wayland session; CI does not verify physical LED output.
+
 On KDE Plasma Wayland, build with Rust 1.95.0, Python 3 for build-time notice
 generation only, a C toolchain, pkg-config,
 PipeWire development files, the Wayland/GL libraries and Vulkan loader/driver.
