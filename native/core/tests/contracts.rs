@@ -243,3 +243,32 @@ fn spatial_weighted_linear_mean_preserves_neutrals_and_rejects_bad_weights() {
     assert!(sampler.weighted_mean(&[[0; 3]], &[f32::NAN]).is_err());
     assert!(sampler.weighted_mean(&[[0; 3]], &[-1.0]).is_err());
 }
+#[test]
+fn external_histograms_preserve_black_and_linear_means_and_reject_inconsistent_counts() {
+    let sampler = nanoleaf_core::sampling::SdrSampler::default();
+    let mut hist = [[0_u64; 256]; 3];
+    for channel in &mut hist {
+        channel[0] = 2;
+    }
+    let black = sampler.sample_histograms(&hist).unwrap();
+    assert_eq!(black.pixel_count, 2);
+    assert_eq!(black.srgb, [0; 3]);
+    for channel in &mut hist {
+        channel[0] = 1;
+        channel[255] = 1;
+    }
+    let mean = sampler.sample_histograms(&hist).unwrap();
+    assert_eq!(mean.srgb, [188; 3]);
+    assert_eq!(mean.encoded_variance, 16256.25);
+    hist[0][255] = 2;
+    assert!(sampler.sample_histograms(&hist).is_err());
+    hist[0][0] = u64::MAX;
+    assert!(sampler.sample_histograms(&hist).is_err());
+    assert_eq!(
+        sampler
+            .sample_histograms(&[[0; 256]; 3])
+            .unwrap()
+            .pixel_count,
+        0
+    );
+}

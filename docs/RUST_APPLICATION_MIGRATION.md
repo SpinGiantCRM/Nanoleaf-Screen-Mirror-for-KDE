@@ -1,6 +1,10 @@
 # Rust application migration and measured refinement
 
 Date: 2026-10-12. Branch: `codex/full-rust-rewrite`.
+Update 2026-10-13: a [separate hardware Vulkan prototype](RUST_VULKAN_PROTOTYPE.md)
+now demonstrates exact zone parity on the RTX 4080 SUPER. Its measured benefit
+does not justify enabling it in the application; frame import/streaming and GPU
+adaptive analysis remain pending.
 Priority: **colour accuracy > latency/FPS > system performance**, including when
 the target FPS cannot be reached. Predictive output follows core validation.
 

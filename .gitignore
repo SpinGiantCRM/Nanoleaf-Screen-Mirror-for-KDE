@@ -21,6 +21,7 @@ build/
 native/target/
 native/python-bridge/target/
 native/app/target/
+native/gpu-probe/target/
 *.egg-info/
 
 packaging/arch/pkg/

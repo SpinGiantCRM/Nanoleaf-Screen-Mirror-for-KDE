@@ -10,6 +10,7 @@ pub enum Error {
     TruncatedFrame,
     GeometryOverflow,
     OutputLength,
+    InvalidHistogram,
 }
 
 impl fmt::Display for Error {
@@ -147,6 +148,27 @@ impl SdrSampler {
         }
         // All geometry above is bounded by the validated frame byte length.
         let pixel_count = (width * height) as u64;
+        self.reduce_histograms(&counts, pixel_count)
+    }
+
+    /// Validate externally produced integer histograms before colour reduction.
+    /// A GPU can count pixels exactly and retain this CPU reference's float64
+    /// linear-light reduction rather than changing floating summation order.
+    pub fn sample_histograms(&self, counts: &[[u64; 256]; 3]) -> Result<ZoneSample, Error> {
+        let totals = counts.map(|channel| channel.iter().try_fold(0_u64, |a, &b| a.checked_add(b)));
+        let Some(n) = totals[0] else {
+            return Err(Error::InvalidHistogram);
+        };
+        if totals.iter().any(|v| *v != Some(n)) {
+            return Err(Error::InvalidHistogram);
+        }
+        Ok(self.reduce_histograms(counts, n))
+    }
+
+    fn reduce_histograms(&self, counts: &[[u64; 256]; 3], pixel_count: u64) -> ZoneSample {
+        if pixel_count == 0 {
+            return ZoneSample::default();
+        }
         let n = pixel_count as f64;
         let mut sample = ZoneSample {
             pixel_count,
