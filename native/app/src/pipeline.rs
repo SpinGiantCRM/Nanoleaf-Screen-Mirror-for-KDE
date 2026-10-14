@@ -966,7 +966,7 @@ impl Pipeline {
             && self.previous_sent.len() == mapped.len()
         {
             for (i, rgb) in mapped.iter_mut().enumerate() {
-                if mapped_black[i] && !self.legacy_black_hold_oracle {
+                if !self.legacy_black_hold_oracle && (mapped_black[i] || *rgb == [0.0; 3]) {
                     self.quant_hold[i] = false;
                     continue;
                 }

@@ -42,7 +42,7 @@ impl TemporalClock {
         let elapsed = if !reused && !self.reused {
             self.source
                 .zip(source)
-                .filter(|(last, now)| now >= last)
+                .filter(|(last, now)| now > last)
                 .map(|(last, now)| now - last)
                 .or(work_elapsed)
         } else {
@@ -409,6 +409,14 @@ mod tests {
         );
         assert_eq!(
             clock.advance(None, false, 190),
+            Some(Duration::from_nanos(10))
+        );
+        assert_eq!(
+            clock.advance(Some(180), false, 200),
+            Some(Duration::from_nanos(10))
+        );
+        assert_eq!(
+            clock.advance(Some(180), false, 210),
             Some(Duration::from_nanos(10))
         );
     }

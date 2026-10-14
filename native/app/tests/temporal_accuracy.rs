@@ -59,12 +59,14 @@ fn device_gamma_is_applied_after_temporal_mixing_and_brightness() {
 fn black_cut_cannot_be_overridden_by_small_integer_ack_hold() {
     let mut c = config();
     c.blue_noise_dither = false;
-    let mut p = Pipeline::default();
-    p.process(&frame([128; 3]), &c).unwrap();
-    p.override_sent(&[[1; 3]; 4]);
-    let out = p.process(&frame([0; 3]), &c).unwrap();
-    assert_eq!(out.colors, vec![[0; 3]; 4]);
-    assert_eq!(out.unquantized_rgb, vec![[0.0; 3]; 4]);
+    for code in [0, 1, 2] {
+        let mut p = Pipeline::default();
+        p.process(&frame([128; 3]), &c).unwrap();
+        p.override_sent(&[[1; 3]; 4]);
+        let out = p.process(&frame([code; 3]), &c).unwrap();
+        assert_eq!(out.colors, vec![[0; 3]; 4], "source code {code}");
+        assert_eq!(out.unquantized_rgb, vec![[0.0; 3]; 4]);
+    }
 }
 
 #[test]
