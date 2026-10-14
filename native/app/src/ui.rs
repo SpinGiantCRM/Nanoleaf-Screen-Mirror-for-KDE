@@ -398,6 +398,14 @@ impl Settings {
             ui.separator();ui.checkbox(&mut self.hdr_profile,"Edit HDR profile");if self.hdr_profile{profile_ui(ui,&mut self.draft.led_calibration_profile_hdr);}else{profile_ui(ui,&mut self.draft.led_calibration_profile_sdr);}
             ui.small("KWin screenshots already contain SDR sRGB colour. The SDR LED profile applies to that capture even on an HDR desktop. Your HDR profile is retained.");
             if let Some(s)=&self.status{ui.separator();ui.label(format!("Capture {:.2} ms · colour {:.2} ms · USB {:.2} ms",s.capture_ms,s.processing_ms,s.usb_ms));ui.label(format!("Software response {:.2} ms · {} acknowledged packets · {} missed deadlines",s.response_ms,s.frames,s.missed_deadlines));ui.small("Response runs from capture request / stream timestamp to USB acknowledgement; emitted-light delay is not measured.");ui.small(format!("{} inferred packets (included in acknowledged packets)",s.predicted_frames));ui.label(format!("Manual {} · reported {} · connections {}",s.manual_zones,s.reported_zones,s.reconnects));ui.label(&s.backend);}
+            if let Some(t)=self.status.as_ref().and_then(|s|s.usb_transaction.as_ref()) {
+                ui.small(format!("Last USB packet: drain {:.3} ms · write {:.3} ms · wait for acknowledgement {:.3} ms",t.drain_ms,t.write_ms,t.ack_wait_ms));
+                ui.small(format!("First response after {:.3} ms · {} reports written / {} received",t.first_report_wait_ms,t.written_reports,t.response_reports));
+            }
+            if let Some(s)=&self.status {
+                ui.small(format!("{} packets reprocessed from an unchanged shared image; these are not new captured frames.",s.reused_source_packets));
+                if s.last_source_reused {ui.small("Last response timing starts at unchanged-image processing, not the original capture timestamp.");}
+            }
         });
         }
         if !self.message.is_empty() {

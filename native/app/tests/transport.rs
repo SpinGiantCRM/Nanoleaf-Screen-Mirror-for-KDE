@@ -62,3 +62,29 @@ fn complete_late_unrelated_ack_cannot_hide_the_current_ack_or_fake_one_in_payloa
     let inside = fake(vec![vec![0x83, 0, 5, 0, 0x82, 0, 1, 0]], false);
     assert!(transact(&inside, 2, &[1; 144]).is_err());
 }
+
+#[test]
+fn transaction_stages_count_actual_reports_without_changing_wire_or_ack_matching() {
+    use nanoleaf_native::device::transact_timed;
+    let io = fake(vec![vec![0x83, 0, 2, 0, 48], vec![0x82, 0, 1, 0]], false);
+    let (payload, times) = transact_timed(&io, 2, &[1; 144]).unwrap();
+    assert!(payload.is_empty());
+    assert_eq!(times.written_reports, 3);
+    assert_eq!(times.drained_reports, 0);
+    assert_eq!(times.response_reports, 2);
+    assert_eq!(
+        io.writes.borrow().iter().map(Vec::len).collect::<Vec<_>>(),
+        [65, 65, 20]
+    );
+    for ms in [
+        times.drain_ms,
+        times.write_ms,
+        times.first_report_wait_ms,
+        times.ack_wait_ms,
+        times.total_ms,
+    ] {
+        assert!(ms.is_finite() && ms >= 0.0);
+    }
+    assert!(times.first_report_wait_ms <= times.ack_wait_ms);
+    assert!(times.drain_ms + times.write_ms + times.ack_wait_ms <= times.total_ms);
+}

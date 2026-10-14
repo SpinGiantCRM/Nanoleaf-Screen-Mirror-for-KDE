@@ -10,6 +10,20 @@ pub struct Strip {
     order: ChannelOrder,
     pub model: String,
     pub reported_count: usize,
+    pub last_frame_transaction: Option<TransactionTimes>,
+}
+
+/// Bounded timing metadata only; never retain HID payloads or screen colours.
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct TransactionTimes {
+    pub drain_ms: f64,
+    pub write_ms: f64,
+    pub first_report_wait_ms: f64,
+    pub ack_wait_ms: f64,
+    pub total_ms: f64,
+    pub drained_reports: u32,
+    pub written_reports: u32,
+    pub response_reports: u32,
 }
 impl Strip {
     pub fn open(vid: u16, pid: u16, manual_count: usize, order: &str) -> Result<Self> {
@@ -36,6 +50,7 @@ impl Strip {
                         order: ChannelOrder::parse(order)?,
                         model: String::new(),
                         reported_count: 0,
+                        last_frame_transaction: None,
                     };
                     let initialized = (|| -> Result<()> {
                         let bytes = strip.request(0x0c, &[])?;
@@ -62,8 +77,11 @@ impl Strip {
     }
 
     pub fn frame(&mut self, colors: &[[u8; 3]]) -> Result<()> {
+        self.last_frame_transaction = None;
         let request = protocol::encode_zone_frame(colors, self.count, self.order)?;
-        self.request(protocol::CMD_SET_ZONE_COLORS, &request[3..])?;
+        let (_, times) =
+            transact_timed(&self.handle, protocol::CMD_SET_ZONE_COLORS, &request[3..])?;
+        self.last_frame_transaction = Some(times);
         Ok(())
     }
     pub fn on(&mut self) -> Result<()> {
@@ -106,19 +124,33 @@ impl ReportIo for HidDevice {
     }
 }
 pub fn transact(handle: &impl ReportIo, command: u8, payload: &[u8]) -> Result<Vec<u8>> {
+    Ok(transact_timed(handle, command, payload)?.0)
+}
+pub fn transact_timed(
+    handle: &impl ReportIo,
+    command: u8,
+    payload: &[u8],
+) -> Result<(Vec<u8>, TransactionTimes)> {
+    let total = Instant::now();
+    let mut times = TransactionTimes::default();
     // Drain old reports before a new acknowledged transaction.
     let mut raw = [0_u8; 1024];
     for _ in 0..16 {
         if handle.read_timeout(&mut raw, 0)? == 0 {
             break;
         }
+        times.drained_reports += 1;
     }
+    times.drain_ms = total.elapsed().as_secs_f64() * 1000.0;
+    let write_start = Instant::now();
     for report in reports(&protocol::encode_request(command, payload)?) {
         ensure!(
             handle.write(&report)? == report.len(),
             "Short HID report write"
         );
+        times.written_reports += 1;
     }
+    times.write_ms = write_start.elapsed().as_secs_f64() * 1000.0;
     let started = Instant::now();
     let timeout = Duration::from_millis(250);
     let mut direct = vec![];
@@ -132,13 +164,19 @@ pub fn transact(handle: &impl ReportIo, command: u8, payload: &[u8]) -> Result<V
         if size == 0 {
             continue;
         }
+        if times.response_reports == 0 {
+            times.first_report_wait_ms = started.elapsed().as_secs_f64() * 1000.0;
+        }
+        times.response_reports += 1;
         direct.extend_from_slice(&raw[..size]);
         if size > 1 {
             prefixed.extend_from_slice(&raw[1..size]);
         }
         for candidate in [&direct, &prefixed] {
             if let Some(payload) = matching_response(command, candidate)? {
-                return Ok(payload);
+                times.ack_wait_ms = started.elapsed().as_secs_f64() * 1000.0;
+                times.total_ms = total.elapsed().as_secs_f64() * 1000.0;
+                return Ok((payload, times));
             }
         }
         ensure!(direct.len() <= 65538, "Oversized HID response");

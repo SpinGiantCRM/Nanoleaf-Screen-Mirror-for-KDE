@@ -85,3 +85,49 @@ per-process inspection now tolerate OS errors. Three deterministic regression
 cases cover disappearing processes, inaccessible processes and unavailable proc.
 The targeted transport suite passes all 24 tests. No Python colour or USB wire
 behaviour changed.
+
+## USB transaction attribution
+
+Native acknowledged frames now expose drain, report-write, first-response wait,
+complete-ACK wait and total transaction timings, plus report counts. Only bounded
+metadata is retained—no HID payloads or screen pixels. The five transport tests
+cover fragmented and unrelated responses, failure handling, exact report lengths
+and the new counters. Diagnostic timings do not change framing, retry policy or
+the 250 ms ACK timeout. Actual host/firmware delay attribution still needs a live
+run; no USB latency reduction is claimed from adding measurement.
+
+## Static streaming source and recovery
+
+The live PipeWire loop can now reprocess the most recent validated source at the
+existing target FPS when no new image arrives. This allows accumulation, smoothing
+and acknowledged dithering to keep progressing on a static desktop. A reuse
+record is protocol version 2, explicitly marked as unchanged-source work, with a
+separate monotonic processing timestamp. It is not prediction or a fresh capture.
+The parent counts reused packets separately and never feeds them into prediction.
+The displayed rate continues to mean acknowledged packets/s.
+
+Only the live, Streaming-state, permission-bound child emits reuse. Pausing,
+format changes, discontinuities, corrupt/empty buffers, cancellation and permission
+closure invalidate or end it. A frozen/dead child cannot refresh the two-second
+parent watchdog through an independent timer. Stop still clears output and keeps
+the tray. USB recovery still releases capture before restarting its existing path.
+No automatic switch or permission reacquisition follows a portal failure.
+
+Direct sampling retains only zone statistics; CPU pixel policies retain one
+validated RGB image until invalidation/exit (about 23.7 MiB for 4K RGB8, in addition
+to other allocations). Parity diagnostics may also retain reference pixels. This
+is bounded source state, not image history, disk recording or a memory-saving claim.
+
+Synthetic tests compare 40 unchanged-source processing/ACK steps against the same
+real-pixel inputs for both direct and CPU/privately masked paths. They verify exact
+full output, dither input and GPU-shadow parity, cadence limits, cancellation,
+invalidation and immediate black after reuse. Parent protocol tests reject missing,
+future/stale work clocks, wrong protocol versions and count mismatches. The older
+fresh-frame protocol remains supported. The streaming suite passes eight tests;
+the app passes 68 at this combined checkpoint, with 21 core tests.
+
+Physical static-desktop, portal revocation, worker SIGSTOP, suspend/resume and USB
+reconnect tests of these new binaries remain pending the user's return. No updated
+binaries were installed into the user's live setup or enabled at login.
+
+The final fallback gate passes 1617 tests, 23 optional skips, with 77.89% coverage.

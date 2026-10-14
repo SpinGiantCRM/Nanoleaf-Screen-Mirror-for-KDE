@@ -20,10 +20,14 @@ struct Record {
     parity_exact: Option<bool>,
     #[serde(default)]
     highlight_cache: (usize, u64),
+    #[serde(default)]
+    source_reused: bool,
+    #[serde(default)]
+    reuse_started_ns: Option<i64>,
 }
 fn prepared(record: Record, manual: usize) -> Result<Prepared> {
     ensure!(
-        record.schema == 1 && record.colors.len() == manual,
+        matches!(record.schema, 1 | 2) && record.colors.len() == manual,
         "Capture protocol/count mismatch"
     );
     ensure!(
@@ -58,7 +62,24 @@ fn prepared(record: Record, manual: usize) -> Result<Prepared> {
         record.backend.starts_with("xdg-portal / Vulkan DMA-BUF /") && record.backend.len() <= 128,
         "Unknown capture colour contract"
     );
-    let age = if let Some(pts) = record.source_pts_ns.filter(|&p| p >= 0) {
+    ensure!(
+        !record.source_reused || record.schema == 2,
+        "Cached-source output requires protocol version 2"
+    );
+    let timing_pts = if record.source_reused {
+        Some(
+            record
+                .reuse_started_ns
+                .context("Cached-source output has no work timestamp")?,
+        )
+    } else {
+        ensure!(
+            record.reuse_started_ns.is_none(),
+            "Fresh source has a cached-work timestamp"
+        );
+        record.source_pts_ns.filter(|&p| p >= 0)
+    };
+    let age = if let Some(pts) = timing_pts {
         let now = rustix::time::clock_gettime(rustix::time::ClockId::Monotonic);
         let delta = (now.tv_sec as i128 * 1_000_000_000 + now.tv_nsec as i128) - pts as i128;
         ensure!((0..10_000_000_000).contains(&delta), "Stale capture frame");
@@ -77,6 +98,7 @@ fn prepared(record: Record, manual: usize) -> Result<Prepared> {
         backend: record.backend,
         parity_verified: record.parity_exact == Some(true),
         highlight_cache: record.highlight_cache,
+        source_reused: record.source_reused,
     })
 }
 fn helper() -> Result<PathBuf> {
@@ -263,6 +285,8 @@ mod tests {
             parity_exact: None,
             highlight_cache: (0, 0),
             backend: "xdg-portal / Vulkan DMA-BUF / direct SDR samples".into(),
+            source_reused: false,
+            reuse_started_ns: None,
         };
         assert!(prepared(record(), 4).is_ok());
         assert!(prepared(record(), 5).is_err());
@@ -279,13 +303,51 @@ mod tests {
         r.unquantized_rgb = Some(vec![[128.0; 3]; 5]);
         assert!(prepared(r, 4).is_err());
         let mut r = record();
-        r.schema = 2;
+        r.schema = 3;
         assert!(prepared(r, 4).is_err());
         let mut r = record();
         r.times.total_ms = f64::NAN;
         assert!(prepared(r, 4).is_err());
         let mut r = record();
         r.backend = "untagged raw HDR".into();
+        assert!(prepared(r, 4).is_err());
+    }
+
+    #[test]
+    fn unchanged_source_has_its_own_work_clock_and_cannot_bypass_protocol_guards() {
+        let now = rustix::time::clock_gettime(rustix::time::ClockId::Monotonic);
+        let now_ns = now.tv_sec * 1_000_000_000 + now.tv_nsec;
+        let record = || Record {
+            schema: 2,
+            colors: vec![[128; 3]; 4],
+            unquantized_rgb: Some(vec![[128.25; 3]; 4]),
+            times: ProcessingTimes::default(),
+            capture_ms: 0.0,
+            prepared_age_ms: 1.0,
+            source_pts_ns: Some(now_ns - 30_000_000_000),
+            backend: "xdg-portal / Vulkan DMA-BUF / direct SDR samples".into(),
+            parity_exact: None,
+            highlight_cache: (0, 0),
+            source_reused: true,
+            reuse_started_ns: Some(now_ns),
+        };
+        let out = prepared(record(), 4).unwrap();
+        assert!(out.source_reused);
+        assert!(out.started.elapsed() < Duration::from_secs(1));
+        let mut r = record();
+        r.schema = 1;
+        assert!(prepared(r, 4).is_err());
+        let mut r = record();
+        r.reuse_started_ns = None;
+        assert!(prepared(r, 4).is_err());
+        let mut r = record();
+        r.reuse_started_ns = Some(now_ns - 30_000_000_000);
+        assert!(prepared(r, 4).is_err());
+        let mut r = record();
+        r.reuse_started_ns = Some(now_ns + 30_000_000_000);
+        assert!(prepared(r, 4).is_err());
+        let mut r = record();
+        r.source_reused = false;
         assert!(prepared(r, 4).is_err());
     }
 }

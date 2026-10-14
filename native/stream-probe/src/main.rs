@@ -53,6 +53,7 @@ struct State {
     adapter: serde_json::Value,
     layout: Option<(usize, usize)>,
     application: Option<application::Application>,
+    streaming: bool,
 }
 fn zones(width: usize, height: usize) -> Vec<ZoneRect> {
     let mut result = Vec::new();
@@ -207,12 +208,17 @@ fn process(buffer: &mut pw::buffer::Buffer<'_>, state: &mut State) -> Result<()>
     Ok(())
 }
 fn pts_age(header: Option<&spa::buffer::meta::MetaHeader>) -> Option<f64> {
-    let pts = header?.pts();
+    pts_age_ns(header?.pts())
+}
+fn monotonic_ns() -> i64 {
+    let time = rustix::time::clock_gettime(rustix::time::ClockId::Monotonic);
+    time.tv_sec * 1_000_000_000 + time.tv_nsec
+}
+fn pts_age_ns(pts: i64) -> Option<f64> {
     if pts < 0 {
         return None;
     }
-    let time = rustix::time::clock_gettime(rustix::time::ClockId::Monotonic);
-    let now = time.tv_sec as i128 * 1_000_000_000 + time.tv_nsec as i128;
+    let now = i128::from(monotonic_ns());
     let age = now - pts as i128;
     if !(0..10_000_000_000).contains(&age) {
         return None;
@@ -410,11 +416,15 @@ fn run_application(
         .register();
     let _listener=stream.add_local_listener_with_user_data(state)
         .state_changed(|_,state,old,new| {
+            let active=matches!(&new,pw::stream::StreamState::Streaming);
+            state.borrow_mut().streaming=active;
+            if !active {if let Some(app)=&mut state.borrow_mut().application {app.invalidate();}}
             if let pw::stream::StreamState::Error(error)=new {state.borrow_mut().errors.push(error);}
             else if matches!(new,pw::stream::StreamState::Unconnected) && matches!(old,pw::stream::StreamState::Streaming | pw::stream::StreamState::Paused) {state.borrow_mut().errors.push("Screen sharing ended".into());}
         })
         .param_changed(|_,state,id,param| {
             if id!=spa::param::ParamType::Format.as_raw(){return;}
+            if let Some(app)=&mut state.borrow_mut().application {app.invalidate();}
             let Some(param)=param else {state.borrow_mut().format=None;return;};
             let mut state=state.borrow_mut();
             let mut format=VideoInfoRaw::default();
@@ -438,7 +448,8 @@ fn run_application(
             let bad_header=newest.find_meta::<spa::buffer::meta::MetaHeader>().is_some_and(|h|h.flags().intersects(spa::buffer::meta::MetaHeaderFlags::CORRUPTED | spa::buffer::meta::MetaHeaderFlags::GAP));
             let datas=newest.datas_mut();
             let bad_chunk=datas.first().is_none_or(|d|d.as_raw().chunk.is_null() || d.chunk().flags().contains(spa::buffer::ChunkFlags::CORRUPTED) || d.chunk().size()==0 || d.chunk().stride()==0);
-            if bad_header || bad_chunk {state.corrupt_or_empty+=1;return;}
+            if bad_header || bad_chunk {state.corrupt_or_empty+=1;if let Some(app)=&mut state.application{app.invalidate();}return;}
+            if newest.find_meta::<spa::buffer::meta::MetaHeader>().is_some_and(|h|h.flags().contains(spa::buffer::meta::MetaHeaderFlags::DISCONT)) {if let Some(app)=&mut state.application{app.invalidate();}}
             if let Err(error)=process(&mut newest,&mut state) {
                 if state.errors.len()<16 {state.errors.push(error.to_string());}
             }
@@ -569,9 +580,16 @@ fn run_application(
         .map(|a| !a.cancelled())
         .unwrap_or_else(|| started.elapsed() < Duration::from_secs(8))
     {
+        let timeout = shared
+            .borrow()
+            .application
+            .as_ref()
+            .map(|a| Duration::from_secs_f64(1.0 / a.config.fps as f64))
+            .unwrap_or(Duration::from_millis(100))
+            .min(Duration::from_millis(100));
         mainloop
             .loop_()
-            .iterate(pw::loop_::Timeout::Finite(Duration::from_millis(100)));
+            .iterate(pw::loop_::Timeout::Finite(timeout));
         if session.closed() {
             shared
                 .borrow_mut()
@@ -581,6 +599,15 @@ fn run_application(
         }
         if !shared.borrow().errors.is_empty() {
             break;
+        }
+        let mut state = shared.borrow_mut();
+        if state.streaming {
+            if let Some(app) = &mut state.application {
+                if let Err(error) = app.repeat_if_due(Instant::now()) {
+                    state.errors.push(error.to_string());
+                    break;
+                }
+            }
         }
     }
     stream.disconnect()?;

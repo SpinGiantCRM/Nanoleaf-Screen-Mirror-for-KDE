@@ -46,11 +46,17 @@ pub struct Status {
     pub predicted_frames: u64,
     #[serde(default)]
     pub prediction_enabled: bool,
+    #[serde(default)]
+    pub reused_source_packets: u64,
+    #[serde(default)]
+    pub last_source_reused: bool,
     pub missed_deadlines: u64,
     pub dropped_frames: u64,
     pub capture_ms: f64,
     pub processing_ms: f64,
     pub usb_ms: f64,
+    #[serde(default)]
+    pub usb_transaction: Option<crate::device::TransactionTimes>,
     pub response_ms: f64,
     pub effective_fps: f64,
     pub startup_ms: f64,
@@ -545,6 +551,7 @@ fn run_inner(
                     backend: "Exclusive setup preview".into(),
                     parity_verified: false,
                     highlight_cache: (0, 0),
+                    source_reused: false,
                 }));
             }
             if capture.is_none() {
@@ -579,6 +586,7 @@ fn run_inner(
                         backend: state.backend.clone(),
                         parity_verified: false,
                         highlight_cache: (0, 0),
+                        source_reused: false,
                     }))
                 }
                 None => {
@@ -617,6 +625,7 @@ fn run_inner(
                     backend,
                     parity_verified: _,
                     highlight_cache: _,
+                    source_reused,
                 } = prepared;
                 state.backend = backend;
                 if store.config.blue_noise_dither && !state.preview {
@@ -627,6 +636,9 @@ fn run_inner(
                 let usb_start = Instant::now();
                 let result = strip.as_mut().unwrap().frame(&colors);
                 state.usb_ms = usb_start.elapsed().as_secs_f64() * 1000.0;
+                state.usb_transaction = strip
+                    .as_ref()
+                    .and_then(|s| s.last_frame_transaction.clone());
                 match result {
                     Ok(()) => {
                         usb_history.push_back(usb_start.elapsed());
@@ -634,11 +646,19 @@ fn run_inner(
                             usb_history.pop_front();
                         }
                         state.frames += 1;
+                        state.last_source_reused = source_reused;
+                        if source_reused {
+                            state.reused_source_packets += 1;
+                        }
                         if predicted {
                             state.predicted_frames += 1;
                         } else if !state.preview {
                             watchdog.frame(Instant::now());
-                            predictor.observe(&colors, Instant::now());
+                            if source_reused {
+                                predictor.reset();
+                            } else {
+                                predictor.observe(&colors, Instant::now());
+                            }
                             state.capture_ms = capture_ms;
                             state.processing_ms = times.total_ms;
                             state.response_ms = started.elapsed().as_secs_f64() * 1000.0;
@@ -783,8 +803,10 @@ pub fn require_service() -> Result<()> {
 }
 
 /// First permission acquisition has a bounded 120-second allowance. Once a
-/// frame is acknowledged, silence expires at two seconds or three target
-/// periods. Prediction packets never refresh this watchdog.
+/// captured or healthy unchanged-source frame is acknowledged, silence expires
+/// at two seconds or three target periods. Prediction never refreshes it. Reuse
+/// is emitted only from the live permission-bound PipeWire loop, not a timer in
+/// the parent that could hide a stalled capture child.
 #[derive(Default)]
 pub struct CaptureWatchdog {
     deadline: Option<Instant>,

@@ -20,6 +20,7 @@ pub struct Prepared {
     pub backend: String,
     pub parity_verified: bool,
     pub highlight_cache: (usize, u64),
+    pub source_reused: bool,
 }
 struct Latest {
     value: Mutex<Option<Result<Prepared, String>>>,
@@ -92,6 +93,7 @@ impl Producer {
                         backend: "kwin-dbus (SDR display-referred)".into(),
                         parity_verified: false,
                         highlight_cache: out.highlight_cache,
+                        source_reused: false,
                     })
                 })();
                 if cancel.load(Ordering::Acquire) {
@@ -170,6 +172,7 @@ mod tests {
                     backend: "fixture".into(),
                     parity_verified: false,
                     highlight_cache: (0, 0),
+                    source_reused: false,
                 }),
                 &tx,
             );
