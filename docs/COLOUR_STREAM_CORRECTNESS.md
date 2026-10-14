@@ -154,3 +154,17 @@ for the four-region transfer/conversion stage. It excludes DMA-BUF acquisition,
 desktop capture, USB, optical response and power; there is no whole-application
 latency or energy claim. Full application and driver recovery validation remains
 necessary before changing the default backend.
+
+## Build and delivery gate
+
+The complete native archive at revision `0130739` passes relocation, helper
+discovery, isolated user-prefix installation/upgrade/two-way rollback, autostart
+tracking, live stopped-service exclusion and uninstall preservation. Tests use
+isolated HOME/XDG directories and never start capture or LED output.
+See the [package smoke result](../perf/colour-stream-correctness-2026-10-14/package-smoke.json)
+and [verification summary](../perf/colour-stream-correctness-2026-10-14/verification-summary.json).
+Final local gates: 68 app + 21 core + 8 streaming + one GPU-layout test; full Python
+fallback 1617 passed / 23 skipped / 77.89% coverage; Ruff, format, mypy and Rust
+Clippy checks pass. The installed native binary and user configuration remain
+unchanged. Live hardware adoption is a separate follow-up, not an implied result
+of package tests.

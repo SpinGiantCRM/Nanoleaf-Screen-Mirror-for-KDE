@@ -5,8 +5,9 @@ tray and settings entirely in Rust. It does not require Python, Qt or the old C
 DRM helper. The rewrite is merged; colour/capture correctness improvements remain
 incremental. The Python application remains the historical reference and fallback.
 
-The priority is **colour accuracy > latency/FPS > resource usage**. Optional portal/Vulkan streaming is integrated and tested; native DRM/raw HDR
-and optional analysis modes still require verification.
+The priority is **colour accuracy > latency/FPS > resource usage**. Optional
+portal/Vulkan streaming is integrated; native DRM/raw HDR remain gated and physical
+colour/recovery validation is ongoing.
 This is a working native application checkpoint, not a feature-complete release.
 See [implementation, measurements and remaining gates](../../docs/RUST_APPLICATION_MIGRATION.md).
 
@@ -118,5 +119,7 @@ cap. Run the full reference replay with either policy explicitly:
 ```
 
 These modes use CPU pixels in the capture worker. Reference/accuracy continues
-full GPU box sampling where compatible. Remaining optional analysis and prediction
-policies remain gated; their saved configuration is preserved.
+full GPU box sampling where compatible. Conservative prediction and the documented
+optional analyses are implemented; reference/accuracy and dithering bypass prediction.
+Unchanged streaming sources are reprocessed without claiming fresh captured frames.
+See the latest correctness report for software evidence and pending physical gates.
