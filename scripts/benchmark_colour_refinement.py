@@ -72,10 +72,12 @@ def main():
                         outputs = {}
                         order = ["before", "after"] if pair % 2 == 0 else ["after", "before"]
                         for label in order:
-                            # Local operator-selected replay programs, separate argv, no shell.
-                            # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args  # noqa: E501
                             raw_output = subprocess.check_output(
-                                [str(binaries[label]), str(manifest)], timeout=60
+                                # Only local operator-selected replay programs, not app input.
+                                # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args  # noqa: E501
+                                [str(binaries[label]), str(manifest)],
+                                timeout=60,
+                                shell=False,
                             )
                             outputs[label] = json.loads(raw_output)
                             rows = outputs[label]["runs"][0]
