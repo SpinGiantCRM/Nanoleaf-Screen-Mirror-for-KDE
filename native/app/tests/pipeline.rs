@@ -426,3 +426,103 @@ fn actual_ack_cadence_preserves_fractional_neutral_brightness_when_prepared_fram
     }
     assert_eq!(sum as f32 / 8.0, 128.25);
 }
+
+#[test]
+fn calibration_fractions_reach_ack_dithering_without_prior_rounding() {
+    use nanoleaf_core::colour::{decode_srgb, encode_srgb};
+    use nanoleaf_native::pipeline::quantize_acknowledged;
+    let mut c = Config {
+        device_zone_count: 4,
+        color_style: "reference".into(),
+        letterbox_detection: false,
+        zone_temporal_accumulation: false,
+        blue_noise_dither: true,
+        ..Default::default()
+    };
+    c.calibration.corner_anchor_top_left = 0;
+    c.calibration.corner_anchor_top_right = 1;
+    c.calibration.corner_anchor_bottom_right = 2;
+    c.calibration.corner_anchor_bottom_left = 3;
+    c.led_calibration_profile_sdr.red_gain = 0.873;
+    c.led_calibration_profile_sdr.green_gain = 0.873;
+    c.led_calibration_profile_sdr.blue_gain = 0.873;
+    let expected = encode_srgb(decode_srgb(128.0) * 0.873);
+    let mut p = Pipeline::default();
+    let out = p
+        .process(
+            &Frame {
+                width: 32,
+                height: 24,
+                pixels: vec![128; 32 * 24 * 3],
+            },
+            &c,
+        )
+        .unwrap();
+    assert!(
+        (out.unquantized_rgb[0][0] - expected).abs() < 0.002,
+        "{:?} vs {expected}",
+        out.unquantized_rgb[0]
+    );
+    let mut sum = 0.0;
+    for ack in 0..8 {
+        let packet = quantize_acknowledged(&out.unquantized_rgb, ack);
+        assert_eq!(packet.len(), 4);
+        for rgb in &packet {
+            assert_eq!(*rgb, [rgb[0]; 3]);
+        }
+        sum += f32::from(packet[0][0]);
+    }
+    assert!((sum / 8.0 - expected).abs() <= 0.063);
+}
+
+#[test]
+fn full_pixel_box_mean_keeps_sub_code_precision_in_cpu_and_external_paths() {
+    use nanoleaf_core::{
+        colour::encode_srgb,
+        sampling::{SdrRgb8Frame, SdrSampler},
+    };
+    use nanoleaf_native::pipeline::direct_plan;
+    let mut c = Config {
+        device_zone_count: 4,
+        color_style: "reference".into(),
+        letterbox_detection: false,
+        zone_temporal_accumulation: false,
+        blue_noise_dither: true,
+        ..Default::default()
+    };
+    c.calibration.corner_anchor_top_left = 0;
+    c.calibration.corner_anchor_top_right = 1;
+    c.calibration.corner_anchor_bottom_right = 2;
+    c.calibration.corner_anchor_bottom_left = 3;
+    let frame = Frame {
+        width: 32,
+        height: 24,
+        pixels: (0..32 * 24)
+            .flat_map(|n| [128 + (n % 2) as u8; 3])
+            .collect(),
+    };
+    let sampler = SdrSampler::default();
+    let plan = direct_plan(&c, 32, 24).unwrap();
+    let view = SdrRgb8Frame::new(&frame.pixels, 32, 24, 32 * 3).unwrap();
+    let samples: Vec<_> = plan
+        .zones
+        .iter()
+        .map(|&z| sampler.sample_zone(&view, z))
+        .collect();
+    let mut expected: Vec<_> = samples
+        .iter()
+        .map(|s| encode_srgb(s.linear_rgb[0]))
+        .collect();
+    // Physical anchor mapping can reorder source zones. Compare sorted values.
+    expected.sort_by(f32::total_cmp);
+    let mut cpu = Pipeline::default();
+    let mut external = Pipeline::default();
+    let a = cpu.process(&frame, &c).unwrap();
+    let b = external.process_sdr_samples(32, 24, &samples, &c).unwrap();
+    assert_eq!(a.unquantized_rgb, b.unquantized_rgb);
+    let mut actual: Vec<_> = a.unquantized_rgb.iter().map(|p| p[0]).collect();
+    actual.sort_by(f32::total_cmp);
+    for (actual, expected) in actual.into_iter().zip(expected) {
+        assert!((actual - expected).abs() < 0.002, "{actual} vs {expected}");
+    }
+}

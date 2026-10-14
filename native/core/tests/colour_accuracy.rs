@@ -1,3 +1,4 @@
+use nanoleaf_core::colour::apply_profile_unquantized;
 use nanoleaf_core::colour::{apply_profile, decode_srgb, to_oklab, LedCalibration, Style};
 
 fn chroma(rgb: [u8; 3]) -> f32 {
@@ -155,4 +156,27 @@ fn vivid_style_changes_chroma_and_neutral_transition_is_continuous() {
         }
         previous = Some(actual);
     }
+}
+
+#[test]
+fn fractional_profile_values_survive_until_the_output_boundary() {
+    let profile = LedCalibration {
+        gains: [0.873; 3],
+        black_cutoff: 0.0,
+        ..Default::default()
+    };
+    let expected = nanoleaf_core::colour::encode_srgb(decode_srgb(128.25) * 0.873);
+    let actual = apply_profile_unquantized([128.25; 3], Style::Reference, profile);
+    assert!(
+        (actual[0] - expected).abs() < 0.002,
+        "{actual:?} vs {expected}"
+    );
+    assert!(actual[0].fract() > 0.01 && actual[0].fract() < 0.99);
+    assert!(actual
+        .iter()
+        .all(|v| v.is_finite() && *v >= 0.0 && *v <= 255.0));
+    assert_eq!(
+        apply_profile_unquantized([0.0; 3], Style::Reference, profile),
+        [0.0; 3]
+    );
 }

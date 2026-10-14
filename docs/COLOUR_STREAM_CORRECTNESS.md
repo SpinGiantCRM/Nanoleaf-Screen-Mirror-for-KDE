@@ -37,3 +37,40 @@ colour and perceived frame rate were not measured in these runs.
 
 No physical-light or newly supported compositor claim follows from these checks.
 Further precision and streaming work is recorded below as it is validated.
+
+## Fractional colour precision
+
+Box sampling now passes its existing linear-light statistics into colour finishing
+instead of discarding them through an RGB8 round trip. Accumulation retains those
+fractions, and calibration, brightness and dark-neutral processing keep floating
+values until the output quantizer. Byte-only artistic samplers remain byte inputs;
+this is not a claim that all samplers or capture formats are higher precision.
+The historical oracle preserves the earlier reductions and quantization exactly.
+
+`apply_profile_unquantized()` retains calibration fractions. Exactly neutral
+calibrated inputs use their analytical neutral result, avoiding numerical matrix
+noise making different channels choose different dither phases. Channel-dependent
+calibration is not averaged or desaturated. The earlier reference arithmetic
+continues in the explicitly named legacy function.
+
+A failing complete-pipeline test originally produced `[120,120,120]` where the
+calculated neutral target is approximately 120.186. It now preserves that target
+within 0.002 code; the eight acknowledged dither phases approximate it within
+0.063 code. Another test retains the fractional mean of alternating 128/129
+pixels and requires exact CPU/external-sample agreement. Immediate black-off,
+calibration preservation and existing temporal recovery tests still pass.
+
+The [fresh release comparison](../perf/colour-stream-correctness-2026-10-14/precision-production-comparison.json)
+has 18 cases and 216 comparisons, with unchanged sampled and final byte packets
+for this default-profile corpus. It is a processing benchmark, not a claim of
+physical colour improvement or capture/USB latency. 4K reference medians range
+2.040–2.852 ms, and ambient medians 3.185–4.916 ms across its three sequences.
+No fixed speedup is claimed against earlier unmatched windows.
+
+[Historical replay](../perf/colour-stream-correctness-2026-10-14/precision-historical.json)
+checks 72 evolving frame comparisons in the small deterministic corpus.
+[Synthetic Vulkan validation](../perf/colour-stream-correctness-2026-10-14/precision-texture-oracle.json)
+on the RTX 4080 SUPER passes 40 zone, 40 region and 40 changed-zone comparisons,
+with exact statistics/pixels. It does not exercise DMA-BUF import, desktop capture,
+USB or emitted light. Native gates at this precision checkpoint pass: 66 app
+tests, 21 core tests; Clippy passes on the pinned toolchains.
