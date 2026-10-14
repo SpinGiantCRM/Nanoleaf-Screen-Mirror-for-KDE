@@ -21,6 +21,42 @@ fn frame(rgb: [u8; 3]) -> Frame {
         pixels: rgb.repeat(32 * 24),
     }
 }
+
+#[test]
+fn fast_response_recreates_calibrated_source_on_first_changed_update() {
+    use std::time::Duration;
+    for fps in [30, 60, 120] {
+        for gamma in [1.0, 2.2] {
+            let mut c = config();
+            c.fps = fps;
+            c.zone_temporal_accumulation = true;
+            c.smoothing = 0.5;
+            c.led_calibration_profile_sdr.red_gain = 0.87;
+            c.led_calibration_profile_sdr.green_gain = 1.08;
+            c.led_calibration_profile_sdr.blue_gain = 0.95;
+            c.led_calibration_profile_sdr.led_gamma = gamma;
+            c.enable_fast_response();
+            let mut p = Pipeline::default();
+            for rgb in [
+                [64; 3],
+                [192; 3],
+                [128; 3],
+                [132; 3],
+                [180, 40, 20],
+                [20, 60, 200],
+                [0; 3],
+            ] {
+                let expected = Pipeline::default().process(&frame(rgb), &c).unwrap();
+                p.set_temporal_elapsed(Duration::from_secs_f64(1.0 / f64::from(fps)));
+                let actual = p.process(&frame(rgb), &c).unwrap();
+                assert_eq!(
+                    actual.unquantized_rgb, expected.unquantized_rgb,
+                    "fps{fps} gamma{gamma} {rgb:?}"
+                );
+            }
+        }
+    }
+}
 #[test]
 fn device_gamma_is_applied_after_temporal_mixing_and_brightness() {
     for gamma in [1.0, 1.5, 2.2, 4.0] {

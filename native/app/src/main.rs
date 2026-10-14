@@ -22,6 +22,12 @@ fn main() -> Result<()> {
     }
     match command {
         "--version" => { println!("nanoleaf-native {}", env!("CARGO_PKG_VERSION")); Ok(()) }
+        "--fast-response" => {
+            let mut store = Store::load(&path)?;
+            store.save_fast_response()?;
+            println!("{}", serde_json::json!({"settings_saved":true,"smoothing":store.config.smoothing,"zone_temporal_accumulation":store.config.zone_temporal_accumulation,"runtime_changed":false,"next_step":"Reload or restart mirroring to use the saved settings; the original configuration backup is retained."}));
+            Ok(())
+        }
         "--install-native" | "--rollback-native" | "--uninstall-native" => {
             let _maintenance = service::Paths::new()?.maintenance()?;
             let prefix = args.get(2).map(PathBuf::from).unwrap_or(PathBuf::from(std::env::var_os("HOME").context("Home directory")?).join(".local"));
@@ -91,6 +97,6 @@ fn main() -> Result<()> {
         }
         #[cfg(feature = "gui")]
         "--settings" => nanoleaf_native::ui::open(&path),
-        _ => bail!("Use --version, --doctor, --install-native, --rollback-native, --uninstall-native, --autostart on/off, --daemon, --run, --headless, --settings, --preflight, --start, --stop, --status, --reload, --quit, --install-launcher, --capture-probe, --stream-capture-probe, --live-probe or --stream-live-probe. Optional second argument: existing config path."),
+        _ => bail!("Use --version, --doctor, --fast-response, --install-native, --rollback-native, --uninstall-native, --autostart on/off, --daemon, --run, --headless, --settings, --preflight, --start, --stop, --status, --reload, --quit, --install-launcher, --capture-probe, --stream-capture-probe, --live-probe or --stream-live-probe. Optional second argument: existing config path."),
     }
 }

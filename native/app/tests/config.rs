@@ -4,6 +4,65 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+#[test]
+fn fast_response_changes_only_existing_temporal_controls() {
+    let mut config = nanoleaf_native::config::Config {
+        device_zone_count: 48,
+        fps: 120,
+        ..Default::default()
+    };
+    config.led_calibration_profile_sdr.red_gain = 0.42;
+    config.led_calibration_profile_hdr.led_gamma = 1.9;
+    let mut expected = serde_json::to_value(&config).unwrap();
+    expected["smoothing"] = serde_json::json!(1.0);
+    expected["zone_temporal_accumulation"] = serde_json::json!(false);
+    config.enable_fast_response();
+    assert_eq!(serde_json::to_value(&config).unwrap(), expected);
+}
+
+#[test]
+fn saved_fast_response_keeps_profiles_unknowns_comments_and_exact_backup() {
+    let text="# personal config\nschema_version=2\ndevice_zone_count=48\nfps=60\nsmoothing=0.5 # response\nfuture_option='preserved'\n[led_calibration_profile_sdr]\nred_gain=0.42 # measured gain\nled_gamma=0.7\n[led_calibration_profile_hdr]\nred_gain=0.91\nled_gamma=1.8\n";
+    let f = Fixture::new(text);
+    let mut store = Store::load(&f.file).unwrap();
+    let mut expected = serde_json::to_value(&store.config).unwrap();
+    expected["smoothing"] = serde_json::json!(1.0);
+    expected["zone_temporal_accumulation"] = serde_json::json!(false);
+    store.save_fast_response().unwrap();
+    assert_eq!(serde_json::to_value(&store.config).unwrap(), expected);
+    let saved = fs::read_to_string(&f.file).unwrap();
+    assert!(saved.contains("# personal config"));
+    assert!(saved.contains("# response"));
+    assert!(saved.contains("red_gain=0.42 # measured gain"));
+    assert!(saved.contains("future_option='preserved'"));
+    let backups: Vec<_> = fs::read_dir(&f.root)
+        .unwrap()
+        .filter_map(|x| {
+            let p = x.unwrap().path();
+            p.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .contains("native-backup")
+                .then_some(p)
+        })
+        .collect();
+    assert_eq!(backups.len(), 1);
+    assert_eq!(fs::read(&backups[0]).unwrap(), text.as_bytes());
+    store.save_fast_response().unwrap();
+    assert_eq!(
+        fs::read_dir(&f.root)
+            .unwrap()
+            .filter(|x| x
+                .as_ref()
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .contains("native-backup"))
+            .count(),
+        1
+    );
+}
 struct Fixture {
     root: PathBuf,
     file: PathBuf,

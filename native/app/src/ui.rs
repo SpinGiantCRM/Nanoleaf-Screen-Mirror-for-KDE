@@ -275,12 +275,20 @@ impl Settings {
             &mut self.draft.color_style,
             &["reference", "natural", "ambient", "vivid", "punchy"],
         );
-        ui.add(
-            egui::Slider::new(&mut self.draft.smoothing, 0.0..=1.0).text("Minimum responsiveness"),
-        );
+        ui.add(egui::Slider::new(&mut self.draft.smoothing, 0.0..=1.0).text("Response speed"));
         ui.add(
             egui::Slider::new(&mut self.draft.smoothing_speed, 0.0..=4.0).text("Motion response"),
         );
+        if ui.button("Use fast response").clicked() {
+            self.draft.enable_fast_response();
+            self.message = "Fast response selected. Save / Apply to use it.".into();
+        }
+        ui.small(
+            "Fast response follows changes promptly; small colour variations may be more visible.",
+        );
+        if self.draft.zone_temporal_accumulation {
+            ui.small("Additional temporal averaging is enabled and can delay colour changes.");
+        }
         ui.checkbox(
             &mut self.draft.letterbox_detection,
             "Follow content inside black bars",
