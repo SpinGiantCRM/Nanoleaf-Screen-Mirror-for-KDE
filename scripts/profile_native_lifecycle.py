@@ -92,6 +92,16 @@ def wait_for(predicate, timeout=5):
     raise AssertionError(f"Native lifecycle condition timed out: {value}")
 
 
+def wait_children_gone(pid, timeout=3):
+    # Status is published before the capture child's asynchronous reap finishes.
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not children(pid):
+            return
+        time.sleep(0.02)
+    raise AssertionError("Owned capture child did not exit")
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--binary", type=Path, default=Path("native/app/target/release/nanoleaf-native"))
@@ -179,7 +189,7 @@ def main():
                 lambda s: not s["running"] and "Screen sharing stopped" in s["message"]
             )
             assert child.poll() is None and not failed["preview"]
-            time.sleep(0.25)
+            wait_children_gone(child.pid)
             result["worker_failure_stopped_service"] = window(child.pid, 2)
             assert not children(child.pid)
             assert all(
@@ -189,6 +199,27 @@ def main():
             control("start")
             wait_for(lambda s: s["running"] and s["frames"] > 0)
             result["worker_failure_recovery"] = window(child.pid, 2)
+            capture_pids = children(child.pid)
+            assert len(capture_pids) == 1
+            stalled_at = time.monotonic()
+            os.kill(capture_pids[0], signal.SIGSTOP)
+            stalled = wait_for(
+                lambda s: not s["running"] and "Screen sharing stopped" in s["message"],
+                timeout=8,
+            )
+            result["worker_stall_to_stop_seconds"] = time.monotonic() - stalled_at
+            assert child.poll() is None and not stalled["preview"]
+            wait_children_gone(child.pid)
+            result["worker_stall_stopped_service"] = window(child.pid, 1)
+            assert not children(child.pid)
+            assert all(
+                not s["running"] and s["frames"] == stalled["frames"]
+                for s in result["worker_stall_stopped_service"]["samples"]
+            )
+            result["worker_stall_requires_explicit_restart"] = True
+            control("start")
+            wait_for(lambda s: s["running"] and s["frames"] > 0)
+            result["worker_stall_recovery"] = window(child.pid, 1)
         control("quit")
         stdout, stderr = child.communicate(timeout=8)
         if child.returncode:
@@ -201,7 +232,9 @@ def main():
         if child.poll() is None:
             with contextlib.suppress(OSError):
                 control("quit")
-            child.wait(timeout=35)
+            # Drain the report even on failure: waiting with unread PIPE output
+            # can block a correctly stopped service while it writes diagnostics.
+            child.communicate(timeout=35)
         result["configuration_and_fallback_launcher_preserved"] = all(
             path.read_bytes() == data for path, data in originals.items()
         )
@@ -219,6 +252,8 @@ def main():
                 "probe",
                 "worker_failure_stopped_service",
                 "worker_failure_recovery",
+                "worker_stall_stopped_service",
+                "worker_stall_recovery",
             }
         }
     )

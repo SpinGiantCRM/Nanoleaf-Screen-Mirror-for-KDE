@@ -168,3 +168,52 @@ fallback 1617 passed / 23 skipped / 77.89% coverage; Ruff, format, mypy and Rust
 Clippy checks pass. The installed native binary and user configuration remain
 unchanged. Live hardware adoption is a separate follow-up, not an implied result
 of package tests.
+
+## Live validation after the user's return
+
+The downloaded PR #367 package (code checkpoint `0130739`) now has real KDE
+Wayland/NL82K2 evidence in
+[live-validation.json](../perf/colour-stream-correctness-2026-10-14/live-validation.json).
+No updated binaries were installed and the real config SHA remained unchanged.
+All probes used copies of the saved configuration. The capture-only probe
+completed 413 exact full-pipeline CPU/Vulkan comparisons in eight seconds, with
+no errors or coalesced prepared frames. KDE restored its existing permission.
+
+Low-brightness output passed Stop with the tray alive, exclusive single-zone
+preview, restart, owned-worker SIGTERM and explicit recovery. Freezing the owned
+worker with SIGSTOP stopped mirroring after 2.059 seconds; the service remained
+alive, reaped the child and recovered on explicit Start. The repeatable lifecycle
+script now includes that check, waits for asynchronous child reaping before
+measuring stopped resources, and drains diagnostic output during failure cleanup
+to avoid blocking on a full pipe. Its complete live rerun passed, including a
+2.041-second stall response. The first combined rerun exposed the profiling
+script's process-exit race; this was not an application recovery failure.
+
+Physical USB unplug/replug was detected and acknowledged output resumed. The
+user confirmed both normal screen-following colours and resumed colours after
+reconnect. Real KDE Stop sharing stopped output, released the child, left the
+tray service available and did not reacquire capture or resume output during the
+subsequent observation. The first revocation attempt expired before user action;
+the retry passed. Every successful live probe verified restoration of the
+controller's original power and brightness.
+
+In one five-second desktop window, parent plus capture child used **4.179% of
+one CPU core**, with summed RSS **145708 KiB** and PSS **130613 KiB**. This includes
+20 Hz status polling and excludes compositor/GPU work and the settings UI. The
+process inherited nice -8 even though the configuration requested normal priority.
+These are short-window observations, not new speedup or power claims.
+
+USB stage medians over the active window's status snapshots were **3.962 ms**
+writing three HID reports, **18.028 ms** waiting for the first response and
+**21.991 ms** for the complete transaction. These snapshots can repeat a
+transaction and are not a per-packet latency distribution. Waiting for a reply
+dominates this window; the data does not separate host scheduling from firmware
+or establish when the LEDs present the colours.
+
+The compositor kept producing fresh frames, so no cached-source packets were
+observed in these runs. The low-cadence/static-reuse path remains covered by the
+synthetic tests, not a live sparse-source measurement. Physical suspend, NL82K1,
+sustained video/game cadence, instrumented emitted colour/optical response/power,
+explicit synchronization and raw HDR remain open. The next colour work remains
+measurement-led calibration and colour-domain/time-based smoothing; native
+streaming remains opt-in and Python remains the preserved fallback.
