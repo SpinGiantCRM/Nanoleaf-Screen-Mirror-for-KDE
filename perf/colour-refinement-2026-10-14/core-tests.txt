@@ -1,0 +1,70 @@
+   Compiling nanoleaf-core v0.1.0 (<repository>/native/core)
+    Finished test [unoptimized + debuginfo] target(s) in 0.31s
+     Running unittests src/lib.rs (native/target/debug/deps/nanoleaf_core-73470cdd9ba15975)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/probe.rs (native/target/debug/deps/nanoleaf_core_probe-3282d65fcd81191c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/adaptive.rs (native/target/debug/deps/adaptive-42403d26c0f51faa)
+
+running 5 tests
+test empty_clipped_and_negative_rectangles_are_safe ... ok
+test neutral_checkerboard_is_mixed_with_linear_mean ... ok
+test padded_rows_match_compact_rows ... ok
+test scratch_budget_exhaustion_requests_reference ... ok
+test every_uniform_neutral_is_clear ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/blending_accuracy.rs (native/target/debug/deps/blending_accuracy-d9fd21a0abcd914a)
+
+running 5 tests
+test elapsed_alpha_matches_exponential_reference_and_partitioned_intervals ... ok
+test half_step_preserves_linear_energy_instead_of_encoded_average ... ok
+test neighbor_mixing_matches_energy_reference_and_keeps_black_off ... ok
+test two_source_periods_have_same_energy_as_one_dropped_frame_interval ... ok
+test neutral_codes_stay_neutral_and_static_fractional_colours_are_not_rounded ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/colour_accuracy.rs (native/target/debug/deps/colour_accuracy-9ffaf769d7caa761)
+
+running 4 tests
+test fractional_profile_values_survive_until_the_output_boundary ... ok
+test saturated_compression_matches_independent_float64_reference ... ok
+test vivid_style_changes_chroma_and_neutral_transition_is_continuous ... ok
+test compression_strictly_reduces_saturated_chroma_without_changing_black_or_neutrals ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/contracts.rs (native/target/debug/deps/contracts-eba39b7871ca04c6)
+
+running 12 tests
+test get_length_reply_is_one_byte_and_never_a_tlv_length_integer ... ok
+test invalid_buffers_and_output_sizes_fail_without_panics ... ok
+test manual_count_and_channel_order_are_explicit ... ok
+test malformed_and_failed_responses_are_distinct ... ok
+test mixed_black_white_uses_linear_light ... ok
+test models_and_ids_stay_specific_to_supported_nanoleaf ... ok
+test external_histograms_preserve_black_and_linear_means_and_reject_inconsistent_counts ... ok
+test tlv_length_boundaries_and_padding ... ok
+test stride_padding_clipping_and_remainder_pixels ... ok
+test spatial_weighted_linear_mean_preserves_neutrals_and_rejects_bad_weights ... ok
+test response_length_sweep_never_accepts_truncated_payloads ... ok
+test all_uniform_neutrals_are_exact_and_black_is_valid ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests nanoleaf-core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

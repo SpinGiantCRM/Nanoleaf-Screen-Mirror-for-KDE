@@ -217,3 +217,13 @@ sustained video/game cadence, instrumented emitted colour/optical response/power
 explicit synchronization and raw HDR remain open. The next colour work remains
 measurement-led calibration and colour-domain/time-based smoothing; native
 streaming remains opt-in and Python remains the preserved fallback.
+
+## Subsequent colour refinement
+
+The next implementation checkpoints (`534fd37`, `1ba4043`) correct final
+linear-light mixing, device-gamma order, calibrated-zero ACK holds and elapsed
+response. See [COLOUR_REFINEMENT.md](COLOUR_REFINEMENT.md) for independent
+references, paired benchmarks and limits. These later colour outputs passed
+software/capture parity and package checks but still need the user's physical
+transition/neutral/dark-colour observation. The preceding hardware confirmations
+must not be treated as confirmation of these changed outputs.
