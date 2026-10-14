@@ -24,6 +24,37 @@ pub struct Application {
     stop: Arc<AtomicBool>,
     cached: Option<CachedSource>,
     last_output: Option<Instant>,
+    temporal_clock: TemporalClock,
+}
+#[derive(Default)]
+struct TemporalClock {
+    source: Option<i64>,
+    work: Option<i64>,
+    reused: bool,
+}
+impl TemporalClock {
+    fn advance(&mut self, source_pts: Option<i64>, reused: bool, work_ns: i64) -> Option<Duration> {
+        let source = source_pts.filter(|&t| t > 0 && t <= work_ns);
+        let work_elapsed = self.work.map(|last| work_ns.saturating_sub(last).max(0));
+        // Uninterrupted fresh frames use source cadence. Across cached work,
+        // use delivery/work time: old source PTS must not count the cached
+        // interval twice or freeze a newly delivered frame behind that clock.
+        let elapsed = if !reused && !self.reused {
+            self.source
+                .zip(source)
+                .filter(|(last, now)| now >= last)
+                .map(|(last, now)| now - last)
+                .or(work_elapsed)
+        } else {
+            work_elapsed
+        };
+        self.work = Some(self.work.map_or(work_ns, |last| work_ns.max(last)));
+        self.reused = reused;
+        if !reused {
+            self.source = source;
+        }
+        elapsed.map(|ns| Duration::from_nanos(ns as u64))
+    }
 }
 struct CachedSource {
     width: usize,
@@ -70,6 +101,7 @@ impl Application {
             stop,
             cached: None,
             last_output: None,
+            temporal_clock: TemporalClock::default(),
         })
     }
     pub fn parity(&self) -> bool {
@@ -163,6 +195,7 @@ impl Application {
     pub fn invalidate(&mut self) {
         self.cached = None;
         self.last_output = None;
+        self.temporal_clock = TemporalClock::default();
         self.pipeline = Pipeline::default();
         if self.shadow.is_some() {
             self.shadow = Some(Pipeline::default());
@@ -202,6 +235,15 @@ impl Application {
         // Anchor reused-frame work independently of the original capture PTS.
         // This counts unchanged-source processing, never a fresh captured frame.
         let work_started_ns = super::monotonic_ns();
+        let elapsed = self
+            .temporal_clock
+            .advance(source.pts, reused, work_started_ns);
+        if let Some(elapsed) = elapsed {
+            self.pipeline.set_temporal_elapsed(elapsed);
+            if let Some(shadow) = &mut self.shadow {
+                shadow.set_temporal_elapsed(elapsed);
+            }
+        }
         if let Ok(sent) = self.sent.lock() {
             if !sent.is_empty() {
                 self.pipeline.override_sent(&sent);
@@ -267,6 +309,7 @@ impl Application {
         Ok(
             serde_json::json!({"schema":2,"colors":output.colors,"unquantized_rgb":output.unquantized_rgb,
             "times":output.times,"capture_ms":capture_ms,"prepared_age_ms":age,"source_pts_ns":source.pts,
+            "temporal_elapsed_ns":elapsed.map(|d| d.as_nanos() as u64),
             "source_reused":reused,"reuse_started_ns":if reused {Some(work_started_ns)} else {None},
             "backend":backend,"parity_exact":parity_exact,"highlight_cache":output.highlight_cache}),
         )
@@ -340,6 +383,36 @@ mod tests {
     use super::*;
     use nanoleaf_core::sampling::{SdrRgb8Frame, SdrSampler};
 
+    #[test]
+    fn source_and_reuse_clock_never_double_count_or_reverse_time() {
+        let mut clock = TemporalClock::default();
+        assert_eq!(clock.advance(Some(100), false, 110), None);
+        assert_eq!(
+            clock.advance(Some(120), false, 130),
+            Some(Duration::from_nanos(20))
+        );
+        assert_eq!(
+            clock.advance(Some(120), true, 140),
+            Some(Duration::from_nanos(10))
+        );
+        assert_eq!(
+            clock.advance(Some(135), false, 150),
+            Some(Duration::from_nanos(10))
+        );
+        assert_eq!(
+            clock.advance(Some(160), false, 170),
+            Some(Duration::from_nanos(25))
+        );
+        assert_eq!(
+            clock.advance(Some(999), false, 180),
+            Some(Duration::from_nanos(10))
+        );
+        assert_eq!(
+            clock.advance(None, false, 190),
+            Some(Duration::from_nanos(10))
+        );
+    }
+
     fn app(pixel_policy: bool) -> Application {
         let mut config = Config {
             device_zone_count: 4,
@@ -373,6 +446,7 @@ mod tests {
             stop: Arc::new(AtomicBool::new(false)),
             cached: None,
             last_output: None,
+            temporal_clock: TemporalClock::default(),
         }
     }
     fn source(app: &Application, frame: Frame) -> CachedSource {
@@ -404,11 +478,14 @@ mod tests {
             };
             for rgb in [[255, 0, 0], [0, 255, 0]] {
                 let source = source(&app, frame(rgb));
-                let expected = reference
-                    .process(source.pixels.as_ref().unwrap(), &app.config)
-                    .unwrap();
                 let record = app
                     .process_source(&source, false, Instant::now(), 0.0)
+                    .unwrap();
+                if let Some(ns) = record["temporal_elapsed_ns"].as_u64() {
+                    reference.set_temporal_elapsed(Duration::from_nanos(ns));
+                }
+                let expected = reference
+                    .process(source.pixels.as_ref().unwrap(), &app.config)
                     .unwrap();
                 assert_eq!(
                     record["colors"],
@@ -425,8 +502,11 @@ mod tests {
             assert!(app.repeat_record(now + period / 2).unwrap().is_none());
             for ack in 0..40 {
                 now += period;
-                let expected = reference.process(&frame([0, 255, 0]), &app.config).unwrap();
                 let record = app.repeat_record(now).unwrap().unwrap();
+                if let Some(ns) = record["temporal_elapsed_ns"].as_u64() {
+                    reference.set_temporal_elapsed(Duration::from_nanos(ns));
+                }
+                let expected = reference.process(&frame([0, 255, 0]), &app.config).unwrap();
                 assert_eq!(
                     record["colors"],
                     serde_json::to_value(&expected.colors).unwrap(),

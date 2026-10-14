@@ -72,10 +72,16 @@ impl Producer {
             let mut pipeline = Pipeline::default();
             let period = Duration::from_secs_f64(1.0 / config.fps as f64);
             let mut deadline = Instant::now();
+            let mut source_time = None;
             while !cancel.load(Ordering::Acquire) {
                 let start = Instant::now();
                 let output = (|| -> anyhow::Result<Prepared> {
                     let frame = capture.capture()?;
+                    let current_time = Instant::now();
+                    if let Some(previous) = source_time {
+                        pipeline.set_temporal_elapsed(current_time - previous);
+                    }
+                    source_time = Some(current_time);
                     let capture_ms = start.elapsed().as_secs_f64() * 1000.0;
                     if cancel.load(Ordering::Acquire) {
                         anyhow::bail!("Capture cancelled");

@@ -68,7 +68,7 @@ pub fn stream_capture(path: &Path, seconds: f64) -> Result<()> {
             match frame {
                 Ok(frame) => {
                     first_frame.get_or_insert_with(Instant::now);
-                    samples.push(serde_json::json!({"capture_ms":frame.capture_ms,"processing":frame.times,"prepared_age_ms":frame.started.elapsed().as_secs_f64()*1000.0,"backend":frame.backend,"manual_output_count":frame.colors.len(),"parity_verified":frame.parity_verified,"highlight_cache":frame.highlight_cache}));
+                    samples.push(serde_json::json!({"capture_ms":frame.capture_ms,"processing":frame.times,"prepared_age_ms":frame.started.elapsed().as_secs_f64()*1000.0,"backend":frame.backend,"manual_output_count":frame.colors.len(),"parity_verified":frame.parity_verified,"highlight_cache":frame.highlight_cache,"source_reused":frame.source_reused}));
                 }
                 Err(e) => {
                     error = Some(e);

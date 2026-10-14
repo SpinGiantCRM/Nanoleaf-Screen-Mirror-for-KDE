@@ -9,7 +9,7 @@ use nanoleaf_core::{
     sampling::{SdrRgb8Frame, SdrSampler, ZoneRect, ZoneSample},
 };
 use serde::Serialize;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 #[derive(Default, Clone, Debug, Serialize, serde::Deserialize)]
 pub struct ProcessingTimes {
@@ -35,6 +35,7 @@ pub struct Pipeline {
     blend: BlendState,
     frame_index: usize,
     motion: f64,
+    temporal_elapsed: Option<Duration>,
 }
 pub struct Output {
     pub unquantized_rgb: Vec<[f32; 3]>,
@@ -366,6 +367,11 @@ impl Pipeline {
             self.quant_hold.fill(false);
             self.previous_sent = sent.to_vec();
         }
+    }
+    /// One source/unchanged-source interval, never a USB ACK or prediction clock.
+    /// Offline callers without timestamps use the configured capture period.
+    pub fn set_temporal_elapsed(&mut self, elapsed: Duration) {
+        self.temporal_elapsed = Some(elapsed);
     }
     pub fn process(&mut self, frame: &Frame, c: &Config) -> Result<Output> {
         validate_mirroring(c)?;
@@ -711,6 +717,14 @@ impl Pipeline {
             started,
         } = input;
         let accuracy = c.accuracy_mode || matches!(c.color_style.as_str(), "reference" | "natural");
+        let elapsed = self.temporal_elapsed.take();
+        let reference_steps = if self.legacy_black_hold_oracle {
+            1.0
+        } else {
+            elapsed
+                .map(|d| d.as_secs_f32() * 60.0)
+                .unwrap_or(60.0 / c.fps as f32)
+        };
         let source_linear: Vec<[f32; 3]> = raw
             .iter()
             .zip(precise_linear)
@@ -743,7 +757,15 @@ impl Pipeline {
                     })
                     .collect();
             } else {
-                let a = 0.05 + 0.45 * (self.motion / 64.0).clamp(0.0, 1.0);
+                let reference_alpha = 0.05 + 0.45 * (self.motion / 64.0).clamp(0.0, 1.0);
+                let a = if self.legacy_black_hold_oracle {
+                    reference_alpha
+                } else {
+                    f64::from(nanoleaf_core::blending::temporal_alpha(
+                        reference_alpha as f32,
+                        reference_steps,
+                    ))
+                };
                 for (index, (acc, rgb)) in self.accumulation.iter_mut().zip(&raw).enumerate() {
                     if !self.legacy_black_hold_oracle && black[index] {
                         *acc = [0.0; 3];
@@ -839,7 +861,11 @@ impl Pipeline {
             "punchy" => Style::Punchy,
             _ => Style::Ambient,
         };
-        let cal = calibration(c);
+        let mut cal = calibration(c);
+        let device_gamma = cal.gamma;
+        if !self.legacy_black_hold_oracle {
+            cal.gamma = 1.0;
+        }
         for rgb in &mut mapped {
             *rgb = if self.legacy_black_hold_oracle {
                 colour::apply_profile_legacy_oracle(*rgb, style, cal).map(f32::from)
@@ -848,7 +874,11 @@ impl Pipeline {
             };
         }
         if !accuracy {
-            self.blend.neighbors(&mut mapped, &c.light_spread);
+            if self.legacy_black_hold_oracle {
+                self.blend.neighbors(&mut mapped, &c.light_spread);
+            } else {
+                self.blend.neighbors_linear(&mut mapped, &c.light_spread);
+            }
         }
         if c.brightness != 1.0 {
             for rgb in &mut mapped {
@@ -882,13 +912,24 @@ impl Pipeline {
             } else {
                 (preset, minimum, speed)
             };
-        self.blend.smooth(
-            &mut mapped,
-            &self.previous_smooth,
-            minimum as f32,
-            speed as f32,
-            preset,
-        );
+        if self.legacy_black_hold_oracle {
+            self.blend.smooth(
+                &mut mapped,
+                &self.previous_smooth,
+                minimum as f32,
+                speed as f32,
+                preset,
+            );
+        } else {
+            self.blend.smooth_linear_timed(
+                &mut mapped,
+                &self.previous_smooth,
+                minimum as f32,
+                speed as f32,
+                preset,
+                reference_steps,
+            );
+        }
         for rgb in &mut mapped {
             let peak = rgb.iter().copied().fold(0.0, f32::max);
             let gray = colour::encode_srgb(luma(rgb.map(colour::decode_srgb)));
@@ -901,12 +942,17 @@ impl Pipeline {
             let off = smoothstep(4.0, 16.0, peak);
             *rgb = rgb.map(|x| (x * (1.0 - achro) + gray * achro) * off);
         }
-        for (rgb, black) in mapped.iter_mut().zip(mapped_black) {
-            if black && !self.legacy_black_hold_oracle {
+        for (rgb, black) in mapped.iter_mut().zip(&mapped_black) {
+            if *black && !self.legacy_black_hold_oracle {
                 *rgb = [0.0; 3];
             }
         }
         self.previous_smooth = mapped.clone();
+        if !self.legacy_black_hold_oracle {
+            for rgb in &mut mapped {
+                *rgb = colour::apply_device_gamma(*rgb, device_gamma);
+            }
+        }
         if self.quant_hold.len() != mapped.len() {
             self.quant_hold = vec![false; mapped.len()];
         }
@@ -920,6 +966,10 @@ impl Pipeline {
             && self.previous_sent.len() == mapped.len()
         {
             for (i, rgb) in mapped.iter_mut().enumerate() {
+                if mapped_black[i] && !self.legacy_black_hold_oracle {
+                    self.quant_hold[i] = false;
+                    continue;
+                }
                 let old = self.previous_sent[i].map(f32::from);
                 let delta = (0..3).map(|k| (rgb[k] - old[k]).abs()).fold(0.0, f32::max);
                 let threshold =

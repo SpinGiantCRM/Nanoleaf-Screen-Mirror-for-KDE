@@ -106,6 +106,15 @@ pub fn apply_profile_unquantized(rgb: [f32; 3], style: Style, cal: LedCalibratio
     profile(rgb, style, cal, false)
 }
 
+/// Device compensation is a final transfer, after all source/light mixing.
+pub fn apply_device_gamma(rgb: [f32; 3], gamma: f32) -> [f32; 3] {
+    let gamma = gamma.clamp(1.0, 4.0);
+    if (gamma - 1.0).abs() <= 1e-6 {
+        return rgb;
+    }
+    rgb.map(|v| (v / 255.0).clamp(0.0, 1.0).powf(1.0 / gamma) * 255.0)
+}
+
 /// Historical Python arithmetic, including its reversed chroma transition.
 /// Offline regression oracle only; never use for device output.
 pub fn apply_profile_legacy_oracle(rgb: [f32; 3], style: Style, cal: LedCalibration) -> [u8; 3] {
@@ -191,9 +200,6 @@ fn profile(rgb: [f32; 3], style: Style, cal: LedCalibration, legacy: bool) -> [f
         let gate = smoothstep((cutoff - knee).max(0.0), cutoff + knee, y);
         out = out.map(|v| v * gate);
     }
-    let gamma = cal.gamma.clamp(1.0, 4.0);
-    if (gamma - 1.0).abs() > 1e-6 {
-        out = out.map(|v| (v / 255.0).clamp(0.0, 1.0).powf(1.0 / gamma) * 255.0);
-    }
+    out = apply_device_gamma(out, cal.gamma);
     out.map(|v| v.clamp(0.0, 255.0))
 }
