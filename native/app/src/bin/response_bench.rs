@@ -100,7 +100,7 @@ fn main() -> Result<()> {
     }
     println!(
         "{}",
-        serde_json::json!({"scope":"Generated uniform SDR frame step, existing calibration/mapping, independent linear-RGB target. Software settling only; excludes capture/USB/optical latency. Source time is synthetic at configured FPS; no screen images or config writes.","cases":cases})
+        serde_json::json!({"scope":"Generated uniform SDR step with existing calibration/mapping. Configured transfer-model RGB error against a fresh unfiltered target. Synthetic source-clock settling at configured FPS, not wall-clock or optical latency; excludes capture/USB. No screen images or config writes.","cases":cases})
     );
     Ok(())
 }
