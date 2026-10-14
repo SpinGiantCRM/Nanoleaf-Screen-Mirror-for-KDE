@@ -6,6 +6,9 @@ use nanoleaf_core::sampling::{SdrRgb8Frame, SdrSampler, ZoneRect};
 use nanoleaf_vulkan_probe::TextureSampler;
 fn main() -> Result<()> {
     let (device, queue, adapter) = gpu::prepare()?;
+    if std::env::args().nth(1).as_deref() == Some("--edge-benchmark") {
+        return edge_benchmark(device, queue, adapter);
+    }
     let zones = [
         ZoneRect {
             x: 0,
@@ -36,6 +39,7 @@ fn main() -> Result<()> {
     let mut comparisons = 0;
     let mut region_comparisons = 0;
     let mut updated_zone_comparisons = 0;
+    let mut batch_comparisons = 0;
     let mut results = Vec::new();
     for format in [
         wgpu::TextureFormat::Bgra8Unorm,
@@ -57,7 +61,14 @@ fn main() -> Result<()> {
                 | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
-        for pattern in ["black", "grey", "white", "all_codes", "mixed"] {
+        for pattern in [
+            "black",
+            "grey",
+            "white",
+            "all_codes",
+            "mixed",
+            "transparent",
+        ] {
             let mut encoded = Vec::new();
             let mut rgb = Vec::new();
             for n in 0..96 * 64_u32 {
@@ -78,11 +89,16 @@ fn main() -> Result<()> {
                         ((n * 73) % 256) as u8,
                     ],
                 };
-                rgb.extend_from_slice(&value);
-                if format == wgpu::TextureFormat::Bgra8Unorm {
-                    encoded.extend_from_slice(&[value[2], value[1], value[0], 255]);
+                let alpha = if pattern == "transparent" && n % 7 == 0 {
+                    0
                 } else {
-                    encoded.extend_from_slice(&[value[0], value[1], value[2], 255]);
+                    255
+                };
+                rgb.extend_from_slice(&if alpha == 0 { [0; 3] } else { value });
+                if format == wgpu::TextureFormat::Bgra8Unorm {
+                    encoded.extend_from_slice(&[value[2], value[1], value[0], alpha]);
+                } else {
+                    encoded.extend_from_slice(&[value[0], value[1], value[2], alpha]);
                 }
             }
             sampler.queue().write_texture(
@@ -104,12 +120,14 @@ fn main() -> Result<()> {
                 sampler.diagnostic_rgb(&texture)? == rgb,
                 "Texture diagnostic conversion mismatch"
             );
-            for rect in [
+            let rects = [
                 [0, 0, 96, 1],
                 [0, 63, 96, 1],
                 [23, 7, 1, 41],
                 [17, 13, 29, 19],
-            ] {
+            ];
+            let batch = sampler.regions_rgb(&texture, &rects)?;
+            for (rect, batched) in rects.into_iter().zip(batch) {
                 let mut expected = Vec::new();
                 for y in rect[1]..rect[1] + rect[3] {
                     for x in rect[0]..rect[0] + rect[2] {
@@ -121,6 +139,11 @@ fn main() -> Result<()> {
                     sampler.region_rgb(&texture, rect)? == expected,
                     "Region extraction changed encoded pixels"
                 );
+                ensure!(
+                    batched == expected,
+                    "Batched region extraction changed encoded pixels"
+                );
+                batch_comparisons += 1;
                 region_comparisons += 1;
             }
             let view = SdrRgb8Frame::new(&rgb, 96, 64, 96 * 3)?;
@@ -164,7 +187,123 @@ fn main() -> Result<()> {
     }
     println!(
         "{}",
-        serde_json::json!({"adapter":adapter,"scope":"Synthetic Vulkan texture shader and diagnostic readback oracle; DMA-BUF import not exercised by this test","zone_comparisons":comparisons,"region_comparisons":region_comparisons,"updated_zone_comparisons":updated_zone_comparisons,"cases":results})
+        serde_json::json!({"adapter":adapter,"scope":"Synthetic Vulkan texture shader and diagnostic readback oracle; DMA-BUF import not exercised by this test","zone_comparisons":comparisons,"region_comparisons":region_comparisons,"batch_region_comparisons":batch_comparisons,"updated_zone_comparisons":updated_zone_comparisons,"cases":results})
+    );
+    Ok(())
+}
+
+fn edge_benchmark(
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    adapter: serde_json::Value,
+) -> Result<()> {
+    use std::time::Instant;
+    let (w, h) = (3840, 2160);
+    let sampler = TextureSampler::new(
+        device,
+        queue,
+        w,
+        h,
+        &[ZoneRect {
+            x: 0,
+            y: 0,
+            width: 3840,
+            height: 2160,
+        }],
+    )?;
+    let texture = sampler.device().create_texture(&wgpu::TextureDescriptor {
+        label: Some("Synthetic 4K edge batch benchmark"),
+        size: wgpu::Extent3d {
+            width: w,
+            height: h,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Bgra8Unorm,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING
+            | wgpu::TextureUsages::COPY_DST
+            | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let pixels: Vec<_> = (0..w * h)
+        .flat_map(|n| {
+            [
+                (n % 256) as u8,
+                ((n * 7) % 256) as u8,
+                ((n * 13) % 256) as u8,
+                255,
+            ]
+        })
+        .collect();
+    sampler.queue().write_texture(
+        wgpu::TexelCopyTextureInfo {
+            texture: &texture,
+            mip_level: 0,
+            origin: wgpu::Origin3d::ZERO,
+            aspect: wgpu::TextureAspect::All,
+        },
+        &pixels,
+        wgpu::TexelCopyBufferLayout {
+            offset: 0,
+            bytes_per_row: Some(w * 4),
+            rows_per_image: Some(h),
+        },
+        texture.size(),
+    );
+    let rects = [
+        [0, 0, w, 1],
+        [0, h - 1, w, 1],
+        [0, 0, 1, h],
+        [w - 1, 0, 1, h],
+    ];
+    let reference: Vec<_> = rects
+        .iter()
+        .map(|&r| sampler.region_rgb(&texture, r))
+        .collect::<Result<_>>()?;
+    for _ in 0..10 {
+        ensure!(
+            sampler.regions_rgb(&texture, &rects)? == reference,
+            "Warm batch parity failed"
+        );
+    }
+    let mut sequential = Vec::new();
+    let mut batched = Vec::new();
+    for trial in 0..100 {
+        for batch in if trial % 2 == 0 {
+            [false, true]
+        } else {
+            [true, false]
+        } {
+            let started = Instant::now();
+            let actual = if batch {
+                sampler.regions_rgb(&texture, &rects)?
+            } else {
+                rects
+                    .iter()
+                    .map(|&r| sampler.region_rgb(&texture, r))
+                    .collect::<Result<_>>()?
+            };
+            let ms = started.elapsed().as_secs_f64() * 1000.0;
+            ensure!(actual == reference, "Edge benchmark changed pixels");
+            if batch {
+                batched.push(ms);
+            } else {
+                sequential.push(ms);
+            }
+        }
+    }
+    fn metrics(mut values: Vec<f64>) -> serde_json::Value {
+        let raw = values.clone();
+        values.sort_by(f64::total_cmp);
+        serde_json::json!({"samples_ms":raw,"median_ms":(values[49]+values[50])/2.0,"p95_ms":values[94]})
+    }
+    println!(
+        "{}",
+        serde_json::json!({"scope":"Synthetic 4K exact edge readback only; no DMA-BUF/capture/USB/optical/power claim",
+        "adapter":adapter,"size":[w,h],"alternating_order":true,"trials":100,"all_pixels_exact":true,
+        "sequential":metrics(sequential),"batched":metrics(batched),"rgb_bytes":reference.iter().map(Vec::len).sum::<usize>()})
     );
     Ok(())
 }

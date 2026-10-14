@@ -215,8 +215,31 @@ pub struct RegionReader<'a> {
     bytes: usize,
     reads: usize,
     full: Option<Vec<u8>>,
+    edges: Option<Vec<Vec<u8>>>,
+    transfers: usize,
 }
 impl RegionReader<'_> {
+    fn edges(&mut self) -> Result<()> {
+        if self.edges.is_some() || self.full.is_some() {
+            return Ok(());
+        }
+        let (w, h) = (self.texture.width(), self.texture.height());
+        let edges = self.sampler.regions_rgb(
+            self.texture,
+            &[
+                [0, 0, w, 1],
+                [0, h - 1, w, 1],
+                [0, 0, 1, h],
+                [w - 1, 0, 1, h],
+            ],
+        )?;
+        ensure!(edges.len() == 4, "Incomplete edge readback batch");
+        self.bytes += edges.iter().map(Vec::len).sum::<usize>();
+        self.reads += 4;
+        self.transfers += 1;
+        self.edges = Some(edges);
+        Ok(())
+    }
     fn region(&mut self, rect: [u32; 4]) -> Result<Vec<u8>> {
         // Black screens/wide bars can require hundreds of detector reads. After
         // eight sparse copies, read once and run the SAME ordered CPU analysis.
@@ -225,12 +248,17 @@ impl RegionReader<'_> {
             let rgb = self.sampler.diagnostic_rgb(self.texture)?;
             self.bytes += rgb.len();
             self.full = Some(rgb);
+            self.transfers += 1;
         }
         if let Some(rgb) = &self.full {
             let width = self.texture.width() as usize;
             ensure!(
-                rect[0] + rect[2] <= self.texture.width()
-                    && rect[1] + rect[3] <= self.texture.height(),
+                rect[0]
+                    .checked_add(rect[2])
+                    .is_some_and(|r| r <= self.texture.width())
+                    && rect[1]
+                        .checked_add(rect[3])
+                        .is_some_and(|b| b <= self.texture.height()),
                 "Invalid analysis rectangle"
             );
             let mut result = Vec::with_capacity(rect[2] as usize * rect[3] as usize * 3);
@@ -242,14 +270,40 @@ impl RegionReader<'_> {
         }
         let result = self.sampler.region_rgb(self.texture, rect)?;
         self.reads += 1;
+        self.transfers += 1;
         self.bytes += result.len();
         Ok(result)
     }
     pub fn row(&mut self, y: u32) -> Result<Vec<u8>> {
+        self.edges()?;
+        if let Some(edges) = &self.edges {
+            if y == 0 {
+                return Ok(edges[0].clone());
+            }
+            if y == self.texture.height() - 1 {
+                return Ok(edges[1].clone());
+            }
+        }
         self.region([0, y, self.texture.width(), 1])
     }
     pub fn column(&mut self, x: u32, top: u32, bottom: u32) -> Result<Vec<u8>> {
         ensure!(bottom > top, "Invalid analysis column");
+        self.edges()?;
+        if let Some(edges) = &self.edges {
+            let edge = if x == 0 {
+                Some(&edges[2])
+            } else if x == self.texture.width() - 1 {
+                Some(&edges[3])
+            } else {
+                None
+            };
+            if let Some(edge) = edge {
+                return Ok(edge
+                    .get(top as usize * 3..bottom as usize * 3)
+                    .context("Invalid analysis column")?
+                    .to_vec());
+            }
+        }
         self.region([x, top, 1, bottom - top])
     }
 }
@@ -317,16 +371,18 @@ impl DmaSampler {
             buffer,
             format,
             |texture| {
-                let (zones, context, bytes, full) = {
+                let (zones, context, bytes, transfers, full) = {
                     let mut reader = RegionReader {
                         sampler,
                         texture,
                         bytes: 0,
                         reads: 0,
                         full: None,
+                        edges: None,
+                        transfers: 0,
                     };
                     let (zones, context) = plan(&mut reader)?;
-                    (zones, context, reader.bytes, reader.full)
+                    (zones, context, reader.bytes, reader.transfers, reader.full)
                 };
                 sampler.set_zones(&zones)?;
                 let diagnostic_rgb = if diagnostic {
@@ -339,6 +395,7 @@ impl DmaSampler {
                 };
                 let (samples, mut timings) = sampler.sample(texture)?;
                 timings["analysis_rgb_bytes"] = serde_json::json!(bytes);
+                timings["analysis_transfer_batches"] = serde_json::json!(transfers);
                 Ok((
                     SampledFrame {
                         samples,

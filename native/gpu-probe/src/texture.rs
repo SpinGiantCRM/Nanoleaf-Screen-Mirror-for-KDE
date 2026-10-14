@@ -1,6 +1,6 @@
 //! Exact encoded RGB8 sampling from a GPU texture. No full-frame upload here.
 use crate::ReadbackReset;
-use anyhow::{ensure, Result};
+use anyhow::{ensure, Context, Result};
 use nanoleaf_core::sampling::{SdrSampler, ZoneRect, ZoneSample};
 use std::{
     sync::mpsc,
@@ -217,53 +217,62 @@ impl TextureSampler {
         self.region_rgb(texture, [0, 0, self.width, self.height])
     }
     pub fn region_rgb(&self, texture: &wgpu::Texture, rect: [u32; 4]) -> Result<Vec<u8>> {
-        let [x, y, width, height] = rect;
-        ensure!(
-            width > 0
-                && height > 0
-                && x.checked_add(width).is_some_and(|r| r <= self.width)
-                && y.checked_add(height).is_some_and(|b| b <= self.height),
-            "Analysis region out of bounds"
-        );
+        self.regions_rgb(texture, &[rect])?
+            .pop()
+            .context("Missing region readback")
+    }
+    /// Exact encoded regions in one submission/map. No downscaling or float reduction.
+    pub fn regions_rgb(&self, texture: &wgpu::Texture, rects: &[[u32; 4]]) -> Result<Vec<Vec<u8>>> {
         ensure!(
             texture.width() == self.width && texture.height() == self.height,
             "Diagnostic size mismatch"
         );
         ensure!(
+            matches!(
+                texture.format(),
+                wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Rgba8Unorm
+            ),
+            "Explicit encoded RGB8 texture required"
+        );
+        ensure!(
             texture.usage().contains(wgpu::TextureUsages::COPY_SRC),
             "Diagnostic readback not enabled for this texture"
         );
-        let stride = (width * 4).div_ceil(256) * 256;
-        let size = u64::from(stride) * u64::from(height);
-        ensure!(size <= 128 * 1024 * 1024, "Diagnostic frame size limit");
+        let (regions, size) = readback_layout(self.width, self.height, rects)?;
+        if regions.is_empty() {
+            return Ok(vec![]);
+        }
         let readback = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Diagnostic frame readback only"),
+            label: Some("Exact region batch readback"),
             size,
             usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         let mut encoder = self.device.create_command_encoder(&Default::default());
-        encoder.copy_texture_to_buffer(
-            wgpu::TexelCopyTextureInfo {
-                texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d { x, y, z: 0 },
-                aspect: wgpu::TextureAspect::All,
-            },
-            wgpu::TexelCopyBufferInfo {
-                buffer: &readback,
-                layout: wgpu::TexelCopyBufferLayout {
-                    offset: 0,
-                    bytes_per_row: Some(stride),
-                    rows_per_image: Some(height),
+        for region in &regions {
+            let [x, y, width, height] = region.rect;
+            encoder.copy_texture_to_buffer(
+                wgpu::TexelCopyTextureInfo {
+                    texture,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d { x, y, z: 0 },
+                    aspect: wgpu::TextureAspect::All,
                 },
-            },
-            wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-        );
+                wgpu::TexelCopyBufferInfo {
+                    buffer: &readback,
+                    layout: wgpu::TexelCopyBufferLayout {
+                        offset: region.offset,
+                        bytes_per_row: Some(region.stride),
+                        rows_per_image: Some(height),
+                    },
+                },
+                wgpu::Extent3d {
+                    width,
+                    height,
+                    depth_or_array_layers: 1,
+                },
+            );
+        }
         let index = self.queue.submit([encoder.finish()]);
         let (tx, rx) = mpsc::sync_channel(1);
         readback.slice(..).map_async(wgpu::MapMode::Read, move |r| {
@@ -276,20 +285,107 @@ impl TextureSampler {
         })?;
         rx.recv_timeout(Duration::from_secs(2))??;
         let data = readback.slice(..).get_mapped_range()?;
-        let mut rgb = Vec::with_capacity(width as usize * height as usize * 3);
-        for row in data.chunks_exact(stride as usize) {
-            for pixel in row[..width as usize * 4].as_chunks::<4>().0 {
-                if pixel[3] == 0 {
-                    rgb.extend_from_slice(&[0; 3]);
-                } else if texture.format() == wgpu::TextureFormat::Bgra8Unorm {
-                    rgb.extend_from_slice(&[pixel[2], pixel[1], pixel[0]]);
-                } else {
-                    rgb.extend_from_slice(&pixel[..3]);
+        let mut result = Vec::with_capacity(regions.len());
+        for region in regions {
+            let [_, _, width, height] = region.rect;
+            let bytes = data
+                .get(region.offset as usize..(region.offset + region.size) as usize)
+                .context("Incomplete region readback")?;
+            let mut rgb = Vec::with_capacity(width as usize * height as usize * 3);
+            for row in bytes.chunks_exact(region.stride as usize) {
+                for pixel in row[..width as usize * 4].as_chunks::<4>().0 {
+                    if pixel[3] == 0 {
+                        rgb.extend_from_slice(&[0; 3]);
+                    } else if texture.format() == wgpu::TextureFormat::Bgra8Unorm {
+                        rgb.extend_from_slice(&[pixel[2], pixel[1], pixel[0]]);
+                    } else {
+                        rgb.extend_from_slice(&pixel[..3]);
+                    }
                 }
             }
+            result.push(rgb);
         }
         drop(data);
         drop(reset);
-        Ok(rgb)
+        Ok(result)
+    }
+}
+
+struct ReadRegion {
+    rect: [u32; 4],
+    stride: u32,
+    offset: u64,
+    size: u64,
+}
+fn readback_layout(width: u32, height: u32, rects: &[[u32; 4]]) -> Result<(Vec<ReadRegion>, u64)> {
+    ensure!(rects.len() <= 256, "Analysis region count limit");
+    let mut result = Vec::with_capacity(rects.len());
+    let mut offset = 0_u64;
+    for &rect in rects {
+        let [x, y, w, h] = rect;
+        ensure!(
+            w > 0
+                && h > 0
+                && x.checked_add(w).is_some_and(|r| r <= width)
+                && y.checked_add(h).is_some_and(|b| b <= height),
+            "Analysis region out of bounds"
+        );
+        let row = w.checked_mul(4).context("Analysis stride overflow")?;
+        let stride = row
+            .div_ceil(256)
+            .checked_mul(256)
+            .context("Analysis stride overflow")?;
+        let size = u64::from(stride) * u64::from(h);
+        let end = offset
+            .checked_add(size)
+            .context("Analysis readback overflow")?;
+        ensure!(end <= 128 * 1024 * 1024, "Diagnostic frame size limit");
+        result.push(ReadRegion {
+            rect,
+            stride,
+            offset,
+            size,
+        });
+        offset = end;
+    }
+    Ok((result, offset))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn region_batch_layout_is_aligned_bounded_and_never_overlaps() {
+        let (regions, total) = readback_layout(
+            96,
+            64,
+            &[
+                [0, 0, 96, 1],
+                [0, 63, 96, 1],
+                [23, 7, 1, 41],
+                [17, 13, 29, 19],
+            ],
+        )
+        .unwrap();
+        let mut end = 0;
+        for r in regions {
+            assert_eq!(r.offset, end);
+            assert_eq!(r.offset % 256, 0);
+            assert_eq!(r.stride % 256, 0);
+            end += r.size;
+        }
+        assert_eq!(total, end);
+        assert_eq!(readback_layout(96, 64, &[]).unwrap().1, 0);
+        for rect in [
+            [0, 0, 0, 1],
+            [95, 0, 2, 1],
+            [0, 63, 1, 2],
+            [u32::MAX, 0, 1, 1],
+        ] {
+            assert!(readback_layout(96, 64, &[rect]).is_err());
+        }
+        assert!(readback_layout(u32::MAX, 1, &[[0, 0, u32::MAX, 1]]).is_err());
+        assert!(readback_layout(16384, 16384, &[[0, 0, 16384, 16384]]).is_err());
+        assert!(readback_layout(1, 1, &[[0, 0, 1, 1]; 257]).is_err());
     }
 }

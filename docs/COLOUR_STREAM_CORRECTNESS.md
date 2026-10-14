@@ -131,3 +131,26 @@ reconnect tests of these new binaries remain pending the user's return. No updat
 binaries were installed into the user's live setup or enabled at login.
 
 The final fallback gate passes 1617 tests, 23 optional skips, with 77.89% coverage.
+
+## Exact Vulkan edge readback batching
+
+The direct path prefetches its two outside rows and columns in one bounded
+submission/map. Existing CPU luma reduction and bounds decisions are unchanged;
+column slices use the exact detected vertical range. Dark/wide-bar cases retain
+the full-image fallback. New transfer-count metadata makes the analysis work
+visible to probe diagnostics. Buffer layouts reject overflow, invalid rectangles,
+overlapping offsets, excessive region counts and aggregate readback above 128 MiB.
+
+The [extended synthetic texture oracle](../perf/colour-stream-correctness-2026-10-14/batch-texture-oracle.json)
+passes 48 zone, 48 ordinary-region, 48 batch-region and 48 changed-zone comparisons
+for both channel orders, including zero-alpha pixels. A pure layout regression
+also passes without requiring a GPU.
+
+The [paired edge benchmark](../perf/colour-stream-correctness-2026-10-14/edge-batch-benchmark.json)
+uses 100 alternating-order trials on the RTX 4080 SUPER, after warm-up, with
+identical generated 3840×2160 pixels. Sequential median/p95: **5.126 / 6.482 ms**;
+batched median/p95: **1.273 / 1.745 ms**. This is about 3.853 ms less at the median
+for the four-region transfer/conversion stage. It excludes DMA-BUF acquisition,
+desktop capture, USB, optical response and power; there is no whole-application
+latency or energy claim. Full application and driver recovery validation remains
+necessary before changing the default backend.
