@@ -224,6 +224,8 @@ The next implementation checkpoints (`534fd37`, `1ba4043`) correct final
 linear-light mixing, device-gamma order, calibrated-zero ACK holds and elapsed
 response. See [COLOUR_REFINEMENT.md](COLOUR_REFINEMENT.md) for independent
 references, paired benchmarks and limits. These later colour outputs passed
-software/capture parity and package checks but still need the user's physical
-transition/neutral/dark-colour observation. The preceding hardware confirmations
-must not be treated as confirmation of these changed outputs.
+software/capture parity and package checks, then a separate 20-second low-brightness
+NL82K2 test: 954 acknowledged packets and user-confirmed correct colours/transitions
+with no problems noticed. Controller restoration and original-app resumption were
+verified. Instrumented emitted-colour/optical/power and sustained cadence remain
+separate open measurements.

@@ -19,12 +19,13 @@
   "helper_sha256": "f29fadc861aeae8d0ec7ab7599c0dd59dad7d64ab8a160a1cbc7532c8a3bd3b3",
   "real_config_sha256": "b470ea82ac1568cf99f4762f6914e4aa295bd3422527e9eb3ca046b52272d1a4",
   "installed_versions_changed": false,
-  "physical_new_colour_confirmation": false,
+  "physical_new_colour_confirmation": true,
   "limits": [
-    "No live sparse-source packets observed",
     "No optical or colourimeter verification",
     "No power or sustained-game benchmark",
     "No raw HDR verification",
-    "Discrete adaptive/palette/analysis state not proven cadence invariant"
-  ]
+    "Discrete adaptive/palette/analysis state not proven cadence invariant",
+    "One live reused-source ACK; sustained sparse-source response untested"
+  ],
+  "physical_validation": "physical-validation.json"
 }

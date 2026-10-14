@@ -87,11 +87,17 @@ introduced for speed.
 
 ## Remaining physical gate
 
-The new colour outputs need observation on the strip before adoption: neutral
-grey/white ramps, dim chromatic patches, black cuts and transitions. A bounded
-test package is ready; no new version is installed or enabled at login. The user's
-earlier physical confirmation applies to the preceding build, not automatically
-to these corrections.
+The refined build has now completed a 20-second low-brightness NL82K2 test with
+954 acknowledged packets, including one cached-source packet. The user was asked
+to inspect grey/white, dark colours and scene changes, and reported that colours
+and transitions looked correct with no problems noticed. This is a physical
+usability observation, not a colourimeter or optical-latency measurement. See
+[physical-validation.json](../perf/colour-refinement-2026-10-14/physical-validation.json).
+
+The test verified controller power/brightness restoration, unchanged real config
+and unchanged installed binary, and resumed the original KWin-based application.
+No new version was installed or enabled at login. The single live cached-source
+ACK exercises that path, but does not establish sustained sparse-source cadence.
 
 Further changes to dim-colour guardrails, calibration/gamma, gamut mapping and
 temporal thresholds should use measured strip/wall response. Raw HDR capture,
