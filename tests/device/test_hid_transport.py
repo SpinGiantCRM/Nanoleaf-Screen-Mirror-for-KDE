@@ -3,11 +3,37 @@ from __future__ import annotations
 import sys
 import threading
 import types
+from pathlib import Path
 
 import pytest
 
 from nanoleaf_sync.device.hid_transport import HIDTransport, HIDWriteError
 from nanoleaf_sync.device.interfaces import NanoleafUSBIds
+
+
+@pytest.mark.parametrize("error", [FileNotFoundError, PermissionError])
+def test_hidraw_holder_diagnostics_tolerate_disappearing_processes(monkeypatch, error) -> None:
+    def entries(path):
+        if path == Path("/proc"):
+            return iter([Path("/proc/101"), Path("/proc/102")])
+        if path == Path("/proc/101/fd"):
+            raise error("process vanished or is inaccessible")
+        if path == Path("/proc/102/fd"):
+            return iter([Path("/proc/102/fd/3")])
+        raise AssertionError(path)
+
+    monkeypatch.setattr(Path, "iterdir", entries)
+    monkeypatch.setattr(Path, "exists", lambda _path: False)
+    monkeypatch.setattr("os.readlink", lambda _path: "/dev/hidraw-test")
+    assert HIDTransport._linux_hidraw_holders("/dev/hidraw-test") == ["PID 102 (?)"]
+
+
+def test_hidraw_holder_diagnostics_tolerate_unavailable_proc(monkeypatch) -> None:
+    def unavailable(_path):
+        raise OSError("proc is unavailable")
+
+    monkeypatch.setattr(Path, "iterdir", unavailable)
+    assert HIDTransport._linux_hidraw_holders("/dev/hidraw-test") == []
 
 
 class FakeHIDHandle:

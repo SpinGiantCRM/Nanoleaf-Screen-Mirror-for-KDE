@@ -2,8 +2,9 @@
 
 This implementation follows the [14 October audit](IMPROVEMENT_RESEARCH_2026-10-14.md).
 Colour accuracy remains ahead of latency/FPS and resource use. Changes are built
-on a dedicated branch; the installed application, Python fallback, saved profiles,
-manual count, anchors and autostart are unchanged.
+on a dedicated branch; installed native binaries, saved profiles, manual count,
+anchors and autostart are unchanged. The Python reference remains available; its
+colour arithmetic is unchanged, with the diagnostic recovery fix noted below.
 
 ## First independently tested changes
 
@@ -74,3 +75,13 @@ on the RTX 4080 SUPER passes 40 zone, 40 region and 40 changed-zone comparisons,
 with exact statistics/pixels. It does not exercise DMA-BUF import, desktop capture,
 USB or emitted light. Native gates at this precision checkpoint pass: 66 app
 tests, 21 core tests; Clippy passes on the pinned toolchains.
+
+## Preserve useful fallback USB errors
+
+The full Python fallback gate exposed two failures caused by a process exiting
+while HID error diagnostics inspected `/proc/<pid>/fd`. The secondary
+`FileNotFoundError` hid the actual USB-open error. Both the process directory and
+per-process inspection now tolerate OS errors. Three deterministic regression
+cases cover disappearing processes, inaccessible processes and unavailable proc.
+The targeted transport suite passes all 24 tests. No Python colour or USB wire
+behaviour changed.

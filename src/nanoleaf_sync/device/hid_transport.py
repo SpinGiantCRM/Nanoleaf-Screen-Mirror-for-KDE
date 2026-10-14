@@ -162,7 +162,11 @@ class HIDTransport:
         if not path.startswith("/dev/hidraw"):
             return []
         holders: list[str] = []
-        for proc_entry in Path("/proc").iterdir():
+        try:
+            processes = list(Path("/proc").iterdir())
+        except OSError:
+            return holders
+        for proc_entry in processes:
             if not proc_entry.name.isdigit():
                 continue
             try:
@@ -180,7 +184,9 @@ class HIDTransport:
                             holders.append(f"PID {proc_entry.name} ({cmd})")
                     except OSError:
                         pass
-            except PermissionError:
+            except OSError:
+                # Process exit can remove fd/ while error diagnostics run.
+                # Never replace the original HID failure with a /proc race.
                 pass
         return holders
 
