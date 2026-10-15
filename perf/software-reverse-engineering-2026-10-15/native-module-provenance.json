@@ -1,0 +1,29 @@
+{
+  "scope": "Static PE import/export/string inspection only; not a claim that every function has been decompiled",
+  "modules": [
+    {
+      "name": "node-napi-v4.node",
+      "bytes": 413696,
+      "sha256": "b8501067ca825b48b13a69523b2b8e7e65583a458618521e79135abcaa48d2a4"
+    },
+    {
+      "name": "usb.win32-x64-msvc.node",
+      "bytes": 1854976,
+      "sha256": "7f88cd4eabcd53f09940595f63f8fb3e036aa7b9a4ea950583d530b63b6ccd8d"
+    },
+    {
+      "name": "screen-mirror-win32-x64-UKW62EDM.node",
+      "bytes": 889856,
+      "sha256": "d4853d20fd1e5b0b30f7b11272e850e7fa28dce11ac65c5e9cd9838c27802b8e"
+    },
+    {
+      "name": "3.0.1-libScreenMirror.dll",
+      "bytes": 299304,
+      "sha256": "78b687b90506a55380d7522c8399100f3be1e11260eba3b7b7c91e91adf73666"
+    }
+  ],
+  "usb_node_duplicate_has_identical_sha256": true,
+  "hid_module_uses_generic_hidapi_exports": true,
+  "windows_capture_node_contains_rust_napi_scap_windows_capture_markers": true,
+  "mcu_or_firmware_decoder_identified": false
+}

@@ -6,6 +6,8 @@ The enclosure stays closed. No flash, reset, bootloader entry, unknown HID comma
 or programmer operation was performed. This work changes no daily application
 code, installed binary, calibration or configuration.
 
+Further work: [vendor software disassembly, colour emulation and mock transport traces](VENDOR_SOFTWARE_REVERSE_ENGINEERING.md).
+
 ## What the additional research establishes
 
 We obtained five historical official application-update containers and inspected
