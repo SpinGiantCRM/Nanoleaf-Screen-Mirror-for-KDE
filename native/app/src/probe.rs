@@ -1,10 +1,68 @@
-//! Bounded read-only capture/colour attribution. No screen pixels or USB are saved.
+//! Bounded operator diagnostics for capture, colour and USB attribution.
 use crate::{capture::KwinCapture, config::Store, pipeline::Pipeline};
 use anyhow::{ensure, Context, Result};
 use std::{
     path::Path,
     time::{Duration, Instant},
 };
+
+/// Read-only controller identity. Fixed query whitelist; no mode switches,
+/// firmware writes, resets, lighting output or configuration edits.
+pub fn usb_information(store: &Store) -> Result<()> {
+    let _owner = crate::service::acquire_output(&crate::service::Paths::new()?)?;
+    let c = &store.config;
+    let mut strip = crate::device::Strip::open(
+        c.device_vid,
+        c.device_pid,
+        c.device_zone_count,
+        &c.output_channel_order,
+    )?;
+    let firmware = strip.request(0x0a, &[])?;
+    let hardware = strip.request(0x0b, &[]);
+    let manufacturer = strip.request(0x0d, &[]);
+    let hardware_error = hardware.as_ref().err().map(ToString::to_string);
+    let manufacturer_error = manufacturer.as_ref().err().map(ToString::to_string);
+    let hardware = hardware.ok();
+    let manufacturer = manufacturer.ok();
+    let version = decode_firmware_version(&firmware)?;
+    ensure!(
+        hardware.as_ref().is_none_or(|v| v.len() == 2)
+            && manufacturer.as_ref().is_none_or(|v| v.len() == 1),
+        "Unexpected optional identity response size"
+    );
+    println!(
+        "{}",
+        serde_json::json!({
+            "scope": "Read-only documented identity queries; no LED or configuration changes; no DFU/reset/erase/program commands",
+            "model": strip.model,
+            "manual_zones": c.device_zone_count,
+            "reported_zones_diagnostic_only": strip.reported_count,
+            "firmware_raw": firmware,
+            "firmware_major": version.0,
+            "firmware_minor": version.1,
+            "hardware_raw": hardware,
+            "hardware_ascii": hardware.as_deref()
+                .and_then(|v| std::str::from_utf8(v).ok())
+                .filter(|s| s.bytes().all(|c| c.is_ascii_digit())),
+            "hardware_query_error": hardware_error,
+            "manufacturer_query_error": manufacturer_error,
+            "manufacturer_raw": manufacturer,
+            "manufacturer_ascii": manufacturer.as_deref()
+                .and_then(|v| std::str::from_utf8(v).ok())
+                .filter(|s| s.bytes().all(|c| c.is_ascii_alphanumeric())),
+            "read_only": true,
+        })
+    );
+    Ok(())
+}
+/// The manufacturer's firmware byte uses binary nibbles, not decimal/BCD text.
+pub fn decode_firmware_version(bytes: &[u8]) -> Result<(u8, u8)> {
+    ensure!(
+        bytes.len() == 1,
+        "Firmware query must return one version byte"
+    );
+    Ok((bytes[0] >> 4, bytes[0] & 15))
+}
 
 /// Operator experiment: isolate command cadence from capture/colour processing.
 /// Every packet remains acknowledged. Settings are read only; controller power

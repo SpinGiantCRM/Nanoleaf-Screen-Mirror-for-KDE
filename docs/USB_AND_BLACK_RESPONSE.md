@@ -168,3 +168,11 @@ USB payloads from the desktop, portal tokens or saved calibration are included.
 The next useful physical measurement is a high-frame-rate recording or light
 sensor observing the screen and strip together. That can distinguish display,
 capture, host-write and controller light delay; ACK timings alone cannot.
+
+## Firmware investigation
+
+[Controller firmware research](FIRMWARE_LATENCY_RESEARCH.md) confirms firmware
+1.5 / hardware 1.1 on the attached NL82K2, documents the official desktop USB
+updater, and records the vendor's device-specific **no update** result. It also
+compares custom firmware with a reversible replacement controller. No firmware
+was changed and no optical latency benefit is claimed.

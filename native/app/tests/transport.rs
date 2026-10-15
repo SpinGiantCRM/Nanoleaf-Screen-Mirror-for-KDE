@@ -96,3 +96,12 @@ fn transaction_stages_count_actual_reports_without_changing_wire_or_ack_matching
     assert!(times.first_report_wait_ms <= times.ack_wait_ms);
     assert!(times.drain_ms + times.write_ms + times.ack_wait_ms <= times.total_ms);
 }
+
+#[test]
+fn firmware_identity_byte_is_nibble_encoded_and_never_guessed_from_usb_bcd() {
+    use nanoleaf_native::probe::decode_firmware_version;
+    assert_eq!(decode_firmware_version(&[0x15]).unwrap(), (1, 5));
+    assert_eq!(decode_firmware_version(&[0xaf]).unwrap(), (10, 15));
+    assert!(decode_firmware_version(&[]).is_err());
+    assert!(decode_firmware_version(&[1, 5]).is_err());
+}
