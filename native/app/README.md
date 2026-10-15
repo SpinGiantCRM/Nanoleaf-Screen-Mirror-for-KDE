@@ -5,7 +5,8 @@ tray and settings entirely in Rust. It does not require Python, Qt or the old C
 DRM helper. The rewrite is merged; colour/capture correctness improvements remain
 incremental. The Python application remains the historical reference and fallback.
 
-The priority is **colour accuracy > latency/FPS > resource usage**. Optional
+The priority is **visible response time > faithful colour > FPS > resource usage**.
+Timing changes preserve calibration and verified colour correctness. Optional
 portal/Vulkan streaming is integrated; native DRM/raw HDR remain gated and physical
 colour/recovery validation is ongoing.
 This is a working native application checkpoint, not a feature-complete release.

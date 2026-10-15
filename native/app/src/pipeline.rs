@@ -207,37 +207,54 @@ pub fn encoded_mean(pixels: &[u8]) -> Result<f32> {
         .sum::<f32>()
         / (pixels.len() / 3) as f32)
 }
+pub const CONTENT_THRESHOLD: f32 = 4.0;
+
 pub fn detect_content_bounds(
     w: usize,
     h: usize,
     mut row: impl FnMut(usize) -> Result<f32>,
     mut col: impl FnMut(usize, usize, usize) -> Result<f32>,
 ) -> Result<ContentBounds> {
+    detect_content_bounds_by_decision(
+        w,
+        h,
+        |y| Ok(row(y)? > CONTENT_THRESHOLD),
+        |x, top, bottom| Ok(col(x, top, bottom)? > CONTENT_THRESHOLD),
+    )
+}
+/// Same ordered search, accepting a proven comparison instead of requiring a
+/// downloaded pixel line. Uncertain GPU summaries must use the original mean.
+pub fn detect_content_bounds_by_decision(
+    w: usize,
+    h: usize,
+    mut row: impl FnMut(usize) -> Result<bool>,
+    mut col: impl FnMut(usize, usize, usize) -> Result<bool>,
+) -> Result<ContentBounds> {
     ensure!(w > 0 && h > 0, "Empty content geometry");
     let mut top = 0;
     for y in (0..h).step_by(8) {
-        if row(y)? > 4.0 {
+        if row(y)? {
             top = y;
             break;
         }
     }
     let mut bottom = h;
     for y in (top + 1..h).rev().step_by(8) {
-        if row(y)? > 4.0 {
+        if row(y)? {
             bottom = y + 1;
             break;
         }
     }
     let mut left = 0;
     for x in (0..w).step_by(8) {
-        if col(x, top, bottom)? > 4.0 {
+        if col(x, top, bottom)? {
             left = x;
             break;
         }
     }
     let mut right = w;
     for x in (left + 1..w).rev().step_by(8) {
-        if col(x, top, bottom)? > 4.0 {
+        if col(x, top, bottom)? {
             right = x + 1;
             break;
         }

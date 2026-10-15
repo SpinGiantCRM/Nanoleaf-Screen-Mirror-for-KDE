@@ -1,6 +1,7 @@
 //! Narrow Linux Vulkan interop boundary. The app/colour crates remain safe Rust.
 //! Capture buffers stay dequeued until GPU work and foreign ownership release
 //! finish. Packed 8-bit, one image plane; explicit timelines remain opt-in.
+pub mod border;
 pub mod timeline;
 use anyhow::{ensure, Context, Result};
 use ash::vk;
@@ -226,6 +227,9 @@ pub struct RegionReader<'a> {
     row_batches: usize,
     column_batches: usize,
     column_range: Option<(u32, u32)>,
+    row_totals: Option<Vec<[u32; 4]>>,
+    column_totals: Option<(u32, u32, Vec<[u32; 4]>)>,
+    summary_bytes: usize,
 }
 impl<'a> RegionReader<'a> {
     pub fn new(
@@ -248,10 +252,77 @@ impl<'a> RegionReader<'a> {
             row_batches: 0,
             column_batches: 0,
             column_range: None,
+            row_totals: None,
+            column_totals: None,
+            summary_bytes: 0,
         }
     }
     pub fn statistics(&self) -> (usize, usize) {
         (self.bytes, self.transfers)
+    }
+    /// Integer summary bytes, separate from exact RGB readback bytes.
+    pub fn summary_bytes(&self) -> usize {
+        self.summary_bytes
+    }
+    /// A certificate preserves the CPU threshold decision, NOT its exact mean.
+    /// Outer edges, unsupported grids and uncertain cases use original pixels.
+    pub fn row_luma_above(&mut self, y: u32, threshold: f32) -> Result<Option<bool>> {
+        let h = self.texture.height();
+        ensure!(y < h, "Invalid analysis row");
+        if y == 0 || y == h - 1 || self.full.is_some() {
+            return Ok(None);
+        }
+        let Some(index) = border::line_index(y, h) else {
+            return Ok(None);
+        };
+        if self.row_totals.is_none() {
+            let totals = self
+                .sampler
+                .line_sums(self.texture, false, 0, self.texture.width())?;
+            self.summary_bytes += totals.len() * 16;
+            self.transfers += 1;
+            self.row_totals = Some(totals);
+        }
+        Ok(border::certify_luma_above(
+            self.row_totals.as_ref().context("Missing row totals")?[index],
+            threshold,
+        ))
+    }
+    pub fn column_luma_above(
+        &mut self,
+        x: u32,
+        top: u32,
+        bottom: u32,
+        threshold: f32,
+    ) -> Result<Option<bool>> {
+        let w = self.texture.width();
+        ensure!(
+            x < w && top < bottom && bottom <= self.texture.height(),
+            "Invalid analysis column"
+        );
+        if x == 0 || x == w - 1 || self.full.is_some() {
+            return Ok(None);
+        }
+        let Some(index) = border::line_index(x, w) else {
+            return Ok(None);
+        };
+        if self
+            .column_totals
+            .as_ref()
+            .is_none_or(|(a, b, _)| (*a, *b) != (top, bottom))
+        {
+            let totals = self.sampler.line_sums(self.texture, true, top, bottom)?;
+            self.summary_bytes += totals.len() * 16;
+            self.transfers += 1;
+            self.column_totals = Some((top, bottom, totals));
+        }
+        Ok(border::certify_luma_above(
+            self.column_totals
+                .as_ref()
+                .context("Missing column totals")?
+                .2[index],
+            threshold,
+        ))
     }
     /// Uniform dark frames have exactly the full-image bounds in the CPU
     /// detector, including either side of its threshold. Edge equality only
@@ -555,10 +626,17 @@ impl DmaSampler {
             format,
             |texture| {
                 let analysis_started = Instant::now();
-                let (zones, context, bytes, transfers, full) = {
+                let (zones, context, bytes, summary_bytes, transfers, full) = {
                     let mut reader = RegionReader::new(sampler, texture);
                     let (zones, context) = plan(&mut reader)?;
-                    (zones, context, reader.bytes, reader.transfers, reader.full)
+                    (
+                        zones,
+                        context,
+                        reader.bytes,
+                        reader.summary_bytes,
+                        reader.transfers,
+                        reader.full,
+                    )
                 };
                 let analysis_ms = analysis_started.elapsed().as_secs_f64() * 1000.0;
                 let zone_started = Instant::now();
@@ -574,6 +652,7 @@ impl DmaSampler {
                 };
                 let (samples, mut timings) = sampler.sample(texture)?;
                 timings["analysis_rgb_bytes"] = serde_json::json!(bytes);
+                timings["analysis_summary_bytes"] = serde_json::json!(summary_bytes);
                 timings["analysis_ms"] = serde_json::json!(analysis_ms);
                 timings["zone_update_ms"] = serde_json::json!(zone_update_ms);
                 timings["analysis_transfer_batches"] = serde_json::json!(transfers);

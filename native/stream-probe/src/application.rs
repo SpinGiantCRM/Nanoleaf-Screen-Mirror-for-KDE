@@ -137,16 +137,34 @@ impl Application {
             })
         } else if self.config.letterbox_detection {
             let reader = std::cell::RefCell::new(reader);
-            Some(pipeline::detect_content_bounds(
+            Some(pipeline::detect_content_bounds_by_decision(
                 width,
                 height,
-                |y| pipeline::encoded_mean(&reader.borrow_mut().row(y as u32)?),
+                |y| {
+                    let decision = reader
+                        .borrow_mut()
+                        .row_luma_above(y as u32, pipeline::CONTENT_THRESHOLD)?;
+                    match decision {
+                        Some(value) => Ok(value),
+                        None => Ok(pipeline::encoded_mean(&reader.borrow_mut().row(y as u32)?)?
+                            > pipeline::CONTENT_THRESHOLD),
+                    }
+                },
                 |x, top, bottom| {
-                    pipeline::encoded_mean(&reader.borrow_mut().column(
+                    let decision = reader.borrow_mut().column_luma_above(
                         x as u32,
                         top as u32,
                         bottom as u32,
-                    )?)
+                        pipeline::CONTENT_THRESHOLD,
+                    )?;
+                    match decision {
+                        Some(value) => Ok(value),
+                        None => Ok(pipeline::encoded_mean(&reader.borrow_mut().column(
+                            x as u32,
+                            top as u32,
+                            bottom as u32,
+                        )?)? > pipeline::CONTENT_THRESHOLD),
+                    }
                 },
             )?)
         } else {
@@ -177,6 +195,7 @@ impl Application {
             release_ms: i["release_ms"].as_f64().unwrap_or_default(),
             cache_hit: i["cache_hit"].as_bool().unwrap_or_default(),
             analysis_bytes: t["analysis_rgb_bytes"].as_u64().unwrap_or_default(),
+            analysis_summary_bytes: t["analysis_summary_bytes"].as_u64().unwrap_or_default(),
             analysis_batches: t["analysis_transfer_batches"].as_u64().unwrap_or_default(),
         };
         let source = CachedSource {
@@ -392,6 +411,42 @@ pub fn run() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn line_certificates_match_the_actual_pipeline_mean_contract() {
+        // Cross-crate regression: changes to the production luma expression
+        // must not silently invalidate the separately implemented bound.
+        let mut accepted = 0;
+        for length in [1, 7, 641, 3840, 16384] {
+            for seed in 0..128_u32 {
+                let mut bytes = Vec::with_capacity(length * 3);
+                let mut totals = [0, 0, 0, length as u32];
+                let mut state = seed + 1;
+                for _ in 0..length {
+                    for sum in &mut totals[..3] {
+                        state = state.wrapping_mul(1664525).wrapping_add(1013904223);
+                        let value = if seed.is_multiple_of(4) {
+                            4
+                        } else {
+                            ((state >> 16) % 9) as u8
+                        };
+                        bytes.push(value);
+                        *sum += u32::from(value);
+                    }
+                }
+                if let Some(value) = nanoleaf_linux_gpu::border::certify_luma_above(
+                    totals,
+                    pipeline::CONTENT_THRESHOLD,
+                ) {
+                    assert_eq!(
+                        value,
+                        pipeline::encoded_mean(&bytes).unwrap() > pipeline::CONTENT_THRESHOLD
+                    );
+                    accepted += 1;
+                }
+            }
+        }
+        assert!(accepted > 250);
+    }
     use nanoleaf_core::sampling::{SdrRgb8Frame, SdrSampler};
 
     #[test]

@@ -24,6 +24,8 @@ pub struct CaptureStages {
     pub release_ms: f64,
     pub cache_hit: bool,
     pub analysis_bytes: u64,
+    #[serde(default)]
+    pub analysis_summary_bytes: u64,
     pub analysis_batches: u64,
 }
 impl CaptureStages {

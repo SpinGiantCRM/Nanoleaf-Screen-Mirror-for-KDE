@@ -1,11 +1,16 @@
 //! Hardware texture shader oracle. No capture permission, HID or saved frames.
 #[path = "../gpu.rs"]
 mod gpu;
+#[path = "../line_oracle.rs"]
+mod line_oracle;
 use anyhow::{ensure, Result};
 use nanoleaf_core::sampling::{SdrRgb8Frame, SdrSampler, ZoneRect};
 use nanoleaf_vulkan_probe::TextureSampler;
 fn main() -> Result<()> {
     let (device, queue, adapter) = gpu::prepare()?;
+    if std::env::args().nth(1).as_deref() == Some("--line-oracle") {
+        return line_oracle::run(device, queue, adapter);
+    }
     if std::env::args().nth(1).as_deref() == Some("--edge-benchmark") {
         return edge_benchmark(device, queue, adapter);
     }
@@ -50,6 +55,7 @@ fn main() -> Result<()> {
     let mut region_comparisons = 0;
     let mut updated_zone_comparisons = 0;
     let mut batch_comparisons = 0;
+    let mut line_comparisons = 0;
     let mut results = Vec::new();
     for format in [
         wgpu::TextureFormat::Bgra8Unorm,
@@ -78,6 +84,7 @@ fn main() -> Result<()> {
             "all_codes",
             "mixed",
             "transparent",
+            "alpha-codes",
         ] {
             let mut encoded = Vec::new();
             let mut rgb = Vec::new();
@@ -99,7 +106,9 @@ fn main() -> Result<()> {
                         ((n * 73) % 256) as u8,
                     ],
                 };
-                let alpha = if pattern == "transparent" && n % 7 == 0 {
+                let alpha = if pattern == "alpha-codes" {
+                    (n % 256) as u8
+                } else if pattern == "transparent" && n % 7 == 0 {
                     0
                 } else {
                     255
@@ -130,6 +139,28 @@ fn main() -> Result<()> {
                 sampler.diagnostic_rgb(&texture)? == rgb,
                 "Texture diagnostic conversion mismatch"
             );
+            for (vertical, start, end) in
+                [(false, 0, 96), (true, 0, 64), (true, 7, 49), (true, 5, 55)]
+            {
+                let totals = sampler.line_sums(&texture, vertical, start, end)?;
+                let limit = if vertical { 96 } else { 64 };
+                let positions = (0..limit).step_by(8).chain((0..limit).rev().step_by(8));
+                for (line, actual) in positions.zip(totals) {
+                    let mut expected = [0, 0, 0, end - start];
+                    for i in start..end {
+                        let (x, y) = if vertical { (line, i) } else { (i, line) };
+                        let at = (y * 96 + x) as usize * 3;
+                        for k in 0..3 {
+                            expected[k] += u32::from(rgb[at + k]);
+                        }
+                    }
+                    ensure!(
+                        actual == expected,
+                        "Integer line totals differ from normalized source pixels"
+                    );
+                    line_comparisons += 1;
+                }
+            }
             let rects = [
                 [0, 0, 96, 1],
                 [0, 63, 96, 1],
@@ -224,7 +255,7 @@ fn main() -> Result<()> {
     }
     println!(
         "{}",
-        serde_json::json!({"adapter":adapter,"scope":"Synthetic Vulkan texture shader and diagnostic readback oracle; DMA-BUF import not exercised by this test","zone_comparisons":comparisons,"reader_comparisons":reader_comparisons,"region_comparisons":region_comparisons,"batch_region_comparisons":batch_comparisons,"updated_zone_comparisons":updated_zone_comparisons,"cases":results})
+        serde_json::json!({"adapter":adapter,"scope":"Synthetic Vulkan texture shader and diagnostic readback oracle; DMA-BUF import not exercised by this test","zone_comparisons":comparisons,"reader_comparisons":reader_comparisons,"region_comparisons":region_comparisons,"batch_region_comparisons":batch_comparisons,"updated_zone_comparisons":updated_zone_comparisons,"line_total_comparisons":line_comparisons,"cases":results})
     );
     Ok(())
 }
@@ -487,7 +518,9 @@ fn content_benchmark(
     adapter: serde_json::Value,
 ) -> Result<()> {
     use nanoleaf_linux_gpu::RegionReader;
-    use nanoleaf_native::pipeline::{detect_content_bounds, encoded_mean};
+    use nanoleaf_native::pipeline::{
+        detect_content_bounds, detect_content_bounds_by_decision, encoded_mean, CONTENT_THRESHOLD,
+    };
     use std::{cell::RefCell, time::Instant};
     let calibration = if std::env::args().nth(2).as_deref() == Some("--calibration") {
         let path = std::env::args()
@@ -564,6 +597,10 @@ fn content_benchmark(
             "single-pixel",
             "near-threshold",
             "transparent-border",
+            "dark-noise",
+            "dark-sparse",
+            "threshold-noise",
+            "threshold-stripes",
         ] {
             let mut rgb = Vec::new();
             let mut encoded = Vec::new();
@@ -578,7 +615,31 @@ fn content_benchmark(
                         "transparent-border" => y < 32 || y >= h - 32,
                         _ => false,
                     };
-                    let value = if pattern == "dark-grey" {
+                    let value = if pattern == "dark-noise" {
+                        [
+                            ((x + y) % 4) as u8,
+                            ((3 * x + y) % 4) as u8,
+                            ((x + 3 * y) % 4) as u8,
+                        ]
+                    } else if pattern == "dark-sparse" {
+                        if (x + y * w).is_multiple_of(997) {
+                            [255; 3]
+                        } else {
+                            [1; 3]
+                        }
+                    } else if pattern == "threshold-noise" {
+                        [
+                            ((x * 17 + y * 23) % 9) as u8,
+                            ((x * 7 + y * 13) % 9) as u8,
+                            ((x * 29 + y * 3) % 9) as u8,
+                        ]
+                    } else if pattern == "threshold-stripes" {
+                        if (x + y).is_multiple_of(2) {
+                            [3, 5, 3]
+                        } else {
+                            [5, 3, 5]
+                        }
+                    } else if pattern == "dark-grey" {
                         [1; 3]
                     } else if pattern == "threshold-grey" {
                         [4; 3]
@@ -649,16 +710,44 @@ fn content_benchmark(
                         bottom: h as usize,
                     }
                 } else {
-                    detect_content_bounds(
+                    let certified =
+                        !std::env::args().any(|a| a == "--ordered-readback" || a == "--reference");
+                    detect_content_bounds_by_decision(
                         w as usize,
                         h as usize,
-                        |y| encoded_mean(&reader.borrow_mut().row(y as u32)?),
+                        |y| {
+                            let decision = if certified {
+                                reader
+                                    .borrow_mut()
+                                    .row_luma_above(y as u32, CONTENT_THRESHOLD)?
+                            } else {
+                                None
+                            };
+                            match decision {
+                                Some(value) => Ok(value),
+                                None => Ok(encoded_mean(&reader.borrow_mut().row(y as u32)?)?
+                                    > CONTENT_THRESHOLD),
+                            }
+                        },
                         |x, top, bottom| {
-                            encoded_mean(&reader.borrow_mut().column(
-                                x as u32,
-                                top as u32,
-                                bottom as u32,
-                            )?)
+                            let decision = if certified {
+                                reader.borrow_mut().column_luma_above(
+                                    x as u32,
+                                    top as u32,
+                                    bottom as u32,
+                                    CONTENT_THRESHOLD,
+                                )?
+                            } else {
+                                None
+                            };
+                            match decision {
+                                Some(value) => Ok(value),
+                                None => Ok(encoded_mean(&reader.borrow_mut().column(
+                                    x as u32,
+                                    top as u32,
+                                    bottom as u32,
+                                )?)? > CONTENT_THRESHOLD),
+                            }
                         },
                     )?
                 };
@@ -671,7 +760,7 @@ fn content_benchmark(
                 if run >= 2 {
                     let (bytes, batches) = reader.borrow().statistics();
                     runs.push(
-                        serde_json::json!({"ms":ms,"rgb_bytes":bytes,"transfer_batches":batches}),
+                        serde_json::json!({"ms":ms,"rgb_bytes":bytes,"summary_bytes":reader.borrow().summary_bytes(),"transfer_batches":batches}),
                     );
                 }
             }

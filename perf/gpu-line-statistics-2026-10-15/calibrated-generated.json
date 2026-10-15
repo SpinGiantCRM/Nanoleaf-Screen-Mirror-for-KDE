@@ -1,0 +1,201 @@
+{
+  "scope": "Generated RGBA texture and actual content detector/RegionReader; CPU ordered float32 oracle; no capture, USB or saved frames; upload/startup/two warm-ups excluded",
+  "cases": [
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "bright",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "thin-bars",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "cinema-bars",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "pillars",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "black",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "dark-grey",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "threshold-grey",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "single-pixel",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "near-threshold",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "transparent-border",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "dark-noise",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "dark-sparse",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "threshold-noise",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "threshold-stripes",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "bright",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "thin-bars",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "cinema-bars",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "pillars",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "black",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "dark-grey",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "threshold-grey",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "single-pixel",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "near-threshold",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "transparent-border",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "dark-noise",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "dark-sparse",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "threshold-noise",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "threshold-stripes",
+      "all_bounds_exact": true,
+      "calibrated_full_output_exact": true
+    }
+  ]
+}

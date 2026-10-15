@@ -1,0 +1,1632 @@
+{
+  "baseline_commit": "0fe14c2403969de03373c6153298a23cdbef0c78",
+  "sha256": {
+    "baseline": "293074035a2d3c57d524e2b8f8aef8a1a96a030bd43aba3cabc4be71ddb19110",
+    "candidate": "906fb66d8b57b81079ff9efeb8e8c56415c542d4922c1d435250987624baf040"
+  },
+  "validation_enabled": false,
+  "requested_nice": 0,
+  "order": [
+    {
+      "pair": 0,
+      "name": "baseline",
+      "output": "paired-0-baseline.json"
+    },
+    {
+      "pair": 0,
+      "name": "candidate",
+      "output": "paired-0-candidate.json"
+    },
+    {
+      "pair": 1,
+      "name": "candidate",
+      "output": "paired-1-candidate.json"
+    },
+    {
+      "pair": 1,
+      "name": "baseline",
+      "output": "paired-1-baseline.json"
+    },
+    {
+      "pair": 2,
+      "name": "baseline",
+      "output": "paired-2-baseline.json"
+    },
+    {
+      "pair": 2,
+      "name": "candidate",
+      "output": "paired-2-candidate.json"
+    }
+  ],
+  "scope": "Generated GPU detector only; three alternating AB/BA pairs, two warmups and five timed runs per case/executable. No capture, USB, power or optical timing.",
+  "cases": [
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "bright",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 0.054013,
+          "min": 0.048603,
+          "max": 0.285466,
+          "p95_nearest_rank": 0.285466
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 6000,
+          "min": 6000,
+          "max": 6000,
+          "p95_nearest_rank": 6000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "p95_nearest_rank": 1
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.047971,
+          "min": 0.046048,
+          "max": 0.284785,
+          "p95_nearest_rank": 0.284785
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 6000,
+          "min": 6000,
+          "max": 6000,
+          "p95_nearest_rank": 6000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "p95_nearest_rank": 1
+        }
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "thin-bars",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 0.267562,
+          "min": 0.237273,
+          "max": 3.48907,
+          "p95_nearest_rank": 3.48907
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 129072,
+          "min": 129072,
+          "max": 129072,
+          "p95_nearest_rank": 129072
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 3,
+          "min": 3,
+          "max": 3,
+          "p95_nearest_rank": 3
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.111804,
+          "min": 0.09949,
+          "max": 0.420093,
+          "p95_nearest_rank": 0.420093
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 6000,
+          "min": 6000,
+          "max": 6000,
+          "p95_nearest_rank": 6000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 1440,
+          "min": 1440,
+          "max": 1440,
+          "p95_nearest_rank": 1440
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "cinema-bars",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 0.25398499999999996,
+          "min": 0.23192300000000002,
+          "max": 2.296871,
+          "p95_nearest_rank": 2.296871
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 129072,
+          "min": 129072,
+          "max": 129072,
+          "p95_nearest_rank": 129072
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 3,
+          "min": 3,
+          "max": 3,
+          "p95_nearest_rank": 3
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.11401800000000001,
+          "min": 0.102926,
+          "max": 0.189142,
+          "p95_nearest_rank": 0.189142
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 6000,
+          "min": 6000,
+          "max": 6000,
+          "p95_nearest_rank": 6000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 1440,
+          "min": 1440,
+          "max": 1440,
+          "p95_nearest_rank": 1440
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "pillars",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 0.37404499999999996,
+          "min": 0.34892700000000004,
+          "max": 0.721439,
+          "p95_nearest_rank": 0.721439
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 542346,
+          "min": 542346,
+          "max": 542346,
+          "p95_nearest_rank": 542346
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 3,
+          "min": 3,
+          "max": 3,
+          "p95_nearest_rank": 3
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.106223,
+          "min": 0.09661499999999999,
+          "max": 2.03469,
+          "p95_nearest_rank": 2.03469
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 6000,
+          "min": 6000,
+          "max": 6000,
+          "p95_nearest_rank": 6000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 2592,
+          "min": 2592,
+          "max": 2592,
+          "p95_nearest_rank": 2592
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "black",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 0.096845,
+          "min": 0.088179,
+          "max": 0.121533,
+          "p95_nearest_rank": 0.121533
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 6000,
+          "min": 6000,
+          "max": 6000,
+          "p95_nearest_rank": 6000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.100672,
+          "min": 0.09492199999999999,
+          "max": 0.13601,
+          "p95_nearest_rank": 0.13601
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 6000,
+          "min": 6000,
+          "max": 6000,
+          "p95_nearest_rank": 6000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "dark-grey",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 0.102486,
+          "min": 0.087257,
+          "max": 1.53802,
+          "p95_nearest_rank": 1.53802
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 6000,
+          "min": 6000,
+          "max": 6000,
+          "p95_nearest_rank": 6000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.098328,
+          "min": 0.08486300000000001,
+          "max": 0.24995799999999999,
+          "p95_nearest_rank": 0.24995799999999999
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 6000,
+          "min": 6000,
+          "max": 6000,
+          "p95_nearest_rank": 6000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "threshold-grey",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 0.098718,
+          "min": 0.087246,
+          "max": 0.354848,
+          "p95_nearest_rank": 0.354848
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 6000,
+          "min": 6000,
+          "max": 6000,
+          "p95_nearest_rank": 6000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.102176,
+          "min": 0.090133,
+          "max": 0.444069,
+          "p95_nearest_rank": 0.444069
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 6000,
+          "min": 6000,
+          "max": 6000,
+          "p95_nearest_rank": 6000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "single-pixel",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 1.732743,
+          "min": 1.2823209999999998,
+          "max": 5.155365000000001,
+          "p95_nearest_rank": 5.155365000000001
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 1508550,
+          "min": 1508550,
+          "max": 1508550,
+          "p95_nearest_rank": 1508550
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 12,
+          "min": 12,
+          "max": 12,
+          "p95_nearest_rank": 12
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.237334,
+          "min": 0.210502,
+          "max": 0.664911,
+          "p95_nearest_rank": 0.664911
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 6000,
+          "min": 6000,
+          "max": 6000,
+          "p95_nearest_rank": 6000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 4032,
+          "min": 4032,
+          "max": 4032,
+          "p95_nearest_rank": 4032
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 4,
+          "min": 4,
+          "max": 4,
+          "p95_nearest_rank": 4
+        }
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "near-threshold",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 0.26109899999999997,
+          "min": 0.222336,
+          "max": 0.784048,
+          "p95_nearest_rank": 0.784048
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 129072,
+          "min": 129072,
+          "max": 129072,
+          "p95_nearest_rank": 129072
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 3,
+          "min": 3,
+          "max": 3,
+          "p95_nearest_rank": 3
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.31421,
+          "min": 0.28471399999999997,
+          "max": 0.715969,
+          "p95_nearest_rank": 0.715969
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 129072,
+          "min": 129072,
+          "max": 129072,
+          "p95_nearest_rank": 129072
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 1440,
+          "min": 1440,
+          "max": 1440,
+          "p95_nearest_rank": 1440
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 4,
+          "min": 4,
+          "max": 4,
+          "p95_nearest_rank": 4
+        }
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "transparent-border",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 0.259156,
+          "min": 0.22814600000000002,
+          "max": 2.143097,
+          "p95_nearest_rank": 2.143097
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 129072,
+          "min": 129072,
+          "max": 129072,
+          "p95_nearest_rank": 129072
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 3,
+          "min": 3,
+          "max": 3,
+          "p95_nearest_rank": 3
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.112565,
+          "min": 0.104099,
+          "max": 0.624474,
+          "p95_nearest_rank": 0.624474
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 6000,
+          "min": 6000,
+          "max": 6000,
+          "p95_nearest_rank": 6000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 1440,
+          "min": 1440,
+          "max": 1440,
+          "p95_nearest_rank": 1440
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "dark-noise",
+      "baseline": null,
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.165146,
+          "min": 0.149917,
+          "max": 0.782546,
+          "p95_nearest_rank": 0.782546
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 6000,
+          "min": 6000,
+          "max": 6000,
+          "p95_nearest_rank": 6000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 4032,
+          "min": 4032,
+          "max": 4032,
+          "p95_nearest_rank": 4032
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 3,
+          "min": 3,
+          "max": 3,
+          "p95_nearest_rank": 3
+        }
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "dark-sparse",
+      "baseline": null,
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.191666,
+          "min": 0.15149,
+          "max": 3.3796809999999997,
+          "p95_nearest_rank": 3.3796809999999997
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 6000,
+          "min": 6000,
+          "max": 6000,
+          "p95_nearest_rank": 6000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 4032,
+          "min": 4032,
+          "max": 4032,
+          "p95_nearest_rank": 4032
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 3,
+          "min": 3,
+          "max": 3,
+          "p95_nearest_rank": 3
+        }
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "threshold-noise",
+      "baseline": null,
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.32620400000000005,
+          "min": 0.297669,
+          "max": 0.764411,
+          "p95_nearest_rank": 0.764411
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 268197,
+          "min": 268197,
+          "max": 268197,
+          "p95_nearest_rank": 268197
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 4032,
+          "min": 4032,
+          "max": 4032,
+          "p95_nearest_rank": 4032
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 4,
+          "min": 4,
+          "max": 4,
+          "p95_nearest_rank": 4
+        }
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "threshold-stripes",
+      "baseline": null,
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.049886,
+          "min": 0.046178,
+          "max": 0.064804,
+          "p95_nearest_rank": 0.064804
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 6000,
+          "min": 6000,
+          "max": 6000,
+          "p95_nearest_rank": 6000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "p95_nearest_rank": 1
+        }
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "bright",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 0.152782,
+          "min": 0.128886,
+          "max": 0.48651,
+          "p95_nearest_rank": 0.48651
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 36000,
+          "min": 36000,
+          "max": 36000,
+          "p95_nearest_rank": 36000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "p95_nearest_rank": 1
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.22026099999999998,
+          "min": 0.143274,
+          "max": 1.999432,
+          "p95_nearest_rank": 1.999432
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 36000,
+          "min": 36000,
+          "max": 36000,
+          "p95_nearest_rank": 36000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "p95_nearest_rank": 1
+        }
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "thin-bars",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 0.547547,
+          "min": 0.512159,
+          "max": 0.613383,
+          "p95_nearest_rank": 0.613383
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 773280,
+          "min": 773280,
+          "max": 773280,
+          "p95_nearest_rank": 773280
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 3,
+          "min": 3,
+          "max": 3,
+          "p95_nearest_rank": 3
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.243476,
+          "min": 0.215091,
+          "max": 0.537267,
+          "p95_nearest_rank": 0.537267
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 36000,
+          "min": 36000,
+          "max": 36000,
+          "p95_nearest_rank": 36000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 8640,
+          "min": 8640,
+          "max": 8640,
+          "p95_nearest_rank": 8640
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "cinema-bars",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 1.376822,
+          "min": 1.167943,
+          "max": 4.6308620000000005,
+          "p95_nearest_rank": 4.6308620000000005
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 1510560,
+          "min": 1510560,
+          "max": 1510560,
+          "p95_nearest_rank": 1510560
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "p95_nearest_rank": 5
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.24721200000000002,
+          "min": 0.215482,
+          "max": 0.482903,
+          "p95_nearest_rank": 0.482903
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 36000,
+          "min": 36000,
+          "max": 36000,
+          "p95_nearest_rank": 36000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 8640,
+          "min": 8640,
+          "max": 8640,
+          "p95_nearest_rank": 8640
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "pillars",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 6.570620999999999,
+          "min": 5.041868,
+          "max": 8.109432,
+          "p95_nearest_rank": 8.109432
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 9717120,
+          "min": 9717120,
+          "max": 9717120,
+          "p95_nearest_rank": 9717120
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 7,
+          "min": 7,
+          "max": 7,
+          "p95_nearest_rank": 7
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.239127,
+          "min": 0.210683,
+          "max": 1.9605780000000002,
+          "p95_nearest_rank": 1.9605780000000002
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 36000,
+          "min": 36000,
+          "max": 36000,
+          "p95_nearest_rank": 36000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 15360,
+          "min": 15360,
+          "max": 15360,
+          "p95_nearest_rank": 15360
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "black",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 0.235249,
+          "min": 0.212717,
+          "max": 0.623301,
+          "p95_nearest_rank": 0.623301
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 36000,
+          "min": 36000,
+          "max": 36000,
+          "p95_nearest_rank": 36000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.239117,
+          "min": 0.215261,
+          "max": 3.2876250000000002,
+          "p95_nearest_rank": 3.2876250000000002
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 36000,
+          "min": 36000,
+          "max": 36000,
+          "p95_nearest_rank": 36000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "dark-grey",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 0.24544900000000003,
+          "min": 0.205913,
+          "max": 0.57567,
+          "p95_nearest_rank": 0.57567
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 36000,
+          "min": 36000,
+          "max": 36000,
+          "p95_nearest_rank": 36000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.226462,
+          "min": 0.204982,
+          "max": 0.253826,
+          "p95_nearest_rank": 0.253826
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 36000,
+          "min": 36000,
+          "max": 36000,
+          "p95_nearest_rank": 36000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "threshold-grey",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 0.347023,
+          "min": 0.226704,
+          "max": 2.237707,
+          "p95_nearest_rank": 2.237707
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 36000,
+          "min": 36000,
+          "max": 36000,
+          "p95_nearest_rank": 36000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.237955,
+          "min": 0.21338800000000002,
+          "max": 0.499585,
+          "p95_nearest_rank": 0.499585
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 36000,
+          "min": 36000,
+          "max": 36000,
+          "p95_nearest_rank": 36000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "single-pixel",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 24.546782999999998,
+          "min": 21.630527999999998,
+          "max": 27.299665,
+          "p95_nearest_rank": 27.299665
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 25656480,
+          "min": 25656480,
+          "max": 25656480,
+          "p95_nearest_rank": 25656480
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "p95_nearest_rank": 5
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.412008,
+          "min": 0.369015,
+          "max": 0.8727980000000001,
+          "p95_nearest_rank": 0.8727980000000001
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 36000,
+          "min": 36000,
+          "max": 36000,
+          "p95_nearest_rank": 36000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 24000,
+          "min": 24000,
+          "max": 24000,
+          "p95_nearest_rank": 24000
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 4,
+          "min": 4,
+          "max": 4,
+          "p95_nearest_rank": 4
+        }
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "near-threshold",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 0.558598,
+          "min": 0.505296,
+          "max": 2.2044040000000003,
+          "p95_nearest_rank": 2.2044040000000003
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 773280,
+          "min": 773280,
+          "max": 773280,
+          "p95_nearest_rank": 773280
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 3,
+          "min": 3,
+          "max": 3,
+          "p95_nearest_rank": 3
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.6669449999999999,
+          "min": 0.546274,
+          "max": 2.452999,
+          "p95_nearest_rank": 2.452999
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 773280,
+          "min": 773280,
+          "max": 773280,
+          "p95_nearest_rank": 773280
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 8640,
+          "min": 8640,
+          "max": 8640,
+          "p95_nearest_rank": 8640
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 4,
+          "min": 4,
+          "max": 4,
+          "p95_nearest_rank": 4
+        }
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "transparent-border",
+      "baseline": {
+        "ms": {
+          "samples": 15,
+          "median": 0.5625950000000001,
+          "min": 0.501659,
+          "max": 1.117246,
+          "p95_nearest_rank": 1.117246
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 773280,
+          "min": 773280,
+          "max": 773280,
+          "p95_nearest_rank": 773280
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "p95_nearest_rank": 0
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 3,
+          "min": 3,
+          "max": 3,
+          "p95_nearest_rank": 3
+        }
+      },
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.26380400000000004,
+          "min": 0.203699,
+          "max": 0.5867920000000001,
+          "p95_nearest_rank": 0.5867920000000001
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 36000,
+          "min": 36000,
+          "max": 36000,
+          "p95_nearest_rank": 36000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 8640,
+          "min": 8640,
+          "max": 8640,
+          "p95_nearest_rank": 8640
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "p95_nearest_rank": 2
+        }
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "dark-noise",
+      "baseline": null,
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.366541,
+          "min": 0.265938,
+          "max": 3.913952,
+          "p95_nearest_rank": 3.913952
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 36000,
+          "min": 36000,
+          "max": 36000,
+          "p95_nearest_rank": 36000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 24000,
+          "min": 24000,
+          "max": 24000,
+          "p95_nearest_rank": 24000
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 3,
+          "min": 3,
+          "max": 3,
+          "p95_nearest_rank": 3
+        }
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "dark-sparse",
+      "baseline": null,
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 0.379796,
+          "min": 0.2563,
+          "max": 4.196402,
+          "p95_nearest_rank": 4.196402
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 36000,
+          "min": 36000,
+          "max": 36000,
+          "p95_nearest_rank": 36000
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 24000,
+          "min": 24000,
+          "max": 24000,
+          "p95_nearest_rank": 24000
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 3,
+          "min": 3,
+          "max": 3,
+          "p95_nearest_rank": 3
+        }
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "threshold-noise",
+      "baseline": null,
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 1.157413,
+          "min": 0.936039,
+          "max": 4.996782,
+          "p95_nearest_rank": 4.996782
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 1649520,
+          "min": 1649520,
+          "max": 1649520,
+          "p95_nearest_rank": 1649520
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 15360,
+          "min": 15360,
+          "max": 15360,
+          "p95_nearest_rank": 15360
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 3,
+          "min": 3,
+          "max": 3,
+          "p95_nearest_rank": 3
+        }
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "threshold-stripes",
+      "baseline": null,
+      "candidate": {
+        "ms": {
+          "samples": 15,
+          "median": 23.464744999999997,
+          "min": 21.298213,
+          "max": 26.839827,
+          "p95_nearest_rank": 26.839827
+        },
+        "rgb_bytes": {
+          "samples": 15,
+          "median": 25656480,
+          "min": 25656480,
+          "max": 25656480,
+          "p95_nearest_rank": 25656480
+        },
+        "summary_bytes": {
+          "samples": 15,
+          "median": 8640,
+          "min": 8640,
+          "max": 8640,
+          "p95_nearest_rank": 8640
+        },
+        "transfer_batches": {
+          "samples": 15,
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "p95_nearest_rank": 5
+        }
+      }
+    }
+  ]
+}

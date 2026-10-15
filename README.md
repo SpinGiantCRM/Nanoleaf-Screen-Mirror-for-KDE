@@ -9,7 +9,8 @@ NL82K1/NL82K2 USB strip on KDE Plasma Wayland. It includes settings, manual stri
 setup, calibration, acknowledged USB output and reconnect recovery. The settings
 window opens on demand; Stop pauses mirroring while keeping the tray available.
 
-Colour accuracy takes priority over latency/FPS, then system resource usage.
+Priorities are visible response time, faithful colour, delivered FPS, then system
+resource usage. Timing optimisations preserve calibration and colour correctness.
 KWin capture remains the automatic backend. Optional permission-mediated
 PipeWire/Vulkan streaming is available in Advanced, with exact zone sampling and
 safe worker recovery. Reference/accuracy mode bypasses prediction and appearance
@@ -53,8 +54,9 @@ by the Rust app. Use the [legacy fallback](docs/LEGACY_PYTHON.md) when its exist
 DRM path is needed.
 
 The NL82K2 was tested with real output and physical USB reconnect; the user
-confirmed colours resumed. NL82K1 emitted light, physical suspend/resume,
-externally revoked portal permission, optical latency, colourimeter accuracy,
+confirmed colours resumed. A separate KDE Stop sharing test stopped mirroring
+and required an explicit restart. NL82K1 emitted light, physical suspend/resume,
+optical latency, colourimeter accuracy,
 power and sustained game load remain unverified.
 
 ## Evidence and development

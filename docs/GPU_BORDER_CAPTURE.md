@@ -6,6 +6,10 @@ Follow-up: [uniform-dark GPU proof and USB investigation](USB_AND_BLACK_RESPONSE
 addresses the full-black limitation below. The numbers here describe the earlier
 batched-reader implementation.
 
+Later [integer line statistics](GPU_LINE_STATISTICS.md) also avoid full readback
+for many non-uniform dark scenes, with conservative threshold bounds and the
+original ordered calculation as fallback.
+
 ## Measured problem
 
 The short GPU adoption sample did not describe every desktop scene. A later

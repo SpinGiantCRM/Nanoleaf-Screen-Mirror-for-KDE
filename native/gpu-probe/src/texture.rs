@@ -18,6 +18,10 @@ pub struct TextureSampler {
     uniform_pipeline: wgpu::ComputePipeline,
     uniform_output: wgpu::Buffer,
     uniform_readback: wgpu::Buffer,
+    line_pipeline: wgpu::ComputePipeline,
+    line_parameters: wgpu::Buffer,
+    line_output: wgpu::Buffer,
+    line_readback: wgpu::Buffer,
     width: u32,
     height: u32,
     pixels: Vec<u64>,
@@ -119,6 +123,37 @@ impl TextureSampler {
             usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+        let line_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Exact border-line RGB8 sums"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("lines.wgsl").into()),
+        });
+        let line_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("Integer border-line statistics"),
+            layout: None,
+            module: &line_shader,
+            entry_point: Some("lines"),
+            compilation_options: Default::default(),
+            cache: None,
+        });
+        let line_parameters = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Border-line ranges"),
+            size: 16,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let line_size = u64::from(width.max(height).div_ceil(8)) * 2 * 16;
+        let line_output = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Border-line totals"),
+            size: line_size,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+        let line_readback = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Border-line totals readback"),
+            size: line_size,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
         Ok(Self {
             device,
             queue,
@@ -130,6 +165,10 @@ impl TextureSampler {
             uniform_pipeline,
             uniform_output,
             uniform_readback,
+            line_pipeline,
+            line_parameters,
+            line_output,
+            line_readback,
             width,
             height,
             pixels,
@@ -140,6 +179,104 @@ impl TextureSampler {
     }
     pub fn queue(&self) -> &wgpu::Queue {
         &self.queue
+    }
+    /// Exact RGB totals/count on both directions of the detector's step-eight
+    /// grid. No luma/threshold or floating-point sum is evaluated on the GPU.
+    /// Results are forward lines, then reverse lines; each half is ceil(limit/8).
+    pub fn line_sums(
+        &self,
+        texture: &wgpu::Texture,
+        vertical: bool,
+        start: u32,
+        end: u32,
+    ) -> Result<Vec<[u32; 4]>> {
+        ensure!(
+            texture.width() == self.width
+                && texture.height() == self.height
+                && matches!(
+                    texture.format(),
+                    wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Bgra8Unorm
+                ),
+            "Explicit encoded RGB8 texture required"
+        );
+        let (limit, span) = if vertical {
+            (self.width, self.height)
+        } else {
+            (self.height, self.width)
+        };
+        ensure!(start < end && end <= span, "Invalid border-line range");
+        let half = limit.div_ceil(8);
+        let parameters: Vec<_> = [u32::from(vertical), start, end, half]
+            .into_iter()
+            .flat_map(u32::to_le_bytes)
+            .collect();
+        self.queue
+            .write_buffer(&self.line_parameters, 0, &parameters);
+        let view = texture.create_view(&Default::default());
+        let group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Current border-line input"),
+            layout: &self.line_pipeline.get_bind_group_layout(0),
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: self.line_output.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: self.line_parameters.as_entire_binding(),
+                },
+            ],
+        });
+        let size = u64::from(half) * 2 * 16;
+        let mut encoder = self.device.create_command_encoder(&Default::default());
+        {
+            let mut pass = encoder.begin_compute_pass(&Default::default());
+            pass.set_pipeline(&self.line_pipeline);
+            pass.set_bind_group(0, &group, &[]);
+            pass.dispatch_workgroups(half * 2, 1, 1);
+        }
+        encoder.copy_buffer_to_buffer(&self.line_output, 0, &self.line_readback, 0, size);
+        let index = self.queue.submit([encoder.finish()]);
+        let (tx, rx) = mpsc::sync_channel(1);
+        self.line_readback
+            .slice(..size)
+            .map_async(wgpu::MapMode::Read, move |r| {
+                let _ = tx.send(r);
+            });
+        let reset = ReadbackReset(&self.line_readback);
+        self.device.poll(wgpu::PollType::Wait {
+            submission_index: Some(index),
+            timeout: Some(Duration::from_secs(2)),
+        })?;
+        rx.recv_timeout(Duration::from_secs(2))??;
+        let mapped = self.line_readback.slice(..size).get_mapped_range()?;
+        ensure!(
+            mapped.len() as u64 == size,
+            "Incomplete border-line readback"
+        );
+        let result: Vec<[u32; 4]> = mapped
+            .as_chunks::<16>()
+            .0
+            .iter()
+            .map(|bytes| {
+                std::array::from_fn(|k| {
+                    u32::from_le_bytes(bytes[k * 4..k * 4 + 4].try_into().unwrap())
+                })
+            })
+            .collect();
+        ensure!(
+            result.iter().all(
+                |r| r[3] == end - start && r[..3].iter().all(|&sum| sum <= (end - start) * 255)
+            ),
+            "Invalid border-line totals"
+        );
+        drop(mapped);
+        drop(reset);
+        Ok(result)
     }
     /// Test every pixel, with the same alpha-zero/RGB8 normalization as sampling.
     /// Integer OR reduction has no threshold, floating sum or false-positive tolerance.
