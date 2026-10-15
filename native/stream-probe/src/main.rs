@@ -31,6 +31,12 @@ enum Mode {
     Cpu,
     Upload,
     Dma,
+    DmaExplicit,
+}
+impl Mode {
+    fn dma(self) -> bool {
+        matches!(self, Self::Dma | Self::DmaExplicit)
+    }
 }
 #[derive(Default)]
 struct State {
@@ -54,6 +60,30 @@ struct State {
     layout: Option<(usize, usize)>,
     application: Option<application::Application>,
     streaming: bool,
+    closing: bool,
+}
+impl State {
+    fn stream_state(&mut self, old: &pw::stream::StreamState, new: &pw::stream::StreamState) {
+        self.streaming = matches!(new, pw::stream::StreamState::Streaming);
+        if !self.streaming {
+            if let Some(app) = &mut self.application {
+                app.invalidate();
+            }
+        }
+        match new {
+            pw::stream::StreamState::Error(error) => self.errors.push(error.clone()),
+            pw::stream::StreamState::Unconnected
+                if !self.closing
+                    && matches!(
+                        old,
+                        pw::stream::StreamState::Streaming | pw::stream::StreamState::Paused
+                    ) =>
+            {
+                self.errors.push("Screen sharing ended".into())
+            }
+            _ => {}
+        }
+    }
 }
 fn zones(width: usize, height: usize) -> Vec<ZoneRect> {
     let mut result = Vec::new();
@@ -78,6 +108,31 @@ fn zones(width: usize, height: usize) -> Vec<ZoneRect> {
         }
     }
     result
+}
+fn synchronization_property(mode: Mode) -> spa::pod::Property {
+    spa::pod::Property {
+        key: PARAM_BUFFERS_META_TYPE,
+        flags: if mode == Mode::DmaExplicit {
+            spa::pod::PropertyFlags::MANDATORY
+        } else {
+            spa::pod::PropertyFlags::empty()
+        },
+        value: spa::pod::Value::Int(if mode == Mode::DmaExplicit {
+            1 << nanoleaf_linux_gpu::timeline::META_TYPE
+        } else {
+            0
+        }),
+    }
+}
+fn discard_dma(buffer: &mut pw::buffer::Buffer<'_>, state: &State) -> Result<()> {
+    if state.mode.dma() && nanoleaf_linux_gpu::timeline::present(buffer) {
+        let (device, _) = state
+            .device
+            .as_ref()
+            .context("No device for discarded explicit frame")?;
+        nanoleaf_linux_gpu::timeline::discard(buffer, device)?;
+    }
+    Ok(())
 }
 fn process(buffer: &mut pw::buffer::Buffer<'_>, state: &mut State) -> Result<()> {
     let started = Instant::now();
@@ -124,7 +179,7 @@ fn process(buffer: &mut pw::buffer::Buffer<'_>, state: &mut State) -> Result<()>
             );
         }
     }
-    if state.mode == Mode::Dma {
+    if state.mode.dma() {
         return process_dma(buffer, state, format, header, started);
     }
     let packing = match format.format() {
@@ -249,6 +304,10 @@ fn process_dma(
         )?);
         state.layout = Some((width as usize, height as usize));
     }
+    ensure!(
+        nanoleaf_linux_gpu::timeline::present(buffer) == (state.mode == Mode::DmaExplicit),
+        "Negotiated synchronization differs from requested mode"
+    );
     let sampler = state.texture.as_mut().context("No GPU texture sampler")?;
     let diagnostic = if let Some(app) = &state.application {
         app.needs_pixels(width as usize, height as usize)
@@ -318,18 +377,30 @@ fn main() -> Result<()> {
         );
         return application::run();
     }
+    if args.first().is_some_and(|arg| arg == "--sync-self-test") {
+        ensure!(args.len() == 1, "Self-test takes no arguments");
+        let (device, _, adapter) = gpu::prepare()?;
+        let result = nanoleaf_linux_gpu::timeline::Device::open(&device)?.self_test()?;
+        println!(
+            "{}",
+            serde_json::json!({"adapter":adapter,"syncobj":result,"scope":"Private render-node syncobj test only; no screen capture, USB, settings or capabilities"})
+        );
+        return Ok(());
+    }
     ensure!(
         args.len() <= 1,
-        "Usage: nanoleaf-stream-probe [--gpu-upload|--dma-buf|--suite]"
+        "Usage: nanoleaf-stream-probe [--gpu-upload|--dma-buf|--dma-buf-explicit|--sync-suite|--suite]"
     );
     let modes = match args.first().map(String::as_str) {
         None => vec![Mode::Cpu],
         Some("--gpu-upload") => vec![Mode::Upload],
         Some("--dma-buf") => vec![Mode::Dma],
+        Some("--dma-buf-explicit") => vec![Mode::DmaExplicit],
+        Some("--sync-suite") => vec![Mode::Dma, Mode::DmaExplicit, Mode::DmaExplicit, Mode::Dma],
         Some("--suite") => vec![Mode::Cpu, Mode::Upload, Mode::Dma],
         _ => anyhow::bail!("Unknown probe option"),
     };
-    let prepared = if modes.contains(&Mode::Dma) {
+    let prepared = if modes.iter().any(|m| m.dma()) {
         Some(gpu::prepare()?)
     } else {
         None
@@ -415,13 +486,7 @@ fn run_application(
         })
         .register();
     let _listener=stream.add_local_listener_with_user_data(state)
-        .state_changed(|_,state,old,new| {
-            let active=matches!(&new,pw::stream::StreamState::Streaming);
-            state.borrow_mut().streaming=active;
-            if !active {if let Some(app)=&mut state.borrow_mut().application {app.invalidate();}}
-            if let pw::stream::StreamState::Error(error)=new {state.borrow_mut().errors.push(error);}
-            else if matches!(new,pw::stream::StreamState::Unconnected) && matches!(old,pw::stream::StreamState::Streaming | pw::stream::StreamState::Paused) {state.borrow_mut().errors.push("Screen sharing ended".into());}
-        })
+        .state_changed(|_,state,old,new| { state.borrow_mut().stream_state(&old, &new); })
         .param_changed(|_,state,id,param| {
             if id!=spa::param::ParamType::Format.as_raw(){return;}
             if let Some(app)=&mut state.borrow_mut().application {app.invalidate();}
@@ -442,13 +507,20 @@ fn run_application(
             // Bound drain work even if a producer is running much faster than us.
             for _ in 0..16 {
                 let Some(next)=stream.dequeue_buffer() else {break;};
+                if let Err(error)=discard_dma(&mut newest, &state) {
+                    state.errors.push(error.to_string()); return;
+                }
                 newest=next;
                 state.discarded+=1;
             }
             let bad_header=newest.find_meta::<spa::buffer::meta::MetaHeader>().is_some_and(|h|h.flags().intersects(spa::buffer::meta::MetaHeaderFlags::CORRUPTED | spa::buffer::meta::MetaHeaderFlags::GAP));
             let datas=newest.datas_mut();
             let bad_chunk=datas.first().is_none_or(|d|d.as_raw().chunk.is_null() || d.chunk().flags().contains(spa::buffer::ChunkFlags::CORRUPTED) || d.chunk().size()==0 || d.chunk().stride()==0);
-            if bad_header || bad_chunk {state.corrupt_or_empty+=1;if let Some(app)=&mut state.application{app.invalidate();}return;}
+            if bad_header || bad_chunk {
+                state.corrupt_or_empty+=1;
+                if let Err(error)=discard_dma(&mut newest,&state) {state.errors.push(error.to_string());}
+                if let Some(app)=&mut state.application{app.invalidate();}return;
+            }
             if newest.find_meta::<spa::buffer::meta::MetaHeader>().is_some_and(|h|h.flags().contains(spa::buffer::meta::MetaHeaderFlags::DISCONT)) {if let Some(app)=&mut state.application{app.invalidate();}}
             if let Err(error)=process(&mut newest,&mut state) {
                 if state.errors.len()<16 {state.errors.push(error.to_string());}
@@ -487,7 +559,7 @@ fn run_application(
         ),
     );
     let mut formats = vec![format];
-    if mode == Mode::Dma {
+    if mode.dma() {
         let info = &prepared.context("DMA device missing")?.2;
         let modifiers: Vec<i64> = info["bgra_modifiers"]
             .as_array()
@@ -515,17 +587,20 @@ fn run_application(
         });
         formats = vec![dma]; // Probe fails rather than disguising SHM fallback as DMA.
     }
-    // Restrict the pilot to one image plane and implicit synchronization. Explicit
-    // SyncTimeline streams need a different acquire/release implementation.
+    // Explicit mode is a required experiment, never silently an implicit test.
+    // Older producer/header compatibility retains the existing one-plane default.
     formats.push(spa::pod::Object {
         type_: spa::utils::SpaTypes::ObjectParamBuffers.as_raw(),
         id: spa::param::ParamType::Buffers.as_raw(),
         properties: vec![
-            spa::pod::Property::new(spa::sys::SPA_PARAM_BUFFERS_blocks, spa::pod::Value::Int(1)),
-            spa::pod::Property::new(PARAM_BUFFERS_META_TYPE, spa::pod::Value::Int(0)),
+            spa::pod::Property::new(
+                spa::sys::SPA_PARAM_BUFFERS_blocks,
+                spa::pod::Value::Int(if mode == Mode::DmaExplicit { 3 } else { 1 }),
+            ),
+            synchronization_property(mode),
             spa::pod::Property::new(
                 spa::sys::SPA_PARAM_BUFFERS_dataType,
-                spa::pod::Value::Int(if mode == Mode::Dma {
+                spa::pod::Value::Int(if mode.dma() {
                     1 << spa::sys::SPA_DATA_DmaBuf
                 } else {
                     1 << spa::sys::SPA_DATA_MemFd
@@ -547,6 +622,22 @@ fn run_application(
             ),
         ],
     });
+    if mode == Mode::DmaExplicit {
+        formats.push(spa::pod::Object {
+            type_: spa::utils::SpaTypes::ObjectParamMeta.as_raw(),
+            id: spa::param::ParamType::Meta.as_raw(),
+            properties: vec![
+                spa::pod::Property::new(
+                    spa::sys::SPA_PARAM_META_type,
+                    spa::pod::Value::Id(spa::utils::Id(nanoleaf_linux_gpu::timeline::META_TYPE)),
+                ),
+                spa::pod::Property::new(
+                    spa::sys::SPA_PARAM_META_size,
+                    spa::pod::Value::Int(nanoleaf_linux_gpu::timeline::META_SIZE as i32),
+                ),
+            ],
+        });
+    }
     let serialized: Vec<Vec<u8>> = formats
         .into_iter()
         .map(|f| {
@@ -610,6 +701,7 @@ fn run_application(
             }
         }
     }
+    shared.borrow_mut().closing = true;
     stream.disconnect()?;
     let resources_active = resources::snapshot();
     let state = shared.borrow();
@@ -629,4 +721,53 @@ fn run_application(
     }
     result["resources_after_close"] = resources::snapshot();
     Ok(result)
+}
+
+#[cfg(test)]
+mod stream_lifecycle_tests {
+    use super::*;
+    #[test]
+    fn implicit_buffer_negotiation_keeps_legacy_optional_metadata_contract() {
+        // Regression from a real KWin "error alloc buffers" failure: zero is
+        // optional, while only the explicit experiment mandates SyncTimeline.
+        for mode in [Mode::Cpu, Mode::Upload, Mode::Dma] {
+            let property = synchronization_property(mode);
+            assert!(property.flags.is_empty());
+            assert_eq!(property.key, 7);
+            assert!(matches!(property.value, spa::pod::Value::Int(0)));
+        }
+        let explicit = synchronization_property(Mode::DmaExplicit);
+        assert!(explicit.flags.contains(spa::pod::PropertyFlags::MANDATORY));
+        assert!(matches!(explicit.value, spa::pod::Value::Int(512)));
+    }
+    #[test]
+    fn bounded_probe_close_is_distinct_from_permission_or_connection_loss() {
+        let mut normal = State {
+            streaming: true,
+            closing: true,
+            ..Default::default()
+        };
+        normal.stream_state(
+            &pw::stream::StreamState::Streaming,
+            &pw::stream::StreamState::Unconnected,
+        );
+        assert!(!normal.streaming);
+        assert!(normal.errors.is_empty());
+        let mut revoked = State {
+            streaming: true,
+            ..Default::default()
+        };
+        revoked.stream_state(
+            &pw::stream::StreamState::Streaming,
+            &pw::stream::StreamState::Unconnected,
+        );
+        assert!(!revoked.streaming);
+        assert_eq!(revoked.errors, ["Screen sharing ended"]);
+        let mut paused = State::default();
+        paused.stream_state(
+            &pw::stream::StreamState::Paused,
+            &pw::stream::StreamState::Unconnected,
+        );
+        assert_eq!(paused.errors, ["Screen sharing ended"]);
+    }
 }

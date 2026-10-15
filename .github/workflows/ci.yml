@@ -175,6 +175,7 @@ jobs:
           sudo apt-get install -y -qq pkg-config dbus-daemon libpipewire-0.3-dev libudev-dev libclang-dev
           rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
           cargo +1.95.0 fetch --manifest-path native/stream-probe/Cargo.toml --locked
+          cargo +1.95.0 fetch --manifest-path native/linux-gpu/Cargo.toml --locked
       - name: Verify supervised capture without display or USB access
         run: |
           cargo +1.95.0 fmt --manifest-path native/stream-probe/Cargo.toml --check
@@ -182,6 +183,8 @@ jobs:
           cargo +1.95.0 fmt --manifest-path native/gpu-probe/Cargo.toml --check
           cargo +1.95.0 clippy --manifest-path native/stream-probe/Cargo.toml --all-targets --locked --offline -- -D warnings
           cargo +1.95.0 test --manifest-path native/stream-probe/Cargo.toml --locked --offline
+          cargo +1.95.0 clippy --manifest-path native/linux-gpu/Cargo.toml --all-targets --locked --offline -- -D warnings
+          cargo +1.95.0 test --manifest-path native/linux-gpu/Cargo.toml --locked --offline
           cargo +1.95.0 build --manifest-path native/stream-probe/Cargo.toml --release --bins --locked --offline
       # Hardware shader/import and emitted-light checks remain local evidence.
 

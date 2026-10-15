@@ -552,6 +552,24 @@ impl Store {
         }
         self.save_document(document)
     }
+    /// Select an existing capture implementation without rewriting calibration,
+    /// profiles or unrelated settings. Starting/reloading remains explicit.
+    pub fn save_capture_backend(&mut self, backend: &str) -> Result<()> {
+        ensure!(
+            matches!(backend, "auto" | "kwin-dbus" | "xdg-portal"),
+            "Unsupported native capture backend"
+        );
+        if self.document.get("capture_backend").and_then(Item::as_str) == Some(backend) {
+            return self.save_document(self.document.clone());
+        }
+        let mut document = self.document.clone();
+        let mut value = toml_edit::Value::from(backend);
+        if let Some(previous) = document.get("capture_backend").and_then(Item::as_value) {
+            *value.decor_mut() = previous.decor().clone();
+        }
+        document["capture_backend"] = Item::Value(value);
+        self.save_document(document)
+    }
     pub fn update_scalar(&self, key: &str, value: toml_edit::Value) -> Result<DocumentMut> {
         ensure!(
             !key.contains('.') && !key.is_empty(),

@@ -1,6 +1,7 @@
 //! Narrow Linux Vulkan interop boundary. The app/colour crates remain safe Rust.
 //! Capture buffers stay dequeued until GPU work and foreign ownership release
-//! finish. Packed 8-bit, one memory plane, implicit sync only for this prototype.
+//! finish. Packed 8-bit, one image plane; explicit timelines remain opt-in.
+pub mod timeline;
 use anyhow::{ensure, Context, Result};
 use ash::vk;
 use pipewire::{buffer::Buffer, spa};
@@ -311,7 +312,12 @@ impl RegionReader<'_> {
 /// bytes. Imported textures cannot escape the dequeued PipeWire buffer lifetime.
 pub struct DmaSampler {
     sampler: nanoleaf_vulkan_probe::TextureSampler,
-    cache: HashMap<FrameKey, CachedFrame>,
+    cache: ImportCache,
+}
+#[derive(Default)]
+struct ImportCache {
+    frames: HashMap<FrameKey, CachedFrame>,
+    timeline: Option<timeline::Device>,
 }
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 struct FrameKey {
@@ -348,7 +354,7 @@ impl DmaSampler {
             sampler: nanoleaf_vulkan_probe::TextureSampler::new(
                 device, queue, width, height, zones,
             )?,
-            cache: HashMap::new(),
+            cache: ImportCache::default(),
         })
     }
     pub fn plan_sample<T>(
@@ -446,13 +452,13 @@ impl DmaSampler {
         result.timings["interop"] = stages;
         result.timings["complete_frame_ms"] =
             serde_json::json!(started.elapsed().as_secs_f64() * 1000.0);
-        result.timings["cached_images"] = serde_json::json!(self.cache.len());
+        result.timings["cached_images"] = serde_json::json!(self.cache.frames.len());
         Ok(result)
     }
 }
 // Private: only the synchronous sampler above receives this borrowed texture.
 fn with_texture<T>(
-    cache: &mut HashMap<FrameKey, CachedFrame>,
+    cache: &mut ImportCache,
     stages: &mut serde_json::Value,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -484,10 +490,23 @@ fn with_texture<T>(
             .contains(spa::param::video::VideoFlags::PREMULTIPLIED_ALPHA),
         "Premultiplied DMA-BUF requires verified alpha conversion"
     );
+    let explicit = timeline::present(buffer);
+    let lease = if explicit {
+        if cache.timeline.is_none() {
+            cache.timeline = Some(timeline::Device::open(device)?);
+        }
+        Some(timeline::Lease::acquire(
+            buffer,
+            cache.timeline.as_ref().context("Missing sync device")?,
+        )?)
+    } else {
+        None
+    };
     let planes = buffer.datas_mut();
     ensure!(
-        planes.len() == 1 && planes[0].type_() == spa::buffer::DataType::DmaBuf,
-        "One DMA-BUF plane with implicit synchronization required"
+        planes.len() == if explicit { 3 } else { 1 }
+            && planes[0].type_() == spa::buffer::DataType::DmaBuf,
+        "Expected one DMA-BUF image plane with the negotiated synchronization layout"
     );
     let data = &planes[0];
     ensure!(
@@ -502,7 +521,9 @@ fn with_texture<T>(
     );
     // SAFETY: Data's FD is owned by the dequeued Buffer, alive until this call ends.
     let borrowed = unsafe { BorrowedFd::borrow_raw(data.fd()) };
-    wait_producer(borrowed)?;
+    if lease.is_none() {
+        wait_producer(borrowed)?;
+    }
     let fence_ms = started.elapsed().as_secs_f64() * 1000.0;
     let file = std::fs::File::from(borrowed.try_clone_to_owned()?);
     let metadata = file.metadata()?;
@@ -520,13 +541,13 @@ fn with_texture<T>(
         stride,
         offset,
     };
-    let cached = cache.contains_key(&key);
+    let cached = cache.frames.contains_key(&key);
     let import_started = Instant::now();
     if !cached {
         // A held Vulkan allocation keeps the DMA-BUF inode alive, so numeric FD
         // reuse cannot alias a stale cached image. Bound to four compositor buffers.
-        if cache.len() >= 4 {
-            cache.clear();
+        if cache.frames.len() >= 4 {
+            cache.frames.clear();
         }
         let duplicate: OwnedFd = file.into();
 
@@ -585,7 +606,7 @@ fn with_texture<T>(
                 wgpu::TextureUses::RESOURCE,
             )
         };
-        cache.insert(
+        cache.frames.insert(
             key,
             CachedFrame {
                 texture,
@@ -597,6 +618,7 @@ fn with_texture<T>(
     }
     let import_ms = import_started.elapsed().as_secs_f64() * 1000.0;
     let frame = cache
+        .frames
         .get(&key)
         .context("Missing imported frame cache entry")?;
     let acquire_started = Instant::now();
@@ -639,8 +661,11 @@ fn with_texture<T>(
         eprintln!("Could not release foreign GPU ownership; terminating capture probe");
         std::process::exit(2);
     }
+    if let Some(lease) = lease {
+        lease.release()?;
+    }
     let release_ms = release_started.elapsed().as_secs_f64() * 1000.0;
-    *stages = serde_json::json!({"producer_fence_ms":fence_ms,"import_or_cache_ms":import_ms,"cache_hit":cached,"acquire_ms":acquire_ms,"release_ms":release_ms});
+    *stages = serde_json::json!({"sync_mode":if explicit {"drm-syncobj-timeline"} else {"implicit-sync-file"},"producer_fence_ms":fence_ms,"import_or_cache_ms":import_ms,"cache_hit":cached,"acquire_ms":acquire_ms,"release_ms":release_ms});
     result
 }
 

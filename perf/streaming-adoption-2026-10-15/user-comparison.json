@@ -1,0 +1,8 @@
+{
+  "scope": "10 s KWin then 20 s implicit GPU streaming, low brightness; uncontrolled subjective comparison, not optical or paired timing",
+  "observed": "As responsive or faster; colours stable",
+  "kwin_acknowledged_packets": 452,
+  "gpu_acknowledged_packets": 872,
+  "controller_restored_both_phases": true,
+  "real_configuration_unchanged_during_trial": true
+}

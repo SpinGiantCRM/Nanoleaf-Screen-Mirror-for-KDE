@@ -1,0 +1,19 @@
+{
+  "activated": true,
+  "saved_backend": "xdg-portal",
+  "actual_backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync",
+  "changed_config_keys": [
+    "capture_backend"
+  ],
+  "old_config_sha256": "93c02d4ba1d3047095a02b2b4a869afe5b7297846fcd4ec9cd42321fb1fe8aed",
+  "new_config_sha256": "a5d9b604c8ff68adf8a9321cc9fb578d4c2468c00a279612d66312f800049933",
+  "exact_old_config_backup_retained": true,
+  "all_other_config_values_preserved": true,
+  "fallback_launchers_and_autostart_preserved": true,
+  "old_version_retained": true,
+  "old_version": "64b3a69326071c683ade32acabd96812904cb754b7fa2df804e0a341994122c4",
+  "new_version": "a77bc9c142b241c33d68b9c1df6747fb94a81bd7f6c28e76a93bbff49ef1a84c",
+  "app_sha256": "7f76548f3c903308718b9050822dafff026e629f3ac4741ea80a0616c3427b31",
+  "helper_sha256": "5aa1c12a27a8c4692f5e66e44df0721502f81882a0d111eae3b5f2efaeafd1bd",
+  "normal_priority_all_threads": true
+}

@@ -306,6 +306,14 @@ impl Application {
         } else {
             "xdg-portal / Vulkan DMA-BUF / direct SDR samples"
         };
+        let backend = format!(
+            "{backend} / {}",
+            if std::env::var_os("NANOLEAF_EXPLICIT_SYNC").is_some() {
+                "explicit sync"
+            } else {
+                "implicit sync"
+            }
+        );
         Ok(
             serde_json::json!({"schema":2,"colors":output.colors,"unquantized_rgb":output.unquantized_rgb,
             "times":output.times,"capture_ms":capture_ms,"prepared_age_ms":age,"source_pts_ns":source.pts,
@@ -366,7 +374,11 @@ pub fn run() -> Result<()> {
     let result = super::run_application(
         &session,
         fd,
-        super::Mode::Dma,
+        if std::env::var_os("NANOLEAF_EXPLICIT_SYNC").is_some() {
+            super::Mode::DmaExplicit
+        } else {
+            super::Mode::Dma
+        },
         Some(&prepared),
         Some(application),
     )?;

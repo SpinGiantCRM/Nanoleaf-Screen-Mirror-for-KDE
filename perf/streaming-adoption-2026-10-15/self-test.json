@@ -1,0 +1,33 @@
+{
+  "adapter": {
+    "bgra_modifiers": [
+      0,
+      216172782120099856,
+      216172782120099857,
+      216172782120099858,
+      216172782120099859,
+      216172782120099860,
+      216172782120099861
+    ],
+    "driver": "NVIDIA",
+    "driver_info": "615.78.08",
+    "name": "NVIDIA GeForce RTX 4080 SUPER",
+    "rgba_modifiers": [
+      0,
+      216172782120099856,
+      216172782120099857,
+      216172782120099858,
+      216172782120099859,
+      216172782120099860,
+      216172782120099861
+    ],
+    "vendor": 4318
+  },
+  "scope": "Private render-node syncobj test only; no screen capture, USB, settings or capabilities",
+  "syncobj": {
+    "foreign_objects_accessed": false,
+    "points_checked": 8,
+    "private_timeline_import_signal_wait": true,
+    "unsignaled_timeout_ms": 10.539674
+  }
+}

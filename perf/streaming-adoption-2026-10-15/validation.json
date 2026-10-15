@@ -1,0 +1,20 @@
+{
+  "app": {
+    "passed": 79,
+    "ignored": 1,
+    "clippy_warnings_denied_passed": true,
+    "format_passed": true
+  },
+  "stream": {
+    "passed": 11,
+    "ignored": 0,
+    "clippy_warnings_denied_passed": true,
+    "format_passed": true
+  },
+  "interop": {
+    "passed": 3,
+    "ignored": 0,
+    "clippy_warnings_denied_passed": true,
+    "format_passed": true
+  }
+}

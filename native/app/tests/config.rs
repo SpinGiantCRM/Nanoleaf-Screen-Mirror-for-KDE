@@ -205,3 +205,44 @@ fn first_launch_initializes_only_absent_configuration_and_is_safe_for_existing_b
     );
     std::fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn backend_switch_preserves_profiles_unknowns_comments_exact_backup_and_other_values() {
+    let text = "# retain\nschema_version=2\ndevice_zone_count=48\ncapture_backend='kwin-dbus' # previous source\nsmoothing=1.0\nzone_temporal_accumulation=false\nfps=60\nfuture_option='keep'\n[led_calibration_profile_sdr]\nred_gain=0.87123\n[led_calibration_profile_hdr]\nred_gain=0.95678\n[calibration]\ndevice_zone_count=48\ncorner_anchor_top_left=3\nfuture_mapping='keep'\n";
+    let f = Fixture::new(text);
+    let mut store = Store::load(&f.file).unwrap();
+    let before = serde_json::to_value(&store.config).unwrap();
+    store.save_capture_backend("xdg-portal").unwrap();
+    let mut expected = before;
+    expected["capture_backend"] = "xdg-portal".into();
+    assert_eq!(serde_json::to_value(&store.config).unwrap(), expected);
+    let saved = fs::read_to_string(&f.file).unwrap();
+    assert!(saved.contains("# previous source"));
+    assert!(saved.contains("future_mapping='keep'"));
+    assert!(saved.contains("future_option='keep'"));
+    let backups: Vec<_> = fs::read_dir(&f.root)
+        .unwrap()
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .contains("native-backup")
+        })
+        .collect();
+    assert_eq!(backups.len(), 1);
+    assert_eq!(fs::read(&backups[0]).unwrap(), text.as_bytes());
+    store.save_capture_backend("xdg-portal").unwrap();
+    assert_eq!(fs::read_to_string(&f.file).unwrap(), saved);
+    assert!(store.save_capture_backend("unverified-hdr").is_err());
+    assert_eq!(fs::read_to_string(&f.file).unwrap(), saved);
+    assert_eq!(
+        fs::read_dir(&f.root)
+            .unwrap()
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().contains("native-backup"))
+            .count(),
+        1
+    );
+}

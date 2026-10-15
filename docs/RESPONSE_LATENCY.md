@@ -3,6 +3,12 @@
 Current user order: time to colour recreation > colour reproduction > FPS >
 system performance. This supersedes the earlier colour-first ordering.
 
+Latest substantive follow-up: [GPU streaming adoption](STREAMING_ADOPTION.md).
+After the user confirmed equal/better response and stable colours, the tested
+implicit Vulkan stream was enabled on this host with calibration and fallbacks
+preserved. The new explicit timeline experiment remains opt-in because its idle
+comparison did not demonstrate a response-time benefit.
+
 ## The delay hidden by per-frame timings
 
 The saved configuration has responsiveness 0.5 and, through its default,
