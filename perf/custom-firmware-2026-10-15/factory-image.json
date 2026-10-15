@@ -1,0 +1,11 @@
+{
+  "url": "https://nl82k2-firmware.s3.amazonaws.com/1.5.0.firmware",
+  "bytes": 10431,
+  "sha256": "05ae98ac932d18fb9bf1579e744401827f9ac068347cdb968426363ec45ef3de",
+  "last_modified": "Mon, 01 Sep 2025 02:45:34 GMT",
+  "content_type": "binary/octet-stream",
+  "length_mod_61": 0,
+  "entropy_bits_per_byte": 7.927646791412143,
+  "executed": false,
+  "flashed": false
+}

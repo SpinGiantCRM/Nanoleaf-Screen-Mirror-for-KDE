@@ -18,6 +18,17 @@ The installed app, capture helper, calibration and Python/native fallbacks remai
 intact. The only implementation addition is an operator-only read-only identity
 probe, with no updater or automatic network check.
 
+## Follow-up: stock recovery asset obtained
+
+[Custom firmware and recovery investigation](CUSTOM_FIRMWARE_RECOVERY.md) now
+records the exterior model **NL82K22**, the official **1.5.0** application-update
+file obtained through the vendor's recovery metadata request, its pinned hash
+and offline structure analysis. This is an advance over the first pass below,
+which obtained no image through the normal update check. The exact MCU remains
+unconfirmed; CH552 is still a lead. A complete stock backup, independent recovery
+entry and safe custom-image packaging remain unresolved. No flashing is authorized
+or performed. The following sections retain the first-pass investigation context.
+
 ## What is measured on this unit
 
 | Item | Verified result | Interpretation |

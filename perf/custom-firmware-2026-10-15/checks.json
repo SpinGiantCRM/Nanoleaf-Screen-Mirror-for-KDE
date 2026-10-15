@@ -1,0 +1,13 @@
+{
+  "config.toml_unchanged": true,
+  "nanoleaf-native_unchanged": true,
+  "installed_helper_unchanged": true,
+  "app_tests_passed": 95,
+  "inspector_synthetic_tests": 6,
+  "clippy_warnings_denied": true,
+  "hid_transactions_sent": 0,
+  "bootloader_entered": false,
+  "flashed": false,
+  "mcu_confirmed": false,
+  "recovery_proven": false
+}

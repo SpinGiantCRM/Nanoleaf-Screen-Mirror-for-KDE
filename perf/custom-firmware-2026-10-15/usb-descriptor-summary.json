@@ -1,0 +1,12 @@
+[
+  {
+    "idVendor": "37fa",
+    "idProduct": "8202",
+    "bcdDevice": "0105",
+    "bDeviceClass": "00",
+    "bMaxPacketSize0": "64",
+    "speed": "12",
+    "bNumInterfaces": "1",
+    "source": "Existing kernel sysfs attributes; serial omitted"
+  }
+]

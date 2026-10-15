@@ -1,0 +1,18 @@
+{
+  "bytes": 10431,
+  "checksum_verified": false,
+  "firmware_major": 1,
+  "firmware_minor": 5,
+  "matches_expected_sha256": true,
+  "mcu_identified": false,
+  "payload_bytes_by_historical_layout": 9576,
+  "payload_entropy_bits_per_byte": 7.978442783437753,
+  "record_bytes": 61,
+  "records": 171,
+  "recovery_proven": false,
+  "safe_to_flash": false,
+  "scope": "Offline container structure and expected-hash comparison only",
+  "sequential_big_endian_indices": true,
+  "sha256": "05ae98ac932d18fb9bf1579e744401827f9ac068347cdb968426363ec45ef3de",
+  "signature_verified": false
+}
