@@ -335,7 +335,7 @@ impl Application {
             "xdg-portal / Vulkan DMA-BUF / direct SDR samples"
         };
         let backend = format!(
-            "{backend} / {}{}",
+            "{backend} / {}{}{}",
             if std::env::var_os("NANOLEAF_EXPLICIT_SYNC").is_some() {
                 "explicit sync"
             } else {
@@ -343,6 +343,11 @@ impl Application {
             },
             if std::env::var_os("NANOLEAF_PRECISE_CACHE_TIMING").is_some() {
                 " / precise cache timer"
+            } else {
+                ""
+            },
+            if std::env::var_os("NANOLEAF_BATCH_GPU_WAITS").is_some() {
+                " / batched waits"
             } else {
                 ""
             }

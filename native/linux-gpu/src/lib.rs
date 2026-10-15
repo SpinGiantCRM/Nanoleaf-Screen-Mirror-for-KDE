@@ -566,6 +566,7 @@ pub struct DmaSampler {
 struct ImportCache {
     frames: HashMap<FrameKey, CachedFrame>,
     timeline: Option<timeline::Device>,
+    batch_waits: bool,
 }
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 struct FrameKey {
@@ -602,7 +603,11 @@ impl DmaSampler {
             sampler: nanoleaf_vulkan_probe::TextureSampler::new(
                 device, queue, width, height, zones,
             )?,
-            cache: ImportCache::default(),
+            cache: ImportCache {
+                // Experimental only: live repeat timings were inconclusive.
+                batch_waits: std::env::var_os("NANOLEAF_BATCH_GPU_WAITS").is_some(),
+                ..Default::default()
+            },
         })
     }
     pub fn plan_sample<T>(
@@ -843,7 +848,15 @@ fn with_texture<T>(
         // SAFETY: We only reference the live image; HAL retains ownership until wrapping.
         let image = unsafe { imported.raw_handle() };
         drop(hal);
-        if let Err(error) = transfer(device, queue, &raw_device, family, image, true) {
+        if let Err(error) = transfer(
+            device,
+            queue,
+            &raw_device,
+            family,
+            image,
+            Transfer::InitialAcquire,
+            cache.batch_waits,
+        ) {
             // SAFETY: Transfer never submitted work successfully, or waited for completion.
             let hal = unsafe { device.as_hal::<wgpu::hal::api::Vulkan>() }
                 .context("Lost Vulkan device")?;
@@ -883,18 +896,22 @@ fn with_texture<T>(
             &frame.raw_device,
             frame.family,
             frame.image,
-            true,
+            Transfer::CachedAcquire,
+            cache.batch_waits,
         )?;
     }
     let acquire_ms = acquire_started.elapsed().as_secs_f64() * 1000.0;
     let result = run(&frame.texture);
-    // Do not return a PipeWire buffer while a failed callback still has GPU work.
-    if device
-        .poll(wgpu::PollType::Wait {
-            submission_index: None,
-            timeout: Some(Duration::from_secs(2)),
-        })
-        .is_err()
+    // The release submission's fence covers all earlier work on this queue.
+    // Keep the old explicit completion check on errors and in the default path.
+    // No PipeWire buffer can return before the release barrier's completed wait.
+    if (!cache.batch_waits || result.is_err())
+        && device
+            .poll(wgpu::PollType::Wait {
+                submission_index: None,
+                timeout: Some(Duration::from_secs(2)),
+            })
+            .is_err()
     {
         // This executable is capture-only. Kernel teardown is safer than letting
         // Buffer::drop requeue memory that may still be in use after a GPU hang.
@@ -908,7 +925,8 @@ fn with_texture<T>(
         &frame.raw_device,
         frame.family,
         frame.image,
-        false,
+        Transfer::Release,
+        cache.batch_waits,
     )
     .is_err()
     {
@@ -923,20 +941,36 @@ fn with_texture<T>(
     result
 }
 
+#[derive(Clone, Copy)]
+enum Transfer {
+    InitialAcquire,
+    CachedAcquire,
+    Release,
+}
+impl Transfer {
+    fn wait(self, batch: bool) -> bool {
+        // Only a cached acquire may defer host completion. Initial imports keep
+        // their original construction contract; release ALWAYS waits for GPU
+        // completion before the compositor can reuse the memory.
+        !batch || !matches!(self, Self::CachedAcquire)
+    }
+}
+
 fn transfer(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     raw: &ash::Device,
     family: u32,
     image: vk::Image,
-    acquire: bool,
+    transfer: Transfer,
+    batch_waits: bool,
 ) -> Result<()> {
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("Foreign screen buffer ownership"),
     });
     // SAFETY: The callback only records a Vulkan barrier into this encoder's
     // currently open command buffer. It does not destroy/retain raw handles.
-    // The image remains owned and alive through the subsequent completed submit.
+    // The image remains alive through submit and final release completion.
     unsafe {
         encoder.as_hal_mut::<wgpu::hal::api::Vulkan, _, _>(|encoder| {
             let encoder = encoder.expect("Vulkan command encoder");
@@ -946,7 +980,7 @@ fn transfer(
                 .aspect_mask(vk::ImageAspectFlags::COLOR)
                 .level_count(1)
                 .layer_count(1);
-            let barrier = if acquire {
+            let barrier = if !matches!(transfer, Transfer::Release) {
                 vk::ImageMemoryBarrier::default()
                     .old_layout(vk::ImageLayout::GENERAL)
                     .new_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
@@ -964,8 +998,10 @@ fn transfer(
             .image(image)
             .subresource_range(range);
             // SAFETY: External producer is complete; image layout, plane and paired
-            // ownership states are checked by this module. No GPU use is pending
-            // before release. The guarded encoder is recording and on this device.
+            // ownership states are checked by this module. ALL_COMMANDS scopes
+            // cover same-queue work before/after this barrier even when its host
+            // wait is deferred. Release completion is mandatory before requeue.
+            // The guarded encoder is recording and on this device.
             raw.cmd_pipeline_barrier(
                 command,
                 vk::PipelineStageFlags::ALL_COMMANDS,
@@ -980,15 +1016,30 @@ fn transfer(
     // Submit through wgpu, which serializes access to the Vulkan queue. Never
     // call raw vkQueueSubmit alongside possible wgpu submissions.
     let index = queue.submit([encoder.finish()]);
-    if device
-        .poll(wgpu::PollType::Wait {
-            submission_index: Some(index),
-            timeout: Some(Duration::from_secs(2)),
-        })
-        .is_err()
+    if transfer.wait(batch_waits)
+        && device
+            .poll(wgpu::PollType::Wait {
+                submission_index: Some(index),
+                timeout: Some(Duration::from_secs(2)),
+            })
+            .is_err()
     {
         eprintln!("Vulkan ownership transfer failed; terminating isolated capture probe");
         std::process::exit(2);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod ownership_tests {
+    use super::Transfer;
+    #[test]
+    fn only_cached_acquire_can_defer_completion_never_import_or_release() {
+        for batch in [false, true] {
+            assert!(Transfer::InitialAcquire.wait(batch));
+            assert!(Transfer::Release.wait(batch));
+        }
+        assert!(Transfer::CachedAcquire.wait(false));
+        assert!(!Transfer::CachedAcquire.wait(true));
+    }
 }
