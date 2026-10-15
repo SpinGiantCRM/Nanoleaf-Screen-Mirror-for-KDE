@@ -140,39 +140,22 @@ pub fn decode(
         .checked_mul(height)
         .and_then(|n| n.checked_mul(3))
         .context("RGB size overflow")?;
-    // Common KWin screenshots are opaque. Check alpha rather than assuming it;
-    // a separate loop permits packed channel conversion without per-pixel
-    // format dispatch or unpremultiplication. Transparent frames retain the
-    // validated generic path below.
+    // Convert packed capture pixels once. Alpha is checked per small block,
+    // retaining exact unpremultiplication without scanning the whole frame first.
     let argb = matches!(format, 4..=6);
     let rgba = matches!(format, 16..=18);
-    let alpha_offset = if argb && cfg!(target_endian = "big") {
-        0
-    } else {
-        3
-    };
     let premultiplied = matches!(format, 6 | 18);
-    let opaque = (argb || rgba)
-        && (!premultiplied
-            || (0..height).all(|row| {
-                data[row * stride..row * stride + width * 4]
-                    .chunks_exact(4)
-                    .all(|p| p[alpha_offset] == 255)
-            }));
-    if opaque {
+    if argb || rgba {
         let mut pixels = vec![0; output_size];
         for row in 0..height {
-            for (source, destination) in data[row * stride..row * stride + width * 4]
-                .chunks_exact(4)
-                .zip(pixels[row * width * 3..(row + 1) * width * 3].chunks_exact_mut(3))
-            {
-                if rgba {
-                    destination.copy_from_slice(&source[..3]);
-                } else if cfg!(target_endian = "little") {
-                    destination.copy_from_slice(&[source[2], source[1], source[0]]);
-                } else {
-                    destination.copy_from_slice(&source[1..4]);
-                }
+            let source = &data[row * stride..row * stride + width * 4];
+            let destination = &mut pixels[row * width * 3..(row + 1) * width * 3];
+            if rgba {
+                packed_rgb_row::<0, 1, 2, 3>(source, destination, premultiplied);
+            } else if cfg!(target_endian = "little") {
+                packed_rgb_row::<2, 1, 0, 3>(source, destination, premultiplied);
+            } else {
+                packed_rgb_row::<1, 2, 3, 0>(source, destination, premultiplied);
             }
         }
         return Ok(Frame {
@@ -182,60 +165,13 @@ pub fn decode(
         });
     }
     let mut pixels = Vec::with_capacity(output_size);
-    if format == 6 {
-        for row in 0..height {
-            for pixel in data[row * stride..row * stride + width * 4].chunks_exact(4) {
-                let word = u32::from_ne_bytes([pixel[0], pixel[1], pixel[2], pixel[3]]);
-                let alpha = (word >> 24) as u8;
-                let rgb = [(word >> 16) as u8, (word >> 8) as u8, word as u8];
-                let rgb = if alpha < 255 {
-                    rgb.map(|code| {
-                        if alpha == 0 {
-                            0
-                        } else {
-                            ((u32::from(code) * 255 + u32::from(alpha) / 2) / u32::from(alpha))
-                                .min(255) as u8
-                        }
-                    })
-                } else {
-                    rgb
-                };
-                pixels.extend_from_slice(&rgb);
-            }
-        }
-        return Ok(Frame {
-            width,
-            height,
-            pixels,
-        });
-    }
     for row in 0..height {
         let source = &data[row * stride..row * stride + width * bytes_per_pixel];
         for pixel in source.chunks_exact(bytes_per_pixel) {
-            let (rgb, alpha, premultiplied) = match format {
-                4..=6 => {
-                    let word = u32::from_ne_bytes(pixel.try_into()?);
-                    (
-                        [(word >> 16) as u8, (word >> 8) as u8, word as u8],
-                        (word >> 24) as u8,
-                        format == 6,
-                    )
-                }
-                16..=18 => ([pixel[0], pixel[1], pixel[2]], pixel[3], format == 18),
-                29 => ([pixel[2], pixel[1], pixel[0]], 255, false),
-                _ => ([pixel[0], pixel[1], pixel[2]], 255, false),
-            };
-            let rgb = if premultiplied && alpha < 255 {
-                rgb.map(|code| {
-                    if alpha == 0 {
-                        0
-                    } else {
-                        ((u32::from(code) * 255 + u32::from(alpha) / 2) / u32::from(alpha)).min(255)
-                            as u8
-                    }
-                })
+            let rgb = if format == 29 {
+                [pixel[2], pixel[1], pixel[0]]
             } else {
-                rgb
+                [pixel[0], pixel[1], pixel[2]]
             };
             pixels.extend_from_slice(&rgb);
         }
@@ -245,6 +181,67 @@ pub fn decode(
         height,
         pixels,
     })
+}
+
+// Four pixels at a time make the opaque path a packed channel shuffle. Every
+// non-opaque block and remainder uses the same integer rounding/clamping as the
+// scalar QImage reference. No SIMD intrinsics or unchecked accesses are needed.
+fn packed_rgb_row<const R: usize, const G: usize, const B: usize, const A: usize>(
+    source: &[u8],
+    destination: &mut [u8],
+    premultiplied: bool,
+) {
+    let full_source = source.len() / 16 * 16;
+    let full_destination = full_source / 4 * 3;
+    for (s, d) in source[..full_source]
+        .chunks_exact(16)
+        .zip(destination[..full_destination].chunks_exact_mut(12))
+    {
+        if !premultiplied || s[A] & s[A + 4] & s[A + 8] & s[A + 12] == 255 {
+            d.copy_from_slice(&[
+                s[R],
+                s[G],
+                s[B],
+                s[R + 4],
+                s[G + 4],
+                s[B + 4],
+                s[R + 8],
+                s[G + 8],
+                s[B + 8],
+                s[R + 12],
+                s[G + 12],
+                s[B + 12],
+            ]);
+        } else {
+            for (s, d) in s.chunks_exact(4).zip(d.chunks_exact_mut(3)) {
+                convert_pixel::<R, G, B, A>(s, d, true);
+            }
+        }
+    }
+    for (s, d) in source[full_source..]
+        .chunks_exact(4)
+        .zip(destination[full_destination..].chunks_exact_mut(3))
+    {
+        convert_pixel::<R, G, B, A>(s, d, premultiplied);
+    }
+}
+fn convert_pixel<const R: usize, const G: usize, const B: usize, const A: usize>(
+    source: &[u8],
+    destination: &mut [u8],
+    premultiplied: bool,
+) {
+    let mut rgb = [source[R], source[G], source[B]];
+    let alpha = source[A];
+    if premultiplied && alpha < 255 {
+        rgb = rgb.map(|code| {
+            if alpha == 0 {
+                0
+            } else {
+                ((u32::from(code) * 255 + u32::from(alpha) / 2) / u32::from(alpha)).min(255) as u8
+            }
+        });
+    }
+    destination.copy_from_slice(&rgb);
 }
 
 #[cfg(test)]

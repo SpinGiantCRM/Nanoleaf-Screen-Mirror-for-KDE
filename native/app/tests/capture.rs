@@ -53,3 +53,58 @@ fn mixed_alpha_and_padding_never_use_opaque_conversion_for_transparent_pixels() 
         [0x12, 0x34, 0x56, 128, 64, 32, 0xab, 0xcd, 0xef, 0, 0, 0]
     );
 }
+
+#[test]
+fn packed_capture_matches_scalar_qimage_reference_with_alpha_padding_and_tails() {
+    for format in [4, 5, 6, 16, 17, 18] {
+        for width in [1, 2, 3, 4, 5, 7, 8, 15, 16, 17, 31, 32, 33, 65] {
+            for opaque in [false, true] {
+                let height = 5;
+                let stride = width * 4 + 7;
+                let mut data = vec![0x9d; stride * height];
+                let mut expected = Vec::new();
+                for y in 0..height {
+                    for x in 0..width {
+                        let index = y * width + x;
+                        let alpha = if opaque { 255 } else { (index * 47) as u8 };
+                        let rgb = [
+                            (index * 17) as u8,
+                            (index * 29 + 3) as u8,
+                            (index * 71 + 11) as u8,
+                        ];
+                        let raw = if format <= 6 {
+                            (u32::from(alpha) << 24
+                                | u32::from(rgb[0]) << 16
+                                | u32::from(rgb[1]) << 8
+                                | u32::from(rgb[2]))
+                            .to_ne_bytes()
+                        } else {
+                            [rgb[0], rgb[1], rgb[2], alpha]
+                        };
+                        let start = y * stride + x * 4;
+                        data[start..start + 4].copy_from_slice(&raw);
+                        for code in rgb {
+                            let value = if matches!(format, 6 | 18) {
+                                if alpha == 0 {
+                                    0
+                                } else {
+                                    ((u32::from(code) * 255 + u32::from(alpha) / 2)
+                                        / u32::from(alpha))
+                                    .min(255) as u8
+                                }
+                            } else {
+                                code
+                            };
+                            expected.push(value);
+                        }
+                    }
+                }
+                let frame = decode(&data, width, height, stride, format).unwrap();
+                assert_eq!(
+                    frame.pixels, expected,
+                    "format {format}, width {width}, opaque {opaque}"
+                );
+            }
+        }
+    }
+}

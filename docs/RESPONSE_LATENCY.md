@@ -162,3 +162,72 @@ The final app gate passes 77 tests, with the operator benchmark ignored in norma
 CI; the benchmark was also explicitly run and passed all byte comparisons.
 Native Clippy and format checks pass. No production reader or colour algorithms
 were changed by this additional test/benchmark batch.
+
+## Packed capture conversion follow-up
+
+The next measured hotspot was conversion from KWin's premultiplied 32-bit image
+to the RGB8 frame consumed by the colour pipeline. The old opaque path scanned
+all alpha bytes, then traversed the image again to convert channels. It now
+converts four pixels per block, checking that block's alpha alongside the
+channel shuffle. A non-opaque block or row remainder uses the same integer
+unpremultiplication, zero-alpha handling, rounding and saturation as the scalar
+reference. Native-endian ARGB and byte-ordered RGBA remain distinct. Row padding
+is never treated as pixels. RGB/BGR888 handling is retained, and unrecognised
+formats still fail rather than being guessed. No unsafe code, new dependencies,
+new capture permissions, image approximation or colour-policy changes were added.
+
+The new independent scalar test covers all six packed format IDs, all alpha
+codes, opaque and mixed frames, saturation, zero alpha, padding, multiple rows
+and widths around block boundaries. The existing `decode_probe` also checks
+complete generated frames against its frozen scalar reference. Four alternating
+before/after executable pairs, each with 20 internal decode samples per case,
+gave these pooled medians (allocation included):
+
+| Generated frame | Previous conversion | Packed conversion |
+| --- | ---: | ---: |
+| 2560×1440, opaque | 2.42 ms | 2.00 ms |
+| 3840×2160, opaque | 6.01 ms | 4.91 ms |
+| 2560×1440, alpha 128 | 9.72 ms | 9.79 ms |
+| 3840×2160, alpha 128 | 21.88 ms | 22.24 ms |
+
+The opaque 4K stage improves about 18%; uniformly translucent frames are about
+1–2% slower in this short run. Every output byte matched. These figures describe
+generated conversion work, not whole capture or emitted-light response. Both
+executables ran at actual nice 0 while ordinary mirroring continued.
+
+The complete GUI/helper bundle passed 78 app tests, Clippy, format and isolated
+package smoke tests before installation. A brief real KWin check then compared
+the previous and new installed builds, with the exact same fast-response config:
+
+| Short uncontrolled desktop observation | Before | After |
+| --- | ---: | ---: |
+| Daily acknowledged updates/s (8 s each) | 45.66 | 45.53 |
+| Daily process CPU, percent of one core | 68.61% | 62.87% |
+| Daily capture request to ACK median | 52.28 ms | 49.00 ms |
+| Concurrent capture-probe conversion median (3 s each) | 6.19 ms | 5.37 ms |
+
+The conversion-stage direction agrees with the synthetic benchmark. Other
+capture/processing timings varied; the whole-app CPU/response difference cannot
+be assigned entirely to this change. The stage saving is modest, output cadence
+is still limited by roughly 22 ms USB transactions, and no optical gain is
+claimed. Faster capture overwrote more prepared frames (19 → 51 in these short
+daily samples), as expected with the existing latest-frame slot; no additional
+USB reconnect occurred. This counter measures coalesced prepared work, not failed
+USB writes. Point-in-time RSS differed between the long-running previous process
+and fresh new process; peak RSS was about 80 MiB in both, so no memory saving is
+claimed.
+
+The new build remains installed and mirroring KWin at normal priority 0. The
+configuration is byte-identical to the confirmed fast-response configuration,
+including calibration, both profiles, mapping, unknown fields and comments.
+The previous fast-response Rust build, older Rust version, Python fallback and
+autostart preferences are retained. This binary-only upgrade needs no settings
+rollback when switching back to the preceding fast-response build.
+
+Evidence: `perf/packed-capture-2026-10-15/`. To reproduce the generated work, build
+`decode_probe` with Rust 1.95.0, `--locked --release`, at `14a5015` and this change
+in separate checkouts; alternate their executable order and compare `decode_ms`
+for identical dimensions/alpha. Its internal `reference_ms` is the older scalar
+oracle, not the immediately preceding production baseline. The private live
+harness and metadata are retained under the local test state directory; screen
+pixels were never saved.

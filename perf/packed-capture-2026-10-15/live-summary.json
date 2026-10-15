@@ -1,0 +1,96 @@
+{
+  "scope": "Sequential short uncontrolled KDE desktop profiles before and after a byte-exact packed decode change; real KWin capture and USB ACK. Not controlled optical latency or sustained gaming.",
+  "before": {
+    "seconds": 8.016070403999038,
+    "acknowledged_frames": 366,
+    "acknowledged_fps": 45.65828162105598,
+    "cpu_percent_one_core": 68.61217183492018,
+    "median_ms": {
+      "capture_ms": 17.139602500000002,
+      "processing_ms": 3.7066555,
+      "usb_ms": 21.997144499999997,
+      "response_ms": 52.2814025
+    },
+    "memory": {
+      "VmHWM": "81248 kB",
+      "VmRSS": "65676 kB",
+      "Threads": "8"
+    },
+    "dropped_prepared_frames": 19,
+    "new_reconnects": 0,
+    "priority": {
+      "configured": "normal",
+      "effective_nice": 0,
+      "error": null
+    },
+    "concurrent_capture_attribution": {
+      "scope": "Additional capture load alongside daily mirroring; excludes HID from probe. No images saved.",
+      "frames": 122,
+      "dimensions": [
+        3840,
+        2160
+      ],
+      "formats": [
+        6
+      ],
+      "median_ms": {
+        "capture_ms": 21.419646999999998,
+        "reply_ms": 8.644476,
+        "pipe_ms": 6.426477,
+        "decode_ms": 6.186253499999999,
+        "processing_ms": 3.027018
+      }
+    }
+  },
+  "after": {
+    "seconds": 8.016450471001008,
+    "acknowledged_frames": 365,
+    "acknowledged_fps": 45.531373432713636,
+    "cpu_percent_one_core": 62.87071838380184,
+    "median_ms": {
+      "capture_ms": 16.3663915,
+      "processing_ms": 2.6677524999999997,
+      "usb_ms": 21.996398499999998,
+      "response_ms": 49.0014215
+    },
+    "memory": {
+      "VmHWM": "81716 kB",
+      "VmRSS": "81716 kB",
+      "Threads": "8"
+    },
+    "dropped_prepared_frames": 51,
+    "new_reconnects": 0,
+    "priority": {
+      "configured": "normal",
+      "effective_nice": 0,
+      "error": null
+    },
+    "concurrent_capture_attribution": {
+      "scope": "Additional capture load alongside daily mirroring; excludes HID from probe. No images saved.",
+      "frames": 130,
+      "dimensions": [
+        3840,
+        2160
+      ],
+      "formats": [
+        6
+      ],
+      "median_ms": {
+        "capture_ms": 19.7734295,
+        "reply_ms": 7.120782500000001,
+        "pipe_ms": 7.1967075000000005,
+        "decode_ms": 5.373898,
+        "processing_ms": 3.296122
+      }
+    }
+  },
+  "config_sha256": "93c02d4ba1d3047095a02b2b4a869afe5b7297846fcd4ec9cd42321fb1fe8aed",
+  "config_byte_identical": true,
+  "calibration_profiles_unknowns_and_fast_settings_unchanged": true,
+  "old_native_binary_retained": true,
+  "fallback_launchers_and_autostart_unchanged": true,
+  "before_binary_sha256": "96c7eace018713597d41feaf0ffa676263bb0a9b9091976cf367db7f23afed74",
+  "after_binary_sha256": "6ee0b271c15dfdf33eddf0aa67fb1e025f43d608c7a5f2d6f2c1496108e0ffa6",
+  "installed_version": "64b3a69326071c683ade32acabd96812904cb754b7fa2df804e0a341994122c4",
+  "manual_zones": 48
+}
