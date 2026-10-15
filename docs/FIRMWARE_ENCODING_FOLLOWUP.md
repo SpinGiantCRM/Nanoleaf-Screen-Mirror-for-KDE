@@ -136,9 +136,9 @@ reported that the **third timed step was dark and the others produced light**;
 the third step was code 16. This unexpected, non-monotonic observation does not
 validate either black candidate or a transfer curve. Brief unlabelled steps,
 human timing and the controller's output state remain confounding factors.
-Do not silently reassign the report to code 0 or 15. A future physical check
-needs slower, visibly labelled, individually confirmed phases before deriving
-an encoding rule. No further unattended repeat is justified by these results.
+Do not silently reassign the report to code 0 or 15. The subsequent separately
+announced held observations below address this ambiguity. No further unattended
+repeat is justified by the earlier sequence.
 
 ACK delay is repeatable and level-dependent, but **ACK is not emitted-light
 timing**. No photodiode, colorimeter, throughput improvement or physical colour
@@ -163,8 +163,32 @@ CLI tests verify plan-only operation without a desktop runtime, the manual
 count, fixed duration/brightness, unchanged configuration and rejection of
 unreviewed/invalid arguments before HID. Injected failure tests verify original
 brightness restoration after the test-brightness command or observation fails.
-The new single-level mode has not yet been physically observed. It is a separate
-operator tool, not a daily colour-mapping change or a packaged runtime component.
+It is a separate operator tool, not a daily colour-mapping change or a packaged
+runtime component. Physical observations followed on 16 October, below.
+
+### 16 October: separately confirmed level 0 and level 16
+
+The user requested one check at a time. Each code was announced before its
+ten-second hold, at controller brightness 10 with the authoritative manual count
+of 48. The user's response was collected before starting the next code.
+
+| Raw neutral code | Acknowledged frames | User observation | Median ACK wait |
+| --- | ---: | --- | ---: |
+| 0 | 300 | Completely dark | 3.027 ms |
+| 16 | 300 | LEDs turned on, too dim to illuminate the wall behind the monitor | 17.029 ms |
+
+Both runs acknowledged cleanup black and verified original controller power and
+brightness restoration by readback. The real configuration remained byte-identical;
+calibration, daily encoding and firmware were unchanged. No third phase ran.
+
+At this tested brightness, code 0 was off and code 16 emitted light. The earlier
+report of a dark third step was **not reproduced**. These observations support
+retaining the existing zero-black encoding; they do not establish a black floor
+of 15, a 16-code offset, a complete transfer curve, neutral colour accuracy or
+screen-to-light latency. Wall illumination is not a measured luminance threshold.
+The level-dependent ACK delay remains a separate software/protocol observation.
+
+Sanitized results: [perf/held-levels-2026-10-16](../perf/held-levels-2026-10-16/results.json).
 
 ## Manufacturer contact and remaining gates
 
