@@ -1,0 +1,14 @@
+{
+  "app_tests_passed": 103,
+  "app_tests_ignored": 1,
+  "clippy_all_targets": true,
+  "format_check": true,
+  "real_config_and_installed_fallbacks_preserved": true,
+  "daily_installed_version_changed": false,
+  "settings_layout_checked_with_synthetic_status": true,
+  "window_quantiles_independently_recomputed_exact": true,
+  "optical_latency_measured": false,
+  "physical_reconnect_retested": false,
+  "app_sha256": "58851ee35e628a1af229857c419891b3e7a3b57050df878fc804dcbfda5c42a5",
+  "helper_sha256": "23ebce6aa570fbef830735a8ceb365d6894d160772c959dcabbeae6a2241860b"
+}

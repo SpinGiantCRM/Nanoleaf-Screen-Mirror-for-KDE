@@ -415,6 +415,17 @@ impl Settings {
                 ui.small(format!("First response after {:.3} ms · {} reports written / {} received",t.first_report_wait_ms,t.written_reports,t.response_reports));
             }
             if let Some(s)=&self.status {
+                if let Some(timing) = &s.response_summary {
+                    for (label, window) in [("Fresh screen updates", &timing.fresh), ("Repeated image updates", &timing.cached)] {
+                        if window.samples > 0 {
+                            ui.separator();
+                            ui.small(format!("{label}: latest {} of {} measured packets", window.samples, window.observed));
+                            ui.small(format!("Work to USB write: usual {:.2} ms · 95% within {:.2} ms · 99% within {:.2} ms", window.to_write_ms.p50, window.to_write_ms.p95, window.to_write_ms.p99));
+                            ui.small(format!("95% within: waiting to send {:.2} ms · USB transaction {:.2} ms · work to acknowledgement {:.2} ms", window.queue_ms.p95, window.usb_ms.p95, window.to_ack_ms.p95));
+                        }
+                    }
+                    ui.small("Software timings only; recent packets since Start, Apply or USB reconnection. Preview and inferred packets are excluded.");
+                }
                 ui.small(format!("{} packets reprocessed from an unchanged shared image; these are not new captured frames.",s.reused_source_packets));
                 if s.last_source_reused {ui.small("Last response timing starts at unchanged-image processing, not the original capture timestamp.");}
             }

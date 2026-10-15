@@ -59,7 +59,7 @@ pub struct Prepared {
     pub capture_stages: Option<CaptureStages>,
 }
 struct Latest {
-    value: Mutex<Option<Result<Prepared, String>>>,
+    value: Mutex<Option<(Result<Prepared, String>, Instant)>>,
     dropped: AtomicU64,
     missed: AtomicU64,
 }
@@ -70,7 +70,7 @@ impl Latest {
             if !notify {
                 self.dropped.fetch_add(1, Ordering::Relaxed);
             }
-            *slot = Some(value);
+            *slot = Some((value, Instant::now()));
             if notify {
                 let _ = tx.send(Control::FrameReady);
             }
@@ -169,6 +169,10 @@ impl Producer {
         }
     }
     pub fn take(&self) -> Option<Result<Prepared, String>> {
+        self.take_with_ready_time().map(|(value, _)| value)
+    }
+    /// The timestamp belongs to the retained packet, including after overwrite.
+    pub fn take_with_ready_time(&self) -> Option<(Result<Prepared, String>, Instant)> {
         self.latest.value.lock().ok()?.take()
     }
     pub fn acknowledge(&self, colors: &[[u8; 3]]) {
@@ -207,6 +211,7 @@ mod tests {
             missed: AtomicU64::new(0),
         };
         for n in 0..3 {
+            let before = Instant::now();
             slot.put(
                 Ok(Prepared {
                     unquantized_rgb: None,
@@ -224,11 +229,18 @@ mod tests {
                 }),
                 &tx,
             );
+            let at = slot.value.lock().unwrap().as_ref().unwrap().1;
+            assert!(at >= before && at <= Instant::now());
+            // Force an old marker: the next overwrite must replace its timing
+            // as well as its colours, rather than measuring the first packet.
+            if n < 2 {
+                slot.value.lock().unwrap().as_mut().unwrap().1 = before - Duration::from_secs(1);
+            }
         }
         assert_eq!(rx.try_iter().count(), 1);
         assert_eq!(slot.dropped.load(Ordering::Relaxed), 2);
         assert_eq!(
-            slot.value.lock().unwrap().take().unwrap().unwrap().colors,
+            slot.value.lock().unwrap().take().unwrap().0.unwrap().colors,
             vec![[2; 3]; 48]
         );
     }

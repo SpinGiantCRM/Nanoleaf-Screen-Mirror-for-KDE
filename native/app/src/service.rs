@@ -62,6 +62,11 @@ pub struct Status {
     /// Host completion is not proof of the device's emitted-light timing.
     #[serde(default)]
     pub response_to_write_ms: Option<f64>,
+    /// Parent latest-slot residence before USB starts; excludes capture/IPC.
+    #[serde(default)]
+    pub prepared_queue_ms: Option<f64>,
+    #[serde(default)]
+    pub response_summary: Option<crate::response::ResponseSummary>,
     #[serde(default)]
     pub response_clock: String,
     #[serde(default)]
@@ -314,6 +319,8 @@ fn run_inner(
     let mut preview = None;
     let mut predictor = crate::prediction::Predictor::default();
     let mut usb_history = std::collections::VecDeque::<Duration>::new();
+    let mut responses = crate::response::Responses::default();
+    let mut response_epoch = Instant::now();
     let mut retry = Instant::now();
     let mut deadline = Instant::now();
     let mut fps_epoch = Instant::now();
@@ -338,6 +345,7 @@ fn run_inner(
                 }
                 Control::Status => {}
                 Control::Quit => {
+                    state.response_summary = Some(responses.summary());
                     // Release capture before reporting: a slow stdout consumer
                     // must never keep screen sharing or hardware ownership alive.
                     state.running = false;
@@ -359,6 +367,7 @@ fn run_inner(
                     break;
                 }
                 Control::Stop => {
+                    state.response_summary = Some(responses.summary());
                     predictor.reset();
                     usb_history.clear();
                     watchdog.reset();
@@ -390,6 +399,10 @@ fn run_inner(
                         usb_history.clear();
                         watchdog.reset();
                         store = s;
+                        responses = crate::response::Responses::default();
+                        state.response_summary = None;
+                        state.prepared_queue_ms = None;
+                        response_epoch = Instant::now();
                         if let Some(backend) = backend {
                             store.config.capture_backend = backend.into();
                         }
@@ -428,6 +441,10 @@ fn run_inner(
                         }
                     };
                     if ready && !state.running {
+                        responses = crate::response::Responses::default();
+                        state.response_summary = None;
+                        state.prepared_queue_ms = None;
+                        response_epoch = Instant::now();
                         start_time = Instant::now();
                         state.running = true;
                         state.preview = false;
@@ -531,6 +548,10 @@ fn run_inner(
                     state.model = s.model.clone();
                     state.reported_zones = s.reported_count;
                     strip = Some(s);
+                    responses = crate::response::Responses::default();
+                    state.response_summary = None;
+                    state.prepared_queue_ms = None;
+                    response_epoch = Instant::now();
                     state.reconnects += 1;
                     state.message = "Strip connected".into();
                 }
@@ -544,6 +565,7 @@ fn run_inner(
             }
         }
         let frame_start = Instant::now();
+        let mut ready_at = None;
         let work = (|| -> Result<Option<Prepared>> {
             if let Some((rgb, zone, _)) = preview {
                 let mut colors = vec![[0; 3]; store.config.device_zone_count];
@@ -571,9 +593,12 @@ fn run_inner(
                 watchdog.start(Instant::now(), store.config.fps);
                 capture = Some(Producer::spawn(store.config.clone(), tx.clone()));
             }
-            match capture.as_ref().unwrap().take() {
-                Some(Ok(out)) => Ok(Some(out)),
-                Some(Err(error)) => bail!("{error}"),
+            match capture.as_ref().unwrap().take_with_ready_time() {
+                Some((Ok(out), at)) => {
+                    ready_at = Some(at);
+                    Ok(Some(out))
+                }
+                Some((Err(error), _)) => bail!("{error}"),
                 None => Ok(None),
             }
         })();
@@ -653,6 +678,8 @@ fn run_inner(
                     }
                 }
                 let usb_start = Instant::now();
+                let queue_ms = ready_at
+                    .map(|at| usb_start.saturating_duration_since(at).as_secs_f64() * 1000.0);
                 let result = strip.as_mut().unwrap().frame(&colors);
                 state.usb_ms = usb_start.elapsed().as_secs_f64() * 1000.0;
                 state.usb_transaction = strip
@@ -690,6 +717,22 @@ fn run_inner(
                                         * 1000.0
                                 });
                             state.response_clock = response_clock.into();
+                            state.prepared_queue_ms = queue_ms;
+                            if let (Some(queue_ms), Some(to_write_ms)) =
+                                (queue_ms, state.response_to_write_ms)
+                            {
+                                responses.record(
+                                    crate::response::Sample {
+                                        capture_ms,
+                                        processing_ms: times.total_ms,
+                                        queue_ms,
+                                        usb_ms: state.usb_ms,
+                                        to_write_ms,
+                                        to_ack_ms: state.response_ms,
+                                    },
+                                    source_reused,
+                                );
+                            }
                             state.capture_stages = capture_stages;
                             state.source_presentation_age_ms = source_pts_ns.map(|pts| {
                                 let now =
@@ -714,6 +757,7 @@ fn run_inner(
                         }
                     }
                     Err(e) => {
+                        state.response_summary = Some(responses.summary());
                         predictor.reset();
                         usb_history.clear();
                         watchdog.reset();
@@ -725,6 +769,7 @@ fn run_inner(
                 }
             }
             Err(e) => {
+                state.response_summary = Some(responses.summary());
                 predictor.reset();
                 usb_history.clear();
                 watchdog.reset();
@@ -751,6 +796,10 @@ fn run_inner(
                 publish(&shared, &state);
                 continue;
             }
+        }
+        if response_epoch.elapsed() >= Duration::from_secs(1) {
+            state.response_summary = Some(responses.summary());
+            response_epoch = Instant::now();
         }
         if fps_epoch.elapsed() >= Duration::from_secs(1) {
             state.effective_fps =

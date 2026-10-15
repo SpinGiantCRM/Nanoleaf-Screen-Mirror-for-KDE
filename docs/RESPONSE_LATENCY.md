@@ -19,6 +19,9 @@ limits; total acknowledgement time must not be confused with emitted light.
 The subsequent [black-screen and USB investigation](USB_AND_BLACK_RESPONSE.md)
 removes the exact uniform-dark analysis fallback and separates host-write timing
 from the content-dependent controller reply delay.
+The [per-update response distributions](RESPONSE_TAIL_DIAGNOSTICS.md) now measure
+fresh/cached work separately, including parent queue residence and response
+tails that periodically polled status can miss.
 
 ## The delay hidden by per-frame timings
 
