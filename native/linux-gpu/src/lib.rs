@@ -253,6 +253,27 @@ impl<'a> RegionReader<'a> {
     pub fn statistics(&self) -> (usize, usize) {
         (self.bytes, self.transfers)
     }
+    /// Uniform dark frames have exactly the full-image bounds in the CPU
+    /// detector, including either side of its threshold. Edge equality only
+    /// selects candidates: the GPU must prove EVERY normalized pixel equal.
+    pub fn uniform_dark(&mut self) -> Result<bool> {
+        self.edges()?;
+        let Some(edges) = &self.edges else {
+            return Ok(false);
+        };
+        let first = &edges[0][..3];
+        if first.iter().any(|&v| v > 4)
+            || edges
+                .iter()
+                .any(|line| line.chunks_exact(3).any(|rgb| rgb != first))
+        {
+            return Ok(false);
+        }
+        let uniform = self.sampler.is_uniform(self.texture)?;
+        // This is flags, not RGB pixels. Count its IO separately from RGB bytes.
+        self.transfers += 1;
+        Ok(uniform)
+    }
     fn edges(&mut self) -> Result<()> {
         if self.edges.is_some() || self.full.is_some() {
             return Ok(());

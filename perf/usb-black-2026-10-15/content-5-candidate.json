@@ -1,0 +1,671 @@
+{
+  "adapter": {
+    "driver": "NVIDIA",
+    "driver_info": "615.78.08",
+    "name": "NVIDIA GeForce RTX 4080 SUPER",
+    "vendor": 4318
+  },
+  "cases": [
+    {
+      "all_bounds_exact": true,
+      "height": 359,
+      "pattern": "bright",
+      "runs": [
+        {
+          "ms": 0.058392,
+          "rgb_bytes": 6000,
+          "transfer_batches": 1
+        },
+        {
+          "ms": 0.05795,
+          "rgb_bytes": 6000,
+          "transfer_batches": 1
+        },
+        {
+          "ms": 0.053583,
+          "rgb_bytes": 6000,
+          "transfer_batches": 1
+        },
+        {
+          "ms": 0.052571,
+          "rgb_bytes": 6000,
+          "transfer_batches": 1
+        },
+        {
+          "ms": 0.052450000000000004,
+          "rgb_bytes": 6000,
+          "transfer_batches": 1
+        }
+      ],
+      "width": 641
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 359,
+      "pattern": "thin-bars",
+      "runs": [
+        {
+          "ms": 0.248014,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.24074,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.241261,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.243766,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.236672,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        }
+      ],
+      "width": 641
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 359,
+      "pattern": "cinema-bars",
+      "runs": [
+        {
+          "ms": 0.242754,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.24484799999999998,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.248134,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.245238,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.244086,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        }
+      ],
+      "width": 641
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 359,
+      "pattern": "pillars",
+      "runs": [
+        {
+          "ms": 0.34889600000000004,
+          "rgb_bytes": 542346,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.34550899999999996,
+          "rgb_bytes": 542346,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.33870599999999995,
+          "rgb_bytes": 542346,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.33581099999999997,
+          "rgb_bytes": 542346,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.33676300000000003,
+          "rgb_bytes": 542346,
+          "transfer_batches": 3
+        }
+      ],
+      "width": 641
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 359,
+      "pattern": "black",
+      "runs": [
+        {
+          "ms": 0.097887,
+          "rgb_bytes": 6000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.100682,
+          "rgb_bytes": 6000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.095292,
+          "rgb_bytes": 6000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.093769,
+          "rgb_bytes": 6000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.092467,
+          "rgb_bytes": 6000,
+          "transfer_batches": 2
+        }
+      ],
+      "width": 641
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 359,
+      "pattern": "dark-grey",
+      "runs": [
+        {
+          "ms": 0.103638,
+          "rgb_bytes": 6000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.099941,
+          "rgb_bytes": 6000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.098759,
+          "rgb_bytes": 6000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.102395,
+          "rgb_bytes": 6000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.098919,
+          "rgb_bytes": 6000,
+          "transfer_batches": 2
+        }
+      ],
+      "width": 641
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 359,
+      "pattern": "threshold-grey",
+      "runs": [
+        {
+          "ms": 0.098298,
+          "rgb_bytes": 6000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.106654,
+          "rgb_bytes": 6000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.097907,
+          "rgb_bytes": 6000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.09815800000000001,
+          "rgb_bytes": 6000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.099139,
+          "rgb_bytes": 6000,
+          "transfer_batches": 2
+        }
+      ],
+      "width": 641
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 359,
+      "pattern": "single-pixel",
+      "runs": [
+        {
+          "ms": 1.598862,
+          "rgb_bytes": 1508550,
+          "transfer_batches": 12
+        },
+        {
+          "ms": 1.9797,
+          "rgb_bytes": 1508550,
+          "transfer_batches": 12
+        },
+        {
+          "ms": 1.222705,
+          "rgb_bytes": 1508550,
+          "transfer_batches": 12
+        },
+        {
+          "ms": 1.536885,
+          "rgb_bytes": 1508550,
+          "transfer_batches": 12
+        },
+        {
+          "ms": 1.8185930000000001,
+          "rgb_bytes": 1508550,
+          "transfer_batches": 12
+        }
+      ],
+      "width": 641
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 359,
+      "pattern": "near-threshold",
+      "runs": [
+        {
+          "ms": 0.21917799999999998,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.219729,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.5785849999999999,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.9399649999999999,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.34582999999999997,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        }
+      ],
+      "width": 641
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 359,
+      "pattern": "transparent-border",
+      "runs": [
+        {
+          "ms": 0.21690399999999999,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.224389,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.223577,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.223196,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.218337,
+          "rgb_bytes": 129072,
+          "transfer_batches": 3
+        }
+      ],
+      "width": 641
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 2160,
+      "pattern": "bright",
+      "runs": [
+        {
+          "ms": 0.143885,
+          "rgb_bytes": 36000,
+          "transfer_batches": 1
+        },
+        {
+          "ms": 0.136832,
+          "rgb_bytes": 36000,
+          "transfer_batches": 1
+        },
+        {
+          "ms": 0.13480799999999998,
+          "rgb_bytes": 36000,
+          "transfer_batches": 1
+        },
+        {
+          "ms": 0.137713,
+          "rgb_bytes": 36000,
+          "transfer_batches": 1
+        },
+        {
+          "ms": 0.13527799999999998,
+          "rgb_bytes": 36000,
+          "transfer_batches": 1
+        }
+      ],
+      "width": 3840
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 2160,
+      "pattern": "thin-bars",
+      "runs": [
+        {
+          "ms": 0.5221870000000001,
+          "rgb_bytes": 773280,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.506697,
+          "rgb_bytes": 773280,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.502679,
+          "rgb_bytes": 773280,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.505926,
+          "rgb_bytes": 773280,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.5220360000000001,
+          "rgb_bytes": 773280,
+          "transfer_batches": 3
+        }
+      ],
+      "width": 3840
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 2160,
+      "pattern": "cinema-bars",
+      "runs": [
+        {
+          "ms": 1.115901,
+          "rgb_bytes": 1510560,
+          "transfer_batches": 5
+        },
+        {
+          "ms": 1.112474,
+          "rgb_bytes": 1510560,
+          "transfer_batches": 5
+        },
+        {
+          "ms": 1.1100400000000001,
+          "rgb_bytes": 1510560,
+          "transfer_batches": 5
+        },
+        {
+          "ms": 1.113726,
+          "rgb_bytes": 1510560,
+          "transfer_batches": 5
+        },
+        {
+          "ms": 1.113185,
+          "rgb_bytes": 1510560,
+          "transfer_batches": 5
+        }
+      ],
+      "width": 3840
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 2160,
+      "pattern": "pillars",
+      "runs": [
+        {
+          "ms": 4.559065,
+          "rgb_bytes": 9717120,
+          "transfer_batches": 7
+        },
+        {
+          "ms": 4.45183,
+          "rgb_bytes": 9717120,
+          "transfer_batches": 7
+        },
+        {
+          "ms": 4.462982,
+          "rgb_bytes": 9717120,
+          "transfer_batches": 7
+        },
+        {
+          "ms": 4.472559,
+          "rgb_bytes": 9717120,
+          "transfer_batches": 7
+        },
+        {
+          "ms": 4.489152,
+          "rgb_bytes": 9717120,
+          "transfer_batches": 7
+        }
+      ],
+      "width": 3840
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 2160,
+      "pattern": "black",
+      "runs": [
+        {
+          "ms": 0.931649,
+          "rgb_bytes": 36000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.676191,
+          "rgb_bytes": 36000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.24965700000000002,
+          "rgb_bytes": 36000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.257782,
+          "rgb_bytes": 36000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.885672,
+          "rgb_bytes": 36000,
+          "transfer_batches": 2
+        }
+      ],
+      "width": 3840
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 2160,
+      "pattern": "dark-grey",
+      "runs": [
+        {
+          "ms": 0.255488,
+          "rgb_bytes": 36000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.242152,
+          "rgb_bytes": 36000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.252853,
+          "rgb_bytes": 36000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.252121,
+          "rgb_bytes": 36000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.24905499999999997,
+          "rgb_bytes": 36000,
+          "transfer_batches": 2
+        }
+      ],
+      "width": 3840
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 2160,
+      "pattern": "threshold-grey",
+      "runs": [
+        {
+          "ms": 0.260648,
+          "rgb_bytes": 36000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.259746,
+          "rgb_bytes": 36000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.254907,
+          "rgb_bytes": 36000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.259035,
+          "rgb_bytes": 36000,
+          "transfer_batches": 2
+        },
+        {
+          "ms": 0.255017,
+          "rgb_bytes": 36000,
+          "transfer_batches": 2
+        }
+      ],
+      "width": 3840
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 2160,
+      "pattern": "single-pixel",
+      "runs": [
+        {
+          "ms": 20.299829,
+          "rgb_bytes": 25656480,
+          "transfer_batches": 5
+        },
+        {
+          "ms": 20.528475,
+          "rgb_bytes": 25656480,
+          "transfer_batches": 5
+        },
+        {
+          "ms": 20.827907,
+          "rgb_bytes": 25656480,
+          "transfer_batches": 5
+        },
+        {
+          "ms": 20.566537999999998,
+          "rgb_bytes": 25656480,
+          "transfer_batches": 5
+        },
+        {
+          "ms": 20.559524999999997,
+          "rgb_bytes": 25656480,
+          "transfer_batches": 5
+        }
+      ],
+      "width": 3840
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 2160,
+      "pattern": "near-threshold",
+      "runs": [
+        {
+          "ms": 0.537036,
+          "rgb_bytes": 773280,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.538338,
+          "rgb_bytes": 773280,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.522427,
+          "rgb_bytes": 773280,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.5196419999999999,
+          "rgb_bytes": 773280,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.51839,
+          "rgb_bytes": 773280,
+          "transfer_batches": 3
+        }
+      ],
+      "width": 3840
+    },
+    {
+      "all_bounds_exact": true,
+      "height": 2160,
+      "pattern": "transparent-border",
+      "runs": [
+        {
+          "ms": 0.5429360000000001,
+          "rgb_bytes": 773280,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.5256930000000001,
+          "rgb_bytes": 773280,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.5561020000000001,
+          "rgb_bytes": 773280,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.5282690000000001,
+          "rgb_bytes": 773280,
+          "transfer_batches": 3
+        },
+        {
+          "ms": 0.5260440000000001,
+          "rgb_bytes": 773280,
+          "transfer_batches": 3
+        }
+      ],
+      "width": 3840
+    }
+  ],
+  "scope": "Generated RGBA texture and actual content detector/RegionReader; CPU ordered float32 oracle; no capture, USB or saved frames; upload/startup/two warm-ups excluded"
+}

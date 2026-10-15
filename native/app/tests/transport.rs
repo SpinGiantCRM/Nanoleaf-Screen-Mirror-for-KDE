@@ -70,6 +70,14 @@ fn transaction_stages_count_actual_reports_without_changing_wire_or_ack_matching
     let (payload, times) = transact_timed(&io, 2, &[1; 144]).unwrap();
     assert!(payload.is_empty());
     assert_eq!(times.written_reports, 3);
+    assert_eq!(times.report_write_ms.len(), 3);
+    assert!(times
+        .report_write_ms
+        .iter()
+        .all(|v| v.is_finite() && *v >= 0.0));
+    assert!(times.write_completed.is_some());
+    let json = serde_json::to_value(&times).unwrap();
+    assert!(json.get("write_completed").is_none());
     assert_eq!(times.drained_reports, 0);
     assert_eq!(times.response_reports, 2);
     assert_eq!(

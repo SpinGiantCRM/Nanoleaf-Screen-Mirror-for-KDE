@@ -16,6 +16,10 @@ an observed full-image analysis bottleneck without changing colour calculations.
 It documents both generated speedups and the remaining USB/optical measurement
 limits; total acknowledgement time must not be confused with emitted light.
 
+The subsequent [black-screen and USB investigation](USB_AND_BLACK_RESPONSE.md)
+removes the exact uniform-dark analysis fallback and separates host-write timing
+from the content-dependent controller reply delay.
+
 ## The delay hidden by per-frame timings
 
 The saved configuration has responsiveness 0.5 and, through its default,

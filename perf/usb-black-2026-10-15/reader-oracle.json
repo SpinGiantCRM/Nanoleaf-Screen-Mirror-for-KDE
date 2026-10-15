@@ -1,0 +1,136 @@
+{
+  "adapter": {
+    "driver": "NVIDIA",
+    "driver_info": "615.78.08",
+    "name": "NVIDIA GeForce RTX 4080 SUPER",
+    "vendor": 4318
+  },
+  "batch_region_comparisons": 48,
+  "cases": [
+    {
+      "all_fields_exact": true,
+      "format": "Bgra8Unorm",
+      "pattern": "black",
+      "timings": {
+        "compute_readback_reduce_ms": 0.33555,
+        "readback_bytes": 12288,
+        "uploaded_frame_bytes": 0
+      }
+    },
+    {
+      "all_fields_exact": true,
+      "format": "Bgra8Unorm",
+      "pattern": "grey",
+      "timings": {
+        "compute_readback_reduce_ms": 0.14807199999999998,
+        "readback_bytes": 12288,
+        "uploaded_frame_bytes": 0
+      }
+    },
+    {
+      "all_fields_exact": true,
+      "format": "Bgra8Unorm",
+      "pattern": "white",
+      "timings": {
+        "compute_readback_reduce_ms": 0.149335,
+        "readback_bytes": 12288,
+        "uploaded_frame_bytes": 0
+      }
+    },
+    {
+      "all_fields_exact": true,
+      "format": "Bgra8Unorm",
+      "pattern": "all_codes",
+      "timings": {
+        "compute_readback_reduce_ms": 0.188941,
+        "readback_bytes": 12288,
+        "uploaded_frame_bytes": 0
+      }
+    },
+    {
+      "all_fields_exact": true,
+      "format": "Bgra8Unorm",
+      "pattern": "mixed",
+      "timings": {
+        "compute_readback_reduce_ms": 0.154185,
+        "readback_bytes": 12288,
+        "uploaded_frame_bytes": 0
+      }
+    },
+    {
+      "all_fields_exact": true,
+      "format": "Bgra8Unorm",
+      "pattern": "transparent",
+      "timings": {
+        "compute_readback_reduce_ms": 0.153974,
+        "readback_bytes": 12288,
+        "uploaded_frame_bytes": 0
+      }
+    },
+    {
+      "all_fields_exact": true,
+      "format": "Rgba8Unorm",
+      "pattern": "black",
+      "timings": {
+        "compute_readback_reduce_ms": 0.156239,
+        "readback_bytes": 12288,
+        "uploaded_frame_bytes": 0
+      }
+    },
+    {
+      "all_fields_exact": true,
+      "format": "Rgba8Unorm",
+      "pattern": "grey",
+      "timings": {
+        "compute_readback_reduce_ms": 0.15293199999999998,
+        "readback_bytes": 12288,
+        "uploaded_frame_bytes": 0
+      }
+    },
+    {
+      "all_fields_exact": true,
+      "format": "Rgba8Unorm",
+      "pattern": "white",
+      "timings": {
+        "compute_readback_reduce_ms": 0.173392,
+        "readback_bytes": 12288,
+        "uploaded_frame_bytes": 0
+      }
+    },
+    {
+      "all_fields_exact": true,
+      "format": "Rgba8Unorm",
+      "pattern": "all_codes",
+      "timings": {
+        "compute_readback_reduce_ms": 0.17226899999999998,
+        "readback_bytes": 12288,
+        "uploaded_frame_bytes": 0
+      }
+    },
+    {
+      "all_fields_exact": true,
+      "format": "Rgba8Unorm",
+      "pattern": "mixed",
+      "timings": {
+        "compute_readback_reduce_ms": 0.146831,
+        "readback_bytes": 12288,
+        "uploaded_frame_bytes": 0
+      }
+    },
+    {
+      "all_fields_exact": true,
+      "format": "Rgba8Unorm",
+      "pattern": "transparent",
+      "timings": {
+        "compute_readback_reduce_ms": 0.150076,
+        "readback_bytes": 12288,
+        "uploaded_frame_bytes": 0
+      }
+    }
+  ],
+  "reader_comparisons": 144,
+  "region_comparisons": 48,
+  "scope": "Synthetic Vulkan texture shader and diagnostic readback oracle; DMA-BUF import not exercised by this test",
+  "updated_zone_comparisons": 48,
+  "zone_comparisons": 48
+}

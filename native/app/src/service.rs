@@ -58,6 +58,10 @@ pub struct Status {
     #[serde(default)]
     pub usb_transaction: Option<crate::device::TransactionTimes>,
     pub response_ms: f64,
+    /// Capture work to the final HID write returning, excluding the ACK wait.
+    /// Host completion is not proof of the device's emitted-light timing.
+    #[serde(default)]
+    pub response_to_write_ms: Option<f64>,
     #[serde(default)]
     pub response_clock: String,
     #[serde(default)]
@@ -201,7 +205,7 @@ fn fallback_running() -> bool {
             })
         })
 }
-fn acquire_output(paths: &Paths) -> Result<File> {
+pub(crate) fn acquire_output(paths: &Paths) -> Result<File> {
     ensure!(
         !fallback_running(),
         "The Python fallback is running; stop it before native LED output"
@@ -677,6 +681,14 @@ fn run_inner(
                             state.capture_ms = capture_ms;
                             state.processing_ms = times.total_ms;
                             state.response_ms = started.elapsed().as_secs_f64() * 1000.0;
+                            state.response_to_write_ms = state
+                                .usb_transaction
+                                .as_ref()
+                                .and_then(|t| t.write_completed)
+                                .map(|written| {
+                                    written.saturating_duration_since(started).as_secs_f64()
+                                        * 1000.0
+                                });
                             state.response_clock = response_clock.into();
                             state.capture_stages = capture_stages;
                             state.source_presentation_age_ms = source_pts_ns.map(|pts| {

@@ -1,0 +1,12 @@
+{
+  "adapter": {
+    "driver": "NVIDIA",
+    "driver_info": "615.78.08",
+    "name": "NVIDIA GeForce RTX 4080 SUPER",
+    "vendor": 4318
+  },
+  "all_exact": true,
+  "reader_comparisons": 690,
+  "scope": "Generated exact normalized RGB8 oracle, no capture or USB",
+  "uniformity_comparisons": 690
+}

@@ -24,6 +24,10 @@ pub struct TransactionTimes {
     pub drained_reports: u32,
     pub written_reports: u32,
     pub response_reports: u32,
+    #[serde(default)]
+    pub report_write_ms: Vec<f64>,
+    #[serde(skip)]
+    pub write_completed: Option<Instant>,
 }
 impl Strip {
     pub fn open(vid: u16, pid: u16, manual_count: usize, order: &str) -> Result<Self> {
@@ -144,12 +148,17 @@ pub fn transact_timed(
     times.drain_ms = total.elapsed().as_secs_f64() * 1000.0;
     let write_start = Instant::now();
     for report in reports(&protocol::encode_request(command, payload)?) {
+        let report_start = Instant::now();
         ensure!(
             handle.write(&report)? == report.len(),
             "Short HID report write"
         );
+        times
+            .report_write_ms
+            .push(report_start.elapsed().as_secs_f64() * 1000.0);
         times.written_reports += 1;
     }
+    times.write_completed = Some(Instant::now());
     times.write_ms = write_start.elapsed().as_secs_f64() * 1000.0;
     let started = Instant::now();
     let timeout = Duration::from_millis(250);

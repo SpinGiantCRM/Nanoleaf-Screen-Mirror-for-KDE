@@ -15,6 +15,9 @@ pub struct TextureSampler {
     parameters: wgpu::Buffer,
     output: wgpu::Buffer,
     readback: wgpu::Buffer,
+    uniform_pipeline: wgpu::ComputePipeline,
+    uniform_output: wgpu::Buffer,
+    uniform_readback: wgpu::Buffer,
     width: u32,
     height: u32,
     pixels: Vec<u64>,
@@ -92,6 +95,30 @@ impl TextureSampler {
             usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+        let uniform_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Exact normalized RGB8 uniformity"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("uniform.wgsl").into()),
+        });
+        let uniform_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("Prove full-image RGB8 uniformity"),
+            layout: None,
+            module: &uniform_shader,
+            entry_point: Some("uniform"),
+            compilation_options: Default::default(),
+            cache: None,
+        });
+        let uniform_output = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Uniformity flags"),
+            size: 256 * 4,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+        let uniform_readback = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Uniformity flag readback"),
+            size: 256 * 4,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
         Ok(Self {
             device,
             queue,
@@ -100,6 +127,9 @@ impl TextureSampler {
             parameters,
             output,
             readback,
+            uniform_pipeline,
+            uniform_output,
+            uniform_readback,
             width,
             height,
             pixels,
@@ -110,6 +140,61 @@ impl TextureSampler {
     }
     pub fn queue(&self) -> &wgpu::Queue {
         &self.queue
+    }
+    /// Test every pixel, with the same alpha-zero/RGB8 normalization as sampling.
+    /// Integer OR reduction has no threshold, floating sum or false-positive tolerance.
+    pub fn is_uniform(&self, texture: &wgpu::Texture) -> Result<bool> {
+        ensure!(
+            texture.width() == self.width
+                && texture.height() == self.height
+                && matches!(
+                    texture.format(),
+                    wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Rgba8Unorm
+                ),
+            "Explicit encoded RGB8 texture required"
+        );
+        let view = texture.create_view(&Default::default());
+        let group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Uniformity input"),
+            layout: &self.uniform_pipeline.get_bind_group_layout(0),
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: self.uniform_output.as_entire_binding(),
+                },
+            ],
+        });
+        let mut encoder = self.device.create_command_encoder(&Default::default());
+        {
+            let mut pass = encoder.begin_compute_pass(&Default::default());
+            pass.set_pipeline(&self.uniform_pipeline);
+            pass.set_bind_group(0, &group, &[]);
+            pass.dispatch_workgroups(256, 1, 1);
+        }
+        encoder.copy_buffer_to_buffer(&self.uniform_output, 0, &self.uniform_readback, 0, 1024);
+        let index = self.queue.submit([encoder.finish()]);
+        let (tx, rx) = mpsc::sync_channel(1);
+        self.uniform_readback
+            .slice(..)
+            .map_async(wgpu::MapMode::Read, move |r| {
+                let _ = tx.send(r);
+            });
+        let reset = ReadbackReset(&self.uniform_readback);
+        self.device.poll(wgpu::PollType::Wait {
+            submission_index: Some(index),
+            timeout: Some(Duration::from_secs(2)),
+        })?;
+        rx.recv_timeout(Duration::from_secs(2))??;
+        let mapped = self.uniform_readback.slice(..).get_mapped_range()?;
+        ensure!(mapped.len() == 1024, "Incomplete uniformity readback");
+        let result = mapped.iter().all(|&v| v == 0);
+        drop(mapped);
+        drop(reset);
+        Ok(result)
     }
     pub fn sample(&self, texture: &wgpu::Texture) -> Result<(Vec<ZoneSample>, serde_json::Value)> {
         ensure!(

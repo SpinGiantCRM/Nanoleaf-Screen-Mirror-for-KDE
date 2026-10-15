@@ -409,6 +409,7 @@ impl Settings {
             if let Some(t)=self.status.as_ref().and_then(|s|s.capture_stages.as_ref()) {
                 ui.small(format!("Capture breakdown: wait {:.2} ms · import {:.2} ms · image analysis {:.2} ms · sampling {:.2} ms · release {:.2} ms",t.producer_fence_ms,t.import_ms,t.analysis_ms,t.sampling_ms,t.release_ms));
             }
+            if let Some(ms)=self.status.as_ref().and_then(|s|s.response_to_write_ms) { ui.small(format!("Capture work to final USB write: {:.2} ms (host completion; light timing unknown)",ms)); }
             if let Some(t)=self.status.as_ref().and_then(|s|s.usb_transaction.as_ref()) {
                 ui.small(format!("Last USB packet: drain {:.3} ms · write {:.3} ms · wait for acknowledgement {:.3} ms",t.drain_ms,t.write_ms,t.ack_wait_ms));
                 ui.small(format!("First response after {:.3} ms · {} reports written / {} received",t.first_report_wait_ms,t.written_reports,t.response_reports));

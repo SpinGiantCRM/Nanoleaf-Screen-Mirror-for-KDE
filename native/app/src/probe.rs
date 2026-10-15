@@ -1,10 +1,111 @@
 //! Bounded read-only capture/colour attribution. No screen pixels or USB are saved.
 use crate::{capture::KwinCapture, config::Store, pipeline::Pipeline};
-use anyhow::{ensure, Result};
+use anyhow::{ensure, Context, Result};
 use std::{
     path::Path,
     time::{Duration, Instant},
 };
+
+/// Operator experiment: isolate command cadence from capture/colour processing.
+/// Every packet remains acknowledged. Settings are read only; controller power
+/// and brightness are restored and verified even after a transaction failure.
+pub fn usb_timing(store: &Store, content: bool) -> Result<()> {
+    let _owner = crate::service::acquire_output(&crate::service::Paths::new()?)?;
+    let c = &store.config;
+    let mut strip = crate::device::Strip::open(
+        c.device_vid,
+        c.device_pid,
+        c.device_zone_count,
+        &c.output_channel_order,
+    )?;
+    let power = strip.request(0x06, &[])?;
+    let brightness = strip.request(0x08, &[])?;
+    let result = (|| -> Result<Vec<serde_json::Value>> {
+        strip.request(0x09, &[10])?;
+        strip.request(0x07, &[1])?;
+        let mut cases = Vec::new();
+        if content {
+            let patterns = [
+                ("black", [0, 0, 0], c.device_zone_count),
+                ("grey-1", [1, 1, 1], c.device_zone_count),
+                ("grey-8", [8, 8, 8], c.device_zone_count),
+                ("grey-64", [64, 64, 64], c.device_zone_count),
+                ("grey-255", [255, 255, 255], c.device_zone_count),
+                ("red-8", [8, 0, 0], c.device_zone_count),
+                ("green-8", [0, 8, 0], c.device_zone_count),
+                ("blue-8", [0, 0, 8], c.device_zone_count),
+                ("grey-first-zone", [8, 8, 8], 1),
+                ("grey-quarter", [8, 8, 8], (c.device_zone_count / 4).max(1)),
+                ("grey-half", [8, 8, 8], (c.device_zone_count / 2).max(1)),
+            ];
+            for reverse in [false, true] {
+                let indices: Vec<_> = if reverse {
+                    (0..patterns.len()).rev().collect()
+                } else {
+                    (0..patterns.len()).collect()
+                };
+                for index in indices {
+                    let (label, rgb, lit) = patterns[index];
+                    let mut frame = vec![[0; 3]; c.device_zone_count];
+                    frame[..lit].fill(rgb);
+                    std::thread::sleep(Duration::from_millis(70));
+                    let mut samples = Vec::new();
+                    for _ in 0..16 {
+                        strip.frame(&frame)?;
+                        samples.push(
+                            strip
+                                .last_frame_transaction
+                                .clone()
+                                .context("Missing USB timing")?,
+                        );
+                    }
+                    cases.push(serde_json::json!({"pattern":label,"reverse_pass":reverse,"samples":samples}));
+                }
+            }
+            return Ok(cases);
+        }
+        // Reversed repeat separates cadence effects from simple warm-up/order.
+        for period_ms in [
+            0.0, 16.666667, 22.222222, 33.333333, 33.333333, 22.222222, 16.666667, 0.0,
+        ] {
+            for alternating in [false, true] {
+                std::thread::sleep(Duration::from_millis(70));
+                let mut samples = Vec::new();
+                let mut previous = None;
+                let mut deadline = Instant::now();
+                for frame in 0..24 {
+                    std::thread::sleep(deadline.saturating_duration_since(Instant::now()));
+                    let started = Instant::now();
+                    let rgb = if alternating && frame % 2 == 1 {
+                        [0; 3]
+                    } else {
+                        [8; 3]
+                    };
+                    strip.frame(&vec![rgb; c.device_zone_count])?;
+                    let timing = strip
+                        .last_frame_transaction
+                        .as_ref()
+                        .context("Missing USB timing")?;
+                    samples.push(serde_json::json!({"frame":frame,"since_previous_start_ms":previous.map(|p|started.duration_since(p).as_secs_f64()*1000.0),"transaction":timing}));
+                    previous = Some(started);
+                    deadline = (deadline + Duration::from_secs_f64(period_ms / 1000.0))
+                        .max(Instant::now());
+                }
+                cases.push(serde_json::json!({"target_period_ms":period_ms,"alternating_black":alternating,"samples":samples}));
+            }
+        }
+        Ok(cases)
+    })();
+    let black_ok = strip.black().is_ok();
+    let restored = strip.restore_controller(&power, &brightness);
+    println!(
+        "{}",
+        serde_json::json!({"scope":"Generated low-brightness grey/black; acknowledged existing USB protocol; no capture or optical measurement","model":strip.model,"manual_zones":c.device_zone_count,"controller_restored":restored,"black_cleanup_acknowledged":black_ok,"cases":result.as_ref().ok(),"error":result.as_ref().err().map(ToString::to_string)})
+    );
+    result?;
+    ensure!(restored && black_ok, "Controller restoration failed");
+    Ok(())
+}
 pub fn capture(path: &Path, seconds: f64) -> Result<()> {
     ensure!(
         seconds.is_finite() && (0.1..=30.0).contains(&seconds),

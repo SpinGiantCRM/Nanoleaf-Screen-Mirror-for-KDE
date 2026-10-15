@@ -15,6 +15,9 @@ fn main() -> Result<()> {
     if std::env::args().nth(1).as_deref() == Some("--content-benchmark") {
         return content_benchmark(device, queue, adapter);
     }
+    if std::env::args().nth(1).as_deref() == Some("--uniform-oracle") {
+        return uniform_oracle(device, queue, adapter);
+    }
     let zones = [
         ZoneRect {
             x: 0,
@@ -486,6 +489,14 @@ fn content_benchmark(
     use nanoleaf_linux_gpu::RegionReader;
     use nanoleaf_native::pipeline::{detect_content_bounds, encoded_mean};
     use std::{cell::RefCell, time::Instant};
+    let calibration = if std::env::args().nth(2).as_deref() == Some("--calibration") {
+        let path = std::env::args()
+            .nth(3)
+            .ok_or_else(|| anyhow::anyhow!("Existing calibration config required"))?;
+        Some(nanoleaf_native::config::Store::load(std::path::Path::new(&path))?.config)
+    } else {
+        None
+    };
     let mut cases = Vec::new();
     for (w, h) in [(641u32, 359u32), (3840, 2160)] {
         let sampler = TextureSampler::new(
@@ -500,6 +511,32 @@ fn content_benchmark(
                 height: h as i64,
             }],
         )?;
+        let mut calibrated_sampler = if let Some(config) = &calibration {
+            let full = nanoleaf_native::pipeline::ContentBounds {
+                left: 0,
+                top: 0,
+                right: w as usize,
+                bottom: h as usize,
+            };
+            let zones = nanoleaf_native::pipeline::direct_plan_with_bounds(
+                config,
+                w as usize,
+                h as usize,
+                Some(full),
+            )?
+            .zones;
+            Some(TextureSampler::new(
+                device.clone(),
+                queue.clone(),
+                w,
+                h,
+                &zones,
+            )?)
+        } else {
+            None
+        };
+        let mut reference_pipeline = nanoleaf_native::pipeline::Pipeline::default();
+        let mut calibrated_pipeline = nanoleaf_native::pipeline::Pipeline::default();
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Generated content detector oracle"),
             size: wgpu::Extent3d {
@@ -522,6 +559,9 @@ fn content_benchmark(
             "cinema-bars",
             "pillars",
             "black",
+            "dark-grey",
+            "threshold-grey",
+            "single-pixel",
             "near-threshold",
             "transparent-border",
         ] {
@@ -530,7 +570,7 @@ fn content_benchmark(
             for y in 0..h {
                 for x in 0..w {
                     let dark = match pattern {
-                        "black" => true,
+                        "black" | "dark-grey" | "threshold-grey" | "single-pixel" => true,
                         "thin-bars" => y < 32 || y >= h - 32,
                         "cinema-bars" => y < h / 8 || y >= h - h / 8,
                         "pillars" => x < w / 7 || x >= w - w / 7,
@@ -538,7 +578,13 @@ fn content_benchmark(
                         "transparent-border" => y < 32 || y >= h - 32,
                         _ => false,
                     };
-                    let value = if pattern == "near-threshold" {
+                    let value = if pattern == "dark-grey" {
+                        [1; 3]
+                    } else if pattern == "threshold-grey" {
+                        [4; 3]
+                    } else if pattern == "single-pixel" && x == w / 2 && y == h / 2 {
+                        [255; 3]
+                    } else if pattern == "near-threshold" {
                         if dark {
                             [4, 4, 4]
                         } else {
@@ -589,21 +635,34 @@ fn content_benchmark(
                 },
             )?;
             let mut runs = Vec::new();
+            let mut last_bounds = reference;
             for run in 0..7 {
                 let reader = RefCell::new(RegionReader::new(&sampler, &texture));
                 let started = Instant::now();
-                let actual = detect_content_bounds(
-                    w as usize,
-                    h as usize,
-                    |y| encoded_mean(&reader.borrow_mut().row(y as u32)?),
-                    |x, top, bottom| {
-                        encoded_mean(&reader.borrow_mut().column(
-                            x as u32,
-                            top as u32,
-                            bottom as u32,
-                        )?)
-                    },
-                )?;
+                let actual = if std::env::args().nth(2).as_deref() != Some("--reference")
+                    && reader.borrow_mut().uniform_dark()?
+                {
+                    nanoleaf_native::pipeline::ContentBounds {
+                        left: 0,
+                        top: 0,
+                        right: w as usize,
+                        bottom: h as usize,
+                    }
+                } else {
+                    detect_content_bounds(
+                        w as usize,
+                        h as usize,
+                        |y| encoded_mean(&reader.borrow_mut().row(y as u32)?),
+                        |x, top, bottom| {
+                            encoded_mean(&reader.borrow_mut().column(
+                                x as u32,
+                                top as u32,
+                                bottom as u32,
+                            )?)
+                        },
+                    )?
+                };
+                last_bounds = actual;
                 let ms = started.elapsed().as_secs_f64() * 1000.0;
                 ensure!(
                     actual == reference,
@@ -616,12 +675,163 @@ fn content_benchmark(
                     );
                 }
             }
-            cases.push(serde_json::json!({"width":w,"height":h,"pattern":pattern,"all_bounds_exact":true,"runs":runs}));
+            let calibrated_exact =
+                if let (Some(config), Some(sampler)) = (&calibration, &mut calibrated_sampler) {
+                    use nanoleaf_native::{capture::Frame, pipeline::direct_plan_with_bounds};
+                    let bounds = config.letterbox_detection.then_some(last_bounds);
+                    sampler.set_zones(
+                        &direct_plan_with_bounds(config, w as usize, h as usize, bounds)?.zones,
+                    )?;
+                    let (samples, _) = sampler.sample(&texture)?;
+                    let frame = Frame {
+                        width: w as usize,
+                        height: h as usize,
+                        pixels: rgb,
+                    };
+                    let elapsed = std::time::Duration::from_secs_f64(1.0 / config.fps as f64);
+                    reference_pipeline.set_temporal_elapsed(elapsed);
+                    calibrated_pipeline.set_temporal_elapsed(elapsed);
+                    let reference = reference_pipeline.process(&frame, config)?;
+                    let actual = calibrated_pipeline.process_sdr_samples_with_bounds(
+                        w as usize, h as usize, &samples, config, bounds,
+                    )?;
+                    ensure!(
+                        actual.colors == reference.colors
+                            && actual.sampled == reference.sampled
+                            && actual.modes == reference.modes
+                            && actual.unquantized_rgb == reference.unquantized_rgb,
+                        "Complete calibrated dark transition lost exact colour parity"
+                    );
+                    reference_pipeline.override_sent(&reference.colors);
+                    calibrated_pipeline.override_sent(&actual.colors);
+                    Some(true)
+                } else {
+                    None
+                };
+            cases.push(serde_json::json!({"width":w,"height":h,"pattern":pattern,"all_bounds_exact":true,"calibrated_full_output_exact":calibrated_exact,"runs":runs}));
         }
     }
     println!(
         "{}",
         serde_json::json!({"scope":"Generated RGBA texture and actual content detector/RegionReader; CPU ordered float32 oracle; no capture, USB or saved frames; upload/startup/two warm-ups excluded","adapter":adapter,"cases":cases})
+    );
+    Ok(())
+}
+
+fn uniform_oracle(
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    adapter: serde_json::Value,
+) -> Result<()> {
+    let mut comparisons = 0;
+    let mut reader_checks = 0;
+    for (w, h) in [(1u32, 1u32), (257, 129), (3840, 2160)] {
+        let sampler = TextureSampler::new(
+            device.clone(),
+            queue.clone(),
+            w,
+            h,
+            &[ZoneRect {
+                x: 0,
+                y: 0,
+                width: 1,
+                height: 1,
+            }],
+        )?;
+        for format in [
+            wgpu::TextureFormat::Rgba8Unorm,
+            wgpu::TextureFormat::Bgra8Unorm,
+        ] {
+            let texture = device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("Generated uniformity oracle"),
+                size: wgpu::Extent3d {
+                    width: w,
+                    height: h,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING
+                    | wgpu::TextureUsages::COPY_SRC
+                    | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[],
+            });
+            let count = (w * h) as usize;
+            let mut cases: Vec<(u8, Option<usize>, bool)> = if w == 257 {
+                (0..=255).map(|code| (code, None, false)).collect()
+            } else {
+                vec![
+                    (0, None, false),
+                    (1, None, false),
+                    (4, None, false),
+                    (255, None, false),
+                ]
+            };
+            cases.push((0, None, true)); // Hidden nonuniform RGB under alpha zero.
+            if count > 1 {
+                for position in [0, 1, 255, 256, count / 2, count - 2, count - 1] {
+                    cases.push((0, Some(position), false));
+                }
+                for n in 0..32 {
+                    cases.push((0, Some(n * (count - 1) / 31), false));
+                }
+            }
+            for (code, changed, transparent) in cases {
+                let mut pixels = Vec::with_capacity(count * 4);
+                for i in 0..count {
+                    let value = if transparent {
+                        [
+                            (i % 256) as u8,
+                            ((i * 43) % 256) as u8,
+                            ((i * 73) % 256) as u8,
+                            0,
+                        ]
+                    } else if Some(i) == changed {
+                        [code.wrapping_add(1), code, code, 1]
+                    } else {
+                        [code, code, code, 255]
+                    };
+                    if format == wgpu::TextureFormat::Bgra8Unorm {
+                        pixels.extend_from_slice(&[value[2], value[1], value[0], value[3]]);
+                    } else {
+                        pixels.extend_from_slice(&value);
+                    }
+                }
+                queue.write_texture(
+                    wgpu::TexelCopyTextureInfo {
+                        texture: &texture,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d::ZERO,
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    &pixels,
+                    wgpu::TexelCopyBufferLayout {
+                        offset: 0,
+                        bytes_per_row: Some(w * 4),
+                        rows_per_image: Some(h),
+                    },
+                    texture.size(),
+                );
+                let uniform = changed.is_none();
+                ensure!(
+                    sampler.is_uniform(&texture)? == uniform,
+                    "Uniformity proof lost one RGB code or alpha-zero normalization"
+                );
+                comparisons += 1;
+                let mut reader = nanoleaf_linux_gpu::RegionReader::new(&sampler, &texture);
+                ensure!(
+                    reader.uniform_dark()? == (uniform && (transparent || code <= 4)),
+                    "Dark candidate filter changed uniform proof"
+                );
+                reader_checks += 1;
+            }
+        }
+    }
+    println!(
+        "{}",
+        serde_json::json!({"scope":"Generated exact normalized RGB8 oracle, no capture or USB","adapter":adapter,"uniformity_comparisons":comparisons,"reader_comparisons":reader_checks,"all_exact":true})
     );
     Ok(())
 }

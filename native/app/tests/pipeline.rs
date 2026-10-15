@@ -526,3 +526,40 @@ fn full_pixel_box_mean_keeps_sub_code_precision_in_cpu_and_external_paths() {
         assert!((actual - expected).abs() < 0.002, "{actual} vs {expected}");
     }
 }
+
+#[test]
+fn uniform_dark_images_always_have_full_reference_bounds() {
+    use nanoleaf_native::pipeline::{detect_content_bounds, encoded_mean, ContentBounds};
+    // Exercise ordered float32 sums on odd, singleton and 4K lines on both
+    // sides of threshold. GPU shortcut only proves constant RGB, never luma.
+    for (w, h) in [(1, 1), (257, 129), (3840, 2160), (16384, 7)] {
+        for r in 0..=4 {
+            for g in 0..=4 {
+                for b in 0..=4 {
+                    let rgb = [r, g, b];
+                    let mean_row = encoded_mean(&rgb.repeat(w)).unwrap();
+                    let mean_col = encoded_mean(&rgb.repeat(h)).unwrap();
+                    let bounds = detect_content_bounds(
+                        w,
+                        h,
+                        |_| Ok(mean_row),
+                        |_, top, bottom| {
+                            assert_eq!((top, bottom), (0, h));
+                            Ok(mean_col)
+                        },
+                    )
+                    .unwrap();
+                    assert_eq!(
+                        bounds,
+                        ContentBounds {
+                            left: 0,
+                            top: 0,
+                            right: w,
+                            bottom: h
+                        }
+                    );
+                }
+            }
+        }
+    }
+}

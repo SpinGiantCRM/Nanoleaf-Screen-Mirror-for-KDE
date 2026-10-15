@@ -1,0 +1,23 @@
+//! Bounded operator-only, low-brightness acknowledged HID timing experiment.
+//! Requires a stopped native service; no capture, configuration writes or payload logs.
+use anyhow::{ensure, Context, Result};
+use nanoleaf_native::{config::Store, probe};
+use std::path::PathBuf;
+fn main() -> Result<()> {
+    let path = PathBuf::from(
+        std::env::args_os()
+            .nth(1)
+            .context("Existing config required; stop mirroring first")?,
+    );
+    let store = Store::load(&path)?;
+    ensure!(
+        (1..=512).contains(&store.config.device_zone_count),
+        "Manual zone count required"
+    );
+    let content = match std::env::args().nth(2).as_deref() {
+        None => false,
+        Some("--content") => true,
+        _ => anyhow::bail!("Use usb_bench CONFIG [--content]"),
+    };
+    probe::usb_timing(&store, content)
+}

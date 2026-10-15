@@ -2,6 +2,10 @@
 
 15 October 2026. Priority: recreation time, colour reproduction, FPS, resources.
 
+Follow-up: [uniform-dark GPU proof and USB investigation](USB_AND_BLACK_RESPONSE.md)
+addresses the full-black limitation below. The numbers here describe the earlier
+batched-reader implementation.
+
 ## Measured problem
 
 The short GPU adoption sample did not describe every desktop scene. A later

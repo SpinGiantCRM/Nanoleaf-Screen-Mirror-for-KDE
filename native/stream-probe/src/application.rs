@@ -128,7 +128,14 @@ impl Application {
         height: usize,
         reader: &mut nanoleaf_linux_gpu::RegionReader<'_>,
     ) -> Result<(Vec<ZoneRect>, Option<pipeline::ContentBounds>)> {
-        let bounds = if self.config.letterbox_detection {
+        let bounds = if self.config.letterbox_detection && reader.uniform_dark()? {
+            Some(pipeline::ContentBounds {
+                left: 0,
+                top: 0,
+                right: width,
+                bottom: height,
+            })
+        } else if self.config.letterbox_detection {
             let reader = std::cell::RefCell::new(reader);
             Some(pipeline::detect_content_bounds(
                 width,
