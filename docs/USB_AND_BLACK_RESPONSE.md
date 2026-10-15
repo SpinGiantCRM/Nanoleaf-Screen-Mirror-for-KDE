@@ -55,7 +55,8 @@ The operator-only `usb_bench` holds the same exclusive strip lease and rejects a
 active native or Python owner before opening HID. It sends known dim grey/black
 patterns with the unchanged authoritative manual count of 48: three reports of
 65/65/20 bytes including their report IDs. Every frame waits for the matching
-acknowledgement. Controller brightness is temporarily 10, then original power
+acknowledgement. Controller brightness is temporarily requested at 10 (a later overlap probe
+reported 16 after that setup); original power
 and brightness are restored and read back. Configuration is read only.
 
 The cadence run sent 384 packets at maximum throughput and target periods of
@@ -85,6 +86,10 @@ changes relative to the reply. No firmware source or optical timing is available
 The reliable transport remains unchanged: no ACK skipping, overlapping unnumbered
 transactions, omitted zones, new privileged USB access or colour substitutions.
 A host transport rewrite has no demonstrated way to remove this reply cost.
+
+Follow-up: [the bounded overlap experiment](USB_OVERLAP_EXPERIMENT.md) tested
+sending during the reply wait. Isolated late overlap saved about 2–3 ms, but
+repeated sustained trials lost an acknowledgement; it remains outside daily use.
 
 ## Better response attribution
 

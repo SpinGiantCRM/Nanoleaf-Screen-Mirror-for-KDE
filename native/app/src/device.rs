@@ -1,4 +1,5 @@
 //! One NL82K1/NL82K2 HID handle, authoritative manual count, acknowledged writes.
+pub mod overlap;
 use anyhow::{bail, ensure, Result};
 use hidapi::{HidApi, HidDevice};
 use nanoleaf_core::protocol::{self, ChannelOrder};
