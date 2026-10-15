@@ -1,0 +1,245 @@
+{
+  "source_sha256": "a1606cd70ce0e9a9cd901766cfd2cb079c912eabae937ac561919893ba10ed26",
+  "offset_unit": "UTF16",
+  "classes": [
+    {
+      "file": "early-class-0.txt",
+      "start": 2233549,
+      "end": 2234373,
+      "bytes": 824,
+      "methods": [
+        {
+          "name": "#t",
+          "start": 2233567,
+          "end": 2233570
+        },
+        {
+          "name": "#r",
+          "start": 2233570,
+          "end": 2233581
+        },
+        {
+          "name": "list",
+          "kind": "method",
+          "start": 2233581,
+          "end": 2233616
+        },
+        {
+          "name": "start",
+          "kind": "method",
+          "start": 2233616,
+          "end": 2234049
+        },
+        {
+          "name": "stop",
+          "kind": "method",
+          "start": 2234049,
+          "end": 2234079
+        },
+        {
+          "name": "#o",
+          "kind": "method",
+          "start": 2234079,
+          "end": 2234270
+        },
+        {
+          "name": "#a",
+          "kind": "method",
+          "start": 2234270,
+          "end": 2234372
+        }
+      ]
+    },
+    {
+      "file": "early-class-1.txt",
+      "start": 2270270,
+      "end": 2275171,
+      "bytes": 4901,
+      "methods": [
+        {
+          "name": "#t",
+          "start": 2270278,
+          "end": 2270281
+        },
+        {
+          "name": "#r",
+          "start": 2270281,
+          "end": 2270284
+        },
+        {
+          "name": "#o",
+          "start": 2270284,
+          "end": 2270287
+        },
+        {
+          "name": "#a",
+          "start": 2270287,
+          "end": 2270290
+        },
+        {
+          "name": "#h",
+          "start": 2270290,
+          "end": 2270293
+        },
+        {
+          "name": "#n",
+          "start": 2270293,
+          "end": 2270296
+        },
+        {
+          "name": "#i",
+          "start": 2270296,
+          "end": 2270299
+        },
+        {
+          "name": "#u",
+          "start": 2270299,
+          "end": 2270302
+        },
+        {
+          "name": "#s",
+          "start": 2270302,
+          "end": 2270305
+        },
+        {
+          "name": "constructor",
+          "kind": "constructor",
+          "start": 2270305,
+          "end": 2270688
+        },
+        {
+          "name": "corners",
+          "kind": "get",
+          "start": 2270688,
+          "end": 2270721
+        },
+        {
+          "name": "effects",
+          "kind": "get",
+          "start": 2270721,
+          "end": 2270754
+        },
+        {
+          "name": "length",
+          "kind": "get",
+          "start": 2270754,
+          "end": 2270789
+        },
+        {
+          "name": "model",
+          "kind": "get",
+          "start": 2270789,
+          "end": 2270903
+        },
+        {
+          "name": "plugins",
+          "kind": "get",
+          "start": 2270903,
+          "end": 2270936
+        },
+        {
+          "name": "serialNumber",
+          "kind": "get",
+          "start": 2270936,
+          "end": 2270987
+        },
+        {
+          "name": "state",
+          "kind": "get",
+          "start": 2270987,
+          "end": 2271018
+        },
+        {
+          "name": "deserialize",
+          "kind": "method",
+          "start": 2271018,
+          "end": 2271289
+        },
+        {
+          "name": "initializeFromSerialNumber",
+          "kind": "method",
+          "start": 2271289,
+          "end": 2271694
+        },
+        {
+          "name": "completeCalibration",
+          "kind": "method",
+          "start": 2271694,
+          "end": 2271851
+        },
+        {
+          "name": "close",
+          "kind": "method",
+          "start": 2271851,
+          "end": 2271894
+        },
+        {
+          "name": "getPositionData",
+          "kind": "method",
+          "start": 2271894,
+          "end": 2273013
+        },
+        {
+          "name": "identify",
+          "kind": "method",
+          "start": 2273013,
+          "end": 2273286
+        },
+        {
+          "name": "initializeCalibration",
+          "kind": "method",
+          "start": 2273286,
+          "end": 2273715
+        },
+        {
+          "name": "moveCalibration",
+          "kind": "method",
+          "start": 2273715,
+          "end": 2273761
+        },
+        {
+          "name": "serialize",
+          "kind": "method",
+          "start": 2273761,
+          "end": 2273860
+        },
+        {
+          "name": "setBrightness",
+          "kind": "method",
+          "start": 2273860,
+          "end": 2274074
+        },
+        {
+          "name": "setColour",
+          "kind": "method",
+          "start": 2274074,
+          "end": 2274325
+        },
+        {
+          "name": "setColourTemperature",
+          "kind": "method",
+          "start": 2274325,
+          "end": 2274530
+        },
+        {
+          "name": "setLedColours",
+          "kind": "method",
+          "start": 2274530,
+          "end": 2274829
+        },
+        {
+          "name": "setPower",
+          "kind": "method",
+          "start": 2274829,
+          "end": 2275071
+        },
+        {
+          "name": "#c",
+          "kind": "method",
+          "start": 2275071,
+          "end": 2275170
+        }
+      ]
+    }
+  ]
+}

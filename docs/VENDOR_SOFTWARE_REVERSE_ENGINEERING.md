@@ -173,17 +173,18 @@ product name would not establish recoverability.
 
 ## Practical consequences
 
-- Keep our acknowledged serial transactions. The vendor implementation offers
-  no supported shortcut to send during the acknowledgement period.
+- Keep our acknowledged serial transactions. The inspected 2.2.4/3.0.1 path
+  offers no supported shortcut to send during the acknowledgement period.
 - Preserve the app's response-focused scheduling and calibrated colour precision.
-  Reproducing the vendor's timer, grey quantization and channel floor would add
-  limitations rather than establish better colour reproduction.
+  Reproducing the vendor's timer, grey quantization or channel floor does not
+  establish better colour reproduction on this unit.
 - Retain vendor calibration as a digital comparison source only. Adopting its
   coefficients would need measured emitted-light improvement and regression
   evidence using the same physical strip, with saved calibration preserved.
 - The next firmware milestone is an actual decoder/source or documented image
-  format plus confirmed closed-case recovery. The manufacturer enquiry already
-  requests these; no second message or recurring monitoring was initiated.
+  format plus confirmed closed-case recovery. The manufacturer enquiry requests
+  these. After the email address proved unmonitored, the approved questions were
+  delivered through the technical support form; no recurring monitoring exists.
 
 Full controller code disassembly, exact chip identification, LED signalling
 timing and acknowledgement-to-light timing remain open. No firmware performance
@@ -192,3 +193,7 @@ app, settings, manual 48-zone mapping and native/Python fallbacks remain intact.
 
 Reproducible scripts, input hashes and aggregate results:
 [perf/software-reverse-engineering-2026-10-15](../perf/software-reverse-engineering-2026-10-15/README.md).
+
+Later historical-driver analysis, support-form delivery and an explicitly
+authorized raw-level test are recorded in [the follow-up](FIRMWARE_ENCODING_FOLLOWUP.md).
+Its unresolved visual result does not establish a physical black threshold.

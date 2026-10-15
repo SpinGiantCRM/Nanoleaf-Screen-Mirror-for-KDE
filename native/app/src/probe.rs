@@ -1,4 +1,5 @@
 //! Bounded operator diagnostics for capture, colour and USB attribution.
+pub mod levels;
 use crate::{capture::KwinCapture, config::Store, pipeline::Pipeline};
 use anyhow::{ensure, Context, Result};
 use std::{

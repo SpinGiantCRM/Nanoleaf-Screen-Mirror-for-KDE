@@ -1,0 +1,278 @@
+{
+  "scope": "Two explicitly authorized physical full-strip raw-neutral comparisons; no capture/calibration changes. ACK timings are not emitted-light timings.",
+  "model": "NL82K2",
+  "hardware": "1.1.0",
+  "firmware": "1.5.0",
+  "manual_zones": 48,
+  "target_hz": 30,
+  "seconds_per_phase": 2,
+  "maximum_raw_channel": 24,
+  "original_controller_brightness_recorded": false,
+  "runs": [
+    {
+      "run": 1,
+      "phases": [
+        0,
+        15,
+        16,
+        24,
+        0,
+        24,
+        16,
+        15,
+        0
+      ],
+      "phase_elapsed_seconds": [
+        2.000067214,
+        2.000067026,
+        2.000065755,
+        2.000067281,
+        2.000068155,
+        2.000064239,
+        2.000065784,
+        2.000063161,
+        2.000067441
+      ],
+      "error": null,
+      "black_cleanup_acknowledged": true,
+      "controller_restored": true,
+      "summary": [
+        {
+          "raw_neutral_code": 0,
+          "transactions": 180,
+          "milliseconds": {
+            "write_ms": {
+              "median": 2.8040585,
+              "p95_nearest_rank": 3.17408,
+              "min": 2.182947,
+              "max": 3.9631859999999994
+            },
+            "ack_wait_ms": {
+              "median": 3.033076,
+              "p95_nearest_rank": 3.040725,
+              "min": 3.020137,
+              "max": 3.043781
+            },
+            "total_ms": {
+              "median": 5.842354,
+              "p95_nearest_rank": 6.209074,
+              "min": 5.223312,
+              "max": 6.99207
+            }
+          }
+        },
+        {
+          "raw_neutral_code": 15,
+          "transactions": 120,
+          "milliseconds": {
+            "write_ms": {
+              "median": 2.692596,
+              "p95_nearest_rank": 3.072646,
+              "min": 2.283991,
+              "max": 3.093727
+            },
+            "ack_wait_ms": {
+              "median": 15.037801,
+              "p95_nearest_rank": 15.044193000000002,
+              "min": 15.025266,
+              "max": 15.062147
+            },
+            "total_ms": {
+              "median": 17.7442225,
+              "p95_nearest_rank": 18.115346000000002,
+              "min": 17.329045,
+              "max": 18.139292
+            }
+          }
+        },
+        {
+          "raw_neutral_code": 16,
+          "transactions": 120,
+          "milliseconds": {
+            "write_ms": {
+              "median": 2.572612,
+              "p95_nearest_rank": 3.178389,
+              "min": 2.190272,
+              "max": 3.192225
+            },
+            "ack_wait_ms": {
+              "median": 17.037644,
+              "p95_nearest_rank": 17.046115,
+              "min": 17.026737999999998,
+              "max": 17.220438
+            },
+            "total_ms": {
+              "median": 19.617579499999998,
+              "p95_nearest_rank": 20.223831,
+              "min": 19.231327,
+              "max": 20.240053
+            }
+          }
+        },
+        {
+          "raw_neutral_code": 24,
+          "transactions": 120,
+          "milliseconds": {
+            "write_ms": {
+              "median": 2.679806,
+              "p95_nearest_rank": 3.052327,
+              "min": 2.291375,
+              "max": 3.070953
+            },
+            "ack_wait_ms": {
+              "median": 18.038915000000003,
+              "p95_nearest_rank": 18.046866,
+              "min": 18.028881,
+              "max": 18.052637
+            },
+            "total_ms": {
+              "median": 20.7223385,
+              "p95_nearest_rank": 21.095646,
+              "min": 20.333771,
+              "max": 21.1132
+            }
+          }
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "phases": [
+        0,
+        15,
+        16,
+        24,
+        0,
+        24,
+        16,
+        15,
+        0
+      ],
+      "phase_elapsed_seconds": [
+        2.000057985,
+        2.000063768,
+        2.000066856,
+        2.000063411,
+        2.000066379,
+        2.000065218,
+        2.000063817,
+        2.00006483,
+        2.000066255
+      ],
+      "error": null,
+      "black_cleanup_acknowledged": true,
+      "controller_restored": true,
+      "summary": [
+        {
+          "raw_neutral_code": 0,
+          "transactions": 180,
+          "milliseconds": {
+            "write_ms": {
+              "median": 2.5850405,
+              "p95_nearest_rank": 3.174992,
+              "min": 2.192296,
+              "max": 3.955852
+            },
+            "ack_wait_ms": {
+              "median": 3.031152,
+              "p95_nearest_rank": 3.0393030000000003,
+              "min": 3.023573,
+              "max": 3.054702
+            },
+            "total_ms": {
+              "median": 5.626026,
+              "p95_nearest_rank": 6.214676,
+              "min": 5.22729,
+              "max": 6.985768
+            }
+          }
+        },
+        {
+          "raw_neutral_code": 15,
+          "transactions": 120,
+          "milliseconds": {
+            "write_ms": {
+              "median": 2.722358,
+              "p95_nearest_rank": 3.091482,
+              "min": 2.333485,
+              "max": 3.112342
+            },
+            "ack_wait_ms": {
+              "median": 15.0345695,
+              "p95_nearest_rank": 15.040206000000001,
+              "min": 15.026509,
+              "max": 15.048712
+            },
+            "total_ms": {
+              "median": 17.761376,
+              "p95_nearest_rank": 18.128031,
+              "min": 17.372288,
+              "max": 18.152738000000003
+            }
+          }
+        },
+        {
+          "raw_neutral_code": 16,
+          "transactions": 120,
+          "milliseconds": {
+            "write_ms": {
+              "median": 2.5672365,
+              "p95_nearest_rank": 2.932389,
+              "min": 2.191243,
+              "max": 3.233193
+            },
+            "ack_wait_ms": {
+              "median": 17.0360215,
+              "p95_nearest_rank": 17.041968,
+              "min": 17.02767,
+              "max": 17.088124999999998
+            },
+            "total_ms": {
+              "median": 19.6094395,
+              "p95_nearest_rank": 19.973424,
+              "min": 19.23224,
+              "max": 20.278907999999998
+            }
+          }
+        },
+        {
+          "raw_neutral_code": 24,
+          "transactions": 120,
+          "milliseconds": {
+            "write_ms": {
+              "median": 2.7234045,
+              "p95_nearest_rank": 3.073007,
+              "min": 2.348093,
+              "max": 3.084719
+            },
+            "ack_wait_ms": {
+              "median": 18.034958500000002,
+              "p95_nearest_rank": 18.039081,
+              "min": 18.025355,
+              "max": 18.050272
+            },
+            "total_ms": {
+              "median": 20.7619105,
+              "p95_nearest_rank": 21.111848,
+              "min": 20.385551,
+              "max": 21.125865
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "observation": {
+    "run_1": "Retry requested; no observation assigned",
+    "run_2_user_report": "Third timed step was dark; other steps produced light",
+    "third_timed_step_raw_code": 16,
+    "black_threshold_verified": false,
+    "limitation": "Unexpected non-monotonic report; short unlabelled phases prevent establishing a physical transfer curve. Do not infer black floor or change daily encoding."
+  },
+  "preservation": {
+    "config_byte_identical": true,
+    "daily_app_changed": false,
+    "fallback_changed": false,
+    "firmware_written": false
+  }
+}

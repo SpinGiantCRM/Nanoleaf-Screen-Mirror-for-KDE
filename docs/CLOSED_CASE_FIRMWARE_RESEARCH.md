@@ -129,8 +129,10 @@ NL82K22 reporting NL82K2 hardware 1.1; closed-case recovery when the application
 cannot start; bootloader/factory-data preservation; supported image encoding and
 development tools; and whether colour acknowledgements mean accepted or emitted.
 A manufacturer enquiry was sent with explicit user approval, requesting these
-points without serial identifiers or attachments. No internal photographs, opening, pad probing
-or spare-controller purchase are requested.
+points without serial identifiers or attachments. The email address proved
+unmonitored; the approved enquiry was subsequently delivered through the official
+technical support form. See [the follow-up](FIRMWARE_ENCODING_FOLLOWUP.md).
+No internal photographs, opening, pad probing or spare-controller purchase are requested.
 
 ## Reproduction and preservation
 

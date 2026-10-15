@@ -1,0 +1,73 @@
+{
+  "scope": "Conditional cancellation model: equal encoded blocks assumed to decode equally at each position across versions; CRC linear over decoded data and clear header",
+  "positive_controls": [
+    "four_record_rectangle",
+    "duplicate_pair",
+    "independent_rows",
+    "odd_relation_rejected",
+    "binary_rank"
+  ],
+  "records": 870,
+  "symbol_position_columns": 5428,
+  "independent_even_record_relations": 32,
+  "relation_term_histogram": {
+    "2": 32
+  },
+  "independent_header_difference_rank": 2,
+  "distinct_header_and_trailer_differences": [
+    [
+      "030000",
+      "03f0"
+    ],
+    [
+      "070000",
+      "06b0"
+    ]
+  ],
+  "block_position_analysis": [
+    {
+      "version": "1.1.0",
+      "pairs": 96,
+      "same_record_different_position": 29,
+      "different_record_position": 83,
+      "different_full_record_data": 67,
+      "nonfirst_unequal_predecessor": 44
+    },
+    {
+      "version": "1.2.0",
+      "pairs": 81,
+      "same_record_different_position": 24,
+      "different_record_position": 74,
+      "different_full_record_data": 57,
+      "nonfirst_unequal_predecessor": 34
+    },
+    {
+      "version": "1.3.0",
+      "pairs": 91,
+      "same_record_different_position": 22,
+      "different_record_position": 84,
+      "different_full_record_data": 69,
+      "nonfirst_unequal_predecessor": 41
+    },
+    {
+      "version": "1.4.0",
+      "pairs": 86,
+      "same_record_different_position": 22,
+      "different_record_position": 80,
+      "different_full_record_data": 64,
+      "nonfirst_unequal_predecessor": 35
+    },
+    {
+      "version": "1.5.0",
+      "pairs": 113,
+      "same_record_different_position": 40,
+      "different_record_position": 104,
+      "different_full_record_data": 73,
+      "nonfirst_unequal_predecessor": 36
+    }
+  ],
+  "mcu_identified": false,
+  "cipher_identified": false,
+  "full_image_checksum_verified": false,
+  "safe_to_flash": false
+}
