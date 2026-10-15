@@ -105,10 +105,14 @@ def main():
             prefix.with_suffix(".scene.stderr").open("w") as scene_err,
         ):
             workload = subprocess.Popen(
+                # Local operator-selected executable, resolved to an existing absolute path.
+                # Separate argv and shell=False prevent shell interpretation of paths/data.
+                # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args  # noqa: E501
                 [str(scene), str(config), str(args.seconds + 3), args.pattern],
                 stdout=scene_out,
                 stderr=scene_err,
                 env=env,
+                shell=False,
             )
             try:
                 time.sleep(0.75)
@@ -136,10 +140,14 @@ def main():
                             *command,
                         ]
                     probe = subprocess.Popen(
+                        # Local operator selects the existing absolute native/strace binary.
+                        # Arguments remain separate; no shell evaluates paths or data.
+                        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args  # noqa: E501
                         command,
                         stdout=out,
                         stderr=err,
                         env=env,
+                        shell=False,
                     )
                     snapshots = []
                     baseline = last = None
@@ -257,7 +265,14 @@ def main():
             from step_response_trace import analyse
 
             preflight = json.loads(
-                subprocess.check_output([str(binary), "--preflight", str(config)])
+                subprocess.check_output(
+                    # Same trusted operator-selected native binary as the bounded probe.
+                    # Separate argv, no shell, and an explicit read-only subcommand.
+                    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args  # noqa: E501
+                    [str(binary), "--preflight", str(config)],
+                    shell=False,
+                    timeout=10,
+                )
             )
             result["paint_to_usb"] = analyse(
                 prefix.with_suffix(".hid.trace").read_text(),
