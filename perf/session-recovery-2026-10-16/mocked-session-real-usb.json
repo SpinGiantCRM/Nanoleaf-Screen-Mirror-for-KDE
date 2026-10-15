@@ -1,0 +1,12 @@
+{
+  "capture_failure_stopped": true,
+  "lock_stopped_preview_and_blocked_start_and_preview": true,
+  "unlock_requires_explicit_start": true,
+  "resume_without_prepare_stopped_preview": true,
+  "monitor_loss_blocks_output_and_recovery_does_not_restart": true,
+  "controller_readback_matches": true,
+  "initial_brightness_differed_from_test_limit": true,
+  "config_byte_identical": true,
+  "scope": "Private mocked session bus with real acknowledged low-brightness USB previews. No actual desktop lock, suspend, capture, unplug or optical verification. Capture service is deliberately absent; final controller readback is independent.",
+  "app_sha256": "e4d12cd9d2a72c70780b4f4a061d6330a79e2e85a807c2a4f5f5d8668160b619"
+}

@@ -4,6 +4,20 @@ Audited revision: `926668a66027169f86e4cc2cbe63abab145711f3` (merged PR #360).
 Priority: **colour accuracy > latency / captured FPS > resource usage**.
 Scope: one selected monitor, one manually configured NL82K1/NL82K2 strip.
 
+**16 October follow-up:** the user's subsequent priority is visible response
+time > faithful colour > delivered FPS > resources. The original ranking below
+is historical. [Capture freshness](CAPTURE_FRESHNESS.md) now records two checked
+ABBA moving-scene comparisons and exact colour validation at the existing 240
+FPS target. The exact original 60 FPS config is retained pending a valid static
+scene-change comparison. [Session recovery](SESSION_RECOVERY.md) implements the
+lock/resume/monitor-loss guard, including restoration and recovery tests. Actual
+KDE lock/unlock is checked in software, with a longer separate post-login run
+visibly confirmed; physical suspend and sustained same-process visible restart
+remain unverified. This progresses L2 and part of A4, not every open avenue.
+[Damage metadata](DAMAGE_METADATA_AUDIT.md) now has a bounded operator census;
+all 236 buffers in its first uncontrolled run were full-frame, so G3 reuse
+remains unpromoted.
+
 ## Assessment
 
 The next useful work is improving the existing Rust application, rather than

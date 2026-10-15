@@ -17,6 +17,14 @@ fn stopped_service_controls_never_open_capture_or_usb_and_keep_configuration_exa
         .arg("--headless")
         .arg(&config)
         .env("XDG_RUNTIME_DIR", &root)
+        .env(
+            "DBUS_SESSION_BUS_ADDRESS",
+            format!("unix:path={}/missing.sock", root.display()),
+        )
+        .env(
+            "DBUS_SYSTEM_BUS_ADDRESS",
+            format!("unix:path={}/missing.sock", root.display()),
+        )
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()
@@ -52,6 +60,18 @@ fn stopped_service_controls_never_open_capture_or_usb_and_keep_configuration_exa
     assert!(!s.running && !s.preview);
     assert_eq!(s.frames, 0);
     assert!(s.message.contains("manual strip count"));
+    send_at(
+        &socket,
+        &Control::Preview {
+            rgb: [80; 3],
+            zone: None,
+        },
+    )
+    .unwrap();
+    std::thread::sleep(Duration::from_millis(20));
+    let s = send_at(&socket, &Control::Status).unwrap();
+    assert!(!s.running && !s.preview && s.reconnects == 0);
+    assert!(s.message.contains("monitoring unavailable"));
     send_at(&socket, &Control::Quit).unwrap();
     let deadline = Instant::now() + Duration::from_secs(3);
     loop {

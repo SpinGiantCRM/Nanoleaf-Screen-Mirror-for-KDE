@@ -17,6 +17,7 @@ pub mod profile;
 pub mod response;
 pub mod screens;
 pub mod service;
+mod session;
 pub mod spatial;
 pub mod tray;
 #[cfg(feature = "gui")]

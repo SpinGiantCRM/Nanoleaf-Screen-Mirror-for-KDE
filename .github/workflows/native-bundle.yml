@@ -51,6 +51,7 @@ jobs:
       - name: Verify native contracts
         run: |
           cargo +1.95.0 test --locked --manifest-path native/app/Cargo.toml --features gui
+          cargo +1.95.0 test --locked --manifest-path native/app/Cargo.toml --features gui --lib private_bus_signals_owner_loss_and_recovery -- --ignored
           cargo +1.95.0 clippy --locked --manifest-path native/app/Cargo.toml --features gui --all-targets -- -D warnings
           cargo +1.95.0 test --locked --manifest-path native/stream-probe/Cargo.toml
       - name: Build complete bundle

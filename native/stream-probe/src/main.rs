@@ -1,6 +1,7 @@
 //! Bounded permission-mediated stream experiment. No configuration or USB writes.
 mod application;
 mod cadence;
+mod damage;
 mod frame;
 mod gpu;
 mod permission;
@@ -33,10 +34,11 @@ enum Mode {
     Upload,
     Dma,
     DmaExplicit,
+    DamageAudit,
 }
 impl Mode {
     fn dma(self) -> bool {
-        matches!(self, Self::Dma | Self::DmaExplicit)
+        matches!(self, Self::Dma | Self::DmaExplicit | Self::DamageAudit)
     }
 }
 #[derive(Default)]
@@ -47,6 +49,7 @@ struct State {
     dropped: u64,
     discarded: u64,
     corrupt_or_empty: u64,
+    damage: Option<damage::Audit>,
     sequence: Option<u64>,
     rgb: Vec<u8>,
     gpu: Option<VulkanSampler>,
@@ -134,6 +137,44 @@ fn discard_dma(buffer: &mut pw::buffer::Buffer<'_>, state: &State) -> Result<()>
         nanoleaf_linux_gpu::timeline::discard(buffer, device)?;
     }
     Ok(())
+}
+fn audit_damage(buffer: &pw::buffer::Buffer<'_>, state: &mut State) {
+    let Some(audit) = &mut state.damage else {
+        return;
+    };
+    let meta = buffer.find_meta::<spa::buffer::meta::MetaVideoDamage>();
+    let mut valid = meta.is_none_or(|m| {
+        let raw = m.as_raw();
+        !raw.data.is_null()
+            && raw.size > 0
+            && (raw.size as usize).is_multiple_of(std::mem::size_of::<spa::sys::spa_meta_region>())
+            && raw.size as usize <= 16 * std::mem::size_of::<spa::sys::spa_meta_region>()
+    });
+    let regions = meta.filter(|_| valid).map(|m| {
+        m.iter()
+            .map(|r| ZoneRect {
+                x: r.position().x as i64,
+                y: r.position().y as i64,
+                width: r.size().width as i64,
+                height: r.size().height as i64,
+            })
+            .collect::<Vec<_>>()
+    });
+    let header = buffer.find_meta::<spa::buffer::meta::MetaHeader>();
+    valid &= header.is_some_and(|h| {
+        !h.flags().intersects(
+            spa::buffer::meta::MetaHeaderFlags::CORRUPTED
+                | spa::buffer::meta::MetaHeaderFlags::GAP
+                | spa::buffer::meta::MetaHeaderFlags::DISCONT,
+        )
+    });
+    // Preserve the distinction between malformed metadata and absent metadata.
+    audit.record(
+        state.format.map(|f| (f.size().width, f.size().height)),
+        meta.map(|_| regions.as_deref().unwrap_or(&[])),
+        valid,
+        header.map(|h| h.seq()),
+    );
 }
 fn process(buffer: &mut pw::buffer::Buffer<'_>, state: &mut State) -> Result<()> {
     let started = Instant::now();
@@ -390,12 +431,13 @@ fn main() -> Result<()> {
     }
     ensure!(
         args.len() <= 1,
-        "Usage: nanoleaf-stream-probe [--gpu-upload|--dma-buf|--dma-buf-explicit|--sync-suite|--suite]"
+        "Usage: nanoleaf-stream-probe [--gpu-upload|--dma-buf|--dma-buf-explicit|--sync-suite|--suite|--damage-audit]"
     );
     let modes = match args.first().map(String::as_str) {
         None => vec![Mode::Cpu],
         Some("--gpu-upload") => vec![Mode::Upload],
         Some("--dma-buf") => vec![Mode::Dma],
+        Some("--damage-audit") => vec![Mode::DamageAudit],
         Some("--dma-buf-explicit") => vec![Mode::DmaExplicit],
         Some("--sync-suite") => vec![Mode::Dma, Mode::DmaExplicit, Mode::DmaExplicit, Mode::Dma],
         Some("--suite") => vec![Mode::Cpu, Mode::Upload, Mode::Dma],
@@ -468,6 +510,7 @@ fn run_application(
     let maximum_fps = application.as_ref().map(|a| a.config.fps).unwrap_or(30);
     let shared = Rc::new(RefCell::new(State {
         mode,
+        damage: (mode == Mode::DamageAudit).then(damage::Audit::default),
         application,
         device: prepared.map(|(d, q, _)| (d.clone(), q.clone())),
         adapter: prepared.map(|(_, _, i)| i.clone()).unwrap_or_default(),
@@ -505,6 +548,7 @@ fn run_application(
         .process(|stream,state| {
             let mut state=state.borrow_mut();
             let Some(mut newest)=stream.dequeue_buffer() else {return;};
+            audit_damage(&newest, &mut state);
             // Bound drain work even if a producer is running much faster than us.
             for _ in 0..16 {
                 let Some(next)=stream.dequeue_buffer() else {break;};
@@ -512,6 +556,7 @@ fn run_application(
                     state.errors.push(error.to_string()); return;
                 }
                 newest=next;
+                audit_damage(&newest, &mut state);
                 state.discarded+=1;
             }
             let bad_header=newest.find_meta::<spa::buffer::meta::MetaHeader>().is_some_and(|h|h.flags().intersects(spa::buffer::meta::MetaHeaderFlags::CORRUPTED | spa::buffer::meta::MetaHeaderFlags::GAP));
@@ -523,6 +568,11 @@ fn run_application(
                 if let Some(app)=&mut state.application{app.invalidate();}return;
             }
             if newest.find_meta::<spa::buffer::meta::MetaHeader>().is_some_and(|h|h.flags().contains(spa::buffer::meta::MetaHeaderFlags::DISCONT)) {if let Some(app)=&mut state.application{app.invalidate();}}
+            if state.mode == Mode::DamageAudit {
+                if let Err(error)=discard_dma(&mut newest,&state) {state.errors.push(error.to_string());}
+                state.frames+=1;
+                return;
+            }
             if let Err(error)=process(&mut newest,&mut state) {
                 if state.errors.len()<16 {state.errors.push(error.to_string());}
             }
@@ -623,6 +673,24 @@ fn run_application(
             ),
         ],
     });
+    if mode == Mode::DamageAudit {
+        formats.push(spa::pod::Object {
+            type_: spa::utils::SpaTypes::ObjectParamMeta.as_raw(),
+            id: spa::param::ParamType::Meta.as_raw(),
+            properties: vec![
+                spa::pod::Property::new(
+                    spa::sys::SPA_PARAM_META_type,
+                    spa::pod::Value::Id(spa::utils::Id(spa::sys::SPA_META_VideoDamage)),
+                ),
+                spa::pod::Property::new(
+                    spa::sys::SPA_PARAM_META_size,
+                    spa::pod::Value::Int(
+                        (16 * std::mem::size_of::<spa::sys::spa_meta_region>()) as i32,
+                    ),
+                ),
+            ],
+        });
+    }
     if mode == Mode::DmaExplicit {
         formats.push(spa::pod::Object {
             type_: spa::utils::SpaTypes::ObjectParamMeta.as_raw(),
@@ -721,6 +789,9 @@ fn run_application(
     let resources_active = resources::snapshot();
     let state = shared.borrow();
     let mut result = serde_json::json!({"mode":format!("{mode:?}"),"duration_ms":started.elapsed().as_secs_f64()*1000.0,"format":state.format_info,"frames":state.frames,"sequence_gaps":state.dropped,"discarded_buffers":state.discarded,"corrupt_or_empty_buffers":state.corrupt_or_empty,"adapter":state.adapter,"timings":state.timings,"errors":state.errors});
+    if let Some(audit) = &state.damage {
+        result["damage_audit"] = audit.report();
+    }
     result["resources_before"] = resources_before;
     result["resources_active"] = resources_active;
     drop(state);

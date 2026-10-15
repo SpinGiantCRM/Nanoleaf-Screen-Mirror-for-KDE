@@ -21,6 +21,12 @@ pub fn usb_information(store: &Store) -> Result<()> {
     let firmware = strip.request(0x0a, &[])?;
     let hardware = strip.request(0x0b, &[]);
     let manufacturer = strip.request(0x0d, &[]);
+    let power = strip.request(0x06, &[])?;
+    let brightness = strip.request(0x08, &[])?;
+    ensure!(
+        power.len() == 1 && power[0] <= 1 && brightness.len() == 1 && brightness[0] <= 100,
+        "Invalid controller power/brightness response"
+    );
     let hardware_error = hardware.as_ref().err().map(ToString::to_string);
     let manufacturer_error = manufacturer.as_ref().err().map(ToString::to_string);
     let hardware = hardware.ok();
@@ -41,6 +47,8 @@ pub fn usb_information(store: &Store) -> Result<()> {
             "firmware_raw": firmware,
             "firmware_major": version.0,
             "firmware_minor": version.1,
+            "controller_power": power[0],
+            "controller_brightness": brightness[0],
             "hardware_raw": hardware,
             "hardware_ascii": hardware.as_deref()
                 .and_then(|v| std::str::from_utf8(v).ok())

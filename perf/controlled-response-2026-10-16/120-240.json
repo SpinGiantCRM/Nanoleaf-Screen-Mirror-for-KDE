@@ -1,0 +1,236 @@
+{
+  "scope": "Same synthetic neutral SDR ramp. ABBA existing Target FPS comparison; every fresh ACK after 75-frame warmup. Software clocks only, not optical response. CPU/PSS excludes compositor, scene, GPU and power. Other desktop/GPU workloads remain uncontrolled.",
+  "app_sha256": "e4d12cd9d2a72c70780b4f4a061d6330a79e2e85a807c2a4f5f5d8668160b619",
+  "helper_sha256": "4ca79a9b49555461e10534fabba9cdaf10f31eba63b7888570b6efef835eaf1c",
+  "scene_sha256": "733bd24a217fbdd43a636cb52bff40fdc13eefb0ca34e577ec561a70a41f9024",
+  "runs": [
+    {
+      "target_fps": 120,
+      "fresh_ack_samples": 490,
+      "software_ms": {
+        "capture_ms": {
+          "p50": 0.982654,
+          "p95": 2.186854,
+          "p99": 2.989633
+        },
+        "processing_ms": {
+          "p50": 0.014176,
+          "p95": 0.017513,
+          "p99": 0.019917
+        },
+        "prepared_queue_ms": {
+          "p50": 4.740399,
+          "p95": 9.17374,
+          "p99": 10.526688
+        },
+        "usb_ms": {
+          "p50": 20.99661,
+          "p95": 20.999164,
+          "p99": 21.002305
+        },
+        "response_to_write_ms": {
+          "p50": 9.678024,
+          "p95": 14.082756999999999,
+          "p99": 15.092193
+        },
+        "response_ms": {
+          "p50": 26.70478,
+          "p95": 31.109508,
+          "p99": 32.119400999999996
+        },
+        "source_presentation_age_ms": {
+          "p50": 28.839625,
+          "p95": 34.206349,
+          "p99": 35.479778
+        }
+      },
+      "cpu_percent_one_core_app_and_helper": 4.45511200443369,
+      "pss_median_kib_app_and_helper": 78488,
+      "measured_resource_seconds": 10.100756155000454,
+      "controller_restored": true,
+      "real_config_byte_identical": true,
+      "scene": {
+        "completed": true,
+        "elapsed_seconds": 15.010641106,
+        "invalid_viewport_paints_after_warmup": 0,
+        "logical_hz": 120,
+        "max_paint_gap_after_warmup_ms": 26.337697,
+        "paint_requests": 3594,
+        "pattern": "two-second neutral triangle 64..192 with centre marker",
+        "scope": "Bounded synthetic SDR scene; counts are UI paint requests, not presentations or optical timing. No USB, capture, configuration writes or screen images.",
+        "unique_logical_ticks": 1799
+      }
+    },
+    {
+      "target_fps": 240,
+      "fresh_ack_samples": 491,
+      "software_ms": {
+        "capture_ms": {
+          "p50": 0.791008,
+          "p95": 1.788573,
+          "p99": 2.968286
+        },
+        "processing_ms": {
+          "p50": 0.013715,
+          "p95": 0.016561,
+          "p99": 0.018375
+        },
+        "prepared_queue_ms": {
+          "p50": 2.708362,
+          "p95": 5.468741,
+          "p99": 6.661917
+        },
+        "usb_ms": {
+          "p50": 20.996577,
+          "p95": 21.000635,
+          "p99": 21.004241999999998
+        },
+        "response_to_write_ms": {
+          "p50": 7.8305430000000005,
+          "p95": 10.302689,
+          "p99": 11.334248
+        },
+        "response_ms": {
+          "p50": 24.821178999999997,
+          "p95": 27.330002,
+          "p99": 28.362233
+        },
+        "source_presentation_age_ms": {
+          "p50": 27.236086,
+          "p95": 30.526814,
+          "p99": 31.289496
+        }
+      },
+      "cpu_percent_one_core_app_and_helper": 6.8646417985682255,
+      "pss_median_kib_app_and_helper": 76756.0,
+      "measured_resource_seconds": 10.197181739999905,
+      "controller_restored": true,
+      "real_config_byte_identical": true,
+      "scene": {
+        "completed": true,
+        "elapsed_seconds": 15.01220065,
+        "invalid_viewport_paints_after_warmup": 0,
+        "logical_hz": 120,
+        "max_paint_gap_after_warmup_ms": 27.719168,
+        "paint_requests": 3593,
+        "pattern": "two-second neutral triangle 64..192 with centre marker",
+        "scope": "Bounded synthetic SDR scene; counts are UI paint requests, not presentations or optical timing. No USB, capture, configuration writes or screen images.",
+        "unique_logical_ticks": 1799
+      }
+    },
+    {
+      "target_fps": 240,
+      "fresh_ack_samples": 491,
+      "software_ms": {
+        "capture_ms": {
+          "p50": 0.760863,
+          "p95": 1.642311,
+          "p99": 2.500556
+        },
+        "processing_ms": {
+          "p50": 0.013766,
+          "p95": 0.016942000000000002,
+          "p99": 0.018845
+        },
+        "prepared_queue_ms": {
+          "p50": 2.439962,
+          "p95": 5.524533,
+          "p99": 6.25054
+        },
+        "usb_ms": {
+          "p50": 20.996507,
+          "p95": 20.999558,
+          "p99": 21.002246
+        },
+        "response_to_write_ms": {
+          "p50": 7.3995750000000005,
+          "p95": 10.21578,
+          "p99": 11.069103
+        },
+        "response_ms": {
+          "p50": 24.400268,
+          "p95": 27.245017999999998,
+          "p99": 28.098021
+        },
+        "source_presentation_age_ms": {
+          "p50": 26.491972,
+          "p95": 30.133386,
+          "p99": 31.762453
+        }
+      },
+      "cpu_percent_one_core_app_and_helper": 6.956257852871291,
+      "pss_median_kib_app_and_helper": 76314.0,
+      "measured_resource_seconds": 10.206637174999742,
+      "controller_restored": true,
+      "real_config_byte_identical": true,
+      "scene": {
+        "completed": true,
+        "elapsed_seconds": 15.009838067,
+        "invalid_viewport_paints_after_warmup": 0,
+        "logical_hz": 120,
+        "max_paint_gap_after_warmup_ms": 25.597351,
+        "paint_requests": 3594,
+        "pattern": "two-second neutral triangle 64..192 with centre marker",
+        "scope": "Bounded synthetic SDR scene; counts are UI paint requests, not presentations or optical timing. No USB, capture, configuration writes or screen images.",
+        "unique_logical_ticks": 1799
+      }
+    },
+    {
+      "target_fps": 120,
+      "fresh_ack_samples": 490,
+      "software_ms": {
+        "capture_ms": {
+          "p50": 0.927796,
+          "p95": 2.050056,
+          "p99": 3.010986
+        },
+        "processing_ms": {
+          "p50": 0.014207,
+          "p95": 0.017413,
+          "p99": 0.018164
+        },
+        "prepared_queue_ms": {
+          "p50": 4.360451,
+          "p95": 8.982831000000001,
+          "p99": 10.326457000000001
+        },
+        "usb_ms": {
+          "p50": 20.996478,
+          "p95": 20.999974,
+          "p99": 21.0034
+        },
+        "response_to_write_ms": {
+          "p50": 9.660412,
+          "p95": 13.868649,
+          "p99": 15.148235
+        },
+        "response_ms": {
+          "p50": 26.625923999999998,
+          "p95": 30.892075000000002,
+          "p99": 32.180406000000005
+        },
+        "source_presentation_age_ms": {
+          "p50": 28.54234,
+          "p95": 34.14217,
+          "p99": 34.873081
+        }
+      },
+      "cpu_percent_one_core_app_and_helper": 4.596508336905103,
+      "pss_median_kib_app_and_helper": 78227.0,
+      "measured_resource_seconds": 10.00759633800044,
+      "controller_restored": true,
+      "real_config_byte_identical": true,
+      "scene": {
+        "completed": true,
+        "elapsed_seconds": 15.009032385,
+        "invalid_viewport_paints_after_warmup": 0,
+        "logical_hz": 120,
+        "max_paint_gap_after_warmup_ms": 27.280126,
+        "paint_requests": 3593,
+        "pattern": "two-second neutral triangle 64..192 with centre marker",
+        "scope": "Bounded synthetic SDR scene; counts are UI paint requests, not presentations or optical timing. No USB, capture, configuration writes or screen images.",
+        "unique_logical_ticks": 1798
+      }
+    }
+  ]
+}

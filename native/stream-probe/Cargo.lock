@@ -910,6 +910,8 @@ name = "nanoleaf-native"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-io",
+ "futures-lite",
  "hidapi",
  "ksni",
  "nanoleaf-core",

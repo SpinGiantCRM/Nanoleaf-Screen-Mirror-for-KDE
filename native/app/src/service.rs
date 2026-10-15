@@ -25,6 +25,10 @@ pub enum Control {
     Status,
     #[serde(skip)]
     FrameReady,
+    #[serde(skip)]
+    SessionInterrupted,
+    #[serde(skip)]
+    SessionReady,
     Start,
     Stop,
     Reload,
@@ -233,7 +237,10 @@ fn defer_controls(rx: &mpsc::Receiver<Control>, pending: &mut VecDeque<Control>)
     let mut stop = false;
     for _ in 0..16 {
         let Ok(control) = rx.try_recv() else { break };
-        stop |= matches!(control, Control::Stop | Control::Quit);
+        stop |= matches!(
+            control,
+            Control::Stop | Control::Quit | Control::SessionInterrupted
+        );
         pending.push_back(control);
     }
     stop
@@ -292,7 +299,9 @@ fn run_inner(
         store.config.capture_backend = backend.into();
     }
     let (tx, rx) = mpsc::channel();
+    let session = crate::session::Guard::new(tx.clone());
     let mut pending = VecDeque::new();
+    let mut session_stopped = false;
     let mut state = Status {
         manual_zones: store.config.device_zone_count,
         message: "Stopped".into(),
@@ -364,6 +373,12 @@ fn run_inner(
                     ready = true;
                 }
                 Control::Status => {}
+                Control::SessionReady => {
+                    if session_stopped && !state.running && !state.preview {
+                        state.message =
+                            "Desktop session ready; choose Start to mirror again".into();
+                    }
+                }
                 Control::Quit => {
                     state.response_summary = Some(responses.summary());
                     // Release capture before reporting: a slow stdout consumer
@@ -386,7 +401,8 @@ fn run_inner(
                     publish(&shared, &state);
                     break;
                 }
-                Control::Stop => {
+                Control::Stop | Control::SessionInterrupted => {
+                    session_stopped = matches!(command, Control::SessionInterrupted);
                     state.response_summary = Some(responses.summary());
                     // Revoke capture before waiting for the cleanup-black ACK.
                     drop(capture.take());
@@ -402,7 +418,14 @@ fn run_inner(
                     }
                     strip = None;
                     output_owner = None;
-                    state.message = "Stopped".into();
+                    state.message = if session_stopped {
+                        session
+                            .blocked()
+                            .unwrap_or("Desktop session interrupted; choose Start to mirror again")
+                            .into()
+                    } else {
+                        "Stopped".into()
+                    };
                 }
                 Control::Reload => match Store::load(path) {
                     Ok(s) => {
@@ -447,6 +470,12 @@ fn run_inner(
                         publish(&shared, &state);
                         continue;
                     }
+                    if let Some(reason) = session.blocked() {
+                        session_stopped = true;
+                        state.message = reason.into();
+                        publish(&shared, &state);
+                        continue;
+                    }
                     let ready = if output_owner.is_some() {
                         true
                     } else {
@@ -462,6 +491,7 @@ fn run_inner(
                         }
                     };
                     if ready && !state.running {
+                        session_stopped = false;
                         responses = crate::response::Responses::default();
                         state.response_summary = None;
                         state.prepared_queue_ms = None;
@@ -486,6 +516,9 @@ fn run_inner(
                 Control::Preview { rgb, zone } => {
                     if zone.is_some_and(|n| n >= store.config.device_zone_count) {
                         state.message = "Preview index exceeds the manual strip count".into();
+                    } else if let Some(reason) = session.blocked() {
+                        session_stopped = true;
+                        state.message = reason.into();
                     } else if output_owner.is_some() || {
                         match acquire_output(&paths) {
                             Ok(owner) => {
@@ -498,6 +531,7 @@ fn run_inner(
                             }
                         }
                     } {
+                        session_stopped = false;
                         predictor.reset();
                         usb_history.clear();
                         watchdog.reset();
@@ -552,6 +586,10 @@ fn run_inner(
                         }
                         if profile.is_some() {
                             // Reapply the bounded test limit after every reconnect.
+                            // A previous permission failure may already have
+                            // restored the controller. Reopening for preview or
+                            // restart makes that earlier restoration stale.
+                            restored = false;
                             s.request(0x09, &[10])?;
                         }
                         if store.config.auto_turn_on || profile.is_some() {
@@ -959,6 +997,21 @@ impl CaptureWatchdog {
 #[cfg(test)]
 mod control_progress_tests {
     use super::*;
+    #[test]
+    fn session_interrupt_cancels_capture_during_ack_and_is_internal_only() {
+        let (tx, rx) = mpsc::channel();
+        let mut pending = VecDeque::new();
+        tx.send(Control::FrameReady).unwrap();
+        tx.send(Control::SessionInterrupted).unwrap();
+        assert!(defer_controls(&rx, &mut pending));
+        assert!(matches!(pending.pop_front(), Some(Control::FrameReady)));
+        assert!(matches!(
+            pending.pop_front(),
+            Some(Control::SessionInterrupted)
+        ));
+        assert!(pending.is_empty());
+        assert!(serde_json::from_str::<Control>(r#"{"action":"session_interrupted"}"#).is_err());
+    }
     #[test]
     fn ack_progress_preserves_command_order_and_bounds_each_inspection() {
         let (tx, rx) = mpsc::channel();

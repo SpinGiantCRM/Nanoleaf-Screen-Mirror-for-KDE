@@ -19,6 +19,8 @@ toml = "0.9"
 toml_edit = "0.23"
 rustix = { version = "1.1", features = ["fs", "event", "pipe", "process", "net", "time"] }
 zbus = "=5.19.0"
+async-io = "=2.6.0"
+futures-lite = "=2.6.1"
 hidapi = { version = "=2.6.7", default-features = false, features = ["linux-native-basic-udev"] }
 wayland-client = "=0.31.15"
 wayland-protocols = { version = "=0.32.13", features = ["client", "unstable"] }
@@ -29,6 +31,11 @@ url = { version = "2.5", optional = true }
 [features]
 default = []
 gui = ["dep:eframe", "dep:url"]
+
+[[bin]]
+name = "capture_scene"
+path = "src/bin/capture_scene.rs"
+required-features = ["gui"]
 
 [profile.release]
 lto = "thin"

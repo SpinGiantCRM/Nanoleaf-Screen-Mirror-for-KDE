@@ -20,6 +20,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: node --test scripts/cleanup_artifacts.test.cjs
+      - name: Verify controlled USB trace decoder without hardware
+        run: python -m unittest discover -s scripts -p test_step_response_trace.py -v
 
   rust-security:
     name: Rust dependency security
