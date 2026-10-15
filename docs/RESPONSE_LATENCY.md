@@ -74,7 +74,91 @@ optical latency or FPS comparison.
 Each phase verified original controller power/brightness restoration. The
 original installed KWin application resumed with normal process priority, and the
 real configuration/installed binary remained unchanged during the comparison.
-The user's perceived responsiveness/colour-stability assessment is the remaining
-gate before adopting these settings for daily use. Actual emitted-light latency,
-sustained gaming cadence and the firmware presentation/ACK relationship remain
-unmeasured; do not equate an ACK timestamp with visible LED presentation.
+That first comparison was missed. The subsequent assessment and daily activation
+are recorded below. Actual emitted-light latency, sustained gaming cadence and
+the firmware presentation/ACK relationship remain unmeasured; do not equate an
+ACK timestamp with visible LED presentation.
+
+## 15 October: confirmed response improvement and daily activation
+
+The repeated low-brightness comparison produced 436 acknowledged packets with
+saved settings (10 seconds), then 852 with fast response (20 seconds). The user
+reported **“Noticeably faster; colours and stability still good.”** Both phases
+verified controller power/brightness restoration; the real configuration was
+unchanged during the comparison.
+
+The harness's relative nice adjustment did not consistently preserve priority:
+saved phase nice was 0, fast phase and the first restored process were 4. The
+restoration check caught this; all original service threads were corrected to 0
+and verified after Reload. Future launches use an absolute priority set before
+execution. These uncontrolled phases are therefore a subjective usability check,
+not a valid paired capture/transport performance comparison. Their different
+capture-to-ACK medians must not be attributed to the two temporal controls.
+
+After the positive observation, the tested GUI/capture bundle was installed
+through the normal managed installer. The real configuration was edited through
+the transactional fast-response command. A parsed comparison found exactly two
+changed root keys: `smoothing` and `zone_temporal_accumulation`. Both calibration
+profiles, mapping, monitor, manual count, FPS, priority, unknown options and
+comments remain preserved; an exact original configuration backup is retained.
+Older native versions, Python launchers and native/Python autostart settings were
+retained. The installed app resumed KWin mirroring with real NL82K2 ACKs and
+actual normal priority 0. The bundle's executable checksum matches the previously
+tested build. Isolated install/upgrade/rollback/uninstall checks passed again.
+
+A subsequent 20-second uncontrolled desktop profile sampled status at 2 Hz:
+
+| Measurement | Result |
+| --- | ---: |
+| Acknowledged packets / rate | 895 / 44.65 updates/s |
+| Capture median | 18.34 ms |
+| Colour processing median | 3.52 ms |
+| USB transaction median | 20.96 ms |
+| Capture request to ACK median | 44.56 ms |
+| Capture request to ACK snapshot p95 | 56.38 ms |
+| Process CPU, percent of one core | 66.99% |
+| Resident memory | 79.75 MiB |
+| Dropped prepared frames / new reconnects | 2 / 0 |
+
+These are status-snapshot distributions, not a full distribution of every frame
+or controlled video/game results. CPU uses process tick deltas; the external
+status sampler's CPU is excluded, although polling can affect the application.
+A separate five-second attribution put approximately 65% of one core in the
+capture/colour worker. Thus the daily KWin path still has meaningful CPU cost;
+earlier low CPU results for portal/Vulkan do not describe this backend.
+
+USB metadata splits its median transaction into about 2.98 ms writing three
+reports and 18.03 ms waiting for the reply; draining reports takes less than
+0.002 ms. This rules out the drain loop as a useful latency target in this run.
+It does not identify whether firmware presents the colours before or after its
+reply. Skipping ACKs or inventing colours would weaken correctness/recovery and
+is not justified. The current latest-frame slot is already bounded, preventing
+an unbounded queue of old scene colours. Further material improvements need
+capture/pipe attribution or separately validated streaming capture; changing
+more colour math would not address the dominant measured stages.
+
+A three-second read-only KWin capture attribution ran alongside daily mirroring
+(additional capture load): 113 actual captures at 3840×2160, Qt format 6.
+Median reply, pipe transfer and conversion stages were 8.62, 7.04 and 7.02 ms.
+This is stage attribution under concurrent load, not a clean daily-use benchmark.
+The host permits an unprivileged 1 MiB pipe capacity (default 64 KiB), providing
+a candidate for independent transfer tests without changing colour processing.
+
+The opt-in `paired_4k_pipe_transfer_benchmark` exercises the production reader
+with generated 4K bytes, two warm-ups and 12 alternating AB/BA pairs. Every
+received byte matched. Default 64 KiB / requested 1 MiB transfer medians were
+8.40 / 7.67 ms, including reader allocation. Only 7 of 12 pairs favoured the
+larger pipe; paired savings ranged from −2.86 to +3.36 ms (median +1.17 ms).
+This short synthetic run does not establish a useful whole-capture latency/CPU
+benefit. **Production pipe capacity remains unchanged.** The ignored benchmark
+is available for controlled follow-up, alongside ordinary regression tests for
+short reads, complete byte preservation, truncation and stalled-pipe timeout.
+
+Evidence: `perf/response-latency-2026-10-15/`. No optical latency, power, raw HDR,
+sustained gaming or additional physical device verification is claimed.
+Managed binary rollback does not revert timing settings; restore the exact
+configuration backup separately if returning to the previous response behaviour.
+The final app gate passes 77 tests, with the operator benchmark ignored in normal
+CI; the benchmark was also explicitly run and passed all byte comparisons.
+Native Clippy and format checks pass. No production reader or colour algorithms
+were changed by this additional test/benchmark batch.

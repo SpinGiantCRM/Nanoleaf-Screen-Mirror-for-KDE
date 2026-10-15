@@ -1,0 +1,37 @@
+{
+  "scope": "5-second per-thread CPU attribution during uncontrolled desktop mirroring, without profiling privileges",
+  "threads": [
+    {
+      "name": "nanoleaf-native",
+      "cpu_percent_one_core": 0.0
+    },
+    {
+      "name": "nanoleaf-native",
+      "cpu_percent_one_core": 0.0
+    },
+    {
+      "name": "blocking-1",
+      "cpu_percent_one_core": 0.0
+    },
+    {
+      "name": "async-io",
+      "cpu_percent_one_core": 0.0
+    },
+    {
+      "name": "nanoleaf-native",
+      "cpu_percent_one_core": 0.0
+    },
+    {
+      "name": "nanoleaf-native",
+      "cpu_percent_one_core": 0.0
+    },
+    {
+      "name": "nanoleaf-native",
+      "cpu_percent_one_core": 64.99484492089145
+    },
+    {
+      "name": "zbus::Connectio",
+      "cpu_percent_one_core": 0.39996827643625515
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "scope": "Bounded low-brightness comparison using the same portal/Vulkan backend and copied configurations; no optical measurement.",
+  "user_observation": "Noticeably faster; colours and stability still good",
+  "phases": {
+    "saved": {
+      "seconds_requested": 10,
+      "acknowledged_packets": 436,
+      "power_brightness_restored": true,
+      "median_capture_to_ack_ms": 35.423857,
+      "median_usb_ms": 20.9971345,
+      "effective_nice": 0
+    },
+    "fast": {
+      "seconds_requested": 20,
+      "acknowledged_packets": 852,
+      "power_brightness_restored": true,
+      "median_capture_to_ack_ms": 49.6945235,
+      "median_usb_ms": 20.996913499999998,
+      "effective_nice": 4
+    }
+  },
+  "restoration": {
+    "original_config_preserved_during_comparison": true,
+    "original_binary_retained": true,
+    "priority_mismatch_detected_and_corrected_before_activation": true,
+    "original_priority_restored": 0,
+    "harness_followup": "Child launch now sets absolute original nice priority before execution; relative nice adjustment was unreliable in this host environment."
+  }
+}

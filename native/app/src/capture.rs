@@ -246,3 +246,82 @@ pub fn decode(
         pixels,
     })
 }
+
+#[cfg(test)]
+mod pipe_tests {
+    use super::*;
+    use std::io::Write;
+
+    fn transfer(data: Vec<u8>, capacity: Option<usize>) -> (Vec<u8>, Duration, usize) {
+        let (read, write) = rustix::pipe::pipe().unwrap();
+        if let Some(capacity) = capacity {
+            // Match the proposed best-effort policy: permission/quota failure
+            // keeps the kernel's usable default, never requires privileges.
+            let _ = rustix::pipe::fcntl_setpipe_size(&read, capacity);
+        }
+        let actual_capacity = rustix::pipe::fcntl_getpipe_size(&read).unwrap();
+        let size = data.len();
+        let writer = std::thread::spawn(move || {
+            std::fs::File::from(write).write_all(&data).unwrap();
+        });
+        let start = Instant::now();
+        let received = read_frame(&read, size, Duration::from_secs(2)).unwrap();
+        let elapsed = start.elapsed();
+        writer.join().unwrap();
+        (received, elapsed, actual_capacity)
+    }
+
+    #[test]
+    fn capture_pipe_preserves_every_byte_across_short_reads_and_capacities() {
+        let data: Vec<_> = (0..3 * 1024 * 1024).map(|i| (i * 37) as u8).collect();
+        for capacity in [None, Some(1024 * 1024)] {
+            let (received, _, _) = transfer(data.clone(), capacity);
+            assert_eq!(received, data);
+        }
+    }
+
+    #[test]
+    fn closed_capture_pipe_reports_truncation() {
+        let (read, write) = rustix::pipe::pipe().unwrap();
+        rustix::io::write(&write, &[1, 2, 3]).unwrap();
+        drop(write);
+        let error = read_frame(&read, 4, Duration::from_secs(1)).unwrap_err();
+        assert!(error.to_string().contains("Truncated"));
+    }
+
+    #[test]
+    fn open_but_stalled_capture_pipe_remains_bounded() {
+        let (read, _write) = rustix::pipe::pipe().unwrap();
+        let error = read_frame(&read, 4, Duration::from_millis(20)).unwrap_err();
+        assert!(error.to_string().contains("timed out"));
+    }
+
+    #[test]
+    #[ignore = "operator-run synthetic 4K pipe benchmark, not a CI timing gate"]
+    fn paired_4k_pipe_transfer_benchmark() {
+        let data: Vec<_> = (0..3840 * 2160 * 4).map(|i| (i * 37) as u8).collect();
+        for _ in 0..2 {
+            for capacity in [None, Some(1024 * 1024)] {
+                assert_eq!(transfer(data.clone(), capacity).0, data);
+            }
+        }
+        let mut trials = Vec::new();
+        for pair in 0..12 {
+            for enlarged in if pair % 2 == 0 {
+                [false, true]
+            } else {
+                [true, false]
+            } {
+                let (received, elapsed, capacity) =
+                    transfer(data.clone(), enlarged.then_some(1024 * 1024));
+                assert_eq!(received, data);
+                trials.push(serde_json::json!({"pair":pair,"enlarged":enlarged,
+                    "actual_capacity":capacity,"transfer_ms":elapsed.as_secs_f64()*1000.0}));
+            }
+        }
+        println!(
+            "{}",
+            serde_json::json!({"scope":"Generated 4K raw bytes, paired AB/BA kernel pipe transfers with production reader; no compositor, colour conversion, USB or optical timing. Allocation included in reader timing; exact byte equality in every trial.","trials":trials})
+        );
+    }
+}
