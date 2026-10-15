@@ -9,6 +9,12 @@ fn main() -> Result<()> {
     if std::env::args().nth(1).as_deref() == Some("--edge-benchmark") {
         return edge_benchmark(device, queue, adapter);
     }
+    if std::env::args().nth(1).as_deref() == Some("--sampling-benchmark") {
+        return sampling_benchmark(device, queue, adapter);
+    }
+    if std::env::args().nth(1).as_deref() == Some("--content-benchmark") {
+        return content_benchmark(device, queue, adapter);
+    }
     let zones = [
         ZoneRect {
             x: 0,
@@ -37,6 +43,7 @@ fn main() -> Result<()> {
     ];
     let mut sampler = TextureSampler::new(device, queue, 96, 64, &zones)?;
     let mut comparisons = 0;
+    let mut reader_comparisons = 0;
     let mut region_comparisons = 0;
     let mut updated_zone_comparisons = 0;
     let mut batch_comparisons = 0;
@@ -146,6 +153,33 @@ fn main() -> Result<()> {
                 batch_comparisons += 1;
                 region_comparisons += 1;
             }
+            let mut reader = nanoleaf_linux_gpu::RegionReader::new(&sampler, &texture);
+            for y in [0u32, 8, 16, 63, 4, 12, 4] {
+                ensure!(
+                    reader.row(y)? == rgb[y as usize * 96 * 3..(y as usize + 1) * 96 * 3],
+                    "Prefetched row changed exact encoded pixels"
+                );
+                reader_comparisons += 1;
+            }
+            for (x, top, bottom) in [
+                (8u32, 0u32, 64u32),
+                (16, 7, 49),
+                (8, 0, 64),
+                (20, 5, 55),
+                (95, 0, 64),
+            ] {
+                let expected: Vec<_> = (top..bottom)
+                    .flat_map(|y| {
+                        let i = (y as usize * 96 + x as usize) * 3;
+                        rgb[i..i + 3].iter().copied()
+                    })
+                    .collect();
+                ensure!(
+                    reader.column(x, top, bottom)? == expected,
+                    "Prefetched column/range changed exact encoded pixels"
+                );
+                reader_comparisons += 1;
+            }
             let view = SdrRgb8Frame::new(&rgb, 96, 64, 96 * 3)?;
             let cpu = SdrSampler::default();
             let (samples, timings) = sampler.sample(&texture)?;
@@ -187,7 +221,7 @@ fn main() -> Result<()> {
     }
     println!(
         "{}",
-        serde_json::json!({"adapter":adapter,"scope":"Synthetic Vulkan texture shader and diagnostic readback oracle; DMA-BUF import not exercised by this test","zone_comparisons":comparisons,"region_comparisons":region_comparisons,"batch_region_comparisons":batch_comparisons,"updated_zone_comparisons":updated_zone_comparisons,"cases":results})
+        serde_json::json!({"adapter":adapter,"scope":"Synthetic Vulkan texture shader and diagnostic readback oracle; DMA-BUF import not exercised by this test","zone_comparisons":comparisons,"reader_comparisons":reader_comparisons,"region_comparisons":region_comparisons,"batch_region_comparisons":batch_comparisons,"updated_zone_comparisons":updated_zone_comparisons,"cases":results})
     );
     Ok(())
 }
@@ -304,6 +338,290 @@ fn edge_benchmark(
         serde_json::json!({"scope":"Synthetic 4K exact edge readback only; no DMA-BUF/capture/USB/optical/power claim",
         "adapter":adapter,"size":[w,h],"alternating_order":true,"trials":100,"all_pixels_exact":true,
         "sequential":metrics(sequential),"batched":metrics(batched),"rgb_bytes":reference.iter().map(Vec::len).sum::<usize>()})
+    );
+    Ok(())
+}
+
+/// Production texture sampler under reproducible colour distributions. Upload,
+/// allocation, CPU oracle and warm-up are outside the timed sample window.
+fn sampling_benchmark(
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    adapter: serde_json::Value,
+) -> Result<()> {
+    let (width, height) = (3840u32, 2160u32);
+    let texture = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("Generated 4K sampling benchmark"),
+        size: wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
+    let mut cases = Vec::new();
+    let mut comparisons = 0;
+    for layout in ["edges", "full-stripes"] {
+        let mut zones = Vec::new();
+        for i in 0..12u32 {
+            for z in [
+                ZoneRect {
+                    x: (i * width / 12) as i64,
+                    y: 0,
+                    width: (width / 12) as i64,
+                    height: (height / 14) as i64,
+                },
+                ZoneRect {
+                    x: (i * width / 12) as i64,
+                    y: (height - height / 14) as i64,
+                    width: (width / 12) as i64,
+                    height: (height / 14) as i64,
+                },
+                ZoneRect {
+                    x: 0,
+                    y: (i * height / 12) as i64,
+                    width: (width / 14) as i64,
+                    height: (height / 12) as i64,
+                },
+                ZoneRect {
+                    x: (width - width / 14) as i64,
+                    y: (i * height / 12) as i64,
+                    width: (width / 14) as i64,
+                    height: (height / 12) as i64,
+                },
+            ] {
+                zones.push(z);
+            }
+        }
+        if layout == "full-stripes" {
+            for (i, z) in zones.iter_mut().enumerate() {
+                *z = ZoneRect {
+                    x: i as i64 * 80,
+                    y: 0,
+                    width: 80,
+                    height: height as i64,
+                };
+            }
+        }
+        let sampler = TextureSampler::new(device.clone(), queue.clone(), width, height, &zones)?;
+        for pattern in ["grey", "split", "noise"] {
+            let mut rgb = Vec::with_capacity(width as usize * height as usize * 3);
+            let mut encoded = Vec::with_capacity(width as usize * height as usize * 4);
+            for n in 0..width * height {
+                let value = match pattern {
+                    "grey" => [128, 128, 128],
+                    "split" => {
+                        if n % width < width / 2 {
+                            [25, 170, 45]
+                        } else {
+                            [210, 20, 25]
+                        }
+                    }
+                    _ => [
+                        (n.wrapping_mul(1664525).wrapping_add(1013904223) >> 24) as u8,
+                        (n.wrapping_mul(22695477).wrapping_add(1) >> 24) as u8,
+                        (n.wrapping_mul(1103515245).wrapping_add(12345) >> 24) as u8,
+                    ],
+                };
+                rgb.extend_from_slice(&value);
+                encoded.extend_from_slice(&[value[0], value[1], value[2], 255]);
+            }
+            queue.write_texture(
+                wgpu::TexelCopyTextureInfo {
+                    texture: &texture,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
+                    aspect: wgpu::TextureAspect::All,
+                },
+                &encoded,
+                wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(width * 4),
+                    rows_per_image: Some(height),
+                },
+                texture.size(),
+            );
+            let view =
+                SdrRgb8Frame::new(&rgb, width as usize, height as usize, width as usize * 3)?;
+            let cpu = SdrSampler::default();
+            let reference: Vec<_> = zones.iter().map(|&z| cpu.sample_zone(&view, z)).collect();
+            for _ in 0..2 {
+                sampler.sample(&texture)?;
+            }
+            let mut timings = Vec::new();
+            for _ in 0..7 {
+                let (sampled, timing) = sampler.sample(&texture)?;
+                for (a, b) in sampled.iter().zip(&reference) {
+                    ensure!(
+                        a.srgb == b.srgb
+                            && a.linear_rgb == b.linear_rgb
+                            && a.encoded_variance == b.encoded_variance
+                            && a.pixel_count == b.pixel_count,
+                        "4K texture sampling lost exact colour parity"
+                    );
+                    comparisons += 1;
+                }
+                timings.push(timing);
+            }
+            cases.push(serde_json::json!({"layout":layout,"pattern":pattern,"timings":timings,"all_fields_exact":true}));
+        }
+    }
+    println!(
+        "{}",
+        serde_json::json!({"scope":"Generated 4K texture sampling only; no capture/USB/optical measurement; excludes upload, startup and CPU oracle; two warm-ups and seven timed samples per case","adapter":adapter,"zone_comparisons":comparisons,"cases":cases})
+    );
+    Ok(())
+}
+
+fn content_benchmark(
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    adapter: serde_json::Value,
+) -> Result<()> {
+    use nanoleaf_linux_gpu::RegionReader;
+    use nanoleaf_native::pipeline::{detect_content_bounds, encoded_mean};
+    use std::{cell::RefCell, time::Instant};
+    let mut cases = Vec::new();
+    for (w, h) in [(641u32, 359u32), (3840, 2160)] {
+        let sampler = TextureSampler::new(
+            device.clone(),
+            queue.clone(),
+            w,
+            h,
+            &[ZoneRect {
+                x: 0,
+                y: 0,
+                width: w as i64,
+                height: h as i64,
+            }],
+        )?;
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Generated content detector oracle"),
+            size: wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_DST
+                | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        for pattern in [
+            "bright",
+            "thin-bars",
+            "cinema-bars",
+            "pillars",
+            "black",
+            "near-threshold",
+            "transparent-border",
+        ] {
+            let mut rgb = Vec::new();
+            let mut encoded = Vec::new();
+            for y in 0..h {
+                for x in 0..w {
+                    let dark = match pattern {
+                        "black" => true,
+                        "thin-bars" => y < 32 || y >= h - 32,
+                        "cinema-bars" => y < h / 8 || y >= h - h / 8,
+                        "pillars" => x < w / 7 || x >= w - w / 7,
+                        "near-threshold" => y < 32 || y >= h - 32,
+                        "transparent-border" => y < 32 || y >= h - 32,
+                        _ => false,
+                    };
+                    let value = if pattern == "near-threshold" {
+                        if dark {
+                            [4, 4, 4]
+                        } else {
+                            [5, 4, 4]
+                        }
+                    } else if dark {
+                        [0, 0, 0]
+                    } else {
+                        [127, 130, 125]
+                    };
+                    let alpha = if pattern == "transparent-border" && dark {
+                        0
+                    } else {
+                        255
+                    };
+                    let raw = if alpha == 0 { [230, 14, 198] } else { value };
+                    rgb.extend_from_slice(&value);
+                    encoded.extend_from_slice(&[raw[0], raw[1], raw[2], alpha]);
+                }
+            }
+            queue.write_texture(
+                wgpu::TexelCopyTextureInfo {
+                    texture: &texture,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
+                    aspect: wgpu::TextureAspect::All,
+                },
+                &encoded,
+                wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(w * 4),
+                    rows_per_image: Some(h),
+                },
+                texture.size(),
+            );
+            let reference = detect_content_bounds(
+                w as usize,
+                h as usize,
+                |y| encoded_mean(&rgb[y * w as usize * 3..(y + 1) * w as usize * 3]),
+                |x, top, bottom| {
+                    let column: Vec<_> = (top..bottom)
+                        .flat_map(|y| {
+                            let i = (y * w as usize + x) * 3;
+                            rgb[i..i + 3].iter().copied()
+                        })
+                        .collect();
+                    encoded_mean(&column)
+                },
+            )?;
+            let mut runs = Vec::new();
+            for run in 0..7 {
+                let reader = RefCell::new(RegionReader::new(&sampler, &texture));
+                let started = Instant::now();
+                let actual = detect_content_bounds(
+                    w as usize,
+                    h as usize,
+                    |y| encoded_mean(&reader.borrow_mut().row(y as u32)?),
+                    |x, top, bottom| {
+                        encoded_mean(&reader.borrow_mut().column(
+                            x as u32,
+                            top as u32,
+                            bottom as u32,
+                        )?)
+                    },
+                )?;
+                let ms = started.elapsed().as_secs_f64() * 1000.0;
+                ensure!(
+                    actual == reference,
+                    "GPU content detection changed exact ordered-CPU bounds"
+                );
+                if run >= 2 {
+                    let (bytes, batches) = reader.borrow().statistics();
+                    runs.push(
+                        serde_json::json!({"ms":ms,"rgb_bytes":bytes,"transfer_batches":batches}),
+                    );
+                }
+            }
+            cases.push(serde_json::json!({"width":w,"height":h,"pattern":pattern,"all_bounds_exact":true,"runs":runs}));
+        }
+    }
+    println!(
+        "{}",
+        serde_json::json!({"scope":"Generated RGBA texture and actual content detector/RegionReader; CPU ordered float32 oracle; no capture, USB or saved frames; upload/startup/two warm-ups excluded","adapter":adapter,"cases":cases})
     );
     Ok(())
 }

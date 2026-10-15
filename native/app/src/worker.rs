@@ -11,6 +11,37 @@ use std::sync::{
     mpsc, Arc, Mutex,
 };
 use std::time::{Duration, Instant};
+/// Numeric capture attribution only; never contains pixels or configuration.
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct CaptureStages {
+    pub total_ms: f64,
+    pub producer_fence_ms: f64,
+    pub import_ms: f64,
+    pub acquire_ms: f64,
+    pub analysis_ms: f64,
+    pub zone_update_ms: f64,
+    pub sampling_ms: f64,
+    pub release_ms: f64,
+    pub cache_hit: bool,
+    pub analysis_bytes: u64,
+    pub analysis_batches: u64,
+}
+impl CaptureStages {
+    pub fn valid(&self) -> bool {
+        [
+            self.total_ms,
+            self.producer_fence_ms,
+            self.import_ms,
+            self.acquire_ms,
+            self.analysis_ms,
+            self.zone_update_ms,
+            self.sampling_ms,
+            self.release_ms,
+        ]
+        .into_iter()
+        .all(|v| v.is_finite() && (0.0..=10_000.0).contains(&v))
+    }
+}
 pub struct Prepared {
     pub unquantized_rgb: Option<Vec<[f32; 3]>>,
     pub colors: Vec<[u8; 3]>,
@@ -23,6 +54,7 @@ pub struct Prepared {
     pub source_reused: bool,
     pub response_clock: &'static str,
     pub source_pts_ns: Option<i64>,
+    pub capture_stages: Option<CaptureStages>,
 }
 struct Latest {
     value: Mutex<Option<Result<Prepared, String>>>,
@@ -104,6 +136,7 @@ impl Producer {
                         source_reused: false,
                         response_clock: "capture-request",
                         source_pts_ns: None,
+                        capture_stages: None,
                     })
                 })();
                 if cancel.load(Ordering::Acquire) {
@@ -185,6 +218,7 @@ mod tests {
                     source_reused: false,
                     response_clock: "fixture",
                     source_pts_ns: None,
+                    capture_stages: None,
                 }),
                 &tx,
             );

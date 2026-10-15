@@ -157,6 +157,21 @@ impl Application {
         header: Option<&spa::buffer::meta::MetaHeader>,
         started: Instant,
     ) -> Result<()> {
+        let t = &sampled.timings;
+        let i = &t["interop"];
+        let stages = nanoleaf_native::worker::CaptureStages {
+            total_ms: t["complete_frame_ms"].as_f64().unwrap_or_default(),
+            producer_fence_ms: i["producer_fence_ms"].as_f64().unwrap_or_default(),
+            import_ms: i["import_or_cache_ms"].as_f64().unwrap_or_default(),
+            acquire_ms: i["acquire_ms"].as_f64().unwrap_or_default(),
+            analysis_ms: t["analysis_ms"].as_f64().unwrap_or_default(),
+            zone_update_ms: t["zone_update_ms"].as_f64().unwrap_or_default(),
+            sampling_ms: t["compute_readback_reduce_ms"].as_f64().unwrap_or_default(),
+            release_ms: i["release_ms"].as_f64().unwrap_or_default(),
+            cache_hit: i["cache_hit"].as_bool().unwrap_or_default(),
+            analysis_bytes: t["analysis_rgb_bytes"].as_u64().unwrap_or_default(),
+            analysis_batches: t["analysis_transfer_batches"].as_u64().unwrap_or_default(),
+        };
         let source = CachedSource {
             width,
             height,
@@ -170,7 +185,8 @@ impl Application {
             pts: header.map(|h| h.pts()),
         };
         let capture_ms = started.elapsed().as_secs_f64() * 1000.0;
-        let record = self.process_source(&source, false, started, capture_ms)?;
+        let mut record = self.process_source(&source, false, started, capture_ms)?;
+        record["capture_stages"] = serde_json::to_value(stages)?;
         emit(&record)?;
         self.cached = Some(source);
         self.last_output = Some(Instant::now());

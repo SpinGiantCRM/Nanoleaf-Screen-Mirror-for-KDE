@@ -214,12 +214,45 @@ pub struct RegionReader<'a> {
     sampler: &'a nanoleaf_vulkan_probe::TextureSampler,
     texture: &'a wgpu::Texture,
     bytes: usize,
-    reads: usize,
     full: Option<Vec<u8>>,
     edges: Option<Vec<Vec<u8>>>,
     transfers: usize,
+    rows: HashMap<u32, Vec<u8>>,
+    columns: HashMap<u32, Vec<u8>>,
+    last_row: Option<u32>,
+    last_column: Option<u32>,
+    row_forward: bool,
+    column_forward: bool,
+    row_batches: usize,
+    column_batches: usize,
+    column_range: Option<(u32, u32)>,
 }
-impl RegionReader<'_> {
+impl<'a> RegionReader<'a> {
+    pub fn new(
+        sampler: &'a nanoleaf_vulkan_probe::TextureSampler,
+        texture: &'a wgpu::Texture,
+    ) -> Self {
+        Self {
+            sampler,
+            texture,
+            bytes: 0,
+            full: None,
+            edges: None,
+            transfers: 0,
+            rows: HashMap::new(),
+            columns: HashMap::new(),
+            last_row: None,
+            last_column: None,
+            row_forward: true,
+            column_forward: true,
+            row_batches: 0,
+            column_batches: 0,
+            column_range: None,
+        }
+    }
+    pub fn statistics(&self) -> (usize, usize) {
+        (self.bytes, self.transfers)
+    }
     fn edges(&mut self) -> Result<()> {
         if self.edges.is_some() || self.full.is_some() {
             return Ok(());
@@ -236,21 +269,11 @@ impl RegionReader<'_> {
         )?;
         ensure!(edges.len() == 4, "Incomplete edge readback batch");
         self.bytes += edges.iter().map(Vec::len).sum::<usize>();
-        self.reads += 4;
         self.transfers += 1;
         self.edges = Some(edges);
         Ok(())
     }
     fn region(&mut self, rect: [u32; 4]) -> Result<Vec<u8>> {
-        // Black screens/wide bars can require hundreds of detector reads. After
-        // eight sparse copies, read once and run the SAME ordered CPU analysis.
-        // This bounds GPU round trips without skipping or approximating pixels.
-        if self.reads >= 8 && self.full.is_none() {
-            let rgb = self.sampler.diagnostic_rgb(self.texture)?;
-            self.bytes += rgb.len();
-            self.full = Some(rgb);
-            self.transfers += 1;
-        }
         if let Some(rgb) = &self.full {
             let width = self.texture.width() as usize;
             ensure!(
@@ -270,12 +293,30 @@ impl RegionReader<'_> {
             return Ok(result);
         }
         let result = self.sampler.region_rgb(self.texture, rect)?;
-        self.reads += 1;
         self.transfers += 1;
         self.bytes += result.len();
         Ok(result)
     }
+    fn fallback_full(&mut self) -> Result<()> {
+        if self.full.is_none() {
+            let rgb = self.sampler.diagnostic_rgb(self.texture)?;
+            self.bytes += rgb.len();
+            self.transfers += 1;
+            self.full = Some(rgb);
+            self.rows.clear();
+            self.columns.clear();
+        }
+        Ok(())
+    }
     pub fn row(&mut self, y: u32) -> Result<Vec<u8>> {
+        ensure!(y < self.texture.height(), "Invalid analysis row");
+        let forward = self.last_row.is_none_or(|last| y >= last);
+        if forward != self.row_forward {
+            self.row_batches = 0;
+            self.rows.clear();
+        }
+        self.row_forward = forward;
+        self.last_row = Some(y);
         self.edges()?;
         if let Some(edges) = &self.edges {
             if y == 0 {
@@ -285,10 +326,53 @@ impl RegionReader<'_> {
                 return Ok(edges[1].clone());
             }
         }
-        self.region([0, y, self.texture.width(), 1])
+        if self.full.is_some() {
+            return self.region([0, y, self.texture.width(), 1]);
+        }
+        if let Some(row) = self.rows.get(&y) {
+            return Ok(row.clone());
+        }
+        // Exact detector scanlines, in its existing 8-pixel search order. One
+        // bounded batch replaces individual copies; do not download all of 4K
+        // merely because a dark title bar required a handful of row checks.
+        if self.row_batches >= 2 {
+            self.fallback_full()?;
+            return self.region([0, y, self.texture.width(), 1]);
+        }
+        let positions = line_positions(y, forward, self.texture.height());
+        let rects: Vec<_> = positions
+            .iter()
+            .map(|&row| [0, row, self.texture.width(), 1])
+            .collect();
+        let lines = self.sampler.regions_rgb(self.texture, &rects)?;
+        ensure!(
+            lines.len() == positions.len(),
+            "Incomplete analysis row batch"
+        );
+        self.bytes += lines.iter().map(Vec::len).sum::<usize>();
+        self.transfers += 1;
+        self.row_batches += 1;
+        self.rows = positions.into_iter().zip(lines).collect();
+        self.rows.get(&y).cloned().context("Missing prefetched row")
     }
     pub fn column(&mut self, x: u32, top: u32, bottom: u32) -> Result<Vec<u8>> {
-        ensure!(bottom > top, "Invalid analysis column");
+        ensure!(
+            x < self.texture.width() && bottom > top && bottom <= self.texture.height(),
+            "Invalid analysis column"
+        );
+        if self.column_range != Some((top, bottom)) {
+            self.columns.clear();
+            self.column_batches = 0;
+            self.last_column = None;
+            self.column_range = Some((top, bottom));
+        }
+        let forward = self.last_column.is_none_or(|last| x >= last);
+        if forward != self.column_forward {
+            self.column_batches = 0;
+            self.columns.clear();
+        }
+        self.column_forward = forward;
+        self.last_column = Some(x);
         self.edges()?;
         if let Some(edges) = &self.edges {
             let edge = if x == 0 {
@@ -305,7 +389,79 @@ impl RegionReader<'_> {
                     .to_vec());
             }
         }
-        self.region([x, top, 1, bottom - top])
+        if self.full.is_some() {
+            return self.region([x, top, 1, bottom - top]);
+        }
+        if let Some(column) = self.columns.get(&x) {
+            return Ok(column.clone());
+        }
+        if self.column_batches >= 3 {
+            self.fallback_full()?;
+            return self.region([x, top, 1, bottom - top]);
+        }
+        let positions = line_positions(x, forward, self.texture.width());
+        // Copy a contiguous band, not dozens of 1-pixel-wide rectangles:
+        // GPU row alignment would otherwise pad every column to 256 bytes.
+        let left = *positions.iter().min().context("Empty column batch")?;
+        let right = *positions.iter().max().context("Empty column batch")?;
+        let width = right - left + 1;
+        let band = self
+            .sampler
+            .region_rgb(self.texture, [left, top, width, bottom - top])?;
+        self.bytes += band.len();
+        self.transfers += 1;
+        self.column_batches += 1;
+        self.columns.clear();
+        for col in positions {
+            let offset = (col - left) as usize * 3;
+            let column = band
+                .chunks_exact(width as usize * 3)
+                .flat_map(|row| row[offset..offset + 3].iter().copied())
+                .collect();
+            self.columns.insert(col, column);
+        }
+        self.columns
+            .get(&x)
+            .cloned()
+            .context("Missing prefetched column")
+    }
+}
+// Fixed internal IO batching, not a sampling/FPS/quality setting. Every pixel
+// requested by the existing detector still goes through its ordered CPU sum.
+fn line_positions(start: u32, forward: bool, limit: u32) -> Vec<u32> {
+    (0..32)
+        .filter_map(|i| {
+            if forward {
+                start.checked_add(i * 8)
+            } else {
+                start.checked_sub(i * 8)
+            }
+        })
+        .filter(|&v| v < limit)
+        .collect()
+}
+
+#[cfg(test)]
+mod analysis_lines_tests {
+    use super::line_positions;
+    #[test]
+    fn ordered_prefetch_stays_bounded_at_both_edges_and_cannot_overflow() {
+        assert_eq!(
+            line_positions(8, true, 100),
+            (8..100).step_by(8).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            line_positions(91, false, 100),
+            (0..12).map(|i| 91 - i * 8).collect::<Vec<_>>()
+        );
+        assert_eq!(line_positions(0, false, 1), vec![0]);
+        assert!(line_positions(0, true, 0).is_empty());
+        assert!(line_positions(u32::MAX, true, u32::MAX).is_empty());
+        assert_eq!(
+            line_positions(u32::MAX - 1, true, u32::MAX),
+            vec![u32::MAX - 1]
+        );
+        assert_eq!(line_positions(0, true, 16_384).len(), 32);
     }
 }
 /// A GPU sampler that exposes only colour statistics and optional diagnostic
@@ -377,20 +533,16 @@ impl DmaSampler {
             buffer,
             format,
             |texture| {
+                let analysis_started = Instant::now();
                 let (zones, context, bytes, transfers, full) = {
-                    let mut reader = RegionReader {
-                        sampler,
-                        texture,
-                        bytes: 0,
-                        reads: 0,
-                        full: None,
-                        edges: None,
-                        transfers: 0,
-                    };
+                    let mut reader = RegionReader::new(sampler, texture);
                     let (zones, context) = plan(&mut reader)?;
                     (zones, context, reader.bytes, reader.transfers, reader.full)
                 };
+                let analysis_ms = analysis_started.elapsed().as_secs_f64() * 1000.0;
+                let zone_started = Instant::now();
                 sampler.set_zones(&zones)?;
+                let zone_update_ms = zone_started.elapsed().as_secs_f64() * 1000.0;
                 let diagnostic_rgb = if diagnostic {
                     Some(match full {
                         Some(rgb) => rgb,
@@ -401,6 +553,8 @@ impl DmaSampler {
                 };
                 let (samples, mut timings) = sampler.sample(texture)?;
                 timings["analysis_rgb_bytes"] = serde_json::json!(bytes);
+                timings["analysis_ms"] = serde_json::json!(analysis_ms);
+                timings["zone_update_ms"] = serde_json::json!(zone_update_ms);
                 timings["analysis_transfer_batches"] = serde_json::json!(transfers);
                 Ok((
                     SampledFrame {

@@ -90,6 +90,9 @@ USB 5.68 ms and sampling-to-ACK 29.22 ms. Display-presentation age was separatel
 45.97 ms at the snapshot median. This uncontrolled window is not a before/after
 performance comparison. The high capture cost requires further attribution;
 the earlier 2% client-CPU observation must not be treated as a universal result.
+The subsequent [border-readback correction](GPU_BORDER_CAPTURE.md) attributes
+that cost to unnecessary full-frame analysis and replaces the common path with
+exact bounded scanline batches; the shader and colour math remain unchanged.
 
 Numerical evidence is in
 [`perf/stream-clock-2026-10-15`](../perf/stream-clock-2026-10-15).

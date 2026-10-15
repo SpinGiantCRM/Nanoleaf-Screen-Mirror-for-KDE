@@ -68,7 +68,7 @@ pub fn stream_capture(path: &Path, seconds: f64) -> Result<()> {
             match frame {
                 Ok(frame) => {
                     first_frame.get_or_insert_with(Instant::now);
-                    samples.push(serde_json::json!({"capture_ms":frame.capture_ms,"processing":frame.times,"prepared_age_ms":frame.started.elapsed().as_secs_f64()*1000.0,"backend":frame.backend,"manual_output_count":frame.colors.len(),"parity_verified":frame.parity_verified,"highlight_cache":frame.highlight_cache,"source_reused":frame.source_reused,"response_clock":frame.response_clock,"source_presentation_age_ms":frame.source_pts_ns.map(|pts| {let now=rustix::time::clock_gettime(rustix::time::ClockId::Monotonic);((now.tv_sec as i128*1_000_000_000+now.tv_nsec as i128)-pts as i128) as f64/1_000_000.0})}));
+                    samples.push(serde_json::json!({"capture_ms":frame.capture_ms,"processing":frame.times,"prepared_age_ms":frame.started.elapsed().as_secs_f64()*1000.0,"backend":frame.backend,"manual_output_count":frame.colors.len(),"parity_verified":frame.parity_verified,"highlight_cache":frame.highlight_cache,"source_reused":frame.source_reused,"response_clock":frame.response_clock,"capture_stages":frame.capture_stages,"source_presentation_age_ms":frame.source_pts_ns.map(|pts| {let now=rustix::time::clock_gettime(rustix::time::ClockId::Monotonic);((now.tv_sec as i128*1_000_000_000+now.tv_nsec as i128)-pts as i128) as f64/1_000_000.0})}));
                 }
                 Err(e) => {
                     error = Some(e);

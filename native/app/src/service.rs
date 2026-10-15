@@ -62,6 +62,8 @@ pub struct Status {
     pub response_clock: String,
     #[serde(default)]
     pub source_presentation_age_ms: Option<f64>,
+    #[serde(default)]
+    pub capture_stages: Option<crate::worker::CaptureStages>,
     pub effective_fps: f64,
     pub startup_ms: f64,
     pub reconnects: u64,
@@ -558,6 +560,7 @@ fn run_inner(
                     source_reused: false,
                     response_clock: "preview",
                     source_pts_ns: None,
+                    capture_stages: None,
                 }));
             }
             if capture.is_none() {
@@ -595,6 +598,7 @@ fn run_inner(
                         source_reused: false,
                         response_clock: "prediction",
                         source_pts_ns: None,
+                        capture_stages: None,
                     }))
                 }
                 None => {
@@ -636,6 +640,7 @@ fn run_inner(
                     source_reused,
                     response_clock,
                     source_pts_ns,
+                    capture_stages,
                 } = prepared;
                 state.backend = backend;
                 if store.config.blue_noise_dither && !state.preview {
@@ -673,6 +678,7 @@ fn run_inner(
                             state.processing_ms = times.total_ms;
                             state.response_ms = started.elapsed().as_secs_f64() * 1000.0;
                             state.response_clock = response_clock.into();
+                            state.capture_stages = capture_stages;
                             state.source_presentation_age_ms = source_pts_ns.map(|pts| {
                                 let now =
                                     rustix::time::clock_gettime(rustix::time::ClockId::Monotonic);

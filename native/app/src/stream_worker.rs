@@ -26,6 +26,8 @@ struct Record {
     reuse_started_ns: Option<i64>,
     #[serde(default)]
     frame_started_ns: Option<i64>,
+    #[serde(default)]
+    capture_stages: Option<CaptureStages>,
 }
 fn prepared(record: Record, manual: usize) -> Result<Prepared> {
     ensure!(
@@ -59,6 +61,13 @@ fn prepared(record: Record, manual: usize) -> Result<Prepared> {
     ensure!(
         record.highlight_cache.0 <= 16 * 1024 * 1024,
         "Invalid highlight cache accounting"
+    );
+    ensure!(
+        record
+            .capture_stages
+            .as_ref()
+            .is_none_or(CaptureStages::valid),
+        "Invalid GPU capture timings"
     );
     ensure!(
         record.backend.starts_with("xdg-portal / Vulkan DMA-BUF /") && record.backend.len() <= 128,
@@ -130,6 +139,7 @@ fn prepared(record: Record, manual: usize) -> Result<Prepared> {
             "legacy-work"
         },
         source_pts_ns: record.source_pts_ns.filter(|&p| p >= 0),
+        capture_stages: record.capture_stages,
     })
 }
 fn helper() -> Result<PathBuf> {
@@ -319,8 +329,28 @@ mod tests {
             source_reused: false,
             reuse_started_ns: None,
             frame_started_ns: None,
+            capture_stages: None,
         };
         assert!(prepared(record(), 4).is_ok());
+        let mut r = record();
+        r.capture_stages = Some(CaptureStages {
+            total_ms: f64::NAN,
+            ..Default::default()
+        });
+        assert!(prepared(r, 4).is_err());
+        let mut r = record();
+        r.capture_stages = Some(CaptureStages {
+            sampling_ms: -1.0,
+            ..Default::default()
+        });
+        assert!(prepared(r, 4).is_err());
+        let mut r = record();
+        r.capture_stages = Some(CaptureStages {
+            total_ms: 1.5,
+            cache_hit: true,
+            ..Default::default()
+        });
+        assert!(prepared(r, 4).unwrap().capture_stages.unwrap().cache_hit);
         assert!(prepared(record(), 5).is_err());
         let mut r = record();
         r.unquantized_rgb = Some(vec![[128.25; 3]; 4]);
@@ -363,6 +393,7 @@ mod tests {
             source_reused: true,
             reuse_started_ns: Some(now_ns),
             frame_started_ns: None,
+            capture_stages: None,
         };
         let out = prepared(record(), 4).unwrap();
         assert!(out.source_reused);
@@ -401,6 +432,7 @@ mod tests {
             source_reused: false,
             reuse_started_ns: None,
             frame_started_ns: Some(now_ns - 2_000_000),
+            capture_stages: None,
         };
         for pts in [
             None,

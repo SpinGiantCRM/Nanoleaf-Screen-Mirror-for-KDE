@@ -11,6 +11,10 @@ comparison did not demonstrate a response-time benefit.
 The subsequent [stream work-clock correction](STREAM_CLOCK_RECOVERY.md) fixes a
 timestamp-contract defect and makes sampling-to-ACK and display age explicit;
 its changed counter origin is not evidence of an optical response improvement.
+The latest [exact GPU border-readback improvement](GPU_BORDER_CAPTURE.md) removes
+an observed full-image analysis bottleneck without changing colour calculations.
+It documents both generated speedups and the remaining USB/optical measurement
+limits; total acknowledgement time must not be confused with emitted light.
 
 ## The delay hidden by per-frame timings
 

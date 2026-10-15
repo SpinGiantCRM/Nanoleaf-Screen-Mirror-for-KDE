@@ -1,0 +1,15 @@
+{
+  "activated": true,
+  "config_byte_identical": true,
+  "config_sha256": "a5d9b604c8ff68adf8a9321cc9fb578d4c2468c00a279612d66312f800049933",
+  "fallback_and_autostart_preserved": true,
+  "older_native_retained": true,
+  "old_version": "6d436ac20e9829a654bd851432fcbd7719782b43675aeeecfc22e0ae48bc9964",
+  "new_version": "56178dfa21e1d4a5fa8e07a794acb73bbb48758b880afd83ffa422df6b7be718",
+  "app_sha256": "a6569da971ed2ea90d80f0ff6b72a652111c3aaf6abcee023f827431b9b44c0e",
+  "helper_sha256": "b7bfb81a36e0649fc00207e8b9964daeac9cd625f76aa17fa4898cd0ed2e4d45",
+  "actual_backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync",
+  "response_clock": "capture-work",
+  "capture_stages_present": true,
+  "normal_priority": true
+}
