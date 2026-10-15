@@ -1,0 +1,20 @@
+{
+  "implicit": {
+    "frames": 246,
+    "all_exact": true,
+    "response_clocks": [
+      "capture-work"
+    ],
+    "stderr_bytes": 0
+  },
+  "explicit": {
+    "frames": 208,
+    "all_exact": true,
+    "response_clocks": [
+      "cached-work",
+      "capture-work"
+    ],
+    "stderr_bytes": 0
+  },
+  "config_sha256": "a5d9b604c8ff68adf8a9321cc9fb578d4c2468c00a279612d66312f800049933"
+}

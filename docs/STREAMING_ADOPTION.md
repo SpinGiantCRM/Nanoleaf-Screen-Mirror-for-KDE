@@ -2,6 +2,11 @@
 
 15 October 2026. Priority: recreation time, colour reproduction, FPS, resources.
 
+Follow-up: a later live inspection found a timestamp-guard stop. The
+[work-clock correction and verification](STREAM_CLOCK_RECOVERY.md) separates
+capture processing from KDE's display-presentation marker. Its new response
+origin must not be compared directly with the historical PTS timings below.
+
 ## Daily capture on the tested host
 
 The user compared ten seconds of KWin screenshots with twenty seconds of the

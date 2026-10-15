@@ -58,6 +58,10 @@ pub struct Status {
     #[serde(default)]
     pub usb_transaction: Option<crate::device::TransactionTimes>,
     pub response_ms: f64,
+    #[serde(default)]
+    pub response_clock: String,
+    #[serde(default)]
+    pub source_presentation_age_ms: Option<f64>,
     pub effective_fps: f64,
     pub startup_ms: f64,
     pub reconnects: u64,
@@ -552,6 +556,8 @@ fn run_inner(
                     parity_verified: false,
                     highlight_cache: (0, 0),
                     source_reused: false,
+                    response_clock: "preview",
+                    source_pts_ns: None,
                 }));
             }
             if capture.is_none() {
@@ -587,6 +593,8 @@ fn run_inner(
                         parity_verified: false,
                         highlight_cache: (0, 0),
                         source_reused: false,
+                        response_clock: "prediction",
+                        source_pts_ns: None,
                     }))
                 }
                 None => {
@@ -626,6 +634,8 @@ fn run_inner(
                     parity_verified: _,
                     highlight_cache: _,
                     source_reused,
+                    response_clock,
+                    source_pts_ns,
                 } = prepared;
                 state.backend = backend;
                 if store.config.blue_noise_dither && !state.preview {
@@ -662,6 +672,14 @@ fn run_inner(
                             state.capture_ms = capture_ms;
                             state.processing_ms = times.total_ms;
                             state.response_ms = started.elapsed().as_secs_f64() * 1000.0;
+                            state.response_clock = response_clock.into();
+                            state.source_presentation_age_ms = source_pts_ns.map(|pts| {
+                                let now =
+                                    rustix::time::clock_gettime(rustix::time::ClockId::Monotonic);
+                                ((now.tv_sec as i128 * 1_000_000_000 + now.tv_nsec as i128)
+                                    - pts as i128) as f64
+                                    / 1_000_000.0
+                            });
                         }
                         if let Some(producer) = &capture {
                             producer.acknowledge(&colors);

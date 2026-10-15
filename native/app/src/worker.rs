@@ -21,6 +21,8 @@ pub struct Prepared {
     pub parity_verified: bool,
     pub highlight_cache: (usize, u64),
     pub source_reused: bool,
+    pub response_clock: &'static str,
+    pub source_pts_ns: Option<i64>,
 }
 struct Latest {
     value: Mutex<Option<Result<Prepared, String>>>,
@@ -100,6 +102,8 @@ impl Producer {
                         parity_verified: false,
                         highlight_cache: out.highlight_cache,
                         source_reused: false,
+                        response_clock: "capture-request",
+                        source_pts_ns: None,
                     })
                 })();
                 if cancel.load(Ordering::Acquire) {
@@ -179,6 +183,8 @@ mod tests {
                     parity_verified: false,
                     highlight_cache: (0, 0),
                     source_reused: false,
+                    response_clock: "fixture",
+                    source_pts_ns: None,
                 }),
                 &tx,
             );

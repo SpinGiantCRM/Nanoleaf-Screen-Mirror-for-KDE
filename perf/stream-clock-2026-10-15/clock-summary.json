@@ -1,0 +1,12 @@
+{
+  "seconds": 120.15304691100027,
+  "records": 4039,
+  "fresh_records": 4039,
+  "invalid_timing_records": 0,
+  "fresh_delta_min_ms": 21.661617,
+  "fresh_delta_median_ms": 55.049102,
+  "fresh_delta_max_ms": 90.163244,
+  "bad_examples": [],
+  "worker_returncode": 0,
+  "scope": "Capture only; timing numbers, no image or colour samples saved, no USB"
+}

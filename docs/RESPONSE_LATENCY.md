@@ -8,6 +8,9 @@ After the user confirmed equal/better response and stable colours, the tested
 implicit Vulkan stream was enabled on this host with calibration and fallbacks
 preserved. The new explicit timeline experiment remains opt-in because its idle
 comparison did not demonstrate a response-time benefit.
+The subsequent [stream work-clock correction](STREAM_CLOCK_RECOVERY.md) fixes a
+timestamp-contract defect and makes sampling-to-ACK and display age explicit;
+its changed counter origin is not evidence of an optical response improvement.
 
 ## The delay hidden by per-frame timings
 

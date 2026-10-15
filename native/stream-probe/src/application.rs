@@ -28,31 +28,15 @@ pub struct Application {
 }
 #[derive(Default)]
 struct TemporalClock {
-    source: Option<i64>,
     work: Option<i64>,
-    reused: bool,
 }
 impl TemporalClock {
-    fn advance(&mut self, source_pts: Option<i64>, reused: bool, work_ns: i64) -> Option<Duration> {
-        let source = source_pts.filter(|&t| t > 0 && t <= work_ns);
-        let work_elapsed = self.work.map(|last| work_ns.saturating_sub(last).max(0));
-        // Uninterrupted fresh frames use source cadence. Across cached work,
-        // use delivery/work time: old source PTS must not count the cached
-        // interval twice or freeze a newly delivered frame behind that clock.
-        let elapsed = if !reused && !self.reused {
-            self.source
-                .zip(source)
-                .filter(|(last, now)| now > last)
-                .map(|(last, now)| now - last)
-                .or(work_elapsed)
-        } else {
-            work_elapsed
-        };
+    fn advance(&mut self, work_ns: i64) -> Option<Duration> {
+        // KWin PTS is the display's last presentation, not this capture's time.
+        // Use one monotonic sampling/work clock for fresh and cached processing:
+        // a held PTS followed by a jump must not count elapsed time twice.
+        let elapsed = self.work.map(|last| work_ns.saturating_sub(last).max(0));
         self.work = Some(self.work.map_or(work_ns, |last| work_ns.max(last)));
-        self.reused = reused;
-        if !reused {
-            self.source = source;
-        }
         elapsed.map(|ns| Duration::from_nanos(ns as u64))
     }
 }
@@ -232,12 +216,11 @@ impl Application {
         started: Instant,
         capture_ms: f64,
     ) -> Result<serde_json::Value> {
-        // Anchor reused-frame work independently of the original capture PTS.
-        // This counts unchanged-source processing, never a fresh captured frame.
         let work_started_ns = super::monotonic_ns();
-        let elapsed = self
-            .temporal_clock
-            .advance(source.pts, reused, work_started_ns);
+        let frame_started_ns = work_started_ns
+            .checked_sub(started.elapsed().as_nanos().try_into()?)
+            .context("Capture work clock overflow")?;
+        let elapsed = self.temporal_clock.advance(frame_started_ns);
         if let Some(elapsed) = elapsed {
             self.pipeline.set_temporal_elapsed(elapsed);
             if let Some(shadow) = &mut self.shadow {
@@ -293,14 +276,7 @@ impl Application {
         } else {
             None
         };
-        let age = if reused {
-            started.elapsed().as_secs_f64() * 1000.0
-        } else {
-            source
-                .pts
-                .and_then(super::pts_age_ns)
-                .unwrap_or(capture_ms + output.times.total_ms)
-        };
+        let age = started.elapsed().as_secs_f64() * 1000.0;
         let backend = if pixel_path {
             "xdg-portal / Vulkan DMA-BUF / CPU pixel policies"
         } else {
@@ -315,10 +291,10 @@ impl Application {
             }
         );
         Ok(
-            serde_json::json!({"schema":2,"colors":output.colors,"unquantized_rgb":output.unquantized_rgb,
+            serde_json::json!({"schema":3,"colors":output.colors,"unquantized_rgb":output.unquantized_rgb,
             "times":output.times,"capture_ms":capture_ms,"prepared_age_ms":age,"source_pts_ns":source.pts,
             "temporal_elapsed_ns":elapsed.map(|d| d.as_nanos() as u64),
-            "source_reused":reused,"reuse_started_ns":if reused {Some(work_started_ns)} else {None},
+            "source_reused":reused,"frame_started_ns":frame_started_ns,
             "backend":backend,"parity_exact":parity_exact,"highlight_cache":output.highlight_cache}),
         )
     }
@@ -396,41 +372,66 @@ mod tests {
     use nanoleaf_core::sampling::{SdrRgb8Frame, SdrSampler};
 
     #[test]
-    fn source_and_reuse_clock_never_double_count_or_reverse_time() {
+    fn capture_and_cached_work_share_one_non_reversing_clock() {
         let mut clock = TemporalClock::default();
-        assert_eq!(clock.advance(Some(100), false, 110), None);
-        assert_eq!(
-            clock.advance(Some(120), false, 130),
-            Some(Duration::from_nanos(20))
-        );
-        assert_eq!(
-            clock.advance(Some(120), true, 140),
-            Some(Duration::from_nanos(10))
-        );
-        assert_eq!(
-            clock.advance(Some(135), false, 150),
-            Some(Duration::from_nanos(10))
-        );
-        assert_eq!(
-            clock.advance(Some(160), false, 170),
-            Some(Duration::from_nanos(25))
-        );
-        assert_eq!(
-            clock.advance(Some(999), false, 180),
-            Some(Duration::from_nanos(10))
-        );
-        assert_eq!(
-            clock.advance(None, false, 190),
-            Some(Duration::from_nanos(10))
-        );
-        assert_eq!(
-            clock.advance(Some(180), false, 200),
-            Some(Duration::from_nanos(10))
-        );
-        assert_eq!(
-            clock.advance(Some(180), false, 210),
-            Some(Duration::from_nanos(10))
-        );
+        assert_eq!(clock.advance(110), None);
+        for (now, expected) in [
+            (130, 20),
+            (140, 10),
+            (150, 10),
+            (170, 20),
+            (180, 10),
+            (180, 0),
+            (175, 0),
+            (190, 10),
+        ] {
+            assert_eq!(clock.advance(now), Some(Duration::from_nanos(expected)));
+        }
+        // Work intervals partition elapsed time even if presentation metadata
+        // holds, jumps, disappears or describes a future display presentation.
+        let mut clock = TemporalClock::default();
+        clock.advance(1_000);
+        let elapsed: u128 = [1_010, 1_020, 1_030, 1_040]
+            .into_iter()
+            .map(|t| clock.advance(t).unwrap().as_nanos())
+            .sum();
+        assert_eq!(elapsed, 40);
+    }
+
+    #[test]
+    fn fresh_work_keeps_exact_colours_with_old_or_future_presentation_metadata() {
+        for offset in [-30_000_000_000, 30_000_000_000] {
+            let mut app = app(false);
+            app.config.smoothing = 1.0;
+            app.config.zone_temporal_accumulation = false;
+            let mut source = source(
+                &app,
+                Frame {
+                    width: 32,
+                    height: 24,
+                    pixels: vec![128; 32 * 24 * 3],
+                },
+            );
+            source.pts = Some(super::super::monotonic_ns() + offset);
+            let start = Instant::now() - Duration::from_millis(5);
+            let record = app.process_source(&source, false, start, 1.0).unwrap();
+            let reference = Pipeline::default()
+                .process(source.pixels.as_ref().unwrap(), &app.config)
+                .unwrap();
+            assert_eq!(
+                record["colors"],
+                serde_json::to_value(reference.colors).unwrap()
+            );
+            assert_eq!(
+                record["unquantized_rgb"],
+                serde_json::to_value(reference.unquantized_rgb).unwrap()
+            );
+            assert_eq!(record["schema"], 3);
+            assert_eq!(record["source_pts_ns"], source.pts.unwrap());
+            let age = super::super::monotonic_ns() - record["frame_started_ns"].as_i64().unwrap();
+            assert!((5_000_000..1_000_000_000).contains(&age));
+            assert!(record["prepared_age_ms"].as_f64().unwrap() >= 5.0);
+        }
     }
 
     fn app(pixel_policy: bool) -> Application {
@@ -538,7 +539,7 @@ mod tests {
                 );
                 assert_eq!(record["source_reused"], true);
                 assert_eq!(record["capture_ms"], 0.0);
-                assert_eq!(record["schema"], 2);
+                assert_eq!(record["schema"], 3);
                 let sent = pipeline::quantize_acknowledged(&expected.unquantized_rgb, ack);
                 *app.sent.lock().unwrap() = sent.clone();
                 reference.override_sent(&sent);
