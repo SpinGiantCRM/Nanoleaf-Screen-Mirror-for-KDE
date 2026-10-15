@@ -5,6 +5,8 @@ use std::time::{Duration, Instant};
 
 const LEVELS: [u8; 9] = [0, 15, 16, 24, 0, 24, 16, 15, 0];
 const PHASE_SECONDS: u64 = 2;
+const SINGLE_SECONDS: u64 = 10;
+const TEST_BRIGHTNESS: u8 = 10;
 
 pub fn plan(store: &Store) -> Result<serde_json::Value> {
     let count = store.config.device_zone_count;
@@ -21,6 +23,21 @@ pub fn plan(store: &Store) -> Result<serde_json::Value> {
         "restoration": "Black cleanup, then original controller power/brightness with readback; prior LED colours cannot be read back",
         "optical_measurement": false,
     }))
+}
+
+/// One individually labelled observation avoids interpreting a fast sequence.
+pub fn single_plan(store: &Store, level: u8) -> Result<serde_json::Value> {
+    ensure!(
+        [0, 15, 16, 24].contains(&level),
+        "Use raw code 0, 15, 16 or 24"
+    );
+    let mut out = plan(store)?;
+    out["raw_levels"] = serde_json::json!([level]);
+    out["seconds_per_phase"] = SINGLE_SECONDS.into();
+    out["nominal_seconds"] = SINGLE_SECONDS.into();
+    out["brightness_policy"] = "Set controller brightness to 10 during this single observation; restore original power/brightness with readback. Raw codes are not optical brightness measurements.".into();
+    out["test_controller_brightness"] = TEST_BRIGHTNESS.into();
+    Ok(out)
 }
 
 trait Device {
@@ -48,6 +65,7 @@ impl Device for crate::device::Strip {
 fn guarded<D: Device>(
     device: &mut D,
     count: usize,
+    test_brightness: Option<u8>,
     work: impl FnOnce(&mut D) -> Result<Vec<serde_json::Value>>,
 ) -> serde_json::Value {
     let snapshot = (|| -> Result<_> {
@@ -65,6 +83,9 @@ fn guarded<D: Device>(
     };
     let black = vec![[0; 3]; count];
     let result = (|| -> Result<_> {
+        if let Some(brightness) = test_brightness {
+            device.query(0x09, &[brightness])?;
+        }
         device.frame(&black)?;
         device.query(0x07, &[1])?;
         work(device)
@@ -83,7 +104,24 @@ fn guarded<D: Device>(
 }
 
 pub fn run(store: &Store) -> Result<()> {
-    let description = plan(store)?;
+    run_sequence(store, &LEVELS, PHASE_SECONDS, None, plan(store)?)
+}
+pub fn run_single(store: &Store, level: u8) -> Result<()> {
+    run_sequence(
+        store,
+        &[level],
+        SINGLE_SECONDS,
+        Some(TEST_BRIGHTNESS),
+        single_plan(store, level)?,
+    )
+}
+fn run_sequence(
+    store: &Store,
+    levels: &[u8],
+    seconds: u64,
+    brightness: Option<u8>,
+    description: serde_json::Value,
+) -> Result<()> {
     let _owner = crate::service::acquire_output(&crate::service::Paths::new()?)?;
     let config = &store.config;
     let mut device = crate::device::Strip::open(
@@ -92,33 +130,38 @@ pub fn run(store: &Store) -> Result<()> {
         config.device_zone_count,
         &config.output_channel_order,
     )?;
-    let outcome = guarded(&mut device, config.device_zone_count, |device| {
-        let mut phases = Vec::new();
-        for (phase, level) in LEVELS.into_iter().enumerate() {
-            eprintln!(
-                "Phase {}/{}: raw neutral code {level}",
-                phase + 1,
-                LEVELS.len()
-            );
-            let frame = vec![[level; 3]; config.device_zone_count];
-            let started = Instant::now();
-            let mut deadline = started;
-            let mut samples = Vec::new();
-            while started.elapsed() < Duration::from_secs(PHASE_SECONDS) {
-                std::thread::sleep(deadline.saturating_duration_since(Instant::now()));
-                if started.elapsed() >= Duration::from_secs(PHASE_SECONDS) {
-                    break;
+    let outcome = guarded(
+        &mut device,
+        config.device_zone_count,
+        brightness,
+        |device| {
+            let mut phases = Vec::new();
+            for (phase, &level) in levels.iter().enumerate() {
+                eprintln!(
+                    "Phase {}/{}: raw neutral code {level}",
+                    phase + 1,
+                    levels.len()
+                );
+                let frame = vec![[level; 3]; config.device_zone_count];
+                let started = Instant::now();
+                let mut deadline = started;
+                let mut samples = Vec::new();
+                while started.elapsed() < Duration::from_secs(seconds) {
+                    std::thread::sleep(deadline.saturating_duration_since(Instant::now()));
+                    if started.elapsed() >= Duration::from_secs(seconds) {
+                        break;
+                    }
+                    samples.push(Device::frame(device, &frame)?);
+                    deadline = (deadline + Duration::from_nanos(33_333_333)).max(Instant::now());
                 }
-                samples.push(Device::frame(device, &frame)?);
-                deadline = (deadline + Duration::from_nanos(33_333_333)).max(Instant::now());
+                phases.push(serde_json::json!({
+                    "phase":phase + 1,"raw_neutral_code":level,
+                    "elapsed_seconds":started.elapsed().as_secs_f64(),"transactions":samples,
+                }));
             }
-            phases.push(serde_json::json!({
-                "phase":phase + 1,"raw_neutral_code":level,
-                "elapsed_seconds":started.elapsed().as_secs_f64(),"transactions":samples,
-            }));
-        }
-        Ok(phases)
-    });
+            Ok(phases)
+        },
+    );
     println!(
         "{}",
         serde_json::json!({"plan":description,"outcome":outcome})
@@ -144,9 +187,17 @@ mod tests {
         fail_cleanup: bool,
         fail_restore: bool,
         fail_power_on: bool,
+        fail_test_brightness: bool,
+        brightness_calls: usize,
     }
     impl Device for Fake {
-        fn query(&mut self, command: u8, _: &[u8]) -> Result<Vec<u8>> {
+        fn query(&mut self, command: u8, payload: &[u8]) -> Result<Vec<u8>> {
+            if command == 0x09 {
+                self.brightness_calls += 1;
+                assert_eq!(payload, &[TEST_BRIGHTNESS]);
+                ensure!(!self.fail_test_brightness, "Injected brightness failure");
+                return Ok(vec![]);
+            }
             ensure!(
                 !(self.fail_power_on && command == 0x07),
                 "Injected power error"
@@ -179,7 +230,9 @@ mod tests {
     #[test]
     fn failed_experiment_still_cleans_output_and_restores_original_state() {
         let mut device = Fake::default();
-        let out = guarded(&mut device, 48, |_| anyhow::bail!("Injected phase failure"));
+        let out = guarded(&mut device, 48, None, |_| {
+            anyhow::bail!("Injected phase failure")
+        });
         assert_eq!(device.frames, 2);
         assert_eq!(device.restore_calls, 1);
         assert_eq!(out["controller_restored"], true);
@@ -193,7 +246,7 @@ mod tests {
                 fail_cleanup: !initial,
                 ..Fake::default()
             };
-            let out = guarded(&mut device, 48, |_| Ok(vec![]));
+            let out = guarded(&mut device, 48, None, |_| Ok(vec![]));
             assert_eq!(device.restore_calls, 1);
             assert_eq!(out["controller_restored"], true);
             assert!(out["error"].is_string() || out["black_cleanup_acknowledged"] == false);
@@ -202,7 +255,7 @@ mod tests {
             fail_power_on: true,
             ..Fake::default()
         };
-        let out = guarded(&mut device, 48, |_| panic!("Power-on failed"));
+        let out = guarded(&mut device, 48, None, |_| panic!("Power-on failed"));
         assert_eq!(device.restore_calls, 1);
         assert_eq!(device.frames, 2);
         assert_eq!(out["error"], "Injected power error");
@@ -213,7 +266,7 @@ mod tests {
             malformed_power: true,
             ..Fake::default()
         };
-        let out = guarded(&mut device, 48, |_| panic!("Must not run"));
+        let out = guarded(&mut device, 48, None, |_| panic!("Must not run"));
         assert_eq!(device.frames, 0);
         assert_eq!(device.restore_calls, 0);
         assert_eq!(out["output_started"], false);
@@ -221,18 +274,38 @@ mod tests {
             fail_restore: true,
             ..Fake::default()
         };
-        let out = guarded(&mut device, 48, |_| Ok(vec![]));
+        let out = guarded(&mut device, 48, None, |_| Ok(vec![]));
         assert_eq!(out["controller_restored"], false);
     }
     #[test]
     fn successful_probe_preserves_snapshot_and_reports_cleanup() {
         let mut device = Fake::default();
-        let out = guarded(&mut device, 48, |_| Ok(vec![]));
+        let out = guarded(&mut device, 48, None, |_| Ok(vec![]));
         assert!(out["error"].is_null());
         assert_eq!(out["original_controller_power"], 0);
         assert_eq!(out["original_controller_brightness"], 137);
         assert_eq!(out["black_cleanup_acknowledged"], true);
         assert_eq!(out["controller_restored"], true);
         assert_eq!(device.restore_calls, 1);
+    }
+    #[test]
+    fn single_observation_restores_snapshot_even_when_brightness_or_work_fails() {
+        for fail in [false, true] {
+            let mut device = Fake {
+                fail_test_brightness: fail,
+                ..Fake::default()
+            };
+            let mut ran = false;
+            let out = guarded(&mut device, 48, Some(TEST_BRIGHTNESS), |_| {
+                ran = true;
+                anyhow::bail!("Injected observation failure")
+            });
+            assert_eq!(ran, !fail);
+            assert_eq!(device.brightness_calls, 1);
+            assert_eq!(device.restore_calls, 1);
+            assert_eq!(out["original_controller_brightness"], 137);
+            assert_eq!(out["black_cleanup_acknowledged"], true);
+            assert_eq!(out["controller_restored"], true);
+        }
     }
 }

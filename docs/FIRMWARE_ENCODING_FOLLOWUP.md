@@ -144,6 +144,28 @@ ACK delay is repeatable and level-dependent, but **ACK is not emitted-light
 timing**. No photodiode, colorimeter, throughput improvement or physical colour
 accuracy claim follows from this test. The normal encoder remains unchanged.
 
+### Prepared follow-up: one announced level at a time
+
+`usb_levels CONFIG --level 0` now prints a plan for one ten-second observation;
+only an additional `--run` opens HID. Reviewed codes are limited to 0, 15, 16 and
+24. This single-level mode temporarily sets controller brightness to 10 and
+restores the original power/brightness with readback; it retains manual geometry,
+channel order and serial ACKs. The original nine-step mode is unchanged.
+
+Announce the selected code before starting, wait for the observer's result, and
+only then start another held code. This avoids asking someone to identify a
+brief third step after the sequence has ended. No high-speed camera is required
+to report whether a held code emits light, although that still cannot establish
+colour accuracy or optical latency. Do not run the held comparison unattended
+or derive a black-floor change from the earlier ambiguous report.
+
+CLI tests verify plan-only operation without a desktop runtime, the manual
+count, fixed duration/brightness, unchanged configuration and rejection of
+unreviewed/invalid arguments before HID. Injected failure tests verify original
+brightness restoration after the test-brightness command or observation fails.
+The new single-level mode has not yet been physically observed. It is a separate
+operator tool, not a daily colour-mapping change or a packaged runtime component.
+
 ## Manufacturer contact and remaining gates
 
 The earlier support email produced an automated notice that incoming mail is
