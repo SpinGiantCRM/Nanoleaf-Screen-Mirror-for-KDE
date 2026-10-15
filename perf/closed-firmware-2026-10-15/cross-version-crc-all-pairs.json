@@ -1,0 +1,51 @@
+{
+  "assumption": "Equal encoded 56-byte data fields correspond to equal decoded data under a shared deterministic encoding; checksum differences then depend only on the clear version/index header",
+  "equal_data_groups": 32,
+  "equal_data_pairs": 32,
+  "different_block_index_pairs": 0,
+  "unique_header_differences": 2,
+  "candidate_results": [
+    {
+      "reflected_polynomial": "0x7b1",
+      "matching_pairs": 32,
+      "total_pairs": 32
+    },
+    {
+      "reflected_polynomial": "0x7e7",
+      "matching_pairs": 32,
+      "total_pairs": 32
+    },
+    {
+      "reflected_polynomial": "0x828",
+      "matching_pairs": 32,
+      "total_pairs": 32
+    },
+    {
+      "reflected_polynomial": "0x27e4",
+      "matching_pairs": 32,
+      "total_pairs": 32
+    },
+    {
+      "reflected_polynomial": "0x6000",
+      "matching_pairs": 32,
+      "total_pairs": 32
+    },
+    {
+      "reflected_polynomial": "0x682d",
+      "matching_pairs": 32,
+      "total_pairs": 32
+    },
+    {
+      "reflected_polynomial": "0xa001",
+      "matching_pairs": 32,
+      "total_pairs": 32
+    },
+    {
+      "reflected_polynomial": "0xb876",
+      "matching_pairs": 32,
+      "total_pairs": 32
+    }
+  ],
+  "full_image_checksum_validated": false,
+  "cipher_or_mcu_identified": false
+}

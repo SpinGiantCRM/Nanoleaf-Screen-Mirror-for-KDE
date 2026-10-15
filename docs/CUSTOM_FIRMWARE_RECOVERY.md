@@ -1,7 +1,9 @@
 # Custom firmware: chip identification and recovery investigation
 
 2026-10-15 follow-up to [firmware latency research](FIRMWARE_LATENCY_RESEARCH.md).
-User requirement: **no flashing until there is a recovery method**.
+User requirements: **keep the enclosure closed** and **no flashing until there is a recovery method**.
+
+Follow-up: [closed-case research and historical-image comparison](CLOSED_CASE_FIRMWARE_RESEARCH.md).
 
 ## Current decision
 
@@ -151,26 +153,26 @@ protection bits changed.
 
 | Gate | Status | Evidence needed |
 | --- | --- | --- |
-| Exact physical MCU/package and PCB revision | **Open** | Sharp board/chip-marking photos or matching manufacturer BOM/schematic |
-| LED IC/protocol, power/current path and pins | **Open** | Board/strip markings, continuity and non-invasive signal measurements |
+| Exact physical MCU/package and PCB revision | **Open** | Manufacturer confirmation, matching BOM/schematic or authenticated board-specific source |
+| LED IC/protocol, power/current path and pins | **Open** | Board-specific manufacturer documentation or authenticated source; no internal probing in this investigation |
 | Official application update asset | **Obtained** | Vendor URL, version, size and pinned SHA above |
 | Loader/factory-data preservation | **Open** | Memory map and protected regions; backups where readable, otherwise a supported replacement route |
-| Recovery entry independent of application | **Open** | Board-specific hardware/reset route confirmed without writing, with a way back to normal operation |
-| Safe stock restoration procedure | **Open** | Matching image/loader compatibility and recovery demonstrated on a spare first, before risking the daily controller |
+| Recovery entry independent of application | **Open** | Documented closed-case recovery entry that works with a broken application and a way back to normal operation |
+| Safe stock restoration procedure | **Open** | Manufacturer-supported closed-case procedure with matching image/loader and factory-data preservation established |
 | Custom-image format and acceptance | **Open** | Source/tooling or understood encoding/signature policy; no blind edits |
 | Latency/colour justification | **Open** | Light-output timing plus byte/colour/reconnect tests after a recoverable prototype exists |
 
-The next chip-identification step needs the **actual PCB markings**, not another
-normal USB query. The useful views are both board faces, readable main-chip text,
-PCB revision and any labelled pads, plus LED/strip markings. First disconnect USB.
-If the enclosure is sealed or needs destructive opening, stop and use manufacturer
-information or a spare controller rather than forcing the daily unit. There is
-no board-specific opening or shorting procedure established by this research.
+The user has explicitly ruled out opening the enclosure. Continue with public
+records, offline vendor-package analysis and manufacturer documentation. Do not
+ask for internal photos, probing, boot-pin shorting or a spare controller. The
+external-programmer discussion above is conditional background, not a proposed
+step for this closed-case investigation.
 
-Once the chip is identified, choose the recovery mechanism from that chip and
-PCB's evidence. Do not select the programmer, tool flags or boot straps in advance.
-The user's no-flash requirement remains in force; a file or a bootloader name
-alone does not satisfy it.
+The next useful evidence is manufacturer confirmation of the exact MCU and a
+closed-case recovery procedure that works when the application cannot run.
+Neither stock update availability nor a bootloader product name satisfies the
+no-flash requirement. A manufacturer enquiry has been sent with explicit user
+approval; chip identity and recovery remain unconfirmed pending evidence.
 
 ## Reproducible inspection and preservation
 

@@ -1,0 +1,12 @@
+{
+  "old_version": "2.2.4",
+  "current_version": "3.0.1",
+  "both_use_prepackaged_61_byte_records": true,
+  "old_wait_for_enumeration_bounded": false,
+  "current_wait_for_enumeration_bounded": true,
+  "old_checks_returned_block_index": false,
+  "current_checks_returned_block_index": true,
+  "old_source_map_count": 0,
+  "old_mcu_or_bootloader_named_archive_files": [],
+  "result": "Neither inspected USB updater constructs or decrypts a custom image; both consume vendor records. Neither establishes independent physical recovery entry."
+}
