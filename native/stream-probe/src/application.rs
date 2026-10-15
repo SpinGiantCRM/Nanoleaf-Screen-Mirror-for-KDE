@@ -245,6 +245,16 @@ impl Application {
         self.last_output = Some(now);
         Ok(Some(record))
     }
+    pub fn repeat_delay(&self, now: Instant) -> Option<Duration> {
+        if self.cancelled() || self.cached.is_none() {
+            return None;
+        }
+        super::cadence::remaining(
+            self.last_output,
+            Duration::from_secs_f64(1.0 / self.config.fps as f64),
+            now,
+        )
+    }
     pub fn repeat_if_due(&mut self, now: Instant) -> Result<()> {
         if let Some(record) = self.repeat_record(now)? {
             emit(&record)?;
@@ -325,11 +335,16 @@ impl Application {
             "xdg-portal / Vulkan DMA-BUF / direct SDR samples"
         };
         let backend = format!(
-            "{backend} / {}",
+            "{backend} / {}{}",
             if std::env::var_os("NANOLEAF_EXPLICIT_SYNC").is_some() {
                 "explicit sync"
             } else {
                 "implicit sync"
+            },
+            if std::env::var_os("NANOLEAF_PRECISE_CACHE_TIMING").is_some() {
+                " / precise cache timer"
+            } else {
+                ""
             }
         );
         Ok(
@@ -446,6 +461,29 @@ mod tests {
             }
         }
         assert!(accepted > 250);
+    }
+    #[test]
+    fn cache_timer_is_disarmed_without_a_valid_source_or_after_cancellation() {
+        let mut app = app(false);
+        let now = Instant::now();
+        app.last_output = Some(now);
+        assert_eq!(app.repeat_delay(now), None);
+        app.cached = Some(source(
+            &app,
+            Frame {
+                width: 32,
+                height: 24,
+                pixels: vec![0; 32 * 24 * 3],
+            },
+        ));
+        let period = Duration::from_secs_f64(1.0 / app.config.fps as f64);
+        assert_eq!(app.repeat_delay(now), Some(period));
+        assert_eq!(app.repeat_delay(now + period), Some(Duration::ZERO));
+        app.stop.store(true, Ordering::Release);
+        assert_eq!(app.repeat_delay(now + period), None);
+        app.stop.store(false, Ordering::Release);
+        app.invalidate();
+        assert_eq!(app.repeat_delay(now), None);
     }
     use nanoleaf_core::sampling::{SdrRgb8Frame, SdrSampler};
 

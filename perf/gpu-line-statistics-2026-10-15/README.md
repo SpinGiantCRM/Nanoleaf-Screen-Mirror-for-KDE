@@ -26,3 +26,6 @@
 Reproduction is in the report. No captured images, portal tokens, serial numbers,
 calibration values, firmware or support correspondence are included. ACK timings
 are not emitted-light timings; no optical, power or gaming gain is claimed.
+
+`installed-profile-summary.json` records a separate normal-mode health window;
+it is not a paired speedup or an optical measurement.

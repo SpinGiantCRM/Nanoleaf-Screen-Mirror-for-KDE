@@ -157,3 +157,18 @@ The local [optical timing target](../tools/latency-pattern.html) and
 [recording instructions](../tools/README.md) are prepared for the next measurement.
 Browser checks cover countdown, completion and Escape; no real camera recording
 or optical result exists yet.
+
+## Subsequent installed normal-mode health window
+
+A 30-second uncontrolled desktop check, without validation, stayed healthy and
+restored the controller afterward. Over 29.46 seconds of process sampling,
+parent plus capture child used 1.87% of one CPU core, with median summed RSS/PSS
+177.66/158.08 MiB. There were 1,201 acknowledged updates (40.77/s), no additional
+reconnects or prepared-slot overwrites. Snapshot medians were capture 2.130 ms,
+colour 0.011 ms, USB 5.759 ms, work-to-final-write 4.924 ms and work-to-ACK 7.951 ms.
+
+This window's short USB replies and changing content differ from earlier lit-
+scene profiles. It is a health observation, **not a causal whole-app speedup**.
+It predates and does not enable the [cached-source timer experiment](CACHED_SOURCE_CADENCE.md).
+No optical response, physical colour, power or gaming measurement follows from it.
+The app was closed again, config was byte-identical and restoration passed.

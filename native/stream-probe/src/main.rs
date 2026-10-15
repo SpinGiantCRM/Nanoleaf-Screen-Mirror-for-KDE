@@ -1,5 +1,6 @@
 //! Bounded permission-mediated stream experiment. No configuration or USB writes.
 mod application;
+mod cadence;
 mod frame;
 mod gpu;
 mod permission;
@@ -664,6 +665,11 @@ fn run_application(
     )?;
     let resources_before = resources::snapshot();
     let started = Instant::now();
+    // Operator experiment: faster cached output can occupy the USB bus more
+    // often. Keep the daily policy until response/cadence tradeoffs are tested.
+    let repeat_timer = (shared.borrow().application.is_some()
+        && std::env::var_os("NANOLEAF_PRECISE_CACHE_TIMING").is_some())
+    .then(|| mainloop.loop_().add_timer(|_| {}));
     while shared
         .borrow()
         .application
@@ -671,16 +677,25 @@ fn run_application(
         .map(|a| !a.cancelled())
         .unwrap_or_else(|| started.elapsed() < Duration::from_secs(8))
     {
-        let timeout = shared
-            .borrow()
-            .application
-            .as_ref()
-            .map(|a| Duration::from_secs_f64(1.0 / a.config.fps as f64))
-            .unwrap_or(Duration::from_millis(100))
-            .min(Duration::from_millis(100));
-        mainloop
-            .loop_()
-            .iterate(pw::loop_::Timeout::Finite(timeout));
+        let timeout = if let Some(timer) = &repeat_timer {
+            let repeat_delay = shared
+                .borrow()
+                .application
+                .as_ref()
+                .and_then(|a| a.repeat_delay(Instant::now()));
+            cadence::arm(timer, repeat_delay)?
+        } else {
+            pw::loop_::Timeout::Finite(
+                shared
+                    .borrow()
+                    .application
+                    .as_ref()
+                    .map(|a| Duration::from_secs_f64(1.0 / a.config.fps as f64))
+                    .unwrap_or(Duration::from_millis(100))
+                    .min(Duration::from_millis(100)),
+            )
+        };
+        mainloop.loop_().iterate(timeout);
         if session.closed() {
             shared
                 .borrow_mut()
@@ -715,6 +730,7 @@ fn run_application(
     drop(core_listener);
     drop(core);
     drop(context);
+    drop(repeat_timer);
     drop(mainloop);
     if let Some((device, _, _)) = prepared {
         let _ = device.poll(wgpu::PollType::Poll);
