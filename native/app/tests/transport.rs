@@ -43,8 +43,12 @@ fn fragmented_and_report_id_responses_are_acknowledged() {
 }
 #[test]
 fn uncertain_short_write_is_never_blindly_retried() {
+    use nanoleaf_native::device::transact_timed_with_progress;
     let io = fake(vec![], true);
-    assert!(transact(&io, 2, &[1; 144]).is_err());
+    assert!(transact_timed_with_progress(&io, 2, &[1; 144], || {
+        panic!("Progress must not run inside a partial report write")
+    })
+    .is_err());
     assert_eq!(io.writes.borrow().len(), 1);
 }
 #[test]
@@ -104,4 +108,76 @@ fn firmware_identity_byte_is_nibble_encoded_and_never_guessed_from_usb_bcd() {
     assert_eq!(decode_firmware_version(&[0xaf]).unwrap(), (10, 15));
     assert!(decode_firmware_version(&[]).is_err());
     assert!(decode_firmware_version(&[1, 5]).is_err());
+}
+
+#[test]
+fn stop_progress_releases_capture_while_retaining_serial_ack_ownership() {
+    use nanoleaf_native::device::transact_timed_with_progress;
+    use std::{cell::Cell, sync::mpsc};
+    let (tx, rx) = mpsc::channel();
+    let stopped = Cell::new(false);
+    struct Delayed<'a> {
+        writes: RefCell<Vec<Vec<u8>>>,
+        reads: Cell<usize>,
+        tx: mpsc::Sender<()>,
+        stopped: &'a Cell<bool>,
+    }
+    impl ReportIo for Delayed<'_> {
+        fn write(&self, report: &[u8]) -> Result<usize> {
+            assert!(!self.stopped.get());
+            self.writes.borrow_mut().push(report.to_vec());
+            Ok(report.len())
+        }
+        fn read_timeout(&self, buffer: &mut [u8], timeout: i32) -> Result<usize> {
+            if timeout == 0 && self.writes.borrow().is_empty() {
+                return Ok(0);
+            }
+            assert!((0..=25).contains(&timeout));
+            assert_eq!(self.writes.borrow().len(), 3);
+            let n = self.reads.get();
+            self.reads.set(n + 1);
+            if n == 0 {
+                // Stop arrives while the first bounded read is outstanding.
+                self.tx.send(()).unwrap();
+                Ok(0)
+            } else {
+                // Capture is already cancelled, but all reports remain owned
+                // by this one transaction until the actual matching ACK.
+                assert!(self.stopped.get());
+                buffer[..4].copy_from_slice(&[0x82, 0, 1, 0]);
+                Ok(4)
+            }
+        }
+    }
+    let io = Delayed {
+        writes: RefCell::new(vec![]),
+        reads: Cell::new(0),
+        tx,
+        stopped: &stopped,
+    };
+    let (body, times) = transact_timed_with_progress(&io, 2, &[17; 144], || {
+        if rx.try_recv().is_ok() {
+            stopped.set(true);
+        }
+    })
+    .unwrap();
+    assert!(body.is_empty());
+    assert!(stopped.get());
+    assert_eq!(times.written_reports, 3);
+    assert_eq!(times.response_reports, 1);
+    assert_eq!(io.reads.get(), 2);
+}
+
+#[test]
+fn stop_progress_never_turns_a_missing_ack_into_a_success_or_new_write() {
+    use nanoleaf_native::device::transact_timed_with_progress;
+    let io = fake(vec![], false);
+    let mut capture_cancelled = false;
+    let error = transact_timed_with_progress(&io, 2, &[17; 144], || {
+        capture_cancelled = true;
+    })
+    .unwrap_err();
+    assert!(capture_cancelled);
+    assert!(error.to_string().contains("acknowledgement timed out"));
+    assert_eq!(io.writes.borrow().len(), 3);
 }

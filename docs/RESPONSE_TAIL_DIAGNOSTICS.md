@@ -108,3 +108,7 @@ accuracy, panel scanout, physical reconnect or suspend verification. The latest
 512 observations are a useful tail diagnostic, not a statistically established
 long-term worst case. A controller ACK still does not establish when LEDs emit
 light. No firmware behaviour or closed-case recovery route is inferred from it.
+
+Follow-ups: [GPU host-wait experiment](GPU_WAIT_BATCHING.md) remains disabled
+after inconsistent repeat timings; [Stop during USB acknowledgement](STOP_DURING_USB.md)
+uses bounded progress checks to cancel capture without abandoning the transaction.

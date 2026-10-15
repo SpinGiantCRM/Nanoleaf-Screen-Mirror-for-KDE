@@ -8,6 +8,7 @@ use crate::{
 use anyhow::{bail, ensure, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::VecDeque,
     fs::{self, File, OpenOptions},
     io::{BufRead, BufReader, Read, Write},
     os::unix::{
@@ -169,10 +170,14 @@ fn listener(socket: &Path, tx: mpsc::Sender<Control>, status: Arc<Mutex<Status>>
             if let Ok(control) = serde_json::from_str::<Control>(&line) {
                 // Finish the reply before dispatching Quit: the actor can exit
                 // immediately, otherwise truncating JSON on the listener thread.
-                if let Ok(value) = status.lock() {
-                    if let Ok(bytes) = serde_json::to_vec(&*value) {
-                        let _ = reader.get_mut().write_all(&bytes);
-                    }
+                let reply = status
+                    .lock()
+                    .ok()
+                    .and_then(|value| serde_json::to_vec(&*value).ok());
+                if let Some(bytes) = reply {
+                    // Socket writes must not hold the state lock needed by the
+                    // actor's ACK progress/capture-cancellation publication.
+                    let _ = reader.get_mut().write_all(&bytes);
                 }
                 if !matches!(control, Control::Status) {
                     let _ = tx.send(control);
@@ -221,6 +226,17 @@ fn publish(shared: &Arc<Mutex<Status>>, status: &Status) {
     if let Ok(mut s) = shared.lock() {
         *s = status.clone();
     }
+}
+/// Preserve command order while inspecting a bounded batch during an ACK wait.
+/// Frame-ready events still coalesce in the existing latest-only colour slot.
+fn defer_controls(rx: &mpsc::Receiver<Control>, pending: &mut VecDeque<Control>) -> bool {
+    let mut stop = false;
+    for _ in 0..16 {
+        let Ok(control) = rx.try_recv() else { break };
+        stop |= matches!(control, Control::Stop | Control::Quit);
+        pending.push_back(control);
+    }
+    stop
 }
 fn open_strip(store: &Store) -> Result<Strip> {
     let c = &store.config;
@@ -276,6 +292,7 @@ fn run_inner(
         store.config.capture_backend = backend.into();
     }
     let (tx, rx) = mpsc::channel();
+    let mut pending = VecDeque::new();
     let mut state = Status {
         manual_zones: store.config.device_zone_count,
         message: "Stopped".into(),
@@ -334,7 +351,10 @@ fn run_inner(
         } else {
             Duration::from_secs(30)
         };
-        if let Ok(command) = rx.recv_timeout(timeout) {
+        if let Some(command) = pending
+            .pop_front()
+            .or_else(|| rx.recv_timeout(timeout).ok())
+        {
             let mut ready = false;
             match command {
                 Control::FrameReady => {
@@ -368,6 +388,8 @@ fn run_inner(
                 }
                 Control::Stop => {
                     state.response_summary = Some(responses.summary());
+                    // Revoke capture before waiting for the cleanup-black ACK.
+                    drop(capture.take());
                     predictor.reset();
                     usb_history.clear();
                     watchdog.reset();
@@ -380,7 +402,6 @@ fn run_inner(
                     }
                     strip = None;
                     output_owner = None;
-                    capture = None;
                     state.message = "Stopped".into();
                 }
                 Control::Reload => match Store::load(path) {
@@ -671,6 +692,7 @@ fn run_inner(
                     source_pts_ns,
                     capture_stages,
                 } = prepared;
+                let preview_frame = state.preview;
                 state.backend = backend;
                 if store.config.blue_noise_dither && !state.preview {
                     if let Some(rgb) = unquantized_rgb {
@@ -680,7 +702,22 @@ fn run_inner(
                 let usb_start = Instant::now();
                 let queue_ms = ready_at
                     .map(|at| usb_start.saturating_duration_since(at).as_secs_f64() * 1000.0);
-                let result = strip.as_mut().unwrap().frame(&colors);
+                let mut stopping = false;
+                let result = strip.as_mut().unwrap().frame_with_progress(&colors, || {
+                    if defer_controls(&rx, &mut pending) && !stopping {
+                        stopping = true;
+                        // The current frame is already fully written. Keep its
+                        // sole HID owner and wait for its ACK/timeout; never
+                        // cancel an unnumbered ACK and reuse this transaction.
+                        drop(capture.take());
+                        // Keep the existing running/preview flags until the
+                        // queued command completes cleanup. Clients must not
+                        // mistake early capture cancellation for a released
+                        // strip lease or an acknowledged cleanup-black frame.
+                        state.message = "Stopping".into();
+                        publish(&shared, &state);
+                    }
+                });
                 state.usb_ms = usb_start.elapsed().as_secs_f64() * 1000.0;
                 state.usb_transaction = strip
                     .as_ref()
@@ -698,7 +735,7 @@ fn run_inner(
                         }
                         if predicted {
                             state.predicted_frames += 1;
-                        } else if !state.preview {
+                        } else if !preview_frame {
                             watchdog.frame(Instant::now());
                             if source_reused {
                                 predictor.reset();
@@ -766,6 +803,9 @@ fn run_inner(
                         capture = None;
                         retry = Instant::now() + Duration::from_secs(2);
                     }
+                }
+                if stopping {
+                    state.message = "Stopping".into();
                 }
             }
             Err(e) => {
@@ -913,5 +953,33 @@ impl CaptureWatchdog {
     }
     pub fn expired(&self, now: Instant) -> bool {
         self.deadline.is_some_and(|d| now >= d)
+    }
+}
+
+#[cfg(test)]
+mod control_progress_tests {
+    use super::*;
+    #[test]
+    fn ack_progress_preserves_command_order_and_bounds_each_inspection() {
+        let (tx, rx) = mpsc::channel();
+        let mut pending = VecDeque::new();
+        tx.send(Control::FrameReady).unwrap();
+        for _ in 0..15 {
+            tx.send(Control::Start).unwrap();
+        }
+        tx.send(Control::Stop).unwrap();
+        tx.send(Control::Quit).unwrap();
+        assert!(!defer_controls(&rx, &mut pending));
+        assert_eq!(pending.len(), 16);
+        assert!(defer_controls(&rx, &mut pending));
+        assert_eq!(pending.len(), 18);
+        assert!(matches!(pending.pop_front(), Some(Control::FrameReady)));
+        for _ in 0..15 {
+            assert!(matches!(pending.pop_front(), Some(Control::Start)));
+        }
+        assert!(matches!(pending.pop_front(), Some(Control::Stop)));
+        assert!(matches!(pending.pop_front(), Some(Control::Quit)));
+        assert!(!defer_controls(&rx, &mut pending));
+        assert!(pending.is_empty());
     }
 }

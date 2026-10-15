@@ -82,10 +82,23 @@ impl Strip {
     }
 
     pub fn frame(&mut self, colors: &[[u8; 3]]) -> Result<()> {
+        self.frame_with_progress(colors, || {})
+    }
+    /// Service control can cancel capture between bounded ACK reads. It must
+    /// never use this callback to start another transaction on this handle.
+    pub fn frame_with_progress(
+        &mut self,
+        colors: &[[u8; 3]],
+        progress: impl FnMut(),
+    ) -> Result<()> {
         self.last_frame_transaction = None;
         let request = protocol::encode_zone_frame(colors, self.count, self.order)?;
-        let (_, times) =
-            transact_timed(&self.handle, protocol::CMD_SET_ZONE_COLORS, &request[3..])?;
+        let (_, times) = transact_timed_with_progress(
+            &self.handle,
+            protocol::CMD_SET_ZONE_COLORS,
+            &request[3..],
+            progress,
+        )?;
         self.last_frame_transaction = Some(times);
         Ok(())
     }
@@ -136,6 +149,16 @@ pub fn transact_timed(
     command: u8,
     payload: &[u8],
 ) -> Result<(Vec<u8>, TransactionTimes)> {
+    transact_timed_with_progress(handle, command, payload, || {})
+}
+/// Progress is serviced only after all report writes, between bounded reads.
+/// ACK parsing, deadlines and serial transaction ownership remain unchanged.
+pub fn transact_timed_with_progress(
+    handle: &impl ReportIo,
+    command: u8,
+    payload: &[u8],
+    mut progress: impl FnMut(),
+) -> Result<(Vec<u8>, TransactionTimes)> {
     let total = Instant::now();
     let mut times = TransactionTimes::default();
     // Drain old reports before a new acknowledged transaction.
@@ -166,6 +189,7 @@ pub fn transact_timed(
     let mut direct = vec![];
     let mut prefixed = vec![];
     while started.elapsed() < timeout {
+        progress();
         let Some(remaining) = timeout.checked_sub(started.elapsed()) else {
             break;
         };
