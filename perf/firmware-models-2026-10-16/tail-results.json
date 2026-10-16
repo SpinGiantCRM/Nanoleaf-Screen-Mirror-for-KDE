@@ -1,0 +1,11 @@
+{
+  "scope": "Test uniform-tail arithmetic encodings offline; never save decoded firmware.\n\nConditional on the final repeated eight-byte block decoding to one repeated\nbyte. Any first-stage survivor must also match every record's CRC residual.\nEven that would not verify executable code, chip identity or recovery.\n",
+  "records": 171,
+  "result": {
+    "transform_candidates_including_redundant_representations": 5376,
+    "output_permutations": 8,
+    "survivors": []
+  },
+  "plaintext_recovered": false,
+  "safe_to_flash": false
+}

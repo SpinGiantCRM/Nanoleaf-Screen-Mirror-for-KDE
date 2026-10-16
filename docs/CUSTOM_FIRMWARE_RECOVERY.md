@@ -4,6 +4,9 @@
 User requirements: **keep the enclosure closed** and **no flashing until there is a recovery method**.
 
 Follow-up: [closed-case research and historical-image comparison](CLOSED_CASE_FIRMWARE_RESEARCH.md).
+Latest: [decoder model exclusions, product declaration and conditional backup
+research](FIRMWARE_MODEL_FOLLOWUP.md). Chip identity and independent recovery
+remain unverified.
 
 ## Current decision
 

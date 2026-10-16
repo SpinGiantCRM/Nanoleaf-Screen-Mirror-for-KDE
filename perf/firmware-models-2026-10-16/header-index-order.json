@@ -1,0 +1,79 @@
+{
+  "scope": "Conditional shared eight-byte symbol CRC with index bytes swapped in checksum input only; stored data and trailers unchanged",
+  "results": [
+    {
+      "polynomial": "07b1",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13920,
+      "rank": 13103,
+      "inconsistent_equations": 139,
+      "consistent": false
+    },
+    {
+      "polynomial": "07e7",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13920,
+      "rank": 13103,
+      "inconsistent_equations": 139,
+      "consistent": false
+    },
+    {
+      "polynomial": "0828",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13920,
+      "rank": 13164,
+      "inconsistent_equations": 114,
+      "consistent": false
+    },
+    {
+      "polynomial": "27e4",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13920,
+      "rank": 13286,
+      "inconsistent_equations": 56,
+      "consistent": false
+    },
+    {
+      "polynomial": "6000",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13920,
+      "rank": 13347,
+      "inconsistent_equations": 33,
+      "consistent": false
+    },
+    {
+      "polynomial": "682d",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13920,
+      "rank": 13347,
+      "inconsistent_equations": 33,
+      "consistent": false
+    },
+    {
+      "polynomial": "a001",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13920,
+      "rank": 13408,
+      "inconsistent_equations": 0,
+      "consistent": true
+    },
+    {
+      "polynomial": "b876",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13920,
+      "rank": 13408,
+      "inconsistent_equations": 0,
+      "consistent": true
+    }
+  ],
+  "elapsed_seconds": 1.1667402980019688,
+  "limitations": "Header order and CRC are unverified; consistency is not decryption."
+}

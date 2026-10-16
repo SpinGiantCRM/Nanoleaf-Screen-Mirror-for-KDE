@@ -5,6 +5,9 @@ and accompanies the [direct ACK experiments](USB_ACK_PATH_EXPERIMENTS.md).
 No firmware command, loader entry, reset, erase, overclock or factory-data access
 was performed. **There is still no safe firmware modification or flash procedure.**
 
+Further work: [substitution/arithmetic model tests and independent-recovery
+follow-up](FIRMWARE_MODEL_FOLLOWUP.md), including reproducible offline controls.
+
 ## Stronger checksum constraints
 
 The five pinned stock files contain 870 complete records and 4,837 distinct

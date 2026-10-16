@@ -31,10 +31,18 @@ jobs:
           python -m unittest discover -s scripts -p 'test_*response_trace.py' -v
       - name: Verify offline receiver and ACK analysis controls
         run: |
-          ruff check perf/receiver-encoding-2026-10-16/crc_constraints.py perf/ack-path-2026-10-16/summarise_shape.py
-          ruff format --check perf/receiver-encoding-2026-10-16/crc_constraints.py perf/ack-path-2026-10-16/summarise_shape.py
+          receiver_analysis_scripts=(
+            perf/receiver-encoding-2026-10-16/crc_constraints.py
+            perf/ack-path-2026-10-16/summarise_shape.py
+            perf/firmware-models-2026-10-16/analyse_models.py
+            perf/firmware-models-2026-10-16/padded_tail.py
+          )
+          ruff check "${receiver_analysis_scripts[@]}"
+          ruff format --check "${receiver_analysis_scripts[@]}"
           python perf/receiver-encoding-2026-10-16/crc_constraints.py --self-test
           python perf/ack-path-2026-10-16/summarise_shape.py --check
+          python perf/firmware-models-2026-10-16/analyse_models.py --self-test
+          python perf/firmware-models-2026-10-16/padded_tail.py --self-test
 
   rust-security:
     name: Rust dependency security
