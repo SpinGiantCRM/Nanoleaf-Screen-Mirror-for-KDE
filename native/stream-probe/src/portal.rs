@@ -180,7 +180,7 @@ impl Session {
             }
             Ok(portal.call("SelectSources", &(&session.path, options))?)
         })?;
-        eprintln!("Choose the single monitor to test in KDE's screen-sharing dialog. This probe does not drive the LEDs.");
+        eprintln!("Select the configured monitor if KDE asks for screen-sharing permission.");
         let started = request(&connection, &portal, "Start", |handle| {
             Ok(portal.call(
                 "Start",

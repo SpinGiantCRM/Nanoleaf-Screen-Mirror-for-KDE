@@ -57,7 +57,9 @@ The NL82K2 was tested with real output and physical USB reconnect; the user
 confirmed colours resumed. A separate KDE Stop sharing test stopped mirroring
 and required an explicit restart. NL82K1 emitted light, physical suspend/resume,
 optical latency, colourimeter accuracy,
-power and sustained game load remain unverified.
+power and long-duration soak behaviour remain unverified.
+[Gameplay observations](docs/GAMEPLAY_PROFILING.md) report actual stage/resource
+measurements and their limits.
 
 ## Evidence and development
 

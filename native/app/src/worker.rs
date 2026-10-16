@@ -82,6 +82,7 @@ pub struct Producer {
     stop: Arc<AtomicBool>,
     thread: std::thread::JoinHandle<()>,
     sent: Arc<Mutex<Vec<[u8; 3]>>>,
+    feedback_notify: Option<mpsc::SyncSender<()>>,
     child: Option<Arc<Mutex<std::process::Child>>>,
 }
 impl Producer {
@@ -165,6 +166,7 @@ impl Producer {
             stop,
             thread,
             sent,
+            feedback_notify: None,
             child: None,
         }
     }
@@ -179,6 +181,11 @@ impl Producer {
         if let Ok(mut s) = self.sent.lock() {
             *s = colors.to_vec();
         }
+        if let Some(notify) = &self.feedback_notify {
+            // One pending wake, with the complete latest ACK in `sent`.
+            // Never block the HID actor behind the capture child's stdin.
+            let _ = notify.try_send(());
+        }
     }
     pub fn missed(&self) -> u64 {
         self.latest.missed.load(Ordering::Relaxed)
@@ -190,6 +197,9 @@ impl Producer {
 impl Drop for Producer {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Release);
+        // Disconnect a sleeping feedback sender immediately, including before
+        // the first ACK. Closing stdin also stops an orphaned capture child.
+        self.feedback_notify.take();
         self.thread.thread().unpark();
         if let Some(child) = &self.child {
             if let Ok(mut child) = child.lock() {

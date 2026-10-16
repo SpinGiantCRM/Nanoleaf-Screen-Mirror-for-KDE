@@ -14,5 +14,5 @@ driver and game. Rolling last-512 response windows are not pooled.
 
 See [report](../../docs/GAMEPLAY_PROFILING.md). Final installed bundle and one-minute
 live smoke are identified separately. Python runtime retirement preserves native
-fixtures, configuration and previous immutable native rollback versions. A second
-Pacman-owned Python installation still needs administrator removal on this host.
+fixtures, configuration and previous immutable native rollback versions. The second Pacman-owned installation and an unowned leftover privileged helper
+have also been removed and their absence verified.

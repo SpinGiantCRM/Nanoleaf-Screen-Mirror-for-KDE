@@ -1054,7 +1054,8 @@
     "Build/test jobs ran during part of collection.",
     "First control in each family reported inherited nice -8; remaining runs reported -4. Actual process nice was not logged then. These are confounded comparisons, not adoption evidence. Observer now logs live process nice.",
     "One-second snapshots cannot be pooled as complete individual-frame measurements. Final rolling-window quantiles cover only last 512 outputs.",
-    "No optical, emitted-light colour or app-attributed power claim."
+    "No optical, emitted-light colour or app-attributed power claim.",
+    "Foreground game focus was not locked or independently verified; selected-desktop content includes normal user activity while the game was running."
   ],
   "controller_before_after": {
     "before": {
@@ -1073,7 +1074,16 @@
     "Retain existing qualified shorter USB updates and serial ACK/full-frame fallback; no new USB protocol change.",
     "Do not change target FPS, selected backend, calibration, dithering or saved priority."
   ],
-  "installed_smoke": {
+  "python_retirement": {
+    "system_python_package_absent": true,
+    "legacy_import_absent": true,
+    "both_privileged_helpers_absent": true,
+    "hid_rule_retained": true,
+    "user_pipx_package_absent": true,
+    "legacy_commands_absent": true
+  },
+  "comparison_observer_source": "scripts/profile_gameplay.py at 2e2d47e; live-nice and peer-process scoping were added after the comparisons",
+  "pre_event_feedback_installed_smoke": {
     "version_directory": "e77e42b22710b0b4cc41b60e7699d69809008cde9f1b168413f300380e4187bc",
     "app_sha256": "98ad7574c34dc21fddf4d0ad322532cb466f94a556cb573c8a83c66a8be2dfe1",
     "capture_helper_sha256": "845463c2992977be068678973f040fd571989eac0f9814824207a9ccfc51bc33",
@@ -1085,5 +1095,36 @@
       -8
     ],
     "scope": "Post-install actual-game mirroring, no synthetic previews or physical reconnect test"
+  },
+  "installed_smoke": {
+    "version_directory": "8c705939e22a7d295e6dd03e8f88f7b31aa0be08ca5d849accc63ee11566dd3c",
+    "app_sha256": "8ca70e6098835c3e642424970199500abc7fafe58e9c55bdeb520abf0af57771",
+    "capture_helper_sha256": "306fb8c570d3b53782512ac70cb8140369f59638e76ad8caf5ac2aa54f8fe583",
+    "seconds_between_endpoints": 59.02906934400016,
+    "acknowledged_packets_between_endpoints": 2821,
+    "shortened_packets_between_endpoints": 1762,
+    "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync",
+    "process_nice_values": [
+      -8
+    ],
+    "cpu_percent_one_core": {
+      "nanoleaf-native": 0.6606914259942341,
+      "nanoleaf-native-capture": 2.642765703976936
+    },
+    "end_rss_mib": {
+      "nanoleaf-native": 25.74609375,
+      "nanoleaf-native-capture": 136.08984375
+    },
+    "snapshot_medians": {
+      "capture_ms": 7.548227,
+      "processing_ms": 0.015981000000000002,
+      "prepared_queue_ms": 8.613652000000002,
+      "usb_ms": 20.9787815,
+      "response_to_write_ms": 17.382456,
+      "response_ms": 34.045092,
+      "effective_fps": 47.80706517051266
+    },
+    "config_sha256": "a5d9b604c8ff68adf8a9321cc9fb578d4c2468c00a279612d66312f800049933",
+    "scope": "Final installed app/helper, real selected desktop while game running; 60 one-second status samples, no optical/power or controlled-event latency claim."
   }
 }

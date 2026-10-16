@@ -5,9 +5,9 @@ Rust migration. The Python/PyQt6 runtime, Rust-to-Python bridge, privileged C DR
 helper, wheel/AUR packaging, legacy tests and release/CI jobs have been removed
 from the active tree. The installed pipx application and its obsolete launchers
 were removed on the development host. A second Pacman-owned 1.9.1 installation
-was discovered and still requires administrator removal with
-`sudo pacman -R nanoleaf-kde-sync`; its system launcher is locally hidden until
-removal. That package also owns two privileged DRM helper copies. The existing
+was also removed with the user's administrator session. One unowned helper from
+an older manual install was found afterward and removed separately. Both elevated
+DRM helper copies and the legacy import/commands are verified absent. The existing
 unowned `/etc/udev/rules.d/60-nanoleaf-kde-sync.rules` remains for native HID access.
 The system Python interpreter and operator
 scripts are unrelated to the retired application and remain available.

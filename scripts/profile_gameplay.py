@@ -10,6 +10,7 @@ import argparse
 import json
 import os
 import socket
+import struct
 import time
 from pathlib import Path
 
@@ -19,12 +20,15 @@ def status():
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as stream:
         stream.settimeout(2)
         stream.connect(str(path))
+        peer_pid, _, _ = struct.unpack(
+            "3i", stream.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
+        )
         stream.sendall(b'{"action":"status"}\n')
         stream.shutdown(socket.SHUT_WR)
         data = bytearray()
         while chunk := stream.recv(16384):
             data.extend(chunk)
-        return json.loads(data)
+        return json.loads(data), peer_pid
 
 
 def resources(pid):
@@ -39,16 +43,19 @@ def resources(pid):
     )
 
 
-def processes():
+def processes(service_pid):
+    # Scope resources to the queried service and its capture children. A settings
+    # window or an isolated bundle verifier can use the same executable name.
+    root = Path("/proc") / str(service_pid)
+    child_ids = (root / "task" / str(service_pid) / "children").read_text().split()
     result = []
-    for root in Path("/proc").iterdir():
-        if root.name.isdecimal():
-            try:
-                exe = (root / "exe").resolve().name
-                if exe in ("nanoleaf-native", "nanoleaf-native-capture", "nanoleaf-stream-probe"):
-                    result.append(dict(executable=exe, **resources(int(root.name))))
-            except (OSError, ValueError, IndexError):
-                continue  # Process may exit between directory and stat reads.
+    for pid in [service_pid, *map(int, child_ids)]:
+        try:
+            exe = (Path("/proc") / str(pid) / "exe").resolve().name
+            if exe in ("nanoleaf-native", "nanoleaf-native-capture", "nanoleaf-stream-probe"):
+                result.append(dict(executable=exe, **resources(pid)))
+        except (OSError, ValueError, IndexError):
+            continue  # Process may exit between directory and stat reads.
     return result
 
 
@@ -67,7 +74,8 @@ def main():
         while time.monotonic() - start < args.seconds:
             sample = dict(label=args.label, elapsed=time.monotonic() - start, unix=time.time())
             try:
-                sample.update(status=status(), processes=processes())
+                state, pid = status()
+                sample.update(status=state, processes=processes(pid))
             except (OSError, ValueError) as error:
                 sample["error"] = str(error)
             output.write(json.dumps(sample, separators=(",", ":")) + "\n")

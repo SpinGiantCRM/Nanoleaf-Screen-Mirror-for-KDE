@@ -8,5 +8,5 @@
   "live_service_blocks_upgrade": true,
   "uninstall_retains_versions": true,
   "configuration_and_unrelated_files_unchanged": true,
-  "binary_sha256": "98ad7574c34dc21fddf4d0ad322532cb466f94a556cb573c8a83c66a8be2dfe1"
+  "binary_sha256": "8ca70e6098835c3e642424970199500abc7fafe58e9c55bdeb520abf0af57771"
 }

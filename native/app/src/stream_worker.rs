@@ -174,6 +174,7 @@ impl Producer {
         });
         let stop = Arc::new(AtomicBool::new(false));
         let sent = Arc::new(Mutex::new(Vec::new()));
+        let (feedback_notify, feedback_ready) = mpsc::sync_channel(1);
         let launch = (|| -> Result<_> {
             let mut child = Command::new(helper()?)
                 .arg("--worker")
@@ -234,21 +235,7 @@ impl Producer {
                     }
                 });
                 std::thread::spawn(move || {
-                    let mut previous = Vec::new();
-                    while !cancel.load(Ordering::Acquire) {
-                        let value = actual.lock().ok().map(|v| v.clone()).unwrap_or_default();
-                        if !value.is_empty() && value != previous {
-                            previous = value;
-                            if serde_json::to_writer(&mut input, &previous).is_err()
-                                || input.write_all(b"\n").is_err()
-                                || input.flush().is_err()
-                            {
-                                break;
-                            }
-                        }
-                        std::thread::sleep(Duration::from_millis(5));
-                    }
-                    // Closing stdin also stops an orphaned child if its parent exits.
+                    forward_feedback(&mut input, &actual, &cancel, feedback_ready);
                 });
                 let (slot, cancel, process) = (latest.clone(), stop.clone(), child.clone());
                 let thread = std::thread::spawn(move || {
@@ -259,7 +246,7 @@ impl Producer {
                             let count = reader.by_ref().take(32769).read_line(&mut line)?;
                             if count == 0 {
                                 anyhow::bail!(
-                                    "{}",
+                                    "Capture worker ended before the next frame: {}",
                                     error_text
                                         .lock()
                                         .ok()
@@ -306,13 +293,93 @@ impl Producer {
             stop,
             thread,
             sent,
+            feedback_notify: Some(feedback_notify),
             child,
+        }
+    }
+}
+
+/// Forward complete actual-ACK feedback, coalescing wakes rather than colours.
+/// The HID actor only updates the bounded latest slot and never waits for stdin.
+fn forward_feedback(
+    input: &mut impl Write,
+    actual: &Mutex<Vec<[u8; 3]>>,
+    cancel: &AtomicBool,
+    ready: mpsc::Receiver<()>,
+) {
+    let mut previous = Vec::new();
+    while ready.recv().is_ok() {
+        if cancel.load(Ordering::Acquire) {
+            break;
+        }
+        let value = actual.lock().ok().map(|v| v.clone()).unwrap_or_default();
+        if !value.is_empty() && value != previous {
+            previous = value;
+            if serde_json::to_writer(&mut *input, &previous).is_err()
+                || input.write_all(b"\n").is_err()
+                || input.flush().is_err()
+            {
+                break;
+            }
         }
     }
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn ack_feedback_coalesces_to_complete_latest_colours_without_blocking_actor() {
+        let actual = Mutex::new(vec![[15, 16, 24]; 48]);
+        let (notify, ready) = mpsc::sync_channel(1);
+        notify.try_send(()).unwrap();
+        let latest: Vec<_> = (0..48).map(|i| [i, i + 1, i + 2]).collect();
+        *actual.lock().unwrap() = latest.clone();
+        assert!(matches!(
+            notify.try_send(()),
+            Err(mpsc::TrySendError::Full(()))
+        ));
+        drop(notify);
+        let mut output = Vec::new();
+        forward_feedback(&mut output, &actual, &AtomicBool::new(false), ready);
+        let decoded: Vec<[u8; 3]> = serde_json::from_slice(&output).unwrap();
+        assert_eq!(decoded, latest);
+        assert_eq!(output.iter().filter(|&&b| b == b'\n').count(), 1);
+    }
+
+    #[test]
+    fn ack_feedback_waits_without_polling_and_disconnect_or_cancel_releases_stdin() {
+        let (notify, ready) = mpsc::sync_channel(1);
+        let (done, exited) = mpsc::channel();
+        let thread = std::thread::spawn(move || {
+            let mut output = Vec::new();
+            forward_feedback(
+                &mut output,
+                &Mutex::new(Vec::new()),
+                &AtomicBool::new(false),
+                ready,
+            );
+            done.send(output).unwrap();
+        });
+        assert!(matches!(exited.try_recv(), Err(mpsc::TryRecvError::Empty)));
+        drop(notify);
+        assert!(exited
+            .recv_timeout(Duration::from_secs(1))
+            .unwrap()
+            .is_empty());
+        thread.join().unwrap();
+
+        let (notify, ready) = mpsc::sync_channel(1);
+        notify.try_send(()).unwrap();
+        let mut output = Vec::new();
+        forward_feedback(
+            &mut output,
+            &Mutex::new(vec![[255; 3]; 48]),
+            &AtomicBool::new(true),
+            ready,
+        );
+        assert!(output.is_empty());
+    }
+
     #[test]
     fn child_frames_are_bounded_typed_and_manual_count_authoritative() {
         let record = || Record {

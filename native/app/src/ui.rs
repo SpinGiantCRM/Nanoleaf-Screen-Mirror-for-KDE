@@ -336,9 +336,7 @@ impl Settings {
             ui.horizontal(|ui| {
                 if ui.button("Launch native tray at login").clicked() {
                     self.message = crate::package::autostart(true)
-                        .map(|_| {
-                            "Native tray login launch enabled. Python startup is unchanged.".into()
-                        })
+                        .map(|_| "Native tray login launch enabled.".into())
                         .unwrap_or_else(|e| e.to_string());
                 }
                 if ui.button("Disable native login launch").clicked() {

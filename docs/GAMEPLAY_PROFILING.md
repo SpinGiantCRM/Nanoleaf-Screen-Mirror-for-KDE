@@ -11,7 +11,8 @@ configuration was changed. Mirroring restarted between bounded comparison runs.
 Eight 60-second windows used the same installed reference binary: ABBA for the
 GPU-wait experiment, then ABBA for complete versus qualified shorter USB frames.
 These are real-workload observations, **not controlled causal benchmarks**.
-Scenes changed, low-priority two-job builds/tests ran during part of collection,
+Game focus was not locked or independently verified; the selected desktop
+includes normal user activity. Scenes changed, low-priority two-job builds/tests ran during part of collection,
 and the first control in each family reported inherited nice -8 versus -4 in
 later runs. Process nice was not collected in those comparisons; the observer
 now records it. No experiment was promoted from these comparisons.
@@ -80,30 +81,59 @@ change firmware to manufacture a benchmark gain.
 
 Local pipx Python and obsolete user launchers/import hooks were removed; generated
 legacy development files were moved out of the active checkout. A separate
-Pacman-owned Python 1.9.1 package remains because noninteractive sudo requires an
-administrator password. Its two elevated DRM helpers also belong to that package.
-Its launcher is locally hidden. Removal is `sudo pacman -R nanoleaf-kde-sync`;
-the existing unowned `/etc/udev/rules.d/60-nanoleaf-kde-sync.rules` remains for
-native USB access. No dependencies, shared calibration directory or system Python
-interpreter should be removed as part of that command.
+Pacman-owned Python 1.9.1 package was removed in the user's administrator session.
+An unowned manually installed helper was subsequently removed separately. Both
+privileged helpers, the legacy import and the user/system launchers are verified
+absent. The existing unowned `/etc/udev/rules.d/60-nanoleaf-kde-sync.rules` remains
+for native USB access. Configuration and native mirroring remained intact.
+
+
+## Acknowledgement feedback scheduling
+
+The streaming parent previously polled the last acknowledged colour vector every
+5 ms. It now uses a capacity-one wake channel plus the same complete latest-ACK
+slot. The HID actor uses nonblocking notification; a slow/frozen helper cannot
+queue unbounded colour vectors or block the USB owner. Identical feedback is still
+deduplicated. Stop/drop disconnects the receiver immediately, including before
+the first ACK, and closes the child's input. USB protocol, colour processing,
+quantisation, actual-ACK phase advancement and the full-frame fallback are unchanged.
+
+During actual gameplay, separate ten-second `/proc` thread windows measured the
+feedback thread at 197.5 voluntary context switches/sec while sleeping on its old
+5 ms timer, versus 47.8/sec waiting for ACK notifications. This removes the polling
+interval and roughly 150 timer-driven switches/sec in that thread for this run;
+it does **not** prove a CPU, wattage or optical-latency improvement. Other threads'
+work and scene-dependent USB timing varied. New regression tests cover bounded
+coalescing with complete 48-zone feedback, disconnect before the first ACK and
+cancellation with pending work.
+
+Real-capture tests on the event-feedback candidate verified Stop releasing the
+child, explicit restart, frozen-worker watchdog (~2.09 s), killed-worker stop
+(~0.066 s), child reaping and explicit restart. All five initial/reopened first
+ACKs carried full 48-zone frames. Controller readback remained 1/16 and config
+was byte-exact. The killed-worker test exposed misleading probe instructions in
+the error text; the final build identifies an ended worker and uses neutral
+screen-sharing instructions. No permission was silently reacquired: each test
+restart was an explicit operator Start. These are process-failure tests, not
+physical unplug/suspend tests. See `event-feedback-recovery.json` for the exact
+candidate identity and observations.
 
 ## Validation and installed state
 
-The serial native release gate passed 183 Rust tests, all-target Clippy and
+The serial native release gate passed 185 Rust tests, all-target Clippy and
 formatting for core/application/capture workspaces, six trace-decoder tests and
 two repository cleanup tests. The ignored private-D-Bus owner-loss/recovery test
 passed separately. Package tests and isolated real-binary bundle smoke passed.
 Cached cargo audit for the app reported no vulnerabilities; hosted fresh scans
 are separate. No new physical reconnect, suspend or optical test is claimed.
 
-Installed version `e77e42b22710b0b4cc41b60e7699d69809008cde9f1b168413f300380e4187bc`
-contains the paired app/helper; previous versions remain for native rollback.
-A final one-minute installed-build gameplay smoke produced 3,226 acknowledged
-packets, including 468 shortened packets, between endpoint snapshots. Actual
-nice was -8 for both processes throughout that smoke. Mirroring remains running
-with experimental GPU waits off, saved selected backend and qualified short
-updates on. Controller power/brightness read back identically as 1/16 around the
-USB comparison; configuration SHA256 remains byte-exact:
+The final paired runtime is installed with experimental GPU waits off and the
+saved selected backend, Target60 and qualified short updates intact. Previous
+native app/helper versions remain available for rollback. Candidate recovery and
+final-binary gameplay measurements are identified separately in `summary.json`;
+a final killed-worker check also verifies the corrected diagnostic, child reaping
+and full 48-zone first ACK on explicit restart. Original controller readback is
+1/16 and configuration SHA256 remains byte-exact:
 `a5d9b604c8ff68adf8a9321cc9fb578d4c2468c00a279612d66312f800049933`.
 
 Normalised evidence and binary/source-record hashes are in

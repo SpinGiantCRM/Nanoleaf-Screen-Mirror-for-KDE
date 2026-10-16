@@ -1,5 +1,5 @@
-//! Independent, unprivileged native bundle installation. Configuration and the
-//! Python package are never written. Versions remain available for rollback.
+//! Independent, unprivileged native bundle installation. Configuration and
+//! unrelated applications are never written. Versions remain available for rollback.
 use anyhow::{ensure, Context, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -320,7 +320,7 @@ pub fn refresh_desktop() -> Result<()> {
     );
     Ok(())
 }
-/// An opt-in tray autostart entry; never alters the Python autostart file.
+/// An opt-in tray autostart entry; never alters unrelated autostart files.
 pub fn autostart(enabled: bool) -> Result<()> {
     let config = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
@@ -362,7 +362,7 @@ pub fn autostart(enabled: bool) -> Result<()> {
 }
 
 /// Remove only the managed command/launcher. Versions and the original launcher
-/// remain recoverable, and user configuration and Python files are untouched.
+/// remain recoverable, and user configuration and unrelated files are untouched.
 pub fn uninstall(prefix: &Path, data: &Path) -> Result<()> {
     let prefix = prefix.canonicalize()?;
     let root = prefix.join("lib/nanoleaf-native");
