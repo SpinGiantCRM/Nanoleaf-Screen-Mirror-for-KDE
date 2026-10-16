@@ -190,6 +190,12 @@ impl Default for Config {
 }
 
 impl Config {
+    /// Reuse the existing response controls; preserve colour, calibration,
+    /// mapping, capture selection and all scheduling/FPS settings.
+    pub fn enable_fast_response(&mut self) {
+        self.zone_temporal_accumulation = false;
+        self.smoothing = 1.0;
+    }
     pub fn validate(&self) -> Result<()> {
         ensure!(
             matches!(self.sync_mode.as_str(), "standard" | "4d"),
@@ -532,6 +538,37 @@ impl Store {
         File::open(parent)?.sync_all()?;
         *self = Self::load(&self.path)?;
         Ok(())
+    }
+    pub fn save_fast_response(&mut self) -> Result<()> {
+        let mut document = self.document.clone();
+        for (key, mut value) in [
+            ("smoothing", toml_edit::Value::from(1.0)),
+            ("zone_temporal_accumulation", toml_edit::Value::from(false)),
+        ] {
+            if let Some(previous) = document.get(key).and_then(Item::as_value) {
+                *value.decor_mut() = previous.decor().clone();
+            }
+            document[key] = Item::Value(value);
+        }
+        self.save_document(document)
+    }
+    /// Select an existing capture implementation without rewriting calibration,
+    /// profiles or unrelated settings. Starting/reloading remains explicit.
+    pub fn save_capture_backend(&mut self, backend: &str) -> Result<()> {
+        ensure!(
+            matches!(backend, "auto" | "kwin-dbus" | "xdg-portal"),
+            "Unsupported native capture backend"
+        );
+        if self.document.get("capture_backend").and_then(Item::as_str) == Some(backend) {
+            return self.save_document(self.document.clone());
+        }
+        let mut document = self.document.clone();
+        let mut value = toml_edit::Value::from(backend);
+        if let Some(previous) = document.get("capture_backend").and_then(Item::as_value) {
+            *value.decor_mut() = previous.decor().clone();
+        }
+        document["capture_backend"] = Item::Value(value);
+        self.save_document(document)
     }
     pub fn update_scalar(&self, key: &str, value: toml_edit::Value) -> Result<DocumentMut> {
         ensure!(

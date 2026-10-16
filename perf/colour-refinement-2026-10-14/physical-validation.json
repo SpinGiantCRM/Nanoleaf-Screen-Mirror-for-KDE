@@ -1,0 +1,29 @@
+{
+  "tested_code_revision": "1ba4043",
+  "app_sha256": "a9639d0d29c01450da4171c55571a5c8d1ab6c8d8270ef3b15e8b5dd6f2e64d9",
+  "scope": "20-second bounded low-brightness NL82K2 mirroring; exclusive ownership; no saved pixels, optical, colourimeter or power measurements",
+  "acknowledged_packets": 954,
+  "reused_source_packets": 1,
+  "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples",
+  "controller_power_brightness_restored": true,
+  "real_config_unchanged": true,
+  "real_config_sha256": "b470ea82ac1568cf99f4762f6914e4aa295bd3422527e9eb3ca046b52272d1a4",
+  "installed_binary_unchanged": true,
+  "original_installed_mirroring_resumed": true,
+  "original_backend_restored": "kwin-dbus (SDR display-referred)",
+  "usb_stage_median_ms_per_distinct_ack": {
+    "drain_ms": 0.000651,
+    "write_ms": 3.9583885,
+    "first_report_wait_ms": 17.03239,
+    "ack_wait_ms": 17.033296999999997,
+    "total_ms": 20.992517
+  },
+  "human_observation": "Colours and transitions look correct; no problems noticed",
+  "limits": [
+    "User observation, not an instrumented emitted-colour or optical-latency measurement",
+    "One reused-source packet acknowledged; sustained sparse/static-source cadence remains untested",
+    "NL82K2 only; NL82K1 and physical suspend untested",
+    "No new version installed or enabled at login"
+  ],
+  "original_process_priority_restored": true
+}

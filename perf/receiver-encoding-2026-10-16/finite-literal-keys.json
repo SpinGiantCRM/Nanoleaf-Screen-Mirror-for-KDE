@@ -1,0 +1,22 @@
+{
+  "scope": "Finite local static-literal candidates only; no code execution, network, device operations or key disclosure",
+  "sources": [
+    {
+      "name": "firmware-research-2026-10-15/asset-1.txt",
+      "sha256": "b144b27875322a9e7e0382c7de78674dc76f0f5b3d8a995c0341bc7bc6f3f248"
+    },
+    {
+      "name": "closed-firmware-2026-10-15/old-asset-1.txt",
+      "sha256": "18316ca88b134b6d546c4ce2f697cd3f67f263ff936f7a50f0400278972b150b"
+    },
+    {
+      "name": "deeper-firmware-2026-10-15/js-0.txt",
+      "sha256": "a1606cd70ce0e9a9cd901766cfd2cb079c912eabae937ac561919893ba10ed26"
+    }
+  ],
+  "unique_literal_keys": 2119,
+  "block_operations": 45072,
+  "padding_candidates": [],
+  "elapsed_seconds": 0.5311265470008948,
+  "limitations": "No match is not exhaustive cryptanalysis and does not identify a cipher. Exact keys and proprietary source remain private."
+}

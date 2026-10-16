@@ -1,0 +1,9 @@
+{
+  "crate": "pipewire",
+  "version": "0.10.1",
+  "source_member": "src/loop_/mod.rs",
+  "source_sha256": "5acd87d820112f983a605d6f78795d04ce3ed8a9f61171b303fa019ec7844a4d",
+  "finite_timeout_conversion": "duration.as_millis() to c_int, truncating sub-millisecond remainder",
+  "timer_api": "update_timer(Some(relative_duration), None)",
+  "zero_value_disarms_timer": true
+}

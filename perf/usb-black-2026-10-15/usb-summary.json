@@ -1,0 +1,100 @@
+{
+  "scope": "Real NL82K2; unchanged manual 48-zone packet length and ACK rules; brightness 10 temporarily; 2 warmups excluded per 16-packet case; forward/reverse repeats; no optical timing",
+  "power_and_brightness_restored": true,
+  "device_descriptor": {
+    "speed": "full-speed 12 Mbit/s",
+    "max_packet_bytes": 64,
+    "interrupt_in_interval_ms": 1,
+    "interrupt_out_interval_ms": 1
+  },
+  "cases": [
+    {
+      "pattern": "black",
+      "timed_packets": 28,
+      "drain_ms": 0.00026599999999999996,
+      "write_ms": 3.9734575,
+      "ack_wait_ms": 3.0254630000000002,
+      "total_ms": 6.9994515
+    },
+    {
+      "pattern": "grey-1",
+      "timed_packets": 28,
+      "drain_ms": 0.00043599999999999997,
+      "write_ms": 3.9714995,
+      "ack_wait_ms": 15.027218999999999,
+      "total_ms": 18.9999105
+    },
+    {
+      "pattern": "grey-8",
+      "timed_packets": 28,
+      "drain_ms": 0.0004305,
+      "write_ms": 3.971699,
+      "ack_wait_ms": 15.0273605,
+      "total_ms": 18.999360000000003
+    },
+    {
+      "pattern": "grey-64",
+      "timed_packets": 28,
+      "drain_ms": 0.0004255,
+      "write_ms": 3.973182,
+      "ack_wait_ms": 17.02633,
+      "total_ms": 21.000047
+    },
+    {
+      "pattern": "grey-255",
+      "timed_packets": 28,
+      "drain_ms": 0.00046100000000000004,
+      "write_ms": 3.972656,
+      "ack_wait_ms": 16.027012499999998,
+      "total_ms": 19.999965
+    },
+    {
+      "pattern": "red-8",
+      "timed_packets": 28,
+      "drain_ms": 0.00042100000000000004,
+      "write_ms": 3.971589,
+      "ack_wait_ms": 15.028082,
+      "total_ms": 18.999720500000002
+    },
+    {
+      "pattern": "green-8",
+      "timed_packets": 28,
+      "drain_ms": 0.0004305,
+      "write_ms": 3.9726705,
+      "ack_wait_ms": 15.026204,
+      "total_ms": 18.99966
+    },
+    {
+      "pattern": "blue-8",
+      "timed_packets": 28,
+      "drain_ms": 0.00041600000000000003,
+      "write_ms": 3.9717895,
+      "ack_wait_ms": 15.027475,
+      "total_ms": 18.9993745
+    },
+    {
+      "pattern": "grey-first-zone",
+      "timed_packets": 28,
+      "drain_ms": 0.0003055,
+      "write_ms": 3.972866,
+      "ack_wait_ms": 3.025964,
+      "total_ms": 6.998825
+    },
+    {
+      "pattern": "grey-quarter",
+      "timed_packets": 28,
+      "drain_ms": 0.0003005,
+      "write_ms": 3.9731365,
+      "ack_wait_ms": 6.0258135,
+      "total_ms": 9.9992705
+    },
+    {
+      "pattern": "grey-half",
+      "timed_packets": 28,
+      "drain_ms": 0.00041600000000000003,
+      "write_ms": 3.973317,
+      "ack_wait_ms": 9.026102999999999,
+      "total_ms": 12.9998815
+    }
+  ]
+}

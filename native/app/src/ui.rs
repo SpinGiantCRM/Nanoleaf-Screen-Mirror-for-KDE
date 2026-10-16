@@ -110,6 +110,24 @@ fn choice(ui: &mut egui::Ui, label: &str, value: &mut String, options: &[&str]) 
 }
 fn profile_ui(ui: &mut egui::Ui, p: &mut LedProfile) {
     ui.small("Use your measured profile. These adjustments affect emitted colour.");
+    for (name, saved, minimum, maximum) in [
+        ("Red gain", p.red_gain, 0.5, 1.5),
+        ("Green gain", p.green_gain, 0.5, 1.5),
+        ("Blue gain", p.blue_gain, 0.5, 1.5),
+        ("LED gamma", p.led_gamma, 1.0, 4.0),
+        ("White balance", p.white_balance_temperature, -1.0, 1.0),
+        ("Neutral luminance", p.neutral_luminance_gain, 0.7, 1.5),
+        ("Chroma compression", p.chroma_compression, 0.0, 0.6),
+        ("Black cutoff", p.black_luminance_cutoff, 0.0, 0.03),
+        ("Black knee", p.black_luminance_knee, 0.0005, 0.03),
+    ] {
+        let effective = saved.clamp(minimum, maximum);
+        if saved != effective {
+            ui.small(format!(
+                "{name}: saved {saved}, used as {effective}. Your saved value is preserved."
+            ));
+        }
+    }
     ui.add(
         egui::Slider::new(&mut p.red_gain, 0.5..=1.5)
             .clamping(egui::SliderClamping::Edits)
@@ -206,7 +224,13 @@ impl Settings {
         ui.add_space(8.0);
         if let Some(s) = &self.status {
             ui.label(&s.message);
-            ui.small(format!("{} · {:.1} FPS", s.model, s.effective_fps));
+            ui.small(format!(
+                "{} · {:.1} acknowledged packets/s",
+                s.model, s.effective_fps
+            ));
+            if !s.preview {
+                ui.small("Capture: SDR sRGB, including on HDR desktops · active calibration: SDR");
+            }
         } else {
             ui.label("The native tray service is not running.");
         }
@@ -251,12 +275,20 @@ impl Settings {
             &mut self.draft.color_style,
             &["reference", "natural", "ambient", "vivid", "punchy"],
         );
-        ui.add(
-            egui::Slider::new(&mut self.draft.smoothing, 0.0..=1.0).text("Minimum responsiveness"),
-        );
+        ui.add(egui::Slider::new(&mut self.draft.smoothing, 0.0..=1.0).text("Response speed"));
         ui.add(
             egui::Slider::new(&mut self.draft.smoothing_speed, 0.0..=4.0).text("Motion response"),
         );
+        if ui.button("Use fast response").clicked() {
+            self.draft.enable_fast_response();
+            self.message = "Fast response selected. Save / Apply to use it.".into();
+        }
+        ui.small(
+            "Fast response follows changes promptly; small colour variations may be more visible.",
+        );
+        if self.draft.zone_temporal_accumulation {
+            ui.small("Additional temporal averaging is enabled and can delay colour changes.");
+        }
         ui.checkbox(
             &mut self.draft.letterbox_detection,
             "Follow content inside black bars",
@@ -304,9 +336,7 @@ impl Settings {
             ui.horizontal(|ui| {
                 if ui.button("Launch native tray at login").clicked() {
                     self.message = crate::package::autostart(true)
-                        .map(|_| {
-                            "Native tray login launch enabled. Python startup is unchanged.".into()
-                        })
+                        .map(|_| "Native tray login launch enabled.".into())
                         .unwrap_or_else(|e| e.to_string());
                 }
                 if ui.button("Disable native login launch").clicked() {
@@ -373,7 +403,36 @@ impl Settings {
             ui.add(egui::Slider::new(&mut self.draft.layout_scale,0.5..=1.0).clamping(egui::SliderClamping::Edits).text("Layout scale"));
             ui.separator();ui.checkbox(&mut self.hdr_profile,"Edit HDR profile");if self.hdr_profile{profile_ui(ui,&mut self.draft.led_calibration_profile_hdr);}else{profile_ui(ui,&mut self.draft.led_calibration_profile_sdr);}
             ui.small("KWin screenshots already contain SDR sRGB colour. The SDR LED profile applies to that capture even on an HDR desktop. Your HDR profile is retained.");
-            if let Some(s)=&self.status{ui.separator();ui.label(format!("Capture {:.2} ms · colour {:.2} ms · USB {:.2} ms",s.capture_ms,s.processing_ms,s.usb_ms));ui.label(format!("Response {:.2} ms · {} acknowledged frames · {} missed deadlines",s.response_ms,s.frames,s.missed_deadlines));ui.small(format!("{} inferred packets (included in acknowledged frames)",s.predicted_frames));ui.label(format!("Manual {} · reported {} · connections {}",s.manual_zones,s.reported_zones,s.reconnects));ui.label(&s.backend);}
+            if let Some(s)=&self.status{ui.separator();ui.label(format!("Capture {:.2} ms · colour {:.2} ms · USB {:.2} ms",s.capture_ms,s.processing_ms,s.usb_ms));ui.label(format!("Software response {:.2} ms · {} acknowledged packets · {} missed deadlines",s.response_ms,s.frames,s.missed_deadlines));ui.small("Response runs from capture request or stream sampling work to USB acknowledgement; emitted-light delay is not measured.");ui.small(match s.response_clock.as_str(){"capture-work"=>"Timing starts when the stream frame begins processing.","cached-work"=>"Timing starts when the unchanged image is reprocessed.","source-presentation"=>"Legacy timing starts at the display presentation marker.",_=>"Timing starts at capture or processing."});if let Some(age)=s.source_presentation_age_ms{ui.small(format!("Compositor PTS age {:.2} ms (software metadata, separate from capture latency)",age));}ui.small(format!("{} inferred packets (included in acknowledged packets)",s.predicted_frames));ui.label(format!("Manual {} · reported {} · connections {}",s.manual_zones,s.reported_zones,s.reconnects));ui.label(&s.backend);}
+            if let Some(t)=self.status.as_ref().and_then(|s|s.capture_stages.as_ref()) {
+                ui.small(format!("Capture breakdown: wait {:.2} ms · import {:.2} ms · image analysis {:.2} ms · sampling {:.2} ms · release {:.2} ms",t.producer_fence_ms,t.import_ms,t.analysis_ms,t.sampling_ms,t.release_ms));
+            }
+            if let Some(ms)=self.status.as_ref().and_then(|s|s.response_to_write_ms) { ui.small(format!("Capture work to final USB write: {:.2} ms (host completion; light timing unknown)",ms)); }
+            if let Some(t)=self.status.as_ref().and_then(|s|s.usb_transaction.as_ref()) {
+                ui.small(format!("Last USB packet: drain {:.3} ms · write {:.3} ms · wait for acknowledgement {:.3} ms",t.drain_ms,t.write_ms,t.ack_wait_ms));
+                ui.small(format!("First response after {:.3} ms · {} reports written / {} received",t.first_report_wait_ms,t.written_reports,t.response_reports));
+            }
+            if let Some(s)=&self.status {
+                if s.short_updates_enabled {
+                    if let Some(t) = &s.usb_transaction {
+                        ui.small(format!("USB colour payload: {} of {} zones · {} acknowledged updates shortened", t.sent_zones,s.manual_zones,s.shortened_packets));
+                    }
+                    ui.small("Only an exactly unchanged tail is retained. Every update is acknowledged; dither phases still advance.");
+                }
+                if let Some(timing) = &s.response_summary {
+                    for (label, window) in [("Fresh screen updates", &timing.fresh), ("Repeated image updates", &timing.cached)] {
+                        if window.samples > 0 {
+                            ui.separator();
+                            ui.small(format!("{label}: latest {} of {} measured packets", window.samples, window.observed));
+                            ui.small(format!("Work to USB write: usual {:.2} ms · 95% within {:.2} ms · 99% within {:.2} ms", window.to_write_ms.p50, window.to_write_ms.p95, window.to_write_ms.p99));
+                            ui.small(format!("95% within: waiting to send {:.2} ms · USB transaction {:.2} ms · work to acknowledgement {:.2} ms", window.queue_ms.p95, window.usb_ms.p95, window.to_ack_ms.p95));
+                        }
+                    }
+                    ui.small("Software timings only; recent packets since Start, Apply or USB reconnection. Preview and inferred packets are excluded.");
+                }
+                ui.small(format!("{} packets reprocessed from an unchanged shared image; these are not new captured frames.",s.reused_source_packets));
+                if s.last_source_reused {ui.small("Last response timing starts at unchanged-image processing, not the original capture timestamp.");}
+            }
         });
         }
         if !self.message.is_empty() {

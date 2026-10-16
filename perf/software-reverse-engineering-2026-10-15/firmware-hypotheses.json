@@ -1,0 +1,129 @@
+{
+  "scope": "Offline bounded hypotheses; no decryption, CPU identity or flash-safety conclusion",
+  "positive_control_periods": [
+    1,
+    2,
+    4,
+    8
+  ],
+  "images": [
+    {
+      "version": "1.1.0",
+      "sha256": "1ffcf5900dee6ae70f49623fd1ed047b0d923754bc9a4224a99c193a37b71ffa",
+      "data_bytes": 9856,
+      "phase_8_entropy_bits_per_byte": [
+        7.813786573689009,
+        7.830857392471282,
+        7.8384953367159245,
+        7.800110595621979,
+        7.806642409552621,
+        7.838957075108117,
+        7.854528596046186,
+        7.844863475178646
+      ],
+      "known_utf16_repeating_xor_matches": []
+    },
+    {
+      "version": "1.2.0",
+      "sha256": "1a50962b641d9ba8a4c5f5a0c2fb82e55924700b45b030bc020d43e28a5f274c",
+      "data_bytes": 9856,
+      "phase_8_entropy_bits_per_byte": [
+        7.833764104236557,
+        7.831303221398591,
+        7.830015272246476,
+        7.815101412140286,
+        7.798415166411406,
+        7.846906715367625,
+        7.824321675799848,
+        7.811270538863943
+      ],
+      "known_utf16_repeating_xor_matches": []
+    },
+    {
+      "version": "1.3.0",
+      "sha256": "9a5f84be343e57238c95ca7d6acac1ddf6364bd59c39e646df8519c4e9419518",
+      "data_bytes": 9912,
+      "phase_8_entropy_bits_per_byte": [
+        7.841259552412912,
+        7.819719097146849,
+        7.802175303195727,
+        7.848354581368471,
+        7.82083597096475,
+        7.792764803784335,
+        7.8220569942087925,
+        7.8030354390033345
+      ],
+      "known_utf16_repeating_xor_matches": []
+    },
+    {
+      "version": "1.4.0",
+      "sha256": "de7f11f76c9ad8ac6bb6e2595c89d5ce8da39a9ace7155cc4fd6d5e61c99f3a2",
+      "data_bytes": 9520,
+      "phase_8_entropy_bits_per_byte": [
+        7.805156030540138,
+        7.795748388840425,
+        7.802425970985158,
+        7.79057596866226,
+        7.8132761409030405,
+        7.804264321150953,
+        7.8327920588020845,
+        7.831514288363308
+      ],
+      "known_utf16_repeating_xor_matches": []
+    },
+    {
+      "version": "1.5.0",
+      "sha256": "05ae98ac932d18fb9bf1579e744401827f9ac068347cdb968426363ec45ef3de",
+      "data_bytes": 9576,
+      "phase_8_entropy_bits_per_byte": [
+        7.799206035811205,
+        7.833903351986699,
+        7.81089096633417,
+        7.800889060231257,
+        7.8217561657572965,
+        7.812477288300834,
+        7.803710580712203,
+        7.803605310046977
+      ],
+      "known_utf16_repeating_xor_matches": []
+    }
+  ],
+  "comparisons": [
+    {
+      "a": "1.1.0",
+      "b": "1.2.0",
+      "changed_same_offset_8_byte_blocks": 888,
+      "mean_changed_block_hamming_distance_bits": 31.861486486486488,
+      "minimum_changed_block_hamming_distance_bits": 17,
+      "maximum_changed_block_hamming_distance_bits": 45
+    },
+    {
+      "a": "1.2.0",
+      "b": "1.3.0",
+      "changed_same_offset_8_byte_blocks": 1213,
+      "mean_changed_block_hamming_distance_bits": 32.006595218466614,
+      "minimum_changed_block_hamming_distance_bits": 20,
+      "maximum_changed_block_hamming_distance_bits": 44
+    },
+    {
+      "a": "1.3.0",
+      "b": "1.4.0",
+      "changed_same_offset_8_byte_blocks": 982,
+      "mean_changed_block_hamming_distance_bits": 31.982688391038696,
+      "minimum_changed_block_hamming_distance_bits": 17,
+      "maximum_changed_block_hamming_distance_bits": 48
+    },
+    {
+      "a": "1.4.0",
+      "b": "1.5.0",
+      "changed_same_offset_8_byte_blocks": 1169,
+      "mean_changed_block_hamming_distance_bits": 31.952095808383234,
+      "minimum_changed_block_hamming_distance_bits": 20,
+      "maximum_changed_block_hamming_distance_bits": 43
+    }
+  ],
+  "limitation": "No match only excludes these known UTF-16 strings under the tested aligned periodic XOR hypotheses. Missing strings or other encodings remain possible. XOR preserves each phase entropy but entropy alone does not identify encryption.",
+  "mcu_identified": false,
+  "cipher_identified": false,
+  "safe_to_flash": false
+}

@@ -8,6 +8,7 @@ use crate::{
 use anyhow::{bail, ensure, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::VecDeque,
     fs::{self, File, OpenOptions},
     io::{BufRead, BufReader, Read, Write},
     os::unix::{
@@ -24,6 +25,10 @@ pub enum Control {
     Status,
     #[serde(skip)]
     FrameReady,
+    #[serde(skip)]
+    SessionInterrupted,
+    #[serde(skip)]
+    SessionReady,
     Start,
     Stop,
     Reload,
@@ -46,12 +51,43 @@ pub struct Status {
     pub predicted_frames: u64,
     #[serde(default)]
     pub prediction_enabled: bool,
+    #[serde(default)]
+    pub reused_source_packets: u64,
+    #[serde(default)]
+    pub repeat_suppression_enabled: bool,
+    #[serde(default)]
+    pub suppressed_identical_packets: u64,
+    #[serde(default)]
+    pub short_updates_enabled: bool,
+    #[serde(default)]
+    pub shortened_packets: u64,
+    #[serde(default)]
+    pub omitted_unchanged_zones: u64,
+    #[serde(default)]
+    pub last_source_reused: bool,
     pub missed_deadlines: u64,
     pub dropped_frames: u64,
     pub capture_ms: f64,
     pub processing_ms: f64,
     pub usb_ms: f64,
+    #[serde(default)]
+    pub usb_transaction: Option<crate::device::TransactionTimes>,
     pub response_ms: f64,
+    /// Capture work to the final HID write returning, excluding the ACK wait.
+    /// Host completion is not proof of the device's emitted-light timing.
+    #[serde(default)]
+    pub response_to_write_ms: Option<f64>,
+    /// Parent latest-slot residence before USB starts; excludes capture/IPC.
+    #[serde(default)]
+    pub prepared_queue_ms: Option<f64>,
+    #[serde(default)]
+    pub response_summary: Option<crate::response::ResponseSummary>,
+    #[serde(default)]
+    pub response_clock: String,
+    #[serde(default)]
+    pub source_presentation_age_ms: Option<f64>,
+    #[serde(default)]
+    pub capture_stages: Option<crate::worker::CaptureStages>,
     pub effective_fps: f64,
     pub startup_ms: f64,
     pub reconnects: u64,
@@ -148,10 +184,14 @@ fn listener(socket: &Path, tx: mpsc::Sender<Control>, status: Arc<Mutex<Status>>
             if let Ok(control) = serde_json::from_str::<Control>(&line) {
                 // Finish the reply before dispatching Quit: the actor can exit
                 // immediately, otherwise truncating JSON on the listener thread.
-                if let Ok(value) = status.lock() {
-                    if let Ok(bytes) = serde_json::to_vec(&*value) {
-                        let _ = reader.get_mut().write_all(&bytes);
-                    }
+                let reply = status
+                    .lock()
+                    .ok()
+                    .and_then(|value| serde_json::to_vec(&*value).ok());
+                if let Some(bytes) = reply {
+                    // Socket writes must not hold the state lock needed by the
+                    // actor's ACK progress/capture-cancellation publication.
+                    let _ = reader.get_mut().write_all(&bytes);
                 }
                 if !matches!(control, Control::Status) {
                     let _ = tx.send(control);
@@ -161,7 +201,7 @@ fn listener(socket: &Path, tx: mpsc::Sender<Control>, status: Arc<Mutex<Status>>
     });
     Ok(())
 }
-fn fallback_running() -> bool {
+fn legacy_client_running() -> bool {
     fs::read_dir("/proc")
         .into_iter()
         .flatten()
@@ -189,10 +229,10 @@ fn fallback_running() -> bool {
             })
         })
 }
-fn acquire_output(paths: &Paths) -> Result<File> {
+pub(crate) fn acquire_output(paths: &Paths) -> Result<File> {
     ensure!(
-        !fallback_running(),
-        "The Python fallback is running; stop it before native LED output"
+        !legacy_client_running(),
+        "An old Nanoleaf client is running; stop it before native LED output"
     );
     lease(&paths.root.join("strip.lock"))
 }
@@ -200,6 +240,20 @@ fn publish(shared: &Arc<Mutex<Status>>, status: &Status) {
     if let Ok(mut s) = shared.lock() {
         *s = status.clone();
     }
+}
+/// Preserve command order while inspecting a bounded batch during an ACK wait.
+/// Frame-ready events still coalesce in the existing latest-only colour slot.
+fn defer_controls(rx: &mpsc::Receiver<Control>, pending: &mut VecDeque<Control>) -> bool {
+    let mut stop = false;
+    for _ in 0..16 {
+        let Ok(control) = rx.try_recv() else { break };
+        stop |= matches!(
+            control,
+            Control::Stop | Control::Quit | Control::SessionInterrupted
+        );
+        pending.push_back(control);
+    }
+    stop
 }
 fn open_strip(store: &Store) -> Result<Strip> {
     let c = &store.config;
@@ -255,8 +309,15 @@ fn run_inner(
         store.config.capture_backend = backend.into();
     }
     let (tx, rx) = mpsc::channel();
+    let session = crate::session::Guard::new(tx.clone());
+    let mut pending = VecDeque::new();
+    let mut session_stopped = false;
+    // Experiment only: no persistent setting or default-policy change.
+    let repeat_enabled = std::env::var("NANOLEAF_SUPPRESS_IDENTICAL").as_deref() == Ok("1");
+    let mut repeat = crate::repeat::Repeat::default();
     let mut state = Status {
         manual_zones: store.config.device_zone_count,
+        repeat_suppression_enabled: repeat_enabled,
         message: "Stopped".into(),
         backend: if store.config.capture_backend == "xdg-portal" {
             "xdg-portal / requesting stream".into()
@@ -298,6 +359,8 @@ fn run_inner(
     let mut preview = None;
     let mut predictor = crate::prediction::Predictor::default();
     let mut usb_history = std::collections::VecDeque::<Duration>::new();
+    let mut responses = crate::response::Responses::default();
+    let mut response_epoch = Instant::now();
     let mut retry = Instant::now();
     let mut deadline = Instant::now();
     let mut fps_epoch = Instant::now();
@@ -311,8 +374,22 @@ fn run_inner(
         } else {
             Duration::from_secs(30)
         };
-        if let Ok(command) = rx.recv_timeout(timeout) {
+        if let Some(command) = pending
+            .pop_front()
+            .or_else(|| rx.recv_timeout(timeout).ok())
+        {
             let mut ready = false;
+            if !matches!(
+                &command,
+                Control::FrameReady | Control::Status | Control::SessionReady
+            ) {
+                // Settings, output ownership, preview and session transitions
+                // must never reuse an earlier controller-state assumption.
+                repeat.reset();
+                if let Some(s) = &mut strip {
+                    s.invalidate_updates();
+                }
+            }
             match command {
                 Control::FrameReady => {
                     if capture.is_none() || !state.running {
@@ -321,7 +398,14 @@ fn run_inner(
                     ready = true;
                 }
                 Control::Status => {}
+                Control::SessionReady => {
+                    if session_stopped && !state.running && !state.preview {
+                        state.message =
+                            "Desktop session ready; choose Start to mirror again".into();
+                    }
+                }
                 Control::Quit => {
+                    state.response_summary = Some(responses.summary());
                     // Release capture before reporting: a slow stdout consumer
                     // must never keep screen sharing or hardware ownership alive.
                     state.running = false;
@@ -342,7 +426,11 @@ fn run_inner(
                     publish(&shared, &state);
                     break;
                 }
-                Control::Stop => {
+                Control::Stop | Control::SessionInterrupted => {
+                    session_stopped = matches!(command, Control::SessionInterrupted);
+                    state.response_summary = Some(responses.summary());
+                    // Revoke capture before waiting for the cleanup-black ACK.
+                    drop(capture.take());
                     predictor.reset();
                     usb_history.clear();
                     watchdog.reset();
@@ -355,8 +443,14 @@ fn run_inner(
                     }
                     strip = None;
                     output_owner = None;
-                    capture = None;
-                    state.message = "Stopped".into();
+                    state.message = if session_stopped {
+                        session
+                            .blocked()
+                            .unwrap_or("Desktop session interrupted; choose Start to mirror again")
+                            .into()
+                    } else {
+                        "Stopped".into()
+                    };
                 }
                 Control::Reload => match Store::load(path) {
                     Ok(s) => {
@@ -374,6 +468,10 @@ fn run_inner(
                         usb_history.clear();
                         watchdog.reset();
                         store = s;
+                        responses = crate::response::Responses::default();
+                        state.response_summary = None;
+                        state.prepared_queue_ms = None;
+                        response_epoch = Instant::now();
                         if let Some(backend) = backend {
                             store.config.capture_backend = backend.into();
                         }
@@ -397,6 +495,12 @@ fn run_inner(
                         publish(&shared, &state);
                         continue;
                     }
+                    if let Some(reason) = session.blocked() {
+                        session_stopped = true;
+                        state.message = reason.into();
+                        publish(&shared, &state);
+                        continue;
+                    }
                     let ready = if output_owner.is_some() {
                         true
                     } else {
@@ -412,6 +516,11 @@ fn run_inner(
                         }
                     };
                     if ready && !state.running {
+                        session_stopped = false;
+                        responses = crate::response::Responses::default();
+                        state.response_summary = None;
+                        state.prepared_queue_ms = None;
+                        response_epoch = Instant::now();
                         start_time = Instant::now();
                         state.running = true;
                         state.preview = false;
@@ -432,6 +541,9 @@ fn run_inner(
                 Control::Preview { rgb, zone } => {
                     if zone.is_some_and(|n| n >= store.config.device_zone_count) {
                         state.message = "Preview index exceeds the manual strip count".into();
+                    } else if let Some(reason) = session.blocked() {
+                        session_stopped = true;
+                        state.message = reason.into();
                     } else if output_owner.is_some() || {
                         match acquire_output(&paths) {
                             Ok(owner) => {
@@ -444,6 +556,7 @@ fn run_inner(
                             }
                         }
                     } {
+                        session_stopped = false;
                         predictor.reset();
                         usb_history.clear();
                         watchdog.reset();
@@ -483,6 +596,7 @@ fn run_inner(
             }
             match open_strip(&store) {
                 Ok(mut s) => {
+                    repeat.reset();
                     let initialized = (|| -> Result<()> {
                         if profile.is_some() && original_controller.is_none() {
                             let power = s.request(0x06, &[])?;
@@ -498,6 +612,10 @@ fn run_inner(
                         }
                         if profile.is_some() {
                             // Reapply the bounded test limit after every reconnect.
+                            // A previous permission failure may already have
+                            // restored the controller. Reopening for preview or
+                            // restart makes that earlier restoration stale.
+                            restored = false;
                             s.request(0x09, &[10])?;
                         }
                         if store.config.auto_turn_on || profile.is_some() {
@@ -513,8 +631,15 @@ fn run_inner(
                         continue;
                     }
                     state.model = s.model.clone();
+                    state.short_updates_enabled =
+                        std::env::var("NANOLEAF_SHORT_UPDATES").as_deref() != Ok("0")
+                            && s.enable_short_updates();
                     state.reported_zones = s.reported_count;
                     strip = Some(s);
+                    responses = crate::response::Responses::default();
+                    state.response_summary = None;
+                    state.prepared_queue_ms = None;
+                    response_epoch = Instant::now();
                     state.reconnects += 1;
                     state.message = "Strip connected".into();
                 }
@@ -528,6 +653,7 @@ fn run_inner(
             }
         }
         let frame_start = Instant::now();
+        let mut ready_at = None;
         let work = (|| -> Result<Option<Prepared>> {
             if let Some((rgb, zone, _)) = preview {
                 let mut colors = vec![[0; 3]; store.config.device_zone_count];
@@ -545,15 +671,22 @@ fn run_inner(
                     backend: "Exclusive setup preview".into(),
                     parity_verified: false,
                     highlight_cache: (0, 0),
+                    source_reused: false,
+                    response_clock: "preview",
+                    source_pts_ns: None,
+                    capture_stages: None,
                 }));
             }
             if capture.is_none() {
                 watchdog.start(Instant::now(), store.config.fps);
                 capture = Some(Producer::spawn(store.config.clone(), tx.clone()));
             }
-            match capture.as_ref().unwrap().take() {
-                Some(Ok(out)) => Ok(Some(out)),
-                Some(Err(error)) => bail!("{error}"),
+            match capture.as_ref().unwrap().take_with_ready_time() {
+                Some((Ok(out), at)) => {
+                    ready_at = Some(at);
+                    Ok(Some(out))
+                }
+                Some((Err(error), _)) => bail!("{error}"),
                 None => Ok(None),
             }
         })();
@@ -579,6 +712,10 @@ fn run_inner(
                         backend: state.backend.clone(),
                         parity_verified: false,
                         highlight_cache: (0, 0),
+                        source_reused: false,
+                        response_clock: "prediction",
+                        source_pts_ns: None,
+                        capture_stages: None,
                     }))
                 }
                 None => {
@@ -617,58 +754,167 @@ fn run_inner(
                     backend,
                     parity_verified: _,
                     highlight_cache: _,
+                    source_reused,
+                    response_clock,
+                    source_pts_ns,
+                    capture_stages,
                 } = prepared;
+                let preview_frame = state.preview;
                 state.backend = backend;
                 if store.config.blue_noise_dither && !state.preview {
-                    if let Some(rgb) = unquantized_rgb {
-                        colors = crate::pipeline::quantize_acknowledged(&rgb, state.frames);
+                    if let Some(rgb) = &unquantized_rgb {
+                        colors = crate::pipeline::quantize_acknowledged(rgb, state.frames);
                     }
                 }
-                let usb_start = Instant::now();
-                let result = strip.as_mut().unwrap().frame(&colors);
-                state.usb_ms = usb_start.elapsed().as_secs_f64() * 1000.0;
-                match result {
-                    Ok(()) => {
-                        usb_history.push_back(usb_start.elapsed());
-                        if usb_history.len() > 32 {
-                            usb_history.pop_front();
+                if repeat_enabled
+                    && !preview_frame
+                    && !predicted
+                    && !crate::prediction::enabled(&store.config)
+                    && repeat.can_suppress(
+                        &colors,
+                        unquantized_rgb.as_deref(),
+                        store.config.blue_noise_dither,
+                        Instant::now(),
+                    )
+                {
+                    state.suppressed_identical_packets += 1;
+                    // This is healthy source work, not a successful USB packet:
+                    // no frame count, response sample, ACK feedback or dither
+                    // phase advances. The last actual bytes remain identical.
+                    watchdog.frame(Instant::now());
+                    predictor.reset();
+                } else {
+                    let usb_start = Instant::now();
+                    let queue_ms = ready_at
+                        .map(|at| usb_start.saturating_duration_since(at).as_secs_f64() * 1000.0);
+                    let mut stopping = false;
+                    let shorten =
+                        !preview_frame && !predicted && !crate::prediction::enabled(&store.config);
+                    let result =
+                        strip
+                            .as_mut()
+                            .unwrap()
+                            .output_with_progress(&colors, shorten, || {
+                                if defer_controls(&rx, &mut pending) && !stopping {
+                                    stopping = true;
+                                    // The current frame is already fully written. Keep its
+                                    // sole HID owner and wait for its ACK/timeout; never
+                                    // cancel an unnumbered ACK and reuse this transaction.
+                                    drop(capture.take());
+                                    // Keep the existing running/preview flags until the
+                                    // queued command completes cleanup. Clients must not
+                                    // mistake early capture cancellation for a released
+                                    // strip lease or an acknowledged cleanup-black frame.
+                                    state.message = "Stopping".into();
+                                    publish(&shared, &state);
+                                }
+                            });
+                    state.usb_ms = usb_start.elapsed().as_secs_f64() * 1000.0;
+                    state.usb_transaction = strip
+                        .as_ref()
+                        .and_then(|s| s.last_frame_transaction.clone());
+                    match result {
+                        Ok(()) => {
+                            if let Some(t) = &state.usb_transaction {
+                                if t.sent_zones < colors.len() {
+                                    state.shortened_packets += 1;
+                                    state.omitted_unchanged_zones +=
+                                        (colors.len() - t.sent_zones) as u64;
+                                }
+                            }
+                            if repeat_enabled {
+                                repeat.acknowledged(&colors, Instant::now());
+                            }
+                            usb_history.push_back(usb_start.elapsed());
+                            if usb_history.len() > 32 {
+                                usb_history.pop_front();
+                            }
+                            state.frames += 1;
+                            state.last_source_reused = source_reused;
+                            if source_reused {
+                                state.reused_source_packets += 1;
+                            }
+                            if predicted {
+                                state.predicted_frames += 1;
+                            } else if !preview_frame {
+                                watchdog.frame(Instant::now());
+                                if source_reused {
+                                    predictor.reset();
+                                } else {
+                                    predictor.observe(&colors, Instant::now());
+                                }
+                                state.capture_ms = capture_ms;
+                                state.processing_ms = times.total_ms;
+                                state.response_ms = started.elapsed().as_secs_f64() * 1000.0;
+                                state.response_to_write_ms = state
+                                    .usb_transaction
+                                    .as_ref()
+                                    .and_then(|t| t.write_completed)
+                                    .map(|written| {
+                                        written.saturating_duration_since(started).as_secs_f64()
+                                            * 1000.0
+                                    });
+                                state.response_clock = response_clock.into();
+                                state.prepared_queue_ms = queue_ms;
+                                if let (Some(queue_ms), Some(to_write_ms)) =
+                                    (queue_ms, state.response_to_write_ms)
+                                {
+                                    responses.record(
+                                        crate::response::Sample {
+                                            capture_ms,
+                                            processing_ms: times.total_ms,
+                                            queue_ms,
+                                            usb_ms: state.usb_ms,
+                                            to_write_ms,
+                                            to_ack_ms: state.response_ms,
+                                        },
+                                        source_reused,
+                                    );
+                                }
+                                state.capture_stages = capture_stages;
+                                state.source_presentation_age_ms = source_pts_ns.map(|pts| {
+                                    let now = rustix::time::clock_gettime(
+                                        rustix::time::ClockId::Monotonic,
+                                    );
+                                    ((now.tv_sec as i128 * 1_000_000_000 + now.tv_nsec as i128)
+                                        - pts as i128) as f64
+                                        / 1_000_000.0
+                                });
+                            }
+                            if let Some(producer) = &capture {
+                                producer.acknowledge(&colors);
+                                state.dropped_frames = producer.dropped();
+                                state.missed_deadlines = producer.missed();
+                            }
+                            state.message = if state.preview {
+                                "Preview · mirroring paused".into()
+                            } else {
+                                "Mirroring".into()
+                            };
+                            if state.frames == 1 {
+                                state.startup_ms = start_time.elapsed().as_secs_f64() * 1000.0;
+                            }
                         }
-                        state.frames += 1;
-                        if predicted {
-                            state.predicted_frames += 1;
-                        } else if !state.preview {
-                            watchdog.frame(Instant::now());
-                            predictor.observe(&colors, Instant::now());
-                            state.capture_ms = capture_ms;
-                            state.processing_ms = times.total_ms;
-                            state.response_ms = started.elapsed().as_secs_f64() * 1000.0;
-                        }
-                        if let Some(producer) = &capture {
-                            producer.acknowledge(&colors);
-                            state.dropped_frames = producer.dropped();
-                            state.missed_deadlines = producer.missed();
-                        }
-                        state.message = if state.preview {
-                            "Preview · mirroring paused".into()
-                        } else {
-                            "Mirroring".into()
-                        };
-                        if state.frames == 1 {
-                            state.startup_ms = start_time.elapsed().as_secs_f64() * 1000.0;
+                        Err(e) => {
+                            repeat.reset();
+                            state.response_summary = Some(responses.summary());
+                            predictor.reset();
+                            usb_history.clear();
+                            watchdog.reset();
+                            state.message = format!("USB recovery: {e}");
+                            strip = None;
+                            capture = None;
+                            retry = Instant::now() + Duration::from_secs(2);
                         }
                     }
-                    Err(e) => {
-                        predictor.reset();
-                        usb_history.clear();
-                        watchdog.reset();
-                        state.message = format!("USB recovery: {e}");
-                        strip = None;
-                        capture = None;
-                        retry = Instant::now() + Duration::from_secs(2);
+                    if stopping {
+                        state.message = "Stopping".into();
                     }
                 }
             }
             Err(e) => {
+                repeat.reset();
+                state.response_summary = Some(responses.summary());
                 predictor.reset();
                 usb_history.clear();
                 watchdog.reset();
@@ -695,6 +941,10 @@ fn run_inner(
                 publish(&shared, &state);
                 continue;
             }
+        }
+        if response_epoch.elapsed() >= Duration::from_secs(1) {
+            state.response_summary = Some(responses.summary());
+            response_epoch = Instant::now();
         }
         if fps_epoch.elapsed() >= Duration::from_secs(1) {
             state.effective_fps =
@@ -783,8 +1033,12 @@ pub fn require_service() -> Result<()> {
 }
 
 /// First permission acquisition has a bounded 120-second allowance. Once a
-/// frame is acknowledged, silence expires at two seconds or three target
-/// periods. Prediction packets never refresh this watchdog.
+/// captured or healthy unchanged-source frame is acknowledged, silence expires
+/// at two seconds or three target periods. Prediction never refreshes it. Reuse
+/// is emitted only from the live permission-bound PipeWire loop, not a timer in
+/// the parent that could hide a stalled capture child. The opt-in repeat
+/// experiment also refreshes on a validated healthy source packet whose
+/// already-acknowledged bytes are proven invariant; it never manufactures ACKs.
 #[derive(Default)]
 pub struct CaptureWatchdog {
     deadline: Option<Instant>,
@@ -806,5 +1060,48 @@ impl CaptureWatchdog {
     }
     pub fn expired(&self, now: Instant) -> bool {
         self.deadline.is_some_and(|d| now >= d)
+    }
+}
+
+#[cfg(test)]
+mod control_progress_tests {
+    use super::*;
+    #[test]
+    fn session_interrupt_cancels_capture_during_ack_and_is_internal_only() {
+        let (tx, rx) = mpsc::channel();
+        let mut pending = VecDeque::new();
+        tx.send(Control::FrameReady).unwrap();
+        tx.send(Control::SessionInterrupted).unwrap();
+        assert!(defer_controls(&rx, &mut pending));
+        assert!(matches!(pending.pop_front(), Some(Control::FrameReady)));
+        assert!(matches!(
+            pending.pop_front(),
+            Some(Control::SessionInterrupted)
+        ));
+        assert!(pending.is_empty());
+        assert!(serde_json::from_str::<Control>(r#"{"action":"session_interrupted"}"#).is_err());
+    }
+    #[test]
+    fn ack_progress_preserves_command_order_and_bounds_each_inspection() {
+        let (tx, rx) = mpsc::channel();
+        let mut pending = VecDeque::new();
+        tx.send(Control::FrameReady).unwrap();
+        for _ in 0..15 {
+            tx.send(Control::Start).unwrap();
+        }
+        tx.send(Control::Stop).unwrap();
+        tx.send(Control::Quit).unwrap();
+        assert!(!defer_controls(&rx, &mut pending));
+        assert_eq!(pending.len(), 16);
+        assert!(defer_controls(&rx, &mut pending));
+        assert_eq!(pending.len(), 18);
+        assert!(matches!(pending.pop_front(), Some(Control::FrameReady)));
+        for _ in 0..15 {
+            assert!(matches!(pending.pop_front(), Some(Control::Start)));
+        }
+        assert!(matches!(pending.pop_front(), Some(Control::Stop)));
+        assert!(matches!(pending.pop_front(), Some(Control::Quit)));
+        assert!(!defer_controls(&rx, &mut pending));
+        assert!(pending.is_empty());
     }
 }

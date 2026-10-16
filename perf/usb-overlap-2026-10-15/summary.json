@@ -1,0 +1,609 @@
+{
+  "scope": "Real NL82K2, manual 48 zones, exact complete 65/65/20-byte HID reports, same neutral frame bytes across serial/overlap ABBA cases. ACK indices assume FIFO; no frame IDs or optical timing. Later trials extended initial three patterns with grey64, then removed inter-pair quiet checks for trains. First setup pilot with an invalid brightness-equality assertion is excluded; no overlap was issued in that pilot.",
+  "successful_pairs": 434,
+  "failed_pairs": 4,
+  "recorded_frames_issued": 876,
+  "overlap_enabled_in_daily_app": false,
+  "runs": [
+    {
+      "run": "gap0",
+      "probe_sha256": "ae9b02a1cd1e48c540590c47d86f6251141e798406864233d6a57260807291d2",
+      "pattern_set": "initial-three",
+      "train_without_inter_pair_quiet": false,
+      "successful_pairs": 8,
+      "failed_pairs": 1,
+      "error": "Missing ACK in two-frame window",
+      "cases": [
+        {
+          "pattern": "constant-grey",
+          "overlap_requested": false,
+          "successful_pairs": 8,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 21.9180995,
+          "median_both_acks_observed_ms": 36.946051,
+          "min_both_acks_ms": 35.950582000000004,
+          "max_both_acks_ms": 36.948296
+        }
+      ],
+      "failed_windows": [
+        {
+          "run": "gap0",
+          "case": 1,
+          "pattern": "constant-grey",
+          "overlap_requested": true,
+          "reason": "Missing ACK in two-frame window",
+          "times": {
+            "ack_observed_ms": [
+              18.933229
+            ],
+            "acks_observed_before_second_write": 0,
+            "overlap_requested": true,
+            "quiet_check_ms": 0.0,
+            "report_write_ms": [
+              [
+                0.937769,
+                0.998505,
+                0.9694
+              ],
+              [
+                1.0284630000000001,
+                0.9994170000000001,
+                0.970552
+              ]
+            ],
+            "source_gap_ms": 0.0,
+            "window_complete_ms": 0.0,
+            "write_completed_ms": [
+              2.9073279999999997,
+              5.907032
+            ],
+            "write_started_ms": [
+              0.00022,
+              2.907979
+            ]
+          }
+        }
+      ],
+      "controller_power_brightness_restored": true,
+      "black_cleanup_acknowledged": true,
+      "serial_barrier": true,
+      "quiescent_cleanup": true,
+      "config_byte_identical": true,
+      "fallback_autostart_installation_unchanged": true,
+      "tray_was_present": false,
+      "original_app_state_preserved": true,
+      "test_brightness_requested": 10,
+      "test_brightness_reported": [
+        16
+      ]
+    },
+    {
+      "run": "gap8",
+      "probe_sha256": "e457d8dcca94c37e43a2b5c3da6b706ecee9ac5712715bd971d567a472bf3a93",
+      "pattern_set": "initial-three",
+      "train_without_inter_pair_quiet": false,
+      "successful_pairs": 8,
+      "failed_pairs": 1,
+      "error": "Missing ACK in two-frame window",
+      "cases": [
+        {
+          "pattern": "constant-grey",
+          "overlap_requested": false,
+          "successful_pairs": 8,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 21.9181155,
+          "median_both_acks_observed_ms": 36.9470855,
+          "min_both_acks_ms": 35.946777,
+          "max_both_acks_ms": 36.948519
+        }
+      ],
+      "failed_windows": [
+        {
+          "run": "gap8",
+          "case": 1,
+          "pattern": "constant-grey",
+          "overlap_requested": true,
+          "reason": "Missing ACK in two-frame window",
+          "times": {
+            "ack_observed_ms": [
+              18.941506
+            ],
+            "acks_observed_before_second_write": 0,
+            "overlap_requested": true,
+            "quiet_check_ms": 0.0,
+            "report_write_ms": [
+              [
+                0.945143,
+                0.9978750000000001,
+                0.96954
+              ],
+              [
+                0.9264180000000001,
+                0.9990669999999999,
+                0.970903
+              ]
+            ],
+            "source_gap_ms": 8.0,
+            "window_complete_ms": 0.0,
+            "write_completed_ms": [
+              2.91383,
+              11.915037
+            ],
+            "write_started_ms": [
+              0.00015,
+              9.018179
+            ]
+          }
+        }
+      ],
+      "controller_power_brightness_restored": true,
+      "black_cleanup_acknowledged": true,
+      "serial_barrier": true,
+      "quiescent_cleanup": true,
+      "config_byte_identical": true,
+      "fallback_autostart_installation_unchanged": true,
+      "tray_was_present": false,
+      "original_app_state_preserved": true,
+      "test_brightness_requested": 10,
+      "test_brightness_reported": [
+        16
+      ]
+    },
+    {
+      "run": "gap16.666667",
+      "probe_sha256": "e457d8dcca94c37e43a2b5c3da6b706ecee9ac5712715bd971d567a472bf3a93",
+      "pattern_set": "initial-three",
+      "train_without_inter_pair_quiet": false,
+      "successful_pairs": 96,
+      "failed_pairs": 0,
+      "error": null,
+      "cases": [
+        {
+          "pattern": "constant-grey",
+          "overlap_requested": false,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 21.922319,
+          "median_both_acks_observed_ms": 36.948593,
+          "min_both_acks_ms": 35.936818,
+          "max_both_acks_ms": 36.950511
+        },
+        {
+          "pattern": "constant-grey",
+          "overlap_requested": true,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 16,
+          "median_second_write_completed_ms": 19.9224525,
+          "median_both_acks_observed_ms": 34.9489425,
+          "min_both_acks_ms": 34.93736,
+          "max_both_acks_ms": 35.951706
+        },
+        {
+          "pattern": "grey-to-black",
+          "overlap_requested": false,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 21.921582,
+          "median_both_acks_observed_ms": 24.9467505,
+          "min_both_acks_ms": 23.94856,
+          "max_both_acks_ms": 24.950593
+        },
+        {
+          "pattern": "grey-to-black",
+          "overlap_requested": true,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 16,
+          "median_second_write_completed_ms": 19.9222875,
+          "median_both_acks_observed_ms": 22.948732999999997,
+          "min_both_acks_ms": 22.939454,
+          "max_both_acks_ms": 23.954842
+        },
+        {
+          "pattern": "black-to-grey",
+          "overlap_requested": false,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 19.919407,
+          "median_both_acks_observed_ms": 34.94762,
+          "min_both_acks_ms": 34.940376,
+          "max_both_acks_ms": 34.949363999999996
+        },
+        {
+          "pattern": "black-to-grey",
+          "overlap_requested": true,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 19.918971499999998,
+          "median_both_acks_observed_ms": 34.9477805,
+          "min_both_acks_ms": 34.935137,
+          "max_both_acks_ms": 34.95243
+        }
+      ],
+      "failed_windows": [],
+      "controller_power_brightness_restored": true,
+      "black_cleanup_acknowledged": true,
+      "serial_barrier": true,
+      "quiescent_cleanup": true,
+      "config_byte_identical": true,
+      "fallback_autostart_installation_unchanged": true,
+      "tray_was_present": false,
+      "original_app_state_preserved": true,
+      "test_brightness_requested": 10,
+      "test_brightness_reported": [
+        16
+      ]
+    },
+    {
+      "run": "gap20",
+      "probe_sha256": "e457d8dcca94c37e43a2b5c3da6b706ecee9ac5712715bd971d567a472bf3a93",
+      "pattern_set": "initial-three",
+      "train_without_inter_pair_quiet": false,
+      "successful_pairs": 96,
+      "failed_pairs": 0,
+      "error": null,
+      "cases": [
+        {
+          "pattern": "constant-grey",
+          "overlap_requested": false,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 22.9212305,
+          "median_both_acks_observed_ms": 37.949503,
+          "min_both_acks_ms": 37.930813,
+          "max_both_acks_ms": 38.949326
+        },
+        {
+          "pattern": "constant-grey",
+          "overlap_requested": true,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 22.92912,
+          "median_both_acks_observed_ms": 37.9520735,
+          "min_both_acks_ms": 37.933208,
+          "max_both_acks_ms": 38.944046
+        },
+        {
+          "pattern": "grey-to-black",
+          "overlap_requested": false,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 22.9199475,
+          "median_both_acks_observed_ms": 25.948292000000002,
+          "min_both_acks_ms": 25.936685,
+          "max_both_acks_ms": 26.943596
+        },
+        {
+          "pattern": "grey-to-black",
+          "overlap_requested": true,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 22.9212,
+          "median_both_acks_observed_ms": 25.937501499999996,
+          "min_both_acks_ms": 25.930713,
+          "max_both_acks_ms": 26.93508
+        },
+        {
+          "pattern": "black-to-grey",
+          "overlap_requested": false,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 22.919938000000002,
+          "median_both_acks_observed_ms": 37.947725000000005,
+          "min_both_acks_ms": 37.930913,
+          "max_both_acks_ms": 37.950230000000005
+        },
+        {
+          "pattern": "black-to-grey",
+          "overlap_requested": true,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 22.9167865,
+          "median_both_acks_observed_ms": 37.944434,
+          "min_both_acks_ms": 37.923027999999995,
+          "max_both_acks_ms": 37.962643
+        }
+      ],
+      "failed_windows": [],
+      "controller_power_brightness_restored": true,
+      "black_cleanup_acknowledged": true,
+      "serial_barrier": true,
+      "quiescent_cleanup": true,
+      "config_byte_identical": true,
+      "fallback_autostart_installation_unchanged": true,
+      "tray_was_present": false,
+      "original_app_state_preserved": true,
+      "test_brightness_requested": 10,
+      "test_brightness_reported": [
+        16
+      ]
+    },
+    {
+      "run": "slow-gap16.666667",
+      "probe_sha256": "adc9d7a6a15aa882418d94acc5b5849ef60b59eeae4959a1054aab24fe859b5c",
+      "pattern_set": "extended-five",
+      "train_without_inter_pair_quiet": false,
+      "successful_pairs": 160,
+      "failed_pairs": 0,
+      "error": null,
+      "cases": [
+        {
+          "pattern": "constant-grey-64",
+          "overlap_requested": false,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 23.915739,
+          "median_both_acks_observed_ms": 40.942321,
+          "min_both_acks_ms": 39.947784,
+          "max_both_acks_ms": 40.95221
+        },
+        {
+          "pattern": "constant-grey-64",
+          "overlap_requested": true,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 16,
+          "median_second_write_completed_ms": 20.920843500000004,
+          "median_both_acks_observed_ms": 37.948337499999994,
+          "min_both_acks_ms": 37.935162,
+          "max_both_acks_ms": 37.963517
+        },
+        {
+          "pattern": "grey-64-to-black",
+          "overlap_requested": false,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 23.9182695,
+          "median_both_acks_observed_ms": 26.9436675,
+          "min_both_acks_ms": 25.939742,
+          "max_both_acks_ms": 26.952002999999998
+        },
+        {
+          "pattern": "grey-64-to-black",
+          "overlap_requested": true,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 16,
+          "median_second_write_completed_ms": 20.912598,
+          "median_both_acks_observed_ms": 23.944554,
+          "min_both_acks_ms": 23.921991,
+          "max_both_acks_ms": 23.955325
+        },
+        {
+          "pattern": "constant-grey",
+          "overlap_requested": false,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 21.920291,
+          "median_both_acks_observed_ms": 36.947733,
+          "min_both_acks_ms": 35.939775,
+          "max_both_acks_ms": 36.954730999999995
+        },
+        {
+          "pattern": "constant-grey",
+          "overlap_requested": true,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 16,
+          "median_second_write_completed_ms": 19.9214665,
+          "median_both_acks_observed_ms": 34.948983999999996,
+          "min_both_acks_ms": 34.932192,
+          "max_both_acks_ms": 35.952228000000005
+        },
+        {
+          "pattern": "grey-to-black",
+          "overlap_requested": false,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 21.911985,
+          "median_both_acks_observed_ms": 24.940484499999997,
+          "min_both_acks_ms": 23.933603,
+          "max_both_acks_ms": 24.95376
+        },
+        {
+          "pattern": "grey-to-black",
+          "overlap_requested": true,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 16,
+          "median_second_write_completed_ms": 19.920133999999997,
+          "median_both_acks_observed_ms": 22.946434,
+          "min_both_acks_ms": 22.924156,
+          "max_both_acks_ms": 23.951456999999998
+        },
+        {
+          "pattern": "black-to-grey",
+          "overlap_requested": false,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 19.918450999999997,
+          "median_both_acks_observed_ms": 34.9480375,
+          "min_both_acks_ms": 34.921742,
+          "max_both_acks_ms": 34.952521
+        },
+        {
+          "pattern": "black-to-grey",
+          "overlap_requested": true,
+          "successful_pairs": 16,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 19.918035,
+          "median_both_acks_observed_ms": 34.943283,
+          "min_both_acks_ms": 34.920189,
+          "max_both_acks_ms": 34.95738
+        }
+      ],
+      "failed_windows": [],
+      "controller_power_brightness_restored": true,
+      "black_cleanup_acknowledged": true,
+      "serial_barrier": true,
+      "quiescent_cleanup": true,
+      "config_byte_identical": true,
+      "fallback_autostart_installation_unchanged": true,
+      "tray_was_present": false,
+      "original_app_state_preserved": true,
+      "test_brightness_requested": 10,
+      "test_brightness_reported": [
+        16
+      ]
+    },
+    {
+      "run": "train-gap16.666667",
+      "probe_sha256": "b55223cac7818fccdc327412a078e66821ccecf3d2b6f15f401e7a3fef7082c2",
+      "pattern_set": "extended-five",
+      "train_without_inter_pair_quiet": true,
+      "successful_pairs": 33,
+      "failed_pairs": 1,
+      "error": "Missing ACK in two-frame window",
+      "cases": [
+        {
+          "pattern": "constant-grey-64",
+          "overlap_requested": false,
+          "successful_pairs": 32,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 24.973344,
+          "median_both_acks_observed_ms": 42.0004185,
+          "min_both_acks_ms": 40.945701,
+          "max_both_acks_ms": 42.006454999999995
+        },
+        {
+          "pattern": "constant-grey-64",
+          "overlap_requested": true,
+          "successful_pairs": 1,
+          "genuinely_overlapping_pairs": 1,
+          "median_second_write_completed_ms": 20.880046999999998,
+          "median_both_acks_observed_ms": 37.900980000000004,
+          "min_both_acks_ms": 37.900980000000004,
+          "max_both_acks_ms": 37.900980000000004
+        }
+      ],
+      "failed_windows": [
+        {
+          "run": "train-gap16.666667",
+          "case": 1,
+          "pattern": "constant-grey-64",
+          "overlap_requested": true,
+          "reason": "Missing ACK in two-frame window",
+          "times": {
+            "ack_observed_ms": [
+              22.003201
+            ],
+            "acks_observed_before_second_write": 0,
+            "overlap_requested": true,
+            "quiet_check_ms": 0.0,
+            "report_write_ms": [
+              [
+                2.008323,
+                0.9985149999999999,
+                0.969461
+              ],
+              [
+                0.8168789999999999,
+                0.997394,
+                0.970312
+              ]
+            ],
+            "source_gap_ms": 16.666667,
+            "window_complete_ms": 0.0,
+            "write_completed_ms": [
+              3.9772499999999997,
+              19.977465
+            ],
+            "write_started_ms": [
+              0.00011999999999999999,
+              17.1924
+            ]
+          }
+        }
+      ],
+      "controller_power_brightness_restored": true,
+      "black_cleanup_acknowledged": true,
+      "serial_barrier": true,
+      "quiescent_cleanup": true,
+      "config_byte_identical": true,
+      "fallback_autostart_installation_unchanged": true,
+      "tray_was_present": false,
+      "original_app_state_preserved": true,
+      "test_brightness_requested": 10,
+      "test_brightness_reported": [
+        16
+      ]
+    },
+    {
+      "run": "train-repeat-gap16.666667",
+      "probe_sha256": "b55223cac7818fccdc327412a078e66821ccecf3d2b6f15f401e7a3fef7082c2",
+      "pattern_set": "extended-five",
+      "train_without_inter_pair_quiet": true,
+      "successful_pairs": 33,
+      "failed_pairs": 1,
+      "error": "Missing ACK in two-frame window",
+      "cases": [
+        {
+          "pattern": "constant-grey-64",
+          "overlap_requested": false,
+          "successful_pairs": 32,
+          "genuinely_overlapping_pairs": 0,
+          "median_second_write_completed_ms": 24.973098999999998,
+          "median_both_acks_observed_ms": 42.000164,
+          "min_both_acks_ms": 40.948907999999996,
+          "max_both_acks_ms": 42.005193000000006
+        },
+        {
+          "pattern": "constant-grey-64",
+          "overlap_requested": true,
+          "successful_pairs": 1,
+          "genuinely_overlapping_pairs": 1,
+          "median_second_write_completed_ms": 20.876972000000002,
+          "median_both_acks_observed_ms": 37.923783,
+          "min_both_acks_ms": 37.923783,
+          "max_both_acks_ms": 37.923783
+        }
+      ],
+      "failed_windows": [
+        {
+          "run": "train-repeat-gap16.666667",
+          "case": 1,
+          "pattern": "constant-grey-64",
+          "overlap_requested": true,
+          "reason": "Missing ACK in two-frame window",
+          "times": {
+            "ack_observed_ms": [
+              22.182645
+            ],
+            "acks_observed_before_second_write": 0,
+            "overlap_requested": true,
+            "quiet_check_ms": 0.0,
+            "report_write_ms": [
+              [
+                1.9839570000000002,
+                0.997064,
+                0.9698709999999999
+              ],
+              [
+                1.154253,
+                0.6608010000000001,
+                0.96896
+              ]
+            ],
+            "source_gap_ms": 16.666667,
+            "window_complete_ms": 0.0,
+            "write_completed_ms": [
+              3.952265,
+              19.953730999999998
+            ],
+            "write_started_ms": [
+              0.000281,
+              17.167522
+            ]
+          }
+        }
+      ],
+      "controller_power_brightness_restored": true,
+      "black_cleanup_acknowledged": true,
+      "serial_barrier": true,
+      "quiescent_cleanup": true,
+      "config_byte_identical": true,
+      "fallback_autostart_installation_unchanged": true,
+      "tray_was_present": false,
+      "original_app_state_preserved": true,
+      "test_brightness_requested": 10,
+      "test_brightness_reported": [
+        16
+      ]
+    }
+  ]
+}

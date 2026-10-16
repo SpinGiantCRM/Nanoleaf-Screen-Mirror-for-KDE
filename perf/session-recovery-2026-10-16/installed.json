@@ -1,0 +1,17 @@
+{
+  "scope": "Installed app/helper bounded capture and low-brightness acknowledged USB at Target FPS 240. No optical latency or photometric colour measurement.",
+  "smoke_acknowledged_frames": 356,
+  "post_login_hold_acknowledged_frames": 915,
+  "controller_restored_in_both_probes": true,
+  "smoke_independent_controller_readback_matches": true,
+  "python_launchers_and_autostarts_unchanged": true,
+  "only_managed_native_install_files_and_target_fps_changed": "Historical state during the 240-target probes; final state changes only the two managed native install files.",
+  "calibration_and_all_other_toml_values_unchanged": true,
+  "app_closed_after": true,
+  "app_sha256": "e4d12cd9d2a72c70780b4f4a061d6330a79e2e85a807c2a4f5f5d8668160b619",
+  "helper_sha256": "4ca79a9b49555461e10534fabba9cdaf10f31eba63b7888570b6efef835eaf1c",
+  "user_post_login_observation": "Lit and following correctly",
+  "physical_same_process_restart_observation": "Initial test ended after tenth ACK; user reported no light after login. Later twenty-second fresh-service hold was visibly correct; do not treat as a sustained same-process restart observation.",
+  "current_daily_target_fps": 60,
+  "exact_original_config_restored_after_experiment": true
+}

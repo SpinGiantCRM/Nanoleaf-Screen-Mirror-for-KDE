@@ -1,0 +1,14 @@
+{
+  "binary_sha256": "e4d12cd9d2a72c70780b4f4a061d6330a79e2e85a807c2a4f5f5d8668160b619",
+  "capture_helper_sha256": "4ca79a9b49555461e10534fabba9cdaf10f31eba63b7888570b6efef835eaf1c",
+  "scope": "Real native tray, display-referred SDR capture and acknowledged USB; changing desktop, no optical/power measurement.",
+  "streaming": true,
+  "preview_exclusive": true,
+  "restart_open_count": 3,
+  "worker_failure_requires_explicit_restart": true,
+  "worker_stall_to_stop_seconds": 2.0556469720004316,
+  "worker_stall_requires_explicit_restart": true,
+  "stop_kept_tray_service_alive": true,
+  "configuration_and_fallback_launcher_preserved": true,
+  "controller_restored": true
+}

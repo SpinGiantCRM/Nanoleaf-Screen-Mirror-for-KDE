@@ -1,0 +1,22 @@
+{
+  "scope": "Actual KWin6.8 capture-only, full native CPU/Vulkan colour comparison; no images/USB/optical measurement",
+  "phases": [
+    {
+      "mode": "implicit",
+      "frames": 290,
+      "all_exact": true,
+      "error": null,
+      "validation_stderr_bytes": 0,
+      "config_byte_identical": true
+    },
+    {
+      "mode": "explicit",
+      "frames": 298,
+      "all_exact": true,
+      "error": null,
+      "validation_stderr_bytes": 0,
+      "config_byte_identical": true
+    }
+  ],
+  "total_exact_outputs": 588
+}

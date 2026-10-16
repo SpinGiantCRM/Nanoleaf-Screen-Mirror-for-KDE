@@ -1,6 +1,8 @@
 //! Narrow Linux Vulkan interop boundary. The app/colour crates remain safe Rust.
 //! Capture buffers stay dequeued until GPU work and foreign ownership release
-//! finish. Packed 8-bit, one memory plane, implicit sync only for this prototype.
+//! finish. Packed 8-bit, one image plane; explicit timelines remain opt-in.
+pub mod border;
+pub mod timeline;
 use anyhow::{ensure, Context, Result};
 use ash::vk;
 use pipewire::{buffer::Buffer, spa};
@@ -213,24 +215,166 @@ pub struct RegionReader<'a> {
     sampler: &'a nanoleaf_vulkan_probe::TextureSampler,
     texture: &'a wgpu::Texture,
     bytes: usize,
-    reads: usize,
     full: Option<Vec<u8>>,
+    edges: Option<Vec<Vec<u8>>>,
+    transfers: usize,
+    rows: HashMap<u32, Vec<u8>>,
+    columns: HashMap<u32, Vec<u8>>,
+    last_row: Option<u32>,
+    last_column: Option<u32>,
+    row_forward: bool,
+    column_forward: bool,
+    row_batches: usize,
+    column_batches: usize,
+    column_range: Option<(u32, u32)>,
+    row_totals: Option<Vec<[u32; 4]>>,
+    column_totals: Option<(u32, u32, Vec<[u32; 4]>)>,
+    summary_bytes: usize,
 }
-impl RegionReader<'_> {
-    fn region(&mut self, rect: [u32; 4]) -> Result<Vec<u8>> {
-        // Black screens/wide bars can require hundreds of detector reads. After
-        // eight sparse copies, read once and run the SAME ordered CPU analysis.
-        // This bounds GPU round trips without skipping or approximating pixels.
-        if self.reads >= 8 && self.full.is_none() {
-            let rgb = self.sampler.diagnostic_rgb(self.texture)?;
-            self.bytes += rgb.len();
-            self.full = Some(rgb);
+impl<'a> RegionReader<'a> {
+    pub fn new(
+        sampler: &'a nanoleaf_vulkan_probe::TextureSampler,
+        texture: &'a wgpu::Texture,
+    ) -> Self {
+        Self {
+            sampler,
+            texture,
+            bytes: 0,
+            full: None,
+            edges: None,
+            transfers: 0,
+            rows: HashMap::new(),
+            columns: HashMap::new(),
+            last_row: None,
+            last_column: None,
+            row_forward: true,
+            column_forward: true,
+            row_batches: 0,
+            column_batches: 0,
+            column_range: None,
+            row_totals: None,
+            column_totals: None,
+            summary_bytes: 0,
         }
+    }
+    pub fn statistics(&self) -> (usize, usize) {
+        (self.bytes, self.transfers)
+    }
+    /// Integer summary bytes, separate from exact RGB readback bytes.
+    pub fn summary_bytes(&self) -> usize {
+        self.summary_bytes
+    }
+    /// A certificate preserves the CPU threshold decision, NOT its exact mean.
+    /// Outer edges, unsupported grids and uncertain cases use original pixels.
+    pub fn row_luma_above(&mut self, y: u32, threshold: f32) -> Result<Option<bool>> {
+        let h = self.texture.height();
+        ensure!(y < h, "Invalid analysis row");
+        if y == 0 || y == h - 1 || self.full.is_some() {
+            return Ok(None);
+        }
+        let Some(index) = border::line_index(y, h) else {
+            return Ok(None);
+        };
+        if self.row_totals.is_none() {
+            let totals = self
+                .sampler
+                .line_sums(self.texture, false, 0, self.texture.width())?;
+            self.summary_bytes += totals.len() * 16;
+            self.transfers += 1;
+            self.row_totals = Some(totals);
+        }
+        Ok(border::certify_luma_above(
+            self.row_totals.as_ref().context("Missing row totals")?[index],
+            threshold,
+        ))
+    }
+    pub fn column_luma_above(
+        &mut self,
+        x: u32,
+        top: u32,
+        bottom: u32,
+        threshold: f32,
+    ) -> Result<Option<bool>> {
+        let w = self.texture.width();
+        ensure!(
+            x < w && top < bottom && bottom <= self.texture.height(),
+            "Invalid analysis column"
+        );
+        if x == 0 || x == w - 1 || self.full.is_some() {
+            return Ok(None);
+        }
+        let Some(index) = border::line_index(x, w) else {
+            return Ok(None);
+        };
+        if self
+            .column_totals
+            .as_ref()
+            .is_none_or(|(a, b, _)| (*a, *b) != (top, bottom))
+        {
+            let totals = self.sampler.line_sums(self.texture, true, top, bottom)?;
+            self.summary_bytes += totals.len() * 16;
+            self.transfers += 1;
+            self.column_totals = Some((top, bottom, totals));
+        }
+        Ok(border::certify_luma_above(
+            self.column_totals
+                .as_ref()
+                .context("Missing column totals")?
+                .2[index],
+            threshold,
+        ))
+    }
+    /// Uniform dark frames have exactly the full-image bounds in the CPU
+    /// detector, including either side of its threshold. Edge equality only
+    /// selects candidates: the GPU must prove EVERY normalized pixel equal.
+    pub fn uniform_dark(&mut self) -> Result<bool> {
+        self.edges()?;
+        let Some(edges) = &self.edges else {
+            return Ok(false);
+        };
+        let first = &edges[0][..3];
+        if first.iter().any(|&v| v > 4)
+            || edges
+                .iter()
+                .any(|line| line.chunks_exact(3).any(|rgb| rgb != first))
+        {
+            return Ok(false);
+        }
+        let uniform = self.sampler.is_uniform(self.texture)?;
+        // This is flags, not RGB pixels. Count its IO separately from RGB bytes.
+        self.transfers += 1;
+        Ok(uniform)
+    }
+    fn edges(&mut self) -> Result<()> {
+        if self.edges.is_some() || self.full.is_some() {
+            return Ok(());
+        }
+        let (w, h) = (self.texture.width(), self.texture.height());
+        let edges = self.sampler.regions_rgb(
+            self.texture,
+            &[
+                [0, 0, w, 1],
+                [0, h - 1, w, 1],
+                [0, 0, 1, h],
+                [w - 1, 0, 1, h],
+            ],
+        )?;
+        ensure!(edges.len() == 4, "Incomplete edge readback batch");
+        self.bytes += edges.iter().map(Vec::len).sum::<usize>();
+        self.transfers += 1;
+        self.edges = Some(edges);
+        Ok(())
+    }
+    fn region(&mut self, rect: [u32; 4]) -> Result<Vec<u8>> {
         if let Some(rgb) = &self.full {
             let width = self.texture.width() as usize;
             ensure!(
-                rect[0] + rect[2] <= self.texture.width()
-                    && rect[1] + rect[3] <= self.texture.height(),
+                rect[0]
+                    .checked_add(rect[2])
+                    .is_some_and(|r| r <= self.texture.width())
+                    && rect[1]
+                        .checked_add(rect[3])
+                        .is_some_and(|b| b <= self.texture.height()),
                 "Invalid analysis rectangle"
             );
             let mut result = Vec::with_capacity(rect[2] as usize * rect[3] as usize * 3);
@@ -241,23 +385,188 @@ impl RegionReader<'_> {
             return Ok(result);
         }
         let result = self.sampler.region_rgb(self.texture, rect)?;
-        self.reads += 1;
+        self.transfers += 1;
         self.bytes += result.len();
         Ok(result)
     }
+    fn fallback_full(&mut self) -> Result<()> {
+        if self.full.is_none() {
+            let rgb = self.sampler.diagnostic_rgb(self.texture)?;
+            self.bytes += rgb.len();
+            self.transfers += 1;
+            self.full = Some(rgb);
+            self.rows.clear();
+            self.columns.clear();
+        }
+        Ok(())
+    }
     pub fn row(&mut self, y: u32) -> Result<Vec<u8>> {
-        self.region([0, y, self.texture.width(), 1])
+        ensure!(y < self.texture.height(), "Invalid analysis row");
+        let forward = self.last_row.is_none_or(|last| y >= last);
+        if forward != self.row_forward {
+            self.row_batches = 0;
+            self.rows.clear();
+        }
+        self.row_forward = forward;
+        self.last_row = Some(y);
+        self.edges()?;
+        if let Some(edges) = &self.edges {
+            if y == 0 {
+                return Ok(edges[0].clone());
+            }
+            if y == self.texture.height() - 1 {
+                return Ok(edges[1].clone());
+            }
+        }
+        if self.full.is_some() {
+            return self.region([0, y, self.texture.width(), 1]);
+        }
+        if let Some(row) = self.rows.get(&y) {
+            return Ok(row.clone());
+        }
+        // Exact detector scanlines, in its existing 8-pixel search order. One
+        // bounded batch replaces individual copies; do not download all of 4K
+        // merely because a dark title bar required a handful of row checks.
+        if self.row_batches >= 2 {
+            self.fallback_full()?;
+            return self.region([0, y, self.texture.width(), 1]);
+        }
+        let positions = line_positions(y, forward, self.texture.height());
+        let rects: Vec<_> = positions
+            .iter()
+            .map(|&row| [0, row, self.texture.width(), 1])
+            .collect();
+        let lines = self.sampler.regions_rgb(self.texture, &rects)?;
+        ensure!(
+            lines.len() == positions.len(),
+            "Incomplete analysis row batch"
+        );
+        self.bytes += lines.iter().map(Vec::len).sum::<usize>();
+        self.transfers += 1;
+        self.row_batches += 1;
+        self.rows = positions.into_iter().zip(lines).collect();
+        self.rows.get(&y).cloned().context("Missing prefetched row")
     }
     pub fn column(&mut self, x: u32, top: u32, bottom: u32) -> Result<Vec<u8>> {
-        ensure!(bottom > top, "Invalid analysis column");
-        self.region([x, top, 1, bottom - top])
+        ensure!(
+            x < self.texture.width() && bottom > top && bottom <= self.texture.height(),
+            "Invalid analysis column"
+        );
+        if self.column_range != Some((top, bottom)) {
+            self.columns.clear();
+            self.column_batches = 0;
+            self.last_column = None;
+            self.column_range = Some((top, bottom));
+        }
+        let forward = self.last_column.is_none_or(|last| x >= last);
+        if forward != self.column_forward {
+            self.column_batches = 0;
+            self.columns.clear();
+        }
+        self.column_forward = forward;
+        self.last_column = Some(x);
+        self.edges()?;
+        if let Some(edges) = &self.edges {
+            let edge = if x == 0 {
+                Some(&edges[2])
+            } else if x == self.texture.width() - 1 {
+                Some(&edges[3])
+            } else {
+                None
+            };
+            if let Some(edge) = edge {
+                return Ok(edge
+                    .get(top as usize * 3..bottom as usize * 3)
+                    .context("Invalid analysis column")?
+                    .to_vec());
+            }
+        }
+        if self.full.is_some() {
+            return self.region([x, top, 1, bottom - top]);
+        }
+        if let Some(column) = self.columns.get(&x) {
+            return Ok(column.clone());
+        }
+        if self.column_batches >= 3 {
+            self.fallback_full()?;
+            return self.region([x, top, 1, bottom - top]);
+        }
+        let positions = line_positions(x, forward, self.texture.width());
+        // Copy a contiguous band, not dozens of 1-pixel-wide rectangles:
+        // GPU row alignment would otherwise pad every column to 256 bytes.
+        let left = *positions.iter().min().context("Empty column batch")?;
+        let right = *positions.iter().max().context("Empty column batch")?;
+        let width = right - left + 1;
+        let band = self
+            .sampler
+            .region_rgb(self.texture, [left, top, width, bottom - top])?;
+        self.bytes += band.len();
+        self.transfers += 1;
+        self.column_batches += 1;
+        self.columns.clear();
+        for col in positions {
+            let offset = (col - left) as usize * 3;
+            let column = band
+                .chunks_exact(width as usize * 3)
+                .flat_map(|row| row[offset..offset + 3].iter().copied())
+                .collect();
+            self.columns.insert(col, column);
+        }
+        self.columns
+            .get(&x)
+            .cloned()
+            .context("Missing prefetched column")
+    }
+}
+// Fixed internal IO batching, not a sampling/FPS/quality setting. Every pixel
+// requested by the existing detector still goes through its ordered CPU sum.
+fn line_positions(start: u32, forward: bool, limit: u32) -> Vec<u32> {
+    (0..32)
+        .filter_map(|i| {
+            if forward {
+                start.checked_add(i * 8)
+            } else {
+                start.checked_sub(i * 8)
+            }
+        })
+        .filter(|&v| v < limit)
+        .collect()
+}
+
+#[cfg(test)]
+mod analysis_lines_tests {
+    use super::line_positions;
+    #[test]
+    fn ordered_prefetch_stays_bounded_at_both_edges_and_cannot_overflow() {
+        assert_eq!(
+            line_positions(8, true, 100),
+            (8..100).step_by(8).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            line_positions(91, false, 100),
+            (0..12).map(|i| 91 - i * 8).collect::<Vec<_>>()
+        );
+        assert_eq!(line_positions(0, false, 1), vec![0]);
+        assert!(line_positions(0, true, 0).is_empty());
+        assert!(line_positions(u32::MAX, true, u32::MAX).is_empty());
+        assert_eq!(
+            line_positions(u32::MAX - 1, true, u32::MAX),
+            vec![u32::MAX - 1]
+        );
+        assert_eq!(line_positions(0, true, 16_384).len(), 32);
     }
 }
 /// A GPU sampler that exposes only colour statistics and optional diagnostic
 /// bytes. Imported textures cannot escape the dequeued PipeWire buffer lifetime.
 pub struct DmaSampler {
     sampler: nanoleaf_vulkan_probe::TextureSampler,
-    cache: HashMap<FrameKey, CachedFrame>,
+    cache: ImportCache,
+}
+#[derive(Default)]
+struct ImportCache {
+    frames: HashMap<FrameKey, CachedFrame>,
+    timeline: Option<timeline::Device>,
+    batch_waits: bool,
 }
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 struct FrameKey {
@@ -294,7 +603,11 @@ impl DmaSampler {
             sampler: nanoleaf_vulkan_probe::TextureSampler::new(
                 device, queue, width, height, zones,
             )?,
-            cache: HashMap::new(),
+            cache: ImportCache {
+                // Experimental only: live repeat timings were inconclusive.
+                batch_waits: std::env::var_os("NANOLEAF_BATCH_GPU_WAITS").is_some(),
+                ..Default::default()
+            },
         })
     }
     pub fn plan_sample<T>(
@@ -317,18 +630,23 @@ impl DmaSampler {
             buffer,
             format,
             |texture| {
-                let (zones, context, bytes, full) = {
-                    let mut reader = RegionReader {
-                        sampler,
-                        texture,
-                        bytes: 0,
-                        reads: 0,
-                        full: None,
-                    };
+                let analysis_started = Instant::now();
+                let (zones, context, bytes, summary_bytes, transfers, full) = {
+                    let mut reader = RegionReader::new(sampler, texture);
                     let (zones, context) = plan(&mut reader)?;
-                    (zones, context, reader.bytes, reader.full)
+                    (
+                        zones,
+                        context,
+                        reader.bytes,
+                        reader.summary_bytes,
+                        reader.transfers,
+                        reader.full,
+                    )
                 };
+                let analysis_ms = analysis_started.elapsed().as_secs_f64() * 1000.0;
+                let zone_started = Instant::now();
                 sampler.set_zones(&zones)?;
+                let zone_update_ms = zone_started.elapsed().as_secs_f64() * 1000.0;
                 let diagnostic_rgb = if diagnostic {
                     Some(match full {
                         Some(rgb) => rgb,
@@ -339,6 +657,10 @@ impl DmaSampler {
                 };
                 let (samples, mut timings) = sampler.sample(texture)?;
                 timings["analysis_rgb_bytes"] = serde_json::json!(bytes);
+                timings["analysis_summary_bytes"] = serde_json::json!(summary_bytes);
+                timings["analysis_ms"] = serde_json::json!(analysis_ms);
+                timings["zone_update_ms"] = serde_json::json!(zone_update_ms);
+                timings["analysis_transfer_batches"] = serde_json::json!(transfers);
                 Ok((
                     SampledFrame {
                         samples,
@@ -389,13 +711,13 @@ impl DmaSampler {
         result.timings["interop"] = stages;
         result.timings["complete_frame_ms"] =
             serde_json::json!(started.elapsed().as_secs_f64() * 1000.0);
-        result.timings["cached_images"] = serde_json::json!(self.cache.len());
+        result.timings["cached_images"] = serde_json::json!(self.cache.frames.len());
         Ok(result)
     }
 }
 // Private: only the synchronous sampler above receives this borrowed texture.
 fn with_texture<T>(
-    cache: &mut HashMap<FrameKey, CachedFrame>,
+    cache: &mut ImportCache,
     stages: &mut serde_json::Value,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -427,10 +749,23 @@ fn with_texture<T>(
             .contains(spa::param::video::VideoFlags::PREMULTIPLIED_ALPHA),
         "Premultiplied DMA-BUF requires verified alpha conversion"
     );
+    let explicit = timeline::present(buffer);
+    let lease = if explicit {
+        if cache.timeline.is_none() {
+            cache.timeline = Some(timeline::Device::open(device)?);
+        }
+        Some(timeline::Lease::acquire(
+            buffer,
+            cache.timeline.as_ref().context("Missing sync device")?,
+        )?)
+    } else {
+        None
+    };
     let planes = buffer.datas_mut();
     ensure!(
-        planes.len() == 1 && planes[0].type_() == spa::buffer::DataType::DmaBuf,
-        "One DMA-BUF plane with implicit synchronization required"
+        planes.len() == if explicit { 3 } else { 1 }
+            && planes[0].type_() == spa::buffer::DataType::DmaBuf,
+        "Expected one DMA-BUF image plane with the negotiated synchronization layout"
     );
     let data = &planes[0];
     ensure!(
@@ -445,7 +780,9 @@ fn with_texture<T>(
     );
     // SAFETY: Data's FD is owned by the dequeued Buffer, alive until this call ends.
     let borrowed = unsafe { BorrowedFd::borrow_raw(data.fd()) };
-    wait_producer(borrowed)?;
+    if lease.is_none() {
+        wait_producer(borrowed)?;
+    }
     let fence_ms = started.elapsed().as_secs_f64() * 1000.0;
     let file = std::fs::File::from(borrowed.try_clone_to_owned()?);
     let metadata = file.metadata()?;
@@ -463,13 +800,13 @@ fn with_texture<T>(
         stride,
         offset,
     };
-    let cached = cache.contains_key(&key);
+    let cached = cache.frames.contains_key(&key);
     let import_started = Instant::now();
     if !cached {
         // A held Vulkan allocation keeps the DMA-BUF inode alive, so numeric FD
         // reuse cannot alias a stale cached image. Bound to four compositor buffers.
-        if cache.len() >= 4 {
-            cache.clear();
+        if cache.frames.len() >= 4 {
+            cache.frames.clear();
         }
         let duplicate: OwnedFd = file.into();
 
@@ -511,7 +848,15 @@ fn with_texture<T>(
         // SAFETY: We only reference the live image; HAL retains ownership until wrapping.
         let image = unsafe { imported.raw_handle() };
         drop(hal);
-        if let Err(error) = transfer(device, queue, &raw_device, family, image, true) {
+        if let Err(error) = transfer(
+            device,
+            queue,
+            &raw_device,
+            family,
+            image,
+            Transfer::InitialAcquire,
+            cache.batch_waits,
+        ) {
             // SAFETY: Transfer never submitted work successfully, or waited for completion.
             let hal = unsafe { device.as_hal::<wgpu::hal::api::Vulkan>() }
                 .context("Lost Vulkan device")?;
@@ -528,7 +873,7 @@ fn with_texture<T>(
                 wgpu::TextureUses::RESOURCE,
             )
         };
-        cache.insert(
+        cache.frames.insert(
             key,
             CachedFrame {
                 texture,
@@ -540,6 +885,7 @@ fn with_texture<T>(
     }
     let import_ms = import_started.elapsed().as_secs_f64() * 1000.0;
     let frame = cache
+        .frames
         .get(&key)
         .context("Missing imported frame cache entry")?;
     let acquire_started = Instant::now();
@@ -550,18 +896,22 @@ fn with_texture<T>(
             &frame.raw_device,
             frame.family,
             frame.image,
-            true,
+            Transfer::CachedAcquire,
+            cache.batch_waits,
         )?;
     }
     let acquire_ms = acquire_started.elapsed().as_secs_f64() * 1000.0;
     let result = run(&frame.texture);
-    // Do not return a PipeWire buffer while a failed callback still has GPU work.
-    if device
-        .poll(wgpu::PollType::Wait {
-            submission_index: None,
-            timeout: Some(Duration::from_secs(2)),
-        })
-        .is_err()
+    // The release submission's fence covers all earlier work on this queue.
+    // Keep the old explicit completion check on errors and in the default path.
+    // No PipeWire buffer can return before the release barrier's completed wait.
+    if (!cache.batch_waits || result.is_err())
+        && device
+            .poll(wgpu::PollType::Wait {
+                submission_index: None,
+                timeout: Some(Duration::from_secs(2)),
+            })
+            .is_err()
     {
         // This executable is capture-only. Kernel teardown is safer than letting
         // Buffer::drop requeue memory that may still be in use after a GPU hang.
@@ -575,16 +925,35 @@ fn with_texture<T>(
         &frame.raw_device,
         frame.family,
         frame.image,
-        false,
+        Transfer::Release,
+        cache.batch_waits,
     )
     .is_err()
     {
         eprintln!("Could not release foreign GPU ownership; terminating capture probe");
         std::process::exit(2);
     }
+    if let Some(lease) = lease {
+        lease.release()?;
+    }
     let release_ms = release_started.elapsed().as_secs_f64() * 1000.0;
-    *stages = serde_json::json!({"producer_fence_ms":fence_ms,"import_or_cache_ms":import_ms,"cache_hit":cached,"acquire_ms":acquire_ms,"release_ms":release_ms});
+    *stages = serde_json::json!({"sync_mode":if explicit {"drm-syncobj-timeline"} else {"implicit-sync-file"},"producer_fence_ms":fence_ms,"import_or_cache_ms":import_ms,"cache_hit":cached,"acquire_ms":acquire_ms,"release_ms":release_ms});
     result
+}
+
+#[derive(Clone, Copy)]
+enum Transfer {
+    InitialAcquire,
+    CachedAcquire,
+    Release,
+}
+impl Transfer {
+    fn wait(self, batch: bool) -> bool {
+        // Only a cached acquire may defer host completion. Initial imports keep
+        // their original construction contract; release ALWAYS waits for GPU
+        // completion before the compositor can reuse the memory.
+        !batch || !matches!(self, Self::CachedAcquire)
+    }
 }
 
 fn transfer(
@@ -593,14 +962,15 @@ fn transfer(
     raw: &ash::Device,
     family: u32,
     image: vk::Image,
-    acquire: bool,
+    transfer: Transfer,
+    batch_waits: bool,
 ) -> Result<()> {
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("Foreign screen buffer ownership"),
     });
     // SAFETY: The callback only records a Vulkan barrier into this encoder's
     // currently open command buffer. It does not destroy/retain raw handles.
-    // The image remains owned and alive through the subsequent completed submit.
+    // The image remains alive through submit and final release completion.
     unsafe {
         encoder.as_hal_mut::<wgpu::hal::api::Vulkan, _, _>(|encoder| {
             let encoder = encoder.expect("Vulkan command encoder");
@@ -610,7 +980,7 @@ fn transfer(
                 .aspect_mask(vk::ImageAspectFlags::COLOR)
                 .level_count(1)
                 .layer_count(1);
-            let barrier = if acquire {
+            let barrier = if !matches!(transfer, Transfer::Release) {
                 vk::ImageMemoryBarrier::default()
                     .old_layout(vk::ImageLayout::GENERAL)
                     .new_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
@@ -628,8 +998,10 @@ fn transfer(
             .image(image)
             .subresource_range(range);
             // SAFETY: External producer is complete; image layout, plane and paired
-            // ownership states are checked by this module. No GPU use is pending
-            // before release. The guarded encoder is recording and on this device.
+            // ownership states are checked by this module. ALL_COMMANDS scopes
+            // cover same-queue work before/after this barrier even when its host
+            // wait is deferred. Release completion is mandatory before requeue.
+            // The guarded encoder is recording and on this device.
             raw.cmd_pipeline_barrier(
                 command,
                 vk::PipelineStageFlags::ALL_COMMANDS,
@@ -644,15 +1016,30 @@ fn transfer(
     // Submit through wgpu, which serializes access to the Vulkan queue. Never
     // call raw vkQueueSubmit alongside possible wgpu submissions.
     let index = queue.submit([encoder.finish()]);
-    if device
-        .poll(wgpu::PollType::Wait {
-            submission_index: Some(index),
-            timeout: Some(Duration::from_secs(2)),
-        })
-        .is_err()
+    if transfer.wait(batch_waits)
+        && device
+            .poll(wgpu::PollType::Wait {
+                submission_index: Some(index),
+                timeout: Some(Duration::from_secs(2)),
+            })
+            .is_err()
     {
         eprintln!("Vulkan ownership transfer failed; terminating isolated capture probe");
         std::process::exit(2);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod ownership_tests {
+    use super::Transfer;
+    #[test]
+    fn only_cached_acquire_can_defer_completion_never_import_or_release() {
+        for batch in [false, true] {
+            assert!(Transfer::InitialAcquire.wait(batch));
+            assert!(Transfer::Release.wait(batch));
+        }
+        assert!(Transfer::CachedAcquire.wait(false));
+        assert!(!Transfer::CachedAcquire.wait(true));
+    }
 }

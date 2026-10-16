@@ -1,0 +1,12 @@
+{
+  "scope": "Relocated real binaries; isolated HOME/XDG; no capture or USB output",
+  "version": "nanoleaf-native 0.1.0",
+  "relocation": true,
+  "helper_discovery": true,
+  "install_upgrade_rollback": true,
+  "autostart_tracks_managed_command": true,
+  "live_service_blocks_upgrade": true,
+  "uninstall_retains_versions": true,
+  "configuration_and_python_fallback_unchanged": true,
+  "binary_sha256": "7f76548f3c903308718b9050822dafff026e629f3ac4741ea80a0616c3427b31"
+}

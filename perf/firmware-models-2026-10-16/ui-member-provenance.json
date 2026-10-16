@@ -1,0 +1,87 @@
+[
+  {
+    "member": "web/assets/i18n/en-US.json",
+    "sha256": "1261435d4a9e38abb5c3e79bf3549be750c68cc59036e046fac53e304a5fff19",
+    "bytes": 40162
+  },
+  {
+    "member": "web/assets/i18n/zh.json",
+    "sha256": "a8d157e09835c8bd7b32d431ceb215b1e9450c5d9e5f38286d31254328c2f4cc",
+    "bytes": 38248
+  },
+  {
+    "member": "web/chunk-63dQHDZZ.js",
+    "sha256": "8339e907e16e2b3b71f825c099933fa0b4861c1543566d543119c45271c7d60b",
+    "bytes": 1503
+  },
+  {
+    "member": "web/chunk-874pWOoH.js",
+    "sha256": "f56367bf7153ec9ce0225b45f68706ec9c622119a0c724c631a318a8b2a3b84b",
+    "bytes": 1844
+  },
+  {
+    "member": "web/chunk-B2fXCoTT.js",
+    "sha256": "e3e085a55a3db29b2af145abcdbb90d546dbdf227c49e1cf910c586b8db1e082",
+    "bytes": 2308449
+  },
+  {
+    "member": "web/chunk-BCz-pOQ6.js",
+    "sha256": "0776577b723884772ccd2820a7f3bfc614b97c132adcd332d443fff864ae24ef",
+    "bytes": 924748
+  },
+  {
+    "member": "web/chunk-BKHcAZAp.js",
+    "sha256": "4802c10516fee1e8d1bb5801a30963068a9bd6d518ca8d73a6d681a25edbbd2e",
+    "bytes": 1666
+  },
+  {
+    "member": "web/chunk-BanYdQBB.js",
+    "sha256": "0e26f2262d1b831d91bfec9843b95b1c35da7c5b43f36a3993f18b475da7dfda",
+    "bytes": 841
+  },
+  {
+    "member": "web/chunk-BwPnKhCN.js",
+    "sha256": "275ccc4deb908aac8c4b5d147bb98b64430c3e4b43e4abb01c18036b72d94ee3",
+    "bytes": 1322
+  },
+  {
+    "member": "web/chunk-C8dnM8oe.js",
+    "sha256": "cdfdff0f59f83806603cff0d907c0d1f6bf050f569510e1231611ee60360ce32",
+    "bytes": 867
+  },
+  {
+    "member": "web/chunk-CX9t5WTP.js",
+    "sha256": "bc9e887b9059041240f5510e01dc000398a5b3777141092b9bb684b1e3024bcf",
+    "bytes": 1070
+  },
+  {
+    "member": "web/chunk-Cw3yNd2s.js",
+    "sha256": "2bd52e32a0ca0115cba2c11e8889bea2bb3dee1e757a814ea9f1e1a96cf9a315",
+    "bytes": 2053
+  },
+  {
+    "member": "web/chunk-DTl2pr24.js",
+    "sha256": "e508f4fd8a67f8f14ae1fa7f83cb35218b33a3fc6d5a89b8115b2413e092b5f5",
+    "bytes": 1338
+  },
+  {
+    "member": "web/chunk-_Zy0F_6W.js",
+    "sha256": "efd03bae3b53371abba2d072bbfb27359a3f5f24e252fa242e1bd9f1263bbd93",
+    "bytes": 101
+  },
+  {
+    "member": "web/main-5L273Y7M.js",
+    "sha256": "8ad4eeee335565377d762cf74ec091fbeac1aff6a95e6fa56db41c2573bc1baa",
+    "bytes": 234363
+  },
+  {
+    "member": "web/polyfills-JFZ25W43.js",
+    "sha256": "53e0401270c787ab543e429c8a06dade082d2cd5ba11451be32e8c0e9e2771fd",
+    "bytes": 36351
+  },
+  {
+    "member": "web/scripts-3XTIANUT.js",
+    "sha256": "3b3494a1e668489780f52e5d40b1cf3fc0c2a211adf49c4accdd0bc45bc6671a",
+    "bytes": 60334
+  }
+]

@@ -1,0 +1,97 @@
+{
+  "toolchain": "1.95.0",
+  "base_commit": "0fe14c2403969de03373c6153298a23cdbef0c78",
+  "tests": {
+    "app": {
+      "passed": 99,
+      "failed": 0
+    },
+    "stream": {
+      "passed": 13,
+      "failed": 0
+    },
+    "interop": {
+      "passed": 6,
+      "failed": 0
+    },
+    "gpu": {
+      "passed": 1,
+      "failed": 0
+    },
+    "core": {
+      "passed": 26,
+      "failed": 0
+    }
+  },
+  "clippy_deny_warnings": [
+    "app GUI/all-targets",
+    "stream all-targets",
+    "interop all-targets",
+    "gpu all-targets"
+  ],
+  "core_test_toolchain": "1.77.0",
+  "app_ignored": 1,
+  "ignored_reason": "Existing operator pipe timing benchmark",
+  "no_shader_approximation_of_threshold": true,
+  "config_calibration_fallback_preserved": true,
+  "vulkan_validation_stderr_bytes": {
+    "line-oracle.stderr": 0,
+    "texture-oracle.stderr": 0,
+    "candidate-initial.stderr": 0,
+    "live-parity.stderr": 0,
+    "live-parity-explicit.stderr": 0,
+    "recovery-implicit.stderr": 0,
+    "recovery-explicit.stderr": 0
+  },
+  "live_parity": {
+    "implicit": {
+      "frames": 311,
+      "all_complete_calibrated_outputs_exact": true,
+      "dropped_prepared": 0,
+      "error": null,
+      "validation_stderr_bytes": 0
+    },
+    "explicit": {
+      "frames": 261,
+      "all_complete_calibrated_outputs_exact": true,
+      "dropped_prepared": 0,
+      "error": null,
+      "validation_stderr_bytes": 0
+    }
+  },
+  "live_recovery": {
+    "implicit": {
+      "preview_exclusive": true,
+      "worker_failure_requires_explicit_restart": true,
+      "worker_stall_to_stop_seconds": 2.0192120319989044,
+      "worker_stall_requires_explicit_restart": true,
+      "stop_kept_tray_service_alive": true,
+      "configuration_and_fallback_launcher_preserved": true,
+      "controller_power_brightness_restored": true
+    },
+    "explicit": {
+      "preview_exclusive": true,
+      "worker_failure_requires_explicit_restart": true,
+      "worker_stall_to_stop_seconds": 2.017679689997749,
+      "worker_stall_requires_explicit_restart": true,
+      "stop_kept_tray_service_alive": true,
+      "configuration_and_fallback_launcher_preserved": true,
+      "controller_power_brightness_restored": true
+    }
+  },
+  "format_checks": [
+    "app",
+    "stream-probe",
+    "linux-gpu",
+    "gpu-probe"
+  ],
+  "diff_check": true,
+  "headless_cross_crate_mean_contract_cases": 640,
+  "optical_target_browser_checks": {
+    "start_and_countdown": true,
+    "automatic_completion_restores_controls": true,
+    "escape_cancels_and_restores_controls": true,
+    "hardware_output_during_browser_checks": false,
+    "camera_recording_made": false
+  }
+}

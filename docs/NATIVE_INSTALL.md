@@ -1,9 +1,8 @@
 # Native Nanoleaf Screen Mirror
 
 This Rust application includes its GUI, tray, HID transport and supervised Vulkan
-capture worker. Python and Qt are not runtime dependencies. The existing Python
-application remains available with `pipx install nanoleaf-kde-sync`; do not run
-both applications against the strip at once.
+capture worker. Python and Qt are not runtime dependencies. The old Python application and
+privileged C helper have been retired. Calibration remains compatible.
 
 ## Build and install
 
@@ -11,7 +10,7 @@ Main-branch pushes and pull requests that change native code or packaging build 
 in GitHub Actions. Open the **Native Rust bundle** run for the commit you want,
 download the **nanoleaf-native-linux-x86_64** artifact, unzip it, then extract
 `native.tar.gz`. Install with `./native/bin/nanoleaf-native --install-native`.
-These are test builds, not replacements for the published Python release.
+CI artifacts are test builds; use a published native release when available.
 The Ubuntu-built binaries require compatible system libraries and a working
 KDE Wayland session; CI does not verify physical LED output.
 
@@ -52,18 +51,18 @@ administrator to install. This native app needs no DRM capabilities or root.
 ## Capture and colour
 
 KWin SDR display-referred capture remains the automatic backend. On the
-validated KWin 6.7 path, select `xdg-portal` in Advanced for the streaming Vulkan
+validated KWin 6.7/6.8 paths, select `xdg-portal` in Advanced for the streaming Vulkan
 backend and allow the configured monitor in KDE's picker. Permission revocation
 stops mirroring and requires an explicit Start. Pixel-dependent colour policies
 use the CPU pixel path; reference box sampling uses exact GPU histograms.
 Unverified colour formats fail explicitly. Raw HDR/PQ/FP16 and native privileged
-DRM capture are not supported; retain the Python fallback for those paths.
+DRM capture are not supported. Select one of the supported native capture paths.
 
 Reference/accuracy mode disables prediction and appearance-changing analyses.
 Temporal accumulation now blends in linear light to preserve transition energy.
 Black source zones now bypass accumulation and smoothing so a cut to black
-immediately emits off. The old Python transition glow remains only in the
-fallback and its retained regression oracle. Optional multi-moment sampling uses
+immediately emits off. Historical transition behaviour remains documented by the native regression
+fixtures. Optional multi-moment sampling uses
 actual dominant-bin pixels, rather than invented bin-centre colours. Wavelet
 sampling is now a bounded linear-light detail-weighted mean. Scene adaptation
 only improves temporal response; it does not change calibration, colour style or
@@ -73,6 +72,26 @@ physical mapping or bypassing privacy masks.
 encoded colour code per observed frame. It is disabled with temporal dithering.
 Inferred packets are counted separately; they do not increase capture FPS or
 constitute measured optical frame generation.
+
+## Acknowledged USB updates
+
+On the tested NL82K2, firmware1.5/hardware1.1 with manual48 zones, the app can
+retain an exactly unchanged trailing portion of the last acknowledged output.
+Every update still sends a nonempty prefix and waits for its ACK; dithering and
+complete colour feedback continue normally. Initial/reconnected output, preview,
+cleanup and periodic refresh use full frames. Unknown identities, other manual
+counts and failed identity queries keep the full-frame path. This does not
+automatically detect or change strip length.
+
+Advanced / Troubleshooting shows the last payload size and shortened-update
+count. To force the original complete-frame path, quit the tray first and run:
+
+```bash
+NANOLEAF_SHORT_UPDATES=0 nanoleaf-native --run
+```
+
+This changes no saved settings or calibration. Previous native versions remain available for rollback. Hardware/response evidence and limits are in
+`docs/SHORT_UPDATES.md` in the source repository; USB timing is not optical latency.
 
 ## Upgrade, rollback and login startup
 
@@ -90,8 +109,7 @@ To remove the native command/launcher while retaining recoverable versions, use
 launcher is restored.
 
 Rollback swaps the previous and current versions; it never rolls configuration
-back or edits the Python package. For the Python fallback, Stop and Quit the
-native tray, then launch `nanoleaf-kde-sync` through its original launcher.
+back. The native app and matching capture helper roll back together.
 
 Login startup is separate and opt-in:
 
@@ -102,20 +120,15 @@ nanoleaf-native --autostart off
 
 Only the native autostart entry is managed. It starts the tray; the existing
 **Start mirroring when the tray launches** setting determines whether mirroring
-starts. Leave the Python autostart disabled when enabling native mirroring.
+starts. Retire any obsolete Python autostart entry before enabling mirroring.
 
-## Releases and legacy fallback
+## Releases and retired Python application
 
-Rust is the primary application. A published `native-vX.Y.Z` release builds and
-attaches the native archive and checksum only when the tag matches the native
-application version. Publishing a native release never publishes Python to PyPI.
-Existing releases and tags are retained. Python publishing is available only
-through the manual **Legacy Python release** workflow, with a separate opt-in
-PyPI switch; normal releases do not trigger it.
-
-The [legacy Python reference](LEGACY_PYTHON.md) retains its installation and
-recovery instructions. The default PR pipeline checks one Python version as the
-compatibility oracle; weekly checks retain the full legacy version matrix.
+A published `native-vX.Y.Z` release builds and attaches the native archive and
+checksum only when the tag matches the native application version. Old releases
+and Git history remain available for historical evidence. The Python runtime,
+bridge, wheel/AUR packaging and PyPI publishing workflow are retired; no existing
+published package or remote release has been deleted. See [retirement details](LEGACY_PYTHON.md).
 
 ## Scope and verification limits
 

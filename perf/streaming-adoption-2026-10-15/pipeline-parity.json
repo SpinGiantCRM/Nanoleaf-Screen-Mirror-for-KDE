@@ -1,0 +1,23 @@
+{
+  "scope": "Read-only full saved calibrated pipeline, no USB or persisted images; Vulkan validation layer enabled in both modes",
+  "summary": {
+    "implicit": {
+      "frames": 291,
+      "all_full_pipeline_cpu_gpu_parity": true,
+      "backends": [
+        "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync"
+      ]
+    },
+    "explicit": {
+      "frames": 290,
+      "all_full_pipeline_cpu_gpu_parity": true,
+      "backends": [
+        "xdg-portal / Vulkan DMA-BUF / direct SDR samples / explicit sync"
+      ]
+    }
+  },
+  "implicit_error": null,
+  "explicit_error": null,
+  "implicit_stderr_bytes": 0,
+  "explicit_stderr_bytes": 0
+}

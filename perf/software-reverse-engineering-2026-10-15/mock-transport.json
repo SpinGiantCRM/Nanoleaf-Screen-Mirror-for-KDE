@@ -1,0 +1,44 @@
+{
+  "scope": "Selected vendor transport methods in JS VM with fake HID, event emitter and manually advanced clock only; no vendor app launch, USB or network",
+  "cases": [
+    {
+      "case": "early_ack",
+      "writes": [
+        {
+          "at": 0,
+          "length": 65
+        },
+        {
+          "at": 0,
+          "length": 65
+        },
+        {
+          "at": 0,
+          "length": 20
+        }
+      ],
+      "settled_at_ms": 5,
+      "success": true,
+      "remaining_timeout_timer_does_not_delay_resolution": true
+    },
+    {
+      "case": "missing_ack",
+      "write_reports": 6,
+      "settled_at_ms": 2000,
+      "error": "Timeout"
+    },
+    {
+      "case": "error_ack",
+      "rejected": true
+    },
+    {
+      "case": "other_command_ack",
+      "ignored_until_expected_type": true
+    },
+    {
+      "case": "bypass_serial_queue_with_two_same_command_requests",
+      "one_ack_settles_both": true,
+      "limitation": "Mock demonstrates missing per-frame correlation, not physical device behaviour; vendor queue normally prevents this."
+    }
+  ]
+}

@@ -2,6 +2,13 @@
 
 Date: 2026-10-13. Branch: `codex/full-rust-rewrite`.
 
+15 October update: GPU streaming is now enabled on the tested host after the
+user's response/colour comparison, full calibrated parity and recovery checks.
+An opt-in explicit timeline prototype is implemented but remains experimental;
+the initial idle benchmark did not show a latency benefit. See
+[current adoption, measurements and limits](STREAMING_ADOPTION.md). The text below
+records the original prototype checkpoint.
+
 ## Implemented and tested
 
 The capture prototype now receives a single monitor through the standard

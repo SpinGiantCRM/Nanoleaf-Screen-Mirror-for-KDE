@@ -1,0 +1,19 @@
+{
+  "scope": "Finite offline XXTEA hypotheses, independently on 8-byte and whole 56-byte fields; clear-header decoded-data CRC model with eight prior polynomial candidates",
+  "reference": "https://www.movable-type.co.uk/scripts/xxtea.pdf",
+  "unique_128_bit_keys": 1563,
+  "tests": [
+    "known zero vector",
+    "nonzero 8/16/56-byte roundtrips both endians"
+  ],
+  "tested_eight_byte_equivalents": {
+    "XXTEA-8-decrypt": 87528,
+    "XXTEA-56-decrypt": 87528,
+    "XXTEA-8-encrypt": 87535,
+    "XXTEA-56-encrypt": 87528
+  },
+  "three_record_survivors": 0,
+  "full_corpus_candidates": [],
+  "elapsed_seconds": 7.367623196998466,
+  "limitations": "Finite keys and conditional CRC model only; no cipher, chip or recovery identified. No device operations."
+}

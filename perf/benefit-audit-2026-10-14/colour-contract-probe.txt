@@ -1,0 +1,7 @@
+[255.0, 0.0, 0.0]: compression 0 [255, 0, 0], compression 0.6 [255, 0, 0]
+[0.0, 255.0, 0.0]: compression 0 [0, 255, 0], compression 0.6 [0, 255, 0]
+[0.0, 0.0, 255.0]: compression 0 [0, 0, 255], compression 0.6 [0, 0, 255]
+[120.0, 90.0, 75.0]: compression 0 [120, 90, 75], compression 0.6 [120, 90, 75]
+[128.0, 128.0, 128.0]: compression 0 [128, 128, 128], compression 0.6 [128, 128, 128]
+gain-clamp [71, 56, 41] == [71, 56, 41]
+gamma-clamp [100, 80, 60] == [100, 80, 60]

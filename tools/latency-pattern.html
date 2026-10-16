@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nanoleaf response timing</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { color-scheme: dark; font: 18px/1.5 system-ui,sans-serif; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: rgb(32,32,32); color: #eee; }
+  main { width: min(40rem,calc(100% - 3rem)); }
+  h1 { font-size: 1.7rem; line-height: 1.2; }
+  button { font: inherit; border: 1px solid #aaa; border-radius: .4rem; padding: .6rem 1rem; background: #eee; color: #171717; cursor: pointer; }
+  button:focus-visible { outline: 3px solid #69b8ff; outline-offset: 4px; }
+  #status { min-height: 3rem; }
+  .running main { visibility: hidden; }
+</style>
+<main>
+  <h1>Measure screen-to-strip response</h1>
+  <p>Move this window to the monitor you mirror. Start mirroring with your usual
+  settings, then point your camera at both the monitor and strip.</p>
+  <p>Start recording before pressing the button. There is a three-second countdown,
+  followed by twelve seconds of solid colours. Each colour lasts two seconds.
+  Press <kbd>Esc</kbd> to stop.</p>
+  <p>This page only changes the screen. It does not access the strip, camera,
+  network or saved settings.</p>
+  <button id="start">Start full-screen test</button>
+  <p id="status" role="status" aria-live="polite">Ready. Use slow-motion recording if available.</p>
+</main>
+<script>
+'use strict';
+const HOLD_MS = 2000;
+const COUNTDOWN_MS = 3000;
+const COLORS = ['rgb(64,64,64)', 'rgb(255,255,255)', 'rgb(0,0,0)',
+                'rgb(255,0,0)', 'rgb(0,0,255)', 'rgb(64,64,64)'];
+let frame = null;
+let started = null;
+let phase = -1;
+let active = false;
+const status = document.getElementById('status');
+const start = document.getElementById('start');
+function stop(message) {
+  active = false;
+  if (frame !== null) cancelAnimationFrame(frame);
+  frame = null;
+  document.body.classList.remove('running');
+  document.body.style.background = 'rgb(32,32,32)';
+  start.disabled = false;
+  status.textContent = message;
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+function tick(now) {
+  if (!active) return;
+  if (started === null) started = now;
+  const elapsed = now - started;
+  if (elapsed < COUNTDOWN_MS) {
+    status.textContent = `Starting in ${Math.ceil((COUNTDOWN_MS - elapsed) / 1000)}…`;
+  } else {
+    const next = Math.floor((elapsed - COUNTDOWN_MS) / HOLD_MS);
+    if (next >= COLORS.length) {
+      stop('Finished. Stop recording. Your app is still controlled through its usual tray.');
+      return;
+    }
+    if (next !== phase) {
+      phase = next;
+      document.body.classList.add('running');
+      document.body.style.background = COLORS[phase];
+    }
+  }
+  frame = requestAnimationFrame(tick);
+}
+start.addEventListener('click', async () => {
+  if (active) return;
+  start.disabled = true;
+  try {
+    await document.documentElement.requestFullscreen();
+    if (!document.fullscreenElement) throw new Error('Fullscreen was not entered.');
+    active = true;
+    started = null;
+    phase = -1;
+    frame = requestAnimationFrame(tick);
+  } catch (_) {
+    stop('Full screen could not start. Allow full screen in your browser and try again.');
+  }
+});
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && active) stop('Stopped. No settings were changed.');
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && active) stop('Stopped because this page was hidden.');
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && active) stop('Stopped. No settings were changed.');
+});
+</script>
+</html>

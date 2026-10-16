@@ -1,0 +1,7 @@
+{
+  "worker_kill_stopped_seconds": 0.020699619999504648,
+  "stopped_message": "Screen sharing stopped: Capture worker ended before the next frame: Select the configured monitor if KDE asks for screen-sharing permission.. Start to request it again.",
+  "explicit_restart_first_ack_zones": 48,
+  "running": true,
+  "old_child_reaped": true
+}

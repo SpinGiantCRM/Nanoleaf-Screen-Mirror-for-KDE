@@ -1,0 +1,32 @@
+{
+  "scope": "120-second uncontrolled desktop; native tray plus capture child, excluding compositor/GPU/settings UI; 2 Hz status polling; no optical or power measurement",
+  "seconds": 120.04712213099992,
+  "app_sha256": "5a8cc16e20a1408879f527fd6c496956b461c79de61bb4a9882757177fddf2f2",
+  "config_sha256": "a5d9b604c8ff68adf8a9321cc9fb578d4c2468c00a279612d66312f800049933",
+  "summary": {
+    "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync",
+    "ack_count": 4459,
+    "ack_per_s": 37.29909947237225,
+    "cpu_percent_one_core": 74.52073686729274,
+    "rss_mib": 199.6484375,
+    "pss_mib": 184.212890625
+  },
+  "response_clocks": [
+    "capture-work"
+  ],
+  "medians_ms": {
+    "capture_ms": 23.3516335,
+    "processing_ms": 0.011307,
+    "usb_ms": 5.679694,
+    "response_ms": 29.221423,
+    "source_presentation_age_ms": 45.9685155
+  },
+  "counter_changes": {
+    "frames": 4459,
+    "reused_source_packets": 0,
+    "dropped_frames": 0,
+    "reconnects": 0
+  },
+  "response_ms_origin": "capture sampling work to USB acknowledgement; not comparable with old source PTS origin",
+  "note": "High capture/CPU cost is real in this window and under investigation; do not extrapolate the earlier 2% client result."
+}

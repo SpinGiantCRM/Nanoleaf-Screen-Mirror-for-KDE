@@ -1,0 +1,23 @@
+{
+  "firmware_major": 1,
+  "firmware_minor": 5,
+  "firmware_raw": [
+    21
+  ],
+  "hardware_ascii": "11",
+  "hardware_query_error": null,
+  "hardware_raw": [
+    49,
+    49
+  ],
+  "manual_zones": 48,
+  "manufacturer_ascii": "G",
+  "manufacturer_query_error": null,
+  "manufacturer_raw": [
+    71
+  ],
+  "model": "NL82K2",
+  "read_only": true,
+  "reported_zones_diagnostic_only": 48,
+  "scope": "Read-only documented identity queries; no LED or configuration changes; no DFU/reset/erase/program commands"
+}

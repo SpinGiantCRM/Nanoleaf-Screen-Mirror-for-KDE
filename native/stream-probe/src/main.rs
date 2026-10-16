@@ -1,5 +1,7 @@
 //! Bounded permission-mediated stream experiment. No configuration or USB writes.
 mod application;
+mod cadence;
+mod damage;
 mod frame;
 mod gpu;
 mod permission;
@@ -31,6 +33,13 @@ enum Mode {
     Cpu,
     Upload,
     Dma,
+    DmaExplicit,
+    DamageAudit,
+}
+impl Mode {
+    fn dma(self) -> bool {
+        matches!(self, Self::Dma | Self::DmaExplicit | Self::DamageAudit)
+    }
 }
 #[derive(Default)]
 struct State {
@@ -40,6 +49,7 @@ struct State {
     dropped: u64,
     discarded: u64,
     corrupt_or_empty: u64,
+    damage: Option<damage::Audit>,
     sequence: Option<u64>,
     rgb: Vec<u8>,
     gpu: Option<VulkanSampler>,
@@ -53,6 +63,31 @@ struct State {
     adapter: serde_json::Value,
     layout: Option<(usize, usize)>,
     application: Option<application::Application>,
+    streaming: bool,
+    closing: bool,
+}
+impl State {
+    fn stream_state(&mut self, old: &pw::stream::StreamState, new: &pw::stream::StreamState) {
+        self.streaming = matches!(new, pw::stream::StreamState::Streaming);
+        if !self.streaming {
+            if let Some(app) = &mut self.application {
+                app.invalidate();
+            }
+        }
+        match new {
+            pw::stream::StreamState::Error(error) => self.errors.push(error.clone()),
+            pw::stream::StreamState::Unconnected
+                if !self.closing
+                    && matches!(
+                        old,
+                        pw::stream::StreamState::Streaming | pw::stream::StreamState::Paused
+                    ) =>
+            {
+                self.errors.push("Screen sharing ended".into())
+            }
+            _ => {}
+        }
+    }
 }
 fn zones(width: usize, height: usize) -> Vec<ZoneRect> {
     let mut result = Vec::new();
@@ -77,6 +112,69 @@ fn zones(width: usize, height: usize) -> Vec<ZoneRect> {
         }
     }
     result
+}
+fn synchronization_property(mode: Mode) -> spa::pod::Property {
+    spa::pod::Property {
+        key: PARAM_BUFFERS_META_TYPE,
+        flags: if mode == Mode::DmaExplicit {
+            spa::pod::PropertyFlags::MANDATORY
+        } else {
+            spa::pod::PropertyFlags::empty()
+        },
+        value: spa::pod::Value::Int(if mode == Mode::DmaExplicit {
+            1 << nanoleaf_linux_gpu::timeline::META_TYPE
+        } else {
+            0
+        }),
+    }
+}
+fn discard_dma(buffer: &mut pw::buffer::Buffer<'_>, state: &State) -> Result<()> {
+    if state.mode.dma() && nanoleaf_linux_gpu::timeline::present(buffer) {
+        let (device, _) = state
+            .device
+            .as_ref()
+            .context("No device for discarded explicit frame")?;
+        nanoleaf_linux_gpu::timeline::discard(buffer, device)?;
+    }
+    Ok(())
+}
+fn audit_damage(buffer: &pw::buffer::Buffer<'_>, state: &mut State) {
+    let Some(audit) = &mut state.damage else {
+        return;
+    };
+    let meta = buffer.find_meta::<spa::buffer::meta::MetaVideoDamage>();
+    let mut valid = meta.is_none_or(|m| {
+        let raw = m.as_raw();
+        !raw.data.is_null()
+            && raw.size > 0
+            && (raw.size as usize).is_multiple_of(std::mem::size_of::<spa::sys::spa_meta_region>())
+            && raw.size as usize <= 16 * std::mem::size_of::<spa::sys::spa_meta_region>()
+    });
+    let regions = meta.filter(|_| valid).map(|m| {
+        m.iter()
+            .map(|r| ZoneRect {
+                x: r.position().x as i64,
+                y: r.position().y as i64,
+                width: r.size().width as i64,
+                height: r.size().height as i64,
+            })
+            .collect::<Vec<_>>()
+    });
+    let header = buffer.find_meta::<spa::buffer::meta::MetaHeader>();
+    valid &= header.is_some_and(|h| {
+        !h.flags().intersects(
+            spa::buffer::meta::MetaHeaderFlags::CORRUPTED
+                | spa::buffer::meta::MetaHeaderFlags::GAP
+                | spa::buffer::meta::MetaHeaderFlags::DISCONT,
+        )
+    });
+    // Preserve the distinction between malformed metadata and absent metadata.
+    audit.record(
+        state.format.map(|f| (f.size().width, f.size().height)),
+        meta.map(|_| regions.as_deref().unwrap_or(&[])),
+        valid,
+        header.map(|h| h.seq()),
+    );
 }
 fn process(buffer: &mut pw::buffer::Buffer<'_>, state: &mut State) -> Result<()> {
     let started = Instant::now();
@@ -123,7 +221,7 @@ fn process(buffer: &mut pw::buffer::Buffer<'_>, state: &mut State) -> Result<()>
             );
         }
     }
-    if state.mode == Mode::Dma {
+    if state.mode.dma() {
         return process_dma(buffer, state, format, header, started);
     }
     let packing = match format.format() {
@@ -207,12 +305,17 @@ fn process(buffer: &mut pw::buffer::Buffer<'_>, state: &mut State) -> Result<()>
     Ok(())
 }
 fn pts_age(header: Option<&spa::buffer::meta::MetaHeader>) -> Option<f64> {
-    let pts = header?.pts();
+    pts_age_ns(header?.pts())
+}
+fn monotonic_ns() -> i64 {
+    let time = rustix::time::clock_gettime(rustix::time::ClockId::Monotonic);
+    time.tv_sec * 1_000_000_000 + time.tv_nsec
+}
+fn pts_age_ns(pts: i64) -> Option<f64> {
     if pts < 0 {
         return None;
     }
-    let time = rustix::time::clock_gettime(rustix::time::ClockId::Monotonic);
-    let now = time.tv_sec as i128 * 1_000_000_000 + time.tv_nsec as i128;
+    let now = i128::from(monotonic_ns());
     let age = now - pts as i128;
     if !(0..10_000_000_000).contains(&age) {
         return None;
@@ -243,6 +346,10 @@ fn process_dma(
         )?);
         state.layout = Some((width as usize, height as usize));
     }
+    ensure!(
+        nanoleaf_linux_gpu::timeline::present(buffer) == (state.mode == Mode::DmaExplicit),
+        "Negotiated synchronization differs from requested mode"
+    );
     let sampler = state.texture.as_mut().context("No GPU texture sampler")?;
     let diagnostic = if let Some(app) = &state.application {
         app.needs_pixels(width as usize, height as usize)
@@ -312,18 +419,31 @@ fn main() -> Result<()> {
         );
         return application::run();
     }
+    if args.first().is_some_and(|arg| arg == "--sync-self-test") {
+        ensure!(args.len() == 1, "Self-test takes no arguments");
+        let (device, _, adapter) = gpu::prepare()?;
+        let result = nanoleaf_linux_gpu::timeline::Device::open(&device)?.self_test()?;
+        println!(
+            "{}",
+            serde_json::json!({"adapter":adapter,"syncobj":result,"scope":"Private render-node syncobj test only; no screen capture, USB, settings or capabilities"})
+        );
+        return Ok(());
+    }
     ensure!(
         args.len() <= 1,
-        "Usage: nanoleaf-stream-probe [--gpu-upload|--dma-buf|--suite]"
+        "Usage: nanoleaf-stream-probe [--gpu-upload|--dma-buf|--dma-buf-explicit|--sync-suite|--suite|--damage-audit]"
     );
     let modes = match args.first().map(String::as_str) {
         None => vec![Mode::Cpu],
         Some("--gpu-upload") => vec![Mode::Upload],
         Some("--dma-buf") => vec![Mode::Dma],
+        Some("--damage-audit") => vec![Mode::DamageAudit],
+        Some("--dma-buf-explicit") => vec![Mode::DmaExplicit],
+        Some("--sync-suite") => vec![Mode::Dma, Mode::DmaExplicit, Mode::DmaExplicit, Mode::Dma],
         Some("--suite") => vec![Mode::Cpu, Mode::Upload, Mode::Dma],
         _ => anyhow::bail!("Unknown probe option"),
     };
-    let prepared = if modes.contains(&Mode::Dma) {
+    let prepared = if modes.iter().any(|m| m.dma()) {
         Some(gpu::prepare()?)
     } else {
         None
@@ -384,12 +504,13 @@ fn run_application(
         *pw::keys::NODE_DONT_RECONNECT => "true",
     };
     if let Some(serial) = &session.serial {
-        properties.insert(*pw::keys::TARGET_OBJECT, serial.as_str());
+        properties.insert(*pw::keys::TARGET_OBJECT, serial.to_string());
     }
     let stream = pw::stream::StreamBox::new(&core, "Nanoleaf native capture probe", properties)?;
     let maximum_fps = application.as_ref().map(|a| a.config.fps).unwrap_or(30);
     let shared = Rc::new(RefCell::new(State {
         mode,
+        damage: (mode == Mode::DamageAudit).then(damage::Audit::default),
         application,
         device: prepared.map(|(d, q, _)| (d.clone(), q.clone())),
         adapter: prepared.map(|(_, _, i)| i.clone()).unwrap_or_default(),
@@ -409,12 +530,10 @@ fn run_application(
         })
         .register();
     let _listener=stream.add_local_listener_with_user_data(state)
-        .state_changed(|_,state,old,new| {
-            if let pw::stream::StreamState::Error(error)=new {state.borrow_mut().errors.push(error);}
-            else if matches!(new,pw::stream::StreamState::Unconnected) && matches!(old,pw::stream::StreamState::Streaming | pw::stream::StreamState::Paused) {state.borrow_mut().errors.push("Screen sharing ended".into());}
-        })
+        .state_changed(|_,state,old,new| { state.borrow_mut().stream_state(&old, &new); })
         .param_changed(|_,state,id,param| {
             if id!=spa::param::ParamType::Format.as_raw(){return;}
+            if let Some(app)=&mut state.borrow_mut().application {app.invalidate();}
             let Some(param)=param else {state.borrow_mut().format=None;return;};
             let mut state=state.borrow_mut();
             let mut format=VideoInfoRaw::default();
@@ -429,16 +548,31 @@ fn run_application(
         .process(|stream,state| {
             let mut state=state.borrow_mut();
             let Some(mut newest)=stream.dequeue_buffer() else {return;};
+            audit_damage(&newest, &mut state);
             // Bound drain work even if a producer is running much faster than us.
             for _ in 0..16 {
                 let Some(next)=stream.dequeue_buffer() else {break;};
+                if let Err(error)=discard_dma(&mut newest, &state) {
+                    state.errors.push(error.to_string()); return;
+                }
                 newest=next;
+                audit_damage(&newest, &mut state);
                 state.discarded+=1;
             }
             let bad_header=newest.find_meta::<spa::buffer::meta::MetaHeader>().is_some_and(|h|h.flags().intersects(spa::buffer::meta::MetaHeaderFlags::CORRUPTED | spa::buffer::meta::MetaHeaderFlags::GAP));
             let datas=newest.datas_mut();
             let bad_chunk=datas.first().is_none_or(|d|d.as_raw().chunk.is_null() || d.chunk().flags().contains(spa::buffer::ChunkFlags::CORRUPTED) || d.chunk().size()==0 || d.chunk().stride()==0);
-            if bad_header || bad_chunk {state.corrupt_or_empty+=1;return;}
+            if bad_header || bad_chunk {
+                state.corrupt_or_empty+=1;
+                if let Err(error)=discard_dma(&mut newest,&state) {state.errors.push(error.to_string());}
+                if let Some(app)=&mut state.application{app.invalidate();}return;
+            }
+            if newest.find_meta::<spa::buffer::meta::MetaHeader>().is_some_and(|h|h.flags().contains(spa::buffer::meta::MetaHeaderFlags::DISCONT)) {if let Some(app)=&mut state.application{app.invalidate();}}
+            if state.mode == Mode::DamageAudit {
+                if let Err(error)=discard_dma(&mut newest,&state) {state.errors.push(error.to_string());}
+                state.frames+=1;
+                return;
+            }
             if let Err(error)=process(&mut newest,&mut state) {
                 if state.errors.len()<16 {state.errors.push(error.to_string());}
             }
@@ -476,7 +610,7 @@ fn run_application(
         ),
     );
     let mut formats = vec![format];
-    if mode == Mode::Dma {
+    if mode.dma() {
         let info = &prepared.context("DMA device missing")?.2;
         let modifiers: Vec<i64> = info["bgra_modifiers"]
             .as_array()
@@ -504,17 +638,20 @@ fn run_application(
         });
         formats = vec![dma]; // Probe fails rather than disguising SHM fallback as DMA.
     }
-    // Restrict the pilot to one image plane and implicit synchronization. Explicit
-    // SyncTimeline streams need a different acquire/release implementation.
+    // Explicit mode is a required experiment, never silently an implicit test.
+    // Older producer/header compatibility retains the existing one-plane default.
     formats.push(spa::pod::Object {
         type_: spa::utils::SpaTypes::ObjectParamBuffers.as_raw(),
         id: spa::param::ParamType::Buffers.as_raw(),
         properties: vec![
-            spa::pod::Property::new(spa::sys::SPA_PARAM_BUFFERS_blocks, spa::pod::Value::Int(1)),
-            spa::pod::Property::new(PARAM_BUFFERS_META_TYPE, spa::pod::Value::Int(0)),
+            spa::pod::Property::new(
+                spa::sys::SPA_PARAM_BUFFERS_blocks,
+                spa::pod::Value::Int(if mode == Mode::DmaExplicit { 3 } else { 1 }),
+            ),
+            synchronization_property(mode),
             spa::pod::Property::new(
                 spa::sys::SPA_PARAM_BUFFERS_dataType,
-                spa::pod::Value::Int(if mode == Mode::Dma {
+                spa::pod::Value::Int(if mode.dma() {
                     1 << spa::sys::SPA_DATA_DmaBuf
                 } else {
                     1 << spa::sys::SPA_DATA_MemFd
@@ -536,6 +673,40 @@ fn run_application(
             ),
         ],
     });
+    if mode == Mode::DamageAudit {
+        formats.push(spa::pod::Object {
+            type_: spa::utils::SpaTypes::ObjectParamMeta.as_raw(),
+            id: spa::param::ParamType::Meta.as_raw(),
+            properties: vec![
+                spa::pod::Property::new(
+                    spa::sys::SPA_PARAM_META_type,
+                    spa::pod::Value::Id(spa::utils::Id(spa::sys::SPA_META_VideoDamage)),
+                ),
+                spa::pod::Property::new(
+                    spa::sys::SPA_PARAM_META_size,
+                    spa::pod::Value::Int(
+                        (16 * std::mem::size_of::<spa::sys::spa_meta_region>()) as i32,
+                    ),
+                ),
+            ],
+        });
+    }
+    if mode == Mode::DmaExplicit {
+        formats.push(spa::pod::Object {
+            type_: spa::utils::SpaTypes::ObjectParamMeta.as_raw(),
+            id: spa::param::ParamType::Meta.as_raw(),
+            properties: vec![
+                spa::pod::Property::new(
+                    spa::sys::SPA_PARAM_META_type,
+                    spa::pod::Value::Id(spa::utils::Id(nanoleaf_linux_gpu::timeline::META_TYPE)),
+                ),
+                spa::pod::Property::new(
+                    spa::sys::SPA_PARAM_META_size,
+                    spa::pod::Value::Int(nanoleaf_linux_gpu::timeline::META_SIZE as i32),
+                ),
+            ],
+        });
+    }
     let serialized: Vec<Vec<u8>> = formats
         .into_iter()
         .map(|f| {
@@ -562,6 +733,11 @@ fn run_application(
     )?;
     let resources_before = resources::snapshot();
     let started = Instant::now();
+    // Operator experiment: faster cached output can occupy the USB bus more
+    // often. Keep the daily policy until response/cadence tradeoffs are tested.
+    let repeat_timer = (shared.borrow().application.is_some()
+        && std::env::var_os("NANOLEAF_PRECISE_CACHE_TIMING").is_some())
+    .then(|| mainloop.loop_().add_timer(|_| {}));
     while shared
         .borrow()
         .application
@@ -569,9 +745,25 @@ fn run_application(
         .map(|a| !a.cancelled())
         .unwrap_or_else(|| started.elapsed() < Duration::from_secs(8))
     {
-        mainloop
-            .loop_()
-            .iterate(pw::loop_::Timeout::Finite(Duration::from_millis(100)));
+        let timeout = if let Some(timer) = &repeat_timer {
+            let repeat_delay = shared
+                .borrow()
+                .application
+                .as_ref()
+                .and_then(|a| a.repeat_delay(Instant::now()));
+            cadence::arm(timer, repeat_delay)?
+        } else {
+            pw::loop_::Timeout::Finite(
+                shared
+                    .borrow()
+                    .application
+                    .as_ref()
+                    .map(|a| Duration::from_secs_f64(1.0 / a.config.fps as f64))
+                    .unwrap_or(Duration::from_millis(100))
+                    .min(Duration::from_millis(100)),
+            )
+        };
+        mainloop.loop_().iterate(timeout);
         if session.closed() {
             shared
                 .borrow_mut()
@@ -582,11 +774,24 @@ fn run_application(
         if !shared.borrow().errors.is_empty() {
             break;
         }
+        let mut state = shared.borrow_mut();
+        if state.streaming {
+            if let Some(app) = &mut state.application {
+                if let Err(error) = app.repeat_if_due(Instant::now()) {
+                    state.errors.push(error.to_string());
+                    break;
+                }
+            }
+        }
     }
+    shared.borrow_mut().closing = true;
     stream.disconnect()?;
     let resources_active = resources::snapshot();
     let state = shared.borrow();
     let mut result = serde_json::json!({"mode":format!("{mode:?}"),"duration_ms":started.elapsed().as_secs_f64()*1000.0,"format":state.format_info,"frames":state.frames,"sequence_gaps":state.dropped,"discarded_buffers":state.discarded,"corrupt_or_empty_buffers":state.corrupt_or_empty,"adapter":state.adapter,"timings":state.timings,"errors":state.errors});
+    if let Some(audit) = &state.damage {
+        result["damage_audit"] = audit.report();
+    }
     result["resources_before"] = resources_before;
     result["resources_active"] = resources_active;
     drop(state);
@@ -596,10 +801,60 @@ fn run_application(
     drop(core_listener);
     drop(core);
     drop(context);
+    drop(repeat_timer);
     drop(mainloop);
     if let Some((device, _, _)) = prepared {
         let _ = device.poll(wgpu::PollType::Poll);
     }
     result["resources_after_close"] = resources::snapshot();
     Ok(result)
+}
+
+#[cfg(test)]
+mod stream_lifecycle_tests {
+    use super::*;
+    #[test]
+    fn implicit_buffer_negotiation_keeps_legacy_optional_metadata_contract() {
+        // Regression from a real KWin "error alloc buffers" failure: zero is
+        // optional, while only the explicit experiment mandates SyncTimeline.
+        for mode in [Mode::Cpu, Mode::Upload, Mode::Dma] {
+            let property = synchronization_property(mode);
+            assert!(property.flags.is_empty());
+            assert_eq!(property.key, 7);
+            assert!(matches!(property.value, spa::pod::Value::Int(0)));
+        }
+        let explicit = synchronization_property(Mode::DmaExplicit);
+        assert!(explicit.flags.contains(spa::pod::PropertyFlags::MANDATORY));
+        assert!(matches!(explicit.value, spa::pod::Value::Int(512)));
+    }
+    #[test]
+    fn bounded_probe_close_is_distinct_from_permission_or_connection_loss() {
+        let mut normal = State {
+            streaming: true,
+            closing: true,
+            ..Default::default()
+        };
+        normal.stream_state(
+            &pw::stream::StreamState::Streaming,
+            &pw::stream::StreamState::Unconnected,
+        );
+        assert!(!normal.streaming);
+        assert!(normal.errors.is_empty());
+        let mut revoked = State {
+            streaming: true,
+            ..Default::default()
+        };
+        revoked.stream_state(
+            &pw::stream::StreamState::Streaming,
+            &pw::stream::StreamState::Unconnected,
+        );
+        assert!(!revoked.streaming);
+        assert_eq!(revoked.errors, ["Screen sharing ended"]);
+        let mut paused = State::default();
+        paused.stream_state(
+            &pw::stream::StreamState::Paused,
+            &pw::stream::StreamState::Unconnected,
+        );
+        assert_eq!(paused.errors, ["Screen sharing ended"]);
+    }
 }

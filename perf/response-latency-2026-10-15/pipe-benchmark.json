@@ -1,0 +1,175 @@
+{
+  "scope": "Generated 4K raw bytes, paired AB/BA kernel pipe transfers with production reader; no compositor, colour conversion, USB or optical timing. Allocation included in reader timing; exact byte equality in every trial.",
+  "trials": [
+    {
+      "actual_capacity": 65536,
+      "enlarged": false,
+      "pair": 0,
+      "transfer_ms": 7.699064
+    },
+    {
+      "actual_capacity": 1048576,
+      "enlarged": true,
+      "pair": 0,
+      "transfer_ms": 7.832389
+    },
+    {
+      "actual_capacity": 1048576,
+      "enlarged": true,
+      "pair": 1,
+      "transfer_ms": 8.123926
+    },
+    {
+      "actual_capacity": 65536,
+      "enlarged": false,
+      "pair": 1,
+      "transfer_ms": 8.010779000000001
+    },
+    {
+      "actual_capacity": 65536,
+      "enlarged": false,
+      "pair": 2,
+      "transfer_ms": 10.548672999999999
+    },
+    {
+      "actual_capacity": 1048576,
+      "enlarged": true,
+      "pair": 2,
+      "transfer_ms": 7.1895620000000005
+    },
+    {
+      "actual_capacity": 1048576,
+      "enlarged": true,
+      "pair": 3,
+      "transfer_ms": 10.326289000000001
+    },
+    {
+      "actual_capacity": 65536,
+      "enlarged": false,
+      "pair": 3,
+      "transfer_ms": 7.674778
+    },
+    {
+      "actual_capacity": 65536,
+      "enlarged": false,
+      "pair": 4,
+      "transfer_ms": 8.926898000000001
+    },
+    {
+      "actual_capacity": 1048576,
+      "enlarged": true,
+      "pair": 4,
+      "transfer_ms": 7.947459
+    },
+    {
+      "actual_capacity": 1048576,
+      "enlarged": true,
+      "pair": 5,
+      "transfer_ms": 7.106072
+    },
+    {
+      "actual_capacity": 65536,
+      "enlarged": false,
+      "pair": 5,
+      "transfer_ms": 9.292125
+    },
+    {
+      "actual_capacity": 65536,
+      "enlarged": false,
+      "pair": 6,
+      "transfer_ms": 7.8932150000000005
+    },
+    {
+      "actual_capacity": 1048576,
+      "enlarged": true,
+      "pair": 6,
+      "transfer_ms": 9.507686
+    },
+    {
+      "actual_capacity": 1048576,
+      "enlarged": true,
+      "pair": 7,
+      "transfer_ms": 6.867097
+    },
+    {
+      "actual_capacity": 65536,
+      "enlarged": false,
+      "pair": 7,
+      "transfer_ms": 9.130226
+    },
+    {
+      "actual_capacity": 65536,
+      "enlarged": false,
+      "pair": 8,
+      "transfer_ms": 8.291125
+    },
+    {
+      "actual_capacity": 1048576,
+      "enlarged": true,
+      "pair": 8,
+      "transfer_ms": 5.764912
+    },
+    {
+      "actual_capacity": 1048576,
+      "enlarged": true,
+      "pair": 9,
+      "transfer_ms": 10.983273
+    },
+    {
+      "actual_capacity": 65536,
+      "enlarged": false,
+      "pair": 9,
+      "transfer_ms": 8.127983
+    },
+    {
+      "actual_capacity": 65536,
+      "enlarged": false,
+      "pair": 10,
+      "transfer_ms": 9.63558
+    },
+    {
+      "actual_capacity": 1048576,
+      "enlarged": true,
+      "pair": 10,
+      "transfer_ms": 7.5072790000000005
+    },
+    {
+      "actual_capacity": 1048576,
+      "enlarged": true,
+      "pair": 11,
+      "transfer_ms": 7.150287
+    },
+    {
+      "actual_capacity": 65536,
+      "enlarged": false,
+      "pair": 11,
+      "transfer_ms": 8.501356
+    }
+  ],
+  "summary": {
+    "False": {
+      "median_ms": 8.3962405,
+      "min_ms": 7.674778,
+      "max_ms": 10.548672999999999,
+      "capacity": [
+        65536
+      ]
+    },
+    "True": {
+      "median_ms": 7.669834,
+      "min_ms": 5.764912,
+      "max_ms": 10.983273,
+      "capacity": [
+        1048576
+      ]
+    }
+  },
+  "paired_summary": {
+    "median_saving_ms": 1.1652540000000005,
+    "pairs_favouring_enlarged": 7,
+    "total_pairs": 12,
+    "min_saving_ms": -2.85529,
+    "max_saving_ms": 3.3591109999999986
+  },
+  "decision": "Do not change the production pipe default from this short synthetic run. Distributions overlap and full capture latency/CPU benefit is unverified; retain the byte/recovery tests and opt-in benchmark for controlled follow-up."
+}

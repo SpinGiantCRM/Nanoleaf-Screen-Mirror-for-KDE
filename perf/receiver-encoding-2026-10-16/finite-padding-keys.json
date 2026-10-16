@@ -1,0 +1,17 @@
+{
+  "scope": "Finite offline product-string/default-key block-cipher hypotheses; padding recognition only, no decoded firmware or device writes",
+  "keys": 2187,
+  "seed_count": 198,
+  "decryptions": {
+    "TripleDES": 4374,
+    "Blowfish": 4374,
+    "CAST5": 1720,
+    "IDEA": 1720,
+    "TEA": 13760,
+    "XTEA": 13760
+  },
+  "elapsed_seconds": 0.5094142620000639,
+  "self_tests": "TEA, XTEA, DES known zero vectors plus TEA/XTEA nonzero roundtrips",
+  "padding_candidates": [],
+  "limitations": "No hit excludes only these keys/ciphers/rounds and tested padding patterns. Does not establish chip or cipher, prove encryption, or exhaust keys. Any candidate still requires full independent checksums and architecture validation."
+}

@@ -1,0 +1,1 @@
+{"elapsed_seconds":0.557538066,"microseconds_per_record_amortized":0.92923011,"records":600000,"retained_per_source_kind":512,"retained_sample_bytes":49152,"scope":"Synthetic varying timings; record each update, summarize every 60. No capture, USB, app-wide CPU, power or optical measurement.","summaries":10000}

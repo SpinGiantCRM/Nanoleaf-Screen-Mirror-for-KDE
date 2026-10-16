@@ -1,0 +1,73 @@
+{
+  "synthetic_fixture": {
+    "scope": "Synthetic worker/real actor and USB; no capture/GPU/calibration.",
+    "app_sha256": "ce664292e102c9c5cecc1be9a401b47bc2ca3268587c577e043c275b63775473",
+    "helper_sha256": "e369663c30f0657b33ff9ecba04fae0453edc066dc8afd81f3efbe394547e965",
+    "stop_kept_tray": true,
+    "preview_exclusive": true,
+    "preview_full_writes": true,
+    "initial_and_reopened_first_successful_payloads": {
+      "1": 48,
+      "2": 48,
+      "3": 48,
+      "4": 48,
+      "5": 48
+    },
+    "worker_failure_explicit_recovery": true,
+    "worker_stall_explicit_recovery": true,
+    "restored": true,
+    "config_and_fallback_preserved": true,
+    "stderr_bytes": 0,
+    "shortened_counts_by_stage": {
+      "active": 282,
+      "restart": 454,
+      "worker_failure_recovery": 569,
+      "worker_stall_recovery": 627
+    }
+  },
+  "real_capture": {
+    "scope": "Real native tray, display-referred SDR capture and acknowledged USB; changing desktop, no optical/power measurement.",
+    "app_sha256": "ce664292e102c9c5cecc1be9a401b47bc2ca3268587c577e043c275b63775473",
+    "helper_sha256": "e67fa8b1bc4078dd553cc624a7c00f6d4e2890378665b902291b1d8f6e20b8c1",
+    "stop_kept_tray": true,
+    "preview_exclusive": true,
+    "preview_full_writes": true,
+    "initial_and_reopened_first_successful_payloads": {
+      "1": 48,
+      "2": 48,
+      "3": 48,
+      "4": 48,
+      "5": 48
+    },
+    "worker_failure_explicit_recovery": true,
+    "worker_stall_explicit_recovery": true,
+    "restored": true,
+    "config_and_fallback_preserved": true,
+    "stderr_bytes": 0,
+    "shortened_counts_by_stage": {
+      "active": 107,
+      "restart": 175,
+      "worker_failure_recovery": 216,
+      "worker_stall_recovery": 235
+    },
+    "cpu_gpu_parity_enabled": true,
+    "vulkan_validation_enabled": false
+  },
+  "physical_usb_reconnect": {
+    "scope": "Real portal/Vulkan capture, physical USB unplug/reconnect and acknowledged output; low-brightness bounded probe. No optical timing measurement.",
+    "controller_power_brightness_restored_and_independently_verified": true,
+    "first_successful_write_zones_per_open": {
+      "1": 48,
+      "2": 48
+    },
+    "acknowledged_frames": 1006,
+    "shortened_packets": 636,
+    "exact_user_report": "Reconnected; colours resumed correctly",
+    "post_reconnect_successful_frames": 358,
+    "harness_note": "Post-run inspection initially tried to read timing from the expected USB-failure sample (None). Reanalysed saved successful samples without another hardware run.",
+    "independent_wire_first_updates_after_model_query": [
+      48,
+      48
+    ]
+  }
+}

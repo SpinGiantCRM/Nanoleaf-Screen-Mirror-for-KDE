@@ -1,0 +1,909 @@
+{
+  "scope": "Generated neutral source-event to final actual HID write; saturated serial repeat baseline vs guarded repeat suppression; no capture, optical timing or config writes",
+  "operator_sha256": "fda0ea793c2a7ee0ab543c74bfcbd5b71b01dd6aa484cce5a1d82ab975e65e44",
+  "source_offsets_ms": [
+    101,
+    137,
+    251,
+    263
+  ],
+  "order_per_offset": [
+    "baseline",
+    "suppression",
+    "suppression",
+    "baseline"
+  ],
+  "groups": [
+    {
+      "fractional_control": false,
+      "suppression": false,
+      "trials": 8,
+      "generated_event_to_host_write_ms": {
+        "p50": 16.866254,
+        "p95": 18.861922,
+        "p99": 18.861922,
+        "min": 5.860086,
+        "max": 18.861922
+      },
+      "generated_event_to_ack_ms": {
+        "p50": 33.897093500000004,
+        "p95": 35.892637,
+        "p99": 35.892637,
+        "min": 22.889652,
+        "max": 35.892637
+      },
+      "repeated_transactions": 84,
+      "suppressed_wait_checks": 0
+    },
+    {
+      "fractional_control": false,
+      "suppression": true,
+      "trials": 8,
+      "generated_event_to_host_write_ms": {
+        "p50": 5.8702855,
+        "p95": 20.869615,
+        "p99": 20.869615,
+        "min": 2.859444,
+        "max": 20.869615
+      },
+      "generated_event_to_ack_ms": {
+        "p50": 22.901758,
+        "p95": 37.898317,
+        "p99": 37.898317,
+        "min": 19.886319,
+        "max": 37.898317
+      },
+      "repeated_transactions": 4,
+      "suppressed_wait_checks": 8
+    },
+    {
+      "fractional_control": true,
+      "suppression": false,
+      "trials": 8,
+      "generated_event_to_host_write_ms": {
+        "p50": 16.866478999999998,
+        "p95": 18.856718,
+        "p99": 18.856718,
+        "min": 5.870457,
+        "max": 18.856718
+      },
+      "generated_event_to_ack_ms": {
+        "p50": 33.896248,
+        "p95": 35.880465,
+        "p99": 35.880465,
+        "min": 22.901,
+        "max": 35.880465
+      },
+      "repeated_transactions": 84,
+      "suppressed_wait_checks": 0
+    },
+    {
+      "fractional_control": true,
+      "suppression": true,
+      "trials": 8,
+      "generated_event_to_host_write_ms": {
+        "p50": 16.8829865,
+        "p95": 18.87371,
+        "p99": 18.87371,
+        "min": 4.864353,
+        "max": 18.87371
+      },
+      "generated_event_to_ack_ms": {
+        "p50": 33.9149395,
+        "p95": 35.903568,
+        "p99": 35.903568,
+        "min": 21.894026,
+        "max": 35.903568
+      },
+      "repeated_transactions": 84,
+      "suppressed_wait_checks": 0
+    }
+  ],
+  "trials": [
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.02415,
+        "drain_ms": 0.000641,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.02365,
+        "report_write_ms": [
+          2.000768,
+          0.9982599999999999,
+          0.969585
+        ],
+        "response_reports": 1,
+        "total_ms": 20.994518,
+        "write_ms": 3.969616,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": false,
+      "repeated_transactions": 6,
+      "source_event_to_ack_ms": 32.825316,
+      "source_event_to_write_ms": 15.799132,
+      "source_offset_ms": 101,
+      "suppressed_checks": 0,
+      "suppression": false
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.024922,
+        "drain_ms": 0.0020940000000000004,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.024250000000002,
+        "report_write_ms": [
+          0.8770610000000001,
+          0.996367,
+          0.970277
+        ],
+        "response_reports": 1,
+        "total_ms": 19.872553,
+        "write_ms": 2.845367,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": false,
+      "repeated_transactions": 0,
+      "source_event_to_ack_ms": 19.886319,
+      "source_event_to_write_ms": 2.859444,
+      "source_offset_ms": 101,
+      "suppressed_checks": 1,
+      "suppression": true
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.023670000000003,
+        "drain_ms": 0.002064,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.022748,
+        "report_write_ms": [
+          0.885507,
+          0.9976989999999999,
+          0.972681
+        ],
+        "response_reports": 1,
+        "total_ms": 19.883855,
+        "write_ms": 2.857961,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": false,
+      "repeated_transactions": 0,
+      "source_event_to_ack_ms": 19.89743,
+      "source_event_to_write_ms": 2.870504,
+      "source_offset_ms": 101,
+      "suppressed_checks": 1,
+      "suppression": true
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.02358,
+        "drain_ms": 0.000411,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.022748,
+        "report_write_ms": [
+          2.000327,
+          1.00917,
+          0.9613999999999999
+        ],
+        "response_reports": 1,
+        "total_ms": 20.999437,
+        "write_ms": 3.975346,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": false,
+      "repeated_transactions": 6,
+      "source_event_to_ack_ms": 32.900929000000005,
+      "source_event_to_write_ms": 15.870196,
+      "source_offset_ms": 101,
+      "suppressed_checks": 0,
+      "suppression": false
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.023549,
+        "drain_ms": 0.00049,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.022858,
+        "report_write_ms": [
+          1.997141,
+          0.9970479999999999,
+          0.9742550000000001
+        ],
+        "response_reports": 1,
+        "total_ms": 20.994206000000002,
+        "write_ms": 3.970026,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": false,
+      "repeated_transactions": 8,
+      "source_event_to_ack_ms": 34.893642,
+      "source_event_to_write_ms": 17.866075,
+      "source_offset_ms": 137,
+      "suppressed_checks": 0,
+      "suppression": false
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.031114,
+        "drain_ms": 0.001934,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.030041999999998,
+        "report_write_ms": [
+          0.8823099999999999,
+          0.99846,
+          0.9665
+        ],
+        "response_reports": 1,
+        "total_ms": 19.883023,
+        "write_ms": 2.849805,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": false,
+      "repeated_transactions": 0,
+      "source_event_to_ack_ms": 19.896599000000002,
+      "source_event_to_write_ms": 2.862369,
+      "source_offset_ms": 137,
+      "suppressed_checks": 1,
+      "suppression": true
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.03359,
+        "drain_ms": 0.002114,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.032237,
+        "report_write_ms": [
+          0.899202,
+          0.993201,
+          0.9701770000000001
+        ],
+        "response_reports": 1,
+        "total_ms": 19.900338,
+        "write_ms": 2.8643840000000003,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": false,
+      "repeated_transactions": 0,
+      "source_event_to_ack_ms": 19.916107999999998,
+      "source_event_to_write_ms": 2.878,
+      "source_offset_ms": 137,
+      "suppressed_checks": 1,
+      "suppression": true
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.027288000000002,
+        "drain_ms": 0.000572,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.026307,
+        "report_write_ms": [
+          2.002782,
+          0.9983500000000001,
+          0.968875
+        ],
+        "response_reports": 1,
+        "total_ms": 20.999059,
+        "write_ms": 3.971108,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": false,
+      "repeated_transactions": 8,
+      "source_event_to_ack_ms": 35.892637,
+      "source_event_to_write_ms": 18.861922,
+      "source_offset_ms": 137,
+      "suppressed_checks": 0,
+      "suppression": false
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.031385999999998,
+        "drain_ms": 0.00047999999999999996,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.030444,
+        "report_write_ms": [
+          1.998494,
+          1.000615,
+          0.968674
+        ],
+        "response_reports": 1,
+        "total_ms": 21.001452,
+        "write_ms": 3.9694550000000004,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": false,
+      "repeated_transactions": 14,
+      "source_event_to_ack_ms": 34.902801999999994,
+      "source_event_to_write_ms": 17.867529,
+      "source_offset_ms": 251,
+      "suppressed_checks": 0,
+      "suppression": false
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.025685,
+        "drain_ms": 0.000761,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.024703,
+        "report_write_ms": [
+          2.003253,
+          0.9946639999999999,
+          0.9667709999999999
+        ],
+        "response_reports": 1,
+        "total_ms": 20.993557,
+        "write_ms": 3.9670210000000004,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": false,
+      "repeated_transactions": 1,
+      "source_event_to_ack_ms": 37.888385,
+      "source_event_to_write_ms": 20.859554,
+      "source_offset_ms": 251,
+      "suppressed_checks": 1,
+      "suppression": true
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.025787,
+        "drain_ms": 0.000702,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.024575,
+        "report_write_ms": [
+          2.0035439999999998,
+          0.999001,
+          0.968454
+        ],
+        "response_reports": 1,
+        "total_ms": 20.999982,
+        "write_ms": 3.9733930000000006,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": false,
+      "repeated_transactions": 1,
+      "source_event_to_ack_ms": 37.898317,
+      "source_event_to_write_ms": 20.869615,
+      "source_offset_ms": 251,
+      "suppressed_checks": 1,
+      "suppression": true
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.02758,
+        "drain_ms": 0.000451,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.026789,
+        "report_write_ms": [
+          2.00152,
+          1.001957,
+          0.966109
+        ],
+        "response_reports": 1,
+        "total_ms": 20.99889,
+        "write_ms": 3.970699,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": false,
+      "repeated_transactions": 14,
+      "source_event_to_ack_ms": 34.893258,
+      "source_event_to_write_ms": 17.862312000000003,
+      "source_offset_ms": 251,
+      "suppressed_checks": 0,
+      "suppression": false
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.024073,
+        "drain_ms": 0.000521,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.023112,
+        "report_write_ms": [
+          2.003123,
+          0.9940229999999999,
+          0.9746159999999999
+        ],
+        "response_reports": 1,
+        "total_ms": 20.998299000000003,
+        "write_ms": 3.973624,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": false,
+      "repeated_transactions": 14,
+      "source_event_to_ack_ms": 22.898206000000002,
+      "source_event_to_write_ms": 5.870646,
+      "source_offset_ms": 263,
+      "suppressed_checks": 0,
+      "suppression": false
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.022242,
+        "drain_ms": 0.000501,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.021481,
+        "report_write_ms": [
+          2.002842,
+          0.996297,
+          0.970608
+        ],
+        "response_reports": 1,
+        "total_ms": 20.995215,
+        "write_ms": 3.972372,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": false,
+      "repeated_transactions": 1,
+      "source_event_to_ack_ms": 25.887408,
+      "source_event_to_write_ms": 8.862570999999999,
+      "source_offset_ms": 263,
+      "suppressed_checks": 1,
+      "suppression": true
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.033754000000002,
+        "drain_ms": 0.000691,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.032352,
+        "report_write_ms": [
+          2.0008489999999997,
+          1.001046,
+          0.964917
+        ],
+        "response_reports": 1,
+        "total_ms": 21.0033,
+        "write_ms": 3.968765,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": false,
+      "repeated_transactions": 1,
+      "source_event_to_ack_ms": 25.910632,
+      "source_event_to_write_ms": 8.873772,
+      "source_offset_ms": 263,
+      "suppressed_checks": 1,
+      "suppression": true
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.02649,
+        "drain_ms": 0.000571,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.025347999999997,
+        "report_write_ms": [
+          2.001079,
+          0.999031,
+          0.96646
+        ],
+        "response_reports": 1,
+        "total_ms": 20.996348,
+        "write_ms": 3.969196,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": false,
+      "repeated_transactions": 14,
+      "source_event_to_ack_ms": 22.889652,
+      "source_event_to_write_ms": 5.860086,
+      "source_offset_ms": 263,
+      "suppressed_checks": 0,
+      "suppression": false
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.029415999999998,
+        "drain_ms": 0.0007109999999999999,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.028284000000003,
+        "report_write_ms": [
+          2.0007279999999996,
+          0.9998730000000001,
+          0.965889
+        ],
+        "response_reports": 1,
+        "total_ms": 20.998932,
+        "write_ms": 3.968725,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": true,
+      "repeated_transactions": 6,
+      "source_event_to_ack_ms": 33.887407,
+      "source_event_to_write_ms": 16.854754999999997,
+      "source_offset_ms": 101,
+      "suppressed_checks": 0,
+      "suppression": false
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.024849000000003,
+        "drain_ms": 0.000471,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.023987,
+        "report_write_ms": [
+          2.002331,
+          0.9934709999999999,
+          0.974625
+        ],
+        "response_reports": 1,
+        "total_ms": 20.997241,
+        "write_ms": 3.9718009999999997,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": true,
+      "repeated_transactions": 6,
+      "source_event_to_ack_ms": 32.887086000000004,
+      "source_event_to_write_ms": 15.859482000000002,
+      "source_offset_ms": 101,
+      "suppressed_checks": 0,
+      "suppression": true
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.034928,
+        "drain_ms": 0.000611,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.033585,
+        "report_write_ms": [
+          2.000348,
+          0.996677,
+          0.968454
+        ],
+        "response_reports": 1,
+        "total_ms": 21.002481,
+        "write_ms": 3.966832,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": true,
+      "repeated_transactions": 6,
+      "source_event_to_ack_ms": 32.936229,
+      "source_event_to_write_ms": 15.898346,
+      "source_offset_ms": 101,
+      "suppressed_checks": 0,
+      "suppression": true
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.027234,
+        "drain_ms": 0.0006519999999999999,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.026272,
+        "report_write_ms": [
+          2.006319,
+          0.9957659999999999,
+          0.968364
+        ],
+        "response_reports": 1,
+        "total_ms": 21.000107,
+        "write_ms": 3.9721210000000005,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": true,
+      "repeated_transactions": 6,
+      "source_event_to_ack_ms": 33.896507,
+      "source_event_to_write_ms": 16.866418,
+      "source_offset_ms": 101,
+      "suppressed_checks": 0,
+      "suppression": false
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.021382000000003,
+        "drain_ms": 0.000531,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.020561,
+        "report_write_ms": [
+          2.005598,
+          0.9972780000000001,
+          0.974325
+        ],
+        "response_reports": 1,
+        "total_ms": 21.000297,
+        "write_ms": 3.9782940000000004,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": true,
+      "repeated_transactions": 8,
+      "source_event_to_ack_ms": 35.880465,
+      "source_event_to_write_ms": 18.856718,
+      "source_offset_ms": 137,
+      "suppressed_checks": 0,
+      "suppression": false
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.027524,
+        "drain_ms": 0.000511,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.026771999999998,
+        "report_write_ms": [
+          1.9995770000000002,
+          1.003109,
+          0.967792
+        ],
+        "response_reports": 1,
+        "total_ms": 20.999826,
+        "write_ms": 3.9717010000000004,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": true,
+      "repeated_transactions": 8,
+      "source_event_to_ack_ms": 35.903568,
+      "source_event_to_write_ms": 18.87371,
+      "source_offset_ms": 137,
+      "suppressed_checks": 0,
+      "suppression": true
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.023647999999998,
+        "drain_ms": 0.000571,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.022797,
+        "report_write_ms": [
+          1.987053,
+          1.003681,
+          0.969817
+        ],
+        "response_reports": 1,
+        "total_ms": 20.986823,
+        "write_ms": 3.962474,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": true,
+      "repeated_transactions": 8,
+      "source_event_to_ack_ms": 34.89365,
+      "source_event_to_write_ms": 17.867627,
+      "source_offset_ms": 137,
+      "suppressed_checks": 0,
+      "suppression": true
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.021945,
+        "drain_ms": 0.000451,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.021054,
+        "report_write_ms": [
+          1.998093,
+          1.003079,
+          0.9729829999999999
+        ],
+        "response_reports": 1,
+        "total_ms": 20.998275,
+        "write_ms": 3.9757890000000002,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": true,
+      "repeated_transactions": 8,
+      "source_event_to_ack_ms": 34.896745,
+      "source_event_to_write_ms": 17.872405,
+      "source_offset_ms": 137,
+      "suppressed_checks": 0,
+      "suppression": false
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.026905,
+        "drain_ms": 0.00048100000000000004,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.025813,
+        "report_write_ms": [
+          1.0025590000000002,
+          0.997308,
+          0.970519
+        ],
+        "response_reports": 1,
+        "total_ms": 19.999594,
+        "write_ms": 2.972098,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": true,
+      "repeated_transactions": 14,
+      "source_event_to_ack_ms": 33.895989,
+      "source_event_to_write_ms": 16.86654,
+      "source_offset_ms": 251,
+      "suppressed_checks": 0,
+      "suppression": false
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.025812000000002,
+        "drain_ms": 0.000612,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.024860999999998,
+        "report_write_ms": [
+          2.005919,
+          0.991588,
+          0.975477
+        ],
+        "response_reports": 1,
+        "total_ms": 21.001461,
+        "write_ms": 3.9749169999999996,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": true,
+      "repeated_transactions": 14,
+      "source_event_to_ack_ms": 34.901404,
+      "source_event_to_write_ms": 17.873117,
+      "source_offset_ms": 251,
+      "suppressed_checks": 0,
+      "suppression": true
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.0286,
+        "drain_ms": 0.000591,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.027548,
+        "report_write_ms": [
+          2.005198,
+          0.99767,
+          0.9688150000000001
+        ],
+        "response_reports": 1,
+        "total_ms": 21.002065,
+        "write_ms": 3.9727729999999997,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": true,
+      "repeated_transactions": 14,
+      "source_event_to_ack_ms": 34.905896,
+      "source_event_to_write_ms": 17.874291,
+      "source_offset_ms": 251,
+      "suppressed_checks": 0,
+      "suppression": true
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.025302999999997,
+        "drain_ms": 0.000441,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.024200999999998,
+        "report_write_ms": [
+          2.0035439999999998,
+          0.9985409999999999,
+          0.968835
+        ],
+        "response_reports": 1,
+        "total_ms": 20.998537000000002,
+        "write_ms": 3.972703,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": true,
+      "repeated_transactions": 14,
+      "source_event_to_ack_ms": 34.901858000000004,
+      "source_event_to_write_ms": 17.873900000000003,
+      "source_offset_ms": 251,
+      "suppressed_checks": 0,
+      "suppression": false
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.028038,
+        "drain_ms": 0.000411,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.027236000000002,
+        "report_write_ms": [
+          2.007451,
+          0.9969480000000001,
+          0.967502
+        ],
+        "response_reports": 1,
+        "total_ms": 21.001744,
+        "write_ms": 3.9732250000000002,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": true,
+      "repeated_transactions": 14,
+      "source_event_to_ack_ms": 22.901,
+      "source_event_to_write_ms": 5.870457,
+      "source_offset_ms": 263,
+      "suppressed_checks": 0,
+      "suppression": false
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.027299,
+        "drain_ms": 0.00042100000000000004,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.026526999999998,
+        "report_write_ms": [
+          1.9996580000000002,
+          1.007929,
+          0.966912
+        ],
+        "response_reports": 1,
+        "total_ms": 21.003398999999998,
+        "write_ms": 3.9755789999999998,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": true,
+      "repeated_transactions": 14,
+      "source_event_to_ack_ms": 21.894026,
+      "source_event_to_write_ms": 4.864353,
+      "source_offset_ms": 263,
+      "suppressed_checks": 0,
+      "suppression": true
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.025185,
+        "drain_ms": 0.00039000000000000005,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.024403,
+        "report_write_ms": [
+          2.005989,
+          0.997439,
+          0.969285
+        ],
+        "response_reports": 1,
+        "total_ms": 21.000432999999997,
+        "write_ms": 3.974768,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": true,
+      "repeated_transactions": 14,
+      "source_event_to_ack_ms": 22.882859,
+      "source_event_to_write_ms": 5.85549,
+      "source_offset_ms": 263,
+      "suppressed_checks": 0,
+      "suppression": true
+    },
+    {
+      "changed_transaction": {
+        "ack_wait_ms": 17.025546,
+        "drain_ms": 0.000501,
+        "drained_reports": 0,
+        "first_report_wait_ms": 17.024654,
+        "report_write_ms": [
+          1.999687,
+          1.003781,
+          0.968554
+        ],
+        "response_reports": 1,
+        "total_ms": 20.999412,
+        "write_ms": 3.9732049999999997,
+        "written_reports": 3
+      },
+      "controller_brightness_readback": 16,
+      "fractional_control": true,
+      "repeated_transactions": 14,
+      "source_event_to_ack_ms": 22.905792,
+      "source_event_to_write_ms": 5.8779319999999995,
+      "source_offset_ms": 263,
+      "suppressed_checks": 0,
+      "suppression": false
+    }
+  ],
+  "independent_controller_restoration": true,
+  "configuration_byte_identical": true,
+  "daily_default_enabled": false,
+  "optical_measurement": false,
+  "limits": "Generated full-count integer targets bypass saved colour calibration for this USB timing experiment; not a screen benchmark. 8 small trials per group; p95/p99 are sample maxima, not established long-term tails. Periodic refresh adds an observed ~3ms regression at selected offsets."
+}

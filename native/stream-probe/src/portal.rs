@@ -21,7 +21,7 @@ pub struct Session {
     connection: Connection,
     path: OwnedObjectPath,
     pub node: u32,
-    pub serial: Option<String>,
+    pub serial: Option<u64>,
     pub size: Option<(i32, i32)>,
     pub position: Option<(i32, i32)>,
     closed: Arc<AtomicBool>,
@@ -180,7 +180,7 @@ impl Session {
             }
             Ok(portal.call("SelectSources", &(&session.path, options))?)
         })?;
-        eprintln!("Choose the single monitor to test in KDE's screen-sharing dialog. This probe does not drive the LEDs.");
+        eprintln!("Select the configured monitor if KDE asks for screen-sharing permission.");
         let started = request(&connection, &portal, "Start", |handle| {
             Ok(portal.call(
                 "Start",
@@ -201,13 +201,9 @@ impl Session {
             .try_clone()?
             .try_into()?;
         ensure!(streams.len() == 1, "Select exactly one monitor");
-        session.node = streams[0].0;
-        if let Some(value) = streams[0].1.get("id") {
-            session.node = value.try_clone()?.try_into()?;
-        }
-        if let Some(value) = streams[0].1.get("pipewire-serial") {
-            session.serial = Some(value.try_clone()?.try_into()?);
-        }
+        let target = stream_target(streams[0].0, &streams[0].1)?;
+        session.node = target.node;
+        session.serial = target.serial;
         if let Some(value) = streams[0].1.get("size") {
             session.size = Some(value.try_clone()?.try_into()?);
         }
@@ -219,6 +215,31 @@ impl Session {
         let _ = finish.send(());
         Ok((session, fd))
     }
+}
+
+struct StreamTarget {
+    node: u32,
+    serial: Option<u64>,
+}
+fn stream_target(node: u32, properties: &HashMap<String, OwnedValue>) -> Result<StreamTarget> {
+    // `id` is an opaque source identity, never a PipeWire node ID. Version 6
+    // specifies a uint64 serial; accept older KDE's decimal-string serial too.
+    let serial = properties
+        .get("pipewire-serial")
+        .map(|value| -> Result<u64> {
+            let serial = if let Ok(serial) = u64::try_from(value) {
+                serial
+            } else {
+                <&str>::try_from(value)
+                    .context("Invalid PipeWire serial type")?
+                    .parse::<u64>()
+                    .context("Invalid PipeWire serial")?
+            };
+            ensure!(serial > 0, "Invalid zero PipeWire serial");
+            Ok(serial)
+        })
+        .transpose()?;
+    Ok(StreamTarget { node, serial })
 }
 
 #[cfg(test)]
@@ -234,6 +255,48 @@ mod tests {
         fn drop(&mut self) {
             let _ = self.0.kill();
             let _ = self.0.wait();
+        }
+    }
+    #[test]
+    fn stream_identity_never_replaces_node_and_uint64_serial_is_preserved() {
+        let properties = HashMap::from([
+            (
+                "id".into(),
+                OwnedValue::try_from(Value::from("DP-1-source")).unwrap(),
+            ),
+            ("pipewire-serial".into(), OwnedValue::from(u64::MAX)),
+        ]);
+        let target = stream_target(42, &properties).unwrap();
+        assert_eq!(target.node, 42);
+        assert_eq!(target.serial, Some(u64::MAX));
+        let target = stream_target(42, &HashMap::new()).unwrap();
+        assert_eq!(target.node, 42);
+        assert_eq!(target.serial, None);
+        // Older KDE responses used a string serial and a numeric id. The id is
+        // still opaque metadata; it must not change the tuple's PipeWire node.
+        let properties = HashMap::from([
+            ("id".into(), OwnedValue::from(999_u32)),
+            (
+                "pipewire-serial".into(),
+                OwnedValue::try_from(Value::from("123456")).unwrap(),
+            ),
+        ]);
+        let target = stream_target(42, &properties).unwrap();
+        assert_eq!(target.node, 42);
+        assert_eq!(target.serial, Some(123456));
+    }
+
+    #[test]
+    fn malformed_present_serial_never_silently_falls_back_to_a_reused_node() {
+        for value in [
+            OwnedValue::from(0_u64),
+            OwnedValue::from(-1_i64),
+            OwnedValue::try_from(Value::from("not-a-serial")).unwrap(),
+            OwnedValue::try_from(Value::from("18446744073709551616")).unwrap(),
+        ] {
+            assert!(
+                stream_target(42, &HashMap::from([("pipewire-serial".into(), value)])).is_err()
+            );
         }
     }
     #[test]

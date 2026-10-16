@@ -1,0 +1,13 @@
+{
+  "local_app_gui_tests_passed": 88,
+  "new_overlap_contract_tests": 7,
+  "ordinary_ci_ignored_operator_benchmarks": 1,
+  "clippy_all_targets_gui_warnings_denied": true,
+  "formatting": true,
+  "serial_daily_transport_changed": false,
+  "installed_binary_pair_changed": false,
+  "calibration_config_fallback_autostart_preserved": true,
+  "tray_closed_on_entry_and_left_closed": true,
+  "optical_response_measured": false,
+  "new_physical_colour_or_reconnect_test_claimed": false
+}

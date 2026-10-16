@@ -1,4 +1,4 @@
-use nanoleaf_core::colour::{apply_profile, LedCalibration, Style};
+use nanoleaf_core::colour::{apply_profile_legacy_oracle, LedCalibration, Style};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -25,7 +25,7 @@ struct Profile {
 }
 
 #[test]
-fn profiles_match_python_oracle_within_one_quantization_code() {
+fn historical_profiles_match_python_oracle_within_one_quantization_code() {
     let data: Data =
         serde_json::from_str(include_str!("../../fixtures/colour-calibration.json")).unwrap();
     let mut differences = 0;
@@ -54,7 +54,7 @@ fn profiles_match_python_oracle_within_one_quantization_code() {
             _ => Style::Punchy,
         };
         for (index, (input, expected)) in data.inputs.iter().zip(case.expected).enumerate() {
-            let actual = apply_profile(input.map(f32::from), style, cal);
+            let actual = apply_profile_legacy_oracle(input.map(f32::from), style, cal);
             for c in 0..3 {
                 let delta = actual[c].abs_diff(expected[c]);
                 assert!(

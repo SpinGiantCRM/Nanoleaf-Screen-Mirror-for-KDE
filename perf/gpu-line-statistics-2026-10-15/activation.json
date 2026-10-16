@@ -1,0 +1,10 @@
+{
+  "installed_version": "18abd20eadafe11b3afd5041826a9af260474897b2ca4d16df3d9054a40be8b6",
+  "app_sha256": "fc23d08f4e8c8b27a56624957104321930f9b51fef914e561821dc7ca9b6ad03",
+  "helper_sha256": "1098b6b4419ac1c9075697962fdf9c0b67f55e3839acaba3bba0c9b801bdd26a",
+  "previous_version_retained": true,
+  "config_calibration_python_launchers_and_autostart_preserved": true,
+  "native_launcher_updated_to_installed_version": true,
+  "doctor_passed": true,
+  "app_remains_closed": true
+}

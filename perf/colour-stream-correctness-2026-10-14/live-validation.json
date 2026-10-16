@@ -1,0 +1,128 @@
+{
+  "tested_code_revision": "0130739f1e8c1ef0940cd1199a74c44d76a67cb3",
+  "hosted_archive_sha256": "54d25c27a2eaf01e02b1453d0087df278034228dc96dc275d061b1f712b4ca5a",
+  "binary_sha256": "ab44528e81bb2199db740291b72a0d3ea9c3d8d84b2e12815592752e452d4ea0",
+  "capture_helper_sha256": "a43e0b9c2981211ac951bd501e98aa46613b9455c26e97ae4c3445f91fabe8ba",
+  "config_before_sha256": "b470ea82ac1568cf99f4762f6914e4aa295bd3422527e9eb3ca046b52272d1a4",
+  "config_after_sha256": "b470ea82ac1568cf99f4762f6914e4aa295bd3422527e9eb3ca046b52272d1a4",
+  "capture_only": {
+    "frames": 413,
+    "duration_ms": 8191.457987,
+    "first_frame_ms": 190.93778,
+    "dropped_prepared_frames": 0,
+    "error": null,
+    "all_cpu_gpu_parity_verified": true
+  },
+  "live_lifecycle": {
+    "preview_exclusive": true,
+    "restart_open_count": 3,
+    "worker_failure_requires_explicit_restart": true,
+    "stop_kept_tray_service_alive": true,
+    "configuration_and_fallback_launcher_preserved": true
+  },
+  "active_window": {
+    "seconds": 5.025153407998005,
+    "total_cpu_percent_one_core": 4.178976897815005,
+    "rss_sum_kib": 145708,
+    "pss_sum_kib": 130613,
+    "priority": {
+      "configured": "normal",
+      "effective_nice": -8,
+      "error": null
+    },
+    "last_status": {
+      "running": true,
+      "preview": false,
+      "message": "Mirroring",
+      "model": "NL82K2",
+      "manual_zones": 48,
+      "reported_zones": 48,
+      "frames": 231,
+      "predicted_frames": 0,
+      "prediction_enabled": false,
+      "reused_source_packets": 0,
+      "last_source_reused": false,
+      "missed_deadlines": 0,
+      "dropped_frames": 57,
+      "capture_ms": 0.689166,
+      "processing_ms": 0.030848,
+      "usb_ms": 21.995043,
+      "usb_transaction": {
+        "drain_ms": 0.0008420000000000001,
+        "write_ms": 3.960964,
+        "first_report_wait_ms": 18.030753,
+        "ack_wait_ms": 18.031675,
+        "total_ms": 21.993771,
+        "drained_reports": 0,
+        "written_reports": 3,
+        "response_reports": 1
+      },
+      "response_ms": 42.149173999999995,
+      "effective_fps": 45.63329173465288,
+      "startup_ms": 276.356308,
+      "reconnects": 1,
+      "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples",
+      "priority": {
+        "configured": "normal",
+        "effective_nice": -8,
+        "error": null
+      }
+    },
+    "usb_stage_medians_ms_over_20hz_status_snapshots": {
+      "drain_ms": 0.0006209999999999999,
+      "write_ms": 3.9616205000000004,
+      "first_report_wait_ms": 18.027346,
+      "ack_wait_ms": 18.028223499999996,
+      "total_ms": 21.99058
+    }
+  },
+  "physical_reconnect": {
+    "exit_code": 0,
+    "usb_loss_detected": true,
+    "acknowledged_output_resumed": true,
+    "config_unchanged": true
+  },
+  "worker_stall": {
+    "stall_to_safe_stop_seconds": 2.0593574669983354,
+    "service_alive": true,
+    "remaining_children": [],
+    "exit_code": 0
+  },
+  "external_revocation": {
+    "service_alive": true,
+    "children_after": [],
+    "no_output_or_reacquisition": true,
+    "exit_code": 0
+  },
+  "controller_restoration": {
+    "lifecycle": true,
+    "reconnect": true,
+    "stall": true,
+    "revocation": true
+  },
+  "human_observations": {
+    "colours_follow_screen": true,
+    "colours_resume_after_usb_reconnect": true,
+    "kde_sharing_stopped": true
+  },
+  "limits": [
+    "SDR display-referred data on an HDR-enabled desktop, not raw HDR",
+    "One NL82K2; NL82K1 and physical suspend untested",
+    "No saved screen images or live calibration/config changes",
+    "CPU includes parent/child, excludes compositor/GPU and settings UI; nice -8 inherited",
+    "Short desktop window, not sustained gameplay or comparative power test",
+    "No source-reused packets observed; compositor kept emitting fresh frames",
+    "No optical latency, colourimeter or power measurements",
+    "First external-revocation attempt timed out before user acted; second passed",
+    "First combined script rerun hit a child-reaping measurement race; fixed script rerun passed"
+  ],
+  "repeatable_lifecycle_rerun": {
+    "worker_stall_to_stop_seconds": 2.040633368997078,
+    "worker_stall_requires_explicit_restart": true,
+    "preview_exclusive": true,
+    "worker_failure_requires_explicit_restart": true,
+    "stop_kept_tray_service_alive": true,
+    "configuration_and_fallback_launcher_preserved": true,
+    "controller_restored": true
+  }
+}

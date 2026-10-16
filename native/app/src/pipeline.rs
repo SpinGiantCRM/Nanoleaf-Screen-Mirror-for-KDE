@@ -9,7 +9,7 @@ use nanoleaf_core::{
     sampling::{SdrRgb8Frame, SdrSampler, ZoneRect, ZoneSample},
 };
 use serde::Serialize;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 #[derive(Default, Clone, Debug, Serialize, serde::Deserialize)]
 pub struct ProcessingTimes {
@@ -35,6 +35,7 @@ pub struct Pipeline {
     blend: BlendState,
     frame_index: usize,
     motion: f64,
+    temporal_elapsed: Option<Duration>,
 }
 pub struct Output {
     pub unquantized_rgb: Vec<[f32; 3]>,
@@ -46,6 +47,7 @@ pub struct Output {
 }
 struct PreparedSamples {
     raw: Vec<[u8; 3]>,
+    precise_linear: Vec<Option<[f32; 3]>>,
     modes: Vec<String>,
     mapping: Vec<usize>,
     mixed_ms: f64,
@@ -205,37 +207,54 @@ pub fn encoded_mean(pixels: &[u8]) -> Result<f32> {
         .sum::<f32>()
         / (pixels.len() / 3) as f32)
 }
+pub const CONTENT_THRESHOLD: f32 = 4.0;
+
 pub fn detect_content_bounds(
     w: usize,
     h: usize,
     mut row: impl FnMut(usize) -> Result<f32>,
     mut col: impl FnMut(usize, usize, usize) -> Result<f32>,
 ) -> Result<ContentBounds> {
+    detect_content_bounds_by_decision(
+        w,
+        h,
+        |y| Ok(row(y)? > CONTENT_THRESHOLD),
+        |x, top, bottom| Ok(col(x, top, bottom)? > CONTENT_THRESHOLD),
+    )
+}
+/// Same ordered search, accepting a proven comparison instead of requiring a
+/// downloaded pixel line. Uncertain GPU summaries must use the original mean.
+pub fn detect_content_bounds_by_decision(
+    w: usize,
+    h: usize,
+    mut row: impl FnMut(usize) -> Result<bool>,
+    mut col: impl FnMut(usize, usize, usize) -> Result<bool>,
+) -> Result<ContentBounds> {
     ensure!(w > 0 && h > 0, "Empty content geometry");
     let mut top = 0;
     for y in (0..h).step_by(8) {
-        if row(y)? > 4.0 {
+        if row(y)? {
             top = y;
             break;
         }
     }
     let mut bottom = h;
     for y in (top + 1..h).rev().step_by(8) {
-        if row(y)? > 4.0 {
+        if row(y)? {
             bottom = y + 1;
             break;
         }
     }
     let mut left = 0;
     for x in (0..w).step_by(8) {
-        if col(x, top, bottom)? > 4.0 {
+        if col(x, top, bottom)? {
             left = x;
             break;
         }
     }
     let mut right = w;
     for x in (left + 1..w).rev().step_by(8) {
-        if col(x, top, bottom)? > 4.0 {
+        if col(x, top, bottom)? {
             right = x + 1;
             break;
         }
@@ -307,7 +326,7 @@ pub fn validate_mirroring(c: &Config) -> Result<()> {
     c.validate()?;
     ensure!(
         c.capture_backend != "kmsgrab",
-        "Native DRM capture awaits verification; use the working fallback"
+        "Native DRM capture is unsupported; select auto, kwin-dbus or xdg-portal"
     );
     let accuracy = c.accuracy_mode || matches!(c.color_style.as_str(), "reference" | "natural");
     ensure!(
@@ -322,7 +341,7 @@ pub fn validate_mirroring(c: &Config) -> Result<()> {
                     | "vivid_weighted"
                     | "wavelet"
             ),
-        "Sampling mode {} awaits native verification; use the Python fallback",
+        "Sampling mode {} awaits native verification; select a supported sampling mode",
         c.sampling_mode
     );
     ensure!(
@@ -340,8 +359,8 @@ pub fn validate_mirroring(c: &Config) -> Result<()> {
     Ok(())
 }
 impl Pipeline {
-    /// Old Python fixture arithmetic, including encoded-space accumulation and
-    /// black-transition glow. Verification only; never selected by the service.
+    /// Old Python fixture arithmetic, including encoded-space accumulation,
+    /// black-transition glow and ineffective chroma controls. Offline only.
     pub fn legacy_black_hold_oracle() -> Self {
         Self {
             legacy_black_hold_oracle: true,
@@ -365,6 +384,11 @@ impl Pipeline {
             self.quant_hold.fill(false);
             self.previous_sent = sent.to_vec();
         }
+    }
+    /// One source/unchanged-source interval, never a USB ACK or prediction clock.
+    /// Offline callers without timestamps use the configured capture period.
+    pub fn set_temporal_elapsed(&mut self, elapsed: Duration) {
+        self.temporal_elapsed = Some(elapsed);
     }
     pub fn process(&mut self, frame: &Frame, c: &Config) -> Result<Output> {
         validate_mirroring(c)?;
@@ -418,7 +442,7 @@ impl Pipeline {
                     | "vivid_weighted"
                     | "wavelet"
             ),
-            "Sampling mode {mode} awaits native verification; use the Python fallback"
+            "Sampling mode {mode} awaits native verification; select a supported sampling mode"
         );
         let masked = mask(frame, c);
         let bytes = masked.as_deref().unwrap_or(&frame.pixels);
@@ -443,6 +467,7 @@ impl Pipeline {
         let mut mixed_ms = 0.0;
         let mut palette_ms = 0.0;
         let mut raw = Vec::with_capacity(zones.len());
+        let mut precise_linear = vec![None; zones.len()];
         let mut modes = Vec::with_capacity(zones.len());
         for (index, z) in zones.into_iter().enumerate() {
             if matches!(mode, "edge_direct" | "area_average") && c.zone_box_filter_sampling {
@@ -467,7 +492,9 @@ impl Pipeline {
                     raw.push(crate::analysis::multi_moment(&self.sampler, &patch)?);
                     modes.push("multi_moment_actual_mean".to_string());
                 } else {
-                    raw.push(self.sampler.sample_zone(&view, z).srgb);
+                    let sample = self.sampler.sample_zone(&view, z);
+                    precise_linear[index] = Some(sample.linear_rgb);
+                    raw.push(sample.srgb);
                     modes.push(mode.to_string());
                 }
                 continue;
@@ -629,6 +656,7 @@ impl Pipeline {
             c,
             PreparedSamples {
                 raw,
+                precise_linear,
                 modes,
                 mapping,
                 mixed_ms,
@@ -686,6 +714,7 @@ impl Pipeline {
             c,
             PreparedSamples {
                 raw: samples.iter().map(|s| s.srgb).collect(),
+                precise_linear: samples.iter().map(|s| Some(s.linear_rgb)).collect(),
                 modes: vec![plan.mode.to_string(); samples.len()],
                 mapping: plan.mapping,
                 mixed_ms: 0.0,
@@ -697,6 +726,7 @@ impl Pipeline {
     fn finish(&mut self, c: &Config, input: PreparedSamples) -> Result<Output> {
         let PreparedSamples {
             mut raw,
+            precise_linear,
             modes,
             mapping,
             mixed_ms,
@@ -704,25 +734,57 @@ impl Pipeline {
             started,
         } = input;
         let accuracy = c.accuracy_mode || matches!(c.color_style.as_str(), "reference" | "natural");
-        let black: Vec<bool> = raw.iter().map(|rgb| *rgb == [0; 3]).collect();
+        let elapsed = self.temporal_elapsed.take();
+        let reference_steps = if self.legacy_black_hold_oracle {
+            1.0
+        } else {
+            elapsed
+                .map(|d| d.as_secs_f32() * 60.0)
+                .unwrap_or(60.0 / c.fps as f32)
+        };
+        let source_linear: Vec<[f32; 3]> = raw
+            .iter()
+            .zip(precise_linear)
+            .map(|(rgb, precise)| {
+                precise.unwrap_or_else(|| rgb.map(|v| colour::decode_srgb(f32::from(v))))
+            })
+            .collect();
+        let mut precise_encoded: Vec<[f32; 3]> = source_linear
+            .iter()
+            .map(|rgb| rgb.map(colour::encode_srgb))
+            .collect();
+        let black: Vec<bool> = if self.legacy_black_hold_oracle {
+            raw.iter().map(|rgb| *rgb == [0; 3]).collect()
+        } else {
+            source_linear.iter().map(|rgb| *rgb == [0.0; 3]).collect()
+        };
         if c.zone_temporal_accumulation {
             if self.accumulation.len() != raw.len() {
                 self.accumulation = raw
                     .iter()
-                    .map(|v| {
-                        v.map(|code| {
+                    .enumerate()
+                    .map(|(index, v)| {
+                        std::array::from_fn(|channel| {
                             if self.legacy_black_hold_oracle {
-                                f64::from(code)
+                                f64::from(v[channel])
                             } else {
-                                f64::from(colour::decode_srgb(f32::from(code)))
+                                f64::from(source_linear[index][channel])
                             }
                         })
                     })
                     .collect();
             } else {
-                let a = 0.05 + 0.45 * (self.motion / 64.0).clamp(0.0, 1.0);
-                for (acc, rgb) in self.accumulation.iter_mut().zip(&raw) {
-                    if !self.legacy_black_hold_oracle && *rgb == [0; 3] {
+                let reference_alpha = 0.05 + 0.45 * (self.motion / 64.0).clamp(0.0, 1.0);
+                let a = if self.legacy_black_hold_oracle {
+                    reference_alpha
+                } else {
+                    f64::from(nanoleaf_core::blending::temporal_alpha(
+                        reference_alpha as f32,
+                        reference_steps,
+                    ))
+                };
+                for (index, (acc, rgb)) in self.accumulation.iter_mut().zip(&raw).enumerate() {
+                    if !self.legacy_black_hold_oracle && black[index] {
                         *acc = [0.0; 3];
                         continue;
                     }
@@ -730,11 +792,18 @@ impl Pipeline {
                         let current = if self.legacy_black_hold_oracle {
                             f64::from(rgb[k])
                         } else {
-                            f64::from(colour::decode_srgb(f32::from(rgb[k])))
+                            f64::from(source_linear[index][k])
                         };
                         acc[k] = (1.0 - a) * acc[k] + a * current;
                     }
                 }
+            }
+            if !self.legacy_black_hold_oracle {
+                precise_encoded = self
+                    .accumulation
+                    .iter()
+                    .map(|rgb| rgb.map(|v| colour::encode_srgb(v as f32)))
+                    .collect();
             }
             raw = self
                 .accumulation
@@ -770,8 +839,16 @@ impl Pipeline {
         };
         self.previous_sample = raw.clone();
         let mapped_black: Vec<_> = mapping.iter().map(|&i| black[i]).collect();
-        let mut mapped: Vec<[f32; 3]> =
-            mapping.into_iter().map(|i| raw[i].map(f32::from)).collect();
+        let mut mapped: Vec<[f32; 3]> = mapping
+            .into_iter()
+            .map(|i| {
+                if self.legacy_black_hold_oracle {
+                    raw[i].map(f32::from)
+                } else {
+                    precise_encoded[i]
+                }
+            })
+            .collect();
         if self.dark_hold.len() != mapped.len() {
             self.dark_hold = vec![false; mapped.len()];
         }
@@ -786,7 +863,12 @@ impl Pipeline {
             };
             self.dark_hold[i] = held;
             if held {
-                let gray = colour::encode_srgb(y).round_ties_even();
+                let gray = colour::encode_srgb(y);
+                let gray = if self.legacy_black_hold_oracle {
+                    gray.round_ties_even()
+                } else {
+                    gray
+                };
                 *rgb = [gray; 3];
             }
         }
@@ -796,12 +878,24 @@ impl Pipeline {
             "punchy" => Style::Punchy,
             _ => Style::Ambient,
         };
-        let cal = calibration(c);
+        let mut cal = calibration(c);
+        let device_gamma = cal.gamma;
+        if !self.legacy_black_hold_oracle {
+            cal.gamma = 1.0;
+        }
         for rgb in &mut mapped {
-            *rgb = colour::apply_profile(*rgb, style, cal).map(f32::from);
+            *rgb = if self.legacy_black_hold_oracle {
+                colour::apply_profile_legacy_oracle(*rgb, style, cal).map(f32::from)
+            } else {
+                colour::apply_profile_unquantized(*rgb, style, cal)
+            };
         }
         if !accuracy {
-            self.blend.neighbors(&mut mapped, &c.light_spread);
+            if self.legacy_black_hold_oracle {
+                self.blend.neighbors(&mut mapped, &c.light_spread);
+            } else {
+                self.blend.neighbors_linear(&mut mapped, &c.light_spread);
+            }
         }
         if c.brightness != 1.0 {
             for rgb in &mut mapped {
@@ -835,26 +929,47 @@ impl Pipeline {
             } else {
                 (preset, minimum, speed)
             };
-        self.blend.smooth(
-            &mut mapped,
-            &self.previous_smooth,
-            minimum as f32,
-            speed as f32,
-            preset,
-        );
+        if self.legacy_black_hold_oracle {
+            self.blend.smooth(
+                &mut mapped,
+                &self.previous_smooth,
+                minimum as f32,
+                speed as f32,
+                preset,
+            );
+        } else {
+            self.blend.smooth_linear_timed(
+                &mut mapped,
+                &self.previous_smooth,
+                minimum as f32,
+                speed as f32,
+                preset,
+                reference_steps,
+            );
+        }
         for rgb in &mut mapped {
             let peak = rgb.iter().copied().fold(0.0, f32::max);
-            let gray = colour::encode_srgb(luma(rgb.map(colour::decode_srgb))).round_ties_even();
+            let gray = colour::encode_srgb(luma(rgb.map(colour::decode_srgb)));
+            let gray = if self.legacy_black_hold_oracle {
+                gray.round_ties_even()
+            } else {
+                gray
+            };
             let achro = 1.0 - smoothstep(12.0, 20.0, peak);
             let off = smoothstep(4.0, 16.0, peak);
             *rgb = rgb.map(|x| (x * (1.0 - achro) + gray * achro) * off);
         }
-        for (rgb, black) in mapped.iter_mut().zip(mapped_black) {
-            if black && !self.legacy_black_hold_oracle {
+        for (rgb, black) in mapped.iter_mut().zip(&mapped_black) {
+            if *black && !self.legacy_black_hold_oracle {
                 *rgb = [0.0; 3];
             }
         }
         self.previous_smooth = mapped.clone();
+        if !self.legacy_black_hold_oracle {
+            for rgb in &mut mapped {
+                *rgb = colour::apply_device_gamma(*rgb, device_gamma);
+            }
+        }
         if self.quant_hold.len() != mapped.len() {
             self.quant_hold = vec![false; mapped.len()];
         }
@@ -868,6 +983,10 @@ impl Pipeline {
             && self.previous_sent.len() == mapped.len()
         {
             for (i, rgb) in mapped.iter_mut().enumerate() {
+                if !self.legacy_black_hold_oracle && (mapped_black[i] || *rgb == [0.0; 3]) {
+                    self.quant_hold[i] = false;
+                    continue;
+                }
                 let old = self.previous_sent[i].map(f32::from);
                 let delta = (0..3).map(|k| (rgb[k] - old[k]).abs()).fold(0.0, f32::max);
                 let threshold =

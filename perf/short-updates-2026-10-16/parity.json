@@ -1,0 +1,8 @@
+{
+  "scope": "Supervised streaming worker and full native colour processing; no USB or optical measurement, no saved pixels/config changes",
+  "frames_exact": 300,
+  "cpu_gpu_parity": true,
+  "vulkan_validation_flag": "NANOLEAF_VULKAN_VALIDATE=1",
+  "stderr_bytes": 0,
+  "no_usb_or_saved_images": true
+}

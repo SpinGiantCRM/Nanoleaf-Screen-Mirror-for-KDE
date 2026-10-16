@@ -1,0 +1,36 @@
+{
+  "installed_version": "eafeeb0d37577f8dba021327c8184dd48e6103dc554bd67041d16d6384d9b5f3",
+  "installed_app_sha256": "d16096e04fa16407713e8fb2122765349790404e8e034ca2626d5b6159a899ed",
+  "installed_helper_sha256": "9a252771055cd757c719274e7f2345b2b9e3fe04bbe0f44f9f8a6b05fb362707",
+  "previous_daily_native_retained": true,
+  "configuration_and_fallback_files_preserved": {
+    "config.toml": true,
+    "nanoleaf-kde-sync.desktop": true,
+    "autostart_nanoleaf-kde-sync.desktop": true,
+    "autostart_nanoleaf-native.desktop": true
+  },
+  "precise_cache_timer_enabled": false,
+  "gpu_wait_batching_enabled": false,
+  "app_previously_closed": true,
+  "doctor": {
+    "configuration_error": null,
+    "configuration_read_only": true,
+    "mirroring_ready": true,
+    "privileged_access_required": false,
+    "readiness_error": null,
+    "stream_helper_present": true,
+    "usb_devices_detected": [
+      {
+        "interface": 0,
+        "pid": 33282,
+        "vid": 14330
+      }
+    ],
+    "usb_output_tested": false,
+    "wayland_session": true
+  },
+  "installed_live_acknowledged_updates": 422,
+  "installed_controller_restored": true,
+  "installed_live_stderr_bytes": 0,
+  "app_closed_after": true
+}

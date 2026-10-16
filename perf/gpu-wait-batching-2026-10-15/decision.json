@@ -1,0 +1,8 @@
+{
+  "retained_default_enabled": false,
+  "installed_enabled": false,
+  "operator_flag": "NANOLEAF_BATCH_GPU_WAITS",
+  "reason": "Initial modest gains were not consistent across repeated uncontrolled-desktop comparisons. Correctness parity is not performance evidence.",
+  "optical_latency_measured": false,
+  "current_gpu_wait_default_changed": false
+}

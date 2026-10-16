@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Native runtime packaging is independent of the preserved PyPI fallback.
+# Package the Rust application and matching capture worker together.
 set -euo pipefail
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 bundle_root=${1:-"$repo_root/dist/native"}

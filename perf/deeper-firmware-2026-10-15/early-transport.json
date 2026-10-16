@@ -1,0 +1,68 @@
+{
+  "scope": "Selected pinned historical class with fake HID and a substitute serial write queue; no hardware, app startup or optical timing",
+  "source_sha256": "a1606cd70ce0e9a9cd901766cfd2cb079c912eabae937ac561919893ba10ed26",
+  "class_utf16_range": [
+    2270270,
+    2275171
+  ],
+  "cases": [
+    {
+      "input_rgb": [
+        0,
+        0,
+        0
+      ],
+      "wire_grb": [
+        0,
+        0,
+        0
+      ],
+      "report_sizes": [
+        65,
+        65,
+        20
+      ],
+      "read_calls": 0,
+      "completed_without_ack": true
+    },
+    {
+      "input_rgb": [
+        3,
+        5,
+        7
+      ],
+      "wire_grb": [
+        2,
+        1,
+        3
+      ],
+      "report_sizes": [
+        65,
+        65,
+        20
+      ],
+      "read_calls": 0,
+      "completed_without_ack": true
+    },
+    {
+      "input_rgb": [
+        255,
+        255,
+        255
+      ],
+      "wire_grb": [
+        127,
+        127,
+        127
+      ],
+      "report_sizes": [
+        65,
+        65,
+        20
+      ],
+      "read_calls": 0,
+      "completed_without_ack": true
+    }
+  ],
+  "recommendation": "Historical write-only behaviour does not establish current firmware safety; keep daily acknowledged transactions"
+}

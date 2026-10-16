@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "fa27839d485caa8ebd7e04af6793b8d4ab1ac5f4",
+  "app_gui_all_targets": {
+    "toolchain": "1.95.0",
+    "locked": true,
+    "offline": true,
+    "passed": 99,
+    "failed": 0,
+    "ignored": 1,
+    "ignored_reason": "Existing operator-run synthetic 4K pipe timing benchmark"
+  },
+  "clippy_gui_all_targets_deny_warnings": true,
+  "cargo_fmt_check": true,
+  "ruff_check": true,
+  "ruff_format_check": true,
+  "node_syntax_check": true,
+  "json_reproduction": [
+    "symbol-analysis.json",
+    "early-transport.json"
+  ],
+  "synthetic_relation_controls": 5,
+  "changed_image_rejected": true,
+  "changed_source_rejected_before_evaluation": true,
+  "report_timing_table_matches_json": true,
+  "hardware_runs": 2,
+  "acknowledged_experimental_frames": 1080,
+  "all_run_cleanup_and_state_restoration_passed": true,
+  "optical_latency_measured": false,
+  "black_threshold_verified": false,
+  "installed_native_app_hash_unchanged": true,
+  "installed_capture_helper_hash_unchanged": true,
+  "config_byte_identical": true,
+  "native_app_running_before": false,
+  "native_app_running_after": false,
+  "daily_package_changed": false,
+  "python_fallback_changed": false,
+  "firmware_written": false,
+  "limitations": [
+    "No colorimeter or photodiode measurement",
+    "Unexpected human visual report; no black threshold derived",
+    "No chip, cipher, key, full-image checksum or independent recovery identification",
+    "No Windows app execution or NL82K1 hardware test",
+    "No complete Python/core/capture crate suites rerun for this isolated app operator-tool change"
+  ]
+}

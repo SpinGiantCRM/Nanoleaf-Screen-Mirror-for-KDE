@@ -6,7 +6,7 @@
 
 - [ ] Tests added/updated for changed behavior.
 - [ ] Relevant docs and changelog are updated.
-- [ ] Coverage floor policy respected (>=75%).
+- [ ] Relevant Rust application/core contracts and operator tests pass.
 
 ## Calibration parity gate (required for calibration-touching changes)
 
@@ -14,5 +14,5 @@
 
 - [ ] I documented validation evidence in this PR body or linked a tracked calibration doc.
 - [ ] I reviewed behavior contracts when calibration semantics changed.
-- [ ] If mapping or wizard phase logic changed, I updated at least one integration test file (`tests/test_pipeline_integration.py`, `tests/test_display_configurator.py`, or `tests/test_wizard_and_settings_structure.py`).
-- [ ] If schema/model changed, I synced parity docs and bumped `VERSION` in this PR.
+- [ ] If mapping or wizard phase logic changed, I updated at least one integration test file (`native/app/tests/pipeline.rs`, `native/app/tests/geometry.rs`, or `native/app/tests/config.rs`).
+- [ ] If schema/model changed, I updated migration tests and documented schema compatibility in this PR.

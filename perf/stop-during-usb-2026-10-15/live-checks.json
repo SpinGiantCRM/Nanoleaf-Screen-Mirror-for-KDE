@@ -1,0 +1,29 @@
+{
+  "experimental_precise_cache_timing": false,
+  "daily_installed_version_changed": false,
+  "config_byte_identical": true,
+  "modes": {
+    "implicit": {
+      "complete_colours_exact": true,
+      "parity_frames": 346,
+      "controller_restored": true,
+      "stop_kept_tray": true,
+      "preview_exclusive": true,
+      "worker_failure_requires_start": true,
+      "worker_stall_requires_start": true,
+      "worker_stall_to_stop_seconds": 2.065160336998815,
+      "validation_stderr_bytes": 0
+    },
+    "explicit": {
+      "complete_colours_exact": true,
+      "parity_frames": 320,
+      "controller_restored": true,
+      "stop_kept_tray": true,
+      "preview_exclusive": true,
+      "worker_failure_requires_start": true,
+      "worker_stall_requires_start": true,
+      "worker_stall_to_stop_seconds": 2.0439453439976205,
+      "validation_stderr_bytes": 0
+    }
+  }
+}

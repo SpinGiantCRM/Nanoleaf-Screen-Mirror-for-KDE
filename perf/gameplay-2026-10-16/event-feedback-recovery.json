@@ -1,0 +1,202 @@
+{
+  "initial_ack": {
+    "frames": 1,
+    "sent_zones": 48
+  },
+  "stop_released_child": true,
+  "explicit_restart": {
+    "first_ack_sent_zones": 48,
+    "frames": 1,
+    "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync"
+  },
+  "frozen_worker": {
+    "stopped_seconds": 2.088311312998485,
+    "message": "Screen sharing stopped: Capture stalled; no fresh frame within the recovery deadline. Start to request it again.",
+    "old_child_reaped": true
+  },
+  "frozen_worker_explicit_restart": {
+    "first_ack_sent_zones": 48,
+    "frames": 1,
+    "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync"
+  },
+  "killed_worker": {
+    "stopped_seconds": 0.06603131399970152,
+    "message": "Screen sharing stopped: Choose the single monitor to test in KDE's screen-sharing dialog. This probe does not drive the LEDs.. Start to request it again.",
+    "old_child_reaped": true
+  },
+  "killed_worker_explicit_restart": {
+    "first_ack_sent_zones": 48,
+    "frames": 1,
+    "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync"
+  },
+  "controller_before": {
+    "controller_power": 1,
+    "controller_brightness": 16
+  },
+  "controller_after": {
+    "controller_power": 1,
+    "controller_brightness": 16
+  },
+  "final_daily_start": {
+    "first_ack_sent_zones": 48,
+    "frames": 1,
+    "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync"
+  },
+  "config_byte_exact": true,
+  "pass": true,
+  "wakes_before": {
+    "seconds": 10.000060809001297,
+    "threads": [
+      {
+        "initial_wchan": "poll_schedule_timeout.constprop.0",
+        "final_wchan": "poll_schedule_timeout.constprop.0",
+        "voluntary_per_s": 201.49877470607476,
+        "involuntary_per_s": 0.6999957433957932
+      },
+      {
+        "initial_wchan": "__futex_wait",
+        "final_wchan": "__futex_wait",
+        "voluntary_per_s": 4.899970203770552,
+        "involuntary_per_s": 0.2999981757410542
+      },
+      {
+        "initial_wchan": "__futex_wait",
+        "final_wchan": "__futex_wait",
+        "voluntary_per_s": 1.9999878382736949,
+        "involuntary_per_s": 0.0
+      },
+      {
+        "initial_wchan": "__futex_wait",
+        "final_wchan": "__futex_wait",
+        "voluntary_per_s": 1.9999878382736949,
+        "involuntary_per_s": 0.0
+      },
+      {
+        "initial_wchan": "ep_poll",
+        "final_wchan": "ep_poll",
+        "voluntary_per_s": 16.599899057671667,
+        "involuntary_per_s": 0.19999878382736946
+      },
+      {
+        "initial_wchan": "__futex_wait",
+        "final_wchan": "__futex_wait",
+        "voluntary_per_s": 1.0999933110505322,
+        "involuntary_per_s": 0.0
+      },
+      {
+        "initial_wchan": "__futex_wait",
+        "final_wchan": "__futex_wait",
+        "voluntary_per_s": 0.9999939191368474,
+        "involuntary_per_s": 0.09999939191368473
+      },
+      {
+        "initial_wchan": "__skb_wait_for_more_packets",
+        "final_wchan": "__skb_wait_for_more_packets",
+        "voluntary_per_s": 0.9999939191368474,
+        "involuntary_per_s": 0.2999981757410542
+      },
+      {
+        "initial_wchan": "__futex_wait",
+        "final_wchan": "__futex_wait",
+        "voluntary_per_s": 0.0,
+        "involuntary_per_s": 0.0
+      },
+      {
+        "initial_wchan": "__futex_wait",
+        "final_wchan": "__futex_wait",
+        "voluntary_per_s": 0.0,
+        "involuntary_per_s": 0.0
+      },
+      {
+        "initial_wchan": "anon_pipe_read",
+        "final_wchan": "anon_pipe_read",
+        "voluntary_per_s": 0.0,
+        "involuntary_per_s": 0.0
+      },
+      {
+        "initial_wchan": "hrtimer_nanosleep",
+        "final_wchan": "hrtimer_nanosleep",
+        "voluntary_per_s": 197.49879902952736,
+        "involuntary_per_s": 3.699977500806335
+      },
+      {
+        "initial_wchan": "anon_pipe_read",
+        "final_wchan": "anon_pipe_read",
+        "voluntary_per_s": 173.89894253789777,
+        "involuntary_per_s": 2.7999829735831727
+      }
+    ]
+  },
+  "wakes_after": {
+    "seconds": 10.000060717999077,
+    "threads": [
+      {
+        "initial_wchan": "usb_interrupt_msg",
+        "final_wchan": "poll_schedule_timeout.constprop.0",
+        "voluntary_per_s": 187.99885850854827
+      },
+      {
+        "initial_wchan": "__futex_wait",
+        "final_wchan": "__futex_wait",
+        "voluntary_per_s": 4.799970855537403
+      },
+      {
+        "initial_wchan": "__futex_wait",
+        "final_wchan": "__futex_wait",
+        "voluntary_per_s": 1.9999878564739177
+      },
+      {
+        "initial_wchan": "__futex_wait",
+        "final_wchan": "__futex_wait",
+        "voluntary_per_s": 1.9999878564739177
+      },
+      {
+        "initial_wchan": "ep_poll",
+        "final_wchan": "ep_poll",
+        "voluntary_per_s": 16.29990103026243
+      },
+      {
+        "initial_wchan": "__futex_wait",
+        "final_wchan": "__futex_wait",
+        "voluntary_per_s": 0.6999957497658712
+      },
+      {
+        "initial_wchan": "__futex_wait",
+        "final_wchan": "__futex_wait",
+        "voluntary_per_s": 1.3999914995317424
+      },
+      {
+        "initial_wchan": "__skb_wait_for_more_packets",
+        "final_wchan": "__skb_wait_for_more_packets",
+        "voluntary_per_s": 0.9999939282369589
+      },
+      {
+        "initial_wchan": "__futex_wait",
+        "final_wchan": "__futex_wait",
+        "voluntary_per_s": 0.0
+      },
+      {
+        "initial_wchan": "__futex_wait",
+        "final_wchan": "__futex_wait",
+        "voluntary_per_s": 0.0
+      },
+      {
+        "initial_wchan": "anon_pipe_read",
+        "final_wchan": "anon_pipe_read",
+        "voluntary_per_s": 0.0
+      },
+      {
+        "initial_wchan": "__futex_wait",
+        "final_wchan": "__futex_wait",
+        "voluntary_per_s": 47.79970976972663
+      },
+      {
+        "initial_wchan": "anon_pipe_read",
+        "final_wchan": "anon_pipe_read",
+        "voluntary_per_s": 151.49908012789928
+      }
+    ]
+  },
+  "scope": "Actual game/native mirroring; /proc per-thread voluntary context switches over separate 10s windows. Not CPU, watts or emitted-light latency. Recovery used this event-feedback candidate; final diagnostic wording changed afterward.",
+  "feedback_candidate_app_sha256": "50bfc39a2e47ebc4099785d0b774719a82caae364a68080684bd42f6b1cbaf64"
+}

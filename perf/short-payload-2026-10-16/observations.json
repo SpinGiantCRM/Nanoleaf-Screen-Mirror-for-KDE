@@ -1,0 +1,226 @@
+{
+  "scope": "One announced full-blue then12-zone red observation. Real acknowledged USB and independent controller readback. No emitted-colour claim without operator answer.",
+  "red_prefix": {
+    "phase": {
+      "controller_brightness_readback": 16,
+      "full_seed_transaction": {
+        "ack_wait_ms": 16.024347000000002,
+        "drain_ms": 0.00046,
+        "drained_reports": 0,
+        "first_report_wait_ms": 16.023516,
+        "report_write_ms": [
+          1.978092,
+          0.997627,
+          0.973822
+        ],
+        "response_reports": 1,
+        "total_ms": 19.97556,
+        "write_ms": 3.950652,
+        "written_reports": 3
+      },
+      "observation": "red-prefix",
+      "omitted_zone_observation": "Requires operator report; not inferred from ACK",
+      "prefix_zones": 12,
+      "short_transaction": {
+        "ack_wait_ms": 5.012121,
+        "drain_ms": 0.002464,
+        "drained_reports": 0,
+        "first_report_wait_ms": 5.01151,
+        "report_write_ms": [
+          0.936833
+        ],
+        "response_reports": 1,
+        "total_ms": 5.952781,
+        "write_ms": 0.937865,
+        "written_reports": 1
+      }
+    },
+    "error": null,
+    "black_cleanup_acknowledged": true,
+    "controller_restored_and_independently_verified": true,
+    "operator_observation": "Original attempt not observed; later announced repeat below has a user report.",
+    "omitted_zone_semantics": "Unresolved"
+  },
+  "red_prefix_repeat": {
+    "phase": {
+      "controller_brightness_readback": 16,
+      "full_seed_transaction": {
+        "ack_wait_ms": 16.023474,
+        "drain_ms": 0.000411,
+        "drained_reports": 0,
+        "first_report_wait_ms": 16.023163,
+        "report_write_ms": [
+          1.992185,
+          0.995286,
+          0.968805
+        ],
+        "response_reports": 1,
+        "total_ms": 19.980973,
+        "write_ms": 3.9569870000000003,
+        "written_reports": 3
+      },
+      "observation": "red-prefix",
+      "omitted_zone_observation": "Requires operator report; not inferred from ACK",
+      "prefix_zones": 12,
+      "short_transaction": {
+        "ack_wait_ms": 5.006277,
+        "drain_ms": 0.001883,
+        "drained_reports": 0,
+        "first_report_wait_ms": 5.005806,
+        "report_write_ms": [
+          1.051003
+        ],
+        "response_reports": 1,
+        "total_ms": 6.060515,
+        "write_ms": 1.0520239999999998,
+        "written_reports": 1
+      }
+    },
+    "error": null,
+    "black_cleanup_acknowledged": true,
+    "controller_restored_and_independently_verified": true,
+    "operator_observation": "They stay blue",
+    "omitted_zone_semantics": "The omitted three quarters retained blue during this eight-second hold after one12-zone red write. Human observation, not photometric or optical-latency measurement."
+  },
+  "black_prefix_eight_seconds": {
+    "phase": {
+      "controller_brightness_readback": 16,
+      "full_seed_transaction": {
+        "ack_wait_ms": 16.023968999999997,
+        "drain_ms": 0.000241,
+        "drained_reports": 0,
+        "first_report_wait_ms": 16.023608000000003,
+        "report_write_ms": [
+          1.9984870000000001,
+          0.999384,
+          0.969918
+        ],
+        "response_reports": 1,
+        "total_ms": 19.992459,
+        "write_ms": 3.9681589999999995,
+        "written_reports": 3
+      },
+      "observation": "black-prefix",
+      "omitted_zone_observation": "Requires operator report; not inferred from ACK",
+      "prefix_zones": 12,
+      "short_transaction": {
+        "ack_wait_ms": 2.0047889999999997,
+        "drain_ms": 0.0018139999999999999,
+        "drained_reports": 0,
+        "first_report_wait_ms": 2.004328,
+        "report_write_ms": [
+          1.052826
+        ],
+        "response_reports": 1,
+        "total_ms": 3.060381,
+        "write_ms": 1.053458,
+        "written_reports": 1
+      }
+    },
+    "error": null,
+    "black_cleanup_acknowledged": true,
+    "controller_restored_and_independently_verified": true,
+    "operator_observation": "run it longer",
+    "omitted_zone_semantics": "No result reported for this attempt; repeat with longer duration requested."
+  },
+  "black_prefix_thirty_seconds": {
+    "phase": {
+      "controller_brightness_readback": 16,
+      "full_seed_transaction": {
+        "ack_wait_ms": 16.023535,
+        "drain_ms": 0.00021,
+        "drained_reports": 0,
+        "first_report_wait_ms": 16.023105,
+        "report_write_ms": [
+          1.993399,
+          0.9986929999999999,
+          0.969537
+        ],
+        "response_reports": 1,
+        "total_ms": 19.986066,
+        "write_ms": 3.96221,
+        "written_reports": 3
+      },
+      "observation": "black-prefix",
+      "omitted_zone_observation": "Requires operator report; not inferred from ACK",
+      "prefix_zones": 12,
+      "short_transaction": {
+        "ack_wait_ms": 2.0044,
+        "drain_ms": 0.001764,
+        "drained_reports": 0,
+        "first_report_wait_ms": 2.003818,
+        "report_write_ms": [
+          1.0571249999999999
+        ],
+        "response_reports": 1,
+        "total_ms": 3.064451,
+        "write_ms": 1.057957,
+        "written_reports": 1
+      }
+    },
+    "observation_hold_seconds": 30,
+    "operator_sha256": "a94d4af2349e9f3d3f02b8cd54f4362c6782e43b9c4ba44dcfe1d935f389d0f0",
+    "error": null,
+    "black_cleanup_acknowledged": true,
+    "controller_restored_and_independently_verified": true,
+    "all13_preservation_paths_unchanged": true,
+    "operator_observation": "One quarter turns off; the rest stays red",
+    "omitted_zone_semantics": "Prefix black cleared only its12 zones; the omitted36 retained red during the30-second observation. Human observation, not optical timing."
+  },
+  "green_prefix_thirty_seconds": {
+    "phase": {
+      "controller_brightness_readback": 16,
+      "full_seed_transaction": {
+        "ack_wait_ms": 3.012521,
+        "drain_ms": 0.000301,
+        "drained_reports": 0,
+        "first_report_wait_ms": 3.01219,
+        "report_write_ms": [
+          1.9886000000000001,
+          0.9977619999999999,
+          0.9819410000000001
+        ],
+        "response_reports": 1,
+        "total_ms": 6.981976,
+        "write_ms": 3.9690639999999995,
+        "written_reports": 3
+      },
+      "observation": "green-prefix",
+      "omitted_zone_observation": "Requires operator report; not inferred from ACK",
+      "prefix_zones": 12,
+      "short_transaction": {
+        "ack_wait_ms": 4.998044999999999,
+        "drain_ms": 0.0017430000000000002,
+        "drained_reports": 0,
+        "first_report_wait_ms": 4.997444,
+        "report_write_ms": [
+          1.058327
+        ],
+        "response_reports": 1,
+        "total_ms": 6.059438,
+        "write_ms": 1.059159,
+        "written_reports": 1
+      }
+    },
+    "observation_hold_seconds": 30,
+    "operator_sha256": "a94d4af2349e9f3d3f02b8cd54f4362c6782e43b9c4ba44dcfe1d935f389d0f0",
+    "error": null,
+    "black_cleanup_acknowledged": true,
+    "controller_restored_and_independently_verified": true,
+    "all13_preservation_paths_unchanged": true,
+    "operator_observation": "One quarter green; remainder stays dark",
+    "omitted_zone_semantics": "Only12 supplied zones became green; the omitted36 stayed black during the30-second observation. Human observation, not photometric or optical-latency measurement."
+  },
+  "tested_conclusion": {
+    "model": "NL82K2",
+    "firmware_raw": 21,
+    "manual_zones": 48,
+    "prefix_zones": 12,
+    "omitted_zones": 36,
+    "requested_brightness": 10,
+    "observed_brightness_readbacks": [
+      16
+    ],
+    "result": "On the tested configuration, short0x02 commands update supplied prefix only; omitted zones retain previous blue/red/black state. No general firmware/length/topology guarantee."
+  }
+}

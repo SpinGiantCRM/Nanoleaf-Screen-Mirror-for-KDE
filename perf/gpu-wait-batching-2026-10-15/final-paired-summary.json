@@ -1,0 +1,285 @@
+{
+  "scope": "Exploratory live capture-only AB/BA on an uncontrolled desktop, same release helper with flag off/on; 8 seconds per run, first 32 fresh outputs excluded. Validation/parity disabled in timings. No USB, optical, power or causal end-to-end measurement. Separate correctness probes required.",
+  "runs": [
+    {
+      "pair": 0,
+      "batch_waits": false,
+      "fresh_outputs": 473,
+      "cached_outputs": 0,
+      "warmup_fresh_outputs_discarded": 32,
+      "timed_fresh_outputs": 441,
+      "overwritten_prepared_outputs": 0,
+      "percentiles": {
+        "capture_ms": {
+          "p50": 0.996111,
+          "p95": 2.348102,
+          "p99": 3.018602
+        },
+        "acquire_ms": {
+          "p50": 0.14695,
+          "p95": 0.6403030000000001,
+          "p99": 1.294781
+        },
+        "analysis_ms": {
+          "p50": 0.281186,
+          "p95": 0.715776,
+          "p99": 1.437945
+        },
+        "sampling_ms": {
+          "p50": 0.32442899999999997,
+          "p95": 0.934665,
+          "p99": 1.674186
+        },
+        "release_ms": {
+          "p50": 0.06425299999999999,
+          "p95": 0.8752709999999999,
+          "p99": 1.281146
+        }
+      },
+      "stderr_bytes": 0
+    },
+    {
+      "pair": 0,
+      "batch_waits": true,
+      "fresh_outputs": 470,
+      "cached_outputs": 0,
+      "warmup_fresh_outputs_discarded": 32,
+      "timed_fresh_outputs": 438,
+      "overwritten_prepared_outputs": 0,
+      "percentiles": {
+        "capture_ms": {
+          "p50": 1.289682,
+          "p95": 2.497037,
+          "p99": 3.502856
+        },
+        "acquire_ms": {
+          "p50": 0.04196,
+          "p95": 0.058993,
+          "p99": 0.095903
+        },
+        "analysis_ms": {
+          "p50": 0.5390889999999999,
+          "p95": 1.531273,
+          "p99": 1.87001
+        },
+        "sampling_ms": {
+          "p50": 0.32270600000000005,
+          "p95": 0.956115,
+          "p99": 1.523839
+        },
+        "release_ms": {
+          "p50": 0.100211,
+          "p95": 0.815446,
+          "p99": 1.219698
+        }
+      },
+      "stderr_bytes": 0
+    },
+    {
+      "pair": 1,
+      "batch_waits": true,
+      "fresh_outputs": 467,
+      "cached_outputs": 1,
+      "warmup_fresh_outputs_discarded": 32,
+      "timed_fresh_outputs": 435,
+      "overwritten_prepared_outputs": 0,
+      "percentiles": {
+        "capture_ms": {
+          "p50": 1.355147,
+          "p95": 2.9392210000000003,
+          "p99": 4.693218
+        },
+        "acquire_ms": {
+          "p50": 0.0419,
+          "p95": 0.060605,
+          "p99": 0.109569
+        },
+        "analysis_ms": {
+          "p50": 0.729893,
+          "p95": 1.640762,
+          "p99": 2.4581630000000003
+        },
+        "sampling_ms": {
+          "p50": 0.344086,
+          "p95": 0.842217,
+          "p99": 1.951395
+        },
+        "release_ms": {
+          "p50": 0.107395,
+          "p95": 0.914566,
+          "p99": 1.579375
+        }
+      },
+      "stderr_bytes": 0
+    },
+    {
+      "pair": 1,
+      "batch_waits": false,
+      "fresh_outputs": 460,
+      "cached_outputs": 0,
+      "warmup_fresh_outputs_discarded": 32,
+      "timed_fresh_outputs": 428,
+      "overwritten_prepared_outputs": 0,
+      "percentiles": {
+        "capture_ms": {
+          "p50": 1.633528,
+          "p95": 4.385561,
+          "p99": 4.933398
+        },
+        "acquire_ms": {
+          "p50": 0.207185,
+          "p95": 1.530131,
+          "p99": 1.899085
+        },
+        "analysis_ms": {
+          "p50": 0.377891,
+          "p95": 1.558515,
+          "p99": 1.80705
+        },
+        "sampling_ms": {
+          "p50": 0.483333,
+          "p95": 1.631424,
+          "p99": 2.050755
+        },
+        "release_ms": {
+          "p50": 0.141951,
+          "p95": 1.387188,
+          "p99": 1.737216
+        }
+      },
+      "stderr_bytes": 0
+    },
+    {
+      "pair": 2,
+      "batch_waits": false,
+      "fresh_outputs": 467,
+      "cached_outputs": 0,
+      "warmup_fresh_outputs_discarded": 32,
+      "timed_fresh_outputs": 435,
+      "overwritten_prepared_outputs": 0,
+      "percentiles": {
+        "capture_ms": {
+          "p50": 1.107554,
+          "p95": 4.058657,
+          "p99": 5.533753
+        },
+        "acquire_ms": {
+          "p50": 0.142813,
+          "p95": 1.46193,
+          "p99": 1.926177
+        },
+        "analysis_ms": {
+          "p50": 0.274624,
+          "p95": 1.4634330000000002,
+          "p99": 2.055854
+        },
+        "sampling_ms": {
+          "p50": 0.333857,
+          "p95": 1.188098,
+          "p99": 2.0103180000000003
+        },
+        "release_ms": {
+          "p50": 0.058532,
+          "p95": 1.227583,
+          "p99": 1.795748
+        }
+      },
+      "stderr_bytes": 0
+    },
+    {
+      "pair": 2,
+      "batch_waits": true,
+      "fresh_outputs": 459,
+      "cached_outputs": 0,
+      "warmup_fresh_outputs_discarded": 32,
+      "timed_fresh_outputs": 427,
+      "overwritten_prepared_outputs": 0,
+      "percentiles": {
+        "capture_ms": {
+          "p50": 4.262958,
+          "p95": 6.827823,
+          "p99": 7.787005
+        },
+        "acquire_ms": {
+          "p50": 0.040707,
+          "p95": 0.075093,
+          "p99": 0.226542
+        },
+        "analysis_ms": {
+          "p50": 0.5883229999999999,
+          "p95": 2.839009,
+          "p99": 3.201611
+        },
+        "sampling_ms": {
+          "p50": 0.723812,
+          "p95": 3.0739080000000003,
+          "p99": 3.459183
+        },
+        "release_ms": {
+          "p50": 0.773577,
+          "p95": 2.887592,
+          "p99": 3.356006
+        }
+      },
+      "stderr_bytes": 0
+    }
+  ],
+  "app_sha256": "58851ee35e628a1af229857c419891b3e7a3b57050df878fc804dcbfda5c42a5",
+  "helper_sha256": "690c0835be20453e20020f15bce14c26a67afebd85d87f07776066884034c3ee",
+  "median_of_run_percentiles": {
+    "control": {
+      "capture_ms": {
+        "p50": 1.107554,
+        "p95": 4.058657,
+        "p99": 4.933398
+      },
+      "acquire_ms": {
+        "p50": 0.14695,
+        "p95": 1.46193,
+        "p99": 1.899085
+      },
+      "analysis_ms": {
+        "p50": 0.281186,
+        "p95": 1.4634330000000002,
+        "p99": 1.80705
+      },
+      "sampling_ms": {
+        "p50": 0.333857,
+        "p95": 1.188098,
+        "p99": 2.0103180000000003
+      },
+      "release_ms": {
+        "p50": 0.06425299999999999,
+        "p95": 1.227583,
+        "p99": 1.737216
+      }
+    },
+    "batched": {
+      "capture_ms": {
+        "p50": 1.355147,
+        "p95": 2.9392210000000003,
+        "p99": 4.693218
+      },
+      "acquire_ms": {
+        "p50": 0.0419,
+        "p95": 0.060605,
+        "p99": 0.109569
+      },
+      "analysis_ms": {
+        "p50": 0.5883229999999999,
+        "p95": 1.640762,
+        "p99": 2.4581630000000003
+      },
+      "sampling_ms": {
+        "p50": 0.344086,
+        "p95": 0.956115,
+        "p99": 1.951395
+      },
+      "release_ms": {
+        "p50": 0.107395,
+        "p95": 0.914566,
+        "p99": 1.579375
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "unicorn",
+  "version": "2.1.4",
+  "source": "https://pypi.org/pypi/unicorn/json",
+  "mode": "isolated CPU emulation; no Windows loader, OS imports or device access"
+}

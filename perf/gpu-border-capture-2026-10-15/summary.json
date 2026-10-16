@@ -1,0 +1,412 @@
+{
+  "scope": "Three alternating AB/BA pairs, generated identical input, no screen/USB/optical measurements; two warm-ups and five timed runs per case/executable",
+  "all_bounds_comparisons": 588,
+  "cases": [
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "bright",
+      "before": {
+        "timed_runs": 15,
+        "median_ms": 0.04752,
+        "min_ms": 0.044786,
+        "max_ms": 0.054965,
+        "rgb_bytes": [
+          6000
+        ],
+        "batches": [
+          1
+        ]
+      },
+      "band": {
+        "timed_runs": 15,
+        "median_ms": 0.047561,
+        "min_ms": 0.044846,
+        "max_ms": 0.076707,
+        "rgb_bytes": [
+          6000
+        ],
+        "batches": [
+          1
+        ]
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "thin-bars",
+      "before": {
+        "timed_runs": 15,
+        "median_ms": 0.399693,
+        "min_ms": 0.39623600000000003,
+        "max_ms": 0.421394,
+        "rgb_bytes": [
+          704049
+        ],
+        "batches": [
+          6
+        ]
+      },
+      "band": {
+        "timed_runs": 15,
+        "median_ms": 0.240119,
+        "min_ms": 0.220551,
+        "max_ms": 1.1221510000000001,
+        "rgb_bytes": [
+          129072
+        ],
+        "batches": [
+          3
+        ]
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "cinema-bars",
+      "before": {
+        "timed_runs": 15,
+        "median_ms": 0.404252,
+        "min_ms": 0.400114,
+        "max_ms": 0.433527,
+        "rgb_bytes": [
+          704049
+        ],
+        "batches": [
+          6
+        ]
+      },
+      "band": {
+        "timed_runs": 15,
+        "median_ms": 0.239728,
+        "min_ms": 0.224047,
+        "max_ms": 0.262,
+        "rgb_bytes": [
+          129072
+        ],
+        "batches": [
+          3
+        ]
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "pillars",
+      "before": {
+        "timed_runs": 15,
+        "median_ms": 0.45900599999999997,
+        "min_ms": 0.446282,
+        "max_ms": 1.592499,
+        "rgb_bytes": [
+          700665
+        ],
+        "batches": [
+          6
+        ]
+      },
+      "band": {
+        "timed_runs": 15,
+        "median_ms": 0.34428699999999995,
+        "min_ms": 0.32978,
+        "max_ms": 0.365568,
+        "rgb_bytes": [
+          542346
+        ],
+        "batches": [
+          3
+        ]
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "black",
+      "before": {
+        "timed_runs": 15,
+        "median_ms": 0.683294,
+        "min_ms": 0.6676139999999999,
+        "max_ms": 1.633267,
+        "rgb_bytes": [
+          704049
+        ],
+        "batches": [
+          6
+        ]
+      },
+      "band": {
+        "timed_runs": 15,
+        "median_ms": 1.160515,
+        "min_ms": 1.131029,
+        "max_ms": 1.3194979999999998,
+        "rgb_bytes": [
+          1508550
+        ],
+        "batches": [
+          11
+        ]
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "near-threshold",
+      "before": {
+        "timed_runs": 15,
+        "median_ms": 0.399142,
+        "min_ms": 0.393681,
+        "max_ms": 0.42965000000000003,
+        "rgb_bytes": [
+          704049
+        ],
+        "batches": [
+          6
+        ]
+      },
+      "band": {
+        "timed_runs": 15,
+        "median_ms": 0.218608,
+        "min_ms": 0.21737399999999998,
+        "max_ms": 0.23988800000000002,
+        "rgb_bytes": [
+          129072
+        ],
+        "batches": [
+          3
+        ]
+      }
+    },
+    {
+      "width": 641,
+      "height": 359,
+      "pattern": "transparent-border",
+      "before": {
+        "timed_runs": 15,
+        "median_ms": 0.401135,
+        "min_ms": 0.397508,
+        "max_ms": 0.458515,
+        "rgb_bytes": [
+          704049
+        ],
+        "batches": [
+          6
+        ]
+      },
+      "band": {
+        "timed_runs": 15,
+        "median_ms": 0.221472,
+        "min_ms": 0.218226,
+        "max_ms": 0.25298299999999996,
+        "rgb_bytes": [
+          129072
+        ],
+        "batches": [
+          3
+        ]
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "bright",
+      "before": {
+        "timed_runs": 15,
+        "median_ms": 0.133114,
+        "min_ms": 0.12668200000000002,
+        "max_ms": 0.28568499999999997,
+        "rgb_bytes": [
+          36000
+        ],
+        "batches": [
+          1
+        ]
+      },
+      "band": {
+        "timed_runs": 15,
+        "median_ms": 0.132673,
+        "min_ms": 0.121291,
+        "max_ms": 0.275395,
+        "rgb_bytes": [
+          36000
+        ],
+        "batches": [
+          1
+        ]
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "thin-bars",
+      "before": {
+        "timed_runs": 15,
+        "median_ms": 9.752972999999999,
+        "min_ms": 9.42135,
+        "max_ms": 11.004741000000001,
+        "rgb_bytes": [
+          24965280
+        ],
+        "batches": [
+          6
+        ]
+      },
+      "band": {
+        "timed_runs": 15,
+        "median_ms": 0.5262640000000001,
+        "min_ms": 0.485166,
+        "max_ms": 0.7691479999999999,
+        "rgb_bytes": [
+          773280
+        ],
+        "batches": [
+          3
+        ]
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "cinema-bars",
+      "before": {
+        "timed_runs": 15,
+        "median_ms": 10.003781,
+        "min_ms": 9.707516,
+        "max_ms": 10.9571,
+        "rgb_bytes": [
+          24965280
+        ],
+        "batches": [
+          6
+        ]
+      },
+      "band": {
+        "timed_runs": 15,
+        "median_ms": 1.102965,
+        "min_ms": 1.086243,
+        "max_ms": 1.255646,
+        "rgb_bytes": [
+          1510560
+        ],
+        "batches": [
+          5
+        ]
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "pillars",
+      "before": {
+        "timed_runs": 15,
+        "median_ms": 10.7998,
+        "min_ms": 10.45886,
+        "max_ms": 11.880883,
+        "rgb_bytes": [
+          24945120
+        ],
+        "batches": [
+          6
+        ]
+      },
+      "band": {
+        "timed_runs": 15,
+        "median_ms": 4.447999,
+        "min_ms": 4.4107970000000005,
+        "max_ms": 5.218418,
+        "rgb_bytes": [
+          9717120
+        ],
+        "batches": [
+          7
+        ]
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "black",
+      "before": {
+        "timed_runs": 15,
+        "median_ms": 19.751484,
+        "min_ms": 19.519671,
+        "max_ms": 21.070541000000002,
+        "rgb_bytes": [
+          24965280
+        ],
+        "batches": [
+          6
+        ]
+      },
+      "band": {
+        "timed_runs": 15,
+        "median_ms": 19.967096,
+        "min_ms": 19.399181000000002,
+        "max_ms": 21.598339000000003,
+        "rgb_bytes": [
+          25656480
+        ],
+        "batches": [
+          4
+        ]
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "near-threshold",
+      "before": {
+        "timed_runs": 15,
+        "median_ms": 10.239541,
+        "min_ms": 9.402674,
+        "max_ms": 12.083991000000001,
+        "rgb_bytes": [
+          24965280
+        ],
+        "batches": [
+          6
+        ]
+      },
+      "band": {
+        "timed_runs": 15,
+        "median_ms": 0.5001540000000001,
+        "min_ms": 0.47612899999999997,
+        "max_ms": 0.527266,
+        "rgb_bytes": [
+          773280
+        ],
+        "batches": [
+          3
+        ]
+      }
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "pattern": "transparent-border",
+      "before": {
+        "timed_runs": 15,
+        "median_ms": 11.118128,
+        "min_ms": 9.484069,
+        "max_ms": 12.981664,
+        "rgb_bytes": [
+          24965280
+        ],
+        "batches": [
+          6
+        ]
+      },
+      "band": {
+        "timed_runs": 15,
+        "median_ms": 0.503952,
+        "min_ms": 0.477021,
+        "max_ms": 1.284972,
+        "rgb_bytes": [
+          773280
+        ],
+        "batches": [
+          3
+        ]
+      }
+    }
+  ]
+}

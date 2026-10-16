@@ -97,6 +97,31 @@ fn smoothstep(lo: f32, hi: f32, x: f32) -> f32 {
 }
 
 pub fn apply_profile(rgb: [f32; 3], style: Style, cal: LedCalibration) -> [u8; 3] {
+    apply_profile_unquantized(rgb, style, cal).map(|v| v.round_ties_even() as u8)
+}
+
+/// Encoded device values with calibration fractions retained. Quantize only
+/// when preparing the acknowledged HID packet, after brightness and filtering.
+pub fn apply_profile_unquantized(rgb: [f32; 3], style: Style, cal: LedCalibration) -> [f32; 3] {
+    profile(rgb, style, cal, false)
+}
+
+/// Device compensation is a final transfer, after all source/light mixing.
+pub fn apply_device_gamma(rgb: [f32; 3], gamma: f32) -> [f32; 3] {
+    let gamma = gamma.clamp(1.0, 4.0);
+    if (gamma - 1.0).abs() <= 1e-6 {
+        return rgb;
+    }
+    rgb.map(|v| (v / 255.0).clamp(0.0, 1.0).powf(1.0 / gamma) * 255.0)
+}
+
+/// Historical Python arithmetic, including its reversed chroma transition.
+/// Offline regression oracle only; never use for device output.
+pub fn apply_profile_legacy_oracle(rgb: [f32; 3], style: Style, cal: LedCalibration) -> [u8; 3] {
+    profile(rgb, style, cal, true).map(|v| v as u8)
+}
+
+fn profile(rgb: [f32; 3], style: Style, cal: LedCalibration, legacy: bool) -> [f32; 3] {
     let mut linear = std::array::from_fn(|c| decode_srgb(rgb[c]) * cal.gains[c].clamp(0.5, 1.5));
     if let Some(matrix) = cal.matrix {
         linear = matrix
@@ -109,7 +134,13 @@ pub fn apply_profile(rgb: [f32; 3], style: Style, cal: LedCalibration) -> [u8; 3
         [1.0 + 0.06 * wb, 1.0, 1.0 - 0.10 * wb]
     };
     linear = std::array::from_fn(|c| (linear[c] * white[c]).clamp(0.0, 1.0));
-    let y = (0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]).clamp(0.0, 1.0);
+    let gray = linear[0] == linear[1] && linear[1] == linear[2];
+    let y = if gray && !legacy {
+        linear[0]
+    } else {
+        0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+    }
+    .clamp(0.0, 1.0);
     let [l, a, b] = to_oklab(linear);
     let c = (a * a + b * b).sqrt();
     let h = b.atan2(a);
@@ -139,14 +170,28 @@ pub fn apply_profile(rgb: [f32; 3], style: Style, cal: LedCalibration) -> [u8; 3
     lum = (lum * (1.0 + (cal.neutral_gain.clamp(0.7, 1.5) - 1.0) * weight)).clamp(0.0, 1.0)
         * black_gate;
     chroma *= black_gate;
-    let cart = smoothstep(0.03, 0.01, chroma);
+    // smoothstep requires ascending edges. The Cartesian limit avoids polar
+    // instability close to neutral; saturated colours must use mapped chroma.
+    let cart = if legacy {
+        smoothstep(0.03, 0.01, chroma)
+    } else {
+        1.0 - smoothstep(0.01, 0.03, chroma)
+    };
     let lab = [
         lum,
         a * cart + chroma * h.cos() * (1.0 - cart),
         b * cart + chroma * h.sin() * (1.0 - cart),
     ];
-    let mut out =
-        from_oklab(lab).map(|linear| encode_srgb(linear).round_ties_even().clamp(0.0, 255.0));
+    let mut out = if gray && !legacy {
+        // An exactly neutral calibrated input has an analytical neutral result.
+        // Avoid matrix round-off choosing different dither phases per channel.
+        [encode_srgb(lum * lum * lum); 3]
+    } else {
+        from_oklab(lab).map(encode_srgb)
+    };
+    if legacy {
+        out = out.map(f32::round_ties_even);
+    }
     let cutoff = cal.black_cutoff.clamp(0.0, 0.03);
     let knee = cal.black_knee.clamp(0.0005, 0.03);
     if cutoff > 0.0 {
@@ -155,9 +200,6 @@ pub fn apply_profile(rgb: [f32; 3], style: Style, cal: LedCalibration) -> [u8; 3
         let gate = smoothstep((cutoff - knee).max(0.0), cutoff + knee, y);
         out = out.map(|v| v * gate);
     }
-    let gamma = cal.gamma.clamp(1.0, 4.0);
-    if (gamma - 1.0).abs() > 1e-6 {
-        out = out.map(|v| (v / 255.0).clamp(0.0, 1.0).powf(1.0 / gamma) * 255.0);
-    }
-    out.map(|v| v.clamp(0.0, 255.0) as u8)
+    out = apply_device_gamma(out, cal.gamma);
+    out.map(|v| v.clamp(0.0, 255.0))
 }

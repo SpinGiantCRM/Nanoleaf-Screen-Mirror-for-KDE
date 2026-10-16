@@ -46,13 +46,13 @@ fn manifest(bundle: &Path) {
     fs::write(bundle.join("SHA256SUMS"), content).unwrap();
 }
 #[test]
-fn install_upgrade_and_two_way_rollback_preserve_fallback_and_configuration() {
+fn install_upgrade_and_two_way_rollback_preserve_unrelated_files_and_configuration() {
     let _guard = PACKAGE_TEST_LOCK.lock().unwrap();
     let (root, bundle, prefix, data) = fixture("upgrade");
     let config = root.join("calibration.toml");
-    let fallback = data.join("applications/nanoleaf-kde-sync.desktop");
-    fs::create_dir_all(fallback.parent().unwrap()).unwrap();
-    fs::write(&fallback, "Python fallback").unwrap();
+    let unrelated = data.join("applications/example-unrelated.desktop");
+    fs::create_dir_all(unrelated.parent().unwrap()).unwrap();
+    fs::write(&unrelated, "unrelated launcher").unwrap();
     fs::write(&config, "measured gains and anchors").unwrap();
     let first = install(&bundle, &prefix, &data).unwrap();
     assert_eq!(install(&bundle, &prefix, &data).unwrap(), first);
@@ -70,7 +70,7 @@ fn install_upgrade_and_two_way_rollback_preserve_fallback_and_configuration() {
         fs::read_to_string(config).unwrap(),
         "measured gains and anchors"
     );
-    assert_eq!(fs::read_to_string(fallback).unwrap(), "Python fallback");
+    assert_eq!(fs::read_to_string(unrelated).unwrap(), "unrelated launcher");
     assert!(first.join("bin/nanoleaf-native-capture").is_file());
     uninstall(&prefix, &data).unwrap();
     assert!(!prefix.join("bin/nanoleaf-native").exists());

@@ -1,0 +1,34 @@
+{
+  "scope": "10s saved / 20s fast, portal/Vulkan, bounded low brightness; no optical measurement",
+  "config_unchanged_during_test": true,
+  "original_installed_binary_unchanged": true,
+  "original_application_resumed": true,
+  "original_priority": {
+    "configured": "normal",
+    "effective_nice": 0,
+    "error": null
+  },
+  "restored_priority": {
+    "configured": "normal",
+    "effective_nice": 0,
+    "error": null
+  },
+  "phases": {
+    "saved": {
+      "acknowledged_packets": 448,
+      "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples",
+      "controller_restored": true,
+      "capture_to_ack_median_ms": 41.0276985,
+      "usb_median_ms": 20.996851999999997,
+      "reused_source_packets": 0
+    },
+    "fast": {
+      "acknowledged_packets": 953,
+      "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples",
+      "controller_restored": true,
+      "capture_to_ack_median_ms": 41.068455,
+      "usb_median_ms": 20.995255,
+      "reused_source_packets": 0
+    }
+  }
+}

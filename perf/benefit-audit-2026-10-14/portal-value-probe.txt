@@ -1,0 +1,2 @@
+spec string id -> current u32 parser: Err(IncorrectType)
+spec u64 serial -> current String parser: Err(IncorrectType)

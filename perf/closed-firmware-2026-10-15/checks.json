@@ -1,0 +1,25 @@
+{
+  "scope": "Offline research and documentation only; no HID or live app tests",
+  "historical_images_inspected": 5,
+  "expected_hash_and_record_structure_pass": true,
+  "all_inspections_keep_flash_safety_false": true,
+  "crc_candidate_search_compiles_with_warnings_denied": true,
+  "crc_candidate_count": 8,
+  "config_and_installed_app": {
+    "config.toml": {
+      "unchanged": true,
+      "sha256": "a5d9b604c8ff68adf8a9321cc9fb578d4c2468c00a279612d66312f800049933"
+    },
+    "nanoleaf-native": {
+      "unchanged": true,
+      "sha256": "c99e47751adaa8c431f8ecfec17a3881ea7db4931e68c120cdad2c3eee261770"
+    }
+  },
+  "daily_application_code_changed": false,
+  "hardware_tests_run": false,
+  "external_mail_sent": true,
+  "full_app_test_suite_rerun": false,
+  "prior_app_test_count_not_rerun": 95,
+  "external_mail_user_authorized": true,
+  "git_diff_check_pass": true
+}

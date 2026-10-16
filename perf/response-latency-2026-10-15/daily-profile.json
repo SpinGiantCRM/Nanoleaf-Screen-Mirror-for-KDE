@@ -1,0 +1,71 @@
+{
+  "scope": "20-second uncontrolled KDE desktop, installed KWin app; 2-Hz status snapshots, real ACK count and process CPU ticks. No optical latency, emitted-light accuracy, power or sustained gaming claims. Status sampling adds external process overhead.",
+  "elapsed_seconds": 20.047030231999088,
+  "status_samples": 40,
+  "cpu_percent_one_core": 66.99246643806134,
+  "memory": {
+    "VmHWM": "81668 kB",
+    "VmRSS": "81668 kB",
+    "Threads": "8"
+  },
+  "acknowledged_frames": 895,
+  "acknowledged_fps": 44.64501672529032,
+  "dropped_prepared_frames": 2,
+  "timings_ms": {
+    "capture_ms": {
+      "median": 18.338051999999998,
+      "p95": 22.064575,
+      "max": 24.825455
+    },
+    "processing_ms": {
+      "median": 3.5214265000000005,
+      "p95": 4.381323,
+      "max": 4.435676
+    },
+    "usb_ms": {
+      "median": 20.960887500000002,
+      "p95": 21.997477,
+      "max": 21.998047
+    },
+    "response_ms": {
+      "median": 44.5577225,
+      "p95": 56.379161999999994,
+      "max": 62.343695999999994
+    }
+  },
+  "usb_stages_ms": {
+    "drain_ms": {
+      "median": 0.000716,
+      "p95": 0.001193,
+      "max": 0.0016929999999999998
+    },
+    "write_ms": {
+      "median": 2.979477,
+      "p95": 3.967824,
+      "max": 3.969406
+    },
+    "first_report_wait_ms": {
+      "median": 18.024824,
+      "p95": 18.039592,
+      "max": 18.050033
+    },
+    "ack_wait_ms": {
+      "median": 18.02531,
+      "p95": 18.040042999999997,
+      "max": 18.050724
+    },
+    "total_ms": {
+      "median": 20.960027,
+      "p95": 21.996716,
+      "max": 21.996996000000003
+    }
+  },
+  "priority": {
+    "configured": "normal",
+    "effective_nice": 0,
+    "error": null
+  },
+  "reconnect_counter_delta": 0,
+  "manual_zones": 48,
+  "prediction_enabled": false
+}

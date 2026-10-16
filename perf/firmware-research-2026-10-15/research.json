@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-15",
+  "official_package": {
+    "source": "https://my.nanoleaf.me/api/v2/desktopApp/latest/win",
+    "resolved_url": "https://desktop-app-prod-3.s3.us-west-2.amazonaws.com/Nanoleaf%20Desktop%20Setup%203.0.1.exe",
+    "content_length": "112914616",
+    "last_modified": "Mon, 05 Oct 2026 20:36:49 GMT",
+    "content_type": "application/octet-stream",
+    "downloaded_bytes": 112914616,
+    "sha256": "93af37b0112188a45bde68ebf1d4bd2e915cfcd3b4f5bd9586fe51420daf1579",
+    "executed": false
+  },
+  "public_protocol_revision": {
+    "number": 10,
+    "date": "2026-02-12",
+    "rest_url": "https://nanoleaf.atlassian.net/wiki/rest/api/content/2615574530?expand=body.storage,version"
+  },
+  "package_findings": {
+    "usb_updater_present": true,
+    "bootloader_product_name": "NLUSB-BL",
+    "standalone_controller_image_found_in_file_listing": false,
+    "firmware_image_source": "Vendor device-specific smartdownload response",
+    "installer_executed": false,
+    "application_code_executed": false
+  },
+  "incomplete_update_check_without_serial": {
+    "endpoint": "https://firmware.nanoleaf.me/smartdownload",
+    "request": {
+      "app_platform": "Desktop",
+      "app_version": "3.0.1",
+      "firmware": "1.5.0",
+      "hardware": "1.1.0",
+      "model": "NL82K2"
+    },
+    "serial_sent": false,
+    "status": 422,
+    "response": "{}"
+  },
+  "preservation_and_validation": {
+    "config_byte_identical": true,
+    "installed_app_unchanged": true,
+    "installed_capture_unchanged": true,
+    "app_tests_passed": 89,
+    "physical_scope": "Read-only USB identity; no LED output, firmware mode switch or write; no optical benchmark"
+  },
+  "device_specific_update_check": {
+    "endpoint": "https://firmware.nanoleaf.me/smartdownload",
+    "request": {
+      "app_platform": "Desktop",
+      "app_version": "3.0.1",
+      "firmware": "1.5.0",
+      "hardware": "1.1.0",
+      "model": "NL82K2"
+    },
+    "serial_sent_to_manufacturer": true,
+    "serial_recorded": false,
+    "status": 404,
+    "response": "{\"update_status\":\"none\",\"update_interval\":720,\"report\":0}"
+  }
+}
