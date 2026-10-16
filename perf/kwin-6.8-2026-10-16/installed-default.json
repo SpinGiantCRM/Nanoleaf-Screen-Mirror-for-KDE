@@ -1,0 +1,45 @@
+{
+  "scope": "Installed default-policy bounded eight-second SDR capture and real acknowledged USB. No foreground scene or optical/power measurement.",
+  "version": "a8d5e86519c0709ccb0def81c3c889f0e38c5c43bfd2470d9be2b42c7d089380",
+  "app_sha256": "e728fb3bfb47edcc7e1ff365a573e9d33e09078a2c8962dc466c870cc7845dd8",
+  "helper_sha256": "ee9645e31abb1118e9bffbffb876f0a754f5ccd774ca557fde5101beaa096242",
+  "acknowledged_frames": 403,
+  "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync",
+  "manual_zones": 48,
+  "target_fps_preserved": 60,
+  "repeat_suppression_enabled": false,
+  "other_experimental_flags_unset": [
+    "NANOLEAF_EXPLICIT_SYNC",
+    "NANOLEAF_PRECISE_CACHE_TIMING",
+    "NANOLEAF_BATCH_GPU_WAITS"
+  ],
+  "controller_restoration_reported_and_independently_verified": true,
+  "real_config_sha256": "a5d9b604c8ff68adf8a9321cc9fb578d4c2468c00a279612d66312f800049933",
+  "preservation_checked_paths": 13,
+  "changed_managed_entries_only": [
+    "native command symlink",
+    "native desktop launcher"
+  ],
+  "previous_native_retained": true,
+  "python_launchers_and_user_configuration_unchanged": true,
+  "autostart_files_after": [],
+  "doctor": {
+    "configuration_error": null,
+    "configuration_read_only": true,
+    "mirroring_ready": true,
+    "privileged_access_required": false,
+    "readiness_error": null,
+    "stream_helper_present": true,
+    "usb_devices_detected": [
+      {
+        "interface": 0,
+        "pid": 33282,
+        "vid": 14330
+      }
+    ],
+    "usb_output_tested": false,
+    "wayland_session": true
+  },
+  "app_left_closed": true,
+  "stderr_bytes": 0
+}

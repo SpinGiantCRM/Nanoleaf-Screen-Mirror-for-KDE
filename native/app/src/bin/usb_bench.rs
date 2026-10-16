@@ -14,7 +14,37 @@ fn main() -> Result<()> {
         (1..=512).contains(&store.config.device_zone_count),
         "Manual zone count required"
     );
-    let content = match std::env::args().nth(2).as_deref() {
+    let args: Vec<_> = std::env::args().skip(2).collect();
+    if args
+        .first()
+        .is_some_and(|s| s == "--positions" || s == "--repeat-response")
+    {
+        let positions = args[0] == "--positions";
+        match args.as_slice() {
+            [_] => println!(
+                "{}",
+                serde_json::to_string_pretty(&if positions {
+                    probe::positions::plan(&store)?
+                } else {
+                    probe::repeat_response::plan(&store)?
+                })?
+            ),
+            [_, run] if run == "--run" => {
+                if positions {
+                    probe::positions::run(&store)?
+                } else {
+                    probe::repeat_response::run(&store)?
+                }
+            }
+            _ => anyhow::bail!("Use usb_bench CONFIG --positions|--repeat-response [--run]"),
+        }
+        return Ok(());
+    }
+    ensure!(
+        args.len() <= 1,
+        "Use usb_bench CONFIG [--content | --positions [--run]]"
+    );
+    let content = match args.first().map(String::as_str) {
         None => false,
         Some("--content") => true,
         _ => anyhow::bail!("Use usb_bench CONFIG [--content]"),

@@ -1,0 +1,46 @@
+[
+  {
+    "mode": "implicit",
+    "scope": "Real native tray, display-referred SDR capture and acknowledged USB; changing desktop, no optical/power measurement.",
+    "app_sha256": "de9c9a5156078f6e917b57ac6b20bd45af1614f46fbe07ce1dd84edbd9a73c1c",
+    "helper_sha256": "32c3244aa154f75a7383a63fda99fc293244974ea004d8f32d4149938d1e3f09",
+    "repeat_flag_enabled": true,
+    "suppressed_counts_by_stage": {
+      "active": 0,
+      "restart": 0,
+      "worker_failure_recovery": 0,
+      "worker_stall_recovery": 0
+    },
+    "stop_kept_tray": true,
+    "preview_exclusive": true,
+    "worker_failure_explicit_recovery": true,
+    "worker_stall_explicit_recovery": true,
+    "worker_stall_to_stop_seconds": 2.0351487929997347,
+    "restored": true,
+    "config_and_fallback_preserved": true,
+    "probe_exit_code": 0,
+    "validation_stderr_bytes": 0
+  },
+  {
+    "mode": "explicit",
+    "scope": "Real native tray, display-referred SDR capture and acknowledged USB; changing desktop, no optical/power measurement.",
+    "app_sha256": "e728fb3bfb47edcc7e1ff365a573e9d33e09078a2c8962dc466c870cc7845dd8",
+    "helper_sha256": "ee9645e31abb1118e9bffbffb876f0a754f5ccd774ca557fde5101beaa096242",
+    "repeat_flag_enabled": true,
+    "suppressed_counts_by_stage": {
+      "active": 0,
+      "restart": 0,
+      "worker_failure_recovery": 0,
+      "worker_stall_recovery": 0
+    },
+    "stop_kept_tray": true,
+    "preview_exclusive": true,
+    "worker_failure_explicit_recovery": true,
+    "worker_stall_explicit_recovery": true,
+    "worker_stall_to_stop_seconds": 2.054552880999836,
+    "restored": true,
+    "config_and_fallback_preserved": true,
+    "probe_exit_code": 0,
+    "validation_stderr_bytes": 0
+  }
+]

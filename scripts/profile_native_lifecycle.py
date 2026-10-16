@@ -234,7 +234,17 @@ def main():
                 control("quit")
             # Drain the report even on failure: waiting with unread PIPE output
             # can block a correctly stopped service while it writes diagnostics.
-            child.communicate(timeout=35)
+            stdout, stderr = child.communicate(timeout=35)
+        else:
+            stdout, stderr = child.communicate()
+        # Keep failures as evidence too: a rejected compositor can stop before
+        # the first ACK, yet still complete controller restoration on Quit.
+        result["probe_exit_code"] = child.returncode
+        result["probe_stderr"] = stderr
+        try:
+            result.setdefault("probe", json.loads(stdout))
+        except json.JSONDecodeError:
+            result["probe_report_unavailable"] = True
         result["configuration_and_fallback_launcher_preserved"] = all(
             path.read_bytes() == data for path, data in originals.items()
         )

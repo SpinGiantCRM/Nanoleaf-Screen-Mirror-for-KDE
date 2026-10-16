@@ -1,0 +1,147 @@
+{
+  "source_files": [
+    {
+      "tag": "v6.7.5",
+      "path": "src/core/colorspace.cpp",
+      "bytes": 30120,
+      "sha256": "7e797dbe7bcfdcd1763a55e70589e98c7d3942841ce428ee0bbe4027dfd1f34a",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.7.5/src/core/colorspace.cpp"
+    },
+    {
+      "tag": "v6.7.5",
+      "path": "src/core/colorspace.h",
+      "bytes": 11738,
+      "sha256": "c325bf35d18848351acc0fa06c0a633e4133c875d69702ea567d5fbb3ce59201",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.7.5/src/core/colorspace.h"
+    },
+    {
+      "tag": "v6.7.5",
+      "path": "src/core/outputlayer.cpp",
+      "bytes": 6265,
+      "sha256": "83c4eec49406806979e545fab942119fe69b999b8f34152532ae8b4d970c6acb",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.7.5/src/core/outputlayer.cpp"
+    },
+    {
+      "tag": "v6.7.5",
+      "path": "src/core/outputlayer.h",
+      "bytes": 5668,
+      "sha256": "bb11bbba55f8fbce523670492e259a6089d262bbdfec0e0c74accc093d0c19cd",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.7.5/src/core/outputlayer.h"
+    },
+    {
+      "tag": "v6.7.5",
+      "path": "src/core/rendertarget.cpp",
+      "bytes": 1494,
+      "sha256": "6cfb6fec11307be6dc5961e15c5007dffff255e6bdf2ef17d25b8b66f84ae100",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.7.5/src/core/rendertarget.cpp"
+    },
+    {
+      "tag": "v6.7.5",
+      "path": "src/core/rendertarget.h",
+      "bytes": 1089,
+      "sha256": "3239b833422dde84a5e34bfd81d0dbb7723dd6529bf6f3620b899a4a5864ead1",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.7.5/src/core/rendertarget.h"
+    },
+    {
+      "tag": "v6.7.5",
+      "path": "src/plugins/screencast/outputscreencastsource.cpp",
+      "bytes": 4707,
+      "sha256": "a2873c722ce3e6e7eeb1073ff5db267ab8bb90cb4a1e6d9594b7851889e40833",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.7.5/src/plugins/screencast/outputscreencastsource.cpp"
+    },
+    {
+      "tag": "v6.7.5",
+      "path": "src/plugins/screencast/screencastlayer.cpp",
+      "bytes": 1207,
+      "sha256": "e71d9148b0980cd342966a5b3e1f8038b5cddc53bc8597473fa7afda4d2f27e3",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.7.5/src/plugins/screencast/screencastlayer.cpp"
+    },
+    {
+      "tag": "v6.7.5",
+      "path": "src/plugins/screencast/screencaststream.cpp",
+      "bytes": 35322,
+      "sha256": "2ea1b302419e090c65777fc1377a567011d482f98a32070f2505b12893161752",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.7.5/src/plugins/screencast/screencaststream.cpp"
+    },
+    {
+      "tag": "v6.7.5",
+      "path": "src/scene/itemrenderer_opengl.cpp",
+      "bytes": 26387,
+      "sha256": "550792034b96c7d475a53cde40873180be33cbed128be94cae041a312565a481",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.7.5/src/scene/itemrenderer_opengl.cpp"
+    },
+    {
+      "tag": "v6.8.0",
+      "path": "src/core/colorspace.cpp",
+      "bytes": 33688,
+      "sha256": "37548ddf0ecc10bcdc586f059b0c98dcd780684911ca92ec42d20d2a7b809de5",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.8.0/src/core/colorspace.cpp"
+    },
+    {
+      "tag": "v6.8.0",
+      "path": "src/core/colorspace.h",
+      "bytes": 12351,
+      "sha256": "3cd71e898e9dca1302ca5c7422ac7da92152bd3828c673cb2a80ba5d833e4259",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.8.0/src/core/colorspace.h"
+    },
+    {
+      "tag": "v6.8.0",
+      "path": "src/core/outputlayer.cpp",
+      "bytes": 6273,
+      "sha256": "8cc82963ccfff31b5d2dcab36147ba5894e1bafccefd1f1f14153376ac6251eb",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.8.0/src/core/outputlayer.cpp"
+    },
+    {
+      "tag": "v6.8.0",
+      "path": "src/core/outputlayer.h",
+      "bytes": 5747,
+      "sha256": "fd9827134ff4ed2c10776167afc2c08848c172a4f0e7f849c96f9d5906d56cd5",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.8.0/src/core/outputlayer.h"
+    },
+    {
+      "tag": "v6.8.0",
+      "path": "src/core/rendertarget.cpp",
+      "bytes": 1494,
+      "sha256": "6cfb6fec11307be6dc5961e15c5007dffff255e6bdf2ef17d25b8b66f84ae100",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.8.0/src/core/rendertarget.cpp"
+    },
+    {
+      "tag": "v6.8.0",
+      "path": "src/core/rendertarget.h",
+      "bytes": 1089,
+      "sha256": "3239b833422dde84a5e34bfd81d0dbb7723dd6529bf6f3620b899a4a5864ead1",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.8.0/src/core/rendertarget.h"
+    },
+    {
+      "tag": "v6.8.0",
+      "path": "src/plugins/screencast/outputscreencastsource.cpp",
+      "bytes": 5027,
+      "sha256": "3fc86c7e18c03356c200e5b0d4753237bc5c846570a608b77ea7af93b5dafa3a",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.8.0/src/plugins/screencast/outputscreencastsource.cpp"
+    },
+    {
+      "tag": "v6.8.0",
+      "path": "src/plugins/screencast/screencastlayer.cpp",
+      "bytes": 1319,
+      "sha256": "ac504031f6d0549445dd693fc219f823cd06c27df8197af968df78a8c7ba141c",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.8.0/src/plugins/screencast/screencastlayer.cpp"
+    },
+    {
+      "tag": "v6.8.0",
+      "path": "src/plugins/screencast/screencaststream.cpp",
+      "bytes": 36106,
+      "sha256": "e9163bcd439c453ef54049eb8eb06acf6068f4eb8e1ee81cfb58693e07bec383",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.8.0/src/plugins/screencast/screencaststream.cpp"
+    },
+    {
+      "tag": "v6.8.0",
+      "path": "src/scene/itemrenderer_opengl.cpp",
+      "bytes": 27098,
+      "sha256": "3d809a21f21843f0144cb487187fe382468aea9a8cb994403b26593043f13280",
+      "source": "https://raw.githubusercontent.com/KDE/kwin/v6.8.0/src/scene/itemrenderer_opengl.cpp"
+    }
+  ],
+  "render_target_header_byte_identical": true,
+  "render_target_implementation_byte_identical": true,
+  "scope": "Pinned upstream source inspection, not authentication of all downstream distro patches. Same ARGB8888 and sRGB-labelled BT709/gamma22 SDR render target; no new transform. PTS changes from last display presentation to scheduled capture/vblank metadata."
+}

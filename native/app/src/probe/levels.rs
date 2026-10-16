@@ -40,7 +40,7 @@ pub fn single_plan(store: &Store, level: u8) -> Result<serde_json::Value> {
     Ok(out)
 }
 
-trait Device {
+pub(super) trait Device {
     fn query(&mut self, command: u8, payload: &[u8]) -> Result<Vec<u8>>;
     fn frame(&mut self, colors: &[[u8; 3]]) -> Result<TransactionTimes>;
     fn restore(&mut self, power: &[u8], brightness: &[u8]) -> bool;
@@ -62,7 +62,7 @@ impl Device for crate::device::Strip {
 
 /// Returned errors still run cleanup and restoration. Physical unplug/process
 /// termination can prevent restoration; never claim success without readback.
-fn guarded<D: Device>(
+pub(super) fn guarded<D: Device>(
     device: &mut D,
     count: usize,
     test_brightness: Option<u8>,

@@ -52,7 +52,7 @@ administrator to install. This native app needs no DRM capabilities or root.
 ## Capture and colour
 
 KWin SDR display-referred capture remains the automatic backend. On the
-validated KWin 6.7 path, select `xdg-portal` in Advanced for the streaming Vulkan
+validated KWin 6.7/6.8 paths, select `xdg-portal` in Advanced for the streaming Vulkan
 backend and allow the configured monitor in KDE's picker. Permission revocation
 stops mirroring and requires an explicit Start. Pixel-dependent colour policies
 use the CPU pixel path; reference box sampling uses exact GPU histograms.

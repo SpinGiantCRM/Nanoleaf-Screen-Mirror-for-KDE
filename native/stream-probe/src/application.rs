@@ -32,7 +32,8 @@ struct TemporalClock {
 }
 impl TemporalClock {
     fn advance(&mut self, work_ns: i64) -> Option<Duration> {
-        // KWin PTS is the display's last presentation, not this capture's time.
+        // KWin PTS is compositor metadata, not capture work time: 6.7 uses
+        // last display presentation; 6.8 uses the scheduled capture/vblank.
         // Use one monotonic sampling/work clock for fresh and cached processing:
         // a held PTS followed by a jump must not count elapsed time twice.
         let elapsed = self.work.map(|last| work_ns.saturating_sub(last).max(0));
@@ -370,6 +371,15 @@ fn emit(record: &serde_json::Value) -> Result<()> {
     Ok(())
 }
 
+fn verified_kwin_family(version: &str) -> bool {
+    // Exact 6.7.5/6.8.0 upstream paths use an ARGB8888 source and the same
+    // sRGB-labelled SDR render target. Per-frame format/colour guards remain.
+    // See docs/KWIN_6_8_COMPATIBILITY.md for source and live validation limits.
+    let core = version.trim().split('-').next().unwrap_or_default();
+    let parts: Vec<_> = core.split('.').collect();
+    matches!(parts.as_slice(),["6","7"|"8",patch] if patch.parse::<u16>().is_ok_and(|value| value < 50))
+}
+
 pub fn run() -> Result<()> {
     // This pilot's untagged RGB8 contract is pinned to the researched KWin family.
     // Other compositors or raw HDR require explicit metadata validation first.
@@ -383,8 +393,8 @@ pub fn run() -> Result<()> {
         .find_map(|l| l.strip_prefix("KWin version: "))
         .context("Cannot establish KWin colour contract")?;
     ensure!(
-        version.starts_with("6.7."),
-        "This experimental stream colour contract is verified for KWin 6.7 only"
+        verified_kwin_family(version),
+        "Stream colour contract is verified for KWin 6.7/6.8; running {version}. Select KWin ScreenShot2 until this compositor contract is verified"
     );
     let mut initial = String::new();
     std::io::stdin()
@@ -431,6 +441,28 @@ pub fn run() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn compositor_contract_allows_only_researched_release_families() {
+        for version in ["6.7.5", "6.7.5-3.1", "6.8.0", "6.8.1", " 6.8.0 "] {
+            assert!(verified_kwin_family(version), "{version}");
+        }
+        for version in [
+            "",
+            "6.6.5",
+            "6.9.0",
+            "7.0.0",
+            "6.8",
+            "6.8.",
+            "6.8.90.1",
+            "6.8.80",
+            "6.8.90",
+            "6.7.80",
+            "6.8.not-a-release",
+            "6.80.0",
+        ] {
+            assert!(!verified_kwin_family(version), "{version}");
+        }
+    }
     #[test]
     fn line_certificates_match_the_actual_pipeline_mean_contract() {
         // Cross-crate regression: changes to the production luma expression
