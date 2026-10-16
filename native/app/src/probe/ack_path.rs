@@ -322,6 +322,77 @@ pub fn brightness(store: &Store, run: bool) -> Result<()> {
     Ok(())
 }
 
+pub fn packet_shape(store: &Store, run: bool) -> Result<()> {
+    let mut description = plan(store, false)?;
+    description["scope"]="Compare final padding and RGB-aligned fragmentation of the identical full TLV; ordinary serial ACK and no saved configuration edits".into();
+    description["shapes"] = serde_json::json!([
+        "reference-64-short-tail",
+        "64-padded-tail",
+        "63-short-tail",
+        "60-short-tail"
+    ]);
+    description["hardware_run_requires"] = "--ack-shape --run".into();
+    description["samples_per_case"] = 8.into();
+    description["transactions"] = 384.into();
+    description.as_object_mut().unwrap().remove("hypothesis");
+    description["true_means"] = "candidate packet shape".into();
+    if !run {
+        println!("{description}");
+        return Ok(());
+    }
+    let _owner = crate::service::acquire_output(&crate::service::Paths::new()?)?;
+    let c = &store.config;
+    let mut strip = crate::device::Strip::open(
+        c.device_vid,
+        c.device_pid,
+        c.device_zone_count,
+        &c.output_channel_order,
+    )?;
+    ensure!(strip.enable_short_updates(), "Untested controller contract");
+    let mut cases = Vec::new();
+    let mut failure_resynchronized = None;
+    let outcome = guarded(&mut strip, c.device_zone_count, Some(10), |d| {
+        let start = Instant::now();
+        let result = (|| -> Result<()> {
+            for (pattern, frame) in frames(c.device_zone_count) {
+                for candidate_shape in 1..=3 {
+                    for candidate in ORDER {
+                        let shape = if candidate { candidate_shape } else { 0 };
+                        cases.push(serde_json::json!({"pattern":pattern,"candidate_shape":candidate_shape,"shape":shape,"samples":[]}));
+                        let samples = cases.last_mut().unwrap()["samples"].as_array_mut().unwrap();
+                        for _ in 0..8 {
+                            ensure!(
+                                start.elapsed() < Duration::from_secs(25),
+                                "Packet shape deadline reached"
+                            );
+                            samples
+                                .push(serde_json::to_value(d.probe_packet_shape(&frame, shape)?)?);
+                        }
+                    }
+                }
+            }
+            Ok(())
+        })();
+        if result.is_err() {
+            std::thread::sleep(Duration::from_millis(300));
+            failure_resynchronized = Some(d.request(0x0c, &[]).is_ok_and(|v| v == b"NL82K2"));
+        }
+        result?;
+        Ok(vec![])
+    });
+    println!(
+        "{}",
+        serde_json::json!({"plan":description,"outcome":outcome,"cases":cases,"failure_resynchronized":failure_resynchronized})
+    );
+    ensure!(
+        outcome["error"].is_null()
+            && outcome["black_cleanup_acknowledged"] == true
+            && outcome["controller_restored"] == true,
+        "Packet-shape probe or restoration failed"
+    );
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

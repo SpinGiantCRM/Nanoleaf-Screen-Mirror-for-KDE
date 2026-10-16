@@ -15,6 +15,15 @@ fn main() -> Result<()> {
         "Manual zone count required"
     );
     let args: Vec<_> = std::env::args().skip(2).collect();
+    if args.first().is_some_and(|s| s == "--ack-shape") {
+        let run = match args.as_slice() {
+            [_] => false,
+            [_, run] if run == "--run" => true,
+            _ => anyhow::bail!("Use usb_bench CONFIG --ack-shape [--run]"),
+        };
+        probe::ack_path::packet_shape(&store, run)?;
+        return Ok(());
+    }
     if args.first().is_some_and(|s| s == "--ack-brightness") {
         let run = match args.as_slice() {
             [_] => false,

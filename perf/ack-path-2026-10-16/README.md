@@ -18,6 +18,19 @@ See [the findings and limitations](../../docs/USB_ACK_PATH_EXPERIMENTS.md).
   counts, with exactly two warmups excluded per case. No failed experiment is
   reclassified as a successful colour command. Total 960 measured successful
   full-frame colour commands, excluding setup/query/cleanup.
+- `packet-shape.json`: a separate 384-command acknowledged ABBA experiment,
+  reference versus final padding, 63-byte and 60-byte fragmentation.
+- `packet-shape-summary.json`: 12 retained samples per pattern/layout/comparison,
+  excluding two warmups per case. Reproduce with `python summarise_shape.py`;
+  `python summarise_shape.py --check` also verifies the stored aggregate and rejects
+  a missing-ACK negative control.
+
+Packet-layout binary SHA-256:
+`23a082a05b3e4c8720bdc308cca8a8561b61579deb30536d356834abb1e056e2`.
+It is distinct from the five earlier experiments' binary below. Layout changes
+preserve all declared TLV bytes; this does not constitute optical parity. No
+layout improved command time; padded varied colours are about 1 ms slower.
+Guarded cleanup/restoration and an independent power/brightness readback passed.
 
 Final measurement binary SHA-256:
 `555c3d45a6f9c4157833acc33a6526c3f2fc05d0e4edc26f3ffd8aae164354d3`.

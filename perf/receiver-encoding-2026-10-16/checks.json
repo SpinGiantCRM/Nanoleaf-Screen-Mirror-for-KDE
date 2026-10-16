@@ -1,0 +1,23 @@
+{
+  "local_release_gate": true,
+  "rust_tests_passed": 190,
+  "rust_ignored_tests": 2,
+  "trace_decoder_tests_passed": 6,
+  "javascript_tests_passed": 2,
+  "all_target_clippy_and_format": true,
+  "crc_synthetic_control_groups": 6,
+  "packet_shape_recording_and_aggregate_match": true,
+  "packet_shape_measured_acknowledgements": 384,
+  "packet_shape_optical_parity_verified": false,
+  "independent_controller_restoration_readback": true,
+  "controller_original_power": 1,
+  "controller_original_raw_brightness": 16,
+  "configuration_byte_identical": true,
+  "installed_native_pair_unchanged": true,
+  "previous_native_bundles_preserved": true,
+  "mcu_identified": false,
+  "firmware_decoded": false,
+  "recovery_method_established": false,
+  "firmware_or_loader_commands_sent": false,
+  "hosted_checks_included_in_this_local_record": false
+}

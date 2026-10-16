@@ -227,6 +227,22 @@ fn transact_packed(
     command: u8,
     payload: &[u8],
     single_transfer: bool,
+    progress: impl FnMut(),
+) -> Result<(Vec<u8>, TransactionTimes)> {
+    transact_report_plan(
+        handle,
+        command,
+        payload,
+        |request| transfer_buffers(request, single_transfer),
+        progress,
+    )
+}
+
+fn transact_report_plan(
+    handle: &impl ReportIo,
+    command: u8,
+    payload: &[u8],
+    plan: impl FnOnce(&[u8]) -> Vec<Vec<u8>>,
     mut progress: impl FnMut(),
 ) -> Result<(Vec<u8>, TransactionTimes)> {
     let total = Instant::now();
@@ -242,7 +258,7 @@ fn transact_packed(
     times.drain_ms = total.elapsed().as_secs_f64() * 1000.0;
     let write_start = Instant::now();
     let request = protocol::encode_request(command, payload)?;
-    for report in transfer_buffers(&request, single_transfer) {
+    for report in plan(&request) {
         let report_start = Instant::now();
         ensure!(
             handle.write(&report)? == report.len(),

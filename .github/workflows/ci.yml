@@ -29,6 +29,12 @@ jobs:
           ruff check scripts/ tools/
           ruff format --check scripts/ tools/
           python -m unittest discover -s scripts -p 'test_*response_trace.py' -v
+      - name: Verify offline receiver and ACK analysis controls
+        run: |
+          ruff check perf/receiver-encoding-2026-10-16/crc_constraints.py perf/ack-path-2026-10-16/summarise_shape.py
+          ruff format --check perf/receiver-encoding-2026-10-16/crc_constraints.py perf/ack-path-2026-10-16/summarise_shape.py
+          python perf/receiver-encoding-2026-10-16/crc_constraints.py --self-test
+          python perf/ack-path-2026-10-16/summarise_shape.py --check
 
   rust-security:
     name: Rust dependency security

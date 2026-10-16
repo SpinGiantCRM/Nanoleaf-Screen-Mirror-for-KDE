@@ -101,6 +101,46 @@ inside daily colour transactions.
 
 ## What this establishes, and what remains
 
+### Final packet layout checks: 384 additional acknowledged commands
+
+An additional bounded run compares the same full 147-byte TLV in ordinary
+64/64/19-byte chunks against three layouts: a zero-padded final 64-byte report,
+63-byte chunks, and 60-byte chunks. The latter two place fragmentation on RGB
+boundaries. All use three reports, preserve the complete TLV, and wait for its
+ordinary ACK before another command. Padding appears only **after** the declared
+TLV, never between colours. No suffix is omitted in this experiment.
+
+Each pattern/candidate uses ABBA order, eight commands per case, with two warmups
+excluded from each case. Each table cell therefore pools 12 commands. Setup and
+cleanup are additional transactions. This run uses a separately retained operator
+binary; it is not pooled with the earlier 960-command binary's timings.
+
+| Pattern | Reference / padded tail | Reference / 63-byte chunks | Reference / 60-byte chunks |
+| --- | ---: | ---: | ---: |
+| Black | 6.998 / 6.992 ms | 6.995 / 6.990 ms | 6.996 / 6.992 ms |
+| Neutral code 8 | 19.000 / 18.997 ms | 18.994 / 18.993 ms | 19.002 / 18.988 ms |
+| Neutral code 64 | 20.989 / 21.000 ms | 20.993 / 20.993 ms | 20.994 / 20.994 ms |
+| Varied RGB | 20.996 / **21.997 ms** | 20.994 / 21.000 ms | 20.998 / 20.987 ms |
+
+**No useful improvement.** For varied colours, final padding adds about 1 ms,
+with the post-write ACK interval increasing from 17.061 to 18.023 ms. All 384
+measured commands received one matching ACK, with no stale drained report or
+unrelated reply. The independent controller-state readback and guarded restoration
+passed. The unchanged daily app resumed afterward. No visual observation or
+emitted-light timing was performed; an accepted TLV is not an optical parity test.
+None of these layouts is selected for daily output.
+
+An inspected independent [Python driver at a pinned commit](https://github.com/sdouf5054/nanoleaf-multi-wrap-mirror/blob/aa90aed672bf5f0b4d52f379053f5205ed2788a8/core/device.py)
+also pads its reports and serializes writes, but does not validate the ACK's
+contents. Its implementation was read as data, never executed or adopted. It
+provides no verified faster command or justification for weakening our ACK checks.
+
+The matching [offline firmware follow-up](RECEIVER_ENCODING_FOLLOWUP.md) narrows
+conditional checksum candidates, but still supplies neither executable firmware
+nor an independent closed-case recovery method.
+
+### Receiver boundary
+
 The tested host submission, output API, packet pacing and global-brightness
 changes do not remove the content-dependent ACK wait. Together with the earlier
 [active-zone experiments](USB_POSITION_AND_REPEAT_RESEARCH.md), receiver-side
@@ -130,7 +170,7 @@ dither suppression or unacknowledged sending was introduced in this follow-up.
 Build the developer `usb_bench` binary from `native/app/Cargo.toml` using Rust
 1.95.0, release mode and locked offline dependencies. With an existing config,
 `--ack-path`, `--ack-output`, `--ack-pacing`, `--ack-brightness` and
-`--ack-control` print plans without opening HID. Actual hardware use requires
+`--ack-control` and `--ack-shape` print plans without opening HID. Actual hardware use requires
 the explicit trailing `--run`, the exclusive output lease, the qualified
 48-zone NL82K2 contract, and a stopped mirror. `--ack-control` intentionally
 reproduces the rejected deadline failure and exits nonzero after restoration.

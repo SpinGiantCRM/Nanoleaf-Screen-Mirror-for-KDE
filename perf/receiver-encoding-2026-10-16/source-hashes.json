@@ -1,0 +1,25 @@
+{
+  "private_analysis_scripts": [
+    {
+      "filename": "key-probe.py",
+      "sha256": "12f516fe04f63e584962a5be0ae502bfc681f85f6a6eb1ceafcff7e988204275"
+    },
+    {
+      "filename": "key-probe-des-expanded.py",
+      "sha256": "1011a99f1b3f8b42c326745ddb1d3eb69d2d3cee470bfe7d9feca1279186db14"
+    },
+    {
+      "filename": "vendor-literals-probe.py",
+      "sha256": "5cd613994e1fc3dcde736d4e907f8f0f0d7b9d5bfae85c70cf03c1b79857500f"
+    },
+    {
+      "filename": "key-crc-probe.py",
+      "sha256": "20ec05f43cd3a1d5409c90b80f7746a123f00a2212692bf132c01410974a0a83"
+    },
+    {
+      "filename": "xxtea-crc-probe.py",
+      "sha256": "a89dc8d6374b86b5b54d290e6a5f4f9eea44fbdb55ef649181214437f27199c1"
+    }
+  ],
+  "proprietary_sources_or_literal_keys_published": false
+}
