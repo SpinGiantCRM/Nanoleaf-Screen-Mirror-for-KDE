@@ -65,11 +65,11 @@ def main():
             "red_gain=0.873123456789\n"
         )
         config.write_text(original)
-        fallback = root / "data/applications/nanoleaf-kde-sync.desktop"
-        fallback.write_text("original Python fallback launcher")
-        fallback_autostart = root / "config/autostart/nanoleaf-kde-sync.desktop"
-        fallback_autostart.parent.mkdir(parents=True)
-        fallback_autostart.write_text("original Python fallback autostart")
+        unrelated = root / "data/applications/example-unrelated.desktop"
+        unrelated.write_text("original unrelated launcher")
+        unrelated_autostart = root / "config/autostart/example-unrelated.desktop"
+        unrelated_autostart.parent.mkdir(parents=True)
+        unrelated_autostart.write_text("original unrelated autostart")
         doctor = json.loads(run(installed, "--doctor"))
         assert (
             doctor["configuration_read_only"]
@@ -77,7 +77,7 @@ def main():
             and not doctor["usb_output_tested"]
         )
         run(installed, "--autostart", "on")
-        native_autostart = fallback_autostart.with_name("org.spingiantcrm.NanoleafNative.desktop")
+        native_autostart = unrelated_autostart.with_name("org.spingiantcrm.NanoleafNative.desktop")
         assert str(installed) in native_autostart.read_text()
         # Version identity covers all bundle files. A changed readme is enough
         # to exercise a distinct installation without fabricating a new binary.
@@ -133,8 +133,8 @@ def main():
         # Cleanup stays usable after the installer's launcher has been removed.
         run(exe, "--autostart", "off")
         assert config.read_text() == original
-        assert fallback.read_text() == "original Python fallback launcher"
-        assert fallback_autostart.read_text() == "original Python fallback autostart"
+        assert unrelated.read_text() == "original unrelated launcher"
+        assert unrelated_autostart.read_text() == "original unrelated autostart"
         result = dict(
             scope="Relocated real binaries; isolated HOME/XDG; no capture or USB output",
             version=version,
@@ -144,7 +144,7 @@ def main():
             autostart_tracks_managed_command=True,
             live_service_blocks_upgrade=True,
             uninstall_retains_versions=True,
-            configuration_and_python_fallback_unchanged=True,
+            configuration_and_unrelated_files_unchanged=True,
             binary_sha256=hashlib.sha256(exe.read_bytes()).hexdigest(),
         )
         args.output.parent.mkdir(parents=True, exist_ok=True)

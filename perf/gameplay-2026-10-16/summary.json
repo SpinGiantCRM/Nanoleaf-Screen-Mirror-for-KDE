@@ -1,0 +1,1089 @@
+{
+  "scope": "Uncontrolled real Minecraft gameplay, actual selected portal/Vulkan capture, calibrated colour and acknowledged USB; no screen fixtures, images, HID payloads, optical latency, colourimeter or app-attributed power measurement. One-second status/resource snapshots, not complete frame traces. Rolling response windows overlap and are not pooled.",
+  "instrumentation": "One status request and /proc resource snapshot per second. GPU-wait ABBA runs use same installed binary and saved Target60 config, 4s warmup and 60s observation. Low-priority two-job builds/tests ran during part of experiment; scene and system-load changes confound attribution.",
+  "native_app_sha256": "5c1c701122e436715ac034a16bd43cf822b5f5da58e59225992c06e633ec2373",
+  "config_sha256": "a5d9b604c8ff68adf8a9321cc9fb578d4c2468c00a279612d66312f800049933",
+  "target_fps": 60,
+  "manual_zones": 48,
+  "gpu_wait_runs": [
+    {
+      "run": "waits-0-serial",
+      "seconds_between_endpoints": 59.4427998379997,
+      "snapshots": 60,
+      "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync",
+      "acknowledged_packets_between_endpoints": 3039,
+      "shortened_packets_between_endpoints": 1818,
+      "omitted_zones_between_endpoints": 8392,
+      "dropped_latest_slot_frames_between_endpoints": 527,
+      "throughput_ack_fps": 51.124778918258045,
+      "snapshot_medians": {
+        "capture_ms": 6.21355,
+        "processing_ms": 0.021536,
+        "usb_ms": 19.990868499999998,
+        "prepared_queue_ms": 7.757047,
+        "response_ms": 33.7044295,
+        "response_to_write_ms": 17.491416,
+        "source_presentation_age_ms": 35.3460325,
+        "effective_fps": 50.84577938754428
+      },
+      "cpu_percent_one_core": {
+        "nanoleaf-native": 0.7402073946704028,
+        "nanoleaf-native-capture": 2.994475369348448
+      },
+      "end_rss_mib": {
+        "nanoleaf-native": 22.50390625,
+        "nanoleaf-native-capture": 136.28125
+      },
+      "final_complete_rolling_response_window": {
+        "fresh": {
+          "observed": 3206,
+          "samples": 512,
+          "capture_ms": {
+            "min": 0.557945,
+            "p50": 6.1303160000000005,
+            "p95": 8.518046,
+            "p99": 8.800074,
+            "max": 8.981259999999999
+          },
+          "processing_ms": {
+            "min": 0.016692,
+            "p50": 0.021421,
+            "p95": 0.026871,
+            "p99": 0.031289,
+            "max": 0.042492
+          },
+          "queue_ms": {
+            "min": 0.004779,
+            "p50": 8.012981,
+            "p95": 16.158094000000002,
+            "p99": 17.455152000000002,
+            "max": 18.642439
+          },
+          "usb_ms": {
+            "min": 16.939848,
+            "p50": 19.996173,
+            "p95": 20.998607999999997,
+            "p99": 21.000842,
+            "max": 21.002806
+          },
+          "to_write_ms": {
+            "min": 7.534237,
+            "p50": 18.200444,
+            "p95": 26.213866,
+            "p99": 27.834701,
+            "max": 30.154291
+          },
+          "to_ack_ms": {
+            "min": 23.310593,
+            "p50": 34.424425,
+            "p95": 42.692002,
+            "p99": 44.397639000000005,
+            "max": 47.186535
+          }
+        },
+        "cached": {
+          "observed": 2,
+          "samples": 2,
+          "capture_ms": {
+            "min": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "processing_ms": {
+            "min": 0.025919,
+            "p50": 0.025919,
+            "p95": 0.029346,
+            "p99": 0.029346,
+            "max": 0.029346
+          },
+          "queue_ms": {
+            "min": 0.0072640000000000005,
+            "p50": 0.0072640000000000005,
+            "p95": 0.014287999999999999,
+            "p99": 0.014287999999999999,
+            "max": 0.014287999999999999
+          },
+          "usb_ms": {
+            "min": 2.635893,
+            "p50": 2.635893,
+            "p95": 18.902915,
+            "p99": 18.902915,
+            "max": 18.902915
+          },
+          "to_write_ms": {
+            "min": 0.719724,
+            "p50": 0.719724,
+            "p95": 2.9526079999999997,
+            "p99": 2.9526079999999997,
+            "max": 2.9526079999999997
+          },
+          "to_ack_ms": {
+            "min": 2.743589,
+            "p50": 2.743589,
+            "p95": 18.989321,
+            "p99": 18.989321,
+            "max": 18.989321
+          }
+        },
+        "rejected_samples": 0
+      },
+      "source_metadata_sha256": "e586744b275f486a5a0845ab503db09ae3ca6e7c22196531c8b77b7f80e7a0c4",
+      "initial_reported_priority": {
+        "configured": "normal",
+        "effective_nice": -8,
+        "error": null
+      }
+    },
+    {
+      "run": "waits-1-batch",
+      "seconds_between_endpoints": 59.77088537800046,
+      "snapshots": 60,
+      "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync / batched waits",
+      "acknowledged_packets_between_endpoints": 2944,
+      "shortened_packets_between_endpoints": 1472,
+      "omitted_zones_between_endpoints": 5521,
+      "dropped_latest_slot_frames_between_endpoints": 638,
+      "throughput_ack_fps": 49.25474972274013,
+      "snapshot_medians": {
+        "capture_ms": 4.369398500000001,
+        "processing_ms": 0.022368,
+        "usb_ms": 20.988384000000003,
+        "prepared_queue_ms": 8.4828185,
+        "response_ms": 34.0871815,
+        "response_to_write_ms": 17.863156,
+        "source_presentation_age_ms": 35.478350000000006,
+        "effective_fps": 49.8984281070167
+      },
+      "cpu_percent_one_core": {
+        "nanoleaf-native": 0.7528749108435142,
+        "nanoleaf-native-capture": 3.095152411245558
+      },
+      "end_rss_mib": {
+        "nanoleaf-native": 23.375,
+        "nanoleaf-native-capture": 136.08984375
+      },
+      "final_complete_rolling_response_window": {
+        "fresh": {
+          "observed": 3080,
+          "samples": 512,
+          "capture_ms": {
+            "min": 0.573324,
+            "p50": 4.298588,
+            "p95": 7.349024,
+            "p99": 8.186503,
+            "max": 10.373058
+          },
+          "processing_ms": {
+            "min": 0.016973000000000002,
+            "p50": 0.026912,
+            "p95": 0.038193,
+            "p99": 0.047871,
+            "max": 0.158343
+          },
+          "queue_ms": {
+            "min": 0.006633,
+            "p50": 8.144152,
+            "p95": 16.469129,
+            "p99": 18.182290000000002,
+            "max": 20.371702
+          },
+          "usb_ms": {
+            "min": 16.935980999999998,
+            "p50": 20.979732000000002,
+            "p95": 21.048094,
+            "p99": 22.081427,
+            "max": 24.100893000000003
+          },
+          "to_write_ms": {
+            "min": 5.876181,
+            "p50": 16.969395000000002,
+            "p95": 25.591729,
+            "p99": 27.085081,
+            "max": 29.081473
+          },
+          "to_ack_ms": {
+            "min": 22.916641000000002,
+            "p50": 33.642633,
+            "p95": 42.203201,
+            "p99": 43.925409,
+            "max": 45.762778
+          }
+        },
+        "cached": {
+          "observed": 7,
+          "samples": 7,
+          "capture_ms": {
+            "min": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "processing_ms": {
+            "min": 0.014828,
+            "p50": 0.024157,
+            "p95": 0.036089,
+            "p99": 0.036089,
+            "max": 0.036089
+          },
+          "queue_ms": {
+            "min": 0.005911,
+            "p50": 0.008076,
+            "p95": 8.501344,
+            "p99": 8.501344,
+            "max": 8.501344
+          },
+          "usb_ms": {
+            "min": 2.931438,
+            "p50": 19.116223,
+            "p95": 20.988229,
+            "p99": 20.988229,
+            "max": 20.988229
+          },
+          "to_write_ms": {
+            "min": 0.984129,
+            "p50": 2.910017,
+            "p95": 12.56785,
+            "p99": 12.56785,
+            "max": 12.56785
+          },
+          "to_ack_ms": {
+            "min": 3.0077030000000002,
+            "p50": 19.199823000000002,
+            "p95": 29.621936,
+            "p99": 29.621936,
+            "max": 29.621936
+          }
+        },
+        "rejected_samples": 0
+      },
+      "source_metadata_sha256": "edc2f3c9c78bbb4a22c982854d4ecf90daff46d40b48cf458ad348d25903c421",
+      "initial_reported_priority": {
+        "configured": "normal",
+        "effective_nice": -4,
+        "error": null
+      }
+    },
+    {
+      "run": "waits-2-batch",
+      "seconds_between_endpoints": 59.46594233600081,
+      "snapshots": 60,
+      "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync / batched waits",
+      "acknowledged_packets_between_endpoints": 3138,
+      "shortened_packets_between_endpoints": 1412,
+      "omitted_zones_between_endpoints": 6745,
+      "dropped_latest_slot_frames_between_endpoints": 429,
+      "throughput_ack_fps": 52.769701054585795,
+      "snapshot_medians": {
+        "capture_ms": 4.373917499999999,
+        "processing_ms": 0.020388999999999997,
+        "usb_ms": 18.997297500000002,
+        "prepared_queue_ms": 7.128733,
+        "response_ms": 31.630608000000002,
+        "response_to_write_ms": 16.490435,
+        "source_presentation_age_ms": 33.590928500000004,
+        "effective_fps": 52.915476333828956
+      },
+      "cpu_percent_one_core": {
+        "nanoleaf-native": 0.7399193264505339,
+        "nanoleaf-native-capture": 2.875595564160029
+      },
+      "end_rss_mib": {
+        "nanoleaf-native": 22.71875,
+        "nanoleaf-native-capture": 135.08984375
+      },
+      "final_complete_rolling_response_window": {
+        "fresh": {
+          "observed": 3285,
+          "samples": 512,
+          "capture_ms": {
+            "min": 0.5718420000000001,
+            "p50": 4.664117,
+            "p95": 7.496535000000001,
+            "p99": 7.989345999999999,
+            "max": 8.53571
+          },
+          "processing_ms": {
+            "min": 0.016953,
+            "p50": 0.021441,
+            "p95": 0.027092,
+            "p99": 0.030337,
+            "max": 0.049855
+          },
+          "queue_ms": {
+            "min": 0.003987999999999999,
+            "p50": 7.7540569999999995,
+            "p95": 16.416669,
+            "p99": 17.925,
+            "max": 19.539372999999998
+          },
+          "usb_ms": {
+            "min": 13.543894000000002,
+            "p50": 18.993781000000002,
+            "p95": 20.000944,
+            "p99": 20.996295,
+            "max": 20.999511
+          },
+          "to_write_ms": {
+            "min": 4.991411,
+            "p50": 16.753191,
+            "p95": 25.281458,
+            "p99": 26.676493,
+            "max": 28.672172
+          },
+          "to_ack_ms": {
+            "min": 17.767319,
+            "p50": 32.036908000000004,
+            "p95": 40.622053,
+            "p99": 42.148185999999995,
+            "max": 44.702704000000004
+          }
+        },
+        "cached": {
+          "observed": 3,
+          "samples": 3,
+          "capture_ms": {
+            "min": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "processing_ms": {
+            "min": 0.029837,
+            "p50": 0.031671000000000005,
+            "p95": 0.038423,
+            "p99": 0.038423,
+            "max": 0.038423
+          },
+          "queue_ms": {
+            "min": 0.009779000000000001,
+            "p50": 0.52373,
+            "p95": 6.097984,
+            "p99": 6.097984,
+            "max": 6.097984
+          },
+          "usb_ms": {
+            "min": 17.322128,
+            "p50": 17.99853,
+            "p95": 18.990013,
+            "p99": 18.990013,
+            "max": 18.990013
+          },
+          "to_write_ms": {
+            "min": 2.380436,
+            "p50": 3.597871,
+            "p95": 10.999083,
+            "p99": 10.999083,
+            "max": 10.999083
+          },
+          "to_ack_ms": {
+            "min": 17.421467999999997,
+            "p50": 18.601372,
+            "p95": 25.201494,
+            "p99": 25.201494,
+            "max": 25.201494
+          }
+        },
+        "rejected_samples": 0
+      },
+      "source_metadata_sha256": "1caa39e7f6e55769f5e3763f71a6c93ab877a00ade3795cdf95a24e10ea0065d",
+      "initial_reported_priority": {
+        "configured": "normal",
+        "effective_nice": -4,
+        "error": null
+      }
+    },
+    {
+      "run": "waits-3-serial",
+      "seconds_between_endpoints": 59.46114997899895,
+      "snapshots": 60,
+      "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync",
+      "acknowledged_packets_between_endpoints": 3064,
+      "shortened_packets_between_endpoints": 528,
+      "omitted_zones_between_endpoints": 1702,
+      "dropped_latest_slot_frames_between_endpoints": 503,
+      "throughput_ack_fps": 51.529444033325504,
+      "snapshot_medians": {
+        "capture_ms": 6.308527000000001,
+        "processing_ms": 0.023629999999999998,
+        "usb_ms": 19.9945165,
+        "prepared_queue_ms": 8.8889195,
+        "response_ms": 34.9419815,
+        "response_to_write_ms": 19.478756500000003,
+        "source_presentation_age_ms": 36.0207685,
+        "effective_fps": 51.50895117337871
+      },
+      "cpu_percent_one_core": {
+        "nanoleaf-native": 0.7567966649803027,
+        "nanoleaf-native-capture": 2.993551252588753
+      },
+      "end_rss_mib": {
+        "nanoleaf-native": 22.828125,
+        "nanoleaf-native-capture": 135.89453125
+      },
+      "final_complete_rolling_response_window": {
+        "fresh": {
+          "observed": 3222,
+          "samples": 512,
+          "capture_ms": {
+            "min": 0.573909,
+            "p50": 6.549677,
+            "p95": 7.664346,
+            "p99": 7.947832999999999,
+            "max": 8.505099
+          },
+          "processing_ms": {
+            "min": 0.018244999999999997,
+            "p50": 0.024296,
+            "p95": 0.029085,
+            "p99": 0.034676,
+            "max": 0.092446
+          },
+          "queue_ms": {
+            "min": 0.005811,
+            "p50": 7.672962999999999,
+            "p95": 16.083464,
+            "p99": 17.532308,
+            "max": 19.550214
+          },
+          "usb_ms": {
+            "min": 13.989176,
+            "p50": 19.992367,
+            "p95": 20.996937,
+            "p99": 20.999902000000002,
+            "max": 21.015482
+          },
+          "to_write_ms": {
+            "min": 6.038911,
+            "p50": 18.161813,
+            "p95": 26.254837,
+            "p99": 28.044424,
+            "max": 28.943462
+          },
+          "to_ack_ms": {
+            "min": 21.600715,
+            "p50": 33.798474,
+            "p95": 42.243289000000004,
+            "p99": 43.278135,
+            "max": 45.145952
+          }
+        },
+        "cached": {
+          "observed": 1,
+          "samples": 1,
+          "capture_ms": {
+            "min": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "processing_ms": {
+            "min": 0.030909,
+            "p50": 0.030909,
+            "p95": 0.030909,
+            "p99": 0.030909,
+            "max": 0.030909
+          },
+          "queue_ms": {
+            "min": 0.007975000000000001,
+            "p50": 0.007975000000000001,
+            "p95": 0.007975000000000001,
+            "p99": 0.007975000000000001,
+            "max": 0.007975000000000001
+          },
+          "usb_ms": {
+            "min": 19.329532,
+            "p50": 19.329532,
+            "p95": 19.329532,
+            "p99": 19.329532,
+            "max": 19.329532
+          },
+          "to_write_ms": {
+            "min": 2.387881,
+            "p50": 2.387881,
+            "p95": 2.387881,
+            "p99": 2.387881,
+            "max": 2.387881
+          },
+          "to_ack_ms": {
+            "min": 19.420847000000002,
+            "p50": 19.420847000000002,
+            "p95": 19.420847000000002,
+            "p99": 19.420847000000002,
+            "max": 19.420847000000002
+          }
+        },
+        "rejected_samples": 0
+      },
+      "source_metadata_sha256": "6eba8dc9b58a0663a97f0f591efe90ac88492c419175b7cff7fc13e0591c605c",
+      "initial_reported_priority": {
+        "configured": "normal",
+        "effective_nice": -4,
+        "error": null
+      }
+    }
+  ],
+  "prefix_runs": [
+    {
+      "run": "prefix-0-full",
+      "seconds_between_endpoints": 59.608986228000504,
+      "snapshots": 60,
+      "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync",
+      "acknowledged_packets_between_endpoints": 2934,
+      "shortened_packets_between_endpoints": 0,
+      "omitted_zones_between_endpoints": 0,
+      "dropped_latest_slot_frames_between_endpoints": 643,
+      "throughput_ack_fps": 49.220766626992116,
+      "snapshot_medians": {
+        "capture_ms": 6.881363,
+        "processing_ms": 0.025313000000000002,
+        "usb_ms": 19.9980555,
+        "prepared_queue_ms": 9.030596,
+        "response_ms": 36.434548500000005,
+        "response_to_write_ms": 20.121719499999998,
+        "source_presentation_age_ms": 37.599897999999996,
+        "effective_fps": 49.210942071550335
+      },
+      "cpu_percent_one_core": {
+        "nanoleaf-native": 0.7213677453853651,
+        "nanoleaf-native-capture": 3.070006916407484
+      },
+      "end_rss_mib": {
+        "nanoleaf-native": 22.41015625,
+        "nanoleaf-native-capture": 135.9765625
+      },
+      "final_complete_rolling_response_window": {
+        "fresh": {
+          "observed": 3078,
+          "samples": 512,
+          "capture_ms": {
+            "min": 0.617893,
+            "p50": 6.660454,
+            "p95": 7.817187999999999,
+            "p99": 8.153661,
+            "max": 8.638038
+          },
+          "processing_ms": {
+            "min": 0.017414,
+            "p50": 0.024507,
+            "p95": 0.032612,
+            "p99": 0.048992999999999995,
+            "max": 0.053152000000000005
+          },
+          "queue_ms": {
+            "min": 0.006002,
+            "p50": 8.143131,
+            "p95": 15.866048000000001,
+            "p99": 17.536494,
+            "max": 19.562151
+          },
+          "usb_ms": {
+            "min": 18.489558,
+            "p50": 19.996492,
+            "p95": 20.001381,
+            "p99": 20.004256,
+            "max": 20.051547
+          },
+          "to_write_ms": {
+            "min": 6.318189,
+            "p50": 18.629807000000003,
+            "p95": 26.527529,
+            "p99": 27.651297,
+            "max": 28.834551
+          },
+          "to_ack_ms": {
+            "min": 22.347019,
+            "p50": 34.657123,
+            "p95": 42.55692,
+            "p99": 43.680878,
+            "max": 44.922124000000004
+          }
+        },
+        "cached": {
+          "observed": 0,
+          "samples": 0,
+          "capture_ms": {
+            "min": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "processing_ms": {
+            "min": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "queue_ms": {
+            "min": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "usb_ms": {
+            "min": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "to_write_ms": {
+            "min": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "to_ack_ms": {
+            "min": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          }
+        },
+        "rejected_samples": 0
+      },
+      "source_metadata_sha256": "43fd6c36e91c571e7848d5d10894802201b02db45a9cfe48a15a11100346d8d7",
+      "initial_reported_priority": {
+        "configured": "normal",
+        "effective_nice": -8,
+        "error": null
+      }
+    },
+    {
+      "run": "prefix-1-short",
+      "seconds_between_endpoints": 59.45251753299999,
+      "snapshots": 60,
+      "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync",
+      "acknowledged_packets_between_endpoints": 2998,
+      "shortened_packets_between_endpoints": 1256,
+      "omitted_zones_between_endpoints": 4646,
+      "dropped_latest_slot_frames_between_endpoints": 570,
+      "throughput_ack_fps": 50.42679644871079,
+      "snapshot_medians": {
+        "capture_ms": 6.434039,
+        "processing_ms": 0.0238655,
+        "usb_ms": 19.9966025,
+        "prepared_queue_ms": 7.899919,
+        "response_ms": 33.4351425,
+        "response_to_write_ms": 17.7849485,
+        "source_presentation_age_ms": 35.5673975,
+        "effective_fps": 50.02252337853899
+      },
+      "cpu_percent_one_core": {
+        "nanoleaf-native": 0.7232662599381467,
+        "nanoleaf-native-capture": 2.926705330912501
+      },
+      "end_rss_mib": {
+        "nanoleaf-native": 22.96484375,
+        "nanoleaf-native-capture": 135.9453125
+      },
+      "final_complete_rolling_response_window": {
+        "fresh": {
+          "observed": 3144,
+          "samples": 512,
+          "capture_ms": {
+            "min": 0.591401,
+            "p50": 6.60234,
+            "p95": 7.55903,
+            "p99": 7.791827,
+            "max": 7.950529
+          },
+          "processing_ms": {
+            "min": 0.017784,
+            "p50": 0.023665,
+            "p95": 0.029647,
+            "p99": 0.033274,
+            "max": 0.051949
+          },
+          "queue_ms": {
+            "min": 0.007774999999999999,
+            "p50": 8.586397000000002,
+            "p95": 16.01673,
+            "p99": 17.509446,
+            "max": 18.985229999999998
+          },
+          "usb_ms": {
+            "min": 15.996822000000002,
+            "p50": 19.995613,
+            "p95": 20.997349,
+            "p99": 20.999823,
+            "max": 21.000985
+          },
+          "to_write_ms": {
+            "min": 6.8875660000000005,
+            "p50": 18.974508,
+            "p95": 26.320111,
+            "p99": 27.633143999999998,
+            "max": 29.178901
+          },
+          "to_ack_ms": {
+            "min": 22.919966,
+            "p50": 34.720993,
+            "p95": 42.278512,
+            "p99": 43.860547,
+            "max": 46.207187
+          }
+        },
+        "cached": {
+          "observed": 1,
+          "samples": 1,
+          "capture_ms": {
+            "min": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "processing_ms": {
+            "min": 0.029036000000000003,
+            "p50": 0.029036000000000003,
+            "p95": 0.029036000000000003,
+            "p99": 0.029036000000000003,
+            "max": 0.029036000000000003
+          },
+          "queue_ms": {
+            "min": 0.006482,
+            "p50": 0.006482,
+            "p95": 0.006482,
+            "p99": 0.006482,
+            "max": 0.006482
+          },
+          "usb_ms": {
+            "min": 18.951921,
+            "p50": 18.951921,
+            "p95": 18.951921,
+            "p99": 18.951921,
+            "max": 18.951921
+          },
+          "to_write_ms": {
+            "min": 2.992244,
+            "p50": 2.992244,
+            "p95": 2.992244,
+            "p99": 2.992244,
+            "max": 2.992244
+          },
+          "to_ack_ms": {
+            "min": 19.029007,
+            "p50": 19.029007,
+            "p95": 19.029007,
+            "p99": 19.029007,
+            "max": 19.029007
+          }
+        },
+        "rejected_samples": 0
+      },
+      "source_metadata_sha256": "1a819fc7c34a6c29484a37c210214f2c328824510dd29f8b782605aebefea4b9",
+      "initial_reported_priority": {
+        "configured": "normal",
+        "effective_nice": -4,
+        "error": null
+      }
+    },
+    {
+      "run": "prefix-2-short",
+      "seconds_between_endpoints": 59.456307136999385,
+      "snapshots": 60,
+      "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync",
+      "acknowledged_packets_between_endpoints": 3085,
+      "shortened_packets_between_endpoints": 660,
+      "omitted_zones_between_endpoints": 2175,
+      "dropped_latest_slot_frames_between_endpoints": 483,
+      "throughput_ack_fps": 51.88684175913473,
+      "snapshot_medians": {
+        "capture_ms": 7.079777,
+        "processing_ms": 0.022674,
+        "usb_ms": 18.998568499999998,
+        "prepared_queue_ms": 6.899447,
+        "response_ms": 34.283691999999995,
+        "response_to_write_ms": 18.4362915,
+        "source_presentation_age_ms": 35.7094965,
+        "effective_fps": 51.842689155508964
+      },
+      "cpu_percent_one_core": {
+        "nanoleaf-native": 0.7400392341659411,
+        "nanoleaf-native-capture": 2.9265187896562215
+      },
+      "end_rss_mib": {
+        "nanoleaf-native": 22.9453125,
+        "nanoleaf-native-capture": 136.03515625
+      },
+      "final_complete_rolling_response_window": {
+        "fresh": {
+          "observed": 3243,
+          "samples": 512,
+          "capture_ms": {
+            "min": 0.5682769999999999,
+            "p50": 7.035026,
+            "p95": 8.317658999999999,
+            "p99": 8.926634,
+            "max": 10.083026
+          },
+          "processing_ms": {
+            "min": 0.017504,
+            "p50": 0.022884,
+            "p95": 0.028374999999999997,
+            "p99": 0.032091999999999996,
+            "max": 0.042371
+          },
+          "queue_ms": {
+            "min": 0.004668,
+            "p50": 7.399554,
+            "p95": 15.88888,
+            "p99": 17.173859,
+            "max": 18.644512
+          },
+          "usb_ms": {
+            "min": 14.466911000000001,
+            "p50": 18.99445,
+            "p95": 20.99641,
+            "p99": 20.999276000000002,
+            "max": 21.004795
+          },
+          "to_write_ms": {
+            "min": 6.308607,
+            "p50": 18.21444,
+            "p95": 27.125264,
+            "p99": 28.835154000000003,
+            "max": 29.640044
+          },
+          "to_ack_ms": {
+            "min": 20.962205,
+            "p50": 33.161879,
+            "p95": 42.143178000000006,
+            "p99": 43.384853,
+            "max": 46.128571
+          }
+        },
+        "cached": {
+          "observed": 2,
+          "samples": 2,
+          "capture_ms": {
+            "min": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "processing_ms": {
+            "min": 0.023455,
+            "p50": 0.023455,
+            "p95": 0.02595,
+            "p99": 0.02595,
+            "max": 0.02595
+          },
+          "queue_ms": {
+            "min": 0.0076950000000000005,
+            "p50": 0.0076950000000000005,
+            "p95": 0.012003,
+            "p99": 0.012003,
+            "max": 0.012003
+          },
+          "usb_ms": {
+            "min": 18.843646,
+            "p50": 18.843646,
+            "p95": 18.89793,
+            "p99": 18.89793,
+            "max": 18.89793
+          },
+          "to_write_ms": {
+            "min": 2.89089,
+            "p50": 2.89089,
+            "p95": 2.9415359999999997,
+            "p99": 2.9415359999999997,
+            "max": 2.9415359999999997
+          },
+          "to_ack_ms": {
+            "min": 18.925333,
+            "p50": 18.925333,
+            "p95": 18.977902,
+            "p99": 18.977902,
+            "max": 18.977902
+          }
+        },
+        "rejected_samples": 0
+      },
+      "source_metadata_sha256": "f855b895d6ce337af57a8f9bc2128a37327afb348bc639b4a6c51639c81fc8d9",
+      "initial_reported_priority": {
+        "configured": "normal",
+        "effective_nice": -4,
+        "error": null
+      }
+    },
+    {
+      "run": "prefix-3-full",
+      "seconds_between_endpoints": 59.47147144900009,
+      "snapshots": 60,
+      "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync",
+      "acknowledged_packets_between_endpoints": 3064,
+      "shortened_packets_between_endpoints": 0,
+      "omitted_zones_between_endpoints": 0,
+      "dropped_latest_slot_frames_between_endpoints": 504,
+      "throughput_ack_fps": 51.52050092837439,
+      "snapshot_medians": {
+        "capture_ms": 6.600183,
+        "processing_ms": 0.023801000000000003,
+        "usb_ms": 19.99288,
+        "prepared_queue_ms": 8.200949999999999,
+        "response_ms": 34.608825499999995,
+        "response_to_write_ms": 18.4322345,
+        "source_presentation_age_ms": 35.8280425,
+        "effective_fps": 50.618536227067466
+      },
+      "cpu_percent_one_core": {
+        "nanoleaf-native": 0.7566653204232531,
+        "nanoleaf-native-capture": 3.1611795608793685
+      },
+      "end_rss_mib": {
+        "nanoleaf-native": 22.84765625,
+        "nanoleaf-native-capture": 168.328125
+      },
+      "final_complete_rolling_response_window": {
+        "fresh": {
+          "observed": 3219,
+          "samples": 512,
+          "capture_ms": {
+            "min": 0.557517,
+            "p50": 7.457572,
+            "p95": 9.080064,
+            "p99": 9.8985,
+            "max": 11.334266
+          },
+          "processing_ms": {
+            "min": 0.017153,
+            "p50": 0.022693,
+            "p95": 0.027964,
+            "p99": 0.031560000000000005,
+            "max": 0.050266000000000005
+          },
+          "queue_ms": {
+            "min": 0.004319,
+            "p50": 7.246468,
+            "p95": 16.188319,
+            "p99": 17.778621,
+            "max": 20.11051
+          },
+          "usb_ms": {
+            "min": 13.305024,
+            "p50": 18.998102,
+            "p95": 20.997546,
+            "p99": 21.002987,
+            "max": 21.035949000000002
+          },
+          "to_write_ms": {
+            "min": 8.920981,
+            "p50": 18.453521000000002,
+            "p95": 27.439535,
+            "p99": 29.610638,
+            "max": 32.304941
+          },
+          "to_ack_ms": {
+            "min": 21.001213,
+            "p50": 34.052483,
+            "p95": 42.578677,
+            "p99": 45.181005000000006,
+            "max": 46.931915
+          }
+        },
+        "cached": {
+          "observed": 1,
+          "samples": 1,
+          "capture_ms": {
+            "min": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "processing_ms": {
+            "min": 0.030348,
+            "p50": 0.030348,
+            "p95": 0.030348,
+            "p99": 0.030348,
+            "max": 0.030348
+          },
+          "queue_ms": {
+            "min": 0.9357,
+            "p50": 0.9357,
+            "p95": 0.9357,
+            "p99": 0.9357,
+            "max": 0.9357
+          },
+          "usb_ms": {
+            "min": 17.996769,
+            "p50": 17.996769,
+            "p95": 17.996769,
+            "p99": 17.996769,
+            "max": 17.996769
+          },
+          "to_write_ms": {
+            "min": 4.9882,
+            "p50": 4.9882,
+            "p95": 4.9882,
+            "p99": 4.9882,
+            "max": 4.9882
+          },
+          "to_ack_ms": {
+            "min": 19.017401,
+            "p50": 19.017401,
+            "p95": 19.017401,
+            "p99": 19.017401,
+            "max": 19.017401
+          }
+        },
+        "rejected_samples": 0
+      },
+      "source_metadata_sha256": "204f25c89801201e56e2609308c0fc50b9a6de4cd65204fa874cbf3dff639089",
+      "initial_reported_priority": {
+        "configured": "normal",
+        "effective_nice": -4,
+        "error": null
+      }
+    }
+  ],
+  "limitations": [
+    "Changing scenes: comparisons do not isolate causal screen-event latency.",
+    "Build/test jobs ran during part of collection.",
+    "First control in each family reported inherited nice -8; remaining runs reported -4. Actual process nice was not logged then. These are confounded comparisons, not adoption evidence. Observer now logs live process nice.",
+    "One-second snapshots cannot be pooled as complete individual-frame measurements. Final rolling-window quantiles cover only last 512 outputs.",
+    "No optical, emitted-light colour or app-attributed power claim."
+  ],
+  "controller_before_after": {
+    "before": {
+      "controller_power": 1,
+      "controller_brightness": 16
+    },
+    "after": {
+      "controller_power": 1,
+      "controller_brightness": 16
+    },
+    "controller_unchanged": true,
+    "config_unchanged": true
+  },
+  "decisions": [
+    "Keep GPU batched waits opt-in; capture stage improved but whole-response advantage not established.",
+    "Retain existing qualified shorter USB updates and serial ACK/full-frame fallback; no new USB protocol change.",
+    "Do not change target FPS, selected backend, calibration, dithering or saved priority."
+  ],
+  "installed_smoke": {
+    "version_directory": "e77e42b22710b0b4cc41b60e7699d69809008cde9f1b168413f300380e4187bc",
+    "app_sha256": "98ad7574c34dc21fddf4d0ad322532cb466f94a556cb573c8a83c66a8be2dfe1",
+    "capture_helper_sha256": "845463c2992977be068678973f040fd571989eac0f9814824207a9ccfc51bc33",
+    "seconds_between_endpoints": 59.44356776600034,
+    "acknowledged_packets_between_endpoints": 3226,
+    "shortened_packets_between_endpoints": 468,
+    "saved_configuration_byte_exact": true,
+    "live_nice_values": [
+      -8
+    ],
+    "scope": "Post-install actual-game mirroring, no synthetic previews or physical reconnect test"
+  }
+}

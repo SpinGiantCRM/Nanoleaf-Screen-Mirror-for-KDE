@@ -43,7 +43,7 @@ fn main() -> Result<()> {
                 nanoleaf_native::package::uninstall(&prefix, &data)?;
                 nanoleaf_native::package::autostart(false)?;
                 nanoleaf_native::package::refresh_desktop()?;
-                println!("Native command removed; versions, calibration and Python fallback are retained.");
+                println!("Native command removed; versions and calibration are retained.");
                 return Ok(());
             }
             let installed = if command == "--install-native" {
@@ -52,7 +52,7 @@ fn main() -> Result<()> {
                 nanoleaf_native::package::install(bundle, &prefix, &data)?
             } else { nanoleaf_native::package::rollback(&prefix, &data)? };
             nanoleaf_native::package::refresh_desktop()?;
-            println!("Installed {}. Your configuration and Python fallback are unchanged.", installed.display()); Ok(())
+            println!("Installed {}. Your configuration and calibration are unchanged.", installed.display()); Ok(())
         }
         "--autostart" => {
             let enable = match args.get(2).map(String::as_str) { Some("on") => true, Some("off") => false, _ => bail!("Use --autostart on or --autostart off") };

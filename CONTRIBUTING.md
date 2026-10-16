@@ -1,57 +1,23 @@
 # Contributing
 
-Thank you for helping improve Nanoleaf Screen Mirror for KDE.
+Build the Rust application and matching capture worker using [native installation](docs/NATIVE_INSTALL.md).
+Read [AGENTS.md](AGENTS.md) for scope, colour, calibration and hardware guardrails.
+One selected monitor, one manually configured strip and acknowledged serial USB
+remain the product contract. Do not introduce new FPS or priority controls.
 
-## Scope
+Run `bash scripts/release_gate.sh` for Rust core/application/capture tests, Clippy,
+formatting and operator-script contracts. Python is used only for developer and
+operator scripts; install Ruff for their lint/format checks. Hardware Vulkan
+oracles, live colour parity, permissions and physical USB/session recovery are
+separate from headless CI and must be reported accurately.
 
-- Single Nanoleaf USB strip only — no multi-device or plugin framework
-- KDE Plasma 6 + Wayland assumptions
-- Prefer `kwin-dbus` capture; portal is fallback/manual benchmark path
-- Manual strip zone count is authoritative; do not add automatic LED-count detection or promotion
-- Do not add extra FPS or priority knobs beyond existing settings
-- Stop must stop mirroring while keeping the tray app running
-- Keep normal Settings focused; put advanced/diagnostic tools in Advanced/Troubleshooting surfaces
+Keep calibration and unknown configuration fields compatible. Changes to mapping,
+colour or schemas require meaningful regression tests under `native/app/tests/`
+and `native/core/tests/`. The immutable native bundle must preserve user data and
+keep earlier paired binaries for rollback. Validate package changes with
+`scripts/verify_native_bundle.py` in isolated user directories.
 
-## Development setup
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .[test]
-pre-commit install
-```
-
-## Validation (must pass before PR)
-
-```bash
-./scripts/release_gate.sh
-```
-
-Or run individually:
-
-```bash
-python scripts/check_release_versions.py
-ruff check src/ tests/
-ruff format --check src/ tests/
-mypy src/nanoleaf_sync --ignore-missing-imports --follow-imports=silent
-bandit -r src/ -c pyproject.toml
-bash scripts/pip_audit_runtime.sh
-QT_QPA_PLATFORM=offscreen python -m pytest -q --timeout=60 --timeout-method=thread \
-  --cov=nanoleaf_sync --cov-fail-under=75
-```
-
-## Test coverage notes
-
-Large UI modules (`settings_dialog`, `display_configurator`, etc.) are omitted from coverage metrics because they are monolithic Qt dialogs. Critical tray/settings behavior is covered by headless Qt tests in `tests/test_ui_headless.py` and source-structure tests.
-
-## Pull requests
-
-- Keep diffs focused; match existing style (type hints, ruff, no unnecessary comments)
-- Include tests for behavior changes
-- Update user docs when install or UX changes
-- Do not commit secrets or local build artifacts under `packaging/arch/pkg/`
-- Do not claim an issue is fixed without tests or clearly stated verification limits
-
-## Manual verification
-
-For capture, HID, or tray changes, run the [Security manual release checklist](docs/SECURITY.md#manual-release-checklist-kde-integration) on a real KDE Plasma 6 session.
+The old Python app, C DRM helper, bridge and Python distribution are retired.
+Historical evidence and native golden fixtures remain. Do not reintroduce them as
+runtime dependencies. Keep public PR descriptions concise, include measured
+benefits and verification limits, and never commit secrets or captured pixels.

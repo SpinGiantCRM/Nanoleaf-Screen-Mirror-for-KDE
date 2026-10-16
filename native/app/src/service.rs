@@ -201,7 +201,7 @@ fn listener(socket: &Path, tx: mpsc::Sender<Control>, status: Arc<Mutex<Status>>
     });
     Ok(())
 }
-fn fallback_running() -> bool {
+fn legacy_client_running() -> bool {
     fs::read_dir("/proc")
         .into_iter()
         .flatten()
@@ -231,8 +231,8 @@ fn fallback_running() -> bool {
 }
 pub(crate) fn acquire_output(paths: &Paths) -> Result<File> {
     ensure!(
-        !fallback_running(),
-        "The Python fallback is running; stop it before native LED output"
+        !legacy_client_running(),
+        "An old Nanoleaf client is running; stop it before native LED output"
     );
     lease(&paths.root.join("strip.lock"))
 }

@@ -1,32 +1,14 @@
-# Auto Backend Selection
+# Native automatic capture
 
-This document describes how backend auto-selection should be interpreted during smoke and release testing.
+`capture_backend = "auto"` selects KWin ScreenShot2 on KDE Wayland. It does not
+benchmark and silently promote another backend. Explicit `kwin-dbus` is also
+supported. Advanced allows explicitly selecting `xdg-portal` for the validated
+PipeWire/Vulkan colour path; the user's choice is preserved across restarts.
 
-## Effective backend decision model
+Portal permissions are requested through KDE. Sharing denial/revocation stops
+mirroring and requires explicit Start. No automatic permission reacquisition or
+privileged DRM fallback occurs. Captured display-referred SDR is not raw HDR;
+unknown colour formats and unverified desktop contracts fail explicitly.
 
-When `prefer_backend=auto`, runtime selects a backend using:
-
-1. explicit configuration overrides (if set), then
-2. cached probe winner (when valid for current signature), then
-3. fresh probe results, then
-4. fallback backend when probe is unavailable.
-
-## Selection reason values
-
-Expected values in tooling output:
-
-- `explicit`
-- `cached-probe`
-- `fresh-probe`
-- `fallback`
-
-## Operational guidance
-
-- Use `nanoleaf-kde-sync-doctor --capture` when `fallback` appears unexpectedly.
-- Use smoke tests to confirm one-frame capture before long sessions.
-- Record backend decisions in RC evidence when behavior differs across environments.
-
-## Related docs
-
-- `docs/SMOKE_TEST.md`
-- `docs/TROUBLESHOOTING.md`
+Use `nanoleaf-native --doctor` for read-only readiness and `--status` for actual
+backend/timing metadata. Historical Python auto-probe behaviour is retired.

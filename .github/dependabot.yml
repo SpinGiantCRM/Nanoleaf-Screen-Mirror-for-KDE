@@ -1,27 +1,5 @@
 version: 2
 updates:
-  - package-ecosystem: pip
-    directory: /
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 0 # Legacy Python: security alerts retained; ordinary version PRs disabled.
-    groups:
-      python-runtime:
-        patterns:
-          - numpy
-          - PyQt6
-          - dbus-next
-          - hidapi
-          - dacite
-          - tomli-w
-          - packaging
-      python-dev:
-        patterns:
-          - pytest*
-          - ruff
-          - mypy
-          - pre-commit
-
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -35,7 +13,6 @@ updates:
       - /native/stream-probe
       - /native/gpu-probe
       - /native/linux-gpu
-      - /native/python-bridge
     schedule:
       interval: weekly
     open-pull-requests-limit: 5

@@ -1,25 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "${ROOT_DIR}"
-
-export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-offscreen}"
-export PYTHONPATH="${ROOT_DIR}/src${PYTHONPATH:+:${PYTHONPATH}}"
-WHEEL_AUDIT_DIR="$(mktemp -d)"
-trap 'rm -rf "${WHEEL_AUDIT_DIR}"' EXIT
-
-python scripts/check_release_versions.py
-python scripts/verify_runtime_install.py
-ruff check src/ tests/ scripts/
-ruff format --check src/ tests/ scripts/
-mypy src/nanoleaf_sync --ignore-missing-imports --follow-imports=silent
-bandit -r src/ -c pyproject.toml
-bash scripts/pip_audit_runtime.sh
-bash scripts/build_drm_helper.sh
-python -m build --wheel --no-isolation --outdir "${WHEEL_AUDIT_DIR}"
-python scripts/validate_wheel.py "${WHEEL_AUDIT_DIR}"/*-linux_x86_64.whl
-python -m pytest -q --timeout=60 --timeout-method=thread --durations=25 \
-  --cov=nanoleaf_sync --cov-report=term-missing --cov-fail-under=75
-
-echo "Release gate passed."
+repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+cd -- "$repo_root"
+ruff check scripts/ tools/
+ruff format --check scripts/ tools/
+python3 -m unittest discover -s scripts -p 'test_*response_trace.py' -v
+node --test scripts/cleanup_artifacts.test.cjs
+cargo +1.77.0 fmt --manifest-path native/Cargo.toml --check
+cargo +1.77.0 clippy --manifest-path native/Cargo.toml --all-targets --locked --offline -- -D warnings
+cargo +1.77.0 test --manifest-path native/Cargo.toml --locked --offline
+cargo +1.95.0 fmt --manifest-path native/app/Cargo.toml --check
+cargo +1.95.0 clippy --manifest-path native/app/Cargo.toml --features gui --all-targets --locked --offline -- -D warnings
+cargo +1.95.0 test --manifest-path native/app/Cargo.toml --features gui --all-targets --locked --offline
+for workspace in stream-probe linux-gpu gpu-probe; do
+  cargo +1.95.0 fmt --manifest-path "native/$workspace/Cargo.toml" --check
+  cargo +1.95.0 clippy --manifest-path "native/$workspace/Cargo.toml" --all-targets --locked --offline -- -D warnings
+  cargo +1.95.0 test --manifest-path "native/$workspace/Cargo.toml" --all-targets --locked --offline
+done
+git diff --check
+echo 'Native release contracts passed. Hardware and package checks remain separate.'

@@ -1,3 +1,7 @@
+> Historical prototype report. The application is now Rust; the Python runtime,
+> bridge and benchmark generators described below were retired on 2026-10-16.
+> Use [native installation](../docs/NATIVE_INSTALL.md) and [retirement details](../docs/LEGACY_PYTHON.md).
+
 # Rust colour and protocol core
 
 This workspace is an independently testable CPU/protocol prototype. It is not

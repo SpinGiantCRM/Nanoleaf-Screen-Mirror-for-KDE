@@ -326,7 +326,7 @@ pub fn validate_mirroring(c: &Config) -> Result<()> {
     c.validate()?;
     ensure!(
         c.capture_backend != "kmsgrab",
-        "Native DRM capture awaits verification; use the working fallback"
+        "Native DRM capture is unsupported; select auto, kwin-dbus or xdg-portal"
     );
     let accuracy = c.accuracy_mode || matches!(c.color_style.as_str(), "reference" | "natural");
     ensure!(
@@ -341,7 +341,7 @@ pub fn validate_mirroring(c: &Config) -> Result<()> {
                     | "vivid_weighted"
                     | "wavelet"
             ),
-        "Sampling mode {} awaits native verification; use the Python fallback",
+        "Sampling mode {} awaits native verification; select a supported sampling mode",
         c.sampling_mode
     );
     ensure!(
@@ -442,7 +442,7 @@ impl Pipeline {
                     | "vivid_weighted"
                     | "wavelet"
             ),
-            "Sampling mode {mode} awaits native verification; use the Python fallback"
+            "Sampling mode {mode} awaits native verification; select a supported sampling mode"
         );
         let masked = mask(frame, c);
         let bytes = masked.as_deref().unwrap_or(&frame.pixels);

@@ -115,12 +115,7 @@ def main():
         help="Profile explicit portal/Vulkan capture and supervised worker failure",
     )
     args = p.parse_args()
-    originals = {
-        args.config: args.config.read_bytes(),
-        Path.home() / ".local/share/applications/nanoleaf-kde-sync.desktop": (
-            Path.home() / ".local/share/applications/nanoleaf-kde-sync.desktop"
-        ).read_bytes(),
-    }
+    originals = {args.config: args.config.read_bytes()}
     capture_helper = args.binary.resolve().parent / "nanoleaf-native-capture"
     if not capture_helper.is_file():
         capture_helper = Path("native/stream-probe/target/release/nanoleaf-stream-probe")
@@ -245,7 +240,7 @@ def main():
             result.setdefault("probe", json.loads(stdout))
         except json.JSONDecodeError:
             result["probe_report_unavailable"] = True
-        result["configuration_and_fallback_launcher_preserved"] = all(
+        result["configuration_preserved"] = all(
             path.read_bytes() == data for path, data in originals.items()
         )
         args.output.parent.mkdir(parents=True, exist_ok=True)
