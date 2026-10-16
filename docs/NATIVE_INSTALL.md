@@ -74,6 +74,27 @@ encoded colour code per observed frame. It is disabled with temporal dithering.
 Inferred packets are counted separately; they do not increase capture FPS or
 constitute measured optical frame generation.
 
+## Acknowledged USB updates
+
+On the tested NL82K2, firmware1.5/hardware1.1 with manual48 zones, the app can
+retain an exactly unchanged trailing portion of the last acknowledged output.
+Every update still sends a nonempty prefix and waits for its ACK; dithering and
+complete colour feedback continue normally. Initial/reconnected output, preview,
+cleanup and periodic refresh use full frames. Unknown identities, other manual
+counts and failed identity queries keep the full-frame path. This does not
+automatically detect or change strip length.
+
+Advanced / Troubleshooting shows the last payload size and shortened-update
+count. To force the original complete-frame path, quit the tray first and run:
+
+```bash
+NANOLEAF_SHORT_UPDATES=0 nanoleaf-native --run
+```
+
+This changes no saved settings or calibration. Previous native versions and the
+Python fallback remain available. Hardware/response evidence and limits are in
+`docs/SHORT_UPDATES.md` in the source repository; USB timing is not optical latency.
+
 ## Upgrade, rollback and login startup
 
 Quit the native tray before installing another bundle. Repeat `--install-native`

@@ -415,6 +415,12 @@ impl Settings {
                 ui.small(format!("First response after {:.3} ms · {} reports written / {} received",t.first_report_wait_ms,t.written_reports,t.response_reports));
             }
             if let Some(s)=&self.status {
+                if s.short_updates_enabled {
+                    if let Some(t) = &s.usb_transaction {
+                        ui.small(format!("USB colour payload: {} of {} zones · {} acknowledged updates shortened", t.sent_zones,s.manual_zones,s.shortened_packets));
+                    }
+                    ui.small("Only an exactly unchanged tail is retained. Every update is acknowledged; dither phases still advance.");
+                }
                 if let Some(timing) = &s.response_summary {
                     for (label, window) in [("Fresh screen updates", &timing.fresh), ("Repeated image updates", &timing.cached)] {
                         if window.samples > 0 {

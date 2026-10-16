@@ -1,5 +1,6 @@
 //! One NL82K1/NL82K2 HID handle, authoritative manual count, acknowledged writes.
 pub mod overlap;
+mod updates;
 use anyhow::{bail, ensure, Result};
 use hidapi::{HidApi, HidDevice};
 use nanoleaf_core::protocol::{self, ChannelOrder};
@@ -9,6 +10,7 @@ pub struct Strip {
     handle: HidDevice,
     count: usize,
     order: ChannelOrder,
+    updates: updates::Updates,
     pub model: String,
     pub reported_count: usize,
     pub last_frame_transaction: Option<TransactionTimes>,
@@ -25,6 +27,10 @@ pub struct TransactionTimes {
     pub drained_reports: u32,
     pub written_reports: u32,
     pub response_reports: u32,
+    #[serde(default)]
+    pub sent_zones: usize,
+    #[serde(default)]
+    pub unrelated_response: bool,
     #[serde(default)]
     pub report_write_ms: Vec<f64>,
     #[serde(skip)]
@@ -53,6 +59,7 @@ impl Strip {
                         handle,
                         count: manual_count,
                         order: ChannelOrder::parse(order)?,
+                        updates: updates::Updates::default(),
                         model: String::new(),
                         reported_count: 0,
                         last_frame_transaction: None,
@@ -78,7 +85,23 @@ impl Strip {
     }
 
     pub fn request(&mut self, command: u8, payload: &[u8]) -> Result<Vec<u8>> {
+        self.invalidate_updates();
         transact(&self.handle, command, payload)
+    }
+
+    /// Retention is verified only for this exact tested controller contract.
+    /// Unknown identities/failed queries retain the complete-frame transport.
+    pub fn enable_short_updates(&mut self) -> bool {
+        self.updates.enabled = false;
+        self.invalidate_updates();
+        let model = self.model.clone();
+        self.updates.enabled =
+            updates::qualify(&model, self.count, |command| self.request(command, &[]));
+        self.updates.enabled
+    }
+
+    pub fn invalidate_updates(&mut self) {
+        self.updates.invalidate();
     }
 
     pub fn frame(&mut self, colors: &[[u8; 3]]) -> Result<()> {
@@ -87,6 +110,7 @@ impl Strip {
     /// Operator probe only. Never used by mirroring or calibration. A short
     /// command does not change this handle's authoritative full-frame count.
     pub(crate) fn probe_prefix(&mut self, colors: &[[u8; 3]]) -> Result<TransactionTimes> {
+        self.invalidate_updates();
         let request = probe_prefix_request(colors, self.count, self.order)?;
         let (body, times) =
             transact_timed(&self.handle, protocol::CMD_SET_ZONE_COLORS, &request[3..])?;
@@ -100,12 +124,21 @@ impl Strip {
         colors: &[[u8; 3]],
         progress: impl FnMut(),
     ) -> Result<()> {
+        self.output_with_progress(colors, false, progress)
+    }
+    pub fn output_with_progress(
+        &mut self,
+        colors: &[[u8; 3]],
+        shorten: bool,
+        progress: impl FnMut(),
+    ) -> Result<()> {
         self.last_frame_transaction = None;
-        let request = protocol::encode_zone_frame(colors, self.count, self.order)?;
-        let (_, times) = transact_timed_with_progress(
+        let times = self.updates.send(
             &self.handle,
-            protocol::CMD_SET_ZONE_COLORS,
-            &request[3..],
+            colors,
+            self.count,
+            self.order,
+            shorten,
             progress,
         )?;
         self.last_frame_transaction = Some(times);
@@ -125,7 +158,9 @@ impl Strip {
         Ok(())
     }
     pub fn black(&mut self) -> Result<()> {
-        self.frame(&vec![[0; 3]; self.count])
+        let result = self.frame(&vec![[0; 3]; self.count]);
+        self.invalidate_updates();
+        result
     }
     pub fn restore_controller(&mut self, power: &[u8], brightness: &[u8]) -> bool {
         // Attempt both restorations even when one fails, then verify readback.
@@ -231,7 +266,9 @@ pub fn transact_timed_with_progress(
             prefixed.extend_from_slice(&raw[1..size]);
         }
         for candidate in [&direct, &prefixed] {
-            if let Some(payload) = matching_response(command, candidate)? {
+            let (payload, unrelated) = matching_response(command, candidate)?;
+            times.unrelated_response |= unrelated;
+            if let Some(payload) = payload {
                 times.ack_wait_ms = started.elapsed().as_secs_f64() * 1000.0;
                 times.total_ms = total.elapsed().as_secs_f64() * 1000.0;
                 return Ok((payload, times));
@@ -242,7 +279,7 @@ pub fn transact_timed_with_progress(
     bail!("Strip acknowledgement timed out")
 }
 
-fn matching_response(command: u8, mut bytes: &[u8]) -> Result<Option<Vec<u8>>> {
+fn matching_response(command: u8, mut bytes: &[u8]) -> Result<(Option<Vec<u8>>, bool)> {
     // A late ACK for another command must not hide the current ACK behind it.
     // Skip whole, complete TLVs, never scan their payload for a matching byte.
     let mut skipped_tlv = false;
@@ -262,12 +299,19 @@ fn matching_response(command: u8, mut bytes: &[u8]) -> Result<Option<Vec<u8>>> {
             break;
         }
         if bytes[0] == command.wrapping_add(0x80) {
-            return Ok(Some(protocol::parse_response(command, bytes)?.to_vec()));
+            // A button/other event may share the report *after* the ACK too.
+            // Zero HID padding is benign; any other tail invalidates retained
+            // colour state without changing ordinary response matching.
+            let trailing = bytes[3 + length..].iter().any(|v| *v != 0);
+            return Ok((
+                Some(protocol::parse_response(command, bytes)?.to_vec()),
+                skipped_tlv || trailing,
+            ));
         }
         bytes = &bytes[length + 3..];
         skipped_tlv = true;
     }
-    Ok(None)
+    Ok((None, skipped_tlv))
 }
 
 /// Keep the final report short, as the verified Python transport does. Padding

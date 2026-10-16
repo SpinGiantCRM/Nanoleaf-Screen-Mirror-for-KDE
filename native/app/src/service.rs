@@ -58,6 +58,12 @@ pub struct Status {
     #[serde(default)]
     pub suppressed_identical_packets: u64,
     #[serde(default)]
+    pub short_updates_enabled: bool,
+    #[serde(default)]
+    pub shortened_packets: u64,
+    #[serde(default)]
+    pub omitted_unchanged_zones: u64,
+    #[serde(default)]
     pub last_source_reused: bool,
     pub missed_deadlines: u64,
     pub dropped_frames: u64,
@@ -380,6 +386,9 @@ fn run_inner(
                 // Settings, output ownership, preview and session transitions
                 // must never reuse an earlier controller-state assumption.
                 repeat.reset();
+                if let Some(s) = &mut strip {
+                    s.invalidate_updates();
+                }
             }
             match command {
                 Control::FrameReady => {
@@ -622,6 +631,9 @@ fn run_inner(
                         continue;
                     }
                     state.model = s.model.clone();
+                    state.short_updates_enabled =
+                        std::env::var("NANOLEAF_SHORT_UPDATES").as_deref() != Ok("0")
+                            && s.enable_short_updates();
                     state.reported_zones = s.reported_count;
                     strip = Some(s);
                     responses = crate::response::Responses::default();
@@ -776,27 +788,40 @@ fn run_inner(
                     let queue_ms = ready_at
                         .map(|at| usb_start.saturating_duration_since(at).as_secs_f64() * 1000.0);
                     let mut stopping = false;
-                    let result = strip.as_mut().unwrap().frame_with_progress(&colors, || {
-                        if defer_controls(&rx, &mut pending) && !stopping {
-                            stopping = true;
-                            // The current frame is already fully written. Keep its
-                            // sole HID owner and wait for its ACK/timeout; never
-                            // cancel an unnumbered ACK and reuse this transaction.
-                            drop(capture.take());
-                            // Keep the existing running/preview flags until the
-                            // queued command completes cleanup. Clients must not
-                            // mistake early capture cancellation for a released
-                            // strip lease or an acknowledged cleanup-black frame.
-                            state.message = "Stopping".into();
-                            publish(&shared, &state);
-                        }
-                    });
+                    let shorten =
+                        !preview_frame && !predicted && !crate::prediction::enabled(&store.config);
+                    let result =
+                        strip
+                            .as_mut()
+                            .unwrap()
+                            .output_with_progress(&colors, shorten, || {
+                                if defer_controls(&rx, &mut pending) && !stopping {
+                                    stopping = true;
+                                    // The current frame is already fully written. Keep its
+                                    // sole HID owner and wait for its ACK/timeout; never
+                                    // cancel an unnumbered ACK and reuse this transaction.
+                                    drop(capture.take());
+                                    // Keep the existing running/preview flags until the
+                                    // queued command completes cleanup. Clients must not
+                                    // mistake early capture cancellation for a released
+                                    // strip lease or an acknowledged cleanup-black frame.
+                                    state.message = "Stopping".into();
+                                    publish(&shared, &state);
+                                }
+                            });
                     state.usb_ms = usb_start.elapsed().as_secs_f64() * 1000.0;
                     state.usb_transaction = strip
                         .as_ref()
                         .and_then(|s| s.last_frame_transaction.clone());
                     match result {
                         Ok(()) => {
+                            if let Some(t) = &state.usb_transaction {
+                                if t.sent_zones < colors.len() {
+                                    state.shortened_packets += 1;
+                                    state.omitted_unchanged_zones +=
+                                        (colors.len() - t.sent_zones) as u64;
+                                }
+                            }
                             if repeat_enabled {
                                 repeat.acknowledged(&colors, Instant::now());
                             }
