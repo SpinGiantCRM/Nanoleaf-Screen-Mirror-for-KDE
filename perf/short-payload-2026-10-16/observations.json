@@ -1,0 +1,44 @@
+{
+  "scope": "One announced full-blue then12-zone red observation. Real acknowledged USB and independent controller readback. No emitted-colour claim without operator answer.",
+  "red_prefix": {
+    "phase": {
+      "controller_brightness_readback": 16,
+      "full_seed_transaction": {
+        "ack_wait_ms": 16.024347000000002,
+        "drain_ms": 0.00046,
+        "drained_reports": 0,
+        "first_report_wait_ms": 16.023516,
+        "report_write_ms": [
+          1.978092,
+          0.997627,
+          0.973822
+        ],
+        "response_reports": 1,
+        "total_ms": 19.97556,
+        "write_ms": 3.950652,
+        "written_reports": 3
+      },
+      "observation": "red-prefix",
+      "omitted_zone_observation": "Requires operator report; not inferred from ACK",
+      "prefix_zones": 12,
+      "short_transaction": {
+        "ack_wait_ms": 5.012121,
+        "drain_ms": 0.002464,
+        "drained_reports": 0,
+        "first_report_wait_ms": 5.01151,
+        "report_write_ms": [
+          0.936833
+        ],
+        "response_reports": 1,
+        "total_ms": 5.952781,
+        "write_ms": 0.937865,
+        "written_reports": 1
+      }
+    },
+    "error": null,
+    "black_cleanup_acknowledged": true,
+    "controller_restored_and_independently_verified": true,
+    "operator_observation": "Pending",
+    "omitted_zone_semantics": "Unresolved"
+  }
+}

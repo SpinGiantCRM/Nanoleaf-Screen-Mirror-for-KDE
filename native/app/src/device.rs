@@ -84,6 +84,15 @@ impl Strip {
     pub fn frame(&mut self, colors: &[[u8; 3]]) -> Result<()> {
         self.frame_with_progress(colors, || {})
     }
+    /// Operator probe only. Never used by mirroring or calibration. A short
+    /// command does not change this handle's authoritative full-frame count.
+    pub(crate) fn probe_prefix(&mut self, colors: &[[u8; 3]]) -> Result<TransactionTimes> {
+        let request = probe_prefix_request(colors, self.count, self.order)?;
+        let (body, times) =
+            transact_timed(&self.handle, protocol::CMD_SET_ZONE_COLORS, &request[3..])?;
+        ensure!(body.is_empty(), "Unexpected prefix ACK body");
+        Ok(times)
+    }
     /// Service control can cancel capture between bounded ACK reads. It must
     /// never use this callback to start another transaction on this handle.
     pub fn frame_with_progress(
@@ -126,6 +135,21 @@ impl Strip {
         let verified_p = self.request(0x06, &[]).is_ok_and(|v| v == power);
         b && p && verified_b && verified_p
     }
+}
+
+fn probe_prefix_request(
+    colors: &[[u8; 3]],
+    manual_count: usize,
+    order: ChannelOrder,
+) -> Result<Vec<u8>> {
+    ensure!(
+        (8..=255).contains(&manual_count)
+            && !colors.is_empty()
+            && colors.len() < manual_count
+            && colors.iter().flatten().all(|v| *v <= 64),
+        "Operator prefix requires 1..manual_count zones, manual count 8..255, raw channels <=64"
+    );
+    Ok(protocol::encode_zone_frame(colors, colors.len(), order)?)
 }
 
 /// Injected report I/O for protocol failure/recovery tests; no raw USB in tests.
@@ -263,6 +287,18 @@ pub fn reports(request: &[u8]) -> Vec<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn operator_prefix_keeps_channel_order_and_cannot_relax_full_frame_validation() {
+        let order = ChannelOrder::parse("grb").unwrap();
+        let request = probe_prefix_request(&[[8, 24, 64]; 12], 48, order).unwrap();
+        assert_eq!(&request[..3], &[2, 0, 36]);
+        assert!(request[3..].chunks_exact(3).all(|v| v == [24, 8, 64]));
+        assert!(protocol::encode_zone_frame(&[[8; 3]; 12], 48, order).is_err());
+        for colors in [vec![], vec![[0; 3]; 48], vec![[65; 3]; 12]] {
+            assert!(probe_prefix_request(&colors, 48, order).is_err());
+        }
+        assert!(probe_prefix_request(&[[0; 3]], 512, order).is_err());
+    }
     #[test]
     fn exact_tlv_bytes_survive_report_ids_without_tail_padding() {
         let colors = vec![[10, 20, 30]; 48];

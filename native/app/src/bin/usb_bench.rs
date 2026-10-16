@@ -15,6 +15,24 @@ fn main() -> Result<()> {
         "Manual zone count required"
     );
     let args: Vec<_> = std::env::args().skip(2).collect();
+    if args.first().is_some_and(|s| s == "--short-payloads") {
+        let (observe, run) = match args.as_slice() {
+            [_] => (None, false),
+            [_, run] if run == "--run" => (None, true),
+            [_, flag, name] if flag == "--observe" => (Some(name.as_str()), false),
+            [_, flag, name, run] if flag == "--observe" && run == "--run" => (Some(name.as_str()), true),
+            _ => anyhow::bail!("Use usb_bench CONFIG --short-payloads [--observe red-prefix|black-prefix|green-prefix] [--run]"),
+        };
+        if run {
+            probe::short_payload::run(&store, observe)?;
+        } else {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&probe::short_payload::plan(&store, observe)?)?
+            );
+        }
+        return Ok(());
+    }
     if args
         .first()
         .is_some_and(|s| s == "--positions" || s == "--repeat-response")

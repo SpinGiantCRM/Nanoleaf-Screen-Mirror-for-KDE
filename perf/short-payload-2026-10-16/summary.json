@@ -1,0 +1,2133 @@
+{
+  "metadata": {
+    "scope": "Real serial acknowledged USB, generated neutral prefixes after full-black preconditioning. No capture or optical timing; ACK does not establish omitted-zone behaviour. Full manual-count production encoder unchanged.",
+    "manual_zones": 48,
+    "model": "NL82K2",
+    "firmware_raw": 21,
+    "requested_brightness": 10,
+    "brightness_readbacks": [
+      16
+    ],
+    "measured_transactions": 768,
+    "precondition_full_black_transactions": 768,
+    "cleanup_and_restoration_verified": true,
+    "independent_controller_readback_matched": true,
+    "all13_preservation_paths_unchanged": true,
+    "operator_sha256": "08158c5433b6cdd7fc933b7fc3a73ff4e5dde3347ad39db1918ed136d0df3755"
+  },
+  "excluded_warmup_per_case": 2,
+  "cases": [
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 1,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": false,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9845089999999996,
+        "p99": 3.9845089999999996,
+        "min": 2.9720459999999997,
+        "median": 3.9764895,
+        "max": 3.9845089999999996
+      },
+      "ack_wait_ms": {
+        "p95": 3.0290730000000003,
+        "p99": 3.0290730000000003,
+        "min": 3.013334,
+        "median": 3.0215794999999996,
+        "max": 3.0290730000000003
+      },
+      "total_ms": {
+        "p95": 7.006799999999999,
+        "p99": 7.006799999999999,
+        "min": 5.995058,
+        "median": 6.9980435000000005,
+        "max": 7.006799999999999
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 3,
+      "prefix_zones": 1,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": false,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        1
+      ],
+      "write_ms": {
+        "p95": 1.9768759999999999,
+        "p99": 1.9768759999999999,
+        "min": 1.964032,
+        "median": 1.9687450000000002,
+        "max": 1.9768759999999999
+      },
+      "ack_wait_ms": {
+        "p95": 1.050484,
+        "p99": 1.050484,
+        "min": 1.023023,
+        "median": 1.030041,
+        "max": 1.050484
+      },
+      "total_ms": {
+        "p95": 3.021539,
+        "p99": 3.021539,
+        "min": 2.9937470000000004,
+        "median": 2.9995979999999998,
+        "max": 3.021539
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 12,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": false,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9797000000000002,
+        "p99": 3.9797000000000002,
+        "min": 2.971365,
+        "median": 3.9752115,
+        "max": 3.9797000000000002
+      },
+      "ack_wait_ms": {
+        "p95": 6.0274090000000005,
+        "p99": 6.0274090000000005,
+        "min": 6.02253,
+        "median": 6.0231815,
+        "max": 6.0274090000000005
+      },
+      "total_ms": {
+        "p95": 10.003373,
+        "p99": 10.003373,
+        "min": 8.999214,
+        "median": 9.9993345,
+        "max": 10.003373
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 36,
+      "prefix_zones": 12,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": false,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        1
+      ],
+      "write_ms": {
+        "p95": 1.9920039999999999,
+        "p99": 1.9920039999999999,
+        "min": 0.986664,
+        "median": 1.98998,
+        "max": 1.9920039999999999
+      },
+      "ack_wait_ms": {
+        "p95": 5.016769,
+        "p99": 5.016769,
+        "min": 5.005889000000001,
+        "median": 5.0078325,
+        "max": 5.016769
+      },
+      "total_ms": {
+        "p95": 7.007882,
+        "p99": 7.007882,
+        "min": 5.998285,
+        "median": 6.998119,
+        "max": 7.007882
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 20,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": false,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9798810000000002,
+        "p99": 3.9798810000000002,
+        "min": 3.965774,
+        "median": 3.9760635000000004,
+        "max": 3.9798810000000002
+      },
+      "ack_wait_ms": {
+        "p95": 8.025445000000001,
+        "p99": 8.025445000000001,
+        "min": 8.020406000000001,
+        "median": 8.023802499999999,
+        "max": 8.025445000000001
+      },
+      "total_ms": {
+        "p95": 12.00249,
+        "p99": 12.00249,
+        "min": 11.991028,
+        "median": 11.9998705,
+        "max": 12.00249
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 60,
+      "prefix_zones": 20,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": false,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        1
+      ],
+      "write_ms": {
+        "p95": 2.010118,
+        "p99": 2.010118,
+        "min": 0.9892390000000001,
+        "median": 2.0028094999999997,
+        "max": 2.010118
+      },
+      "ack_wait_ms": {
+        "p95": 7.010367,
+        "p99": 7.010367,
+        "min": 6.989007,
+        "median": 6.9965615,
+        "max": 7.010367
+      },
+      "total_ms": {
+        "p95": 9.002241,
+        "p99": 9.002241,
+        "min": 7.987063000000001,
+        "median": 9.000157,
+        "max": 9.002241
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 21,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": false,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9794,
+        "p99": 3.9794,
+        "min": 3.9746110000000003,
+        "median": 3.9775665,
+        "max": 3.9794
+      },
+      "ack_wait_ms": {
+        "p95": 8.027418999999998,
+        "p99": 8.027418999999998,
+        "min": 8.018913000000001,
+        "median": 8.0233965,
+        "max": 8.027418999999998
+      },
+      "total_ms": {
+        "p95": 12.005587,
+        "p99": 12.005587,
+        "min": 11.998211999999999,
+        "median": 12.000547000000001,
+        "max": 12.005587
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 63,
+      "prefix_zones": 21,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": false,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        2
+      ],
+      "write_ms": {
+        "p95": 2.967338,
+        "p99": 2.967338,
+        "min": 1.963892,
+        "median": 2.9647585,
+        "max": 2.967338
+      },
+      "ack_wait_ms": {
+        "p95": 7.0391710000000005,
+        "p99": 7.0391710000000005,
+        "min": 7.031837,
+        "median": 7.034212,
+        "max": 7.0391710000000005
+      },
+      "total_ms": {
+        "p95": 10.006008,
+        "p99": 10.006008,
+        "min": 8.996509999999999,
+        "median": 9.9996865,
+        "max": 10.006008
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 24,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": false,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.97944,
+        "p99": 3.97944,
+        "min": 3.9715949999999998,
+        "median": 3.9766999999999997,
+        "max": 3.97944
+      },
+      "ack_wait_ms": {
+        "p95": 9.036375,
+        "p99": 9.036375,
+        "min": 9.019494,
+        "median": 9.022765,
+        "max": 9.036375
+      },
+      "total_ms": {
+        "p95": 13.009042,
+        "p99": 13.009042,
+        "min": 12.997200000000001,
+        "median": 13.000636499999999,
+        "max": 13.009042
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 72,
+      "prefix_zones": 24,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": false,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        2
+      ],
+      "write_ms": {
+        "p95": 2.974111,
+        "p99": 2.974111,
+        "min": 1.971135,
+        "median": 2.9708645000000002,
+        "max": 2.974111
+      },
+      "ack_wait_ms": {
+        "p95": 8.044170999999999,
+        "p99": 8.044170999999999,
+        "min": 8.024785,
+        "median": 8.0294385,
+        "max": 8.044170999999999
+      },
+      "total_ms": {
+        "p95": 11.016238,
+        "p99": 11.016238,
+        "min": 10.000268,
+        "median": 10.9997065,
+        "max": 11.016238
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 41,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": false,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.980793,
+        "p99": 3.980793,
+        "min": 3.9452860000000003,
+        "median": 3.977201,
+        "max": 3.980793
+      },
+      "ack_wait_ms": {
+        "p95": 13.029282,
+        "p99": 13.029282,
+        "min": 13.021787999999999,
+        "median": 13.0241225,
+        "max": 13.029282
+      },
+      "total_ms": {
+        "p95": 17.008212,
+        "p99": 17.008212,
+        "min": 16.972444,
+        "median": 17.001869499999998,
+        "max": 17.008212
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 123,
+      "prefix_zones": 41,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": false,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        2
+      ],
+      "write_ms": {
+        "p95": 3.004057,
+        "p99": 3.004057,
+        "min": 2.0033849999999997,
+        "median": 2.995751,
+        "max": 3.004057
+      },
+      "ack_wait_ms": {
+        "p95": 13.010456999999999,
+        "p99": 13.010456999999999,
+        "min": 12.993716000000001,
+        "median": 13.0013845,
+        "max": 13.010456999999999
+      },
+      "total_ms": {
+        "p95": 16.010074999999997,
+        "p99": 16.010074999999997,
+        "min": 15.000608,
+        "median": 15.999971,
+        "max": 16.010074999999997
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 42,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": false,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.979079,
+        "p99": 3.979079,
+        "min": 3.9748509999999997,
+        "median": 3.9769959999999998,
+        "max": 3.979079
+      },
+      "ack_wait_ms": {
+        "p95": 14.028511,
+        "p99": 14.028511,
+        "min": 14.021286000000002,
+        "median": 14.024067,
+        "max": 14.028511
+      },
+      "total_ms": {
+        "p95": 18.004745999999997,
+        "p99": 18.004745999999997,
+        "min": 17.999625,
+        "median": 18.001844499999997,
+        "max": 18.004745999999997
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 126,
+      "prefix_zones": 42,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": false,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9675689999999997,
+        "p99": 3.9675689999999997,
+        "min": 2.9645840000000003,
+        "median": 3.964493,
+        "max": 3.9675689999999997
+      },
+      "ack_wait_ms": {
+        "p95": 13.053268,
+        "p99": 13.053268,
+        "min": 13.031868000000001,
+        "median": 13.037764,
+        "max": 13.053268
+      },
+      "total_ms": {
+        "p95": 17.018532999999998,
+        "p99": 17.018532999999998,
+        "min": 16.000529,
+        "median": 17.001696000000003,
+        "max": 17.018532999999998
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 47,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": false,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9832180000000004,
+        "p99": 3.9832180000000004,
+        "min": 2.9711849999999997,
+        "median": 3.976781,
+        "max": 3.9832180000000004
+      },
+      "ack_wait_ms": {
+        "p95": 15.0388,
+        "p99": 15.0388,
+        "min": 15.020567,
+        "median": 15.025561,
+        "max": 15.0388
+      },
+      "total_ms": {
+        "p95": 19.009205,
+        "p99": 19.009205,
+        "min": 17.998905,
+        "median": 19.002511500000004,
+        "max": 19.009205
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 141,
+      "prefix_zones": 47,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": false,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.975203,
+        "p99": 3.975203,
+        "min": 3.9572490000000005,
+        "median": 3.9721220000000006,
+        "max": 3.975203
+      },
+      "ack_wait_ms": {
+        "p95": 15.033321,
+        "p99": 15.033321,
+        "min": 15.024894,
+        "median": 15.0273895,
+        "max": 15.033321
+      },
+      "total_ms": {
+        "p95": 19.009115,
+        "p99": 19.009115,
+        "min": 18.987985,
+        "median": 19.000708500000002,
+        "max": 19.009115
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 1,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": false,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.97925,
+        "p99": 3.97925,
+        "min": 2.976556,
+        "median": 3.9773370000000003,
+        "max": 3.97925
+      },
+      "ack_wait_ms": {
+        "p95": 3.022863,
+        "p99": 3.022863,
+        "min": 3.0176030000000003,
+        "median": 3.0215005,
+        "max": 3.022863
+      },
+      "total_ms": {
+        "p95": 7.000851,
+        "p99": 7.000851,
+        "min": 5.996874,
+        "median": 6.9984020000000005,
+        "max": 7.000851
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 3,
+      "prefix_zones": 1,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": false,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        1
+      ],
+      "write_ms": {
+        "p95": 1.9705949999999999,
+        "p99": 1.9705949999999999,
+        "min": 1.9659159999999998,
+        "median": 1.9691165000000002,
+        "max": 1.9705949999999999
+      },
+      "ack_wait_ms": {
+        "p95": 1.03193,
+        "p99": 1.03193,
+        "min": 1.027231,
+        "median": 1.0290700000000002,
+        "max": 1.03193
+      },
+      "total_ms": {
+        "p95": 3.001122,
+        "p99": 3.001122,
+        "min": 2.996072,
+        "median": 2.9989274999999997,
+        "max": 3.001122
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 12,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": false,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.980964,
+        "p99": 3.980964,
+        "min": 2.977979,
+        "median": 3.9759694999999997,
+        "max": 3.980964
+      },
+      "ack_wait_ms": {
+        "p95": 7.024996000000001,
+        "p99": 7.024996000000001,
+        "min": 7.020658,
+        "median": 7.023232999999999,
+        "max": 7.024996000000001
+      },
+      "total_ms": {
+        "p95": 11.002042999999999,
+        "p99": 11.002042999999999,
+        "min": 10.000210000000001,
+        "median": 10.999643500000001,
+        "max": 11.002042999999999
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 36,
+      "prefix_zones": 12,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": false,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        1
+      ],
+      "write_ms": {
+        "p95": 2.013325,
+        "p99": 2.013325,
+        "min": 1.9896710000000002,
+        "median": 1.9913535,
+        "max": 2.013325
+      },
+      "ack_wait_ms": {
+        "p95": 5.008425000000001,
+        "p99": 5.008425000000001,
+        "min": 4.984821,
+        "median": 5.007744000000001,
+        "max": 5.008425000000001
+      },
+      "total_ms": {
+        "p95": 7.000811,
+        "p99": 7.000811,
+        "min": 6.998367,
+        "median": 6.9990375,
+        "max": 7.000811
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 20,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": false,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9803729999999997,
+        "p99": 3.9803729999999997,
+        "min": 2.975634,
+        "median": 3.9762104999999996,
+        "max": 3.9803729999999997
+      },
+      "ack_wait_ms": {
+        "p95": 9.02678,
+        "p99": 9.02678,
+        "min": 9.020438,
+        "median": 9.0230885,
+        "max": 9.02678
+      },
+      "total_ms": {
+        "p95": 13.002194,
+        "p99": 13.002194,
+        "min": 11.999619,
+        "median": 12.999614,
+        "max": 13.002194
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 60,
+      "prefix_zones": 20,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": false,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        1
+      ],
+      "write_ms": {
+        "p95": 2.004318,
+        "p99": 2.004318,
+        "min": 1.999308,
+        "median": 2.0014775,
+        "max": 2.004318
+      },
+      "ack_wait_ms": {
+        "p95": 7.99977,
+        "p99": 7.99977,
+        "min": 7.995792999999999,
+        "median": 7.997445,
+        "max": 7.99977
+      },
+      "total_ms": {
+        "p95": 10.003567,
+        "p99": 10.003567,
+        "min": 9.996634,
+        "median": 9.9999455,
+        "max": 10.003567
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 21,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": false,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9789209999999997,
+        "p99": 3.9789209999999997,
+        "min": 2.978019,
+        "median": 3.9763010000000003,
+        "max": 3.9789209999999997
+      },
+      "ack_wait_ms": {
+        "p95": 9.026259999999999,
+        "p99": 9.026259999999999,
+        "min": 9.022073,
+        "median": 9.0234045,
+        "max": 9.026259999999999
+      },
+      "total_ms": {
+        "p95": 13.004249000000002,
+        "p99": 13.004249000000002,
+        "min": 12.000662,
+        "median": 13.0009125,
+        "max": 13.004249000000002
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 63,
+      "prefix_zones": 21,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": false,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        2
+      ],
+      "write_ms": {
+        "p95": 3.0190859999999997,
+        "p99": 3.0190859999999997,
+        "min": 1.9634610000000001,
+        "median": 2.965725,
+        "max": 3.0190859999999997
+      },
+      "ack_wait_ms": {
+        "p95": 8.040146,
+        "p99": 8.040146,
+        "min": 7.976526,
+        "median": 8.0343355,
+        "max": 8.040146
+      },
+      "total_ms": {
+        "p95": 11.002205,
+        "p99": 11.002205,
+        "min": 10.004169000000001,
+        "median": 11.0004515,
+        "max": 11.002205
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 24,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": false,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.979371,
+        "p99": 3.979371,
+        "min": 3.974722,
+        "median": 3.9772725,
+        "max": 3.979371
+      },
+      "ack_wait_ms": {
+        "p95": 10.026861,
+        "p99": 10.026861,
+        "min": 10.021391,
+        "median": 10.024597,
+        "max": 10.026861
+      },
+      "total_ms": {
+        "p95": 14.00491,
+        "p99": 14.00491,
+        "min": 13.999259,
+        "median": 14.002144000000001,
+        "max": 14.00491
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 72,
+      "prefix_zones": 24,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": false,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        2
+      ],
+      "write_ms": {
+        "p95": 2.9741210000000002,
+        "p99": 2.9741210000000002,
+        "min": 1.972589,
+        "median": 2.9708455,
+        "max": 2.9741210000000002
+      },
+      "ack_wait_ms": {
+        "p95": 9.033714,
+        "p99": 9.033714,
+        "min": 9.022943999999999,
+        "median": 9.0280135,
+        "max": 9.033714
+      },
+      "total_ms": {
+        "p95": 12.006102,
+        "p99": 12.006102,
+        "min": 10.998377,
+        "median": 11.998358499999998,
+        "max": 12.006102
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 41,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": false,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9820360000000004,
+        "p99": 3.9820360000000004,
+        "min": 3.967249,
+        "median": 3.9752590000000003,
+        "max": 3.9820360000000004
+      },
+      "ack_wait_ms": {
+        "p95": 15.038765000000001,
+        "p99": 15.038765000000001,
+        "min": 15.02013,
+        "median": 15.027699,
+        "max": 15.038765000000001
+      },
+      "total_ms": {
+        "p95": 19.016834,
+        "p99": 19.016834,
+        "min": 18.999591,
+        "median": 19.0042455,
+        "max": 19.016834
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 123,
+      "prefix_zones": 41,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": false,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        2
+      ],
+      "write_ms": {
+        "p95": 3.015349,
+        "p99": 3.015349,
+        "min": 2.000341,
+        "median": 2.999535,
+        "max": 3.015349
+      },
+      "ack_wait_ms": {
+        "p95": 15.003108,
+        "p99": 15.003108,
+        "min": 14.990244,
+        "median": 15.0006985,
+        "max": 15.003108
+      },
+      "total_ms": {
+        "p95": 18.006103999999997,
+        "p99": 18.006103999999997,
+        "min": 17.001445,
+        "median": 18.0011045,
+        "max": 18.006103999999997
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 42,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": false,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9853229999999997,
+        "p99": 3.9853229999999997,
+        "min": 3.9727190000000006,
+        "median": 3.9762505000000004,
+        "max": 3.9853229999999997
+      },
+      "ack_wait_ms": {
+        "p95": 15.029277,
+        "p99": 15.029277,
+        "min": 15.018246000000001,
+        "median": 15.027569,
+        "max": 15.029277
+      },
+      "total_ms": {
+        "p95": 19.005924,
+        "p99": 19.005924,
+        "min": 19.000313000000002,
+        "median": 19.003574,
+        "max": 19.005924
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 126,
+      "prefix_zones": 42,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": false,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.965927,
+        "p99": 3.965927,
+        "min": 2.965085,
+        "median": 3.9634675,
+        "max": 3.965927
+      },
+      "ack_wait_ms": {
+        "p95": 15.041491,
+        "p99": 15.041491,
+        "min": 15.033647,
+        "median": 15.038094999999998,
+        "max": 15.041491
+      },
+      "total_ms": {
+        "p95": 19.005915,
+        "p99": 19.005915,
+        "min": 18.004893000000003,
+        "median": 19.001848,
+        "max": 19.005915
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 47,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": false,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9786509999999997,
+        "p99": 3.9786509999999997,
+        "min": 3.9617690000000003,
+        "median": 3.9755195,
+        "max": 3.9786509999999997
+      },
+      "ack_wait_ms": {
+        "p95": 17.031323,
+        "p99": 17.031323,
+        "min": 17.023598,
+        "median": 17.026213499999997,
+        "max": 17.031323
+      },
+      "total_ms": {
+        "p95": 21.006086,
+        "p99": 21.006086,
+        "min": 20.989986,
+        "median": 21.001783000000003,
+        "max": 21.006086
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 141,
+      "prefix_zones": 47,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": false,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9762060000000004,
+        "p99": 3.9762060000000004,
+        "min": 2.9734100000000003,
+        "median": 3.9719585,
+        "max": 3.9762060000000004
+      },
+      "ack_wait_ms": {
+        "p95": 17.031623,
+        "p99": 17.031623,
+        "min": 17.025372,
+        "median": 17.02992,
+        "max": 17.031623
+      },
+      "total_ms": {
+        "p95": 21.007078,
+        "p99": 21.007078,
+        "min": 20.005324,
+        "median": 21.002344,
+        "max": 21.007078
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 3,
+      "prefix_zones": 1,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": true,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        1
+      ],
+      "write_ms": {
+        "p95": 1.972709,
+        "p99": 1.972709,
+        "min": 1.960957,
+        "median": 1.9675745,
+        "max": 1.972709
+      },
+      "ack_wait_ms": {
+        "p95": 1.034966,
+        "p99": 1.034966,
+        "min": 1.02605,
+        "median": 1.029215,
+        "max": 1.034966
+      },
+      "total_ms": {
+        "p95": 3.002095,
+        "p99": 3.002095,
+        "min": 2.989531,
+        "median": 2.998438,
+        "max": 3.002095
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 1,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": true,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9786910000000004,
+        "p99": 3.9786910000000004,
+        "min": 2.9772890000000003,
+        "median": 3.977309,
+        "max": 3.9786910000000004
+      },
+      "ack_wait_ms": {
+        "p95": 3.024247,
+        "p99": 3.024247,
+        "min": 3.0201189999999998,
+        "median": 3.021446,
+        "max": 3.024247
+      },
+      "total_ms": {
+        "p95": 7.002797,
+        "p99": 7.002797,
+        "min": 5.998569,
+        "median": 6.9992955,
+        "max": 7.002797
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 36,
+      "prefix_zones": 12,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": true,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        1
+      ],
+      "write_ms": {
+        "p95": 1.9925860000000002,
+        "p99": 1.9925860000000002,
+        "min": 0.990482,
+        "median": 1.9878425000000002,
+        "max": 1.9925860000000002
+      },
+      "ack_wait_ms": {
+        "p95": 5.019829,
+        "p99": 5.019829,
+        "min": 5.0064139999999995,
+        "median": 5.0087925,
+        "max": 5.019829
+      },
+      "total_ms": {
+        "p95": 7.001535,
+        "p99": 7.001535,
+        "min": 5.998698999999999,
+        "median": 6.9990705,
+        "max": 7.001535
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 12,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": true,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.982829,
+        "p99": 3.982829,
+        "min": 3.97311,
+        "median": 3.9761110000000004,
+        "max": 3.982829
+      },
+      "ack_wait_ms": {
+        "p95": 6.040216999999999,
+        "p99": 6.040216999999999,
+        "min": 6.016973999999999,
+        "median": 6.0233505,
+        "max": 6.040216999999999
+      },
+      "total_ms": {
+        "p95": 10.01411,
+        "p99": 10.01411,
+        "min": 9.995896,
+        "median": 9.9996925,
+        "max": 10.01411
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 60,
+      "prefix_zones": 20,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": true,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        1
+      ],
+      "write_ms": {
+        "p95": 2.008076,
+        "p99": 2.008076,
+        "min": 1.008777,
+        "median": 2.0047949999999997,
+        "max": 2.008076
+      },
+      "ack_wait_ms": {
+        "p95": 7.000203,
+        "p99": 7.000203,
+        "min": 6.988580000000001,
+        "median": 6.992363,
+        "max": 7.000203
+      },
+      "total_ms": {
+        "p95": 9.00892,
+        "p99": 9.00892,
+        "min": 7.9998320000000005,
+        "median": 8.999392,
+        "max": 9.00892
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 20,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": true,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9960229999999997,
+        "p99": 3.9960229999999997,
+        "min": 3.967551,
+        "median": 3.9763975,
+        "max": 3.9960229999999997
+      },
+      "ack_wait_ms": {
+        "p95": 8.025471,
+        "p99": 8.025471,
+        "min": 8.00924,
+        "median": 8.023126,
+        "max": 8.025471
+      },
+      "total_ms": {
+        "p95": 12.005714000000001,
+        "p99": 12.005714000000001,
+        "min": 11.99217,
+        "median": 12.000741,
+        "max": 12.005714000000001
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 63,
+      "prefix_zones": 21,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": true,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        2
+      ],
+      "write_ms": {
+        "p95": 2.966749,
+        "p99": 2.966749,
+        "min": 1.9658470000000001,
+        "median": 2.964309,
+        "max": 2.966749
+      },
+      "ack_wait_ms": {
+        "p95": 7.041281,
+        "p99": 7.041281,
+        "min": 7.032684,
+        "median": 7.0339415,
+        "max": 7.041281
+      },
+      "total_ms": {
+        "p95": 10.00347,
+        "p99": 10.00347,
+        "min": 8.999030999999999,
+        "median": 9.999006999999999,
+        "max": 10.00347
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 21,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": true,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.979643,
+        "p99": 3.979643,
+        "min": 3.97258,
+        "median": 3.9765725,
+        "max": 3.979643
+      },
+      "ack_wait_ms": {
+        "p95": 8.026744,
+        "p99": 8.026744,
+        "min": 8.020411999999999,
+        "median": 8.0232675,
+        "max": 8.026744
+      },
+      "total_ms": {
+        "p95": 12.004463,
+        "p99": 12.004463,
+        "min": 11.993643,
+        "median": 12.000054500000001,
+        "max": 12.004463
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 72,
+      "prefix_zones": 24,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": true,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        2
+      ],
+      "write_ms": {
+        "p95": 2.9736219999999998,
+        "p99": 2.9736219999999998,
+        "min": 1.970115,
+        "median": 2.972098,
+        "max": 2.9736219999999998
+      },
+      "ack_wait_ms": {
+        "p95": 8.030641,
+        "p99": 8.030641,
+        "min": 8.025752,
+        "median": 8.028346500000001,
+        "max": 8.030641
+      },
+      "total_ms": {
+        "p95": 11.002690000000001,
+        "p99": 11.002690000000001,
+        "min": 9.99789,
+        "median": 11.001045999999999,
+        "max": 11.002690000000001
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 24,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": true,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.978741,
+        "p99": 3.978741,
+        "min": 3.964846,
+        "median": 3.9764475,
+        "max": 3.978741
+      },
+      "ack_wait_ms": {
+        "p95": 9.032274,
+        "p99": 9.032274,
+        "min": 9.019991999999998,
+        "median": 9.023052,
+        "max": 9.032274
+      },
+      "total_ms": {
+        "p95": 13.011286,
+        "p99": 13.011286,
+        "min": 12.988553999999999,
+        "median": 13.000035,
+        "max": 13.011286
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 123,
+      "prefix_zones": 41,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": true,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        2
+      ],
+      "write_ms": {
+        "p95": 3.0060629999999997,
+        "p99": 3.0060629999999997,
+        "min": 1.9917559999999999,
+        "median": 3.000031,
+        "max": 3.0060629999999997
+      },
+      "ack_wait_ms": {
+        "p95": 13.014594,
+        "p99": 13.014594,
+        "min": 12.994496,
+        "median": 13.005607999999999,
+        "max": 13.014594
+      },
+      "total_ms": {
+        "p95": 16.014025,
+        "p99": 16.014025,
+        "min": 15.005668,
+        "median": 16.004251000000004,
+        "max": 16.014025
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 41,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": true,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9816770000000004,
+        "p99": 3.9816770000000004,
+        "min": 3.967471,
+        "median": 3.973226,
+        "max": 3.9816770000000004
+      },
+      "ack_wait_ms": {
+        "p95": 13.036936,
+        "p99": 13.036936,
+        "min": 13.016838,
+        "median": 13.026582,
+        "max": 13.036936
+      },
+      "total_ms": {
+        "p95": 17.008515,
+        "p99": 17.008515,
+        "min": 16.996852999999998,
+        "median": 17.0003495,
+        "max": 17.008515
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 126,
+      "prefix_zones": 42,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": true,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.969574,
+        "p99": 3.969574,
+        "min": 3.961299,
+        "median": 3.963949,
+        "max": 3.969574
+      },
+      "ack_wait_ms": {
+        "p95": 13.050951999999999,
+        "p99": 13.050951999999999,
+        "min": 13.029102,
+        "median": 13.035919,
+        "max": 13.050951999999999
+      },
+      "total_ms": {
+        "p95": 17.013063,
+        "p99": 17.013063,
+        "min": 16.997564,
+        "median": 17.000955,
+        "max": 17.013063
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 42,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": true,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9777299999999998,
+        "p99": 3.9777299999999998,
+        "min": 2.952071,
+        "median": 3.9747895,
+        "max": 3.9777299999999998
+      },
+      "ack_wait_ms": {
+        "p95": 14.034161,
+        "p99": 14.034161,
+        "min": 14.019574,
+        "median": 14.026778499999999,
+        "max": 14.034161
+      },
+      "total_ms": {
+        "p95": 18.008735,
+        "p99": 18.008735,
+        "min": 16.978999,
+        "median": 18.0006365,
+        "max": 18.008735
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 141,
+      "prefix_zones": 47,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": true,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9794840000000002,
+        "p99": 3.9794840000000002,
+        "min": 3.9531840000000003,
+        "median": 3.9725254999999997,
+        "max": 3.9794840000000002
+      },
+      "ack_wait_ms": {
+        "p95": 15.051356,
+        "p99": 15.051356,
+        "min": 15.02185,
+        "median": 15.029589999999999,
+        "max": 15.051356
+      },
+      "total_ms": {
+        "p95": 19.011183000000003,
+        "p99": 19.011183000000003,
+        "min": 18.991986999999998,
+        "median": 19.0028475,
+        "max": 19.011183000000003
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 47,
+      "raw_neutral_code": 8,
+      "reverse_pair_order": true,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9794540000000005,
+        "p99": 3.9794540000000005,
+        "min": 2.97289,
+        "median": 3.9718395,
+        "max": 3.9794540000000005
+      },
+      "ack_wait_ms": {
+        "p95": 15.0323,
+        "p99": 15.0323,
+        "min": 15.023483,
+        "median": 15.027450499999999,
+        "max": 15.0323
+      },
+      "total_ms": {
+        "p95": 19.006464,
+        "p99": 19.006464,
+        "min": 17.999971,
+        "median": 19.000988000000003,
+        "max": 19.006464
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 3,
+      "prefix_zones": 1,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": true,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        1
+      ],
+      "write_ms": {
+        "p95": 1.973411,
+        "p99": 1.973411,
+        "min": 1.964694,
+        "median": 1.9674749999999999,
+        "max": 1.973411
+      },
+      "ack_wait_ms": {
+        "p95": 1.0379619999999998,
+        "p99": 1.0379619999999998,
+        "min": 1.026821,
+        "median": 1.031009,
+        "max": 1.0379619999999998
+      },
+      "total_ms": {
+        "p95": 3.004451,
+        "p99": 3.004451,
+        "min": 2.997818,
+        "median": 3.0005175,
+        "max": 3.004451
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 1,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": true,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.983401,
+        "p99": 3.983401,
+        "min": 2.9710579999999998,
+        "median": 3.975055,
+        "max": 3.983401
+      },
+      "ack_wait_ms": {
+        "p95": 3.028285,
+        "p99": 3.028285,
+        "min": 3.0136070000000004,
+        "median": 3.0236415,
+        "max": 3.028285
+      },
+      "total_ms": {
+        "p95": 7.0059450000000005,
+        "p99": 7.0059450000000005,
+        "min": 5.994553,
+        "median": 6.9986215,
+        "max": 7.0059450000000005
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 36,
+      "prefix_zones": 12,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": true,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        1
+      ],
+      "write_ms": {
+        "p95": 1.996785,
+        "p99": 1.996785,
+        "min": 1.98882,
+        "median": 1.990859,
+        "max": 1.996785
+      },
+      "ack_wait_ms": {
+        "p95": 5.025071,
+        "p99": 5.025071,
+        "min": 5.001626,
+        "median": 5.008108999999999,
+        "max": 5.025071
+      },
+      "total_ms": {
+        "p95": 7.016075,
+        "p99": 7.016075,
+        "min": 6.996077,
+        "median": 6.9996835,
+        "max": 7.016075
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 12,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": true,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9893330000000002,
+        "p99": 3.9893330000000002,
+        "min": 2.976788,
+        "median": 3.9747755,
+        "max": 3.9893330000000002
+      },
+      "ack_wait_ms": {
+        "p95": 7.027666999999999,
+        "p99": 7.027666999999999,
+        "min": 7.010034,
+        "median": 7.0250465,
+        "max": 7.027666999999999
+      },
+      "total_ms": {
+        "p95": 11.003655,
+        "p99": 11.003655,
+        "min": 10.001589,
+        "median": 10.999993,
+        "max": 11.003655
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 60,
+      "prefix_zones": 20,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": true,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        1
+      ],
+      "write_ms": {
+        "p95": 2.010201,
+        "p99": 2.010201,
+        "min": 1.998719,
+        "median": 2.0036885,
+        "max": 2.010201
+      },
+      "ack_wait_ms": {
+        "p95": 8.000296,
+        "p99": 8.000296,
+        "min": 7.9893659999999995,
+        "median": 7.9972255,
+        "max": 8.000296
+      },
+      "total_ms": {
+        "p95": 10.006289,
+        "p99": 10.006289,
+        "min": 9.994236,
+        "median": 10.000468,
+        "max": 10.006289
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 20,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": true,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9810870000000005,
+        "p99": 3.9810870000000005,
+        "min": 2.982419,
+        "median": 3.974109,
+        "max": 3.9810870000000005
+      },
+      "ack_wait_ms": {
+        "p95": 9.046614,
+        "p99": 9.046614,
+        "min": 9.018912,
+        "median": 9.0249735,
+        "max": 9.046614
+      },
+      "total_ms": {
+        "p95": 13.02703,
+        "p99": 13.02703,
+        "min": 12.001932,
+        "median": 13.000605,
+        "max": 13.02703
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 63,
+      "prefix_zones": 21,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": true,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        2
+      ],
+      "write_ms": {
+        "p95": 2.970597,
+        "p99": 2.970597,
+        "min": 1.9654569999999998,
+        "median": 2.9638495,
+        "max": 2.970597
+      },
+      "ack_wait_ms": {
+        "p95": 8.050962,
+        "p99": 8.050962,
+        "min": 8.031073999999998,
+        "median": 8.037011,
+        "max": 8.050962
+      },
+      "total_ms": {
+        "p95": 11.006661,
+        "p99": 11.006661,
+        "min": 10.002933,
+        "median": 11.0006345,
+        "max": 11.006661
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 21,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": true,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.985967,
+        "p99": 3.985967,
+        "min": 3.9702870000000003,
+        "median": 3.975467,
+        "max": 3.985967
+      },
+      "ack_wait_ms": {
+        "p95": 9.039121000000002,
+        "p99": 9.039121000000002,
+        "min": 9.01221,
+        "median": 9.023807000000001,
+        "max": 9.039121000000002
+      },
+      "total_ms": {
+        "p95": 13.015289,
+        "p99": 13.015289,
+        "min": 12.990312000000001,
+        "median": 12.9994195,
+        "max": 13.015289
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 72,
+      "prefix_zones": 24,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": true,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        2
+      ],
+      "write_ms": {
+        "p95": 2.9762679999999997,
+        "p99": 2.9762679999999997,
+        "min": 1.965446,
+        "median": 2.969876,
+        "max": 2.9762679999999997
+      },
+      "ack_wait_ms": {
+        "p95": 9.032316999999999,
+        "p99": 9.032316999999999,
+        "min": 9.024061999999999,
+        "median": 9.027819000000001,
+        "max": 9.032316999999999
+      },
+      "total_ms": {
+        "p95": 12.001612999999999,
+        "p99": 12.001612999999999,
+        "min": 10.997524,
+        "median": 12.000094,
+        "max": 12.001612999999999
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 24,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": true,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.984263,
+        "p99": 3.984263,
+        "min": 3.9751760000000003,
+        "median": 3.976995,
+        "max": 3.984263
+      },
+      "ack_wait_ms": {
+        "p95": 10.030295,
+        "p99": 10.030295,
+        "min": 10.018051999999999,
+        "median": 10.0248195,
+        "max": 10.030295
+      },
+      "total_ms": {
+        "p95": 14.007114,
+        "p99": 14.007114,
+        "min": 13.998708,
+        "median": 14.003107,
+        "max": 14.007114
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 123,
+      "prefix_zones": 41,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": true,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        2
+      ],
+      "write_ms": {
+        "p95": 3.008879,
+        "p99": 3.008879,
+        "min": 2.005882,
+        "median": 3.0022065,
+        "max": 3.008879
+      },
+      "ack_wait_ms": {
+        "p95": 15.016294,
+        "p99": 15.016294,
+        "min": 14.994461000000001,
+        "median": 14.998960499999999,
+        "max": 15.016294
+      },
+      "total_ms": {
+        "p95": 18.016707,
+        "p99": 18.016707,
+        "min": 17.000955,
+        "median": 18.004162,
+        "max": 18.016707
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 41,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": true,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9806470000000003,
+        "p99": 3.9806470000000003,
+        "min": 3.908641,
+        "median": 3.9772255000000003,
+        "max": 3.9806470000000003
+      },
+      "ack_wait_ms": {
+        "p95": 15.033807,
+        "p99": 15.033807,
+        "min": 15.022806,
+        "median": 15.028401500000001,
+        "max": 15.033807
+      },
+      "total_ms": {
+        "p95": 19.011699,
+        "p99": 19.011699,
+        "min": 18.939613,
+        "median": 19.005215999999997,
+        "max": 19.011699
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 126,
+      "prefix_zones": 42,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": true,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.967372,
+        "p99": 3.967372,
+        "min": 2.962723,
+        "median": 3.9612955,
+        "max": 3.967372
+      },
+      "ack_wait_ms": {
+        "p95": 15.044967,
+        "p99": 15.044967,
+        "min": 15.035049,
+        "median": 15.039356999999999,
+        "max": 15.044967
+      },
+      "total_ms": {
+        "p95": 19.010455999999998,
+        "p99": 19.010455999999998,
+        "min": 18.002460000000003,
+        "median": 19.000082,
+        "max": 19.010455999999998
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 42,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": true,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9895039999999997,
+        "p99": 3.9895039999999997,
+        "min": 3.9617519999999997,
+        "median": 3.9759485,
+        "max": 3.9895039999999997
+      },
+      "ack_wait_ms": {
+        "p95": 15.032344,
+        "p99": 15.032344,
+        "min": 15.012818000000001,
+        "median": 15.025886999999999,
+        "max": 15.032344
+      },
+      "total_ms": {
+        "p95": 19.00733,
+        "p99": 19.00733,
+        "min": 18.994075,
+        "median": 19.003033,
+        "max": 19.00733
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 141,
+      "prefix_zones": 47,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": true,
+      "short": true,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9776509999999994,
+        "p99": 3.9776509999999994,
+        "min": 2.969685,
+        "median": 3.97393,
+        "max": 3.9776509999999994
+      },
+      "ack_wait_ms": {
+        "p95": 17.088122000000002,
+        "p99": 17.088122000000002,
+        "min": 17.025014000000002,
+        "median": 17.0292915,
+        "max": 17.088122000000002
+      },
+      "total_ms": {
+        "p95": 21.062517999999997,
+        "p99": 21.062517999999997,
+        "min": 20.01095,
+        "median": 21.0036065,
+        "max": 21.062517999999997
+      }
+    },
+    {
+      "controller_brightness_readback": 16,
+      "payload_bytes": 144,
+      "prefix_zones": 47,
+      "raw_neutral_code": 64,
+      "reverse_pair_order": true,
+      "short": false,
+      "included_samples": 10,
+      "written_reports": [
+        3
+      ],
+      "write_ms": {
+        "p95": 3.9807569999999997,
+        "p99": 3.9807569999999997,
+        "min": 3.8751189999999998,
+        "median": 3.9749765,
+        "max": 3.9807569999999997
+      },
+      "ack_wait_ms": {
+        "p95": 17.032458000000002,
+        "p99": 17.032458000000002,
+        "min": 17.023701,
+        "median": 17.027057499999998,
+        "max": 17.032458000000002
+      },
+      "total_ms": {
+        "p95": 21.007846,
+        "p99": 21.007846,
+        "min": 20.901625,
+        "median": 21.003788,
+        "max": 21.007846
+      }
+    }
+  ]
+}

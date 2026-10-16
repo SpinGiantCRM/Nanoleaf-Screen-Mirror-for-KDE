@@ -2,6 +2,7 @@
 pub mod levels;
 pub mod positions;
 pub mod repeat_response;
+pub mod short_payload;
 use crate::{capture::KwinCapture, config::Store, pipeline::Pipeline};
 use anyhow::{ensure, Context, Result};
 use std::{
