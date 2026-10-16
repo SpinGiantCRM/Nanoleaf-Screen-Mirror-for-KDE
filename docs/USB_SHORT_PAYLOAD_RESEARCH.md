@@ -82,7 +82,9 @@ The installed native app/helper and Python fallback were not upgraded or edited.
 ## Separately announced visual checks
 
 Each step holds a full seed for three seconds, issues exactly ONE12-zone command,
-then waits eight seconds without refresh before full48-zone cleanup/restoration:
+then holds without refresh before full48-zone cleanup/restoration. The initial
+checks used eight seconds; following a request for more observation time, the
+operator now holds for **30 seconds**. No repeated short writes are added:
 
 - `red-prefix`: full blue64, then red64 on the first12 zones. Look for the
   remainder staying blue, turning off, becoming red or behaving unexpectedly.
@@ -91,13 +93,29 @@ then waits eight seconds without refresh before full48-zone cleanup/restoration:
 - `green-prefix`: full black, then green64 on the first12 zones. This checks
   whether old colours reappear or output extends beyond the supplied prefix.
 
-The first red-prefix run was acknowledged and its restoration independently
-verified. **Its human observation is pending; omitted-zone semantics remain
-unresolved.** Do not turn a missing answer into an optical success. The remaining
-steps wait for that report so observations are not confused with another run.
+The announced red-prefix repeat was acknowledged and its restoration
+independently verified. The user reported **“They stay blue”** for the omitted
+remainder: it retained the prior blue during that eight-second observation.
+An initial eight-second black-prefix attempt received a request to run longer,
+which is not an observation of its outcome. In the separate30-second black-prefix
+repeat, the user reported **“One quarter turns off; the rest stays red”**. That
+confirms retained nonblack state in the omitted36 zones when only the12-zone
+prefix is cleared. The30-second green-from-black check produced **“One quarter green; remainder
+stays dark”**. All three checks therefore support **prefix-only updates with
+omitted-zone state retained** on this tested48-zone NL82K2/firmware0x15. All
+cleanup/restoration and independent count/power/brightness checks passed.
 
-Even a positive report would establish only this tested model/firmware/count,
-levels and idle interval. General production use would also require same-state
+These reports establish only this tested model/firmware/count, levels and idle
+intervals. The red and green patterns bypass calibration only for this operator
+test; daily colour processing is unchanged. The red-prefix repeat was observed
+for8 seconds, black/green for30 seconds after the duration was extended.
+
+The short black command completed while the omitted red zones remained lit.
+This narrows the earlier active-zone result: cost depends on work represented in
+the command, rather than requiring retransmission of every physically lit zone.
+It still does not identify the MCU, LED signalling or a UART.
+
+General production use would also require same-state
 colour comparisons, dithering-safe selection of the last changed zone, connection/
 control invalidation and full refresh/recovery tests. No offset/sparse-zone
 addressing is documented: a prefix cannot directly update only a late zone.

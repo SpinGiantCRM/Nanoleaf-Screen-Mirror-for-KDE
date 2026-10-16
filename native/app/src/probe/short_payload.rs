@@ -6,6 +6,7 @@ use anyhow::{ensure, Result};
 use std::time::{Duration, Instant};
 
 const SAMPLES: usize = 12;
+const OBSERVE_SECONDS: u64 = 30;
 
 trait PrefixDevice: Device {
     fn prefix(&mut self, colors: &[[u8; 3]]) -> Result<TransactionTimes>;
@@ -54,7 +55,7 @@ pub fn plan(store: &Store, observe: Option<&str>) -> Result<serde_json::Value> {
         plan["observation"] = serde_json::json!({
             "name":name,"seed_full_rgb":seed,"prefix_rgb":prefix,
             "prefix_zones":count/4,"omitted_zones":count-count/4,
-            "seed_seconds":3,"observe_seconds":8,"writes":"One full seed followed by ONE short command; no refresh while observing",
+            "seed_seconds":3,"observe_seconds":OBSERVE_SECONDS,"writes":"One full seed followed by ONE short command; no refresh while observing",
         });
     } else {
         plan["timing"] = serde_json::json!({
@@ -124,12 +125,14 @@ fn observe(
         brightness.len() == 1 && brightness[0] > 0,
         "Invalid brightness readback"
     );
-    eprintln!("{name}: FULL SEED now for 3 seconds; then short prefix for 8 seconds");
+    eprintln!(
+        "{name}: FULL SEED now for 3 seconds; then short prefix for {OBSERVE_SECONDS} seconds"
+    );
     let full = device.frame(&vec![seed; count])?;
     hold(Duration::from_secs(3));
     let short = device.prefix(&vec![prefix; count / 4])?;
     eprintln!("{name}: SHORT PREFIX ACK received; observe omitted remainder now");
-    hold(Duration::from_secs(8));
+    hold(Duration::from_secs(OBSERVE_SECONDS));
     Ok(vec![serde_json::json!({
         "observation":name,"prefix_zones":count/4,"controller_brightness_readback":brightness[0],
         "full_seed_transaction":full,"short_transaction":short,

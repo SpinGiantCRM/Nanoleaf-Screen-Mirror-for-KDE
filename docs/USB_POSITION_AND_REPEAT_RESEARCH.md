@@ -36,7 +36,11 @@ Representative forward-pass median ACK waits:
 Host writes stayed approximately 3.97 ms. Reverse-pass results and all raw
 transaction timings are retained in [the position evidence](../perf/usb-positions-2026-10-16/README.md).
 The tested cost follows active count and drive values, rather than the last
-active position. This does not locate the internal operation or measure emitted
+active position. Counts here describe nonzero tuples in the transmitted frame.
+Later [short-prefix checks](USB_SHORT_PAYLOAD_RESEARCH.md) observed omitted zones
+retaining lit colours while short commands completed faster; do not equate this
+request-content cost with total physically illuminated zones. This does not
+locate the internal operation or measure emitted
 light. It does not establish how an untested topology/colour would behave.
 
 The proposed 115,200-baud, three-byte-per-active-zone 8N1 calculation gives
