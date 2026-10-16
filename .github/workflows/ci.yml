@@ -36,6 +36,7 @@ jobs:
             perf/ack-path-2026-10-16/summarise_shape.py
             perf/firmware-models-2026-10-16/analyse_models.py
             perf/firmware-models-2026-10-16/padded_tail.py
+            perf/loader-backup-2026-10-16/verify_model.py
           )
           ruff check "${receiver_analysis_scripts[@]}"
           ruff format --check "${receiver_analysis_scripts[@]}"
@@ -43,6 +44,7 @@ jobs:
           python perf/ack-path-2026-10-16/summarise_shape.py --check
           python perf/firmware-models-2026-10-16/analyse_models.py --self-test
           python perf/firmware-models-2026-10-16/padded_tail.py --self-test
+          python perf/loader-backup-2026-10-16/verify_model.py
 
   rust-security:
     name: Rust dependency security

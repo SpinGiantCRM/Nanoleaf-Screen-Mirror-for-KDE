@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-16",
+  "usb_operations": false,
+  "loader_entry": false,
+  "flash_or_erase": false,
+  "generic_source_provenance": [
+    {
+      "url": "https://www.mikrocontroller.net/attachment/471025/bootloaderV24.asm",
+      "filename": "bootloaderV24.asm",
+      "bytes": 49490,
+      "sha256": "04cbe2b0aec19099ff7b4eaacfd98ddc5abcf7d6d4140f4d82c89f3779b1e823",
+      "compiled": false,
+      "executed": false,
+      "generic_not_nanoleaf": true
+    },
+    {
+      "url": "https://www.mikrocontroller.net/attachment/570882/bootloaderV25.a51",
+      "inspection": "Browser-rendered raw source, 1570 lines; selected verify/erase/startup/latch sections inspected. Raw download API timed out; no raw-file hash claimed.",
+      "compiled": false,
+      "executed": false,
+      "generic_not_nanoleaf": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/atc1441/chflasher/e9021204c97a7a74d30004d8673369bc17a02a99/chflasher.py",
+      "commit": "e9021204c97a7a74d30004d8673369bc17a02a99",
+      "sha256": "d1c530f44e39308f53a9bc7b0ae63e0dc25bf8b8205cc9c891d8da6e4d9ed812",
+      "compiled": false,
+      "executed": false
+    }
+  ],
+  "primary_chronology": [
+    {
+      "date": "2019-03-29",
+      "url": "https://www.mikrocontroller.net/topic/462538?page=single#5790656",
+      "finding": "Older comparison-oracle code readback reports."
+    },
+    {
+      "date": "2020-09-01",
+      "url": "https://www.mikrocontroller.net/topic/462538?page=3#6390409",
+      "finding": "2.40 alignment and verify-error latch described; erase or restart clears latch."
+    },
+    {
+      "date": "2022-10-08",
+      "url": "https://www.mikrocontroller.net/topic/462538?page=4#7214838",
+      "finding": "Old comparison method no longer works normally; erase clears latch destructively."
+    },
+    {
+      "date": "2024-11-24",
+      "url": "https://www.mikrocontroller.net/topic/462538?page=4#7780466",
+      "finding": "Possible newer approach reported unfinished."
+    },
+    {
+      "date": "2025-08-22",
+      "url": "https://www.mikrocontroller.net/topic/462538?page=4#7926922",
+      "finding": "Author no longer believes firmware dump possible on 2.4/2.5; opinion, not universal impossibility proof."
+    }
+  ],
+  "other_primary_sources": [
+    {
+      "url": "https://github.com/frank-zago/isp55e0/blob/master/README.md",
+      "finding": "Failed verify poisons later attempts until power cycle; data dump differs from code verification."
+    },
+    {
+      "url": "https://cdn-learn.adafruit.com/assets/assets/000/129/847/original/CH552DS1.PDF",
+      "finding": "Manufacturer datasheet: flash-resident loader, configurable startup/read protection, USB D+ on P3.6/V33 domain. No retail board identification."
+    }
+  ],
+  "vendor_lookup_limits": [
+    {
+      "url": "https://nl82k2-firmware.s3.amazonaws.com/?list-type=2&max-keys=1000",
+      "status": 403,
+      "finding": "Listing denied; no further bucket enumeration attempted."
+    },
+    {
+      "url": "https://api.bitbucket.org/2.0/repositories/nanoleaf/ch552_testing",
+      "status": 404,
+      "finding": "Not publicly available; private/deleted/moved not distinguished."
+    },
+    {
+      "url": "https://api.bitbucket.org/2.0/repositories/nanoleaf/ch552_testing/forks?pagelen=100",
+      "status": 404,
+      "finding": "Not publicly available; private/deleted/moved not distinguished."
+    },
+    {
+      "url": "https://archive.softwareheritage.org/api/1/origin/search/ch552_testing/?limit=100&with_visit=true",
+      "status": 200,
+      "finding": "Fuzzy token matching returned unrelated origins; incomplete coverage."
+    }
+  ],
+  "retail_chip_or_loader_identified": false,
+  "closed_case_backup_demonstrated": false,
+  "independent_recovery_demonstrated": false
+}

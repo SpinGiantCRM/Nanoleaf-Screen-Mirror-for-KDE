@@ -3,6 +3,9 @@
 16 October 2026. Continues the [receiver encoding analysis](RECEIVER_ENCODING_FOLLOWUP.md)
 and [closed-case recovery investigation](CUSTOM_FIRMWARE_RECOVERY.md).
 
+Latest: [WCH verification restrictions and closed-case backup assessment](WCH_BACKUP_RECOVERY.md),
+including later 2025 evidence and a synthetic comparison model.
+
 **The chip remains unconfirmed, the stock payload has not been decoded, and no
 independent closed-case recovery method has been established. Nothing was flashed
 or sent to USB for this investigation.** The installed native application,

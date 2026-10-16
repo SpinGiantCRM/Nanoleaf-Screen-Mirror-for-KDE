@@ -8,6 +8,8 @@ Latest: [decoder model exclusions, product declaration and conditional backup
 research](FIRMWARE_MODEL_FOLLOWUP.md). Chip identity and independent recovery
 remain unverified.
 
+Further recovery analysis: [WCH verification and the closed-case boundary](WCH_BACKUP_RECOVERY.md).
+
 ## Current decision
 
 **Do not flash this controller.** We now have an official stock application
