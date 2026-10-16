@@ -15,6 +15,50 @@ fn main() -> Result<()> {
         "Manual zone count required"
     );
     let args: Vec<_> = std::env::args().skip(2).collect();
+    if args.first().is_some_and(|s| s == "--ack-brightness") {
+        let run = match args.as_slice() {
+            [_] => false,
+            [_, run] if run == "--run" => true,
+            _ => anyhow::bail!("Use usb_bench CONFIG --ack-brightness [--run]"),
+        };
+        probe::ack_path::brightness(&store, run)?;
+        return Ok(());
+    }
+    if args.first().is_some_and(|s| s == "--ack-pacing") {
+        let run = match args.as_slice() {
+            [_] => false,
+            [_, run] if run == "--run" => true,
+            _ => anyhow::bail!("Use usb_bench CONFIG --ack-pacing [--run]"),
+        };
+        probe::ack_path::pacing(&store, run)?;
+        return Ok(());
+    }
+    if args.first().is_some_and(|s| s == "--ack-control") {
+        let run = match args.as_slice() {
+            [_] => false,
+            [_, run] if run == "--run" => true,
+            _ => anyhow::bail!("Use usb_bench CONFIG --ack-control [--run]"),
+        };
+        probe::ack_path::control_read(&store, run)?;
+        return Ok(());
+    }
+    if args
+        .first()
+        .is_some_and(|s| s == "--ack-path" || s == "--ack-output")
+    {
+        match args.as_slice() {
+            [_] => println!(
+                "{}",
+                serde_json::to_string_pretty(&probe::ack_path::plan(
+                    &store,
+                    args[0] == "--ack-output"
+                )?)?
+            ),
+            [_, run] if run == "--run" => probe::ack_path::run(&store, args[0] == "--ack-output")?,
+            _ => anyhow::bail!("Use usb_bench CONFIG --ack-path|--ack-output [--run]"),
+        }
+        return Ok(());
+    }
     if args.first().is_some_and(|s| s == "--short-payloads") {
         let (observe, run) = match args.as_slice() {
             [_] => (None, false),

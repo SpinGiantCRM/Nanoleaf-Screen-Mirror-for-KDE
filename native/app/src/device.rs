@@ -1,4 +1,5 @@
 //! One NL82K1/NL82K2 HID handle, authoritative manual count, acknowledged writes.
+mod ack_probe;
 pub mod overlap;
 mod updates;
 use anyhow::{bail, ensure, Result};
@@ -216,6 +217,16 @@ pub fn transact_timed_with_progress(
     handle: &impl ReportIo,
     command: u8,
     payload: &[u8],
+    progress: impl FnMut(),
+) -> Result<(Vec<u8>, TransactionTimes)> {
+    transact_packed(handle, command, payload, false, progress)
+}
+
+fn transact_packed(
+    handle: &impl ReportIo,
+    command: u8,
+    payload: &[u8],
+    single_transfer: bool,
     mut progress: impl FnMut(),
 ) -> Result<(Vec<u8>, TransactionTimes)> {
     let total = Instant::now();
@@ -230,7 +241,8 @@ pub fn transact_timed_with_progress(
     }
     times.drain_ms = total.elapsed().as_secs_f64() * 1000.0;
     let write_start = Instant::now();
-    for report in reports(&protocol::encode_request(command, payload)?) {
+    let request = protocol::encode_request(command, payload)?;
+    for report in transfer_buffers(&request, single_transfer) {
         let report_start = Instant::now();
         ensure!(
             handle.write(&report)? == report.len(),
@@ -277,6 +289,20 @@ pub fn transact_timed_with_progress(
         ensure!(direct.len() <= 65538, "Oversized HID response");
     }
     bail!("Strip acknowledgement timed out")
+}
+
+fn transfer_buffers(request: &[u8], single_transfer: bool) -> Vec<Vec<u8>> {
+    if single_transfer {
+        // Linux hidraw removes this single unnumbered report-ID byte. USB's
+        // endpoint packet size still divides the unchanged TLV at 64 bytes.
+        // This is an operator hypothesis, not a portable HID report guarantee.
+        let mut buffer = Vec::with_capacity(request.len() + 1);
+        buffer.push(0);
+        buffer.extend_from_slice(request);
+        vec![buffer]
+    } else {
+        reports(request)
+    }
 }
 
 fn matching_response(command: u8, mut bytes: &[u8]) -> Result<(Option<Vec<u8>>, bool)> {
@@ -331,6 +357,69 @@ pub fn reports(request: &[u8]) -> Vec<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn single_transfer_requires_a_matching_success_ack_and_never_retries_short_writes() {
+        use std::cell::{Cell, RefCell};
+        struct Io {
+            writes: RefCell<Vec<Vec<u8>>>,
+            response: RefCell<Vec<u8>>,
+            short: bool,
+            reads: Cell<usize>,
+        }
+        impl ReportIo for Io {
+            fn write(&self, report: &[u8]) -> Result<usize> {
+                self.writes.borrow_mut().push(report.to_vec());
+                Ok(report.len() - usize::from(self.short))
+            }
+            fn read_timeout(&self, buffer: &mut [u8], timeout: i32) -> Result<usize> {
+                if timeout == 0 {
+                    return Ok(0);
+                }
+                self.reads.set(self.reads.get() + 1);
+                let response = self.response.take();
+                buffer[..response.len()].copy_from_slice(&response);
+                Ok(response.len())
+            }
+        }
+        for (reply, short, success) in [
+            (vec![0x82, 0, 1, 0], false, true),
+            (vec![0x82, 0, 1, 1], false, false),
+            (vec![0x82, 0, 1, 0], true, false),
+        ] {
+            let io = Io {
+                writes: RefCell::new(vec![]),
+                response: RefCell::new(reply),
+                short,
+                reads: Cell::new(0),
+            };
+            let result = transact_packed(&io, 2, &[17; 144], true, || {});
+            assert_eq!(result.is_ok(), success);
+            let writes = io.writes.borrow();
+            assert_eq!(writes.len(), 1);
+            assert_eq!(writes[0].len(), 148);
+            assert_eq!(&writes[0][..4], &[0, 2, 0, 144]);
+            assert_eq!(io.reads.get(), usize::from(!short));
+        }
+    }
+    #[test]
+    fn single_transfer_preserves_every_endpoint_packet_without_intermediate_ids() {
+        for count in [1, 20, 21, 22, 42, 48, 64, 75, 512] {
+            let colors: Vec<_> = (0..count).map(|i| [i as u8, 17, 53]).collect();
+            let request =
+                protocol::encode_zone_frame(&colors, count, ChannelOrder::parse("grb").unwrap())
+                    .unwrap();
+            let ordinary = reports(&request);
+            let candidate = transfer_buffers(&request, true);
+            assert_eq!(candidate.len(), 1);
+            assert_eq!(candidate[0][0], 0);
+            assert_eq!(candidate[0][1..], request);
+            assert_eq!(
+                candidate[0][1..].chunks(64).collect::<Vec<_>>(),
+                ordinary.iter().map(|r| &r[1..]).collect::<Vec<_>>()
+            );
+            assert_eq!(transfer_buffers(&request, false), ordinary);
+        }
+    }
     #[test]
     fn operator_prefix_keeps_channel_order_and_cannot_relax_full_frame_validation() {
         let order = ChannelOrder::parse("grb").unwrap();

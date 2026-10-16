@@ -1,4 +1,5 @@
 //! Bounded operator diagnostics for capture, colour and USB attribution.
+pub mod ack_path;
 pub mod levels;
 pub mod positions;
 pub mod repeat_response;
@@ -27,7 +28,9 @@ pub fn usb_information(store: &Store) -> Result<()> {
     let power = strip.request(0x06, &[])?;
     let brightness = strip.request(0x08, &[])?;
     ensure!(
-        power.len() == 1 && power[0] <= 1 && brightness.len() == 1 && brightness[0] <= 100,
+        // Brightness is a raw byte, documented and read back through 255.
+        // It is not the UI's separate 0..100 percent brightness setting.
+        power.len() == 1 && power[0] <= 1 && brightness.len() == 1,
         "Invalid controller power/brightness response"
     );
     let hardware_error = hardware.as_ref().err().map(ToString::to_string);
