@@ -33,6 +33,35 @@ def installation_record() -> Path:
     return state / "nanoleaf-native-installer/installation.json"
 
 
+def remembered_command() -> Path | None:
+    record = installation_record()
+    try:
+        if record.is_symlink():
+            raise ValueError("Symlinked installation record")
+        saved = json.loads(record.read_text())
+        command = saved.get("command") if isinstance(saved, dict) else None
+        if not isinstance(command, str):
+            raise ValueError("Missing native command")
+        candidate = Path(command)
+        if (
+            not candidate.is_absolute()
+            or candidate.name != "nanoleaf-native"
+            or candidate.parent.name != "bin"
+            or ".." in candidate.parts
+        ):
+            raise ValueError("Invalid native command path")
+        # Keep the managed symlink path, including when temporarily missing.
+        # Resolving it would mistake the immutable version for the install prefix.
+        return candidate
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as error:
+        raise ValueError(
+            "Invalid native installation record; "
+            "use --install-native with an explicit PREFIX to repair it."
+        ) from error
+
+
 class HTTPSRedirects(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, response, code, message, headers, url):
         if urllib.parse.urlsplit(url).scheme != "https":
@@ -101,6 +130,10 @@ def install(release: dict, prefix: str | None) -> None:
     expected = release["archive_sha256"]
     if not re.fullmatch(r"\d+\.\d+\.\d+", version) or not re.fullmatch(r"[0-9a-f]{64}", expected):
         raise ValueError("Invalid pinned native release metadata")
+    if prefix is None:
+        previous = remembered_command()
+        if previous is not None:
+            prefix = str(previous.parent.parent)
     url = (
         "https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/"
         f"releases/download/native-v{version}/native.tar.gz"
@@ -146,14 +179,23 @@ def main() -> None:
         except (OSError, ValueError, subprocess.SubprocessError) as error:
             raise SystemExit(f"Native installation failed: {error}") from error
         return
-    native = Path.home() / ".local/bin/nanoleaf-native"
-    record = installation_record()
-    if record.is_file():
-        candidate = Path(json.loads(record.read_text())["command"])
-        if candidate.is_absolute() and candidate.name == "nanoleaf-native" and candidate.is_file():
-            native = candidate
-    executable = str(native) if native.is_file() else shutil.which("nanoleaf-native")
+    control = args[:1] in (["--rollback-native"], ["--uninstall-native"])
+    explicit = control and len(args) > 1
+    try:
+        previous = None if explicit else remembered_command()
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
+    native = (
+        Path(args[1]).resolve() / "bin/nanoleaf-native"
+        if explicit
+        else previous or Path.home() / ".local/bin/nanoleaf-native"
+    )
+    executable = str(native) if native.is_file() else None
+    if executable is None and previous is None:
+        executable = shutil.which("nanoleaf-native")
     if executable:
+        if control and len(args) == 1 and previous is not None:
+            args.append(str(previous.parent.parent))
         os.execv(executable, [executable, *args])
     if args == ["--version"]:
         print("nanoleaf-kde-sync native installer " + release["version"])

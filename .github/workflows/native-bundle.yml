@@ -75,6 +75,18 @@ jobs:
           cargo +1.95.0 test --locked --manifest-path native/stream-probe/Cargo.toml
       - name: Build complete bundle
         run: bash scripts/build_native_bundle.sh dist/native
+      - name: Verify the AUR recipe pins this release archive
+        if: startsWith(github.ref, 'refs/tags/native-v')
+        run: |
+          python - <<'PYTHON'
+          import hashlib, pathlib, re, tomllib
+          recipe = pathlib.Path("packaging/arch/nanoleaf-kde-sync-bin/PKGBUILD").read_text()
+          version = tomllib.loads(pathlib.Path("native/app/Cargo.toml").read_text())["package"]["version"]
+          assert re.search(r"^pkgver=" + re.escape(version) + r"$", recipe, re.M), "AUR version does not match the native release"
+          pinned = re.search(r"sha256sums=\('([0-9a-f]{64})'", recipe)
+          actual = hashlib.sha256(pathlib.Path("dist/native.tar.gz").read_bytes()).hexdigest()
+          assert pinned and pinned.group(1) == actual, "AUR checksum does not match this tested native archive"
+          PYTHON
       - name: Verify artifact starts without capture or USB output
         run: |
           dist/native/bin/nanoleaf-native --version
@@ -113,7 +125,7 @@ jobs:
     if: inputs.publish_release && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/native-v') && inputs.release_tag == github.ref_name
     needs: native-bundle
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     permissions:
       contents: write
       actions: read
@@ -126,6 +138,18 @@ jobs:
         with:
           name: nanoleaf-native-linux-x86_64
           path: dist
+      - name: Require passing CI on the final main revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for workflow in ci.yml codeql.yml; do
+            run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --commit "$GITHUB_SHA" --branch main --json databaseId --jq '.[0].databaseId // empty')
+            if [ -z "$run_id" ]; then
+              echo "No main-branch validation found for this release revision: $workflow" >&2
+              exit 1
+            fi
+            gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --interval 30 --exit-status
+          done
       - name: Verify draft assets, then publish the native release
         env:
           GH_TOKEN: ${{ github.token }}

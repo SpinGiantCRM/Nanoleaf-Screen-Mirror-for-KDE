@@ -39,6 +39,8 @@ def local_transport(url, destination, limit):
 bootstrap.download = local_transport
 sys.argv = ["nanoleaf-kde-sync", "--install-native", str(prefix)]
 bootstrap.main()
+sys.argv = ["nanoleaf-kde-sync", "--install-native"]
+bootstrap.main()
 """
 
 
@@ -132,7 +134,8 @@ def verify(wheel: Path, archive: Path, output: Path, stub_cache: bool, pipx: boo
                         first.with_name(name).read_bytes()
                         == packaged.extractfile("native/bin/" + name).read()
                     )
-            run(alias, "--uninstall-native", prefix)
+            assert not (home / ".local/bin/nanoleaf-native").exists()
+            run(alias, "--uninstall-native")
             assert not installed.exists() and first.is_file()
             if route == "venv":
                 run(python, "-m", "pip", "uninstall", "-y", "nanoleaf-kde-sync")
@@ -147,6 +150,7 @@ def verify(wheel: Path, archive: Path, output: Path, stub_cache: bool, pipx: boo
         "venv_install_native_pair_custom_prefix_and_uninstall": True,
         "pipx_install_native_pair_custom_prefix_and_uninstall": pipx,
         "configuration_preserved": True,
+        "remembered_custom_prefix_upgrade_and_uninstall": True,
         "retained_native_versions": True,
         "download_transport": "exact local tested archive; no live network download",
         "desktop_cache": "stub" if stub_cache else "system kbuildsycoca6",

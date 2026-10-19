@@ -1,4 +1,4 @@
-# Native prebuilt app and capture helper; pin the tested release archive before publishing.
+# Native prebuilt app and capture helper from the tested Ubuntu release archive.
 # makepkg consumes package metadata and supplies srcdir/pkgdir.
 # shellcheck disable=SC2034,SC2154
 pkgname=nanoleaf-kde-sync-bin
@@ -18,7 +18,7 @@ source=("nanoleaf-native-$pkgver.tar.gz::$url/releases/download/native-v$pkgver/
         'nanoleaf-native.desktop'
         '60-nanoleaf-kde-sync.rules'
         'nanoleaf-kde-sync.svg')
-sha256sums=('@NATIVE_ARCHIVE_SHA256@'
+sha256sums=('6ffb46f594537f638b892b5af74e26f964b5f58a867baddc90a15b5a9e0dd818'
             'e1de90b276db2659950273d3e52feedcd10d8fcc3cd0ecca2c523de9a60489f3'
             'b0c8d7099eb5331951c1c9d74052356671d5c7d3acec0ea8d82dbca2ab65ba8e'
             '35a483ef69f9b724005a9c5b9feae698f8c1e2f5b8c0ef87dd5e39f2f76ac970')

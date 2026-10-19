@@ -133,6 +133,143 @@ class BootstrapTests(unittest.TestCase):
             bootstrap.install(self.release, None)
         execute.assert_not_called()
 
+    def test_install_without_prefix_reuses_previous_custom_prefix_and_explicit_prefix_wins(self):
+        first = self.root / "first custom prefix"
+        second = self.root / "explicit replacement"
+        with (
+            patch.object(bootstrap.sys, "platform", "linux"),
+            patch.object(bootstrap.platform, "machine", return_value="x86_64"),
+            patch.object(bootstrap, "download", side_effect=self.fake_download),
+            patch.object(
+                bootstrap.subprocess, "check_output", return_value="nanoleaf-native 2.0.0\n"
+            ),
+            patch.object(bootstrap.subprocess, "run") as run,
+        ):
+            bootstrap.install(self.release, str(first))
+            bootstrap.install(self.release, None)
+            self.assertEqual(run.call_args.args[0][1:], ["--install-native", str(first)])
+            bootstrap.install(self.release, str(second))
+            self.assertEqual(run.call_args.args[0][1:], ["--install-native", str(second)])
+        record = json.loads(bootstrap.installation_record().read_text())
+        self.assertEqual(record["command"], str(second / "bin/nanoleaf-native"))
+        self.assertFalse((self.root / ".local/bin/nanoleaf-native").exists())
+
+    def test_alias_rollback_and_uninstall_without_prefix_target_recorded_custom_install(self):
+        installed = self.root / "bootstrap.py"
+        installed.with_name("release.json").write_text(json.dumps(self.release))
+        prefix = self.root / "custom prefix"
+        executable = prefix / "bin/nanoleaf-native"
+        executable.parent.mkdir(parents=True)
+        executable.write_text("fixture")
+        record = bootstrap.installation_record()
+        record.parent.mkdir(parents=True)
+        record.write_text(json.dumps({"command": str(executable)}))
+        for command in ("--rollback-native", "--uninstall-native"):
+            with (
+                self.subTest(command=command),
+                patch.object(bootstrap, "__file__", str(installed)),
+                patch.object(bootstrap.sys, "argv", ["nanoleaf-kde-sync", command]),
+                patch.object(
+                    bootstrap.os, "execv", side_effect=RuntimeError("exec reached")
+                ) as execute,
+                self.assertRaisesRegex(RuntimeError, "exec reached"),
+            ):
+                bootstrap.main()
+            execute.assert_called_once_with(
+                str(executable), [str(executable), command, str(prefix)]
+            )
+
+    def test_corrupt_record_fails_before_network_and_explicit_install_repairs_it(self):
+        record = bootstrap.installation_record()
+        record.parent.mkdir(parents=True)
+        record.write_text("invalid json")
+        with (
+            patch.object(bootstrap.sys, "platform", "linux"),
+            patch.object(bootstrap.platform, "machine", return_value="x86_64"),
+            patch.object(bootstrap, "download") as download,
+            self.assertRaisesRegex(ValueError, "installation record"),
+        ):
+            bootstrap.install(self.release, None)
+        download.assert_not_called()
+        prefix = self.root / "explicit repair"
+        with (
+            patch.object(bootstrap.sys, "platform", "linux"),
+            patch.object(bootstrap.platform, "machine", return_value="x86_64"),
+            patch.object(bootstrap, "download", side_effect=self.fake_download),
+            patch.object(
+                bootstrap.subprocess, "check_output", return_value="nanoleaf-native 2.0.0\n"
+            ),
+            patch.object(bootstrap.subprocess, "run"),
+        ):
+            bootstrap.install(self.release, str(prefix))
+        self.assertEqual(
+            json.loads(record.read_text())["command"], str(prefix / "bin/nanoleaf-native")
+        )
+
+    def test_explicit_alias_prefix_wins_even_with_a_corrupt_record(self):
+        installed = self.root / "bootstrap.py"
+        installed.with_name("release.json").write_text(json.dumps(self.release))
+        prefix = self.root / "explicit target"
+        executable = prefix / "bin/nanoleaf-native"
+        executable.parent.mkdir(parents=True)
+        executable.write_text("fixture")
+        record = bootstrap.installation_record()
+        record.parent.mkdir(parents=True)
+        record.write_text("corrupt")
+        with (
+            patch.object(bootstrap, "__file__", str(installed)),
+            patch.object(
+                bootstrap.sys, "argv", ["nanoleaf-kde-sync", "--rollback-native", str(prefix)]
+            ),
+            patch.object(
+                bootstrap.os, "execv", side_effect=RuntimeError("exec reached")
+            ) as execute,
+            self.assertRaisesRegex(RuntimeError, "exec reached"),
+        ):
+            bootstrap.main()
+        execute.assert_called_once_with(
+            str(executable), [str(executable), "--rollback-native", str(prefix)]
+        )
+
+    def test_missing_recorded_command_does_not_target_an_unrelated_default_install(self):
+        installed = self.root / "bootstrap.py"
+        installed.with_name("release.json").write_text(json.dumps(self.release))
+        record = bootstrap.installation_record()
+        record.parent.mkdir(parents=True)
+        record.write_text(json.dumps({"command": str(self.root / "missing/bin/nanoleaf-native")}))
+        with (
+            patch.object(bootstrap, "__file__", str(installed)),
+            patch.object(bootstrap.sys, "argv", ["nanoleaf-kde-sync", "--uninstall-native"]),
+            patch.object(
+                bootstrap.shutil, "which", return_value="/unrelated/nanoleaf-native"
+            ) as find,
+            patch.object(bootstrap.os, "execv") as execute,
+            self.assertRaises(SystemExit),
+        ):
+            bootstrap.main()
+        find.assert_not_called()
+        execute.assert_not_called()
+
+    def test_malformed_and_symlinked_record_paths_are_refused_clearly(self):
+        record = bootstrap.installation_record()
+        record.parent.mkdir(parents=True)
+        for value in (
+            [],
+            {},
+            {"command": 12},
+            {"command": "relative/bin/nanoleaf-native"},
+            {"command": "/prefix/not-bin/nanoleaf-native"},
+            {"command": "/prefix/bin/other"},
+            {"command": "/prefix/../bin/nanoleaf-native"},
+        ):
+            record.write_text(json.dumps(value))
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "explicit PREFIX"):
+                bootstrap.remembered_command()
+        record.unlink()
+        record.symlink_to(self.root / "missing-record")
+        with self.assertRaisesRegex(ValueError, "explicit PREFIX"):
+            bootstrap.remembered_command()
+
     def test_unsupported_platform_and_invalid_pin_never_download(self):
         with (
             patch.object(bootstrap.sys, "platform", "darwin"),
