@@ -1,0 +1,84 @@
+name: Monthly maintenance
+
+on:
+  schedule:
+    # First day of each month at 04:17 UTC; avoid the busy start of the hour.
+    - cron: "17 4 1 * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/monthly-maintenance.yml"
+      - "scripts/verify_public_install.py"
+      - "scripts/test_verify_public_install.py"
+
+concurrency:
+  group: monthly-maintenance-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  source-checks:
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/ci.yml
+
+  rebuilt-bundle:
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/native-bundle.yml
+    # Default publish_release=false: maintenance never publishes or replaces assets.
+
+  public-install:
+    name: Public download install (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Install native runtime libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libegl1 libgl1 libxkbcommon0 libwayland-client0 libpipewire-0.3-0 libudev1
+      - name: Verify real public downloads, upgrade and uninstall
+        run: |
+          python scripts/verify_public_install.py --output dist/public-install.json --stub-desktop-cache
+      - name: Keep public-install evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-install-${{ matrix.os }}
+          path: dist/public-install.json
+          if-no-files-found: warn
+          retention-days: 45
+
+  result:
+    name: Maintenance result
+    if: always()
+    needs: [source-checks, rebuilt-bundle, public-install]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarize checks and fail visibly if any check failed
+        env:
+          CHECK_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python - <<'PY'
+          import json, os
+          results = json.loads(os.environ["CHECK_RESULTS"])
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write("## Monthly maintenance\n\n")
+              for name, job in results.items():
+                  summary.write(f"- {name}: {job['result']}\n")
+              summary.write("\nHeadless checks do not certify physical LEDs, suspend/resume or optical latency.\n")
+          failed = [name for name, job in results.items() if job["result"] not in ("success", "skipped")]
+          if failed:
+              raise SystemExit("Maintenance failed: " + ", ".join(failed))
+          PY
