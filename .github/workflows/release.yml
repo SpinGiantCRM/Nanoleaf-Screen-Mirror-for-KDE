@@ -1,0 +1,41 @@
+name: Native release
+
+on:
+  push:
+    tags: ['native-v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  native:
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/native-bundle.yml
+    with:
+      publish_release: true
+      release_tag: ${{ github.ref_name }}
+
+  pypi:
+    name: Publish tested native wheel to PyPI
+    needs: native
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nanoleaf-native-pypi
+          path: dist
+      # Keep this job in release.yml, the historical trusted-publisher identity.
+      # No legacy Python GUI, wheel builder or sdist executes in the publisher.
+      - uses: pypa/gh-action-pypi-publish@v1.14.2
+        with:
+          packages-dir: dist/
+          skip-existing: false

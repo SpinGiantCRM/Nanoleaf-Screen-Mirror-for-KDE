@@ -6,6 +6,7 @@ pub mod device;
 pub mod geometry;
 mod highlight;
 pub mod launcher;
+pub mod onboarding;
 pub mod package;
 pub mod pipeline;
 #[cfg(feature = "gui")]

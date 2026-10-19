@@ -1,0 +1,4 @@
+# Grant the active local desktop session access to supported Nanoleaf HID devices.
+# No group creation, world-writable devices, capabilities or power-policy changes.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="37fa", ATTRS{idProduct}=="8201", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="37fa", ATTRS{idProduct}=="8202", MODE="0660", TAG+="uaccess"

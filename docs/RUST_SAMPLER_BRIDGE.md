@@ -125,4 +125,5 @@ process memory comparison does not predict this bridge's application footprint.
 4. Consider zero-copy buffers only if copy bandwidth meaningfully limits the real
    workload; test lifetimes and concurrent mutation before adopting them.
 
-Reproduce the prototype with the [development bridge instructions](../native/python-bridge/README.md).
+The bridge is retired; its prototype instructions remain in Git history. See
+[Python and bridge retirement](LEGACY_PYTHON.md) for the current boundary.

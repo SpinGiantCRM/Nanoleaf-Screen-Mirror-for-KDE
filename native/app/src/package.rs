@@ -16,6 +16,30 @@ const FILES: [&str; 5] = [
     "README.md",
     "60-nanoleaf-kde-sync.rules",
 ];
+// The checksummed executable contains this asset. Keep the legacy bundle
+// manifest shape so retained older binaries can still perform paired rollback.
+const ICON: &[u8] =
+    include_bytes!("../../../assets/icons/hicolor/scalable/apps/nanoleaf-kde-sync.svg");
+fn icon_file(version: &Path) -> PathBuf {
+    version.join(format!("nanoleaf-kde-sync-{}.svg", digest(ICON)))
+}
+pub(crate) fn desktop_icon(exe: &Path) -> Result<String> {
+    let executable = exe.canonicalize()?;
+    let version = executable
+        .parent()
+        .and_then(Path::parent)
+        .context("Installed executable directory")?;
+    let icon = icon_file(version);
+    if fs::symlink_metadata(&icon).is_ok() {
+        ensure!(
+            regular(&icon)? == ICON,
+            "Installed application icon modified"
+        );
+        Ok(icon.to_str().context("Non-UTF8 icon path")?.into())
+    } else {
+        Ok("preferences-desktop-color".into())
+    }
+}
 #[derive(Serialize, Deserialize)]
 struct State {
     current: String,
@@ -70,7 +94,8 @@ fn desktop(exe: &Path) -> Result<String> {
             .any(|c| c.is_control() || matches!(c, '"' | '\\' | '`' | '$' | '%')),
         "Unsupported desktop executable path"
     );
-    Ok(format!("[Desktop Entry]\nType=Application\nVersion=1.0\nName=Nanoleaf Screen Mirror (Rust)\nComment=Native single-strip screen mirror\nExec=\"{exec}\" --daemon\nTryExec={exec}\nIcon=preferences-desktop-color\nTerminal=false\nCategories=Utility;\nStartupNotify=false\nX-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2\n"))
+    let icon = desktop_icon(exe)?;
+    Ok(format!("[Desktop Entry]\nType=Application\nVersion=1.0\nName=Nanoleaf Screen Mirror (Rust)\nComment=Native single-strip screen mirror\nExec=\"{exec}\" --daemon\nTryExec={exec}\nIcon={icon}\nTerminal=false\nCategories=Utility;\nStartupNotify=false\nX-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2\n"))
 }
 fn version_path(root: &Path, id: &str) -> Result<PathBuf> {
     ensure!(
@@ -135,6 +160,13 @@ pub fn install(bundle: &Path, prefix: &Path, data: &Path) -> Result<PathBuf> {
     rustix::fs::flock(&lock, rustix::fs::FlockOperation::NonBlockingLockExclusive)?;
     let id = digest(&manifest);
     let version = version_path(&root, &id)?;
+    let icon = icon_file(&version);
+    if fs::symlink_metadata(&icon).is_ok() {
+        ensure!(
+            regular(&icon)? == ICON,
+            "Installed application icon modified"
+        );
+    }
     let state_path = root.join("install.json");
     let old: Option<State> = if state_path.exists() {
         Some(serde_json::from_slice(&regular(&state_path)?)?)
@@ -192,6 +224,9 @@ pub fn install(bundle: &Path, prefix: &Path, data: &Path) -> Result<PathBuf> {
             f.write_all(&bytes)?;
             f.sync_all()?;
         }
+    }
+    if fs::symlink_metadata(&icon).is_err() {
+        atomic(&icon, ICON, 0o644)?;
     }
     atomic(&version.join("SHA256SUMS"), &manifest, 0o644)?;
     let launcher = desktop(&version.join("bin/nanoleaf-native"))?;
@@ -320,6 +355,40 @@ pub fn refresh_desktop() -> Result<()> {
     );
     Ok(())
 }
+fn system_autostart_launcher() -> Result<Vec<u8>> {
+    let executable = std::env::current_exe()?.canonicalize()?;
+    let locations =
+        std::env::var_os("XDG_DATA_DIRS").unwrap_or_else(|| "/usr/local/share:/usr/share".into());
+    for data in std::env::split_paths(&locations).filter(|path| path.is_absolute()) {
+        let candidate = data.join("applications/org.spingiantcrm.NanoleafNative.desktop");
+        if fs::symlink_metadata(&candidate).is_err() {
+            continue;
+        }
+        let content = String::from_utf8(regular(&candidate)?)?;
+        let commands: Vec<_> = content
+            .lines()
+            .filter_map(|line| line.strip_prefix("Exec="))
+            .collect();
+        ensure!(
+            commands.len() == 1,
+            "Invalid system native launcher command"
+        );
+        let command = commands[0]
+            .strip_suffix(" --daemon")
+            .context("Invalid system native launcher arguments")?;
+        let command = command
+            .strip_prefix('"')
+            .and_then(|value| value.strip_suffix('"'))
+            .unwrap_or(command);
+        let target = Path::new(command);
+        ensure!(
+            target.is_absolute() && target.canonicalize()? == executable,
+            "System native launcher does not match the running executable"
+        );
+        return Ok(desktop(&executable)?.into_bytes());
+    }
+    anyhow::bail!("Install the native app before enabling login startup")
+}
 /// An opt-in tray autostart entry; never alters unrelated autostart files.
 pub fn autostart(enabled: bool) -> Result<()> {
     let config = std::env::var_os("XDG_CONFIG_HOME")
@@ -338,8 +407,13 @@ pub fn autostart(enabled: bool) -> Result<()> {
     }
     if enabled {
         let data = user_data()?;
-        let mut launcher =
-            regular(&data.join("applications/org.spingiantcrm.NanoleafNative.desktop"))?;
+        let user_launcher = data.join("applications/org.spingiantcrm.NanoleafNative.desktop");
+        let mut launcher = match fs::symlink_metadata(&user_launcher) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                system_autostart_launcher()?
+            }
+            _ => regular(&user_launcher)?,
+        };
         // Use the managed command for login, so upgrades and rollback take effect.
         if let Some(exec) = std::str::from_utf8(&launcher)?.lines().find_map(|line| {
             line.strip_prefix("Exec=\"")

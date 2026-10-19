@@ -197,3 +197,95 @@ fn refused_uninstall_does_not_disable_autostart() {
     assert!(prefix.join("bin/nanoleaf-native").exists());
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn generated_icon_is_verified_and_legacy_rollback_does_not_modify_old_versions() {
+    let _guard = PACKAGE_TEST_LOCK.lock().unwrap();
+    let (root, bundle, prefix, data) = fixture("icon");
+    let first = install(&bundle, &prefix, &data).unwrap();
+    let icon = fs::read_dir(&first)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .find(|path| path.extension().is_some_and(|extension| extension == "svg"))
+        .expect("Installed version must include the app icon");
+    let expected =
+        include_bytes!("../../../assets/icons/hicolor/scalable/apps/nanoleaf-kde-sync.svg");
+    assert_eq!(fs::read(&icon).unwrap(), expected);
+    let entry = data.join("applications/org.spingiantcrm.NanoleafNative.desktop");
+    let launcher = fs::read(&entry).unwrap();
+    assert!(String::from_utf8_lossy(&launcher).contains(&format!("Icon={}\n", icon.display())));
+    let state = prefix.join("lib/nanoleaf-native/install.json");
+    let original_state = fs::read(&state).unwrap();
+    fs::write(&icon, "changed icon").unwrap();
+    assert!(install(&bundle, &prefix, &data).is_err());
+    assert_eq!(fs::read(&state).unwrap(), original_state);
+    assert_eq!(fs::read(&entry).unwrap(), launcher);
+    assert_eq!(fs::read_to_string(&icon).unwrap(), "changed icon");
+    fs::write(&icon, expected).unwrap();
+    fs::write(bundle.join("README.md"), "new icon-aware version").unwrap();
+    manifest(&bundle);
+    let second = install(&bundle, &prefix, &data).unwrap();
+    fs::write(&icon, "changed previous icon").unwrap();
+    let next_state = fs::read(&state).unwrap();
+    let next_launcher = fs::read(&entry).unwrap();
+    assert!(rollback(&prefix, &data).is_err());
+    assert_eq!(fs::read(&state).unwrap(), next_state);
+    assert_eq!(fs::read(&entry).unwrap(), next_launcher);
+    // Simulate a retained pre-icon version; rollback must not retrofit files.
+    fs::remove_file(&icon).unwrap();
+    assert_eq!(rollback(&prefix, &data).unwrap(), first);
+    assert!(!icon.exists());
+    assert!(fs::read_to_string(&entry)
+        .unwrap()
+        .contains("Icon=preferences-desktop-color\n"));
+    assert_eq!(rollback(&prefix, &data).unwrap(), second);
+    assert!(fs::read_to_string(&entry)
+        .unwrap()
+        .contains("nanoleaf-kde-sync-"));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn system_install_autostart_validates_current_executable_without_user_launcher_writes() {
+    let _guard = PACKAGE_TEST_LOCK.lock().unwrap();
+    let (root, _bundle, _prefix, data) = fixture("system-autostart");
+    let shared = root.join("system share");
+    let entry = shared.join("applications/org.spingiantcrm.NanoleafNative.desktop");
+    fs::create_dir_all(entry.parent().unwrap()).unwrap();
+    let executable = Path::new(env!("CARGO_BIN_EXE_nanoleaf-native"))
+        .canonicalize()
+        .unwrap();
+    let config = root.join("config");
+    let run = || {
+        std::process::Command::new(&executable)
+            .args(["--autostart", "on"])
+            .env("HOME", &root)
+            .env("XDG_CONFIG_HOME", &config)
+            .env("XDG_DATA_HOME", &data)
+            .env("XDG_DATA_DIRS", &shared)
+            .output()
+            .unwrap()
+    };
+    for command in [
+        format!("{} --daemon", executable.display()),
+        format!("\"{}\" --daemon", executable.display()),
+    ] {
+        fs::write(&entry, format!("[Desktop Entry]\nExec={command}\n")).unwrap();
+        let result = run();
+        assert!(result.status.success(), "{:?}", result);
+    }
+    let startup = config.join("autostart/org.spingiantcrm.NanoleafNative.desktop");
+    let original = fs::read(&startup).unwrap();
+    for command in [
+        "/bin/true --daemon".to_string(),
+        "nanoleaf-native --daemon".to_string(),
+        format!("{} --run", executable.display()),
+        format!("{} --daemon\nExec=/bin/true --daemon", executable.display()),
+    ] {
+        fs::write(&entry, format!("[Desktop Entry]\nExec={command}\n")).unwrap();
+        assert!(!run().status.success());
+        assert_eq!(fs::read(&startup).unwrap(), original);
+    }
+    assert!(!data.join("applications").exists());
+    fs::remove_dir_all(root).unwrap();
+}

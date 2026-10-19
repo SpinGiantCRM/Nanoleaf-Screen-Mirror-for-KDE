@@ -1,34 +1,62 @@
-# Python application retired — 2026-10-16
+# Moving from the retired Python application
 
-The user explicitly requested removal of the old Python application after the
-Rust migration. The Python/PyQt6 runtime, Rust-to-Python bridge, privileged C DRM
-helper, wheel/AUR packaging, legacy tests and release/CI jobs have been removed
-from the active tree. The installed pipx application and its obsolete launchers
-were removed on the development host. A second Pacman-owned 1.9.1 installation
-was also removed with the user's administrator session. One unowned helper from
-an older manual install was found afterward and removed separately. Both elevated
-DRM helper copies and the legacy import/commands are verified absent. The existing
-unowned `/etc/udev/rules.d/60-nanoleaf-kde-sync.rules` remains for native HID access.
-The system Python interpreter and operator
-scripts are unrelated to the retired application and remain available.
+Use the [native Rust installation](NATIVE_INSTALL.md) for current releases.
+The Python/PyQt6 application, Rust-to-Python bridge, privileged C DRM helper,
+historical wheel/AUR recipes and Python application release jobs are retired.
+Native PyPI/AUR distribution is authorised. The pure-Python PyPI installer
+downloads and verifies a pinned Rust app/helper release only on explicit
+`--install-native`; subsequent commands execute the installed native app. Developer/operator Python scripts remain
+supported.
 
-`~/.config/nanoleaf-kde-sync/config.toml` is still the native configuration path.
-Its calibration profiles, manual mapping and unknown settings are preserved.
-Do not delete or rename that directory as part of retirement. Narrow Nanoleaf
-HID udev permissions remain necessary for the native application.
+## Which download is current?
 
-Use [native installation and rollback](NATIVE_INSTALL.md). Previous immutable
-native app/helper pairs remain installed. The native installer does not uninstall
-other software or delete calibration; retiring Python on another machine is a
-separate user-directed operation (`pipx uninstall nanoleaf-kde-sync` for pipx installs).
+| Route | What it contains |
+| --- | --- |
+| GitHub **native-v2.0.0** release, `native.tar.gz` | Native Rust app and matching capture helper; follow the [native guide](NATIVE_INSTALL.md). |
+| PyPI **nanoleaf-kde-sync 1.9.3** | Retained Python application. Explicit 1.x versions remain historical. |
+| PyPI **nanoleaf-kde-sync 2.0.0** | Pure-Python installer for the pinned native Rust release, once published; explicit `--install-native` downloads/verifies it. |
+| GitHub **v1.9.3** release and Python wheel/source assets | Historical Python release retained for reference. |
+| AUR **nanoleaf-kde-sync-bin** | Native binary recipe; registry publication is separate. See [package instructions](PACKAGING_AUR.md). |
+
+The [PyPI project](https://pypi.org/project/nanoleaf-kde-sync/) showed only the old
+1.9.3 release in the 19 October audit before native publication. Updating this
+repository does not change an existing PyPI artifact or its description; a native
+2.0.0 upload is a separate release. Use the explicit native release tag
+when choosing GitHub downloads; older release pages and search results may still
+point to Python commands.
+
+## Preserve your settings
+
+The native app continues to use
+`~/.config/nanoleaf-kde-sync/config.toml`. Keep that directory: it contains your
+calibration profiles, manual mapping and other settings. The native app preserves
+unknown fields and creates private backups when saving. Narrow Nanoleaf HID udev
+permissions remain relevant; native capture does not need DRM capabilities.
+
+Quit the Python tray/service and disable its login startup before starting native
+mirroring. Install and launch the native bundle, then review the saved monitor,
+manual zone count, four corner anchors and channel order in **Strip setup**.
+Existing calibration profiles remain available under **Colour calibration**.
+
+The native installer manages only its own command, launcher and login entry.
+Use the original package manager to upgrade or retire an old installation.
+After native PyPI 2.0.0 is available, pipx users can upgrade to that version;
+otherwise `pipx uninstall nanoleaf-kde-sync` removes the old pipx app. A
+Pacman-owned installation should be managed through Pacman. Preserve configuration
+and avoid manually deleting package-owned files. Do not run two strip-control
+applications together.
+
+Previous immutable native app/helper pairs provide binary rollback. Rollback does
+not restore earlier settings; retain a known-good configuration copy separately.
+
+## Historical source and evidence
 
 The last complete pre-retirement source is Git commit
-`85f59888d373667f48651f8cbb2333b8605bfbc5`. Historical research and `perf/` results
-retain their original claims and scopes; their Python instructions describe an
-older state. Shared native fixtures under `native/fixtures/` remain unchanged,
-including complete processing, calibration, geometry and protocol reference
-vectors. Their original generators are recoverable from that commit. Native
-regression tests continue to assert those results without importing Python.
+`85f59888d373667f48651f8cbb2333b8605bfbc5`. Historical reports and `perf/` results
+retain their original scope; their Python instructions describe an earlier state.
+Generated fixtures under `native/fixtures/` retain colour, calibration, geometry
+and protocol reference vectors. Native tests consume those fixtures without
+importing the old app; their original generators remain recoverable from history.
 
-This change does not claim improved optical response or reduced running-app CPU:
+Retirement does not establish an optical-response or running-app CPU improvement:
 the native application already had no Python runtime dependency.

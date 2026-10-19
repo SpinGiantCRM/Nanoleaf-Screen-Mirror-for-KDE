@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Nanoleaf Screen Mirror
+Comment=Mirror one screen to one Nanoleaf USB strip on KDE Wayland
+Exec=/usr/lib/nanoleaf-native/bin/nanoleaf-native --daemon
+TryExec=/usr/lib/nanoleaf-native/bin/nanoleaf-native
+Icon=nanoleaf-kde-sync
+Terminal=false
+Categories=Utility;
+StartupNotify=false
+X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2

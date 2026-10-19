@@ -109,6 +109,6 @@ unchanged. No capture permissions, USB reconnect or optical/HDR tests were perfo
 for this step. The original app/package/capture/HID paths remain available.
 
 Raw evidence and reproduction: [evidence directory](../perf/rust-adaptive-2026-10-12/README.md),
-[development bridge](../native/python-bridge/README.md). The full Rust rewrite must
+[bridge retirement details](LEGACY_PYTHON.md). The full Rust rewrite must
 retain these fixtures and replace Python reference fallbacks with accuracy-tested
 native handling before becoming the default.

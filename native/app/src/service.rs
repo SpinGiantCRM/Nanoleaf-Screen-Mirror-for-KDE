@@ -331,7 +331,11 @@ fn run_inner(
     listener(&paths.socket, tx.clone(), shared.clone())?;
     let mut tray_message = state.message.clone();
     let _tray = if tray {
-        match crate::tray::spawn(path.into(), tx.clone()) {
+        match crate::tray::spawn(
+            path.into(),
+            tx.clone(),
+            crate::onboarding::needs_setup(&store.config),
+        ) {
             Ok(h) => Some(h),
             Err(e) => {
                 state.message =

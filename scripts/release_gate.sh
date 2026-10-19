@@ -2,9 +2,9 @@
 set -euo pipefail
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd -- "$repo_root"
-ruff check scripts/ tools/
-ruff format --check scripts/ tools/
-python3 -m unittest discover -s scripts -p 'test_*response_trace.py' -v
+ruff check scripts/ tools/ packaging/pypi/
+ruff format --check scripts/ tools/ packaging/pypi/
+python3 -m unittest discover -s scripts -p 'test_*.py' -v
 node --test scripts/cleanup_artifacts.test.cjs
 receiver_analysis_scripts=(
   perf/receiver-encoding-2026-10-16/crc_constraints.py

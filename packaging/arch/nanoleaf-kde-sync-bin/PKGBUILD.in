@@ -1,0 +1,50 @@
+# Native prebuilt app and capture helper; pin the tested release archive before publishing.
+# makepkg consumes package metadata and supplies srcdir/pkgdir.
+# shellcheck disable=SC2034,SC2154
+pkgname=nanoleaf-kde-sync-bin
+pkgver=2.0.0
+pkgrel=1
+pkgdesc='Native screen mirroring for one Nanoleaf USB strip on KDE Plasma Wayland'
+arch=('x86_64')
+url='https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE'
+license=('LicenseRef-Nanoleaf-Non-Commercial')
+depends=('glibc' 'gcc-libs' 'libpipewire' 'libglvnd' 'libxkbcommon'
+         'wayland' 'vulkan-icd-loader' 'kservice' 'kwin>=6')
+optdepends=('xdg-desktop-portal-kde: explicitly selected Portal/Vulkan capture')
+provides=("nanoleaf-kde-sync=$pkgver")
+conflicts=('nanoleaf-kde-sync')
+options=('!strip' '!debug')
+source=("nanoleaf-native-$pkgver.tar.gz::$url/releases/download/native-v$pkgver/native.tar.gz"
+        'nanoleaf-native.desktop'
+        '60-nanoleaf-kde-sync.rules'
+        'nanoleaf-kde-sync.svg')
+sha256sums=('@NATIVE_ARCHIVE_SHA256@'
+            'e1de90b276db2659950273d3e52feedcd10d8fcc3cd0ecca2c523de9a60489f3'
+            'b0c8d7099eb5331951c1c9d74052356671d5c7d3acec0ea8d82dbca2ab65ba8e'
+            '35a483ef69f9b724005a9c5b9feae698f8c1e2f5b8c0ef87dd5e39f2f76ac970')
+
+prepare() {
+    cd "$srcdir/native" || return
+    sha256sum --strict --check SHA256SUMS
+}
+
+package() {
+    install -Dm755 "$srcdir/native/bin/nanoleaf-native" \
+        "$pkgdir/usr/lib/nanoleaf-native/bin/nanoleaf-native"
+    install -Dm755 "$srcdir/native/bin/nanoleaf-native-capture" \
+        "$pkgdir/usr/lib/nanoleaf-native/bin/nanoleaf-native-capture"
+    install -d "$pkgdir/usr/bin"
+    ln -s ../lib/nanoleaf-native/bin/nanoleaf-native "$pkgdir/usr/bin/nanoleaf-native"
+    install -Dm644 "$srcdir/nanoleaf-native.desktop" \
+        "$pkgdir/usr/share/applications/org.spingiantcrm.NanoleafNative.desktop"
+    install -Dm644 "$srcdir/nanoleaf-kde-sync.svg" \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/nanoleaf-kde-sync.svg"
+    install -Dm644 "$srcdir/60-nanoleaf-kde-sync.rules" \
+        "$pkgdir/usr/lib/udev/rules.d/60-nanoleaf-kde-sync.rules"
+    install -Dm644 "$srcdir/native/LICENSE" \
+        "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    install -Dm644 "$srcdir/native/THIRD_PARTY_NOTICES.txt" \
+        "$pkgdir/usr/share/licenses/$pkgname/THIRD_PARTY_NOTICES.txt"
+    install -Dm644 "$srcdir/native/README.md" \
+        "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

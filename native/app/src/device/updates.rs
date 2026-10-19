@@ -366,4 +366,28 @@ mod tests {
             }
         }
     }
+    #[test]
+    fn static_fractional_tail_preserves_every_phase_and_cycle_average() {
+        let io = io();
+        let mut updates = Updates {
+            enabled: true,
+            ..Default::default()
+        };
+        let order = ChannelOrder::parse("rgb").unwrap();
+        let mut raw = vec![[64.0; 3]; 48];
+        raw[47] = [64.25; 3];
+        let mut total = 0u32;
+        for phase in 0..8 {
+            let colors = quantize_acknowledged(&raw, phase);
+            updates.send(&io, &colors, 48, order, true, || {}).unwrap();
+            let state = io.state.borrow();
+            assert_eq!(
+                state[47 * 3..],
+                colors[47],
+                "retained fractional tail lost dither phase {phase}"
+            );
+            total += u32::from(state[47 * 3]);
+        }
+        assert_eq!(total, 514, "eight ACKs must average to the 64.25 target");
+    }
 }

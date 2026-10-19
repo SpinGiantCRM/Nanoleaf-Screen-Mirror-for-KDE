@@ -1,5 +1,44 @@
 # Changelog
 
+## native-v2.0.0 — Native Rust application
+
+### Application and distribution
+
+- Replace the Python/PyQt6 app, bridge and privileged C capture helper with a Rust
+  tray, Settings, manual strip setup, calibration and supervised capture helper.
+- Keep KWin ScreenShot2 as automatic capture; support explicitly selected
+  portal/PipeWire/Vulkan streaming on the validated KDE colour contract.
+- Install and roll back immutable app/helper pairs together, retaining previous
+  native versions, calibration, configuration backups and unknown fields.
+- Retire historical Python wheel/AUR packaging. Add native PyPI packaging with
+  a pure-Python installer for a verified pinned native release and a native AUR
+  binary recipe. Historical releases and
+  Git history remain available; registry publication is verified separately.
+
+### Colour, output and recovery
+
+- Preserve calibrated neutral/black handling, linear-light temporal transitions
+  and a user-selectable fast-response shortcut.
+- Retain serial acknowledged output with guarded shortened updates for the tested
+  NL82K2 firmware 1.5/hardware 1.1/manual 48-zone contract; preserve full frames for
+  other identities and periodic refresh.
+- Keep Stop separate from Quit and grant setup previews exclusive output ownership.
+  Supervise capture workers and require explicit restart after portal revocation,
+  lock/sleep notifications or session-monitor interruption.
+- Add guided four-step strip onboarding, focused Settings pages and persistent
+  Save / Apply and Reload saved actions.
+- Refresh installation, daily-use, troubleshooting and rollback guidance; explain
+  the historical PyPI release, native packaging and publication requirements.
+
+See [2.0.0 release notes](docs/RELEASE_2_0_0.md) for migration and verification
+limits. Software/ACK timings do not establish optical latency. Physical NL82K1
+output and suspend/resume remain unverified.
+
+## Historical Python releases
+
+The entries below describe the retired implementation and its original release
+behaviour. They are retained as history, not current installation instructions.
+
 ## v1.9.3 — Stage 3-5 audit completion, test refactoring, runtime improvements
 
 ### Fixes
