@@ -1,0 +1,36 @@
+{
+  "scope": "Finite offline decoder search on interior records; vary output word order and CRC index order.",
+  "unique_keys": 4317,
+  "interior_record_indices": [
+    16,
+    64,
+    128
+  ],
+  "decoder_candidates": 48628,
+  "output_byte_permutations": 8,
+  "crc_polynomials": [
+    "a001",
+    "b876"
+  ],
+  "crc_header_index_orders": [
+    "big",
+    "little"
+  ],
+  "tested_block_operations": {
+    "TripleDES-decryptor": 90657,
+    "TripleDES-encryptor": 90657,
+    "Blowfish-decryptor": 90657,
+    "Blowfish-encryptor": 90657,
+    "CAST5-decryptor": 32928,
+    "CAST5-encryptor": 32928,
+    "IDEA-decryptor": 32928,
+    "IDEA-encryptor": 32928,
+    "TEA-32-encrypt": 131712,
+    "TEA-32-decrypt": 131712,
+    "XTEA-32-encrypt": 131712,
+    "XTEA-32-decrypt": 131712
+  },
+  "three_record_survivors": [],
+  "elapsed_seconds": 23.55343698100114,
+  "limitations": "Finite keys and conditional CRC model; output permutations and interior selection do not identify a chip or validate a firmware image. No USB or vendor-code execution."
+}

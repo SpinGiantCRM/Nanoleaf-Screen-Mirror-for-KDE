@@ -1,0 +1,98 @@
+[
+  {
+    "requested_version": 1,
+    "actual_version": 1,
+    "status": 200,
+    "body_sha256": "b7314d627c94993d5ade2bd65a41b97d6d277026a5ecb7b1c9f4e016a93eb306",
+    "external_links": [
+      "https://bitbucket.org/nanoleaf/ch552_testing/src/main/hid_debug.py"
+    ],
+    "dfu_mentions": 3,
+    "readback_mentions": 0
+  },
+  {
+    "requested_version": 2,
+    "actual_version": 2,
+    "status": 200,
+    "body_sha256": "d090108fe43f7713aef6201301d1c6910979c50968ad9b9b280fc0b786239ac6",
+    "external_links": [
+      "https://bitbucket.org/nanoleaf/ch552_testing/src/main/hid_debug.py"
+    ],
+    "dfu_mentions": 3,
+    "readback_mentions": 0
+  },
+  {
+    "requested_version": 3,
+    "actual_version": 3,
+    "status": 200,
+    "body_sha256": "212841731303ff6764954b06e340a55a0fb8064c7a696be944148c7965542a52",
+    "external_links": [
+      "https://bitbucket.org/nanoleaf/ch552_testing/src/main/hid_debug.py"
+    ],
+    "dfu_mentions": 3,
+    "readback_mentions": 0
+  },
+  {
+    "requested_version": 4,
+    "actual_version": 4,
+    "status": 200,
+    "body_sha256": "69e826504c074af630305c3e02f32c017d6e881b46500fbb1c97b8bfc0907f41",
+    "external_links": [],
+    "dfu_mentions": 0,
+    "readback_mentions": 0
+  },
+  {
+    "requested_version": 5,
+    "actual_version": 5,
+    "status": 200,
+    "body_sha256": "bd9fcb4d7c5f6f3928c9e66025a831d82eb50f2e6525e74523131d3a2ee7cb0f",
+    "external_links": [],
+    "dfu_mentions": 0,
+    "readback_mentions": 0
+  },
+  {
+    "requested_version": 6,
+    "actual_version": 6,
+    "status": 200,
+    "body_sha256": "c437bb84b47be7fb6e89e4ea3f8bcdb5ec35f4d93dc4f932233ef4cbc05f54a6",
+    "external_links": [],
+    "dfu_mentions": 0,
+    "readback_mentions": 0
+  },
+  {
+    "requested_version": 7,
+    "actual_version": 7,
+    "status": 200,
+    "body_sha256": "af4a6f315c38aebe36bbee1aa321383f4aac63703895edf56b5cbd7093e003c1",
+    "external_links": [],
+    "dfu_mentions": 0,
+    "readback_mentions": 0
+  },
+  {
+    "requested_version": 8,
+    "actual_version": 8,
+    "status": 200,
+    "body_sha256": "62fb196017e1422776dcbe42f3c4031417bd8f576e26a1c857a38e0fb2eb281a",
+    "external_links": [],
+    "dfu_mentions": 0,
+    "readback_mentions": 0
+  },
+  {
+    "requested_version": 9,
+    "actual_version": 9,
+    "status": 200,
+    "body_sha256": "8021d66ce3929363bcf856888ec4af0705f01806644f72729c4dae6b79b6b2d8",
+    "external_links": [],
+    "dfu_mentions": 0,
+    "readback_mentions": 0
+  },
+  {
+    "requested_version": 10,
+    "actual_version": 10,
+    "status": 200,
+    "body_sha256": "bf4bb0f7f6349bde5ba11ec7a83907e708da308df5c1b9f274e3033618a76732",
+    "external_links": [],
+    "dfu_mentions": 0,
+    "readback_mentions": 0
+  }
+]

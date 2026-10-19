@@ -1,0 +1,88 @@
+{
+  "2.2.4": {
+    "bytes": 20992,
+    "sha256": "f2f5103439593d50255ae0d7c12e551d4cd5fd00d6ddda1e09f7cb91ce7d8ca0",
+    "sections": {
+      ".text": {
+        "virtual_address": 4096,
+        "bytes": 10240,
+        "sha256": "f05c840f48716e0409387082826bb6d0fcc2db3f3517f769c8daeeaa2dd4a488"
+      },
+      ".rdata": {
+        "virtual_address": 16384,
+        "bytes": 7168,
+        "sha256": "ae161ab70069472c71adaa1ec98e2c758ab989ad6c992a089a6546187befde99"
+      },
+      ".data": {
+        "virtual_address": 24576,
+        "bytes": 512,
+        "sha256": "5ba5e1effac897b4139bd463a8cc7621a2585f3d42f438a600abb65a99854ae9"
+      },
+      ".pdata": {
+        "virtual_address": 28672,
+        "bytes": 1024,
+        "sha256": "f4b98e4e526ce7e0dd52cc4811a4d602f32a63606f0005cb26027e93db50b588"
+      },
+      ".rsrc": {
+        "virtual_address": 32768,
+        "bytes": 512,
+        "sha256": "db1b2b751f58f8886b7da3d9f7934e1961ae97f1554af60e2d9f82171f6e282b"
+      },
+      ".reloc": {
+        "virtual_address": 36864,
+        "bytes": 512,
+        "sha256": "178787f72b20b06d814149a5c890bf0eb44be1429c6fc1ab99f2f2d33dc6e319"
+      }
+    },
+    "certificate_table_bytes": 0,
+    "exports": {
+      "ColorCalibration_deinit": 8908,
+      "ColorCalibration_getCalibratedCCT": 8912,
+      "ColorCalibration_getCalibratedColor": 9088,
+      "ColorCalibration_init": 9296
+    }
+  },
+  "3.0.1": {
+    "bytes": 36648,
+    "sha256": "a86758c34040055585436d2d96f15e21e084708815b3426a59c495fc97729a7e",
+    "sections": {
+      ".text": {
+        "virtual_address": 4096,
+        "bytes": 10240,
+        "sha256": "f05c840f48716e0409387082826bb6d0fcc2db3f3517f769c8daeeaa2dd4a488"
+      },
+      ".rdata": {
+        "virtual_address": 16384,
+        "bytes": 7168,
+        "sha256": "ae161ab70069472c71adaa1ec98e2c758ab989ad6c992a089a6546187befde99"
+      },
+      ".data": {
+        "virtual_address": 24576,
+        "bytes": 512,
+        "sha256": "5ba5e1effac897b4139bd463a8cc7621a2585f3d42f438a600abb65a99854ae9"
+      },
+      ".pdata": {
+        "virtual_address": 28672,
+        "bytes": 1024,
+        "sha256": "f4b98e4e526ce7e0dd52cc4811a4d602f32a63606f0005cb26027e93db50b588"
+      },
+      ".rsrc": {
+        "virtual_address": 32768,
+        "bytes": 512,
+        "sha256": "db1b2b751f58f8886b7da3d9f7934e1961ae97f1554af60e2d9f82171f6e282b"
+      },
+      ".reloc": {
+        "virtual_address": 36864,
+        "bytes": 512,
+        "sha256": "178787f72b20b06d814149a5c890bf0eb44be1429c6fc1ab99f2f2d33dc6e319"
+      }
+    },
+    "certificate_table_bytes": 15656,
+    "exports": {
+      "ColorCalibration_deinit": 8908,
+      "ColorCalibration_getCalibratedCCT": 8912,
+      "ColorCalibration_getCalibratedColor": 9088,
+      "ColorCalibration_init": 9296
+    }
+  }
+}

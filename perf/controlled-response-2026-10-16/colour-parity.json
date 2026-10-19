@@ -1,0 +1,10 @@
+{
+  "scope": "Supervised streaming worker and full native colour processing; no USB or optical measurement, no saved pixels/config changes",
+  "frames": 610,
+  "all_exact": true,
+  "duration_ms": 8191.601119,
+  "error": null,
+  "validation_stderr_bytes": 0,
+  "requested_fps": 240,
+  "performance_comparison": false
+}

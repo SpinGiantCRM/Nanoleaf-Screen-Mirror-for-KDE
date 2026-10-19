@@ -1,0 +1,192 @@
+
+running 14 tests
+test capture::pipe_tests::paired_4k_pipe_transfer_benchmark ... ignored, operator-run synthetic 4K pipe benchmark, not a CI timing gate
+test capture::pipe_tests::closed_capture_pipe_reports_truncation ... ok
+test device::tests::exact_tlv_bytes_survive_report_ids_without_tail_padding ... ok
+test priority::tests::policy_has_only_existing_modes_and_normal_never_changes_priority ... ok
+test highlight::tests::cache_checks_exact_pixels_mode_and_bounds_retained_capacity ... ok
+test screens::tests::portal_source_must_match_one_selected_monitor ... ok
+test worker::stream::tests::child_frames_are_bounded_typed_and_manual_count_authoritative ... ok
+test worker::stream::tests::unchanged_source_has_its_own_work_clock_and_cannot_bypass_protocol_guards ... ok
+test worker::tests::latest_colour_slot_is_bounded_coalesces_and_wakes_only_once ... ok
+test ui::tests::profile_round_trip_preserves_decimal_calibration_and_unknown_keys ... ok
+test capture::pipe_tests::open_but_stalled_capture_pipe_remains_bounded ... ok
+test capture::pipe_tests::capture_pipe_preserves_every_byte_across_short_reads_and_capacities ... ok
+test ui::tests::rendering_profile_controls_does_not_clamp_saved_calibration ... ok
+test portal_file::tests::chooser_handles_early_replies_local_uris_denial_and_cancellation ... ok
+
+test result: ok. 13 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test reference_ignores_appearance_policies_and_keeps_direct_gpu_eligibility ... ok
+test every_optional_pixel_policy_applies_privacy_before_sampling_and_preserves_manual_count ... ok
+test appearance_samplers_preserve_every_uniform_neutral_and_primary ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 1 test
+test native_smoothing_and_neighbor_hysteresis_match_reference_sequences ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+
+running 5 tests
+test mixed_alpha_and_padding_never_use_opaque_conversion_for_transparent_pixels ... ok
+test premultiplication_is_undone_and_zero_alpha_is_black ... ok
+test opaque_premultiplied_fast_path_is_exact_for_every_byte_code ... ok
+test rgb32_preserves_channels_padding_and_black ... ok
+test undeclared_hdr_and_bad_geometry_fail_instead_of_reinterpreting_bytes ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test historical_profiles_match_python_oracle_within_one_quantization_code ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 10 tests
+test fast_response_changes_only_existing_temporal_controls ... ok
+test legacy_load_migrates_only_in_memory_and_keeps_gains ... ok
+test legacy_enum_case_normalizes_only_in_memory ... ok
+test no_op_save_does_not_create_backup_or_touch_bytes ... ok
+test stale_write_is_rejected_without_overwriting_external_change ... ok
+test source_count_overflow_and_unknown_colour_policy_fail_read_only ... ok
+test future_schemas_nan_profiles_and_invalid_manual_counts_are_rejected ... ok
+test transactional_edit_preserves_unknown_fields_and_exact_backup ... ok
+test first_launch_initializes_only_absent_configuration_and_is_safe_for_existing_bytes ... ok
+test saved_fast_response_keeps_profiles_unknowns_comments_and_exact_backup ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test layouts_and_physical_anchors_preserve_84_reference_cases ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 4 tests
+test every_uniform_code_stays_exact_and_mixed_neutrals_remain_neutral ... ok
+test highlight_modes_keep_global_letterbox_and_dark_scene_fallbacks ... ok
+test highlight_policies_match_reference_and_keep_dark_mixed_guards ... ok
+test exact_patch_cache_matches_uncached_output_across_repeats_cuts_and_masks ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+
+running 6 tests
+test disabling_autostart_needs_no_installed_launcher_and_preserves_foreign_files ... ok
+test corruption_and_symlinks_never_publish_a_bundle ... ok
+test external_edits_and_corrupt_rollback_version_are_refused ... ok
+test install_upgrade_and_two_way_rollback_preserve_fallback_and_configuration ... ok
+test notice_manifest_upgrades_and_rolls_back_to_the_earlier_bundle_format ... ok
+test refused_uninstall_does_not_disable_autostart ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 1 test
+test native_candidates_preserve_reference_colours_scores_and_choices ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 1 test
+test scene_changes_dark_frames_and_flashes_preserve_temporal_choices ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 12 tests
+test actual_ack_cadence_preserves_fractional_neutral_brightness_when_prepared_frames_drop ... ok
+test direct_sampling_cannot_silently_disable_pixel_dependent_policies ... ok
+test calibration_fractions_reach_ack_dithering_without_prior_rounding ... ok
+test black_transition_immediately_turns_off_without_accumulation_or_smoothing_ghosts ... ok
+test full_pixel_box_mean_keeps_sub_code_precision_in_cpu_and_external_paths ... ok
+test steady_neutral_dither_keeps_fractional_brightness_instead_of_integer_hold ... ok
+test dither_is_bounded_neutral_and_black_remains_off ... ok
+test inferred_acknowledgements_cannot_change_later_captured_colour_outputs ... ok
+test exact_sparse_letterbox_analysis_matches_full_pixel_processing ... ok
+test temporal_accumulation_preserves_linear_light_energy_in_colour_transitions ... ok
+test legacy_oracle_arithmetic_matches_python_before_documented_black_correction ... ok
+test external_sdr_statistics_preserve_the_full_colour_and_ack_history_pipeline ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+
+running 5 tests
+test busy_usb_never_trades_next_real_frame_latency_for_a_prediction ... ok
+test slow_ramp_adds_one_bounded_packet_without_recursive_extrapolation ... ok
+test reference_accuracy_dither_zero_strength_and_standard_are_exact_bypasses ... ok
+test darkening_black_cuts_stalls_jitter_reset_and_shape_changes_suppress_prediction ... ok
+test all_neutral_ramps_remain_neutral_black_off_and_each_channel_within_one_code ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 2 tests
+test export_is_private_atomic_backed_up_and_refuses_symlinks ... ok
+test profile_round_trip_preserves_exact_calibration_and_legacy_schema ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test capture_watchdog_allows_permission_then_expires_stalls_and_resets_on_recovery ... ok
+test maintenance_recovers_a_crash_socket_but_never_interrupts_a_live_service ... ok
+test stopped_service_controls_never_open_capture_or_usb_and_keep_configuration_exact ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 4 tests
+test black_cut_cannot_be_overridden_by_small_integer_ack_hold ... ok
+test device_gamma_is_applied_after_temporal_mixing_and_brightness ... ok
+test low_motion_accumulation_matches_elapsed_time_across_capture_cadences ... ok
+test fast_response_recreates_calibrated_source_on_first_changed_update ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 5 tests
+test fragmented_and_report_id_responses_are_acknowledged ... ok
+test uncertain_short_write_is_never_blindly_retried ... ok
+test transaction_stages_count_actual_reports_without_changing_wire_or_ack_matching ... ok
+test complete_late_unrelated_ack_cannot_hide_the_current_ack_or_fake_one_in_payload ... ok
+test firmware_failure_and_wrong_command_ack_are_not_successful_frames ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

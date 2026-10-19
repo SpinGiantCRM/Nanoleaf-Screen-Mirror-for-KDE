@@ -1,0 +1,42 @@
+[
+  {
+    "filename": "byte-models.py",
+    "sha256": "5bc1de892325d7ea7581f9cfe7b0cbc0872c5031f7a85053caac54a0ea8ae4ea"
+  },
+  {
+    "filename": "decoder-order-followup.py",
+    "sha256": "c5bfe95e1bad2b64ac2f2911d80638ed0b07857297cbb6dd1eb667df9bdcb4f8"
+  },
+  {
+    "filename": "padded-tail-probe.py",
+    "sha256": "e28c5a109a3ebf1570329c9fe7a4fedd3cc3db4fa8abaac3205219460b0e3451"
+  },
+  {
+    "filename": "additive-smt.py",
+    "sha256": "2913bf67a41fa53aea1781ba6fc2f76ce01e13b4f45333f8451d571d77b6eb8e"
+  },
+  {
+    "filename": "additive-xor-sat.py",
+    "sha256": "0f6f40ff687f440e0dfe6e01395b613c08351eee87df2adcb592d95d8805ba29"
+  },
+  {
+    "filename": "archive-lookups.py",
+    "sha256": "95f7cdf26e5f685a1628a24282a9bf1e003874b6529a0d8f5fc715a8094e2191"
+  },
+  {
+    "filename": "archive-followup.py",
+    "sha256": "bef596930903656cc734b22f8237ad88fd48351b46692c8f24f66f8e1fc17228"
+  },
+  {
+    "filename": "inspect-recovery-ui.py",
+    "sha256": "f04c5b8fff7c3bcbd8bfa468e60c2184b609d9cb8a46d5fc45c0556ff74ec7d3"
+  },
+  {
+    "filename": "scan-ui-literals.mjs",
+    "sha256": "1964a958ef0669438446e02aa3e786426392edeb5d36c8751e358d7fd6eba162"
+  },
+  {
+    "filename": "public-wiki-search.py",
+    "sha256": "596a8e245c16661d419ced73f507d958a96cee5180b80f4b07dd4171530d7789"
+  }
+]

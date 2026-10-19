@@ -1,0 +1,50 @@
+[
+  {
+    "mode": "Dma",
+    "frames": 235,
+    "errors": [],
+    "discarded": 0,
+    "compared_zones": 384,
+    "callback_median_ms": 0.622678,
+    "pts_age_median_ms": 14.548926,
+    "sync_modes": [
+      "implicit-sync-file"
+    ]
+  },
+  {
+    "mode": "DmaExplicit",
+    "frames": 239,
+    "errors": [],
+    "discarded": 0,
+    "compared_zones": 384,
+    "callback_median_ms": 1.395172,
+    "pts_age_median_ms": 20.479985,
+    "sync_modes": [
+      "drm-syncobj-timeline"
+    ]
+  },
+  {
+    "mode": "DmaExplicit",
+    "frames": 238,
+    "errors": [],
+    "discarded": 0,
+    "compared_zones": 384,
+    "callback_median_ms": 1.348744,
+    "pts_age_median_ms": 16.202302,
+    "sync_modes": [
+      "drm-syncobj-timeline"
+    ]
+  },
+  {
+    "mode": "Dma",
+    "frames": 234,
+    "errors": [],
+    "discarded": 0,
+    "compared_zones": 384,
+    "callback_median_ms": 1.00053,
+    "pts_age_median_ms": 13.1960975,
+    "sync_modes": [
+      "implicit-sync-file"
+    ]
+  }
+]

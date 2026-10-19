@@ -1,0 +1,5422 @@
+{
+  "black_cleanup_acknowledged": true,
+  "cases": [
+    {
+      "pattern": "black",
+      "reverse_pass": false,
+      "samples": [
+        {
+          "ack_wait_ms": 3.025959,
+          "drain_ms": 0.001072,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0255579999999997,
+          "report_write_ms": [
+            0.947704,
+            0.997659,
+            0.9706670000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 5.944203,
+          "write_ms": 2.916841,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.023835,
+          "drain_ms": 0.000281,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.023565,
+          "report_write_ms": [
+            2.002011,
+            0.999492,
+            0.971319
+          ],
+          "response_reports": 1,
+          "total_ms": 6.997628,
+          "write_ms": 3.973422,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.025598,
+          "drain_ms": 0.00029,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.025388,
+          "report_write_ms": [
+            2.003793,
+            1.000183,
+            0.968824
+          ],
+          "response_reports": 1,
+          "total_ms": 6.999371,
+          "write_ms": 3.973392,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.031589,
+          "drain_ms": 0.00023,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.031189,
+          "report_write_ms": [
+            2.003623,
+            1.000824,
+            0.9687330000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 7.0056329999999996,
+          "write_ms": 3.9737030000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.025659,
+          "drain_ms": 0.000521,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.025288,
+          "report_write_ms": [
+            2.002311,
+            0.99838,
+            0.9672609999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 6.995223,
+          "write_ms": 3.968953,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0240359999999997,
+          "drain_ms": 0.000441,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.023815,
+          "report_write_ms": [
+            1.9968709999999998,
+            1.000454,
+            0.9701259999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 6.992849,
+          "write_ms": 3.9682720000000002,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.025799,
+          "drain_ms": 0.000261,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.025659,
+          "report_write_ms": [
+            1.004001,
+            0.999843,
+            0.968553
+          ],
+          "response_reports": 1,
+          "total_ms": 5.999228,
+          "write_ms": 2.973048,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0259489999999998,
+          "drain_ms": 0.00023,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0255579999999997,
+          "report_write_ms": [
+            2.005207,
+            1.001005,
+            0.969215
+          ],
+          "response_reports": 1,
+          "total_ms": 7.002536999999999,
+          "write_ms": 3.976258,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0265600000000004,
+          "drain_ms": 0.00048100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0263,
+          "report_write_ms": [
+            2.0025310000000003,
+            0.9988810000000001,
+            0.9686939999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 6.998088,
+          "write_ms": 3.970957,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.022292,
+          "drain_ms": 0.000271,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.021911,
+          "report_write_ms": [
+            2.002842,
+            1.0000930000000001,
+            0.969435
+          ],
+          "response_reports": 1,
+          "total_ms": 6.9956640000000005,
+          "write_ms": 3.973011,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.027031,
+          "drain_ms": 0.000381,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.026671,
+          "report_write_ms": [
+            2.009455,
+            0.99846,
+            0.968413
+          ],
+          "response_reports": 1,
+          "total_ms": 7.004811,
+          "write_ms": 3.977299,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.021671,
+          "drain_ms": 0.000381,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0214909999999997,
+          "report_write_ms": [
+            2.00232,
+            0.9988009999999999,
+            0.969205
+          ],
+          "response_reports": 1,
+          "total_ms": 6.993390000000001,
+          "write_ms": 3.971248,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0263,
+          "drain_ms": 0.00023999999999999998,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.025979,
+          "report_write_ms": [
+            2.004395,
+            1.004953,
+            0.967943
+          ],
+          "response_reports": 1,
+          "total_ms": 7.0046409999999995,
+          "write_ms": 3.978011,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.028274,
+          "drain_ms": 0.00041,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.028113,
+          "report_write_ms": [
+            2.003122,
+            0.9998330000000001,
+            0.969085
+          ],
+          "response_reports": 1,
+          "total_ms": 7.001535,
+          "write_ms": 3.972751,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.025328,
+          "drain_ms": 0.000221,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.025117,
+          "report_write_ms": [
+            2.0052160000000003,
+            0.997659,
+            0.96702
+          ],
+          "response_reports": 1,
+          "total_ms": 6.998159,
+          "write_ms": 3.9725,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.026179,
+          "drain_ms": 0.00025100000000000003,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.025868,
+          "report_write_ms": [
+            2.003814,
+            0.9999530000000001,
+            0.968663
+          ],
+          "response_reports": 1,
+          "total_ms": 6.999552,
+          "write_ms": 3.973021,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "grey-1",
+      "reverse_pass": false,
+      "samples": [
+        {
+          "ack_wait_ms": 15.028492,
+          "drain_ms": 0.001713,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027961,
+          "report_write_ms": [
+            0.926924,
+            0.995995,
+            0.973263
+          ],
+          "response_reports": 1,
+          "total_ms": 17.92794,
+          "write_ms": 2.8973940000000002,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.024805,
+          "drain_ms": 0.000391,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024414,
+          "report_write_ms": [
+            2.000808,
+            0.9946729999999999,
+            0.9762879999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 18.997746,
+          "write_ms": 3.97245,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.024674,
+          "drain_ms": 0.000401,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024272999999999,
+          "report_write_ms": [
+            1.003731,
+            0.999432,
+            0.970176
+          ],
+          "response_reports": 1,
+          "total_ms": 17.999436,
+          "write_ms": 2.9742710000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026789,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026428,
+          "report_write_ms": [
+            1.9990440000000003,
+            1.004943,
+            0.970347
+          ],
+          "response_reports": 1,
+          "total_ms": 19.002676,
+          "write_ms": 3.975346,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.0274,
+          "drain_ms": 0.00046100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026978999999999,
+          "report_write_ms": [
+            2.000327,
+            0.999392,
+            0.9696060000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998187,
+          "write_ms": 3.9702260000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025765999999999,
+          "drain_ms": 0.000401,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025356,
+          "report_write_ms": [
+            2.0020200000000004,
+            0.9979089999999999,
+            0.972711
+          ],
+          "response_reports": 1,
+          "total_ms": 18.99985,
+          "write_ms": 3.973593,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028061000000001,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.02766,
+          "report_write_ms": [
+            2.001719,
+            0.997368,
+            0.970026
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998597999999998,
+          "write_ms": 3.9700159999999998,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.030355,
+          "drain_ms": 0.000451,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.029935,
+          "report_write_ms": [
+            2.002301,
+            1.001657,
+            0.966099
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001684,
+          "write_ms": 3.970787,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.027268999999999,
+          "drain_ms": 0.000491,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026858,
+          "report_write_ms": [
+            2.001539,
+            0.99853,
+            0.969164
+          ],
+          "response_reports": 1,
+          "total_ms": 18.997987000000002,
+          "write_ms": 3.970136,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.029423,
+          "drain_ms": 0.00041,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.029022,
+          "report_write_ms": [
+            2.002421,
+            0.9974689999999999,
+            0.9700759999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000681,
+          "write_ms": 3.9707570000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.024253,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.023853,
+          "report_write_ms": [
+            2.003343,
+            0.9989109999999999,
+            0.970427
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998277,
+          "write_ms": 3.9735129999999996,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026758,
+          "drain_ms": 0.000351,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026297,
+          "report_write_ms": [
+            2.003674,
+            0.999022,
+            0.969815
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000311,
+          "write_ms": 3.973112,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026819,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026418,
+          "report_write_ms": [
+            2.002931,
+            0.9949629999999999,
+            0.973633
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999769999999998,
+          "write_ms": 3.9723900000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.027169,
+          "drain_ms": 0.000411,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026767999999999,
+          "report_write_ms": [
+            2.0025910000000002,
+            0.999291,
+            0.970366
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000390999999997,
+          "write_ms": 3.9727110000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026248,
+          "drain_ms": 0.000451,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025867,
+          "report_write_ms": [
+            1.002347,
+            1.001065,
+            0.968193
+          ],
+          "response_reports": 1,
+          "total_ms": 17.999336,
+          "write_ms": 2.972547,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.033702,
+          "drain_ms": 0.000441,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.033311000000001,
+          "report_write_ms": [
+            2.006298,
+            0.998821,
+            0.96702
+          ],
+          "response_reports": 1,
+          "total_ms": 19.007024,
+          "write_ms": 3.972781,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "grey-8",
+      "reverse_pass": false,
+      "samples": [
+        {
+          "ack_wait_ms": 15.033411,
+          "drain_ms": 0.0017230000000000001,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.0328,
+          "report_write_ms": [
+            0.924469,
+            0.9966370000000001,
+            0.969405
+          ],
+          "response_reports": 1,
+          "total_ms": 17.927038,
+          "write_ms": 2.891563,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.034604,
+          "drain_ms": 0.000381,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.034273,
+          "report_write_ms": [
+            2.000647,
+            0.9958849999999999,
+            0.9716100000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 19.004119,
+          "write_ms": 3.969044,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.030075,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.029694,
+          "report_write_ms": [
+            1.9986740000000003,
+            0.99292,
+            0.970527
+          ],
+          "response_reports": 1,
+          "total_ms": 18.993647999999997,
+          "write_ms": 3.963012,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.029413,
+          "drain_ms": 0.000441,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.029043000000001,
+          "report_write_ms": [
+            2.000848,
+            1.0033699999999999,
+            0.9642649999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999370000000003,
+          "write_ms": 3.969425,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025716999999998,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025336,
+          "report_write_ms": [
+            2.001459,
+            1.000955,
+            0.968954
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998318,
+          "write_ms": 3.9720700000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.030695999999999,
+          "drain_ms": 0.00048100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.029985,
+          "report_write_ms": [
+            2.002521,
+            0.997248,
+            0.970797
+          ],
+          "response_reports": 1,
+          "total_ms": 19.002595,
+          "write_ms": 3.9713079999999996,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.024755,
+          "drain_ms": 0.000591,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024284,
+          "report_write_ms": [
+            1.995447,
+            1.000674,
+            0.973673
+          ],
+          "response_reports": 1,
+          "total_ms": 18.996293,
+          "write_ms": 3.9708469999999996,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.027179,
+          "drain_ms": 0.000491,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026788,
+          "report_write_ms": [
+            2.003212,
+            0.999291,
+            0.9691040000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000211,
+          "write_ms": 3.972451,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025426,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025095,
+          "report_write_ms": [
+            2.002221,
+            1.000183,
+            0.968723
+          ],
+          "response_reports": 1,
+          "total_ms": 18.997957,
+          "write_ms": 3.9720090000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028943,
+          "drain_ms": 0.00038,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028553,
+          "report_write_ms": [
+            2.002621,
+            0.999612,
+            0.968804
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001172,
+          "write_ms": 3.971759,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.029023,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028633,
+          "report_write_ms": [
+            1.00352,
+            0.997248,
+            0.970047
+          ],
+          "response_reports": 1,
+          "total_ms": 18.001340000000003,
+          "write_ms": 2.971806,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028481999999999,
+          "drain_ms": 0.000441,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028091,
+          "report_write_ms": [
+            2.0017989999999997,
+            0.997749,
+            0.9695250000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998979,
+          "write_ms": 3.9699560000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.024775,
+          "drain_ms": 0.000411,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024314,
+          "report_write_ms": [
+            2.0034929999999997,
+            1.001196,
+            0.968323
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999319,
+          "write_ms": 3.974033,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.027991,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027601,
+          "report_write_ms": [
+            2.0018700000000003,
+            0.9996619999999999,
+            0.969054
+          ],
+          "response_reports": 1,
+          "total_ms": 18.9998,
+          "write_ms": 3.971288,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.02757,
+          "drain_ms": 0.000451,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027209,
+          "report_write_ms": [
+            2.002471,
+            0.999813,
+            0.968673
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999911,
+          "write_ms": 3.9717900000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026717999999999,
+          "drain_ms": 0.000451,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026548,
+          "report_write_ms": [
+            2.002281,
+            0.999091,
+            0.969314
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998919,
+          "write_ms": 3.9716389999999997,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "grey-64",
+      "reverse_pass": false,
+      "samples": [
+        {
+          "ack_wait_ms": 17.028398,
+          "drain_ms": 0.001523,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.027866999999997,
+          "report_write_ms": [
+            0.9353,
+            0.996837,
+            0.967381
+          ],
+          "response_reports": 1,
+          "total_ms": 19.931372999999997,
+          "write_ms": 2.901121,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.02945,
+          "drain_ms": 0.000551,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.029049,
+          "report_write_ms": [
+            1.999977,
+            0.9990509999999999,
+            0.9703459999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 20.999997,
+          "write_ms": 3.9699059999999995,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.032296,
+          "drain_ms": 0.00048100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.031153,
+          "report_write_ms": [
+            2.0006880000000002,
+            0.99815,
+            0.9692639999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 21.001731,
+          "write_ms": 3.968864,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.026574999999998,
+          "drain_ms": 0.000571,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.026174,
+          "report_write_ms": [
+            1.9975209999999999,
+            0.9953640000000001,
+            0.973473
+          ],
+          "response_reports": 1,
+          "total_ms": 20.994446,
+          "write_ms": 3.9672099999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.027166,
+          "drain_ms": 0.00038,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.026755,
+          "report_write_ms": [
+            2.0026710000000003,
+            0.99851,
+            0.970267
+          ],
+          "response_reports": 1,
+          "total_ms": 20.999766,
+          "write_ms": 3.9721100000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.026184,
+          "drain_ms": 0.00048100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.025833000000002,
+          "report_write_ms": [
+            2.00216,
+            0.997969,
+            0.971499
+          ],
+          "response_reports": 1,
+          "total_ms": 20.999156000000003,
+          "write_ms": 3.9723909999999996,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.027096,
+          "drain_ms": 0.00033,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.026725,
+          "report_write_ms": [
+            1.002868,
+            0.999933,
+            0.968944
+          ],
+          "response_reports": 1,
+          "total_ms": 20.000094,
+          "write_ms": 2.972568,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.025803,
+          "drain_ms": 0.00043,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.025432,
+          "report_write_ms": [
+            2.004415,
+            0.9984900000000001,
+            0.9697049999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 20.999906,
+          "write_ms": 3.973583,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.026224,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.025833000000002,
+          "report_write_ms": [
+            2.0040940000000003,
+            0.9993319999999999,
+            0.969144
+          ],
+          "response_reports": 1,
+          "total_ms": 21.000258000000002,
+          "write_ms": 3.973522,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.026454,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.026093999999997,
+          "report_write_ms": [
+            2.0033630000000002,
+            0.9983399999999999,
+            0.9705469999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 21.000156999999998,
+          "write_ms": 3.9731920000000005,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.032957,
+          "drain_ms": 0.00042,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.032586,
+          "report_write_ms": [
+            2.005577,
+            0.998039,
+            0.970117
+          ],
+          "response_reports": 1,
+          "total_ms": 21.008152,
+          "write_ms": 3.9746750000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.024351,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.02395,
+          "report_write_ms": [
+            1.9969409999999999,
+            0.9984410000000001,
+            0.971369
+          ],
+          "response_reports": 1,
+          "total_ms": 20.992463,
+          "write_ms": 3.9675910000000005,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.026063,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.025703,
+          "report_write_ms": [
+            2.004635,
+            0.99832,
+            0.969585
+          ],
+          "response_reports": 1,
+          "total_ms": 20.999965999999997,
+          "write_ms": 3.973382,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.026004,
+          "drain_ms": 0.000381,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.025623,
+          "report_write_ms": [
+            2.006319,
+            0.999403,
+            0.9675509999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 21.000619,
+          "write_ms": 3.9741539999999995,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.02389,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.023519,
+          "report_write_ms": [
+            2.0040739999999997,
+            0.997639,
+            0.970066
+          ],
+          "response_reports": 1,
+          "total_ms": 20.997041,
+          "write_ms": 3.9726199999999996,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.027928000000003,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.027527,
+          "report_write_ms": [
+            2.004625,
+            1.003069,
+            0.9656279999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 21.002542,
+          "write_ms": 3.9741029999999995,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "grey-255",
+      "reverse_pass": false,
+      "samples": [
+        {
+          "ack_wait_ms": 16.026051,
+          "drain_ms": 0.0018729999999999999,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.025239,
+          "report_write_ms": [
+            0.940931,
+            0.998029,
+            0.9653269999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 18.933954999999997,
+          "write_ms": 2.90569,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.028916000000002,
+          "drain_ms": 0.000581,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.028405,
+          "report_write_ms": [
+            2.0065690000000003,
+            0.9981199999999999,
+            0.965397
+          ],
+          "response_reports": 1,
+          "total_ms": 20.000374,
+          "write_ms": 3.970787,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.030981,
+          "drain_ms": 0.000581,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.030009,
+          "report_write_ms": [
+            1.004782,
+            1.004972,
+            0.9590850000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001424,
+          "write_ms": 2.969761,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.031671,
+          "drain_ms": 0.000691,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.03099,
+          "report_write_ms": [
+            2.0026509999999997,
+            1.001656,
+            0.9645250000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 20.002066999999997,
+          "write_ms": 3.9694049999999996,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.028004,
+          "drain_ms": 0.000741,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.027553,
+          "report_write_ms": [
+            1.9708510000000001,
+            1.0042309999999999,
+            0.9630930000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 19.968083,
+          "write_ms": 3.9392280000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.025139,
+          "drain_ms": 0.000441,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.024728,
+          "report_write_ms": [
+            2.005547,
+            0.997749,
+            0.969004
+          ],
+          "response_reports": 1,
+          "total_ms": 19.998801,
+          "write_ms": 3.9731209999999995,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.030618999999998,
+          "drain_ms": 0.000411,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.029978,
+          "report_write_ms": [
+            2.005036,
+            1.0013859999999999,
+            0.9618810000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 20.000563999999997,
+          "write_ms": 3.9694439999999998,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.028655999999998,
+          "drain_ms": 0.000551,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.028145000000002,
+          "report_write_ms": [
+            2.005878,
+            0.999052,
+            0.962863
+          ],
+          "response_reports": 1,
+          "total_ms": 19.998141,
+          "write_ms": 3.9688329999999996,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.026632,
+          "drain_ms": 0.00046100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.026141,
+          "report_write_ms": [
+            2.0051959999999998,
+            1.001526,
+            0.963413
+          ],
+          "response_reports": 1,
+          "total_ms": 19.998300999999998,
+          "write_ms": 3.971118,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.026174,
+          "drain_ms": 0.000521,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.025834,
+          "report_write_ms": [
+            2.0096950000000002,
+            0.9966459999999999,
+            0.963804
+          ],
+          "response_reports": 1,
+          "total_ms": 20.997852,
+          "write_ms": 3.971047,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.023919,
+          "drain_ms": 0.00033999999999999997,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.023529,
+          "report_write_ms": [
+            2.008582,
+            1.0025279999999999,
+            0.9644360000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 21.000978,
+          "write_ms": 3.9766080000000006,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.026464,
+          "drain_ms": 0.000391,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.026113,
+          "report_write_ms": [
+            2.007781,
+            1.0012050000000001,
+            0.963314
+          ],
+          "response_reports": 1,
+          "total_ms": 21.000176999999997,
+          "write_ms": 3.9732309999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.02572,
+          "drain_ms": 0.000501,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.025149,
+          "report_write_ms": [
+            2.0082020000000003,
+            0.9982190000000001,
+            0.967221
+          ],
+          "response_reports": 1,
+          "total_ms": 20.001257000000003,
+          "write_ms": 3.974785,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.026952,
+          "drain_ms": 0.000531,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.026681,
+          "report_write_ms": [
+            2.00723,
+            0.997799,
+            0.964155
+          ],
+          "response_reports": 1,
+          "total_ms": 19.997709,
+          "write_ms": 3.970136,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.028133999999998,
+          "drain_ms": 0.000381,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.027653,
+          "report_write_ms": [
+            1.009401,
+            0.997649,
+            0.964926
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001392999999997,
+          "write_ms": 2.972788,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.024468,
+          "drain_ms": 0.000391,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.024217,
+          "report_write_ms": [
+            2.008583,
+            0.99837,
+            0.965989
+          ],
+          "response_reports": 1,
+          "total_ms": 19.998591,
+          "write_ms": 3.9736320000000003,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "red-8",
+      "reverse_pass": false,
+      "samples": [
+        {
+          "ack_wait_ms": 15.028602000000001,
+          "drain_ms": 0.001673,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028191,
+          "report_write_ms": [
+            0.93553,
+            0.9958250000000001,
+            0.969565
+          ],
+          "response_reports": 1,
+          "total_ms": 17.932749,
+          "write_ms": 2.9021339999999998,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.029193999999999,
+          "drain_ms": 0.000351,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028872999999999,
+          "report_write_ms": [
+            2.00169,
+            0.9989020000000001,
+            0.968373
+          ],
+          "response_reports": 1,
+          "total_ms": 18.99929,
+          "write_ms": 3.969655,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028362,
+          "drain_ms": 0.00026,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027961,
+          "report_write_ms": [
+            2.0007979999999996,
+            0.999392,
+            0.969866
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999379,
+          "write_ms": 3.9706669999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028232000000001,
+          "drain_ms": 0.000361,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027801,
+          "report_write_ms": [
+            2.003654,
+            0.9972880000000001,
+            0.970377
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000622000000003,
+          "write_ms": 3.971939,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.024455000000001,
+          "drain_ms": 0.00037099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024054,
+          "report_write_ms": [
+            2.0032829999999997,
+            1.001005,
+            0.969174
+          ],
+          "response_reports": 1,
+          "total_ms": 18.99944,
+          "write_ms": 3.974514,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028141999999999,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027721000000001,
+          "report_write_ms": [
+            2.001529,
+            0.9981899999999999,
+            0.969726
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998889000000002,
+          "write_ms": 3.9702360000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026829000000001,
+          "drain_ms": 0.00046100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026437999999999,
+          "report_write_ms": [
+            2.002381,
+            1.001957,
+            0.967432
+          ],
+          "response_reports": 1,
+          "total_ms": 18.99988,
+          "write_ms": 3.9725,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.024835,
+          "drain_ms": 0.000411,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024434999999999,
+          "report_write_ms": [
+            2.002831,
+            1.001055,
+            0.969716
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999721,
+          "write_ms": 3.974374,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.024996,
+          "drain_ms": 0.00042,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024595,
+          "report_write_ms": [
+            2.002261,
+            0.9987310000000001,
+            0.97212
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999339,
+          "write_ms": 3.9738229999999994,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.024664999999999,
+          "drain_ms": 0.000451,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024264,
+          "report_write_ms": [
+            2.0031519999999996,
+            0.9988009999999999,
+            0.9706670000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998538,
+          "write_ms": 3.9733219999999996,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.024996,
+          "drain_ms": 0.00044,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024585,
+          "report_write_ms": [
+            1.0034,
+            1.000304,
+            0.970507
+          ],
+          "response_reports": 1,
+          "total_ms": 18.000538,
+          "write_ms": 2.9750010000000002,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.027230000000001,
+          "drain_ms": 0.000391,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026829000000001,
+          "report_write_ms": [
+            2.003964,
+            1.0017859999999998,
+            0.9664689999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000712,
+          "write_ms": 3.9730010000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026157999999999,
+          "drain_ms": 0.000411,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025767,
+          "report_write_ms": [
+            2.002761,
+            0.9998730000000001,
+            0.970377
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000522,
+          "write_ms": 3.973853,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028191999999999,
+          "drain_ms": 0.00048100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027721000000001,
+          "report_write_ms": [
+            2.002,
+            0.999142,
+            0.968955
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999771,
+          "write_ms": 3.970998,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028933,
+          "drain_ms": 0.000361,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028232000000001,
+          "report_write_ms": [
+            2.002621,
+            0.9983500000000001,
+            0.969786
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001102999999997,
+          "write_ms": 3.971709,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026278000000001,
+          "drain_ms": 0.000541,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025927999999999,
+          "report_write_ms": [
+            1.9987540000000001,
+            1.003059,
+            0.968193
+          ],
+          "response_reports": 1,
+          "total_ms": 18.997885999999998,
+          "write_ms": 3.970967,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "green-8",
+      "reverse_pass": false,
+      "samples": [
+        {
+          "ack_wait_ms": 15.03758,
+          "drain_ms": 0.001753,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.037119,
+          "report_write_ms": [
+            0.928597,
+            1.00914,
+            0.9584539999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 17.937327999999997,
+          "write_ms": 2.897665,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026047,
+          "drain_ms": 0.00048100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025637,
+          "report_write_ms": [
+            1.992302,
+            1.009701,
+            0.959255
+          ],
+          "response_reports": 1,
+          "total_ms": 18.988779,
+          "write_ms": 3.9621609999999996,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025246000000001,
+          "drain_ms": 0.00046100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024996,
+          "report_write_ms": [
+            2.003723,
+            0.99851,
+            0.970066
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999089,
+          "write_ms": 3.9732819999999998,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025586,
+          "drain_ms": 0.000351,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025186,
+          "report_write_ms": [
+            2.004385,
+            0.9990419999999999,
+            0.970087
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000332,
+          "write_ms": 3.9743039999999996,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025135,
+          "drain_ms": 0.00047999999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024895,
+          "report_write_ms": [
+            2.0001160000000002,
+            1.0037,
+            0.9692540000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999639,
+          "write_ms": 3.9739340000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025296,
+          "drain_ms": 0.00029099999999999997,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024994999999999,
+          "report_write_ms": [
+            1.00347,
+            0.9991909999999999,
+            0.970366
+          ],
+          "response_reports": 1,
+          "total_ms": 17.999496999999998,
+          "write_ms": 2.97379,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.036387,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.035987,
+          "report_write_ms": [
+            2.004535,
+            0.9987509999999999,
+            0.969976
+          ],
+          "response_reports": 1,
+          "total_ms": 19.011041,
+          "write_ms": 3.9741230000000005,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.036287,
+          "drain_ms": 0.000491,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.035886,
+          "report_write_ms": [
+            1.9932729999999999,
+            1.010122,
+            0.9583740000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 18.99945,
+          "write_ms": 3.962572,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026248,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025817,
+          "report_write_ms": [
+            1.994707,
+            1.008569,
+            0.958465
+          ],
+          "response_reports": 1,
+          "total_ms": 18.989571,
+          "write_ms": 3.9627619999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.021700000000001,
+          "drain_ms": 0.000441,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.021299,
+          "report_write_ms": [
+            2.003984,
+            0.999392,
+            0.969926
+          ],
+          "response_reports": 1,
+          "total_ms": 18.996565,
+          "write_ms": 3.9743340000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025296,
+          "drain_ms": 0.00046100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024885,
+          "report_write_ms": [
+            2.00731,
+            1.0018360000000002,
+            0.968824
+          ],
+          "response_reports": 1,
+          "total_ms": 19.004900000000003,
+          "write_ms": 3.9790520000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025687,
+          "drain_ms": 0.000491,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025376,
+          "report_write_ms": [
+            2.00201,
+            1.001796,
+            0.966961
+          ],
+          "response_reports": 1,
+          "total_ms": 18.997736,
+          "write_ms": 3.9714679999999998,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.027099999999999,
+          "drain_ms": 0.00037099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026698999999999,
+          "report_write_ms": [
+            2.003814,
+            1.0001039999999999,
+            0.968954
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001253,
+          "write_ms": 3.9736920000000002,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025445999999999,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025126,
+          "report_write_ms": [
+            2.0009379999999997,
+            1.0012459999999999,
+            0.969966
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998789,
+          "write_ms": 3.9728209999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025798,
+          "drain_ms": 0.000361,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025387,
+          "report_write_ms": [
+            2.004806,
+            0.9985599999999999,
+            0.9698359999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000232,
+          "write_ms": 3.9739830000000005,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025586,
+          "drain_ms": 0.00048100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025146,
+          "report_write_ms": [
+            2.003714,
+            0.99832,
+            0.970647
+          ],
+          "response_reports": 1,
+          "total_ms": 18.99961,
+          "write_ms": 3.9734519999999995,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "blue-8",
+      "reverse_pass": false,
+      "samples": [
+        {
+          "ack_wait_ms": 15.026999,
+          "drain_ms": 0.001142,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026598,
+          "report_write_ms": [
+            0.943155,
+            0.995765,
+            0.9671909999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 17.935565,
+          "write_ms": 2.907173,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.024875,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024555,
+          "report_write_ms": [
+            1.0050729999999999,
+            0.9983299999999999,
+            0.967842
+          ],
+          "response_reports": 1,
+          "total_ms": 17.997303,
+          "write_ms": 2.9719059999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.038732000000001,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.038311,
+          "report_write_ms": [
+            1.999776,
+            1.003039,
+            0.969756
+          ],
+          "response_reports": 1,
+          "total_ms": 19.012425,
+          "write_ms": 3.973162,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025485999999999,
+          "drain_ms": 0.00048100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025065000000001,
+          "report_write_ms": [
+            2.003343,
+            0.990716,
+            0.968232
+          ],
+          "response_reports": 1,
+          "total_ms": 18.98936,
+          "write_ms": 3.963303,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.024674,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024534000000001,
+          "report_write_ms": [
+            1.999134,
+            1.0021870000000002,
+            0.9704769999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 18.997685999999998,
+          "write_ms": 3.9724900000000005,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.024865,
+          "drain_ms": 0.00027,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024785000000001,
+          "report_write_ms": [
+            2.0032829999999997,
+            0.999703,
+            0.970127
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998918,
+          "write_ms": 3.9736830000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026849,
+          "drain_ms": 0.00023,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026498,
+          "report_write_ms": [
+            2.004395,
+            0.999642,
+            0.969314
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001233,
+          "write_ms": 3.9740640000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026398,
+          "drain_ms": 0.000401,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026168,
+          "report_write_ms": [
+            2.003082,
+            0.999783,
+            0.969335
+          ],
+          "response_reports": 1,
+          "total_ms": 18.99968,
+          "write_ms": 3.972791,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.03268,
+          "drain_ms": 0.00027,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.03228,
+          "report_write_ms": [
+            2.003232,
+            0.998741,
+            0.969726
+          ],
+          "response_reports": 1,
+          "total_ms": 19.00534,
+          "write_ms": 3.9722999999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.027610000000001,
+          "drain_ms": 0.00046100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027199,
+          "report_write_ms": [
+            2.0006880000000002,
+            0.996827,
+            0.9714590000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998077,
+          "write_ms": 3.9699059999999995,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.029995000000001,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.029604,
+          "report_write_ms": [
+            1.999776,
+            0.999312,
+            0.9695250000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999941,
+          "write_ms": 3.969375,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.029193,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028823000000001,
+          "report_write_ms": [
+            2.001259,
+            0.99852,
+            0.968854
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999249,
+          "write_ms": 3.9694949999999998,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028573,
+          "drain_ms": 0.000401,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028162,
+          "report_write_ms": [
+            2.0011080000000003,
+            0.9982599999999999,
+            0.9694149999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998719,
+          "write_ms": 3.969645,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026047,
+          "drain_ms": 0.00046100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025656999999999,
+          "report_write_ms": [
+            1.004291,
+            0.997028,
+            0.9700960000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 17.998925,
+          "write_ms": 2.972327,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028442,
+          "drain_ms": 0.000401,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028012,
+          "report_write_ms": [
+            2.0050760000000003,
+            0.996517,
+            0.9698359999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001094,
+          "write_ms": 3.9721599999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025868,
+          "drain_ms": 0.00044,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025527,
+          "report_write_ms": [
+            2.00215,
+            1.000815,
+            0.968353
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998638000000003,
+          "write_ms": 3.97224,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "grey-first-zone",
+      "reverse_pass": false,
+      "samples": [
+        {
+          "ack_wait_ms": 3.027672,
+          "drain_ms": 0.001343,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.027231,
+          "report_write_ms": [
+            0.934609,
+            0.995835,
+            0.972521
+          ],
+          "response_reports": 1,
+          "total_ms": 5.9336329999999995,
+          "write_ms": 2.904308,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.024205,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0239249999999998,
+          "report_write_ms": [
+            1.998965,
+            0.9999830000000001,
+            0.97195
+          ],
+          "response_reports": 1,
+          "total_ms": 6.996315,
+          "write_ms": 3.9715890000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.026571,
+          "drain_ms": 0.00037099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0263,
+          "report_write_ms": [
+            2.002922,
+            0.9989809999999999,
+            0.969756
+          ],
+          "response_reports": 1,
+          "total_ms": 6.999422,
+          "write_ms": 3.97237,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.026981,
+          "drain_ms": 0.000321,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.026701,
+          "report_write_ms": [
+            2.0040240000000002,
+            0.9982800000000001,
+            0.9699059999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 7.000163000000001,
+          "write_ms": 3.972771,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.023694,
+          "drain_ms": 0.00023999999999999998,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.023444,
+          "report_write_ms": [
+            2.004114,
+            0.999913,
+            0.970317
+          ],
+          "response_reports": 1,
+          "total_ms": 6.99892,
+          "write_ms": 3.974896,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.025328,
+          "drain_ms": 0.000351,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.024958,
+          "report_write_ms": [
+            2.003333,
+            0.99823,
+            0.970808
+          ],
+          "response_reports": 1,
+          "total_ms": 6.99872,
+          "write_ms": 3.9729509999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.027632,
+          "drain_ms": 0.000361,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.027232,
+          "report_write_ms": [
+            2.004484,
+            0.997468,
+            0.969986
+          ],
+          "response_reports": 1,
+          "total_ms": 7.000844,
+          "write_ms": 3.972751,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0249669999999997,
+          "drain_ms": 0.00046100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0248369999999998,
+          "report_write_ms": [
+            2.001579,
+            0.999202,
+            0.970237
+          ],
+          "response_reports": 1,
+          "total_ms": 6.997227,
+          "write_ms": 3.9716489999999998,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.025388,
+          "drain_ms": 0.000281,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.025288,
+          "report_write_ms": [
+            2.005306,
+            0.99836,
+            0.969445
+          ],
+          "response_reports": 1,
+          "total_ms": 6.999331,
+          "write_ms": 3.973562,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0247859999999998,
+          "drain_ms": 0.000221,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.024436,
+          "report_write_ms": [
+            1.00372,
+            1.001276,
+            0.971329
+          ],
+          "response_reports": 1,
+          "total_ms": 6.002113,
+          "write_ms": 2.977016,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0270610000000002,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0268309999999996,
+          "report_write_ms": [
+            2.0025109999999997,
+            0.9989319999999999,
+            0.969926
+          ],
+          "response_reports": 1,
+          "total_ms": 6.9996920000000005,
+          "write_ms": 3.97212,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.028815,
+          "drain_ms": 0.000341,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.028434,
+          "report_write_ms": [
+            2.003122,
+            1.0000639999999998,
+            0.970307
+          ],
+          "response_reports": 1,
+          "total_ms": 7.003329,
+          "write_ms": 3.974083,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0247569999999997,
+          "drain_ms": 0.00037099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.024406,
+          "report_write_ms": [
+            1.994796,
+            1.005964,
+            0.970998
+          ],
+          "response_reports": 1,
+          "total_ms": 6.997777999999999,
+          "write_ms": 3.97256,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.030427,
+          "drain_ms": 0.000361,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.030037,
+          "report_write_ms": [
+            2.001119,
+            0.998821,
+            0.969855
+          ],
+          "response_reports": 1,
+          "total_ms": 7.001505,
+          "write_ms": 3.970627,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0264089999999997,
+          "drain_ms": 0.000401,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0260190000000002,
+          "report_write_ms": [
+            1.9990950000000003,
+            0.999693,
+            0.971499
+          ],
+          "response_reports": 1,
+          "total_ms": 6.997719,
+          "write_ms": 3.970818,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0269709999999996,
+          "drain_ms": 0.00035999999999999997,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.02661,
+          "report_write_ms": [
+            2.001469,
+            0.999392,
+            0.969244
+          ],
+          "response_reports": 1,
+          "total_ms": 6.998278999999999,
+          "write_ms": 3.9708579999999998,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "grey-quarter",
+      "reverse_pass": false,
+      "samples": [
+        {
+          "ack_wait_ms": 6.026951,
+          "drain_ms": 0.000931,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.02658,
+          "report_write_ms": [
+            0.9414020000000001,
+            0.9967170000000001,
+            0.969285
+          ],
+          "response_reports": 1,
+          "total_ms": 8.936518,
+          "write_ms": 2.908435,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.028694000000001,
+          "drain_ms": 0.000271,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.028344,
+          "report_write_ms": [
+            2.0026319999999997,
+            0.9991519999999999,
+            0.970507
+          ],
+          "response_reports": 1,
+          "total_ms": 10.002016000000001,
+          "write_ms": 3.9729509999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.028263,
+          "drain_ms": 0.000441,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.027863,
+          "report_write_ms": [
+            2.000507,
+            0.998631,
+            0.969355
+          ],
+          "response_reports": 1,
+          "total_ms": 9.997997999999999,
+          "write_ms": 3.969184,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.023414000000001,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.023304,
+          "report_write_ms": [
+            1.9982530000000003,
+            1.0036699999999998,
+            0.9715900000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 9.998109,
+          "write_ms": 3.974134,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.025417,
+          "drain_ms": 0.000281,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.025237,
+          "report_write_ms": [
+            2.006058,
+            0.9984099999999999,
+            0.969725
+          ],
+          "response_reports": 1,
+          "total_ms": 10.000463,
+          "write_ms": 3.9746649999999994,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.023304,
+          "drain_ms": 0.000271,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.022963,
+          "report_write_ms": [
+            1.0024579999999998,
+            1.001536,
+            0.970166
+          ],
+          "response_reports": 1,
+          "total_ms": 8.998797,
+          "write_ms": 2.9751220000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.0298549999999995,
+          "drain_ms": 0.000351,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.029475000000001,
+          "report_write_ms": [
+            2.003663,
+            0.99818,
+            0.969435
+          ],
+          "response_reports": 1,
+          "total_ms": 10.002457,
+          "write_ms": 3.9721490000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.024946,
+          "drain_ms": 0.00046,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.024716000000001,
+          "report_write_ms": [
+            2.0018499999999997,
+            0.997959,
+            0.970387
+          ],
+          "response_reports": 1,
+          "total_ms": 9.996715,
+          "write_ms": 3.971199,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.02704,
+          "drain_ms": 0.000311,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.02694,
+          "report_write_ms": [
+            2.003784,
+            0.9983500000000001,
+            0.9690840000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 9.999551,
+          "write_ms": 3.972089,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.0263599999999995,
+          "drain_ms": 0.000281,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.026199,
+          "report_write_ms": [
+            2.004555,
+            0.998411,
+            0.969295
+          ],
+          "response_reports": 1,
+          "total_ms": 9.999792000000001,
+          "write_ms": 3.973061,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.028183,
+          "drain_ms": 0.000241,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.028013,
+          "report_write_ms": [
+            2.003744,
+            0.9998330000000001,
+            0.969075
+          ],
+          "response_reports": 1,
+          "total_ms": 10.001975999999999,
+          "write_ms": 3.973442,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.023694,
+          "drain_ms": 0.00016999999999999999,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.023514,
+          "report_write_ms": [
+            2.003644,
+            0.9991209999999999,
+            0.971879
+          ],
+          "response_reports": 1,
+          "total_ms": 9.99917,
+          "write_ms": 3.9751960000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.024726,
+          "drain_ms": 0.000351,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.024506,
+          "report_write_ms": [
+            2.003914,
+            0.9948739999999999,
+            0.9746349999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 9.99907,
+          "write_ms": 3.973903,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.025507999999999,
+          "drain_ms": 0.00019,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.025367999999999,
+          "report_write_ms": [
+            2.0050060000000003,
+            0.999722,
+            0.969796
+          ],
+          "response_reports": 1,
+          "total_ms": 10.000722999999999,
+          "write_ms": 3.974925,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.024496,
+          "drain_ms": 0.00023,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.024395999999999,
+          "report_write_ms": [
+            2.004104,
+            0.9998929999999999,
+            0.9696859999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 9.999030000000001,
+          "write_ms": 3.9742140000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.026400000000001,
+          "drain_ms": 0.000191,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.026028999999999,
+          "report_write_ms": [
+            2.005026,
+            1.000033,
+            0.969024
+          ],
+          "response_reports": 1,
+          "total_ms": 10.001125,
+          "write_ms": 3.9744439999999996,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "grey-half",
+      "reverse_pass": false,
+      "samples": [
+        {
+          "ack_wait_ms": 9.029766,
+          "drain_ms": 0.000731,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.029285,
+          "report_write_ms": [
+            0.941873,
+            0.997088,
+            0.969495
+          ],
+          "response_reports": 1,
+          "total_ms": 11.939854,
+          "write_ms": 2.909106,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.02678,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.026368999999999,
+          "report_write_ms": [
+            1.0003639999999998,
+            0.999362,
+            0.9713980000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 11.999017,
+          "write_ms": 2.971676,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.026359,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.026268,
+          "report_write_ms": [
+            2.002,
+            0.993851,
+            0.974194
+          ],
+          "response_reports": 1,
+          "total_ms": 12.997497000000001,
+          "write_ms": 3.970607,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.025297,
+          "drain_ms": 0.000261,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.025077,
+          "report_write_ms": [
+            2.004455,
+            0.9984200000000001,
+            0.969966
+          ],
+          "response_reports": 1,
+          "total_ms": 12.999271,
+          "write_ms": 3.9736019999999996,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.026259,
+          "drain_ms": 0.000301,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.025868,
+          "report_write_ms": [
+            2.003784,
+            0.9998030000000001,
+            0.972311
+          ],
+          "response_reports": 1,
+          "total_ms": 13.003168,
+          "write_ms": 3.976508,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.028062,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.027842,
+          "report_write_ms": [
+            2.001209,
+            0.9981199999999999,
+            0.9690639999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 12.997757,
+          "write_ms": 3.9691639999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.028613,
+          "drain_ms": 0.00027,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.028212,
+          "report_write_ms": [
+            2.002872,
+            1.002288,
+            0.968263
+          ],
+          "response_reports": 1,
+          "total_ms": 13.003358,
+          "write_ms": 3.974384,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.026589999999999,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.026169000000001,
+          "report_write_ms": [
+            2.002762,
+            0.9962359999999999,
+            0.969926
+          ],
+          "response_reports": 1,
+          "total_ms": 12.996966,
+          "write_ms": 3.9698550000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.028353,
+          "drain_ms": 0.000411,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.027982,
+          "report_write_ms": [
+            2.002351,
+            0.9989910000000001,
+            0.969165
+          ],
+          "response_reports": 1,
+          "total_ms": 13.000232,
+          "write_ms": 3.971378,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.02698,
+          "drain_ms": 0.000311,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.02678,
+          "report_write_ms": [
+            2.004766,
+            0.996257,
+            0.968894
+          ],
+          "response_reports": 1,
+          "total_ms": 12.998159000000001,
+          "write_ms": 3.970777,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.028042,
+          "drain_ms": 0.000261,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.027571,
+          "report_write_ms": [
+            2.003894,
+            0.9988410000000001,
+            0.969565
+          ],
+          "response_reports": 1,
+          "total_ms": 13.001585,
+          "write_ms": 3.9731810000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.028383,
+          "drain_ms": 0.000441,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.027992000000001,
+          "report_write_ms": [
+            2.0034430000000003,
+            0.997799,
+            0.969555
+          ],
+          "response_reports": 1,
+          "total_ms": 13.000632999999999,
+          "write_ms": 3.9716990000000005,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.025868,
+          "drain_ms": 0.00044,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.025638,
+          "report_write_ms": [
+            2.002441,
+            0.999071,
+            0.969756
+          ],
+          "response_reports": 1,
+          "total_ms": 12.998438,
+          "write_ms": 3.972039,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.026058,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.025787000000001,
+          "report_write_ms": [
+            1.00336,
+            0.999933,
+            0.969735
+          ],
+          "response_reports": 1,
+          "total_ms": 12.000188999999999,
+          "write_ms": 2.9736089999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.021348999999999,
+          "drain_ms": 0.00032,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.021179,
+          "report_write_ms": [
+            2.004114,
+            0.9942830000000001,
+            0.9745240000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 12.995212,
+          "write_ms": 3.973453,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.026148,
+          "drain_ms": 0.000361,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.025838,
+          "report_write_ms": [
+            2.004675,
+            1.00346,
+            0.969114
+          ],
+          "response_reports": 1,
+          "total_ms": 13.0046,
+          "write_ms": 3.9779910000000003,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "grey-half",
+      "reverse_pass": true,
+      "samples": [
+        {
+          "ack_wait_ms": 9.0272,
+          "drain_ms": 0.0009209999999999999,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.026749,
+          "report_write_ms": [
+            0.9420729999999999,
+            0.9987710000000001,
+            0.970246
+          ],
+          "response_reports": 1,
+          "total_ms": 11.940233999999998,
+          "write_ms": 2.9118619999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.024245,
+          "drain_ms": 0.00048100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.023925,
+          "report_write_ms": [
+            2.002821,
+            0.998591,
+            0.971569
+          ],
+          "response_reports": 1,
+          "total_ms": 12.998488,
+          "write_ms": 3.973682,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.024135000000001,
+          "drain_ms": 0.000411,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.023794,
+          "report_write_ms": [
+            1.998624,
+            1.002568,
+            0.970166
+          ],
+          "response_reports": 1,
+          "total_ms": 12.996966,
+          "write_ms": 3.9723400000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.028302,
+          "drain_ms": 0.00037099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.028002,
+          "report_write_ms": [
+            1.9995260000000001,
+            0.99825,
+            0.974204
+          ],
+          "response_reports": 1,
+          "total_ms": 13.001354,
+          "write_ms": 3.9725810000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.022572,
+          "drain_ms": 0.00023099999999999998,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.022392,
+          "report_write_ms": [
+            1.997792,
+            1.00356,
+            0.971759
+          ],
+          "response_reports": 1,
+          "total_ms": 12.996604999999999,
+          "write_ms": 3.973702,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.023403,
+          "drain_ms": 0.00025100000000000003,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.022992,
+          "report_write_ms": [
+            2.0043349999999998,
+            0.9984799999999999,
+            0.970877
+          ],
+          "response_reports": 1,
+          "total_ms": 12.997978,
+          "write_ms": 3.974234,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.029634999999999,
+          "drain_ms": 0.000491,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.029285,
+          "report_write_ms": [
+            2.006278,
+            1.0041010000000001,
+            0.9618
+          ],
+          "response_reports": 1,
+          "total_ms": 13.003258,
+          "write_ms": 3.9730420000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.025938,
+          "drain_ms": 0.00035,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.025547999999999,
+          "report_write_ms": [
+            2.003533,
+            0.9996530000000001,
+            0.969805
+          ],
+          "response_reports": 1,
+          "total_ms": 13.000071,
+          "write_ms": 3.9736830000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.026168,
+          "drain_ms": 0.00037099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.025757,
+          "report_write_ms": [
+            2.003013,
+            1.0000930000000001,
+            0.969746
+          ],
+          "response_reports": 1,
+          "total_ms": 13.000162,
+          "write_ms": 3.973522,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.023864,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.023463000000001,
+          "report_write_ms": [
+            1.001456,
+            1.002568,
+            0.971028
+          ],
+          "response_reports": 1,
+          "total_ms": 12.000229,
+          "write_ms": 2.9758430000000002,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.025869,
+          "drain_ms": 0.000491,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.025478,
+          "report_write_ms": [
+            2.003644,
+            0.9989510000000001,
+            0.969535
+          ],
+          "response_reports": 1,
+          "total_ms": 12.999431000000001,
+          "write_ms": 3.972971,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.026169000000001,
+          "drain_ms": 0.000491,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.025708,
+          "report_write_ms": [
+            2.0039939999999996,
+            0.994373,
+            0.9744750000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 13.000472,
+          "write_ms": 3.973712,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.025698,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.025347,
+          "report_write_ms": [
+            1.9993250000000002,
+            1.003931,
+            0.969445
+          ],
+          "response_reports": 1,
+          "total_ms": 12.999832,
+          "write_ms": 3.973573,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.025136,
+          "drain_ms": 0.000441,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.024796,
+          "report_write_ms": [
+            2.003824,
+            1.00366,
+            0.9658979999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 12.999931,
+          "write_ms": 3.974254,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.025838,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.025487,
+          "report_write_ms": [
+            2.011739,
+            0.994142,
+            0.9673210000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 13.000443,
+          "write_ms": 3.974084,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 9.024495,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 9.024104999999999,
+          "report_write_ms": [
+            2.003523,
+            0.9997420000000001,
+            0.971318
+          ],
+          "response_reports": 1,
+          "total_ms": 13.000472,
+          "write_ms": 3.9754660000000004,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "grey-quarter",
+      "reverse_pass": true,
+      "samples": [
+        {
+          "ack_wait_ms": 6.028213,
+          "drain_ms": 0.001052,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.027792,
+          "report_write_ms": [
+            0.9291879999999999,
+            0.9971979999999999,
+            0.9686640000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 8.925517000000001,
+          "write_ms": 2.896062,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.02651,
+          "drain_ms": 0.00041,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.026148999999999,
+          "report_write_ms": [
+            2.00231,
+            0.9987509999999999,
+            0.969295
+          ],
+          "response_reports": 1,
+          "total_ms": 9.998088000000001,
+          "write_ms": 3.9710680000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.025348,
+          "drain_ms": 0.000381,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.025158,
+          "report_write_ms": [
+            2.0027019999999998,
+            0.999312,
+            0.9692350000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 9.997748000000001,
+          "write_ms": 3.9719189999999998,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.026129,
+          "drain_ms": 0.00032,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.025969,
+          "report_write_ms": [
+            2.004976,
+            0.9987509999999999,
+            0.969866
+          ],
+          "response_reports": 1,
+          "total_ms": 10.000603,
+          "write_ms": 3.9740640000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.024647,
+          "drain_ms": 0.00027,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.024226,
+          "report_write_ms": [
+            2.007471,
+            0.9935510000000001,
+            0.974615
+          ],
+          "response_reports": 1,
+          "total_ms": 10.001515000000001,
+          "write_ms": 3.9764980000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.0268,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.026409,
+          "report_write_ms": [
+            1.005173,
+            0.997598,
+            0.969094
+          ],
+          "response_reports": 1,
+          "total_ms": 9.000119,
+          "write_ms": 2.972757,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.027762,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.027361,
+          "report_write_ms": [
+            2.002712,
+            1.002027,
+            0.965728
+          ],
+          "response_reports": 1,
+          "total_ms": 9.999551,
+          "write_ms": 3.971278,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.02708,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.0268,
+          "report_write_ms": [
+            2.001951,
+            0.99832,
+            0.969946
+          ],
+          "response_reports": 1,
+          "total_ms": 9.998489,
+          "write_ms": 3.9708970000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.027492,
+          "drain_ms": 0.000361,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.027162,
+          "report_write_ms": [
+            2.00217,
+            0.999423,
+            0.9696750000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 9.999732000000002,
+          "write_ms": 3.971789,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.0253570000000005,
+          "drain_ms": 0.00035,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.025237,
+          "report_write_ms": [
+            2.004875,
+            0.9984200000000001,
+            0.968022
+          ],
+          "response_reports": 1,
+          "total_ms": 9.997637000000001,
+          "write_ms": 3.97184,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.024095,
+          "drain_ms": 0.00021,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.024014,
+          "report_write_ms": [
+            2.003944,
+            1.001195,
+            0.9691949999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 9.999321,
+          "write_ms": 3.974925,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.025558,
+          "drain_ms": 0.00023099999999999998,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.025448,
+          "report_write_ms": [
+            2.004445,
+            1.000103,
+            0.969966
+          ],
+          "response_reports": 1,
+          "total_ms": 10.000794,
+          "write_ms": 3.9749149999999998,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.027661999999999,
+          "drain_ms": 0.000161,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.027071,
+          "report_write_ms": [
+            2.004135,
+            0.999362,
+            0.9704470000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 10.002467,
+          "write_ms": 3.974514,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.02676,
+          "drain_ms": 0.000731,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.026419,
+          "report_write_ms": [
+            2.003102,
+            0.997889,
+            0.969004
+          ],
+          "response_reports": 1,
+          "total_ms": 9.998409,
+          "write_ms": 3.9707969999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.026069000000001,
+          "drain_ms": 0.00029,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.025939,
+          "report_write_ms": [
+            2.002982,
+            0.9995620000000001,
+            0.969646
+          ],
+          "response_reports": 1,
+          "total_ms": 9.99922,
+          "write_ms": 3.972751,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 6.025478,
+          "drain_ms": 0.00023,
+          "drained_reports": 0,
+          "first_report_wait_ms": 6.025398,
+          "report_write_ms": [
+            2.003733,
+            0.9991920000000001,
+            0.969766
+          ],
+          "response_reports": 1,
+          "total_ms": 9.999020000000002,
+          "write_ms": 3.973212,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "grey-first-zone",
+      "reverse_pass": true,
+      "samples": [
+        {
+          "ack_wait_ms": 3.0256879999999997,
+          "drain_ms": 0.001082,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0254079999999997,
+          "report_write_ms": [
+            0.944878,
+            0.9970680000000001,
+            0.969655
+          ],
+          "response_reports": 1,
+          "total_ms": 5.939634,
+          "write_ms": 2.912524,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0263199999999997,
+          "drain_ms": 0.00025100000000000003,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0261799999999996,
+          "report_write_ms": [
+            1.002368,
+            1.000073,
+            0.969796
+          ],
+          "response_reports": 1,
+          "total_ms": 5.999258,
+          "write_ms": 2.972597,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.024285,
+          "drain_ms": 0.00023999999999999998,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.024205,
+          "report_write_ms": [
+            2.004095,
+            0.9989210000000001,
+            0.9704470000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 6.9986500000000005,
+          "write_ms": 3.9740239999999996,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.025999,
+          "drain_ms": 0.00019999999999999998,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0257690000000004,
+          "report_write_ms": [
+            2.006999,
+            0.99846,
+            0.969165
+          ],
+          "response_reports": 1,
+          "total_ms": 7.001395,
+          "write_ms": 3.975096,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.026711,
+          "drain_ms": 0.00023999999999999998,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0265600000000004,
+          "report_write_ms": [
+            2.007891,
+            0.995354,
+            0.969325
+          ],
+          "response_reports": 1,
+          "total_ms": 7.000113,
+          "write_ms": 3.973062,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.024356,
+          "drain_ms": 0.00025,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0242250000000004,
+          "report_write_ms": [
+            2.002521,
+            1.0016459999999998,
+            0.9681820000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 6.997498,
+          "write_ms": 3.972781,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0245469999999997,
+          "drain_ms": 0.000201,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.024346,
+          "report_write_ms": [
+            2.004645,
+            1.000314,
+            0.971349
+          ],
+          "response_reports": 1,
+          "total_ms": 7.001696,
+          "write_ms": 3.976858,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0246969999999997,
+          "drain_ms": 0.00023,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.024436,
+          "report_write_ms": [
+            2.003113,
+            0.9994019999999999,
+            0.970317
+          ],
+          "response_reports": 1,
+          "total_ms": 6.998379,
+          "write_ms": 3.973352,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.050776,
+          "drain_ms": 0.00029,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.049454,
+          "report_write_ms": [
+            2.004425,
+            0.999071,
+            0.970127
+          ],
+          "response_reports": 1,
+          "total_ms": 7.0253499999999995,
+          "write_ms": 3.9741840000000006,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0262700000000002,
+          "drain_ms": 0.001213,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0260890000000003,
+          "report_write_ms": [
+            1.9783259999999998,
+            0.998109,
+            0.969335
+          ],
+          "response_reports": 1,
+          "total_ms": 6.974054000000001,
+          "write_ms": 3.946461,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.024396,
+          "drain_ms": 0.000281,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.024186,
+          "report_write_ms": [
+            2.003323,
+            0.999462,
+            0.969966
+          ],
+          "response_reports": 1,
+          "total_ms": 6.998079,
+          "write_ms": 3.973302,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.025148,
+          "drain_ms": 0.00027,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.024807,
+          "report_write_ms": [
+            2.0076519999999998,
+            1.003119,
+            0.964075
+          ],
+          "response_reports": 1,
+          "total_ms": 7.0009440000000005,
+          "write_ms": 3.9754359999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.024657,
+          "drain_ms": 0.00037099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.024487,
+          "report_write_ms": [
+            2.003173,
+            1.0006240000000002,
+            0.969275
+          ],
+          "response_reports": 1,
+          "total_ms": 6.99873,
+          "write_ms": 3.9736119999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0286850000000003,
+          "drain_ms": 0.00025,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.028574,
+          "report_write_ms": [
+            1.004342,
+            0.999563,
+            0.970106
+          ],
+          "response_reports": 1,
+          "total_ms": 6.0034659999999995,
+          "write_ms": 2.974431,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0272810000000003,
+          "drain_ms": 0.000201,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.02689,
+          "report_write_ms": [
+            2.003122,
+            1.001016,
+            0.965578
+          ],
+          "response_reports": 1,
+          "total_ms": 6.998169,
+          "write_ms": 3.970587,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.025929,
+          "drain_ms": 0.000401,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.025639,
+          "report_write_ms": [
+            2.003684,
+            0.998821,
+            0.970106
+          ],
+          "response_reports": 1,
+          "total_ms": 6.999903,
+          "write_ms": 3.9734820000000006,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "blue-8",
+      "reverse_pass": true,
+      "samples": [
+        {
+          "ack_wait_ms": 15.02763,
+          "drain_ms": 0.0008110000000000001,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027179,
+          "report_write_ms": [
+            0.942844,
+            0.9973580000000001,
+            0.968714
+          ],
+          "response_reports": 1,
+          "total_ms": 17.9384,
+          "write_ms": 2.909838,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.02747,
+          "drain_ms": 0.00033999999999999997,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027099999999999,
+          "report_write_ms": [
+            2.002441,
+            0.9991920000000001,
+            0.9695250000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 18.99971,
+          "write_ms": 3.9717900000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.027781000000001,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.02739,
+          "report_write_ms": [
+            2.0023,
+            1.000103,
+            0.968433
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999851000000003,
+          "write_ms": 3.9715389999999995,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026639,
+          "drain_ms": 0.00048100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026437999999999,
+          "report_write_ms": [
+            2.003784,
+            0.9943129999999999,
+            0.973182
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999209999999998,
+          "write_ms": 3.972,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026648999999999,
+          "drain_ms": 0.00033099999999999997,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026499000000001,
+          "report_write_ms": [
+            2.003863,
+            0.9984200000000001,
+            0.969756
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999721,
+          "write_ms": 3.972651,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.02734,
+          "drain_ms": 0.00023999999999999998,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.02696,
+          "report_write_ms": [
+            2.004165,
+            0.9973989999999999,
+            0.969816
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999769999999998,
+          "write_ms": 3.97209,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.029644999999999,
+          "drain_ms": 0.000401,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.029234,
+          "report_write_ms": [
+            2.002912,
+            0.9984,
+            0.969516
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001655,
+          "write_ms": 3.9715089999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.02724,
+          "drain_ms": 0.00037,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026829000000001,
+          "report_write_ms": [
+            1.996379,
+            1.00376,
+            0.9700960000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998497999999998,
+          "write_ms": 3.9707980000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026949,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026769,
+          "report_write_ms": [
+            2.0034330000000002,
+            0.9981300000000001,
+            0.969966
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999499999999998,
+          "write_ms": 3.972039,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.029214000000001,
+          "drain_ms": 0.000211,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028793,
+          "report_write_ms": [
+            1.002919,
+            0.999282,
+            0.970267
+          ],
+          "response_reports": 1,
+          "total_ms": 18.002493,
+          "write_ms": 2.972968,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.027230000000001,
+          "drain_ms": 0.000401,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026809,
+          "report_write_ms": [
+            2.002822,
+            0.997649,
+            0.969706
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998799,
+          "write_ms": 3.971067,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028212000000002,
+          "drain_ms": 0.00048100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027811999999999,
+          "report_write_ms": [
+            2.003212,
+            0.997829,
+            0.969174
+          ],
+          "response_reports": 1,
+          "total_ms": 18.99985,
+          "write_ms": 3.971067,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026409,
+          "drain_ms": 0.000491,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026309,
+          "report_write_ms": [
+            2.002852,
+            0.998601,
+            0.969155
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998579000000003,
+          "write_ms": 3.971579,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028272000000001,
+          "drain_ms": 0.00025,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027871,
+          "report_write_ms": [
+            2.004425,
+            0.99846,
+            0.9690350000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001352999999998,
+          "write_ms": 3.972731,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.031979,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.031589,
+          "report_write_ms": [
+            2.00666,
+            0.9948940000000001,
+            0.9698559999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 19.00481,
+          "write_ms": 3.97227,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.027801,
+          "drain_ms": 0.000411,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027410999999999,
+          "report_write_ms": [
+            1.998533,
+            0.99836,
+            0.968955
+          ],
+          "response_reports": 1,
+          "total_ms": 18.995132,
+          "write_ms": 3.9668200000000002,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "green-8",
+      "reverse_pass": true,
+      "samples": [
+        {
+          "ack_wait_ms": 15.030697,
+          "drain_ms": 0.000942,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.030226,
+          "report_write_ms": [
+            0.968854,
+            0.997108,
+            0.969075
+          ],
+          "response_reports": 1,
+          "total_ms": 17.967827,
+          "write_ms": 2.935948,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.024756,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024335,
+          "report_write_ms": [
+            1.9996060000000002,
+            0.9979399999999999,
+            0.973012
+          ],
+          "response_reports": 1,
+          "total_ms": 18.996665,
+          "write_ms": 3.971338,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025346,
+          "drain_ms": 0.000381,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024944999999999,
+          "report_write_ms": [
+            2.003092,
+            0.999081,
+            0.970507
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999139000000003,
+          "write_ms": 3.9733119999999995,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025126,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024735,
+          "report_write_ms": [
+            2.003764,
+            1.00354,
+            0.967601
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001404,
+          "write_ms": 3.9757569999999998,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028102,
+          "drain_ms": 0.000441,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027731000000001,
+          "report_write_ms": [
+            2.002872,
+            0.9998229999999999,
+            0.969245
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001163000000002,
+          "write_ms": 3.9725200000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026169000000001,
+          "drain_ms": 0.000401,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025778,
+          "report_write_ms": [
+            1.002027,
+            1.0044220000000001,
+            0.963945
+          ],
+          "response_reports": 1,
+          "total_ms": 17.998054999999997,
+          "write_ms": 2.971395,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028382,
+          "drain_ms": 0.00043,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027961,
+          "report_write_ms": [
+            2.0018100000000003,
+            0.9984810000000001,
+            0.970297
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000331,
+          "write_ms": 3.971418,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.029404,
+          "drain_ms": 0.000411,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028982999999998,
+          "report_write_ms": [
+            2.0010779999999997,
+            0.9991209999999999,
+            0.968773
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999681000000002,
+          "write_ms": 3.9697760000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026658999999999,
+          "drain_ms": 0.000561,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026258,
+          "report_write_ms": [
+            1.997431,
+            1.005033,
+            0.969585
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000252,
+          "write_ms": 3.972942,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.030246,
+          "drain_ms": 0.000511,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.029845,
+          "report_write_ms": [
+            2.000878,
+            1.0005739999999999,
+            0.9679019999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001013,
+          "write_ms": 3.970166,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.027370999999999,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026950000000001,
+          "report_write_ms": [
+            2.0001469999999997,
+            0.998571,
+            0.9702069999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 18.997757,
+          "write_ms": 3.9698149999999996,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.029054,
+          "drain_ms": 0.000411,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028653,
+          "report_write_ms": [
+            2.002,
+            0.999242,
+            0.968704
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000342,
+          "write_ms": 3.970787,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.02693,
+          "drain_ms": 0.000391,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026529,
+          "report_write_ms": [
+            2.003984,
+            1.0013960000000002,
+            0.965368
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999180000000003,
+          "write_ms": 3.971769,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.03265,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.032259,
+          "report_write_ms": [
+            2.0018700000000003,
+            0.999902,
+            0.969074
+          ],
+          "response_reports": 1,
+          "total_ms": 19.004830000000002,
+          "write_ms": 3.9716489999999998,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.023223,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.022832,
+          "report_write_ms": [
+            1.997702,
+            1.002578,
+            0.969846
+          ],
+          "response_reports": 1,
+          "total_ms": 18.994872,
+          "write_ms": 3.971098,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026239,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025917999999999,
+          "report_write_ms": [
+            2.002942,
+            1.000394,
+            0.969956
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000792999999998,
+          "write_ms": 3.974043,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "red-8",
+      "reverse_pass": true,
+      "samples": [
+        {
+          "ack_wait_ms": 15.028042000000001,
+          "drain_ms": 0.001142,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027581,
+          "report_write_ms": [
+            0.940009,
+            0.9964270000000001,
+            0.970006
+          ],
+          "response_reports": 1,
+          "total_ms": 17.936557,
+          "write_ms": 2.9071230000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.02681,
+          "drain_ms": 0.0006519999999999999,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026539,
+          "report_write_ms": [
+            1.0022469999999999,
+            1.001306,
+            0.967311
+          ],
+          "response_reports": 1,
+          "total_ms": 17.999077,
+          "write_ms": 2.971505,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028592,
+          "drain_ms": 0.000381,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028232000000001,
+          "report_write_ms": [
+            2.004765,
+            0.9950239999999999,
+            0.971689
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001405,
+          "write_ms": 3.972331,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.02729,
+          "drain_ms": 0.00047,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026879,
+          "report_write_ms": [
+            2.006208,
+            0.9967369999999999,
+            0.968082
+          ],
+          "response_reports": 1,
+          "total_ms": 18.99972,
+          "write_ms": 3.97186,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028613,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028201999999999,
+          "report_write_ms": [
+            2.002612,
+            0.9982000000000001,
+            0.969886
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000593,
+          "write_ms": 3.971469,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028203,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027782,
+          "report_write_ms": [
+            2.000628,
+            0.99844,
+            0.969696
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998178,
+          "write_ms": 3.969414,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028713000000002,
+          "drain_ms": 0.00039999999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028303,
+          "report_write_ms": [
+            1.999936,
+            1.0017260000000001,
+            0.9696859999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001303,
+          "write_ms": 3.9721,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028382,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027901,
+          "report_write_ms": [
+            2.00213,
+            0.997658,
+            0.969575
+          ],
+          "response_reports": 1,
+          "total_ms": 18.99912,
+          "write_ms": 3.970207,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025447000000002,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024986,
+          "report_write_ms": [
+            2.0017799999999997,
+            0.9986400000000001,
+            0.973193
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000372000000002,
+          "write_ms": 3.974414,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.029895,
+          "drain_ms": 0.00046100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.029494,
+          "report_write_ms": [
+            2.004565,
+            0.9950939999999999,
+            0.969845
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000612,
+          "write_ms": 3.970156,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.027631,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027220000000002,
+          "report_write_ms": [
+            2.001369,
+            0.99846,
+            0.970156
+          ],
+          "response_reports": 1,
+          "total_ms": 18.99912,
+          "write_ms": 3.970958,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028342,
+          "drain_ms": 0.000441,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027881,
+          "report_write_ms": [
+            2.002541,
+            0.9974280000000001,
+            0.969886
+          ],
+          "response_reports": 1,
+          "total_ms": 18.99944,
+          "write_ms": 3.970547,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.027741,
+          "drain_ms": 0.000501,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.02713,
+          "report_write_ms": [
+            2.003032,
+            0.997127,
+            0.971549
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001023999999997,
+          "write_ms": 3.972641,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.029024,
+          "drain_ms": 0.00044,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028633,
+          "report_write_ms": [
+            1.001356,
+            0.9984,
+            0.969314
+          ],
+          "response_reports": 1,
+          "total_ms": 17.999487000000002,
+          "write_ms": 2.969933,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.029124,
+          "drain_ms": 0.00042,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028713000000002,
+          "report_write_ms": [
+            2.0009379999999997,
+            0.9995729999999999,
+            0.969405
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000071000000002,
+          "write_ms": 3.970436,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028022,
+          "drain_ms": 0.000411,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027671,
+          "report_write_ms": [
+            2.002532,
+            0.9982700000000001,
+            0.969405
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999691,
+          "write_ms": 3.971158,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "grey-255",
+      "reverse_pass": true,
+      "samples": [
+        {
+          "ack_wait_ms": 16.027594999999998,
+          "drain_ms": 0.001112,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.027113999999997,
+          "report_write_ms": [
+            0.94595,
+            0.997448,
+            0.965428
+          ],
+          "response_reports": 1,
+          "total_ms": 18.938695,
+          "write_ms": 2.909798,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.027414,
+          "drain_ms": 0.00037,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.027003,
+          "report_write_ms": [
+            2.006108,
+            0.999272,
+            0.964326
+          ],
+          "response_reports": 1,
+          "total_ms": 19.998411,
+          "write_ms": 3.9705269999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.027072999999998,
+          "drain_ms": 0.000451,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.026671999999998,
+          "report_write_ms": [
+            2.008542,
+            1.00359,
+            0.959306
+          ],
+          "response_reports": 1,
+          "total_ms": 20.000045,
+          "write_ms": 3.972421,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.026645,
+          "drain_ms": 0.000491,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.026044,
+          "report_write_ms": [
+            2.008052,
+            0.999712,
+            0.9634630000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 20.999296,
+          "write_ms": 3.9720600000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.023019,
+          "drain_ms": 0.000511,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.022618,
+          "report_write_ms": [
+            2.008483,
+            0.9989910000000001,
+            0.968043
+          ],
+          "response_reports": 1,
+          "total_ms": 21.000138,
+          "write_ms": 3.976518,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.024818,
+          "drain_ms": 0.00046100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.024428,
+          "report_write_ms": [
+            2.009174,
+            0.998851,
+            0.962853
+          ],
+          "response_reports": 1,
+          "total_ms": 19.997189,
+          "write_ms": 3.971809,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.026401999999997,
+          "drain_ms": 0.000491,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.026021,
+          "report_write_ms": [
+            2.008222,
+            0.9999539999999999,
+            0.966068
+          ],
+          "response_reports": 1,
+          "total_ms": 20.002029,
+          "write_ms": 3.9750460000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.024378,
+          "drain_ms": 0.00037099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.024007,
+          "report_write_ms": [
+            2.007962,
+            1.00387,
+            0.9610190000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 19.998742,
+          "write_ms": 3.9738830000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.026562000000002,
+          "drain_ms": 0.00037099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.026111999999998,
+          "report_write_ms": [
+            2.009204,
+            0.999101,
+            0.963684
+          ],
+          "response_reports": 1,
+          "total_ms": 19.999935,
+          "write_ms": 3.972891,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.026054,
+          "drain_ms": 0.000451,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.025543,
+          "report_write_ms": [
+            1.0081790000000002,
+            1.0021069999999999,
+            0.962171
+          ],
+          "response_reports": 1,
+          "total_ms": 19.999914,
+          "write_ms": 2.973319,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.026381999999998,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.025891,
+          "report_write_ms": [
+            2.008623,
+            0.999362,
+            0.964276
+          ],
+          "response_reports": 1,
+          "total_ms": 19.999995,
+          "write_ms": 3.9730520000000005,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.023877,
+          "drain_ms": 0.00046100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.023386000000002,
+          "report_write_ms": [
+            2.008583,
+            0.9994330000000001,
+            0.967241
+          ],
+          "response_reports": 1,
+          "total_ms": 20.000504999999997,
+          "write_ms": 3.9760769999999996,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.026241,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.02581,
+          "report_write_ms": [
+            2.0082820000000003,
+            1.000073,
+            0.9630730000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 19.999123,
+          "write_ms": 3.97228,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.026582,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.026111999999998,
+          "report_write_ms": [
+            2.008783,
+            1.000735,
+            0.962753
+          ],
+          "response_reports": 1,
+          "total_ms": 20.000104,
+          "write_ms": 3.973011,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.021966,
+          "drain_ms": 0.000441,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.021556,
+          "report_write_ms": [
+            2.008092,
+            1.000214,
+            0.9682230000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 21.000118,
+          "write_ms": 3.9776209999999996,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 16.015141,
+          "drain_ms": 0.00041,
+          "drained_reports": 0,
+          "first_report_wait_ms": 16.01473,
+          "report_write_ms": [
+            2.0196530000000004,
+            0.9886820000000001,
+            0.9750460000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 19.999924,
+          "write_ms": 3.984273,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "grey-64",
+      "reverse_pass": true,
+      "samples": [
+        {
+          "ack_wait_ms": 17.02874,
+          "drain_ms": 0.001112,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.028268999999998,
+          "report_write_ms": [
+            0.939518,
+            0.9967369999999999,
+            0.969245
+          ],
+          "response_reports": 1,
+          "total_ms": 19.936704,
+          "write_ms": 2.906582,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.028329,
+          "drain_ms": 0.000451,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.027939,
+          "report_write_ms": [
+            2.003704,
+            0.9964869999999999,
+            0.9698260000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 20.999657000000003,
+          "write_ms": 3.970787,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.022547999999997,
+          "drain_ms": 0.00033099999999999997,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.022077,
+          "report_write_ms": [
+            2.0017899999999997,
+            0.9986299999999999,
+            0.97178
+          ],
+          "response_reports": 1,
+          "total_ms": 20.99577,
+          "write_ms": 3.972791,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.026515999999997,
+          "drain_ms": 0.00047,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.026075000000002,
+          "report_write_ms": [
+            2.006729,
+            0.99802,
+            0.9710679999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 21.003494,
+          "write_ms": 3.976418,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.027957999999998,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.027548,
+          "report_write_ms": [
+            2.003543,
+            0.9933209999999999,
+            0.974114
+          ],
+          "response_reports": 1,
+          "total_ms": 21.000128,
+          "write_ms": 3.971609,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.026886,
+          "drain_ms": 0.00049,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.026796,
+          "report_write_ms": [
+            1.000244,
+            0.9991310000000001,
+            0.970386
+          ],
+          "response_reports": 1,
+          "total_ms": 19.99776,
+          "write_ms": 2.9702930000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.026084,
+          "drain_ms": 0.00025,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.025684,
+          "report_write_ms": [
+            2.007841,
+            0.9946729999999999,
+            0.97158
+          ],
+          "response_reports": 1,
+          "total_ms": 21.00106,
+          "write_ms": 3.9746349999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.026646,
+          "drain_ms": 0.000381,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.026204999999997,
+          "report_write_ms": [
+            2.0022,
+            0.9993510000000001,
+            0.971779
+          ],
+          "response_reports": 1,
+          "total_ms": 21.001101000000002,
+          "write_ms": 3.9739839999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.026385,
+          "drain_ms": 0.00041,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.025964000000002,
+          "report_write_ms": [
+            2.003172,
+            1.0037500000000001,
+            0.9661780000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 21.000829,
+          "write_ms": 3.9739240000000002,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.025504,
+          "drain_ms": 0.00041,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.025093000000002,
+          "report_write_ms": [
+            2.003413,
+            0.996546,
+            0.9722310000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 20.999095999999998,
+          "write_ms": 3.973071,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.028689999999997,
+          "drain_ms": 0.00048100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.028288999999997,
+          "report_write_ms": [
+            2.004324,
+            0.997819,
+            0.9700559999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 21.002433,
+          "write_ms": 3.9731719999999995,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.025864000000002,
+          "drain_ms": 0.000441,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.025594,
+          "report_write_ms": [
+            2.00196,
+            0.99851,
+            0.970107
+          ],
+          "response_reports": 1,
+          "total_ms": 20.997763,
+          "write_ms": 3.9713580000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.026585999999998,
+          "drain_ms": 0.000281,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.026105,
+          "report_write_ms": [
+            2.004615,
+            0.99884,
+            0.969966
+          ],
+          "response_reports": 1,
+          "total_ms": 21.00103,
+          "write_ms": 3.9740729999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.025855,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.025494,
+          "report_write_ms": [
+            2.003504,
+            0.999132,
+            0.969255
+          ],
+          "response_reports": 1,
+          "total_ms": 20.999246999999997,
+          "write_ms": 3.9728610000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.026275000000002,
+          "drain_ms": 0.00046100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.025864000000002,
+          "report_write_ms": [
+            2.005396,
+            0.997829,
+            0.969555
+          ],
+          "response_reports": 1,
+          "total_ms": 21.000387999999997,
+          "write_ms": 3.973562,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 17.024632,
+          "drain_ms": 0.000381,
+          "drained_reports": 0,
+          "first_report_wait_ms": 17.024392,
+          "report_write_ms": [
+            2.004896,
+            0.9980499999999999,
+            0.9702270000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 20.999327,
+          "write_ms": 3.9741940000000002,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "grey-8",
+      "reverse_pass": true,
+      "samples": [
+        {
+          "ack_wait_ms": 15.027241,
+          "drain_ms": 0.001092,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.02679,
+          "report_write_ms": [
+            0.939578,
+            1.000343,
+            0.967461
+          ],
+          "response_reports": 1,
+          "total_ms": 17.936937999999998,
+          "write_ms": 2.908405,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.024275,
+          "drain_ms": 0.000451,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.023794,
+          "report_write_ms": [
+            1.002698,
+            1.0008860000000002,
+            0.969645
+          ],
+          "response_reports": 1,
+          "total_ms": 17.998917,
+          "write_ms": 2.9741009999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026428999999998,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026018,
+          "report_write_ms": [
+            2.002732,
+            0.99836,
+            0.970057
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998849000000003,
+          "write_ms": 3.9718790000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025968,
+          "drain_ms": 0.000451,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025568,
+          "report_write_ms": [
+            2.007571,
+            0.991196,
+            0.973323
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999350000000003,
+          "write_ms": 3.972831,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028001,
+          "drain_ms": 0.00037099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027611,
+          "report_write_ms": [
+            2.004915,
+            0.9989910000000001,
+            0.969365
+          ],
+          "response_reports": 1,
+          "total_ms": 19.002316,
+          "write_ms": 3.973853,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026207999999999,
+          "drain_ms": 0.000471,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025767,
+          "report_write_ms": [
+            2.000858,
+            0.999172,
+            0.969886
+          ],
+          "response_reports": 1,
+          "total_ms": 18.997567,
+          "write_ms": 3.970678,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026139,
+          "drain_ms": 0.000411,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025728,
+          "report_write_ms": [
+            2.0033730000000003,
+            0.998711,
+            0.9703970000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999882,
+          "write_ms": 3.973242,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026539,
+          "drain_ms": 0.00042100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025978,
+          "report_write_ms": [
+            2.003784,
+            0.9984099999999999,
+            0.9699249999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999972,
+          "write_ms": 3.972922,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.02737,
+          "drain_ms": 0.000451,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.02697,
+          "report_write_ms": [
+            2.002201,
+            1.0005350000000002,
+            0.968894
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000492,
+          "write_ms": 3.9725710000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028834,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028402999999999,
+          "report_write_ms": [
+            2.00182,
+            0.995044,
+            0.9736429999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000493,
+          "write_ms": 3.9711279999999998,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.027741,
+          "drain_ms": 0.00043,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.02737,
+          "report_write_ms": [
+            2.002992,
+            0.9974579999999998,
+            0.969565
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999109,
+          "write_ms": 3.970838,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028042000000001,
+          "drain_ms": 0.00037099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027700999999999,
+          "report_write_ms": [
+            2.002331,
+            0.9984799999999999,
+            0.9698359999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999681000000002,
+          "write_ms": 3.9711779999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025487,
+          "drain_ms": 0.000311,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025077,
+          "report_write_ms": [
+            2.0031329999999996,
+            0.99853,
+            0.972692
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001002999999997,
+          "write_ms": 3.9751049999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.024325,
+          "drain_ms": 0.000391,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024104999999999,
+          "report_write_ms": [
+            1.002659,
+            0.998411,
+            0.970507
+          ],
+          "response_reports": 1,
+          "total_ms": 17.997173,
+          "write_ms": 2.972357,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028984000000001,
+          "drain_ms": 0.000271,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028473,
+          "report_write_ms": [
+            2.005347,
+            0.99831,
+            0.970386
+          ],
+          "response_reports": 1,
+          "total_ms": 19.00424,
+          "write_ms": 3.974895,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.027351,
+          "drain_ms": 0.000401,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026950000000001,
+          "report_write_ms": [
+            2.0022909999999996,
+            0.99306,
+            0.9740639999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998048,
+          "write_ms": 3.9702060000000006,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "grey-1",
+      "reverse_pass": true,
+      "samples": [
+        {
+          "ack_wait_ms": 15.035556,
+          "drain_ms": 0.000761,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.035085,
+          "report_write_ms": [
+            0.939809,
+            0.997178,
+            0.972641
+          ],
+          "response_reports": 1,
+          "total_ms": 17.947077,
+          "write_ms": 2.91064,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.031118,
+          "drain_ms": 0.000491,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.030636999999999,
+          "report_write_ms": [
+            1.991249,
+            1.009992,
+            0.958134
+          ],
+          "response_reports": 1,
+          "total_ms": 18.991756,
+          "write_ms": 3.9600470000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026008000000001,
+          "drain_ms": 0.00046100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025877999999999,
+          "report_write_ms": [
+            1.999265,
+            1.001236,
+            0.968614
+          ],
+          "response_reports": 1,
+          "total_ms": 18.996595000000003,
+          "write_ms": 3.970026,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.0268,
+          "drain_ms": 0.00029099999999999997,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.026418999999999,
+          "report_write_ms": [
+            2.005046,
+            1.000124,
+            0.968584
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001714999999997,
+          "write_ms": 3.974524,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025818,
+          "drain_ms": 0.000491,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025656999999999,
+          "report_write_ms": [
+            2.001369,
+            1.0006439999999999,
+            0.968734
+          ],
+          "response_reports": 1,
+          "total_ms": 18.998108,
+          "write_ms": 3.9716990000000005,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028463,
+          "drain_ms": 0.00028000000000000003,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028062,
+          "report_write_ms": [
+            2.002801,
+            0.99814,
+            0.9696859999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000182000000002,
+          "write_ms": 3.971349,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025187,
+          "drain_ms": 0.00048100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024786,
+          "report_write_ms": [
+            2.001971,
+            1.001306,
+            0.971319
+          ],
+          "response_reports": 1,
+          "total_ms": 19.001274,
+          "write_ms": 3.9755160000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.039212999999998,
+          "drain_ms": 0.00048100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.038812,
+          "report_write_ms": [
+            2.00207,
+            0.9975080000000001,
+            0.969215
+          ],
+          "response_reports": 1,
+          "total_ms": 19.009379,
+          "write_ms": 3.9695950000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.036667999999999,
+          "drain_ms": 0.00048100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.036267,
+          "report_write_ms": [
+            1.9914500000000002,
+            1.009582,
+            0.9606480000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999841,
+          "write_ms": 3.962592,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028563,
+          "drain_ms": 0.00048100000000000004,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028162,
+          "report_write_ms": [
+            0.9911970000000001,
+            1.009532,
+            0.958535
+          ],
+          "response_reports": 1,
+          "total_ms": 17.989407999999997,
+          "write_ms": 2.960264,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.025006000000001,
+          "drain_ms": 0.000351,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.024645,
+          "report_write_ms": [
+            2.003944,
+            0.9996320000000001,
+            0.969735
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999731,
+          "write_ms": 3.974264,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028041,
+          "drain_ms": 0.00035,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027901,
+          "report_write_ms": [
+            2.0022909999999996,
+            0.9987609999999999,
+            0.969545
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999601000000002,
+          "write_ms": 3.9710880000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028022,
+          "drain_ms": 0.00023099999999999998,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.027622,
+          "report_write_ms": [
+            2.003012,
+            0.9990209999999999,
+            0.9690350000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000262,
+          "write_ms": 3.9719189999999998,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028421999999999,
+          "drain_ms": 0.00043099999999999996,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028022,
+          "report_write_ms": [
+            2.0025009999999996,
+            0.998941,
+            0.968934
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000223000000002,
+          "write_ms": 3.9712790000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.028483,
+          "drain_ms": 0.00045,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.028082,
+          "report_write_ms": [
+            2.0025910000000002,
+            0.9986610000000001,
+            0.969625
+          ],
+          "response_reports": 1,
+          "total_ms": 19.000673,
+          "write_ms": 3.9716500000000003,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 15.026048,
+          "drain_ms": 0.00045,
+          "drained_reports": 0,
+          "first_report_wait_ms": 15.025647,
+          "report_write_ms": [
+            2.0039540000000002,
+            0.997017,
+            0.9714189999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 18.999971000000002,
+          "write_ms": 3.9733829999999997,
+          "written_reports": 3
+        }
+      ]
+    },
+    {
+      "pattern": "black",
+      "reverse_pass": true,
+      "samples": [
+        {
+          "ack_wait_ms": 3.025318,
+          "drain_ms": 0.001132,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.024957,
+          "report_write_ms": [
+            0.94083,
+            0.997148,
+            0.969174
+          ],
+          "response_reports": 1,
+          "total_ms": 5.934635,
+          "write_ms": 2.908065,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.027352,
+          "drain_ms": 0.0003,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0271909999999997,
+          "report_write_ms": [
+            2.003272,
+            0.999813,
+            0.969436
+          ],
+          "response_reports": 1,
+          "total_ms": 7.000724,
+          "write_ms": 3.972972,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.025047,
+          "drain_ms": 0.00029099999999999997,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0248470000000003,
+          "report_write_ms": [
+            2.003393,
+            0.9995130000000001,
+            0.969625
+          ],
+          "response_reports": 1,
+          "total_ms": 6.99843,
+          "write_ms": 3.9730019999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.02644,
+          "drain_ms": 0.00023,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.02612,
+          "report_write_ms": [
+            2.005066,
+            1.000824,
+            0.967722
+          ],
+          "response_reports": 1,
+          "total_ms": 7.000954,
+          "write_ms": 3.9741739999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.028383,
+          "drain_ms": 0.000381,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.028003,
+          "report_write_ms": [
+            2.006299,
+            0.9978389999999999,
+            0.9688439999999999
+          ],
+          "response_reports": 1,
+          "total_ms": 7.002387,
+          "write_ms": 3.9735229999999997,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.023644,
+          "drain_ms": 0.000581,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.0232840000000003,
+          "report_write_ms": [
+            0.9991220000000001,
+            0.9992619999999999,
+            0.97186
+          ],
+          "response_reports": 1,
+          "total_ms": 5.995419999999999,
+          "write_ms": 2.971094,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.022874,
+          "drain_ms": 0.000391,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.022743,
+          "report_write_ms": [
+            2.003313,
+            0.999732,
+            0.97214
+          ],
+          "response_reports": 1,
+          "total_ms": 6.9992220000000005,
+          "write_ms": 3.975857,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.024737,
+          "drain_ms": 0.00023099999999999998,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.024576,
+          "report_write_ms": [
+            2.004184,
+            0.999492,
+            0.969556
+          ],
+          "response_reports": 1,
+          "total_ms": 6.998891,
+          "write_ms": 3.973813,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0248969999999997,
+          "drain_ms": 0.00023099999999999998,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.024747,
+          "report_write_ms": [
+            2.004545,
+            0.9999530000000001,
+            0.969736
+          ],
+          "response_reports": 1,
+          "total_ms": 7.000033,
+          "write_ms": 3.9748149999999995,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.024817,
+          "drain_ms": 0.000221,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.024667,
+          "report_write_ms": [
+            2.0050060000000003,
+            0.999933,
+            0.9690350000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 6.999532,
+          "write_ms": 3.974394,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.028474,
+          "drain_ms": 0.00022,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.028113,
+          "report_write_ms": [
+            2.004966,
+            0.9999430000000001,
+            0.969294
+          ],
+          "response_reports": 1,
+          "total_ms": 7.003469,
+          "write_ms": 3.9746750000000004,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.0251580000000002,
+          "drain_ms": 0.000581,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.024938,
+          "report_write_ms": [
+            2.001489,
+            1.002128,
+            0.967251
+          ],
+          "response_reports": 1,
+          "total_ms": 6.997578,
+          "write_ms": 3.971719,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.025668,
+          "drain_ms": 0.000411,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.025538,
+          "report_write_ms": [
+            2.003463,
+            0.999713,
+            0.9698760000000001
+          ],
+          "response_reports": 1,
+          "total_ms": 6.999712,
+          "write_ms": 3.973542,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.024386,
+          "drain_ms": 0.00022,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.024276,
+          "report_write_ms": [
+            2.004034,
+            0.9989109999999999,
+            0.969736
+          ],
+          "response_reports": 1,
+          "total_ms": 6.997777999999999,
+          "write_ms": 3.973072,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.024346,
+          "drain_ms": 0.00021,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.024276,
+          "report_write_ms": [
+            2.005307,
+            0.9995220000000001,
+            0.970016
+          ],
+          "response_reports": 1,
+          "total_ms": 6.999872,
+          "write_ms": 3.975216,
+          "written_reports": 3
+        },
+        {
+          "ack_wait_ms": 3.024466,
+          "drain_ms": 0.00015,
+          "drained_reports": 0,
+          "first_report_wait_ms": 3.024386,
+          "report_write_ms": [
+            2.005497,
+            0.999563,
+            0.969976
+          ],
+          "response_reports": 1,
+          "total_ms": 7.000042,
+          "write_ms": 3.9753159999999994,
+          "written_reports": 3
+        }
+      ]
+    }
+  ],
+  "controller_restored": true,
+  "error": null,
+  "manual_zones": 48,
+  "model": "NL82K2",
+  "scope": "Generated low-brightness grey/black; acknowledged existing USB protocol; no capture or optical measurement"
+}

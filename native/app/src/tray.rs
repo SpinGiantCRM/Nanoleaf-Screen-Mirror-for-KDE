@@ -48,7 +48,10 @@ impl ksni::Tray for Tray {
         format!("Nanoleaf · {}", self.message)
     }
     fn icon_name(&self) -> String {
-        "preferences-desktop-color".into()
+        std::env::current_exe()
+            .ok()
+            .and_then(|exe| crate::package::desktop_icon(&exe).ok())
+            .unwrap_or_else(|| "preferences-desktop-color".into())
     }
     fn menu(&self) -> Vec<ksni::MenuItem<Self>> {
         use ksni::menu::StandardItem;
@@ -98,12 +101,19 @@ impl ksni::Tray for Tray {
 pub fn spawn(
     path: PathBuf,
     tx: Sender<Control>,
+    open_setup: bool,
 ) -> Result<ksni::blocking::Handle<Tray>, ksni::Error> {
-    Tray {
+    let mut tray = Tray {
         message: "Stopped".into(),
         path,
         tx,
         settings_open: Arc::new(AtomicBool::new(false)),
+    };
+    // A StatusNotifierWatcher may not be available yet at sign-in. Launch setup
+    // directly rather than waiting for a tray update callback to be serviced.
+    // The service's control listener is already ready before this function runs.
+    if cfg!(feature = "gui") && open_setup {
+        tray.settings();
     }
-    .spawn()
+    tray.spawn()
 }

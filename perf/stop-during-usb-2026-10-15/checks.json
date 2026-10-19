@@ -1,0 +1,13 @@
+{
+  "app_tests_passed": 106,
+  "app_tests_ignored": 1,
+  "clippy_all_targets": true,
+  "format_check": true,
+  "original_config_and_installed_versions_preserved": true,
+  "simulated_usb_fault_only": true,
+  "real_usb_fault_retested": false,
+  "optical_latency_measured": false,
+  "app_sha256": "d16096e04fa16407713e8fb2122765349790404e8e034ca2626d5b6159a899ed",
+  "helper_sha256": "9a252771055cd757c719274e7f2345b2b9e3fe04bbe0f44f9f8a6b05fb362707",
+  "operator_benchmark_sha256": "a8cb94655be14ccb503ff19fe4ee6de0eb1589aeb3b319b926ac635bb228af91"
+}

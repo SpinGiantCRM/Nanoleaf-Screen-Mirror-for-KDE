@@ -1,0 +1,9 @@
+{
+  "source": "User-supplied exterior controller photograph, reviewed 2026-10-15",
+  "printed_model": "NL82K22",
+  "input_volts_dc": 5,
+  "input_amps": 2,
+  "serial_and_barcode": "Excluded from public research",
+  "chip_marking_visible": false,
+  "relation_to_usb_model": "USB query reports NL82K2; printed suffix is not a chip identifier"
+}

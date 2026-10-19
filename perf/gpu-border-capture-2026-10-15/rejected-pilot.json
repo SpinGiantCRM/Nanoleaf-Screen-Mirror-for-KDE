@@ -1,0 +1,12 @@
+[
+  {
+    "variant": "0-before",
+    "pillar_median_ms": 11.143284999999999,
+    "note": "Initial individually padded column copies; replaced with contiguous bands before adoption."
+  },
+  {
+    "variant": "1-after",
+    "pillar_median_ms": 20.413888,
+    "note": "Initial individually padded column copies; replaced with contiguous bands before adoption."
+  }
+]

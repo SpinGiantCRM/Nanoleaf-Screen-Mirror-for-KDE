@@ -1,0 +1,19 @@
+{
+  "scope": "Synthetic generated-grey worker protocol plus actual acknowledged HID; no screen/GPU capture or saved calibration applied to fixture frames",
+  "app_sha256": "e728fb3bfb47edcc7e1ff365a573e9d33e09078a2c8962dc466c870cc7845dd8",
+  "fixture_helper_sha256": "d72a2f57c6ce562ae2fbfda4ef62e67d3fdfe5e9aec2f7fcfa063736aa9f69d8",
+  "suppressed_by_stage": {
+    "active": 261,
+    "restart": 426,
+    "worker_failure_recovery": 540,
+    "worker_stall_recovery": 598
+  },
+  "stop_kept_tray": true,
+  "preview_exclusive": true,
+  "worker_failure_explicit_recovery": true,
+  "worker_stall_explicit_recovery": true,
+  "worker_stall_to_stop_seconds": 2.0285117240000545,
+  "restored": true,
+  "config_and_fallback_preserved": true,
+  "probe_exit_code": 0
+}

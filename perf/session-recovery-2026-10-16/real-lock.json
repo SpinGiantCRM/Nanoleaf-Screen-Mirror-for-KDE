@@ -1,0 +1,74 @@
+{
+  "scope": "Real KDE lock/unlock with selected portal capture and acknowledged low-brightness USB. No suspend, unplug, optical latency or measured emitted-colour test.",
+  "lock_stopped_capture_and_output": true,
+  "unlock_detected": true,
+  "one_second_unlocked_without_automatic_restart": true,
+  "explicit_start_recovers_selected_capture": true,
+  "restart_to_tenth_ack_seconds": 0.463408026000252,
+  "events": [
+    {
+      "seconds": 0.02030495799954224,
+      "running": true,
+      "preview": false,
+      "message": "Starting",
+      "frames": 0
+    },
+    {
+      "seconds": 0.2421659899991937,
+      "running": true,
+      "preview": false,
+      "message": "Strip connected",
+      "frames": 0
+    },
+    {
+      "seconds": 0.26231987299979664,
+      "running": true,
+      "preview": false,
+      "message": "Mirroring",
+      "frames": 1
+    },
+    {
+      "seconds": 15.050051272999553,
+      "running": false,
+      "preview": false,
+      "message": "Screen locked; unlock and choose Start to mirror again",
+      "frames": 710
+    },
+    {
+      "seconds": 22.141896012999496,
+      "running": false,
+      "preview": false,
+      "message": "Desktop session ready; choose Start to mirror again",
+      "frames": 710
+    },
+    {
+      "seconds": 23.169638558999395,
+      "running": true,
+      "preview": false,
+      "message": "Starting",
+      "frames": 0
+    },
+    {
+      "seconds": 23.3912466139991,
+      "running": true,
+      "preview": false,
+      "message": "Strip connected",
+      "frames": 0
+    },
+    {
+      "seconds": 23.41139706299964,
+      "running": true,
+      "preview": false,
+      "message": "Mirroring",
+      "frames": 1
+    }
+  ],
+  "controller_restored": true,
+  "independent_controller_readback_matches": true,
+  "real_config_byte_identical": true,
+  "exit_code": 0,
+  "user_observation": "no output from light after login",
+  "visible_recovery_verified": false,
+  "limitation": "Harness quit after tenth ACK, less than half a second after explicit Start; visible output unconfirmed and requires a longer observation.",
+  "followup_user_observation": "Lit and following correctly in a separate twenty-second post-login run"
+}

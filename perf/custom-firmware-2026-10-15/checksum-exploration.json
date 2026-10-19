@@ -1,0 +1,299 @@
+{
+  "purpose": "Exploratory CRC hypotheses, not firmware-integrity validation",
+  "input_sha256": "05ae98ac932d18fb9bf1579e744401827f9ac068347cdb968426363ec45ef3de",
+  "tested_prefix_bytes_per_record": 59,
+  "records": 171,
+  "implementation_reference_vectors_pass": true,
+  "variants": [
+    {
+      "polynomial_hex": "0x1021",
+      "reflected_step": false,
+      "init_hex": "0x0",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x1021",
+      "reflected_step": false,
+      "init_hex": "0x0",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x1021",
+      "reflected_step": false,
+      "init_hex": "0x0",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x1021",
+      "reflected_step": false,
+      "init_hex": "0x0",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x1021",
+      "reflected_step": false,
+      "init_hex": "0xffff",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x1021",
+      "reflected_step": false,
+      "init_hex": "0xffff",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x1021",
+      "reflected_step": false,
+      "init_hex": "0xffff",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x1021",
+      "reflected_step": false,
+      "init_hex": "0xffff",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x1021",
+      "reflected_step": false,
+      "init_hex": "0x1d0f",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x1021",
+      "reflected_step": false,
+      "init_hex": "0x1d0f",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x1021",
+      "reflected_step": false,
+      "init_hex": "0x1d0f",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x1021",
+      "reflected_step": false,
+      "init_hex": "0x1d0f",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0xa001",
+      "reflected_step": true,
+      "init_hex": "0x0",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0xa001",
+      "reflected_step": true,
+      "init_hex": "0x0",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0xa001",
+      "reflected_step": true,
+      "init_hex": "0x0",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0xa001",
+      "reflected_step": true,
+      "init_hex": "0x0",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0xa001",
+      "reflected_step": true,
+      "init_hex": "0xffff",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0xa001",
+      "reflected_step": true,
+      "init_hex": "0xffff",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0xa001",
+      "reflected_step": true,
+      "init_hex": "0xffff",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0xa001",
+      "reflected_step": true,
+      "init_hex": "0xffff",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0xa001",
+      "reflected_step": true,
+      "init_hex": "0x1d0f",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0xa001",
+      "reflected_step": true,
+      "init_hex": "0x1d0f",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0xa001",
+      "reflected_step": true,
+      "init_hex": "0x1d0f",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0xa001",
+      "reflected_step": true,
+      "init_hex": "0x1d0f",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x8408",
+      "reflected_step": true,
+      "init_hex": "0x0",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x8408",
+      "reflected_step": true,
+      "init_hex": "0x0",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x8408",
+      "reflected_step": true,
+      "init_hex": "0x0",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x8408",
+      "reflected_step": true,
+      "init_hex": "0x0",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x8408",
+      "reflected_step": true,
+      "init_hex": "0xffff",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x8408",
+      "reflected_step": true,
+      "init_hex": "0xffff",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x8408",
+      "reflected_step": true,
+      "init_hex": "0xffff",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x8408",
+      "reflected_step": true,
+      "init_hex": "0xffff",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x8408",
+      "reflected_step": true,
+      "init_hex": "0x1d0f",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x8408",
+      "reflected_step": true,
+      "init_hex": "0x1d0f",
+      "xor_out_hex": "0x0",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x8408",
+      "reflected_step": true,
+      "init_hex": "0x1d0f",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "big",
+      "matching_records": 0
+    },
+    {
+      "polynomial_hex": "0x8408",
+      "reflected_step": true,
+      "init_hex": "0x1d0f",
+      "xor_out_hex": "0xffff",
+      "trailer_byte_order": "little",
+      "matching_records": 0
+    }
+  ],
+  "none_match": true,
+  "correct_crc_or_encoding_identified": false
+}

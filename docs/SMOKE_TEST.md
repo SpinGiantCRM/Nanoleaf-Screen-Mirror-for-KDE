@@ -1,68 +1,14 @@
-# Smoke Test Guide
+# Native smoke checks
 
-## Purpose
+Run `nanoleaf-native --doctor` first; this is read-only. Launch the tray from KDE,
+open Settings and confirm the selected monitor, manual mapping and calibration.
+Start mirroring and visually check neutral, dark and changing scenes. Stop should
+end mirroring while keeping the tray available. Permission revocation requires
+explicit Start; a USB reconnect must reopen with a full output frame.
 
-`nanoleaf-kde-sync-smoke-test` is a quick validation tool for:
+Use [native packaging](NATIVE_INSTALL.md) and `scripts/verify_native_bundle.py`
+with isolated directories for install/upgrade/rollback/uninstall checks. Automated
+Rust contracts do not establish optical latency, measured colour accuracy or
+physical suspend/USB recovery. Report actual user observations separately.
 
-- capture backend selection
-- one-frame capture success
-- USB device initialization
-- optional LED output sanity frame
-
-It is safe to run before starting long service sessions.
-
-## Basic checks
-
-```bash
-nanoleaf-kde-sync-doctor
-nanoleaf-kde-sync-smoke-test
-```
-
-## Deep checks
-
-```bash
-nanoleaf-kde-sync-doctor --capture
-nanoleaf-kde-sync-doctor --device
-```
-
-## Optional device frame test
-
-```bash
-nanoleaf-kde-sync-smoke-test --hardware --send-test-frame
-```
-
-This initializes the USB device path and sends a low-brightness RGB pattern to verify device output.
-`--hardware` is required because the default smoke test is CI-safe and skips USB device initialization.
-
-## Reading smoke-test output
-
-Key lines:
-
-- `probe config:`
-  - `enabled`: effective probe enable state from config/env
-  - `policy`: `first-run`, `each-boot`, or `on-change`
-  - `cached_winner`: cached auto backend if present
-  - `signature`: environment signature hash used by `on-change`
-  - `timestamp`: last persisted auto decision timestamp
-- `backend decision:`
-  - `requested`: configured `prefer_backend`
-  - `effective`: backend used for this run
-  - `selection_reason`: one of:
-    - `explicit`: non-`auto` backend configured
-    - `cached-probe`: reused cached auto winner
-    - `fresh-probe`: new probe result used
-    - `fallback`: probe unavailable/failed/no qualified candidate
-
-## Fast diagnosis matrix
-
-- `capture failed`: run `nanoleaf-kde-sync-doctor --capture` and fix reported guidance.
-- `device init failed`: run `nanoleaf-kde-sync-doctor --device`, then verify udev permissions and VID/PID.
-- `selection_reason=fallback` while `requested=auto`:
-  - inspect probe policy and cache in config
-  - verify env kill switches are not forcing probe off
-  - optionally force explicit backend for A/B testing
-
-## Related references
-
-- Auto backend policies and examples: `docs/AUTO_BACKEND.md`
-- Probe/reset troubleshooting workflow: `docs/TROUBLESHOOTING.md`
+The old `nanoleaf-kde-sync-smoke-test` command is retired with the Python app.

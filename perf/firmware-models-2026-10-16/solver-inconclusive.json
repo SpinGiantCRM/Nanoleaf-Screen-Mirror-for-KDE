@@ -1,0 +1,172 @@
+{
+  "z3": {
+    "scope": "Bounded offline modular-addition hypotheses; no guessed cipher key or USB.",
+    "z3_version": "4.15.4",
+    "positive_control": {
+      "polynomial": "a001",
+      "model": "byte-add",
+      "header_index_order": "big",
+      "records": 16,
+      "timeout_ms": 10000,
+      "result": "sat",
+      "reason_unknown": null,
+      "solve_seconds": 0.007757455998216756,
+      "key_supplied_to_solver": true
+    },
+    "negative_control": {
+      "polynomial": "a001",
+      "model": "byte-add",
+      "header_index_order": "big",
+      "records": 16,
+      "timeout_ms": 10000,
+      "result": "unsat",
+      "reason_unknown": null,
+      "solve_seconds": 0.006469487001595553
+    },
+    "results": [
+      {
+        "polynomial": "a001",
+        "model": "byte-add",
+        "header_index_order": "big",
+        "records": 12,
+        "timeout_ms": 8000,
+        "result": "unknown",
+        "reason_unknown": "timeout",
+        "solve_seconds": 8.00896308099982
+      },
+      {
+        "polynomial": "a001",
+        "model": "byte-add",
+        "header_index_order": "little",
+        "records": 12,
+        "timeout_ms": 8000,
+        "result": "unknown",
+        "reason_unknown": "timeout",
+        "solve_seconds": 8.008206865997636
+      },
+      {
+        "polynomial": "a001",
+        "model": "word-add-little",
+        "header_index_order": "big",
+        "records": 12,
+        "timeout_ms": 8000,
+        "result": "unknown",
+        "reason_unknown": "timeout",
+        "solve_seconds": 8.010394594999525
+      },
+      {
+        "polynomial": "a001",
+        "model": "word-add-little",
+        "header_index_order": "little",
+        "records": 12,
+        "timeout_ms": 8000,
+        "result": "unknown",
+        "reason_unknown": "timeout",
+        "solve_seconds": 8.00984279199838
+      },
+      {
+        "polynomial": "a001",
+        "model": "word-add-big",
+        "header_index_order": "big",
+        "records": 12,
+        "timeout_ms": 8000,
+        "result": "unknown",
+        "reason_unknown": "timeout",
+        "solve_seconds": 8.011104313001852
+      },
+      {
+        "polynomial": "a001",
+        "model": "word-add-big",
+        "header_index_order": "little",
+        "records": 12,
+        "timeout_ms": 8000,
+        "result": "unknown",
+        "reason_unknown": "timeout",
+        "solve_seconds": 8.010565267999482
+      },
+      {
+        "polynomial": "b876",
+        "model": "byte-add",
+        "header_index_order": "big",
+        "records": 12,
+        "timeout_ms": 8000,
+        "result": "unknown",
+        "reason_unknown": "timeout",
+        "solve_seconds": 8.134349902000395
+      },
+      {
+        "polynomial": "b876",
+        "model": "byte-add",
+        "header_index_order": "little",
+        "records": 12,
+        "timeout_ms": 8000,
+        "result": "unknown",
+        "reason_unknown": "timeout",
+        "solve_seconds": 8.009587717999239
+      },
+      {
+        "polynomial": "b876",
+        "model": "word-add-little",
+        "header_index_order": "big",
+        "records": 12,
+        "timeout_ms": 8000,
+        "result": "unknown",
+        "reason_unknown": "timeout",
+        "solve_seconds": 8.012499185999332
+      },
+      {
+        "polynomial": "b876",
+        "model": "word-add-little",
+        "header_index_order": "little",
+        "records": 12,
+        "timeout_ms": 8000,
+        "result": "unknown",
+        "reason_unknown": "timeout",
+        "solve_seconds": 8.1336772020004
+      },
+      {
+        "polynomial": "b876",
+        "model": "word-add-big",
+        "header_index_order": "big",
+        "records": 12,
+        "timeout_ms": 8000,
+        "result": "unknown",
+        "reason_unknown": "timeout",
+        "solve_seconds": 8.146180468000239
+      },
+      {
+        "polynomial": "b876",
+        "model": "word-add-big",
+        "header_index_order": "little",
+        "records": 12,
+        "timeout_ms": 8000,
+        "result": "unknown",
+        "reason_unknown": "timeout",
+        "solve_seconds": 8.011866248001752
+      }
+    ],
+    "limitations": "SAT requires independent full-corpus validation; UNKNOWN is inconclusive, not an exclusion. No device operations or decoded output."
+  },
+  "earlier_z3_unknown_key_positive_control": {
+    "result": "unknown",
+    "reason": "timeout",
+    "limit_seconds": 10
+  },
+  "native_xor_sat": {
+    "package": "pycryptosat",
+    "version": "5.17.0",
+    "unknown_key_positive_control": {
+      "polynomial": "a001",
+      "model": "byte-add",
+      "header_index_order": "big",
+      "records": 32,
+      "variables": 15733,
+      "solver_time_limit_seconds": 15,
+      "result": "unknown",
+      "solve_seconds": 15.72996589500326,
+      "independent_crc_validation": false
+    },
+    "stock_tests_attempted": false
+  },
+  "meaning": "UNKNOWN or failed unknown-key controls do not exclude any encoding."
+}

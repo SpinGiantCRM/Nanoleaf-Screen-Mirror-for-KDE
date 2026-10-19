@@ -1,0 +1,20 @@
+{
+  "scope": "Synthetic, well-formed WCH comparison model; no USB or firmware inputs.\n\nModels selected semantics of the published generic 2.31/2.40 disassembly, not\nNanoleaf firmware and not complete MCU/USB execution. Host-side bounds below\nlimit this model; they do not establish the loader's malformed-input behaviour.\nNo device adapter, command encoder, write, erase or loader-entry path exists.\n",
+  "controls": [
+    "legacy comparison reconstructs 64 synthetic bytes with known seven-byte suffix",
+    "incorrect known suffix rejected",
+    "hardened alignment blocks legacy byte walk",
+    "first mismatch latches subsequent comparisons",
+    "new initialized model clears latch; no hardware reset performed",
+    "direct loader-region start rejected in hardened model",
+    "start-only guard permits bounded range crossing in this model",
+    "out-of-model request shapes rejected",
+    "synthetic memory remains byte-identical"
+  ],
+  "legacy_synthetic_queries": 9268,
+  "legacy_unknown_bytes": 64,
+  "maximum_guesses_per_byte_under_old_oracle_assumptions": 256,
+  "unconstrained_eight_byte_block_possibilities": "18446744073709551616",
+  "timing_or_device_measurement": false,
+  "dongle_backup_or_recovery_verified": false
+}

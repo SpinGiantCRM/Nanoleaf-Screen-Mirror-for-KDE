@@ -1,0 +1,22 @@
+{
+  "implicit": {
+    "passed": true,
+    "controller_restored": true,
+    "worker_stall_to_stop_seconds": 2.0317262999997183,
+    "app_sha256": "5a8cc16e20a1408879f527fd6c496956b461c79de61bb4a9882757177fddf2f2",
+    "capture_helper_sha256": "7a818cebfef802ecdcc7a40dbd60aca3cb0dbd2c2102aa7005341de427bd4dfe"
+  },
+  "explicit": {
+    "passed": true,
+    "controller_restored": true,
+    "worker_stall_to_stop_seconds": 2.032368657000916,
+    "app_sha256": "5a8cc16e20a1408879f527fd6c496956b461c79de61bb4a9882757177fddf2f2",
+    "capture_helper_sha256": "7a818cebfef802ecdcc7a40dbd60aca3cb0dbd2c2102aa7005341de427bd4dfe"
+  },
+  "harness_restoration": {
+    "initial_stopped_tray_restoration_auto_started_due_to_saved_start_on_launch": true,
+    "configuration_unchanged": true,
+    "no_lifecycle_app_failure": true,
+    "subsequent_activation_verified_stopped": true
+  }
+}

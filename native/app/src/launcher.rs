@@ -23,7 +23,8 @@ pub fn install() -> Result<PathBuf> {
     .join("applications");
     fs::create_dir_all(&data)?;
     let path = data.join("org.spingiantcrm.NanoleafNative.desktop");
-    let content=format!("[Desktop Entry]\nType=Application\nVersion=1.0\nName=Nanoleaf Screen Mirror (Rust)\nComment=Native single-strip screen mirror\nExec=\"{exec}\" --daemon\nTryExec={exec}\nIcon=preferences-desktop-color\nTerminal=false\nCategories=Utility;\nStartupNotify=false\nX-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2\n");
+    let icon = crate::package::desktop_icon(&exe)?;
+    let content=format!("[Desktop Entry]\nType=Application\nVersion=1.0\nName=Nanoleaf Screen Mirror (Rust)\nComment=Native single-strip screen mirror\nExec=\"{exec}\" --daemon\nTryExec={exec}\nIcon={icon}\nTerminal=false\nCategories=Utility;\nStartupNotify=false\nX-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2\n");
     if path.exists() {
         ensure!(fs::read_to_string(&path)?==content,"Native launcher already exists with different contents; preserve it and update manually");
     } else {

@@ -1,0 +1,17 @@
+{
+  "frames": 346,
+  "staged_frames": 346,
+  "median": {
+    "acquire_ms": 0.038824,
+    "analysis_batches": 6.0,
+    "analysis_bytes": 24965280.0,
+    "analysis_ms": 20.8024865,
+    "import_ms": 2.9999999999999997e-05,
+    "producer_fence_ms": 0.003216,
+    "release_ms": 0.037246,
+    "sampling_ms": 0.43017099999999997,
+    "total_ms": 21.5497415,
+    "zone_update_ms": 0.010565999999999999
+  },
+  "cache_hit_fraction": 0.9913294797687862
+}

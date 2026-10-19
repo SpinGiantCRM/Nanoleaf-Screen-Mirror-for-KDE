@@ -1,0 +1,72 @@
+[
+  {
+    "requested": 1,
+    "returned_version": 1,
+    "date": "2025-05-18T14:23:16.998Z",
+    "chip_lead_link_present": true,
+    "dfu_write_documented": true
+  },
+  {
+    "requested": 2,
+    "returned_version": 2,
+    "date": "2025-05-18T14:24:15.197Z",
+    "chip_lead_link_present": true,
+    "dfu_write_documented": true
+  },
+  {
+    "requested": 3,
+    "returned_version": 3,
+    "date": "2025-05-20T13:40:42.582Z",
+    "chip_lead_link_present": true,
+    "dfu_write_documented": true
+  },
+  {
+    "requested": 4,
+    "returned_version": 4,
+    "date": "2025-05-20T15:38:57.422Z",
+    "chip_lead_link_present": false,
+    "dfu_write_documented": false
+  },
+  {
+    "requested": 5,
+    "returned_version": 5,
+    "date": "2025-05-20T15:57:30.081Z",
+    "chip_lead_link_present": false,
+    "dfu_write_documented": false
+  },
+  {
+    "requested": 6,
+    "returned_version": 6,
+    "date": "2025-05-21T15:56:33.663Z",
+    "chip_lead_link_present": false,
+    "dfu_write_documented": false
+  },
+  {
+    "requested": 7,
+    "returned_version": 7,
+    "date": "2025-05-21T15:58:28.758Z",
+    "chip_lead_link_present": false,
+    "dfu_write_documented": false
+  },
+  {
+    "requested": 8,
+    "returned_version": 8,
+    "date": "2025-06-05T14:42:59.582Z",
+    "chip_lead_link_present": false,
+    "dfu_write_documented": false
+  },
+  {
+    "requested": 9,
+    "returned_version": 9,
+    "date": "2025-06-05T14:43:05.712Z",
+    "chip_lead_link_present": false,
+    "dfu_write_documented": false
+  },
+  {
+    "requested": 10,
+    "returned_version": 10,
+    "date": "2026-02-12T23:22:59.994Z",
+    "chip_lead_link_present": false,
+    "dfu_write_documented": false
+  }
+]

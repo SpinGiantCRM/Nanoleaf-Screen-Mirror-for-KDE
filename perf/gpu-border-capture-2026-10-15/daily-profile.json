@@ -1,0 +1,44 @@
+{
+  "scope": "120-second uncontrolled desktop; native tray plus capture child, excluding compositor/GPU/settings UI; 2 Hz status polling; no optical or power measurement",
+  "seconds": 120.0444053290048,
+  "summary": {
+    "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync",
+    "ack_count": 5746,
+    "ack_per_s": 48.065821099583154,
+    "cpu_percent_one_core": 3.490375072887819,
+    "rss_mib": 204.078125,
+    "pss_mib": 171.5458984375
+  },
+  "response_clocks": [
+    "capture-work"
+  ],
+  "counter_changes": {
+    "frames": 5746,
+    "reused_source_packets": 2,
+    "dropped_frames": 688,
+    "reconnects": 0
+  },
+  "medians_ms": {
+    "capture_ms": 1.34261,
+    "processing_ms": 0.016667,
+    "usb_ms": 20.997905,
+    "response_ms": 30.834156999999998,
+    "source_presentation_age_ms": 41.949643
+  },
+  "capture_stages_medians": {
+    "total_ms": 1.338006,
+    "producer_fence_ms": 0.003632,
+    "import_ms": 5e-05,
+    "acquire_ms": 0.3568965,
+    "analysis_ms": 0.1714275,
+    "zone_update_ms": 0.006933000000000001,
+    "sampling_ms": 0.7373190000000001,
+    "release_ms": 0.035578,
+    "analysis_bytes": 36000.0,
+    "analysis_batches": 1.0
+  },
+  "cache_hit_fraction": 1.0,
+  "app_sha256": "a6569da971ed2ea90d80f0ff6b72a652111c3aaf6abcee023f827431b9b44c0e",
+  "config_sha256": "a5d9b604c8ff68adf8a9321cc9fb578d4c2468c00a279612d66312f800049933",
+  "note": "Uncontrolled desktop window. Both work-clock versions use the same response origin; varying screen content and USB reply timing prevent a controlled whole-app speedup or optical claim."
+}

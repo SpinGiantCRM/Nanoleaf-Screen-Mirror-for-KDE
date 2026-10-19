@@ -1,0 +1,18 @@
+{
+  "scope": "Three-second capture-only attribution concurrent with daily KWin mirroring; extra capture load, not a paired benchmark or ordinary daily-use latency. No USB from probe, no saved pixels or configuration edits.",
+  "frames": 113,
+  "dimensions": [
+    3840,
+    2160
+  ],
+  "median_ms": {
+    "capture_ms": 22.889387,
+    "reply_ms": 8.618459,
+    "pipe_ms": 7.044665999999999,
+    "decode_ms": 7.02063,
+    "processing_ms": 3.579161
+  },
+  "qt_formats": [
+    6
+  ]
+}

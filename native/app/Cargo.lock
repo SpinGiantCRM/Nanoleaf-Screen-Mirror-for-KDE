@@ -1820,10 +1820,12 @@ version = "0.1.0"
 
 [[package]]
 name = "nanoleaf-native"
-version = "0.1.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
+ "async-io",
  "eframe",
+ "futures-lite",
  "hidapi",
  "ksni",
  "nanoleaf-core",

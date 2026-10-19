@@ -1,0 +1,121 @@
+{
+  "images": [
+    {
+      "file": "1.1.0.firmware",
+      "bytes": 10736,
+      "sha256": "1ffcf5900dee6ae70f49623fd1ed047b0d923754bc9a4224a99c193a37b71ffa",
+      "records": 176,
+      "complete_records": true,
+      "version_bytes": [
+        17
+      ],
+      "indices_consecutive": true,
+      "data_bytes": 9856,
+      "entropy": 7.980193369756028,
+      "unique_8_byte_blocks": 1181,
+      "repeated_8_byte_occurrences": 51,
+      "plaintext_product_or_chip_marker_found": false
+    },
+    {
+      "file": "1.2.0.firmware",
+      "bytes": 10736,
+      "sha256": "1a50962b641d9ba8a4c5f5a0c2fb82e55924700b45b030bc020d43e28a5f274c",
+      "records": 176,
+      "complete_records": true,
+      "version_bytes": [
+        18
+      ],
+      "indices_consecutive": true,
+      "data_bytes": 9856,
+      "entropy": 7.97838547979154,
+      "unique_8_byte_blocks": 1182,
+      "repeated_8_byte_occurrences": 50,
+      "plaintext_product_or_chip_marker_found": false
+    },
+    {
+      "file": "1.3.0.firmware",
+      "bytes": 10797,
+      "sha256": "9a5f84be343e57238c95ca7d6acac1ddf6364bd59c39e646df8519c4e9419518",
+      "records": 177,
+      "complete_records": true,
+      "version_bytes": [
+        19
+      ],
+      "indices_consecutive": true,
+      "data_bytes": 9912,
+      "entropy": 7.977312479932476,
+      "unique_8_byte_blocks": 1180,
+      "repeated_8_byte_occurrences": 59,
+      "plaintext_product_or_chip_marker_found": false
+    },
+    {
+      "file": "1.4.0.firmware",
+      "bytes": 10370,
+      "sha256": "de7f11f76c9ad8ac6bb6e2595c89d5ce8da39a9ace7155cc4fd6d5e61c99f3a2",
+      "records": 170,
+      "complete_records": true,
+      "version_bytes": [
+        20
+      ],
+      "indices_consecutive": true,
+      "data_bytes": 9520,
+      "entropy": 7.974136459867984,
+      "unique_8_byte_blocks": 1135,
+      "repeated_8_byte_occurrences": 55,
+      "plaintext_product_or_chip_marker_found": false
+    },
+    {
+      "file": "1.5.0.firmware",
+      "bytes": 10431,
+      "sha256": "05ae98ac932d18fb9bf1579e744401827f9ac068347cdb968426363ec45ef3de",
+      "records": 171,
+      "complete_records": true,
+      "version_bytes": [
+        21
+      ],
+      "indices_consecutive": true,
+      "data_bytes": 9576,
+      "entropy": 7.978442783437748,
+      "unique_8_byte_blocks": 1143,
+      "repeated_8_byte_occurrences": 54,
+      "plaintext_product_or_chip_marker_found": false
+    }
+  ],
+  "comparisons": [
+    {
+      "a": "1.1.0.firmware",
+      "b": "1.2.0.firmware",
+      "shared_unique_aligned_8_byte_blocks": 444,
+      "same_offset_equal_8_byte_blocks": 344,
+      "same_index_equal_56_byte_data_fields": 26,
+      "trailer_xor_unique_count_on_equal_data": 1
+    },
+    {
+      "a": "1.2.0.firmware",
+      "b": "1.3.0.firmware",
+      "shared_unique_aligned_8_byte_blocks": 57,
+      "same_offset_equal_8_byte_blocks": 19,
+      "same_index_equal_56_byte_data_fields": 0,
+      "trailer_xor_unique_count_on_equal_data": 0
+    },
+    {
+      "a": "1.3.0.firmware",
+      "b": "1.4.0.firmware",
+      "shared_unique_aligned_8_byte_blocks": 192,
+      "same_offset_equal_8_byte_blocks": 208,
+      "same_index_equal_56_byte_data_fields": 6,
+      "trailer_xor_unique_count_on_equal_data": 1
+    },
+    {
+      "a": "1.4.0.firmware",
+      "b": "1.5.0.firmware",
+      "shared_unique_aligned_8_byte_blocks": 102,
+      "same_offset_equal_8_byte_blocks": 21,
+      "same_index_equal_56_byte_data_fields": 0,
+      "trailer_xor_unique_count_on_equal_data": 0
+    }
+  ],
+  "encoding_identified": false,
+  "mcu_identified": false,
+  "images_executed_or_flashed": false
+}

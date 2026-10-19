@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-16",
+  "usb_operations": false,
+  "vendor_code_executed": false,
+  "official_declaration": {
+    "url": "https://nanoleaf.box.com/shared/static/qgefwejpxdg831flerpx6p53uchmtdtc.pdf",
+    "bytes": 275577,
+    "sha256": "c95493c2c793dfe395c3fb6ea7aeb76d15d2ea865c64a855ee47b864055edf1a",
+    "catalogue": "https://nanoleaf.me/en-gb/pages/product-declarations",
+    "model": "NL82K22",
+    "sku": "N7601K00-1LS4D",
+    "signed_date": "2025-05-20",
+    "mcu_or_recovery_information": false
+  },
+  "pinned_generic_recovery_sources": [
+    {
+      "filename": "librech551-main.c",
+      "url": "https://raw.githubusercontent.com/rgwan/librech551/fb2779c5e82280d56ecf39b14558ee31bf68b053/usbisp/main.c",
+      "bytes": 15532,
+      "sha256": "ffbfd4ceec568c2f4d1357e60f4c82bf4264188a81d12641ddc53d501185b992",
+      "executed": false
+    },
+    {
+      "filename": "chprog-main.c",
+      "url": "https://raw.githubusercontent.com/ole00/chprog/423612b053e79d174180a58aee6259e4c112d622/main.c",
+      "bytes": 4047,
+      "sha256": "233402f8bca13cdb3cf403623b96d4fa8b57e8a8b9c99650c06471ba96ec84e6",
+      "executed": false
+    },
+    {
+      "filename": "chprog-prot_v1.c",
+      "url": "https://raw.githubusercontent.com/ole00/chprog/423612b053e79d174180a58aee6259e4c112d622/prot_v1.c",
+      "bytes": 3676,
+      "sha256": "7c8113297c6be4bff4c9c6a359211c3dd7141b4ee7df86ef84182756e3e07b43",
+      "executed": false
+    },
+    {
+      "filename": "chprog-prot_v2.c",
+      "url": "https://raw.githubusercontent.com/ole00/chprog/423612b053e79d174180a58aee6259e4c112d622/prot_v2.c",
+      "bytes": 5321,
+      "sha256": "b900c1019c9e9f7d0bd16310e24c0ca863f4df23f0376e17365f896f17d05b82",
+      "executed": false
+    },
+    {
+      "filename": "wch-isp-presentation.pdf",
+      "url": "https://www.wch.cn/uploads/file/20190813/1565677668885919.pdf",
+      "bytes": 1199888,
+      "sha256": "30fbd10f592c23f2f4a034adc837dd4bce9da61244bcdd7ec3181d1e1929f019",
+      "executed": false
+    }
+  ],
+  "community_sources": [
+    {
+      "url": "https://www.mikrocontroller.net/topic/462538?page=single",
+      "finding": "First-person reports of verification-oracle code/loader reads on some older CH55x versions; not verified for this retail controller."
+    },
+    {
+      "url": "https://www.mikrocontroller.net/attachment/highlight/393344",
+      "finding": "185-line generic CH552 IAP example viewed as text; optional TEA with externally defined key, no Nanoleaf key or format connection. No content hash claimed."
+    }
+  ],
+  "archive_search_limits": [
+    "Software Heritage exact Bitbucket origin and .git variant: HTTP404. Fuzzy results unrelated; another query returned HTML bot challenge, not JSON.",
+    "Wayback CDX wildcard query: HTTP200 empty list.",
+    "Initial unavailable Common Crawl index: HTTP404 and not evidence of absent captures. Current actual indexes 2026-39/34 returned404; 2026-30 returned503.",
+    "Current public vendor-wiki text queries CH552, GSW, NLUSB and bootloader returned zero; known page/title controls returned one. Historical coverage unknown.",
+    "GitHub code search did not return known sources consistently; negative counts are incomplete coverage."
+  ],
+  "static_ui_review": {
+    "selected_members": 17,
+    "integrity_checked": true,
+    "findings": [
+      "Power Loss Recovery is a light output setting.",
+      "Five-second button strings apply to other networked products, not an NL82 loader entry procedure.",
+      "Shared pairing/DFU GUI code does not establish dead-application entry.",
+      "clearRebootRecovery is in OSCORE/CoAP network security code.",
+      "No independent NL82 recovery or full-device backup found."
+    ]
+  },
+  "mcu_identified": false,
+  "stock_decoded": false,
+  "independent_recovery_verified": false,
+  "safe_to_flash": false,
+  "final_public_attachment_check": {
+    "url": "https://nanoleaf.atlassian.net/wiki/rest/api/content/2615574530/child/attachment?limit=100",
+    "http_status": 200,
+    "size": 0,
+    "attachment_titles": [],
+    "next_page": null
+  }
+}

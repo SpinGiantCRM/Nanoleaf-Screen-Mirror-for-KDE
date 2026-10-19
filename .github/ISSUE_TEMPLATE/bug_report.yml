@@ -20,7 +20,7 @@ body:
       label: Install path
       options:
         - Arch/CachyOS package
-        - pip install
+        - Native bundle
         - source checkout
     validations:
       required: true
@@ -35,7 +35,7 @@ body:
     id: doctor
     attributes:
       label: Doctor output
-      description: Paste output from `nanoleaf-kde-sync-doctor` (or `--device` when applicable).
+      description: Paste output from `nanoleaf-native --doctor` (or `--device` when applicable).
       render: shell
     validations:
       required: true
@@ -43,7 +43,7 @@ body:
     id: smoke
     attributes:
       label: Smoke-test output
-      description: Paste output from `nanoleaf-kde-sync-smoke-test`.
+      description: Paste output from `nanoleaf-native --status`.
       render: shell
     validations:
       required: true

@@ -20,10 +20,18 @@ struct Record {
     parity_exact: Option<bool>,
     #[serde(default)]
     highlight_cache: (usize, u64),
+    #[serde(default)]
+    source_reused: bool,
+    #[serde(default)]
+    reuse_started_ns: Option<i64>,
+    #[serde(default)]
+    frame_started_ns: Option<i64>,
+    #[serde(default)]
+    capture_stages: Option<CaptureStages>,
 }
 fn prepared(record: Record, manual: usize) -> Result<Prepared> {
     ensure!(
-        record.schema == 1 && record.colors.len() == manual,
+        matches!(record.schema, 1..=3) && record.colors.len() == manual,
         "Capture protocol/count mismatch"
     );
     ensure!(
@@ -55,13 +63,56 @@ fn prepared(record: Record, manual: usize) -> Result<Prepared> {
         "Invalid highlight cache accounting"
     );
     ensure!(
+        record
+            .capture_stages
+            .as_ref()
+            .is_none_or(CaptureStages::valid),
+        "Invalid GPU capture timings"
+    );
+    ensure!(
         record.backend.starts_with("xdg-portal / Vulkan DMA-BUF /") && record.backend.len() <= 128,
         "Unknown capture colour contract"
     );
-    let age = if let Some(pts) = record.source_pts_ns.filter(|&p| p >= 0) {
+    ensure!(
+        !record.source_reused || record.schema >= 2,
+        "Cached-source output requires protocol version 2 or later"
+    );
+    let timing_pts = if record.schema == 3 {
+        ensure!(
+            record.reuse_started_ns.is_none(),
+            "Ambiguous capture work clock"
+        );
+        Some(
+            record
+                .frame_started_ns
+                .context("Capture work timestamp missing")?,
+        )
+    } else if record.source_reused {
+        Some(
+            record
+                .reuse_started_ns
+                .context("Cached-source output has no work timestamp")?,
+        )
+    } else {
+        ensure!(
+            record.reuse_started_ns.is_none(),
+            "Fresh source has a cached-work timestamp"
+        );
+        record.source_pts_ns.filter(|&p| p >= 0)
+    };
+    ensure!(
+        record.schema == 3 || record.frame_started_ns.is_none(),
+        "Unexpected capture work timestamp in legacy protocol"
+    );
+    let age = if let Some(pts) = timing_pts {
         let now = rustix::time::clock_gettime(rustix::time::ClockId::Monotonic);
         let delta = (now.tv_sec as i128 * 1_000_000_000 + now.tv_nsec as i128) - pts as i128;
-        ensure!((0..10_000_000_000).contains(&delta), "Stale capture frame");
+        ensure!(
+            (0..10_000_000_000).contains(&delta),
+            "Invalid capture {} timestamp: age {:.3} ms",
+            if record.schema == 3 { "work" } else { "legacy" },
+            delta as f64 / 1_000_000.0
+        );
         Duration::from_nanos(delta as u64)
     } else {
         Duration::from_secs_f64(record.prepared_age_ms / 1000.0)
@@ -77,6 +128,18 @@ fn prepared(record: Record, manual: usize) -> Result<Prepared> {
         backend: record.backend,
         parity_verified: record.parity_exact == Some(true),
         highlight_cache: record.highlight_cache,
+        source_reused: record.source_reused,
+        response_clock: if record.source_reused {
+            "cached-work"
+        } else if record.schema == 3 {
+            "capture-work"
+        } else if record.source_pts_ns.is_some_and(|pts| pts >= 0) {
+            "source-presentation"
+        } else {
+            "legacy-work"
+        },
+        source_pts_ns: record.source_pts_ns.filter(|&p| p >= 0),
+        capture_stages: record.capture_stages,
     })
 }
 fn helper() -> Result<PathBuf> {
@@ -111,6 +174,7 @@ impl Producer {
         });
         let stop = Arc::new(AtomicBool::new(false));
         let sent = Arc::new(Mutex::new(Vec::new()));
+        let (feedback_notify, feedback_ready) = mpsc::sync_channel(1);
         let launch = (|| -> Result<_> {
             let mut child = Command::new(helper()?)
                 .arg("--worker")
@@ -171,21 +235,7 @@ impl Producer {
                     }
                 });
                 std::thread::spawn(move || {
-                    let mut previous = Vec::new();
-                    while !cancel.load(Ordering::Acquire) {
-                        let value = actual.lock().ok().map(|v| v.clone()).unwrap_or_default();
-                        if !value.is_empty() && value != previous {
-                            previous = value;
-                            if serde_json::to_writer(&mut input, &previous).is_err()
-                                || input.write_all(b"\n").is_err()
-                                || input.flush().is_err()
-                            {
-                                break;
-                            }
-                        }
-                        std::thread::sleep(Duration::from_millis(5));
-                    }
-                    // Closing stdin also stops an orphaned child if its parent exits.
+                    forward_feedback(&mut input, &actual, &cancel, feedback_ready);
                 });
                 let (slot, cancel, process) = (latest.clone(), stop.clone(), child.clone());
                 let thread = std::thread::spawn(move || {
@@ -196,7 +246,7 @@ impl Producer {
                             let count = reader.by_ref().take(32769).read_line(&mut line)?;
                             if count == 0 {
                                 anyhow::bail!(
-                                    "{}",
+                                    "Capture worker ended before the next frame: {}",
                                     error_text
                                         .lock()
                                         .ok()
@@ -243,13 +293,93 @@ impl Producer {
             stop,
             thread,
             sent,
+            feedback_notify: Some(feedback_notify),
             child,
+        }
+    }
+}
+
+/// Forward complete actual-ACK feedback, coalescing wakes rather than colours.
+/// The HID actor only updates the bounded latest slot and never waits for stdin.
+fn forward_feedback(
+    input: &mut impl Write,
+    actual: &Mutex<Vec<[u8; 3]>>,
+    cancel: &AtomicBool,
+    ready: mpsc::Receiver<()>,
+) {
+    let mut previous = Vec::new();
+    while ready.recv().is_ok() {
+        if cancel.load(Ordering::Acquire) {
+            break;
+        }
+        let value = actual.lock().ok().map(|v| v.clone()).unwrap_or_default();
+        if !value.is_empty() && value != previous {
+            previous = value;
+            if serde_json::to_writer(&mut *input, &previous).is_err()
+                || input.write_all(b"\n").is_err()
+                || input.flush().is_err()
+            {
+                break;
+            }
         }
     }
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn ack_feedback_coalesces_to_complete_latest_colours_without_blocking_actor() {
+        let actual = Mutex::new(vec![[15, 16, 24]; 48]);
+        let (notify, ready) = mpsc::sync_channel(1);
+        notify.try_send(()).unwrap();
+        let latest: Vec<_> = (0..48).map(|i| [i, i + 1, i + 2]).collect();
+        *actual.lock().unwrap() = latest.clone();
+        assert!(matches!(
+            notify.try_send(()),
+            Err(mpsc::TrySendError::Full(()))
+        ));
+        drop(notify);
+        let mut output = Vec::new();
+        forward_feedback(&mut output, &actual, &AtomicBool::new(false), ready);
+        let decoded: Vec<[u8; 3]> = serde_json::from_slice(&output).unwrap();
+        assert_eq!(decoded, latest);
+        assert_eq!(output.iter().filter(|&&b| b == b'\n').count(), 1);
+    }
+
+    #[test]
+    fn ack_feedback_waits_without_polling_and_disconnect_or_cancel_releases_stdin() {
+        let (notify, ready) = mpsc::sync_channel(1);
+        let (done, exited) = mpsc::channel();
+        let thread = std::thread::spawn(move || {
+            let mut output = Vec::new();
+            forward_feedback(
+                &mut output,
+                &Mutex::new(Vec::new()),
+                &AtomicBool::new(false),
+                ready,
+            );
+            done.send(output).unwrap();
+        });
+        assert!(matches!(exited.try_recv(), Err(mpsc::TryRecvError::Empty)));
+        drop(notify);
+        assert!(exited
+            .recv_timeout(Duration::from_secs(1))
+            .unwrap()
+            .is_empty());
+        thread.join().unwrap();
+
+        let (notify, ready) = mpsc::sync_channel(1);
+        notify.try_send(()).unwrap();
+        let mut output = Vec::new();
+        forward_feedback(
+            &mut output,
+            &Mutex::new(vec![[255; 3]; 48]),
+            &AtomicBool::new(true),
+            ready,
+        );
+        assert!(output.is_empty());
+    }
+
     #[test]
     fn child_frames_are_bounded_typed_and_manual_count_authoritative() {
         let record = || Record {
@@ -263,8 +393,31 @@ mod tests {
             parity_exact: None,
             highlight_cache: (0, 0),
             backend: "xdg-portal / Vulkan DMA-BUF / direct SDR samples".into(),
+            source_reused: false,
+            reuse_started_ns: None,
+            frame_started_ns: None,
+            capture_stages: None,
         };
         assert!(prepared(record(), 4).is_ok());
+        let mut r = record();
+        r.capture_stages = Some(CaptureStages {
+            total_ms: f64::NAN,
+            ..Default::default()
+        });
+        assert!(prepared(r, 4).is_err());
+        let mut r = record();
+        r.capture_stages = Some(CaptureStages {
+            sampling_ms: -1.0,
+            ..Default::default()
+        });
+        assert!(prepared(r, 4).is_err());
+        let mut r = record();
+        r.capture_stages = Some(CaptureStages {
+            total_ms: 1.5,
+            cache_hit: true,
+            ..Default::default()
+        });
+        assert!(prepared(r, 4).unwrap().capture_stages.unwrap().cache_hit);
         assert!(prepared(record(), 5).is_err());
         let mut r = record();
         r.unquantized_rgb = Some(vec![[128.25; 3]; 4]);
@@ -279,7 +432,7 @@ mod tests {
         r.unquantized_rgb = Some(vec![[128.0; 3]; 5]);
         assert!(prepared(r, 4).is_err());
         let mut r = record();
-        r.schema = 2;
+        r.schema = 4;
         assert!(prepared(r, 4).is_err());
         let mut r = record();
         r.times.total_ms = f64::NAN;
@@ -287,5 +440,104 @@ mod tests {
         let mut r = record();
         r.backend = "untagged raw HDR".into();
         assert!(prepared(r, 4).is_err());
+    }
+
+    #[test]
+    fn unchanged_source_has_its_own_work_clock_and_cannot_bypass_protocol_guards() {
+        let now = rustix::time::clock_gettime(rustix::time::ClockId::Monotonic);
+        let now_ns = now.tv_sec * 1_000_000_000 + now.tv_nsec;
+        let record = || Record {
+            schema: 2,
+            colors: vec![[128; 3]; 4],
+            unquantized_rgb: Some(vec![[128.25; 3]; 4]),
+            times: ProcessingTimes::default(),
+            capture_ms: 0.0,
+            prepared_age_ms: 1.0,
+            source_pts_ns: Some(now_ns - 30_000_000_000),
+            backend: "xdg-portal / Vulkan DMA-BUF / direct SDR samples".into(),
+            parity_exact: None,
+            highlight_cache: (0, 0),
+            source_reused: true,
+            reuse_started_ns: Some(now_ns),
+            frame_started_ns: None,
+            capture_stages: None,
+        };
+        let out = prepared(record(), 4).unwrap();
+        assert!(out.source_reused);
+        assert!(out.started.elapsed() < Duration::from_secs(1));
+        let mut r = record();
+        r.schema = 1;
+        assert!(prepared(r, 4).is_err());
+        let mut r = record();
+        r.reuse_started_ns = None;
+        assert!(prepared(r, 4).is_err());
+        let mut r = record();
+        r.reuse_started_ns = Some(now_ns - 30_000_000_000);
+        assert!(prepared(r, 4).is_err());
+        let mut r = record();
+        r.reuse_started_ns = Some(now_ns + 30_000_000_000);
+        assert!(prepared(r, 4).is_err());
+        let mut r = record();
+        r.source_reused = false;
+        assert!(prepared(r, 4).is_err());
+    }
+    #[test]
+    fn capture_work_deadline_is_independent_of_display_presentation_age() {
+        let now = rustix::time::clock_gettime(rustix::time::ClockId::Monotonic);
+        let now_ns = now.tv_sec * 1_000_000_000 + now.tv_nsec;
+        let record = || Record {
+            schema: 3,
+            colors: vec![[128; 3]; 4],
+            unquantized_rgb: None,
+            times: ProcessingTimes::default(),
+            capture_ms: 1.0,
+            prepared_age_ms: 2.0,
+            source_pts_ns: Some(now_ns - 30_000_000_000),
+            backend: "xdg-portal / Vulkan DMA-BUF / direct SDR samples".into(),
+            parity_exact: None,
+            highlight_cache: (0, 0),
+            source_reused: false,
+            reuse_started_ns: None,
+            frame_started_ns: Some(now_ns - 2_000_000),
+            capture_stages: None,
+        };
+        for pts in [
+            None,
+            Some(-1),
+            Some(now_ns - 30_000_000_000),
+            Some(now_ns + 30_000_000_000),
+        ] {
+            let mut r = record();
+            r.source_pts_ns = pts;
+            let out = prepared(r, 4).unwrap();
+            assert_eq!(out.response_clock, "capture-work");
+            assert!(out.started.elapsed() >= Duration::from_millis(2));
+            assert!(out.started.elapsed() < Duration::from_secs(1));
+        }
+        let mut cached = record();
+        cached.source_reused = true;
+        assert_eq!(prepared(cached, 4).unwrap().response_clock, "cached-work");
+        // A fresh display timestamp cannot launder an old/future/missing work packet.
+        for work in [
+            None,
+            Some(-1),
+            Some(now_ns - 30_000_000_000),
+            Some(now_ns + 30_000_000_000),
+        ] {
+            let mut r = record();
+            r.source_pts_ns = Some(now_ns);
+            r.frame_started_ns = work;
+            assert!(prepared(r, 4).is_err());
+        }
+        let mut r = record();
+        r.reuse_started_ns = Some(now_ns);
+        assert!(prepared(r, 4).is_err());
+        let mut r = record();
+        r.schema = 2;
+        assert!(prepared(r, 4).is_err());
+        let mut r = record();
+        r.frame_started_ns = None;
+        r.schema = 2;
+        assert!(prepared(r, 4).is_err()); // legacy stale-source guard retained
     }
 }

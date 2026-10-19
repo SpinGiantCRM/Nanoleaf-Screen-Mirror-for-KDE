@@ -1,0 +1,31 @@
+pkgbase = nanoleaf-kde-sync-bin
+	pkgdesc = Native screen mirroring for one Nanoleaf USB strip on KDE Plasma Wayland
+	pkgver = 2.0.0
+	pkgrel = 1
+	url = https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE
+	arch = x86_64
+	license = LicenseRef-Nanoleaf-Non-Commercial
+	depends = glibc
+	depends = gcc-libs
+	depends = libpipewire
+	depends = libglvnd
+	depends = libxkbcommon
+	depends = wayland
+	depends = vulkan-icd-loader
+	depends = kservice
+	depends = kwin>=6
+	optdepends = xdg-desktop-portal-kde: explicitly selected Portal/Vulkan capture
+	provides = nanoleaf-kde-sync=2.0.0
+	conflicts = nanoleaf-kde-sync
+	options = !strip
+	options = !debug
+	source = nanoleaf-native-2.0.0.tar.gz::https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/releases/download/native-v2.0.0/native.tar.gz
+	source = nanoleaf-native.desktop
+	source = 60-nanoleaf-kde-sync.rules
+	source = nanoleaf-kde-sync.svg
+	sha256sums = 6ffb46f594537f638b892b5af74e26f964b5f58a867baddc90a15b5a9e0dd818
+	sha256sums = e1de90b276db2659950273d3e52feedcd10d8fcc3cd0ecca2c523de9a60489f3
+	sha256sums = b0c8d7099eb5331951c1c9d74052356671d5c7d3acec0ea8d82dbca2ab65ba8e
+	sha256sums = 35a483ef69f9b724005a9c5b9feae698f8c1e2f5b8c0ef87dd5e39f2f76ac970
+
+pkgname = nanoleaf-kde-sync-bin

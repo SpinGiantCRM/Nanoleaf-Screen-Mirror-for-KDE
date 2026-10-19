@@ -1,0 +1,177 @@
+{
+  "scope": "Offline, conditional CRC constraints for pinned stock files; never opens USB.\n\nEqual opaque eight-byte symbols are assumed to decode identically, including\nacross positions and versions. The CRC is assumed reflected, over the clear\nthree-byte header followed by decoded data, with common initial/final constants.\nConsistency does not prove any of those assumptions or recover plaintext.\n",
+  "controls": [
+    "CRC-16/ARC check vector",
+    "generated nonzero-seed/xor CRC accepted",
+    "one-bit trailer corruption rejected",
+    "wrong polynomial rejected",
+    "incorrect zero-symbol assumption rejected",
+    "malformed and excessive record counts rejected"
+  ],
+  "records": 870,
+  "results": [
+    {
+      "polynomial": "07b1",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13920,
+      "rank": 13103,
+      "inconsistent_equations": 139,
+      "consistent": false,
+      "first_tail_block_assumed_zero": false
+    },
+    {
+      "polynomial": "07b1",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13936,
+      "rank": 13119,
+      "inconsistent_equations": 139,
+      "consistent": false,
+      "first_tail_block_assumed_zero": true
+    },
+    {
+      "polynomial": "07e7",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13920,
+      "rank": 13103,
+      "inconsistent_equations": 139,
+      "consistent": false,
+      "first_tail_block_assumed_zero": false
+    },
+    {
+      "polynomial": "07e7",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13936,
+      "rank": 13119,
+      "inconsistent_equations": 139,
+      "consistent": false,
+      "first_tail_block_assumed_zero": true
+    },
+    {
+      "polynomial": "0828",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13920,
+      "rank": 13164,
+      "inconsistent_equations": 114,
+      "consistent": false,
+      "first_tail_block_assumed_zero": false
+    },
+    {
+      "polynomial": "0828",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13936,
+      "rank": 13180,
+      "inconsistent_equations": 114,
+      "consistent": false,
+      "first_tail_block_assumed_zero": true
+    },
+    {
+      "polynomial": "27e4",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13920,
+      "rank": 13286,
+      "inconsistent_equations": 56,
+      "consistent": false,
+      "first_tail_block_assumed_zero": false
+    },
+    {
+      "polynomial": "27e4",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13936,
+      "rank": 13302,
+      "inconsistent_equations": 56,
+      "consistent": false,
+      "first_tail_block_assumed_zero": true
+    },
+    {
+      "polynomial": "6000",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13920,
+      "rank": 13347,
+      "inconsistent_equations": 33,
+      "consistent": false,
+      "first_tail_block_assumed_zero": false
+    },
+    {
+      "polynomial": "6000",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13936,
+      "rank": 13363,
+      "inconsistent_equations": 33,
+      "consistent": false,
+      "first_tail_block_assumed_zero": true
+    },
+    {
+      "polynomial": "682d",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13920,
+      "rank": 13347,
+      "inconsistent_equations": 33,
+      "consistent": false,
+      "first_tail_block_assumed_zero": false
+    },
+    {
+      "polynomial": "682d",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13936,
+      "rank": 13363,
+      "inconsistent_equations": 33,
+      "consistent": false,
+      "first_tail_block_assumed_zero": true
+    },
+    {
+      "polynomial": "a001",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13920,
+      "rank": 13408,
+      "inconsistent_equations": 0,
+      "consistent": true,
+      "first_tail_block_assumed_zero": false
+    },
+    {
+      "polynomial": "a001",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13936,
+      "rank": 13424,
+      "inconsistent_equations": 0,
+      "consistent": true,
+      "first_tail_block_assumed_zero": true
+    },
+    {
+      "polynomial": "b876",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13920,
+      "rank": 13408,
+      "inconsistent_equations": 0,
+      "consistent": true,
+      "first_tail_block_assumed_zero": false
+    },
+    {
+      "polynomial": "b876",
+      "symbols": 4837,
+      "variables": 77408,
+      "equations": 13936,
+      "rank": 13424,
+      "inconsistent_equations": 0,
+      "consistent": true,
+      "first_tail_block_assumed_zero": true
+    }
+  ],
+  "plaintext_recovered": false,
+  "mcu_identified": false,
+  "safe_to_flash": false
+}

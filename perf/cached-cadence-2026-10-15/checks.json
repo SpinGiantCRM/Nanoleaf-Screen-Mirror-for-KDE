@@ -1,0 +1,18 @@
+{
+  "experimental_default_enabled": false,
+  "installed_daily_version_changed": false,
+  "stream_tests_passed": 16,
+  "stream_test_breakdown": {
+    "main": 15,
+    "cadence_operator": 1
+  },
+  "clippy_all_targets_deny_warnings": true,
+  "format_check": true,
+  "diff_check": true,
+  "package_smoke_passed": true,
+  "cadence_operator_sha256": "63f0c1d44e85c383fe1b3603e664dc1e967eab814bdf23da3e958141baf4f237",
+  "tested_experimental_app_sha256": "fc23d08f4e8c8b27a56624957104321930f9b51fef914e561821dc7ca9b6ad03",
+  "tested_experimental_helper_sha256": "51f5bf9589ddeaae76296fc7dea4609789458e514f619b09fefaf23ea5c4cd16",
+  "optical_response_measured": false,
+  "bus_occupancy_tradeoff_verified": false
+}

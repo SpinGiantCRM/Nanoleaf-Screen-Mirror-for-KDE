@@ -1,0 +1,117 @@
+{
+  "scope": "Alternating executable order, generated 1440p/4K frames, allocation included, normal nice0; each executable checks exact scalar-reference equality. Concurrent daily KWin mirroring is not stopped. No optical/full-app inference.",
+  "cases": [
+    {
+      "width": 2560,
+      "height": 1440,
+      "alpha": 255,
+      "before": {
+        "per_run_medians_ms": [
+          2.4627165,
+          2.4629114999999997,
+          2.4064235,
+          2.418031
+        ],
+        "pooled_median_ms": 2.4201445,
+        "samples": 80,
+        "exact_reference_parity": true
+      },
+      "after": {
+        "per_run_medians_ms": [
+          1.9815075,
+          2.0073515,
+          1.9977084999999999,
+          2.0326305
+        ],
+        "pooled_median_ms": 1.998845,
+        "samples": 80,
+        "exact_reference_parity": true
+      },
+      "reduction_percent": 17.408030801466612
+    },
+    {
+      "width": 2560,
+      "height": 1440,
+      "alpha": 128,
+      "before": {
+        "per_run_medians_ms": [
+          9.7341465,
+          9.7178755,
+          9.718712499999999,
+          9.718882
+        ],
+        "pooled_median_ms": 9.719794,
+        "samples": 80,
+        "exact_reference_parity": true
+      },
+      "after": {
+        "per_run_medians_ms": [
+          9.781782,
+          9.852381999999999,
+          9.7557925,
+          9.842709
+        ],
+        "pooled_median_ms": 9.7939355,
+        "samples": 80,
+        "exact_reference_parity": true
+      },
+      "reduction_percent": -0.7627887998449268
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "alpha": 255,
+      "before": {
+        "per_run_medians_ms": [
+          6.0736989999999995,
+          5.997382999999999,
+          5.971003,
+          5.940194
+        ],
+        "pooled_median_ms": 6.0053535,
+        "samples": 80,
+        "exact_reference_parity": true
+      },
+      "after": {
+        "per_run_medians_ms": [
+          4.718908,
+          5.128845,
+          4.9488465,
+          4.9032995
+        ],
+        "pooled_median_ms": 4.9124870000000005,
+        "samples": 80,
+        "exact_reference_parity": true
+      },
+      "reduction_percent": 18.198204318863155
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "alpha": 128,
+      "before": {
+        "per_run_medians_ms": [
+          22.0119385,
+          21.8904315,
+          21.859678000000002,
+          21.882812
+        ],
+        "pooled_median_ms": 21.883518,
+        "samples": 80,
+        "exact_reference_parity": true
+      },
+      "after": {
+        "per_run_medians_ms": [
+          22.1191685,
+          22.26964,
+          22.0846275,
+          22.349072500000002
+        ],
+        "pooled_median_ms": 22.240555,
+        "samples": 80,
+        "exact_reference_parity": true
+      },
+      "reduction_percent": -1.6315338329056628
+    }
+  ]
+}

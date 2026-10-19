@@ -1,0 +1,16 @@
+{
+  "purpose": "Reproduce official recovery-object availability request as metadata only; physical device remains in application mode",
+  "endpoint": "https://firmware.nanoleaf.me/smartdownload",
+  "request": {
+    "app_platform": "Desktop",
+    "app_version": "3.0.1",
+    "firmware": "",
+    "hardware": "",
+    "model": "NL82K2"
+  },
+  "serial_sent_to_manufacturer": true,
+  "status": 200,
+  "response": "{\"update_status\":\"required\",\"fw_location\":\"https://nl82k2-firmware.s3.amazonaws.com/1.5.0.firmware\",\"current_firmware_ver\":\"\",\"new_firmware_ver\":\"1.5.0\",\"update_interval\":720,\"device_type\":\"nl82k2\",\"report\":0}",
+  "hid_commands_sent": 0,
+  "flashed": false
+}

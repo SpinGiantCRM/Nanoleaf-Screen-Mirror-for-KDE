@@ -1,0 +1,27 @@
+{
+  "scope": "120-second uncontrolled desktop; native tray plus capture child, excluding compositor/GPU/settings UI; 2 Hz status polling; no optical or power measurement",
+  "seconds": 120.04770063399337,
+  "summary": {
+    "backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync",
+    "ack_count": 5617,
+    "ack_per_s": 46.98542899789414,
+    "cpu_percent_one_core": 5.781035341242372,
+    "rss_mib": 168.63671875,
+    "pss_mib": 132.3359375
+  },
+  "snapshot_medians_ms": {
+    "capture_ms": 1.3546665,
+    "processing_ms": 0.0163665,
+    "usb_ms": 20.9979685,
+    "response_ms": 30.707038500000003,
+    "response_to_write_ms": 14.403748
+  },
+  "new_reconnects": 0,
+  "latest_slot_overwrites": 978,
+  "reused_source_packets": 68,
+  "host_write_endpoint_precedes_ack_in_all_samples": true,
+  "controlled_before_after": false,
+  "optical_measurement": false,
+  "memory_saving_claimed": false,
+  "user_observation": "Prompt response; colours correct when switching completely black/bright screens"
+}

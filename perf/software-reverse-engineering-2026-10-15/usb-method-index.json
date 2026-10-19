@@ -1,0 +1,618 @@
+{
+  "source_sha256": "b144b27875322a9e7e0382c7de78674dc76f0f5b3d8a995c0341bc7bc6f3f248",
+  "parser": "acorn",
+  "class_start": 6109827,
+  "class_end": 6131911,
+  "methods": [
+    {
+      "name": "#e",
+      "kind": "PropertyDefinition",
+      "static": true,
+      "start": 6109835,
+      "end": 6109847
+    },
+    {
+      "name": "#t",
+      "kind": "PropertyDefinition",
+      "static": true,
+      "start": 6109847,
+      "end": 6110074
+    },
+    {
+      "name": "onButtonPress",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110074,
+      "end": 6110088
+    },
+    {
+      "name": "onError",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110088,
+      "end": 6110096
+    },
+    {
+      "name": "#r",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110096,
+      "end": 6110099
+    },
+    {
+      "name": "#n",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110099,
+      "end": 6110102
+    },
+    {
+      "name": "#o",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110102,
+      "end": 6110105
+    },
+    {
+      "name": "#i",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110105,
+      "end": 6110108
+    },
+    {
+      "name": "#s",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110108,
+      "end": 6110111
+    },
+    {
+      "name": "#u",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110111,
+      "end": 6110114
+    },
+    {
+      "name": "#a",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110114,
+      "end": 6110117
+    },
+    {
+      "name": "#d",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110117,
+      "end": 6110120
+    },
+    {
+      "name": "#c",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110120,
+      "end": 6110123
+    },
+    {
+      "name": "#f",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110123,
+      "end": 6110126
+    },
+    {
+      "name": "#l",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110126,
+      "end": 6110129
+    },
+    {
+      "name": "#h",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110129,
+      "end": 6110132
+    },
+    {
+      "name": "#m",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110132,
+      "end": 6110135
+    },
+    {
+      "name": "#O",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110135,
+      "end": 6110138
+    },
+    {
+      "name": "#g",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110138,
+      "end": 6110141
+    },
+    {
+      "name": "#A",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110141,
+      "end": 6110144
+    },
+    {
+      "name": "#v",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110144,
+      "end": 6110147
+    },
+    {
+      "name": "#w",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110147,
+      "end": 6110150
+    },
+    {
+      "name": "#z",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110150,
+      "end": 6110153
+    },
+    {
+      "name": "#D",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110153,
+      "end": 6110156
+    },
+    {
+      "name": "#E",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110156,
+      "end": 6110159
+    },
+    {
+      "name": "#N",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110159,
+      "end": 6110162
+    },
+    {
+      "name": "#x",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110162,
+      "end": 6110165
+    },
+    {
+      "name": "#p",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110165,
+      "end": 6110168
+    },
+    {
+      "name": "#P",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110168,
+      "end": 6110171
+    },
+    {
+      "name": "#L",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110171,
+      "end": 6110174
+    },
+    {
+      "name": "#B",
+      "kind": "PropertyDefinition",
+      "static": false,
+      "start": 6110174,
+      "end": 6110177
+    },
+    {
+      "name": "constructor",
+      "kind": "constructor",
+      "static": false,
+      "start": 6110177,
+      "end": 6112932
+    },
+    {
+      "name": "corners",
+      "kind": "get",
+      "static": false,
+      "start": 6112932,
+      "end": 6112965
+    },
+    {
+      "name": "effects",
+      "kind": "get",
+      "static": false,
+      "start": 6112965,
+      "end": 6112998
+    },
+    {
+      "name": "firmwareUpgrade",
+      "kind": "get",
+      "static": false,
+      "start": 6112998,
+      "end": 6113035
+    },
+    {
+      "name": "firmwareVersion",
+      "kind": "get",
+      "static": false,
+      "start": 6113035,
+      "end": 6113072
+    },
+    {
+      "name": "hardwareVersion",
+      "kind": "get",
+      "static": false,
+      "start": 6113072,
+      "end": 6113109
+    },
+    {
+      "name": "length",
+      "kind": "get",
+      "static": false,
+      "start": 6113109,
+      "end": 6113144
+    },
+    {
+      "name": "model",
+      "kind": "get",
+      "static": false,
+      "start": 6113144,
+      "end": 6113171
+    },
+    {
+      "name": "name",
+      "kind": "get",
+      "static": false,
+      "start": 6113171,
+      "end": 6113197
+    },
+    {
+      "name": "plugins",
+      "kind": "get",
+      "static": false,
+      "start": 6113197,
+      "end": 6113230
+    },
+    {
+      "name": "serialNumber",
+      "kind": "get",
+      "static": false,
+      "start": 6113230,
+      "end": 6113264
+    },
+    {
+      "name": "state",
+      "kind": "get",
+      "static": false,
+      "start": 6113264,
+      "end": 6113295
+    },
+    {
+      "name": "deserialize",
+      "kind": "method",
+      "static": true,
+      "start": 6113295,
+      "end": 6113662
+    },
+    {
+      "name": "initializeFromSerialNumber",
+      "kind": "method",
+      "static": true,
+      "start": 6113662,
+      "end": 6116212
+    },
+    {
+      "name": "addEffect",
+      "kind": "method",
+      "static": false,
+      "start": 6116212,
+      "end": 6116394
+    },
+    {
+      "name": "completeCalibration",
+      "kind": "method",
+      "static": false,
+      "start": 6116394,
+      "end": 6116564
+    },
+    {
+      "name": "close",
+      "kind": "method",
+      "static": false,
+      "start": 6116564,
+      "end": 6116759
+    },
+    {
+      "name": "deleteEffect",
+      "kind": "method",
+      "static": false,
+      "start": 6116759,
+      "end": 6116948
+    },
+    {
+      "name": "displayEffect",
+      "kind": "method",
+      "static": false,
+      "start": 6116948,
+      "end": 6117018
+    },
+    {
+      "name": "getPositionData",
+      "kind": "method",
+      "static": false,
+      "start": 6117018,
+      "end": 6118200
+    },
+    {
+      "name": "identify",
+      "kind": "method",
+      "static": false,
+      "start": 6118200,
+      "end": 6118521
+    },
+    {
+      "name": "initializeCalibration",
+      "kind": "method",
+      "static": false,
+      "start": 6118521,
+      "end": 6119411
+    },
+    {
+      "name": "moveCalibration",
+      "kind": "method",
+      "static": false,
+      "start": 6119411,
+      "end": 6119551
+    },
+    {
+      "name": "renameEffect",
+      "kind": "method",
+      "static": false,
+      "start": 6119551,
+      "end": 6119951
+    },
+    {
+      "name": "serialize",
+      "kind": "method",
+      "static": false,
+      "start": 6119951,
+      "end": 6120074
+    },
+    {
+      "name": "setBrightness",
+      "kind": "method",
+      "static": false,
+      "start": 6120074,
+      "end": 6120307
+    },
+    {
+      "name": "setColour",
+      "kind": "method",
+      "static": false,
+      "start": 6120307,
+      "end": 6120628
+    },
+    {
+      "name": "setColourTemperature",
+      "kind": "method",
+      "static": false,
+      "start": 6120628,
+      "end": 6120864
+    },
+    {
+      "name": "setLedsPerGroup",
+      "kind": "method",
+      "static": false,
+      "start": 6120864,
+      "end": 6120924
+    },
+    {
+      "name": "setPower",
+      "kind": "method",
+      "static": false,
+      "start": 6120924,
+      "end": 6121119
+    },
+    {
+      "name": "setStreamingColours",
+      "kind": "method",
+      "static": false,
+      "start": 6121119,
+      "end": 6121264
+    },
+    {
+      "name": "startStreaming",
+      "kind": "method",
+      "static": false,
+      "start": 6121264,
+      "end": 6121533
+    },
+    {
+      "name": "stopStreaming",
+      "kind": "method",
+      "static": false,
+      "start": 6121533,
+      "end": 6121601
+    },
+    {
+      "name": "triggerFirmwareUpdate",
+      "kind": "method",
+      "static": false,
+      "start": 6121601,
+      "end": 6122029
+    },
+    {
+      "name": "turnOffImmediately",
+      "kind": "method",
+      "static": false,
+      "start": 6122029,
+      "end": 6122248
+    },
+    {
+      "name": "#C",
+      "kind": "method",
+      "static": true,
+      "start": 6122248,
+      "end": 6122634
+    },
+    {
+      "name": "#R",
+      "kind": "method",
+      "static": true,
+      "start": 6122634,
+      "end": 6122775
+    },
+    {
+      "name": "#j",
+      "kind": "method",
+      "static": true,
+      "start": 6122775,
+      "end": 6122817
+    },
+    {
+      "name": "#M",
+      "kind": "method",
+      "static": true,
+      "start": 6122817,
+      "end": 6123141
+    },
+    {
+      "name": "#S",
+      "kind": "get",
+      "static": false,
+      "start": 6123141,
+      "end": 6123159
+    },
+    {
+      "name": "#q",
+      "kind": "method",
+      "static": false,
+      "start": 6123159,
+      "end": 6123762
+    },
+    {
+      "name": "#U",
+      "kind": "method",
+      "static": false,
+      "start": 6123762,
+      "end": 6123891
+    },
+    {
+      "name": "#k",
+      "kind": "method",
+      "static": false,
+      "start": 6123891,
+      "end": 6124074
+    },
+    {
+      "name": "#b",
+      "kind": "method",
+      "static": false,
+      "start": 6124074,
+      "end": 6125998
+    },
+    {
+      "name": "#G",
+      "kind": "method",
+      "static": false,
+      "start": 6125998,
+      "end": 6126491
+    },
+    {
+      "name": "#I",
+      "kind": "method",
+      "static": false,
+      "start": 6126491,
+      "end": 6126608
+    },
+    {
+      "name": "#Q",
+      "kind": "method",
+      "static": false,
+      "start": 6126608,
+      "end": 6127942
+    },
+    {
+      "name": "#y",
+      "kind": "method",
+      "static": false,
+      "start": 6127942,
+      "end": 6128139
+    },
+    {
+      "name": "#W",
+      "kind": "method",
+      "static": false,
+      "start": 6128139,
+      "end": 6128515
+    },
+    {
+      "name": "#V",
+      "kind": "method",
+      "static": false,
+      "start": 6128515,
+      "end": 6128676
+    },
+    {
+      "name": "#T",
+      "kind": "method",
+      "static": false,
+      "start": 6128676,
+      "end": 6128900
+    },
+    {
+      "name": "#F",
+      "kind": "method",
+      "static": false,
+      "start": 6128900,
+      "end": 6129159
+    },
+    {
+      "name": "#Z",
+      "kind": "method",
+      "static": false,
+      "start": 6129159,
+      "end": 6129490
+    },
+    {
+      "name": "#J",
+      "kind": "method",
+      "static": false,
+      "start": 6129490,
+      "end": 6131031
+    },
+    {
+      "name": "#Y",
+      "kind": "method",
+      "static": false,
+      "start": 6131031,
+      "end": 6131725
+    },
+    {
+      "name": "#H",
+      "kind": "method",
+      "static": false,
+      "start": 6131725,
+      "end": 6131910
+    }
+  ],
+  "offset_unit": "UTF-16 code units in parsed JS source, not UTF-8 byte offsets"
+}

@@ -24,14 +24,14 @@ body:
     id: permissions
     attributes:
       label: Permissions steps tried
-      description: Did you run `nanoleaf-kde-sync-setup-permissions` and log out/in?
+      description: Did you run the supplied Nanoleaf HID udev rule and log out/in?
     validations:
       required: true
   - type: textarea
     id: doctor_device
     attributes:
       label: Doctor output
-      description: Paste `nanoleaf-kde-sync-doctor --device`
+      description: Paste `nanoleaf-native --doctor`
       render: shell
     validations:
       required: true

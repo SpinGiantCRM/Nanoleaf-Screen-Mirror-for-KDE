@@ -1,0 +1,26 @@
+{
+  "tested_revision": "0130739f1e8c1ef0940cd1199a74c44d76a67cb3",
+  "software_test_counts": {
+    "app": 68,
+    "core": 21,
+    "stream": 8
+  },
+  "gpu_layout_tests": 1,
+  "python": {
+    "passed": 1617,
+    "skipped": 23,
+    "coverage_percent": 77.89
+  },
+  "user_config_sha256": "b470ea82ac1568cf99f4762f6914e4aa295bd3422527e9eb3ca046b52272d1a4",
+  "package_archive_sha256": "efadda4f54708488db993b7567f8c64a48d5b6905c3467136b7075fd64b3794c",
+  "native_app_sha256": "a04f1d447ef323e84aa123a1d1c13ef904e16c9d9a4fcfc0a27ae29e61042453",
+  "capture_helper_sha256": "0f277c1811994d8f463f5bbd59d68c34cc6f14ab39c21f27e5196aedbbccf357",
+  "scope": "Offline colour/reference tests, synthetic Vulkan textures, paired edge transfers and isolated stopped-service/package smoke. No new desktop capture, emitted-light, USB reconnect, optical, game or power test.",
+  "pending": [
+    "real static desktop and video cadence",
+    "portal revocation and stopped-worker recovery on new binaries",
+    "physical USB reconnect and suspend",
+    "emitted colour and optical timing",
+    "explicit sync and raw HDR prototypes"
+  ]
+}

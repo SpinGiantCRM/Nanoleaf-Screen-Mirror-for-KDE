@@ -1,0 +1,127 @@
+{
+  "scope": "30-second candidate normal-mode uncontrolled desktop; sampled status at 10 Hz. Parent/capture child CPU and summed RSS/PSS; excludes compositor/GPU/UI/power and optical timing. No causal comparison.",
+  "seconds": 29.507396004999464,
+  "cpu_percent_one_core": 4.4395649137526245,
+  "rss_median_kib": 147980.0,
+  "pss_median_kib": 93531.0,
+  "acknowledged_frames": 1416,
+  "ack_per_second": 47.987968838730666,
+  "snapshot_medians": {
+    "capture_ms": 3.603852,
+    "processing_ms": 0.028129,
+    "usb_ms": 20.991476499999997,
+    "response_ms": 34.606142000000006,
+    "response_to_write_ms": 17.334780000000002
+  },
+  "capture_stage_medians": {
+    "analysis_ms": 0.7181850000000001,
+    "analysis_bytes": 36000.0,
+    "analysis_summary_bytes": 8640.0
+  },
+  "additional_reconnects": 0,
+  "new_prepared_overwrites": 202,
+  "controller_power_brightness_restored": true,
+  "config_byte_identical": true,
+  "app_closed_after": true,
+  "validation_enabled": false,
+  "actual_backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync",
+  "response_summary": {
+    "cached": {
+      "capture_ms": {
+        "max": 0.0,
+        "min": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0
+      },
+      "observed": 0,
+      "processing_ms": {
+        "max": 0.0,
+        "min": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0
+      },
+      "queue_ms": {
+        "max": 0.0,
+        "min": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0
+      },
+      "samples": 0,
+      "to_ack_ms": {
+        "max": 0.0,
+        "min": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0
+      },
+      "to_write_ms": {
+        "max": 0.0,
+        "min": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0
+      },
+      "usb_ms": {
+        "max": 0.0,
+        "min": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0
+      }
+    },
+    "fresh": {
+      "capture_ms": {
+        "max": 16.101185,
+        "min": 0.7161770000000001,
+        "p50": 2.3724570000000003,
+        "p95": 14.857592,
+        "p99": 15.441486
+      },
+      "observed": 1428,
+      "processing_ms": {
+        "max": 0.606588,
+        "min": 0.018125,
+        "p50": 0.029096,
+        "p95": 0.034135,
+        "p99": 0.042441
+      },
+      "queue_ms": {
+        "max": 20.269841,
+        "min": 0.003576,
+        "p50": 8.766008000000001,
+        "p95": 17.300945000000002,
+        "p99": 18.932698000000002
+      },
+      "samples": 512,
+      "to_ack_ms": {
+        "max": 55.02895,
+        "min": 21.528150999999998,
+        "p50": 35.178138999999994,
+        "p95": 48.636922,
+        "p99": 51.200464000000004
+      },
+      "to_write_ms": {
+        "max": 38.001157,
+        "min": 4.494596,
+        "p50": 18.086002,
+        "p95": 31.602096000000003,
+        "p99": 34.164865000000006
+      },
+      "usb_ms": {
+        "max": 21.637520000000002,
+        "min": 17.986703,
+        "p50": 20.990425,
+        "p95": 20.998692,
+        "p99": 21.006075
+      }
+    },
+    "rejected_samples": 0
+  },
+  "every_acknowledged_update_accounted_for": true,
+  "rolling_quantiles_independently_recomputed_exact": true,
+  "final_frames": 1428,
+  "final_prepared_overwrites": 204
+}

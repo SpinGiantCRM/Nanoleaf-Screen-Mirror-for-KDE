@@ -1,0 +1,39 @@
+{
+  "scope": "Finite ECB/block-transform hypotheses checked against fixed-length decoded-data CRC plus clear header; no padding assumption, device I/O or plaintext disclosure",
+  "unique_keys": 4302,
+  "records_available": 870,
+  "polynomials": [
+    "a001",
+    "b876"
+  ],
+  "tested_block_operations": {
+    "TripleDES-decryptor": 60228,
+    "TripleDES-encryptor": 60228,
+    "Blowfish-decryptor": 60228,
+    "Blowfish-encryptor": 60235,
+    "CAST5-decryptor": 21882,
+    "CAST5-encryptor": 21882,
+    "IDEA-decryptor": 21882,
+    "IDEA-encryptor": 21882,
+    "TEA-8-encrypt": 87528,
+    "TEA-16-encrypt": 87528,
+    "TEA-32-encrypt": 87528,
+    "TEA-64-encrypt": 87528,
+    "TEA-8-decrypt": 87528,
+    "TEA-16-decrypt": 87528,
+    "TEA-32-decrypt": 87542,
+    "TEA-64-decrypt": 87535,
+    "XTEA-8-encrypt": 87528,
+    "XTEA-16-encrypt": 87528,
+    "XTEA-32-encrypt": 87535,
+    "XTEA-64-encrypt": 87528,
+    "XTEA-8-decrypt": 87528,
+    "XTEA-16-decrypt": 87528,
+    "XTEA-32-decrypt": 87528,
+    "XTEA-64-decrypt": 87528
+  },
+  "three_record_survivors": 0,
+  "full_corpus_candidates": [],
+  "elapsed_seconds": 20.16349848399841,
+  "limitations": "Only tested keys, transforms and conditional CRC model excluded. No proof of cipher, chip, checksum layout or firmware safety."
+}

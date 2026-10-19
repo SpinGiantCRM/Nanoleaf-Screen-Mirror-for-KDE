@@ -1,0 +1,54 @@
+{
+  "scope": "Two separately announced ten-second neutral-code observations, one at a time, each with exclusive serial acknowledged USB output and restoration. User-reported visibility, not photometric colour or optical latency measurement. No screen images or real configuration values included.",
+  "results": [
+    {
+      "raw_neutral_code": 0,
+      "controller_test_brightness": 10,
+      "manual_zones": 48,
+      "held_seconds": 10.000054954,
+      "acknowledged_updates": 300,
+      "black_cleanup_acknowledged": true,
+      "original_power_brightness_restored": true,
+      "user_observation": "Completely dark",
+      "transaction_distributions": {
+        "ack_wait_ms": {
+          "p50": 3.0271600000000003,
+          "p95": 3.034924,
+          "p99": 3.040385
+        },
+        "total_ms": {
+          "p50": 5.722165,
+          "p95": 6.1637710000000006,
+          "p99": 6.19979
+        }
+      }
+    },
+    {
+      "raw_neutral_code": 16,
+      "controller_test_brightness": 10,
+      "manual_zones": 48,
+      "held_seconds": 10.000052786,
+      "acknowledged_updates": 300,
+      "black_cleanup_acknowledged": true,
+      "original_power_brightness_restored": true,
+      "user_observation": "LEDs emitted light, too dim to illuminate the wall behind the monitor",
+      "transaction_distributions": {
+        "ack_wait_ms": {
+          "p50": 17.028998,
+          "p95": 17.038737,
+          "p99": 17.041532
+        },
+        "total_ms": {
+          "p50": 19.703170999999998,
+          "p95": 20.147322,
+          "p99": 20.19242
+        }
+      }
+    }
+  ],
+  "configuration_byte_identical": true,
+  "daily_colour_encoding_changed": false,
+  "firmware_changed": false,
+  "operator_sha256": "e9c2286a4005ede98b3ea880d2df95247be119334b12f63d572882cbf394c642",
+  "interpretation": "At controller brightness10, raw0 was dark and raw16 emitted dim light. Earlier third-step-dark report was not reproduced. No black-floor15 or offset16 inference."
+}

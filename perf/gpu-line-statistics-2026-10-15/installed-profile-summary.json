@@ -1,0 +1,28 @@
+{
+  "scope": "30-second installed normal-mode uncontrolled desktop; sampled status at 10 Hz. Parent/capture child CPU and summed RSS/PSS; excludes compositor/GPU/UI/power and optical timing. No causal comparison.",
+  "seconds": 29.45931575600116,
+  "cpu_percent_one_core": 1.8669815842140174,
+  "rss_median_kib": 181928,
+  "pss_median_kib": 161878,
+  "acknowledged_frames": 1201,
+  "ack_per_second": 40.76808877529154,
+  "snapshot_medians": {
+    "capture_ms": 2.129708,
+    "processing_ms": 0.01063,
+    "usb_ms": 5.758562,
+    "response_ms": 7.950558999999999,
+    "response_to_write_ms": 4.924333000000001
+  },
+  "capture_stage_medians": {
+    "analysis_ms": 0.7048329999999999,
+    "analysis_bytes": 36000,
+    "analysis_summary_bytes": 0
+  },
+  "additional_reconnects": 0,
+  "new_prepared_overwrites": 0,
+  "controller_power_brightness_restored": true,
+  "config_byte_identical": true,
+  "app_closed_after": true,
+  "validation_enabled": false,
+  "actual_backend": "xdg-portal / Vulkan DMA-BUF / direct SDR samples / implicit sync"
+}

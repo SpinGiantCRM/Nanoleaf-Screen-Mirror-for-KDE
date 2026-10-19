@@ -1,0 +1,24 @@
+{
+  "source_sha256": "b144b27875322a9e7e0382c7de78674dc76f0f5b3d8a995c0341bc7bc6f3f248",
+  "source_member": "minified/main.js",
+  "source_version": "Nanoleaf Desktop 3.0.1",
+  "offset_unit": "UTF-16 code units",
+  "methods": [
+    {
+      "name": "initializeFromSerialNumber",
+      "start": 6113662,
+      "end": 6116212,
+      "finding": "Already-enumerated vendor loader: obtain image then automatically invoke updater. No full-device backup here."
+    },
+    {
+      "name": "#J",
+      "start": 6129490,
+      "end": 6131031,
+      "finding": "Optional app-to-loader command; open vendor loader; erase before forwarding numbered 61-byte records; restart. No code/factory-data readback or separate flash-compare operation in this method."
+    }
+  ],
+  "inspection_only": true,
+  "vendor_code_executed": false,
+  "device_commands_sent": false,
+  "undocumented_commands_ruled_out": false
+}

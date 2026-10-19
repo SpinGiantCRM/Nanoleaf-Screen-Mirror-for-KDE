@@ -2,30 +2,48 @@ name: Native Rust bundle
 
 concurrency:
   group: native-bundle-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name != 'release' }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/native-v') }}
 
 on:
   push:
     branches: [main]
-  release:
-    types: [published]
+  workflow_call:
+    inputs:
+      publish_release:
+        type: boolean
+        default: false
+      release_tag:
+        type: string
+        default: ""
   workflow_dispatch:
   pull_request:
     paths:
       - "native/**"
       - "scripts/build_native_bundle.sh"
       - "scripts/generate_native_notices.py"
+      - "scripts/verify_native_bundle.py"
+      - "scripts/test_verify_native_bundle.py"
+      - "scripts/publish_native_release.py"
+      - "scripts/test_publish_native_release.py"
+      - "scripts/build_native_wheel.py"
+      - "scripts/test_build_native_wheel.py"
+      - "scripts/verify_native_wheel.py"
+      - "packaging/**"
+      - "scripts/test_native_arch_package.py"
+      - "scripts/test_native_bootstrap.py"
       - "docs/NATIVE_INSTALL.md"
+      - "docs/RELEASE_2_0_0.md"
       - "assets/udev/**"
+      - "assets/icons/**"
       - "LICENSE"
       - ".github/workflows/native-bundle.yml"
+      - ".github/workflows/release.yml"
 
 permissions:
   contents: read
 
 jobs:
   native-bundle:
-    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'native-v')
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -34,9 +52,9 @@ jobs:
         with:
           python-version: "3.13"
       - name: Verify native release tag
-        if: github.event_name == 'release'
+        if: startsWith(github.ref, 'refs/tags/native-v')
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
         run: |
           python - <<'PY'
           import os, tomllib
@@ -50,11 +68,25 @@ jobs:
           rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
       - name: Verify native contracts
         run: |
+          python -m unittest discover -s scripts -p 'test_*native*.py'
           cargo +1.95.0 test --locked --manifest-path native/app/Cargo.toml --features gui
+          cargo +1.95.0 test --locked --manifest-path native/app/Cargo.toml --features gui --lib private_bus_signals_owner_loss_and_recovery -- --ignored
           cargo +1.95.0 clippy --locked --manifest-path native/app/Cargo.toml --features gui --all-targets -- -D warnings
           cargo +1.95.0 test --locked --manifest-path native/stream-probe/Cargo.toml
       - name: Build complete bundle
         run: bash scripts/build_native_bundle.sh dist/native
+      - name: Verify the AUR recipe pins this release archive
+        if: startsWith(github.ref, 'refs/tags/native-v')
+        run: |
+          python - <<'PYTHON'
+          import hashlib, pathlib, re, tomllib
+          recipe = pathlib.Path("packaging/arch/nanoleaf-kde-sync-bin/PKGBUILD").read_text()
+          version = tomllib.loads(pathlib.Path("native/app/Cargo.toml").read_text())["package"]["version"]
+          assert re.search(r"^pkgver=" + re.escape(version) + r"$", recipe, re.M), "AUR version does not match the native release"
+          pinned = re.search(r"sha256sums=\('([0-9a-f]{64})'", recipe)
+          actual = hashlib.sha256(pathlib.Path("dist/native.tar.gz").read_bytes()).hexdigest()
+          assert pinned and pinned.group(1) == actual, "AUR checksum does not match this tested native archive"
+          PYTHON
       - name: Verify artifact starts without capture or USB output
         run: |
           dist/native/bin/nanoleaf-native --version
@@ -63,31 +95,64 @@ jobs:
           result = subprocess.run(["dist/native/bin/nanoleaf-native-capture", "--invalid-probe-option"], capture_output=True, text=True)
           assert result.returncode != 0 and "Unknown probe option" in result.stderr
           PY
-      # Full real KDE cache/launcher and CLI rollback smoke checks run locally.
-      # Unit tests above cover installer checksum, rollback and recovery logic.
+      - name: Verify isolated install, paired rollback and release archive
+        # Ubuntu CI has no KDE session. Only the desktop-cache refresh is stubbed;
+        # the real installer, launchers, stopped service and both binaries run.
+        run: |
+          dbus-run-session -- python scripts/verify_native_bundle.py --bundle dist/native --archive dist/native.tar.gz --output dist/package-smoke.json --stub-desktop-cache
+      - name: Build and verify native-only Linux wheel
+        run: |
+          python scripts/build_native_wheel.py --archive dist/native.tar.gz --output dist/wheels
+          python -m pip install twine==6.2.0 pipx==1.8.0
+          python -m twine check --strict dist/wheels/*.whl
+          dbus-run-session -- python scripts/verify_native_wheel.py --wheel dist/wheels/*.whl --archive dist/native.tar.gz --output dist/wheel-smoke.json --stub-desktop-cache --pipx
       - uses: actions/upload-artifact@v4
         with:
           name: nanoleaf-native-linux-x86_64
           path: |
             dist/native.tar.gz
+            dist/native.tar.gz.sha256
+            dist/package-smoke.json
+            dist/wheel-smoke.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nanoleaf-native-pypi
+          path: dist/wheels/*.whl
           if-no-files-found: error
 
   publish-native:
-    if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'native-v')
+    if: inputs.publish_release && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/native-v') && inputs.release_tag == github.ref_name
     needs: native-bundle
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
       actions: read
     steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
       - uses: actions/download-artifact@v4
         with:
           name: nanoleaf-native-linux-x86_64
           path: dist
-      - name: Attach native archive and checksum to the published release
+      - name: Require passing CI on the final main revision
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          (cd dist && sha256sum native.tar.gz > native.tar.gz.sha256)
-          gh release upload "$RELEASE_TAG" dist/native.tar.gz dist/native.tar.gz.sha256 --repo "$GITHUB_REPOSITORY"
+          for workflow in ci.yml codeql.yml; do
+            run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --commit "$GITHUB_SHA" --branch main --json databaseId --jq '.[0].databaseId // empty')
+            if [ -z "$run_id" ]; then
+              echo "No main-branch validation found for this release revision: $workflow" >&2
+              exit 1
+            fi
+            gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --interval 30 --exit-status
+          done
+      - name: Verify draft assets, then publish the native release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          python scripts/publish_native_release.py --repo "$GITHUB_REPOSITORY" --tag "$RELEASE_TAG" --archive dist/native.tar.gz --notes docs/RELEASE_2_0_0.md

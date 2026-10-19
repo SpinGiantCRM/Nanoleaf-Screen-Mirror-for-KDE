@@ -1,0 +1,23 @@
+   Compiling nanoleaf-vulkan-probe v0.1.0 (/home/chasem/Projects/Nanoleaf-Screen-Mirror-for-KDE/native/gpu-probe)
+   Compiling nanoleaf-linux-gpu v0.1.0 (/home/chasem/Projects/Nanoleaf-Screen-Mirror-for-KDE/native/linux-gpu)
+   Compiling nanoleaf-stream-probe v0.1.0 (/home/chasem/Projects/Nanoleaf-Screen-Mirror-for-KDE/native/stream-probe)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.89s
+     Running unittests src/main.rs (native/stream-probe/target/debug/deps/nanoleaf_stream_probe-1ad93a1a65ef4a7f)
+
+running 8 tests
+test frame::tests::neutral_black_and_opaque_packings ... ok
+test frame::tests::padding_offsets_alpha_and_bounds ... ok
+test portal::tests::malformed_present_serial_never_silently_falls_back_to_a_reused_node ... ok
+test portal::tests::stream_identity_never_replaces_node_and_uint64_serial_is_preserved ... ok
+test permission::tests::private_bounded_separate_token_store ... ok
+test application::tests::no_cached_output_before_a_source_or_after_cancellation ... ok
+test application::tests::static_source_reprocessing_matches_identical_pixel_input_and_ack_history ... ok
+test portal::tests::permission_closure_and_bus_loss_are_observed_without_pipewire ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src/bin/texture-oracle.rs (native/stream-probe/target/debug/deps/texture_oracle-ad204c92903b3cd4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

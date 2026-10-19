@@ -1,12 +1,14 @@
 # Rust application
 
-The experimental replacement runs capture, calibrated colour processing, USB,
+The native application runs capture, calibrated colour processing, USB,
 tray and settings entirely in Rust. It does not require Python, Qt or the old C
-DRM helper. Development is on `codex/full-rust-rewrite`; the installed Python
-application and its launcher remain the reference and fallback.
+DRM helper. The rewrite is merged; colour/capture correctness improvements remain
+incremental. The Python application is retired; native golden fixtures retain its historical reference results.
 
-The priority is **colour accuracy > latency/FPS > resource usage**. Optional portal/Vulkan streaming is integrated and tested; native DRM/raw HDR
-and optional analysis modes still require verification.
+The priority is **visible response time > faithful colour > FPS > resource usage**.
+Timing changes preserve calibration and verified colour correctness. Optional
+portal/Vulkan streaming is integrated; native DRM/raw HDR remain gated and physical
+colour/recovery validation is ongoing.
 This is a working native application checkpoint, not a feature-complete release.
 See [implementation, measurements and remaining gates](../../docs/RUST_APPLICATION_MIGRATION.md).
 
@@ -26,8 +28,7 @@ native/app/target/release/nanoleaf-native --daemon
 The separate native desktop entry authorizes the canonical Rust executable for
 KWin ScreenShot2 using KDE's standard permission declaration. Moving the binary
 requires updating that entry. It does not overwrite the Python launcher or change
-autostart. Stop/quit the fallback before native LED output; run one application
-at a time. The older fallback does not participate in the native output lease.
+autostart. Run one application at a time. Old clients do not participate in the native output lease.
 
 `--daemon` honours your existing `start_on_launch`; `--run` starts immediately.
 `--headless` omits the tray but also honours `start_on_launch`. A second argument
@@ -54,20 +55,21 @@ The manual count and four anchors remain authoritative.
 cargo fmt --manifest-path native/app/Cargo.toml --check
 cargo clippy --manifest-path native/app/Cargo.toml --features gui --all-targets --locked --offline -- -D warnings
 cargo test --manifest-path native/app/Cargo.toml --features gui --locked --offline
-.venv/bin/python scripts/benchmark_native_app.py --frames 12 --repeats 3 --output /tmp/native-replay.json
 ```
 
-Offline replay compares evolving colour values and GRB packets against the
-preserved Python implementation. It excludes capture, USB and optical timing.
+Native fixture replays compare evolving colour values, calibration and GRB
+packets with independent historical reference vectors. Accuracy tests cover
+intentional colour corrections separately. These tests exclude live capture,
+USB and optical timing. See [colour/capture corrections](../../docs/COLOUR_STREAM_CORRECTNESS.md).
 Live probes are separate and drive the connected strip:
 
 ```bash
 native/app/target/release/nanoleaf-native --capture-probe /path/to/config.toml 5
 native/app/target/release/nanoleaf-native --live-probe /path/to/config.toml 8
-.venv/bin/python scripts/profile_native_lifecycle.py --output /tmp/native-lifecycle.json
+python3 scripts/profile_native_lifecycle.py --output /tmp/native-lifecycle.json
 ```
 
-Capture probe has no USB output. Live probe limits controller brightness to 10,
+Capture probe has no USB output. Live probe requests controller brightness code 10 (device readback may differ),
 restores power/brightness and verifies their readback, and fails if no frames were
 acknowledged or restoration cannot be verified. Lifecycle profiling adds Stop,
 exclusive preview and restart with real USB; it does not modify saved settings.
@@ -93,7 +95,7 @@ application as `nanoleaf-native-capture`, or build its development workspace:
 cargo build --release --bins --locked --manifest-path native/stream-probe/Cargo.toml
 native/app/target/release/nanoleaf-native --stream-capture-probe /path/to/config.toml 8
 NANOLEAF_STREAM_PARITY=1 native/app/target/release/nanoleaf-native --stream-capture-probe /path/to/config.toml 8
-.venv/bin/python scripts/profile_native_lifecycle.py --stream --output /tmp/stream-lifecycle.json
+python3 scripts/profile_native_lifecycle.py --stream --output /tmp/stream-lifecycle.json
 ```
 
 The worker verifies a single selected monitor and the researched KWin 6.7 sRGB
@@ -109,11 +111,11 @@ always processed. Pure sampling reuse uses exact pixel equality with a 16 MiB
 cap. Run the full reference replay with either policy explicitly:
 
 ```sh
-.venv/bin/python scripts/benchmark_native_app.py --sampling-mode peak_luma --frames 4 --repeats 1 --output /tmp/peak-parity.json
-.venv/bin/python scripts/benchmark_native_app.py --sampling-mode vivid_weighted --frames 4 --repeats 1 --output /tmp/vivid-parity.json
 .venv/bin/python scripts/generate_highlight_reference.py
 ```
 
 These modes use CPU pixels in the capture worker. Reference/accuracy continues
-full GPU box sampling where compatible. Remaining optional analysis and prediction
-policies remain gated; their saved configuration is preserved.
+full GPU box sampling where compatible. Conservative prediction and the documented
+optional analyses are implemented; reference/accuracy and dithering bypass prediction.
+Unchanged streaming sources are reprocessed without claiming fresh captured frames.
+See the latest correctness report for software evidence and pending physical gates.

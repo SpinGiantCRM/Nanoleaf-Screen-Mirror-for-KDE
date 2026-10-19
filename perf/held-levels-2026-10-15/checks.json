@@ -1,0 +1,20 @@
+{
+  "app_tests_passed": 108,
+  "app_tests_ignored": 1,
+  "all_target_clippy": true,
+  "format_check": true,
+  "operator_sha256": "e9c2286a4005ede98b3ea880d2df95247be119334b12f63d572882cbf394c642",
+  "plans_verified_without_desktop_runtime": [
+    0,
+    15,
+    16,
+    24
+  ],
+  "single_observation_seconds": 10,
+  "test_controller_brightness": 10,
+  "hardware_run": false,
+  "human_observation_pending": true,
+  "real_configuration_unchanged": true,
+  "daily_colour_mapping_changed": false,
+  "daily_installed_build": "1530b37"
+}

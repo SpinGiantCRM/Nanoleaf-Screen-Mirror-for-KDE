@@ -1,0 +1,80 @@
+{
+  "scope": "Offline test of conventional fixed-length 16-bit CRC codeword layouts; no assumption that ciphertext trailers hold such a CRC",
+  "synthetic_arbitrary_seed_and_xor_validation_pass": true,
+  "layouts": [
+    {
+      "start_byte": 0,
+      "swap_two_trailer_bytes": false,
+      "reflect_bits_in_each_byte": false,
+      "common_polynomial_degree": 0
+    },
+    {
+      "start_byte": 0,
+      "swap_two_trailer_bytes": false,
+      "reflect_bits_in_each_byte": true,
+      "common_polynomial_degree": 0
+    },
+    {
+      "start_byte": 0,
+      "swap_two_trailer_bytes": true,
+      "reflect_bits_in_each_byte": false,
+      "common_polynomial_degree": 0
+    },
+    {
+      "start_byte": 0,
+      "swap_two_trailer_bytes": true,
+      "reflect_bits_in_each_byte": true,
+      "common_polynomial_degree": 0
+    },
+    {
+      "start_byte": 1,
+      "swap_two_trailer_bytes": false,
+      "reflect_bits_in_each_byte": false,
+      "common_polynomial_degree": 0
+    },
+    {
+      "start_byte": 1,
+      "swap_two_trailer_bytes": false,
+      "reflect_bits_in_each_byte": true,
+      "common_polynomial_degree": 0
+    },
+    {
+      "start_byte": 1,
+      "swap_two_trailer_bytes": true,
+      "reflect_bits_in_each_byte": false,
+      "common_polynomial_degree": 0
+    },
+    {
+      "start_byte": 1,
+      "swap_two_trailer_bytes": true,
+      "reflect_bits_in_each_byte": true,
+      "common_polynomial_degree": 0
+    },
+    {
+      "start_byte": 3,
+      "swap_two_trailer_bytes": false,
+      "reflect_bits_in_each_byte": false,
+      "common_polynomial_degree": 0
+    },
+    {
+      "start_byte": 3,
+      "swap_two_trailer_bytes": false,
+      "reflect_bits_in_each_byte": true,
+      "common_polynomial_degree": 0
+    },
+    {
+      "start_byte": 3,
+      "swap_two_trailer_bytes": true,
+      "reflect_bits_in_each_byte": false,
+      "common_polynomial_degree": 0
+    },
+    {
+      "start_byte": 3,
+      "swap_two_trailer_bytes": true,
+      "reflect_bits_in_each_byte": true,
+      "common_polynomial_degree": 0
+    }
+  ],
+  "any_common_degree_16_factor": false,
+  "encoding_or_crc_identified": false
+}

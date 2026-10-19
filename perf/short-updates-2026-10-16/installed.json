@@ -1,0 +1,42 @@
+{
+  "scope": "Native tray/service, live native-resolution SDR capture, colour pipeline and real USB ACK. Backend is recorded per sample. No optical colour/response measurement.",
+  "installed_version": "f57d688da5164c073f7c5600d90cb20df0f32de513d8450041afe28edf86984e",
+  "app_sha256": "5c1c701122e436715ac034a16bd43cf822b5f5da58e59225992c06e633ec2373",
+  "helper_sha256": "94385988be930ff5e3f429086c03bfb19a93bc134e474b338a23ded934d9838d",
+  "default_policy": true,
+  "short_updates_enabled_on_verified_controller": true,
+  "acknowledged_frames": 385,
+  "shortened_packets": 247,
+  "controller_restored_and_independently_verified": true,
+  "real_config_sha256": "a5d9b604c8ff68adf8a9321cc9fb578d4c2468c00a279612d66312f800049933",
+  "target_fps_preserved": 60,
+  "manual_zones_preserved": 48,
+  "selected_backend_preserved": "xdg-portal",
+  "changed_managed_entries_only": [
+    "native command symlink",
+    "native desktop launcher"
+  ],
+  "preserved_user_paths": 13,
+  "previous_native_retained": true,
+  "python_fallback_preserved": true,
+  "autostart_files_after": [],
+  "app_left_closed": true,
+  "doctor": {
+    "configuration_error": null,
+    "configuration_read_only": true,
+    "mirroring_ready": true,
+    "privileged_access_required": false,
+    "readiness_error": null,
+    "stream_helper_present": true,
+    "usb_devices_detected": [
+      {
+        "interface": 0,
+        "pid": 33282,
+        "vid": 14330
+      }
+    ],
+    "usb_output_tested": false,
+    "wayland_session": true
+  },
+  "stderr_bytes": 0
+}

@@ -1,6 +1,6 @@
 //! Exact encoded RGB8 sampling from a GPU texture. No full-frame upload here.
 use crate::ReadbackReset;
-use anyhow::{ensure, Result};
+use anyhow::{ensure, Context, Result};
 use nanoleaf_core::sampling::{SdrSampler, ZoneRect, ZoneSample};
 use std::{
     sync::mpsc,
@@ -15,6 +15,13 @@ pub struct TextureSampler {
     parameters: wgpu::Buffer,
     output: wgpu::Buffer,
     readback: wgpu::Buffer,
+    uniform_pipeline: wgpu::ComputePipeline,
+    uniform_output: wgpu::Buffer,
+    uniform_readback: wgpu::Buffer,
+    line_pipeline: wgpu::ComputePipeline,
+    line_parameters: wgpu::Buffer,
+    line_output: wgpu::Buffer,
+    line_readback: wgpu::Buffer,
     width: u32,
     height: u32,
     pixels: Vec<u64>,
@@ -92,6 +99,61 @@ impl TextureSampler {
             usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+        let uniform_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Exact normalized RGB8 uniformity"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("uniform.wgsl").into()),
+        });
+        let uniform_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("Prove full-image RGB8 uniformity"),
+            layout: None,
+            module: &uniform_shader,
+            entry_point: Some("uniform"),
+            compilation_options: Default::default(),
+            cache: None,
+        });
+        let uniform_output = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Uniformity flags"),
+            size: 256 * 4,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+        let uniform_readback = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Uniformity flag readback"),
+            size: 256 * 4,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let line_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Exact border-line RGB8 sums"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("lines.wgsl").into()),
+        });
+        let line_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("Integer border-line statistics"),
+            layout: None,
+            module: &line_shader,
+            entry_point: Some("lines"),
+            compilation_options: Default::default(),
+            cache: None,
+        });
+        let line_parameters = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Border-line ranges"),
+            size: 16,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let line_size = u64::from(width.max(height).div_ceil(8)) * 2 * 16;
+        let line_output = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Border-line totals"),
+            size: line_size,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+        let line_readback = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Border-line totals readback"),
+            size: line_size,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
         Ok(Self {
             device,
             queue,
@@ -100,6 +162,13 @@ impl TextureSampler {
             parameters,
             output,
             readback,
+            uniform_pipeline,
+            uniform_output,
+            uniform_readback,
+            line_pipeline,
+            line_parameters,
+            line_output,
+            line_readback,
             width,
             height,
             pixels,
@@ -110,6 +179,159 @@ impl TextureSampler {
     }
     pub fn queue(&self) -> &wgpu::Queue {
         &self.queue
+    }
+    /// Exact RGB totals/count on both directions of the detector's step-eight
+    /// grid. No luma/threshold or floating-point sum is evaluated on the GPU.
+    /// Results are forward lines, then reverse lines; each half is ceil(limit/8).
+    pub fn line_sums(
+        &self,
+        texture: &wgpu::Texture,
+        vertical: bool,
+        start: u32,
+        end: u32,
+    ) -> Result<Vec<[u32; 4]>> {
+        ensure!(
+            texture.width() == self.width
+                && texture.height() == self.height
+                && matches!(
+                    texture.format(),
+                    wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Bgra8Unorm
+                ),
+            "Explicit encoded RGB8 texture required"
+        );
+        let (limit, span) = if vertical {
+            (self.width, self.height)
+        } else {
+            (self.height, self.width)
+        };
+        ensure!(start < end && end <= span, "Invalid border-line range");
+        let half = limit.div_ceil(8);
+        let parameters: Vec<_> = [u32::from(vertical), start, end, half]
+            .into_iter()
+            .flat_map(u32::to_le_bytes)
+            .collect();
+        self.queue
+            .write_buffer(&self.line_parameters, 0, &parameters);
+        let view = texture.create_view(&Default::default());
+        let group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Current border-line input"),
+            layout: &self.line_pipeline.get_bind_group_layout(0),
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: self.line_output.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: self.line_parameters.as_entire_binding(),
+                },
+            ],
+        });
+        let size = u64::from(half) * 2 * 16;
+        let mut encoder = self.device.create_command_encoder(&Default::default());
+        {
+            let mut pass = encoder.begin_compute_pass(&Default::default());
+            pass.set_pipeline(&self.line_pipeline);
+            pass.set_bind_group(0, &group, &[]);
+            pass.dispatch_workgroups(half * 2, 1, 1);
+        }
+        encoder.copy_buffer_to_buffer(&self.line_output, 0, &self.line_readback, 0, size);
+        let index = self.queue.submit([encoder.finish()]);
+        let (tx, rx) = mpsc::sync_channel(1);
+        self.line_readback
+            .slice(..size)
+            .map_async(wgpu::MapMode::Read, move |r| {
+                let _ = tx.send(r);
+            });
+        let reset = ReadbackReset(&self.line_readback);
+        self.device.poll(wgpu::PollType::Wait {
+            submission_index: Some(index),
+            timeout: Some(Duration::from_secs(2)),
+        })?;
+        rx.recv_timeout(Duration::from_secs(2))??;
+        let mapped = self.line_readback.slice(..size).get_mapped_range()?;
+        ensure!(
+            mapped.len() as u64 == size,
+            "Incomplete border-line readback"
+        );
+        let result: Vec<[u32; 4]> = mapped
+            .as_chunks::<16>()
+            .0
+            .iter()
+            .map(|bytes| {
+                std::array::from_fn(|k| {
+                    u32::from_le_bytes(bytes[k * 4..k * 4 + 4].try_into().unwrap())
+                })
+            })
+            .collect();
+        ensure!(
+            result.iter().all(
+                |r| r[3] == end - start && r[..3].iter().all(|&sum| sum <= (end - start) * 255)
+            ),
+            "Invalid border-line totals"
+        );
+        drop(mapped);
+        drop(reset);
+        Ok(result)
+    }
+    /// Test every pixel, with the same alpha-zero/RGB8 normalization as sampling.
+    /// Integer OR reduction has no threshold, floating sum or false-positive tolerance.
+    pub fn is_uniform(&self, texture: &wgpu::Texture) -> Result<bool> {
+        ensure!(
+            texture.width() == self.width
+                && texture.height() == self.height
+                && matches!(
+                    texture.format(),
+                    wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Rgba8Unorm
+                ),
+            "Explicit encoded RGB8 texture required"
+        );
+        let view = texture.create_view(&Default::default());
+        let group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Uniformity input"),
+            layout: &self.uniform_pipeline.get_bind_group_layout(0),
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: self.uniform_output.as_entire_binding(),
+                },
+            ],
+        });
+        let mut encoder = self.device.create_command_encoder(&Default::default());
+        {
+            let mut pass = encoder.begin_compute_pass(&Default::default());
+            pass.set_pipeline(&self.uniform_pipeline);
+            pass.set_bind_group(0, &group, &[]);
+            pass.dispatch_workgroups(256, 1, 1);
+        }
+        encoder.copy_buffer_to_buffer(&self.uniform_output, 0, &self.uniform_readback, 0, 1024);
+        let index = self.queue.submit([encoder.finish()]);
+        let (tx, rx) = mpsc::sync_channel(1);
+        self.uniform_readback
+            .slice(..)
+            .map_async(wgpu::MapMode::Read, move |r| {
+                let _ = tx.send(r);
+            });
+        let reset = ReadbackReset(&self.uniform_readback);
+        self.device.poll(wgpu::PollType::Wait {
+            submission_index: Some(index),
+            timeout: Some(Duration::from_secs(2)),
+        })?;
+        rx.recv_timeout(Duration::from_secs(2))??;
+        let mapped = self.uniform_readback.slice(..).get_mapped_range()?;
+        ensure!(mapped.len() == 1024, "Incomplete uniformity readback");
+        let result = mapped.iter().all(|&v| v == 0);
+        drop(mapped);
+        drop(reset);
+        Ok(result)
     }
     pub fn sample(&self, texture: &wgpu::Texture) -> Result<(Vec<ZoneSample>, serde_json::Value)> {
         ensure!(
@@ -217,53 +439,62 @@ impl TextureSampler {
         self.region_rgb(texture, [0, 0, self.width, self.height])
     }
     pub fn region_rgb(&self, texture: &wgpu::Texture, rect: [u32; 4]) -> Result<Vec<u8>> {
-        let [x, y, width, height] = rect;
-        ensure!(
-            width > 0
-                && height > 0
-                && x.checked_add(width).is_some_and(|r| r <= self.width)
-                && y.checked_add(height).is_some_and(|b| b <= self.height),
-            "Analysis region out of bounds"
-        );
+        self.regions_rgb(texture, &[rect])?
+            .pop()
+            .context("Missing region readback")
+    }
+    /// Exact encoded regions in one submission/map. No downscaling or float reduction.
+    pub fn regions_rgb(&self, texture: &wgpu::Texture, rects: &[[u32; 4]]) -> Result<Vec<Vec<u8>>> {
         ensure!(
             texture.width() == self.width && texture.height() == self.height,
             "Diagnostic size mismatch"
         );
         ensure!(
+            matches!(
+                texture.format(),
+                wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Rgba8Unorm
+            ),
+            "Explicit encoded RGB8 texture required"
+        );
+        ensure!(
             texture.usage().contains(wgpu::TextureUsages::COPY_SRC),
             "Diagnostic readback not enabled for this texture"
         );
-        let stride = (width * 4).div_ceil(256) * 256;
-        let size = u64::from(stride) * u64::from(height);
-        ensure!(size <= 128 * 1024 * 1024, "Diagnostic frame size limit");
+        let (regions, size) = readback_layout(self.width, self.height, rects)?;
+        if regions.is_empty() {
+            return Ok(vec![]);
+        }
         let readback = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Diagnostic frame readback only"),
+            label: Some("Exact region batch readback"),
             size,
             usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         let mut encoder = self.device.create_command_encoder(&Default::default());
-        encoder.copy_texture_to_buffer(
-            wgpu::TexelCopyTextureInfo {
-                texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d { x, y, z: 0 },
-                aspect: wgpu::TextureAspect::All,
-            },
-            wgpu::TexelCopyBufferInfo {
-                buffer: &readback,
-                layout: wgpu::TexelCopyBufferLayout {
-                    offset: 0,
-                    bytes_per_row: Some(stride),
-                    rows_per_image: Some(height),
+        for region in &regions {
+            let [x, y, width, height] = region.rect;
+            encoder.copy_texture_to_buffer(
+                wgpu::TexelCopyTextureInfo {
+                    texture,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d { x, y, z: 0 },
+                    aspect: wgpu::TextureAspect::All,
                 },
-            },
-            wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-        );
+                wgpu::TexelCopyBufferInfo {
+                    buffer: &readback,
+                    layout: wgpu::TexelCopyBufferLayout {
+                        offset: region.offset,
+                        bytes_per_row: Some(region.stride),
+                        rows_per_image: Some(height),
+                    },
+                },
+                wgpu::Extent3d {
+                    width,
+                    height,
+                    depth_or_array_layers: 1,
+                },
+            );
+        }
         let index = self.queue.submit([encoder.finish()]);
         let (tx, rx) = mpsc::sync_channel(1);
         readback.slice(..).map_async(wgpu::MapMode::Read, move |r| {
@@ -276,20 +507,107 @@ impl TextureSampler {
         })?;
         rx.recv_timeout(Duration::from_secs(2))??;
         let data = readback.slice(..).get_mapped_range()?;
-        let mut rgb = Vec::with_capacity(width as usize * height as usize * 3);
-        for row in data.chunks_exact(stride as usize) {
-            for pixel in row[..width as usize * 4].as_chunks::<4>().0 {
-                if pixel[3] == 0 {
-                    rgb.extend_from_slice(&[0; 3]);
-                } else if texture.format() == wgpu::TextureFormat::Bgra8Unorm {
-                    rgb.extend_from_slice(&[pixel[2], pixel[1], pixel[0]]);
-                } else {
-                    rgb.extend_from_slice(&pixel[..3]);
+        let mut result = Vec::with_capacity(regions.len());
+        for region in regions {
+            let [_, _, width, height] = region.rect;
+            let bytes = data
+                .get(region.offset as usize..(region.offset + region.size) as usize)
+                .context("Incomplete region readback")?;
+            let mut rgb = Vec::with_capacity(width as usize * height as usize * 3);
+            for row in bytes.chunks_exact(region.stride as usize) {
+                for pixel in row[..width as usize * 4].as_chunks::<4>().0 {
+                    if pixel[3] == 0 {
+                        rgb.extend_from_slice(&[0; 3]);
+                    } else if texture.format() == wgpu::TextureFormat::Bgra8Unorm {
+                        rgb.extend_from_slice(&[pixel[2], pixel[1], pixel[0]]);
+                    } else {
+                        rgb.extend_from_slice(&pixel[..3]);
+                    }
                 }
             }
+            result.push(rgb);
         }
         drop(data);
         drop(reset);
-        Ok(rgb)
+        Ok(result)
+    }
+}
+
+struct ReadRegion {
+    rect: [u32; 4],
+    stride: u32,
+    offset: u64,
+    size: u64,
+}
+fn readback_layout(width: u32, height: u32, rects: &[[u32; 4]]) -> Result<(Vec<ReadRegion>, u64)> {
+    ensure!(rects.len() <= 256, "Analysis region count limit");
+    let mut result = Vec::with_capacity(rects.len());
+    let mut offset = 0_u64;
+    for &rect in rects {
+        let [x, y, w, h] = rect;
+        ensure!(
+            w > 0
+                && h > 0
+                && x.checked_add(w).is_some_and(|r| r <= width)
+                && y.checked_add(h).is_some_and(|b| b <= height),
+            "Analysis region out of bounds"
+        );
+        let row = w.checked_mul(4).context("Analysis stride overflow")?;
+        let stride = row
+            .div_ceil(256)
+            .checked_mul(256)
+            .context("Analysis stride overflow")?;
+        let size = u64::from(stride) * u64::from(h);
+        let end = offset
+            .checked_add(size)
+            .context("Analysis readback overflow")?;
+        ensure!(end <= 128 * 1024 * 1024, "Diagnostic frame size limit");
+        result.push(ReadRegion {
+            rect,
+            stride,
+            offset,
+            size,
+        });
+        offset = end;
+    }
+    Ok((result, offset))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn region_batch_layout_is_aligned_bounded_and_never_overlaps() {
+        let (regions, total) = readback_layout(
+            96,
+            64,
+            &[
+                [0, 0, 96, 1],
+                [0, 63, 96, 1],
+                [23, 7, 1, 41],
+                [17, 13, 29, 19],
+            ],
+        )
+        .unwrap();
+        let mut end = 0;
+        for r in regions {
+            assert_eq!(r.offset, end);
+            assert_eq!(r.offset % 256, 0);
+            assert_eq!(r.stride % 256, 0);
+            end += r.size;
+        }
+        assert_eq!(total, end);
+        assert_eq!(readback_layout(96, 64, &[]).unwrap().1, 0);
+        for rect in [
+            [0, 0, 0, 1],
+            [95, 0, 2, 1],
+            [0, 63, 1, 2],
+            [u32::MAX, 0, 1, 1],
+        ] {
+            assert!(readback_layout(96, 64, &[rect]).is_err());
+        }
+        assert!(readback_layout(u32::MAX, 1, &[[0, 0, u32::MAX, 1]]).is_err());
+        assert!(readback_layout(16384, 16384, &[[0, 0, 16384, 16384]]).is_err());
+        assert!(readback_layout(1, 1, &[[0, 0, 1, 1]; 257]).is_err());
     }
 }

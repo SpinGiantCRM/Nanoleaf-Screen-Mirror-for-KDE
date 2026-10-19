@@ -1,0 +1,24 @@
+{
+  "implicit": {
+    "preview_exclusive": true,
+    "worker_failure_requires_explicit_restart": true,
+    "worker_stall_requires_explicit_restart": true,
+    "worker_stall_to_stop_seconds": 2.032921666999755,
+    "stop_kept_tray_service_alive": true,
+    "configuration_and_fallback_launcher_preserved": true,
+    "controller_restored": true,
+    "app_sha256": "a6569da971ed2ea90d80f0ff6b72a652111c3aaf6abcee023f827431b9b44c0e",
+    "helper_sha256": "b7bfb81a36e0649fc00207e8b9964daeac9cd625f76aa17fa4898cd0ed2e4d45"
+  },
+  "explicit": {
+    "preview_exclusive": true,
+    "worker_failure_requires_explicit_restart": true,
+    "worker_stall_requires_explicit_restart": true,
+    "worker_stall_to_stop_seconds": 2.072938866003824,
+    "stop_kept_tray_service_alive": true,
+    "configuration_and_fallback_launcher_preserved": true,
+    "controller_restored": true,
+    "app_sha256": "a6569da971ed2ea90d80f0ff6b72a652111c3aaf6abcee023f827431b9b44c0e",
+    "helper_sha256": "b7bfb81a36e0649fc00207e8b9964daeac9cd625f76aa17fa4898cd0ed2e4d45"
+  }
+}

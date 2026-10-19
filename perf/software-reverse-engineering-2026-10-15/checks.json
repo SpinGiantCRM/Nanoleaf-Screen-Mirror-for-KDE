@@ -1,0 +1,59 @@
+{
+  "scope": "Offline software reverse engineering only; not a hardware performance or colour test",
+  "json_reproduction_exact": [
+    "emulated-colour.json",
+    "mock-transport.json",
+    "firmware-hypotheses.json"
+  ],
+  "synthetic_periodic_xor_controls_pass": [
+    1,
+    2,
+    4,
+    8
+  ],
+  "neutral_model_comparisons": 768,
+  "disabled_calibration_identity_checks": 768,
+  "random_rgb_inputs_per_profile": 256,
+  "random_rgb_repeat_exact": true,
+  "profiles": 3,
+  "mock_transport_cases_pass": 5,
+  "changed_input_rejection": {
+    "changed_dll": {
+      "rejected": true,
+      "returncode": 1
+    },
+    "changed_js": {
+      "rejected": true,
+      "returncode": 1
+    },
+    "changed_firmware": {
+      "rejected": true,
+      "returncode": 1
+    }
+  },
+  "preservation": {
+    "config.toml": {
+      "unchanged": true,
+      "sha256": "a5d9b604c8ff68adf8a9321cc9fb578d4c2468c00a279612d66312f800049933"
+    },
+    "nanoleaf-native": {
+      "unchanged": true,
+      "sha256": "c99e47751adaa8c431f8ecfec17a3881ea7db4931e68c120cdad2c3eee261770"
+    },
+    "installed_capture_helper": {
+      "unchanged": true,
+      "sha256": "2a5406177c3945f17569ad5f152c65df022e419766aeaeb1cdf7a1b2586312e0"
+    }
+  },
+  "daily_application_code_changed": false,
+  "controller_hid_transactions": 0,
+  "flashing_or_bootloader_entry": false,
+  "windows_app_or_dll_startup_run": false,
+  "selected_math_cpu_emulation_and_fake_transport_run": true,
+  "mcu_identified": false,
+  "firmware_decoded": false,
+  "recovery_proven": false,
+  "safe_to_flash": false,
+  "full_app_test_suite_rerun": false,
+  "new_external_messages_sent": false
+}

@@ -1,0 +1,95 @@
+{
+  "scope": "Bounded offline encoding hypotheses; no USB, network or firmware writer.\n\nCRC models are conditional on the clear header followed by 56 decoded bytes,\nbig-endian trailers and common initial/final constants. Equal encoded blocks\nalone do not establish that model or a particular cipher/CPU.\n",
+  "records": 870,
+  "models": [
+    {
+      "polynomial": "a001",
+      "model": "bytewise-period-1",
+      "variables": 2064,
+      "equations_examined": 2056,
+      "rank": 2054,
+      "consistent": false
+    },
+    {
+      "polynomial": "a001",
+      "model": "bytewise-period-2",
+      "variables": 4112,
+      "equations_examined": 4516,
+      "rank": 4096,
+      "consistent": false
+    },
+    {
+      "polynomial": "a001",
+      "model": "bytewise-period-4",
+      "variables": 8208,
+      "equations_examined": 8609,
+      "rank": 8175,
+      "consistent": false
+    },
+    {
+      "polynomial": "a001",
+      "model": "bytewise-period-8",
+      "variables": 16400,
+      "equations_examined": 13920,
+      "rank": 13408,
+      "consistent": true
+    },
+    {
+      "polynomial": "a001",
+      "model": "affine-64-bit-block",
+      "variables": 1040,
+      "equations_examined": 1042,
+      "rank": 1040,
+      "consistent": false
+    },
+    {
+      "polynomial": "b876",
+      "model": "bytewise-period-1",
+      "variables": 2064,
+      "equations_examined": 2058,
+      "rank": 2056,
+      "consistent": false
+    },
+    {
+      "polynomial": "b876",
+      "model": "bytewise-period-2",
+      "variables": 4112,
+      "equations_examined": 4513,
+      "rank": 4096,
+      "consistent": false
+    },
+    {
+      "polynomial": "b876",
+      "model": "bytewise-period-4",
+      "variables": 8208,
+      "equations_examined": 8611,
+      "rank": 8176,
+      "consistent": false
+    },
+    {
+      "polynomial": "b876",
+      "model": "bytewise-period-8",
+      "variables": 16400,
+      "equations_examined": 13920,
+      "rank": 13408,
+      "consistent": true
+    },
+    {
+      "polynomial": "b876",
+      "model": "affine-64-bit-block",
+      "variables": 1040,
+      "equations_examined": 1042,
+      "rank": 1040,
+      "consistent": false
+    }
+  ],
+  "whole_stored_field_affine": {
+    "records_available": 870,
+    "first_contradiction_record_ordinal": 484,
+    "rank": 459,
+    "consistent": false
+  },
+  "plaintext_recovered": false,
+  "mcu_identified": false,
+  "safe_to_flash": false
+}

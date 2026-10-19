@@ -1,0 +1,31 @@
+{
+  "tested_code_revision": "1ba4043",
+  "tests": {
+    "app": 71,
+    "core": 26,
+    "stream": 9
+  },
+  "prior_unchanged_gpu_layout_tests": 1,
+  "historical_comparisons": 72,
+  "historical_sample_maximum_delta": 0,
+  "historical_packet_maximum_delta": 0,
+  "production_paired_comparisons": 576,
+  "production_sample_maximum_delta": 0,
+  "capture_parity_frames": 393,
+  "all_capture_parity_exact": true,
+  "capture_error": null,
+  "new_archive_sha256": "eed0cfe5015ac3928f9a540496e6d92f51f86fd6e238710a75fb6427f83bec49",
+  "app_sha256": "a9639d0d29c01450da4171c55571a5c8d1ab6c8d8270ef3b15e8b5dd6f2e64d9",
+  "helper_sha256": "f29fadc861aeae8d0ec7ab7599c0dd59dad7d64ab8a160a1cbc7532c8a3bd3b3",
+  "real_config_sha256": "b470ea82ac1568cf99f4762f6914e4aa295bd3422527e9eb3ca046b52272d1a4",
+  "installed_versions_changed": false,
+  "physical_new_colour_confirmation": true,
+  "limits": [
+    "No optical or colourimeter verification",
+    "No power or sustained-game benchmark",
+    "No raw HDR verification",
+    "Discrete adaptive/palette/analysis state not proven cadence invariant",
+    "One live reused-source ACK; sustained sparse-source response untested"
+  ],
+  "physical_validation": "physical-validation.json"
+}

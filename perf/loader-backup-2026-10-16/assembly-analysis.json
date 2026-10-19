@@ -1,0 +1,55 @@
+{
+  "input_sha256": "04cbe2b0aec19099ff7b4eaacfd98ddc5abcf7d6d4140f4d82c89f3779b1e823",
+  "interpretation": "Static line references in community reconstructed generic source, not retail code. Not assembled or instruction-emulated.",
+  "generic_variants": [
+    "2.31",
+    "2.40"
+  ],
+  "sections": {
+    "verify": {
+      "first_line": 304,
+      "last_line": 387
+    },
+    "erase": {
+      "first_line": 423,
+      "last_line": 470
+    },
+    "startup": {
+      "first_line": 986,
+      "last_line": 1080
+    }
+  },
+  "error_latch_references": [
+    {
+      "line": 333,
+      "operation": "jnb   bFlashErr, ROM_3939"
+    },
+    {
+      "line": 370,
+      "operation": "setb  bFlashErr"
+    },
+    {
+      "line": 466,
+      "operation": "clr   bFlashErr"
+    },
+    {
+      "line": 1000,
+      "operation": "clr   bFlashErr"
+    }
+  ],
+  "findings": {
+    "legacy_unaligned_start_allowed": true,
+    "hardened_start_alignment_bytes": 8,
+    "hardened_start_upper_bound_exclusive": 14336,
+    "hardened_full_range_end_check_present_in_inspected_function": false,
+    "hardened_latch_on_first_mismatch": true,
+    "latch_clearing_paths": [
+      "main initialization",
+      "code erase completion"
+    ],
+    "usb_bus_reset_clears_latch": false,
+    "maximum_well_formed_usb_compare_data_bytes_used_for_model": 56,
+    "malformed_packet_behaviour_established": false,
+    "retail_applicability_established": false
+  }
+}

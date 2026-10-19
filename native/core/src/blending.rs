@@ -1,4 +1,5 @@
-//! Reference temporal/neighbor hysteresis operating on small zone vectors.
+//! Temporal/neighbor hysteresis on small zone vectors. Modern mixing operates
+//! in linear sRGB before device gamma; the original methods are offline oracles.
 use crate::colour::{decode_srgb, encode_srgb, from_oklab, to_oklab};
 #[derive(Clone, Default, Debug)]
 pub struct ZoneHysteresis {
@@ -55,6 +56,22 @@ fn polar_blend(now: [f32; 3], before: [f32; 3], alpha: f32) -> [f32; 3] {
     let c = alpha * cc + (1.0 - alpha) * cp;
     from_oklab([l, c * h.cos(), c * h.sin()]).map(|v| encode_srgb(v).round_ties_even())
 }
+enum Mixing {
+    Legacy,
+    Linear { reference_steps: f32 },
+}
+/// Convert a 60 Hz reference coefficient into the same exponential time
+/// constant at another cadence. Zero elapsed time does not advance history.
+pub fn temporal_alpha(alpha: f32, reference_steps: f32) -> f32 {
+    let alpha = alpha.clamp(0.0, 1.0);
+    if reference_steps <= 0.0 {
+        return 0.0;
+    }
+    if !reference_steps.is_finite() || reference_steps == 1.0 || alpha == 0.0 || alpha == 1.0 {
+        return alpha;
+    }
+    -((-alpha).ln_1p() * reference_steps).exp_m1()
+}
 impl BlendState {
     fn resize(&mut self, n: usize) {
         if self.zones.len() != n {
@@ -64,6 +81,12 @@ impl BlendState {
         }
     }
     pub fn neighbors(&mut self, colors: &mut [[f32; 3]], mode: &str) {
+        self.neighbors_impl(colors, mode, false);
+    }
+    pub fn neighbors_linear(&mut self, colors: &mut [[f32; 3]], mode: &str) {
+        self.neighbors_impl(colors, mode, true);
+    }
+    fn neighbors_impl(&mut self, colors: &mut [[f32; 3]], mode: &str, linear: bool) {
         let w = match mode {
             "off" => 0.0,
             "precise" => 0.04,
@@ -75,6 +98,13 @@ impl BlendState {
         }
         self.resize(colors.len());
         let copy = colors.to_vec();
+        let decoded = if linear {
+            copy.iter()
+                .map(|rgb| rgb.map(decode_srgb))
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
         let n = copy.len();
         for (i, rgb) in colors.iter_mut().enumerate() {
             let prev = &mut self.zones[i];
@@ -96,7 +126,15 @@ impl BlendState {
             let wb = if i + 1 == n || blocked_b { 0.0 } else { w };
             if !dark {
                 *rgb = std::array::from_fn(|c| {
-                    (1.0 - wa - wb) * copy[i][c] + wa * copy[a][c] + wb * copy[b][c]
+                    if linear {
+                        encode_srgb(
+                            (1.0 - wa - wb) * decoded[i][c]
+                                + wa * decoded[a][c]
+                                + wb * decoded[b][c],
+                        )
+                    } else {
+                        (1.0 - wa - wb) * copy[i][c] + wa * copy[a][c] + wb * copy[b][c]
+                    }
                 });
             }
             prev.neighbor_neutral = neutral;
@@ -111,6 +149,45 @@ impl BlendState {
         smoothing: f32,
         speed: f32,
         preset: &str,
+    ) {
+        self.smooth_impl(colors, previous, smoothing, speed, preset, Mixing::Legacy);
+    }
+    pub fn smooth_linear(
+        &mut self,
+        colors: &mut [[f32; 3]],
+        previous: &[[f32; 3]],
+        smoothing: f32,
+        speed: f32,
+        preset: &str,
+    ) {
+        self.smooth_linear_timed(colors, previous, smoothing, speed, preset, 1.0);
+    }
+    pub fn smooth_linear_timed(
+        &mut self,
+        colors: &mut [[f32; 3]],
+        previous: &[[f32; 3]],
+        smoothing: f32,
+        speed: f32,
+        preset: &str,
+        reference_steps: f32,
+    ) {
+        self.smooth_impl(
+            colors,
+            previous,
+            smoothing,
+            speed,
+            preset,
+            Mixing::Linear { reference_steps },
+        );
+    }
+    fn smooth_impl(
+        &mut self,
+        colors: &mut [[f32; 3]],
+        previous: &[[f32; 3]],
+        smoothing: f32,
+        speed: f32,
+        preset: &str,
+        mixing: Mixing,
     ) {
         if previous.len() != colors.len() || colors.is_empty() {
             return;
@@ -244,18 +321,37 @@ impl BlendState {
                 alpha = alpha.min(tiny);
             }
             let bright = gt(p, 20.0, 16.0, h.bright, init) && pp > 20.0 && tiny_mask;
-            let hue_delta = {
+            let oscillation = if bright && c >= 10.0 && pc >= 10.0 {
                 let a = hue(cur, true).2 - hue(old, true).2;
-                a.sin().atan2(a.cos()).abs()
+                let hue_delta = a.sin().atan2(a.cos()).abs();
+                gt(hue_delta, 0.35, 0.30, h.hue, init)
+            } else {
+                false
             };
-            let oscillation =
-                bright && c >= 10.0 && pc >= 10.0 && gt(hue_delta, 0.35, 0.30, h.hue, init);
             if oscillation {
                 alpha = alpha.min(tiny);
             }
             let static_zone = lt(d, dead * 1.5, dead * 1.2, h.static_zone, init);
             let chromatic = static_zone && ge(c, 10.0, 8.0, h.chromatic, init) && pc >= 10.0;
-            *rgb = if chromatic {
+            *rgb = if let Mixing::Linear { reference_steps } = mixing {
+                // Full responsiveness disables smoothing, including the tiny-
+                // change caps that otherwise override the user's coefficient.
+                if minimum == 1.0 {
+                    alpha = 1.0;
+                }
+                alpha = temporal_alpha(alpha, reference_steps);
+                if alpha == 0.0 || cur == old {
+                    old
+                } else if alpha == 1.0 {
+                    cur
+                } else {
+                    std::array::from_fn(|c| {
+                        encode_srgb(
+                            (1.0 - alpha) * decode_srgb(old[c]) + alpha * decode_srgb(cur[c]),
+                        )
+                    })
+                }
+            } else if chromatic {
                 polar_blend(cur, old, alpha)
             } else {
                 std::array::from_fn(|c| old[c] + alpha * (cur[c] - old[c]))
