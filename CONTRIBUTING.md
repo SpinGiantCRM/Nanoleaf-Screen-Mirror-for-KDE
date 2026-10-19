@@ -14,6 +14,37 @@ for their lint/format checks. Hardware Vulkan
 oracles, live colour parity, permissions and physical USB/session recovery are
 separate from headless CI and must be reported accurately.
 
+## Monthly maintenance
+
+[Monthly maintenance](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/actions/workflows/monthly-maintenance.yml)
+runs on the first day of each month at 04:17 UTC and supports **Run workflow**.
+It reuses the full CI suite (including fresh Rust advisory checks) and native
+bundle build/install/rollback checks, without publishing a release. Independently,
+Ubuntu 24.04 and the current Ubuntu runner download the latest public PyPI wheel,
+require matching stable GitHub/PyPI versions and checksum pins, and exercise the
+published installer using real HTTPS GitHub downloads. Isolated installation,
+custom-prefix upgrade, read-only doctor, uninstall and configuration preservation
+are checked. CI stubs only KDE's desktop-cache refresh; no capture/output starts.
+The run retains JSON evidence and a summary. Failed jobs make the run fail;
+GitHub Actions notification preferences control delivery of GitHub alerts.
+
+GitHub may disable public-repository schedules after 60 days without repository
+activity. A separate monthly Codex follow-up checks for a recent completed run,
+reports failures, and dispatches a missing run. That follow-up depends on the
+Codex host/account remaining available; GitHub scheduling and manual dispatch
+remain usable independently. Check the Actions page if notifications stop.
+These automated checks do not replace physical display/strip and sleep/wake tests.
+
+Run the same public-network installation check locally with:
+
+```bash
+python3 scripts/verify_public_install.py --output dist/public-install.json
+```
+
+It uses disposable HOME/XDG directories and never updates the daily installation.
+Expect failures while a new release is published to only one of GitHub/PyPI;
+rerun after both channels finish publishing. Do not suppress version mismatches.
+
 Keep calibration and unknown configuration fields compatible. Changes to mapping,
 colour or schemas require meaningful regression tests under `native/app/tests/`
 and `native/core/tests/`. The immutable native bundle must preserve user data and
