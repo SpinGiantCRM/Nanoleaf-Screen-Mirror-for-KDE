@@ -37,6 +37,7 @@ on:
       - "assets/icons/**"
       - "LICENSE"
       - ".github/workflows/native-bundle.yml"
+      - ".github/workflows/native-build.yml"
       - ".github/workflows/release.yml"
 
 permissions:
@@ -44,82 +45,11 @@ permissions:
 
 jobs:
   native-bundle:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.13"
-      - name: Verify native release tag
-        if: startsWith(github.ref, 'refs/tags/native-v')
-        env:
-          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
-        run: |
-          python - <<'PY'
-          import os, tomllib
-          version = tomllib.load(open("native/app/Cargo.toml", "rb"))["package"]["version"]
-          assert os.environ["RELEASE_TAG"] == "native-v" + version, "Native release tag/version mismatch"
-          PY
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq pkg-config dbus-daemon libegl1-mesa-dev libgl1-mesa-dev libxkbcommon-dev libwayland-dev libpipewire-0.3-dev libudev-dev libclang-dev
-          rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
-      - name: Verify native contracts
-        run: |
-          python -m unittest discover -s scripts -p 'test_*native*.py'
-          cargo +1.95.0 test --locked --manifest-path native/app/Cargo.toml --features gui
-          cargo +1.95.0 test --locked --manifest-path native/app/Cargo.toml --features gui --lib private_bus_signals_owner_loss_and_recovery -- --ignored
-          cargo +1.95.0 clippy --locked --manifest-path native/app/Cargo.toml --features gui --all-targets -- -D warnings
-          cargo +1.95.0 test --locked --manifest-path native/stream-probe/Cargo.toml
-      - name: Build complete bundle
-        run: bash scripts/build_native_bundle.sh dist/native
-      - name: Verify the AUR recipe pins this release archive
-        if: startsWith(github.ref, 'refs/tags/native-v')
-        run: |
-          python - <<'PYTHON'
-          import hashlib, pathlib, re, tomllib
-          recipe = pathlib.Path("packaging/arch/nanoleaf-kde-sync-bin/PKGBUILD").read_text()
-          version = tomllib.loads(pathlib.Path("native/app/Cargo.toml").read_text())["package"]["version"]
-          assert re.search(r"^pkgver=" + re.escape(version) + r"$", recipe, re.M), "AUR version does not match the native release"
-          pinned = re.search(r"sha256sums=\('([0-9a-f]{64})'", recipe)
-          actual = hashlib.sha256(pathlib.Path("dist/native.tar.gz").read_bytes()).hexdigest()
-          assert pinned and pinned.group(1) == actual, "AUR checksum does not match this tested native archive"
-          PYTHON
-      - name: Verify artifact starts without capture or USB output
-        run: |
-          dist/native/bin/nanoleaf-native --version
-          python - <<'PY'
-          import subprocess
-          result = subprocess.run(["dist/native/bin/nanoleaf-native-capture", "--invalid-probe-option"], capture_output=True, text=True)
-          assert result.returncode != 0 and "Unknown probe option" in result.stderr
-          PY
-      - name: Verify isolated install, paired rollback and release archive
-        # Ubuntu CI has no KDE session. Only the desktop-cache refresh is stubbed;
-        # the real installer, launchers, stopped service and both binaries run.
-        run: |
-          dbus-run-session -- python scripts/verify_native_bundle.py --bundle dist/native --archive dist/native.tar.gz --output dist/package-smoke.json --stub-desktop-cache
-      - name: Build and verify native-only Linux wheel
-        run: |
-          python scripts/build_native_wheel.py --archive dist/native.tar.gz --output dist/wheels
-          python -m pip install twine==6.2.0 pipx==1.8.0
-          python -m twine check --strict dist/wheels/*.whl
-          dbus-run-session -- python scripts/verify_native_wheel.py --wheel dist/wheels/*.whl --archive dist/native.tar.gz --output dist/wheel-smoke.json --stub-desktop-cache --pipx
-      - uses: actions/upload-artifact@v4
-        with:
-          name: nanoleaf-native-linux-x86_64
-          path: |
-            dist/native.tar.gz
-            dist/native.tar.gz.sha256
-            dist/package-smoke.json
-            dist/wheel-smoke.json
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        with:
-          name: nanoleaf-native-pypi
-          path: dist/wheels/*.whl
-          if-no-files-found: error
+    permissions:
+      contents: read
+    uses: ./.github/workflows/native-build.yml
+    with:
+      release_tag: ${{ inputs.release_tag }}
 
   publish-native:
     if: inputs.publish_release && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/native-v') && inputs.release_tag == github.ref_name

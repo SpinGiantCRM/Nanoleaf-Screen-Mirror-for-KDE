@@ -3,13 +3,41 @@
 import copy
 import io
 import json
+import os
+import tempfile
 import unittest
 import zipfile
+from pathlib import Path
+from unittest.mock import patch
 
-from verify_public_install import validate_channels, validate_wheel
+from verify_public_install import isolated_environment, validate_channels, validate_wheel
 
 
 class PublicInstallTests(unittest.TestCase):
+    def test_parent_pip_placement_settings_cannot_escape_disposable_home(self):
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.dict(
+                os.environ,
+                {
+                    "PIP_TARGET": "/outside/site-packages",
+                    "PIP_PREFIX": "/outside/prefix",
+                    "PIP_ROOT": "/outside/root",
+                    "PIP_USER": "1",
+                    "PIP_EXTRA_INDEX_URL": "https://unrelated.invalid/simple",
+                },
+            ),
+        ):
+            env = isolated_environment(Path(directory))
+        self.assertEqual(
+            {name: value for name, value in env.items() if name.startswith("PIP_")},
+            {
+                "PIP_CONFIG_FILE": os.devnull,
+                "PIP_DISABLE_PIP_VERSION_CHECK": "1",
+                "PIP_INDEX_URL": "https://pypi.org/simple",
+            },
+        )
+
     def setUp(self):
         self.github = {
             "tag_name": "native-v2.0.0",

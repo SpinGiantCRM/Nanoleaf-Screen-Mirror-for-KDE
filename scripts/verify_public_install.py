@@ -82,6 +82,35 @@ def validate_wheel(data: bytes, version: str, archive_digest: str) -> None:
         raise ValueError("Wheel native version/digest differs from the GitHub release")
 
 
+def isolated_environment(home: Path) -> dict[str, str]:
+    """Discard inherited pip destinations before constructing the private environment."""
+    parent = {name: value for name, value in os.environ.items() if not name.startswith("PIP_")}
+    env = dict(
+        parent,
+        HOME=str(home),
+        XDG_CONFIG_HOME=str(home / "config"),
+        XDG_DATA_HOME=str(home / "data"),
+        XDG_CACHE_HOME=str(home / "cache"),
+        XDG_STATE_HOME=str(home / "state"),
+        XDG_RUNTIME_DIR=str(home / "runtime"),
+        PIP_CONFIG_FILE=os.devnull,
+        PIP_DISABLE_PIP_VERSION_CHECK="1",
+        PIP_INDEX_URL="https://pypi.org/simple",
+        PATH=os.pathsep.join(
+            [str(Path(sys.executable).parent), "/usr/local/bin", "/usr/bin", "/bin"]
+        ),
+    )
+    for name in (
+        "PYTHONPATH",
+        "PYTHONHOME",
+        "DISPLAY",
+        "WAYLAND_DISPLAY",
+        "DBUS_SESSION_BUS_ADDRESS",
+    ):
+        env.pop(name, None)
+    return env
+
+
 def verify(output: Path, stub_cache: bool) -> None:
     github = json.loads(fetch(f"https://api.github.com/repos/{REPO}/releases/latest"))
     pypi = json.loads(fetch("https://pypi.org/pypi/nanoleaf-kde-sync/json"))
@@ -96,32 +125,7 @@ def verify(output: Path, stub_cache: bool) -> None:
         home = Path(directory)
         runtime = home / "runtime"
         runtime.mkdir(mode=0o700)
-        env = dict(
-            os.environ,
-            HOME=str(home),
-            XDG_CONFIG_HOME=str(home / "config"),
-            XDG_DATA_HOME=str(home / "data"),
-            XDG_CACHE_HOME=str(home / "cache"),
-            XDG_STATE_HOME=str(home / "state"),
-            XDG_RUNTIME_DIR=str(runtime),
-            PIP_CONFIG_FILE=os.devnull,
-            PIP_DISABLE_PIP_VERSION_CHECK="1",
-            PIP_INDEX_URL="https://pypi.org/simple",
-            PATH=os.pathsep.join(
-                [str(Path(sys.executable).parent), "/usr/local/bin", "/usr/bin", "/bin"]
-            ),
-        )
-        for name in (
-            "PIP_NO_INDEX",
-            "PIP_EXTRA_INDEX_URL",
-            "PIP_FIND_LINKS",
-            "PYTHONPATH",
-            "PYTHONHOME",
-            "DISPLAY",
-            "WAYLAND_DISPLAY",
-            "DBUS_SESSION_BUS_ADDRESS",
-        ):
-            env.pop(name, None)
+        env = isolated_environment(home)
         if stub_cache:
             tools = home / "tools"
             tools.mkdir()

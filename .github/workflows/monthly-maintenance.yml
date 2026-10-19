@@ -28,8 +28,8 @@ jobs:
 
   rebuilt-bundle:
     if: github.event_name != 'pull_request'
-    uses: ./.github/workflows/native-bundle.yml
-    # Default publish_release=false: maintenance never publishes or replaces assets.
+    uses: ./.github/workflows/native-build.yml
+    # Read-only builder contains no release publication job.
 
   public-install:
     name: Public download install (${{ matrix.os }})
