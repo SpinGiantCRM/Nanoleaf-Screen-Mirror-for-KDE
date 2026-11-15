@@ -138,9 +138,49 @@ pub fn selected(
     );
     Ok(matching[0].name.clone())
 }
+
+/// Hyprland's portal names the shared connector (`mapping_id`) and reports
+/// physical, not logical, size. Match that exact single output name instead.
+pub fn selected_by_name(
+    outputs: &[OutputInfo],
+    mapping_id: Option<&str>,
+    target: &str,
+) -> anyhow::Result<String> {
+    let name = mapping_id
+        .filter(|n| !n.is_empty())
+        .ok_or_else(|| anyhow::anyhow!("The screen-sharing portal did not name the monitor"))?;
+    let matching = outputs.iter().filter(|o| o.name == name).count();
+    anyhow::ensure!(
+        matching == 1 && (target.is_empty() || name == target),
+        "Choose the configured single monitor when sharing; this shared source is ambiguous or different"
+    );
+    Ok(name.to_owned())
+}
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn portal_mapping_id_must_name_one_selected_monitor() {
+        let output = |name: &str| OutputInfo {
+            name: name.into(),
+            position: Some((0, 0)),
+            size: Some((2560, 1440)),
+        };
+        let outputs = [output("DP-1"), output("HDMI-A-1")];
+        assert_eq!(
+            selected_by_name(&outputs, Some("DP-1"), "").unwrap(),
+            "DP-1"
+        );
+        assert_eq!(
+            selected_by_name(&outputs, Some("DP-1"), "DP-1").unwrap(),
+            "DP-1"
+        );
+        assert!(selected_by_name(&outputs, Some("DP-1"), "HDMI-A-1").is_err());
+        assert!(selected_by_name(&outputs, Some("DP-2"), "").is_err());
+        assert!(selected_by_name(&outputs, Some(""), "").is_err());
+        assert!(selected_by_name(&outputs, None, "").is_err());
+        assert!(selected_by_name(&[output("DP-1"), output("DP-1")], Some("DP-1"), "").is_err());
+    }
     #[test]
     fn portal_source_must_match_one_selected_monitor() {
         let outputs = [

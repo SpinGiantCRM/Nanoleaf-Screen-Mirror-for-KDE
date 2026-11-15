@@ -24,6 +24,8 @@ pub struct Session {
     pub serial: Option<u64>,
     pub size: Option<(i32, i32)>,
     pub position: Option<(i32, i32)>,
+    /// Compositor output name when the portal provides one (xdph: connector).
+    pub mapping_id: Option<String>,
     closed: Arc<AtomicBool>,
 }
 impl Drop for Session {
@@ -156,6 +158,7 @@ impl Session {
             serial: None,
             size: None,
             position: None,
+            mapping_id: None,
             closed: Arc::new(AtomicBool::new(false)),
         };
         // Subscribe before Start, including a closure emitted before its reply.
@@ -180,7 +183,9 @@ impl Session {
             }
             Ok(portal.call("SelectSources", &(&session.path, options))?)
         })?;
-        eprintln!("Select the configured monitor if KDE asks for screen-sharing permission.");
+        eprintln!(
+            "Select the configured monitor if the desktop asks for screen-sharing permission."
+        );
         let started = request(&connection, &portal, "Start", |handle| {
             Ok(portal.call(
                 "Start",
@@ -209,6 +214,9 @@ impl Session {
         }
         if let Some(value) = streams[0].1.get("position") {
             session.position = Some(value.try_clone()?.try_into()?);
+        }
+        if let Some(value) = streams[0].1.get("mapping_id") {
+            session.mapping_id = <&str>::try_from(value).ok().map(str::to_owned);
         }
         let fd = session.remote()?;
         drop(portal);

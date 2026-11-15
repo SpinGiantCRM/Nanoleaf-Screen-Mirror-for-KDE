@@ -371,30 +371,17 @@ fn emit(record: &serde_json::Value) -> Result<()> {
     Ok(())
 }
 
-fn verified_kwin_family(version: &str) -> bool {
-    // Exact 6.7.5/6.8.0 upstream paths use an ARGB8888 source and the same
-    // sRGB-labelled SDR render target. Per-frame format/colour guards remain.
-    // See docs/KWIN_6_8_COMPATIBILITY.md for source and live validation limits.
-    let core = version.trim().split('-').next().unwrap_or_default();
-    let parts: Vec<_> = core.split('.').collect();
-    matches!(parts.as_slice(),["6","7"|"8",patch] if patch.parse::<u16>().is_ok_and(|value| value < 50))
-}
-
 pub fn run() -> Result<()> {
-    // This pilot's untagged RGB8 contract is pinned to the researched KWin family.
+    // The untagged RGB8 contract is pinned per researched compositor family.
     // Other compositors or raw HDR require explicit metadata validation first.
     let connection = zbus::blocking::connection::Builder::session()?
         .method_timeout(std::time::Duration::from_secs(2))
         .build()?;
-    let kwin = zbus::blocking::Proxy::new(&connection, "org.kde.KWin", "/KWin", "org.kde.KWin")?;
-    let info: String = kwin.call("supportInformation", &())?;
-    let version = info
-        .lines()
-        .find_map(|l| l.strip_prefix("KWin version: "))
-        .context("Cannot establish KWin colour contract")?;
+    let compositor = super::compositor::detect(&connection)?;
+    let explicit_sync = std::env::var_os("NANOLEAF_EXPLICIT_SYNC").is_some();
     ensure!(
-        verified_kwin_family(version),
-        "Stream colour contract is verified for KWin 6.7/6.8; running {version}. Select KWin ScreenShot2 until this compositor contract is verified"
+        !explicit_sync || compositor.supports_explicit_sync(),
+        "Explicit sync is not offered by the {compositor:?} screen-cast portal; unset NANOLEAF_EXPLICIT_SYNC"
     );
     let mut initial = String::new();
     std::io::stdin()
@@ -410,19 +397,29 @@ pub fn run() -> Result<()> {
     let prepared = super::gpu::prepare()?;
     let (session, fd) = super::portal::Session::open()?;
     let outputs = nanoleaf_native::screens::outputs()?;
-    if let Err(error) = nanoleaf_native::screens::selected(
-        &outputs,
-        session.position,
-        session.size,
-        &application.config.capture_monitor,
-    ) {
+    let selected = match compositor {
+        super::compositor::Compositor::KWin => nanoleaf_native::screens::selected(
+            &outputs,
+            session.position,
+            session.size,
+            &application.config.capture_monitor,
+        ),
+        // xdph reports physical pixel size but logical position; its
+        // mapping_id is the connector name, matched exactly instead.
+        super::compositor::Compositor::Hyprland => nanoleaf_native::screens::selected_by_name(
+            &outputs,
+            session.mapping_id.as_deref(),
+            &application.config.capture_monitor,
+        ),
+    };
+    if let Err(error) = selected {
         crate::permission::Permission::user()?.invalidate()?;
         return Err(error);
     }
     let result = super::run_application(
         &session,
         fd,
-        if std::env::var_os("NANOLEAF_EXPLICIT_SYNC").is_some() {
+        if explicit_sync {
             super::Mode::DmaExplicit
         } else {
             super::Mode::Dma
@@ -441,28 +438,6 @@ pub fn run() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn compositor_contract_allows_only_researched_release_families() {
-        for version in ["6.7.5", "6.7.5-3.1", "6.8.0", "6.8.1", " 6.8.0 "] {
-            assert!(verified_kwin_family(version), "{version}");
-        }
-        for version in [
-            "",
-            "6.6.5",
-            "6.9.0",
-            "7.0.0",
-            "6.8",
-            "6.8.",
-            "6.8.90.1",
-            "6.8.80",
-            "6.8.90",
-            "6.7.80",
-            "6.8.not-a-release",
-            "6.80.0",
-        ] {
-            assert!(!verified_kwin_family(version), "{version}");
-        }
-    }
     #[test]
     fn line_certificates_match_the_actual_pipeline_mean_contract() {
         // Cross-crate regression: changes to the production luma expression
