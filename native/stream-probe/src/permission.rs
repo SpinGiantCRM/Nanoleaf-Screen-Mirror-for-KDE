@@ -16,7 +16,9 @@ impl Permission {
             .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
             .context("No config directory")?;
         Ok(Self {
-            path: root.join("nanoleaf-native-stream-probe/portal-token"),
+            path: root.join("nanoleaf-native-stream-probe").join(token_name(
+                std::env::var("XDG_CURRENT_DESKTOP").ok().as_deref(),
+            )),
         })
     }
     pub fn load(&self) -> Result<Option<String>> {
@@ -98,9 +100,30 @@ impl Permission {
         Ok(())
     }
 }
+/// Restore tokens are issued by each desktop's portal backend. Keep them
+/// apart so alternating Plasma and Hyprland logins do not discard each other's
+/// remembered permission. Plasma keeps the original file name.
+fn token_name(desktop: Option<&str>) -> &'static str {
+    if desktop.is_some_and(|d| d.split(':').any(|n| n.eq_ignore_ascii_case("Hyprland"))) {
+        "portal-token-hyprland"
+    } else {
+        "portal-token"
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn plasma_keeps_its_token_and_hyprland_has_its_own() {
+        assert_eq!(token_name(Some("KDE")), "portal-token");
+        assert_eq!(token_name(None), "portal-token");
+        assert_eq!(token_name(Some("Hyprland")), "portal-token-hyprland");
+        assert_eq!(
+            token_name(Some("Hyprland:wlroots")),
+            "portal-token-hyprland"
+        );
+        assert_eq!(token_name(Some("KDE:NotHyprlandish")), "portal-token");
+    }
     use std::os::unix::fs::{symlink, PermissionsExt};
     #[test]
     fn private_bounded_separate_token_store() {

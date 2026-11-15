@@ -1,6 +1,7 @@
 //! Bounded permission-mediated stream experiment. No configuration or USB writes.
 mod application;
 mod cadence;
+mod compositor;
 mod damage;
 mod frame;
 mod gpu;
