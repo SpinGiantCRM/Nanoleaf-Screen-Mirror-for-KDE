@@ -83,6 +83,17 @@ Installed bundle, started through the XDG autostart unit under Hyprland:
 SDR samples / implicit sync`, 50–123 acknowledged packets/s depending on screen
 motion, fresh capture p50 0.75 ms, no missed deadlines.
 
+## xdph frame-rate experiment
+
+With a 240 fps synthetic video presenting every frame (mpv: 240 vf, display
+239.99 Hz, no drops), the daemon received ~122 captured frames/s at xdph's
+default `max_fps` (120). Setting `screencopy:max_fps` to 240 and then 0 was
+negotiated (PipeWire `maxFramerate 240/1`, the worker's request from `fps = 240`),
+yet delivery stayed at 122–124 fps across two 10-second runs each. xdph 1.5 on
+this 240 Hz output delivers every other display frame; the limit is its copy
+pacing, not a setting. Acknowledged USB updates (49–65/s) and screen-to-ACK
+p50 (20–26 ms) were unchanged, so the default configuration was restored.
+
 ## Limits
 
 Physical LED colour and optical latency were not measured. Whether the lock
