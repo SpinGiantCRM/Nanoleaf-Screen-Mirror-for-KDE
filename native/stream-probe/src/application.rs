@@ -401,7 +401,6 @@ pub fn run() -> Result<()> {
     let config: Config = serde_json::from_str(&initial)?;
     let mut application = Application::new(config)?;
     application.capture_fps = capture_fps(
-        compositor,
         application.config.fps,
         std::env::var("NANOLEAF_CAPTURE_FPS").ok().as_deref(),
     );
@@ -446,42 +445,29 @@ pub fn run() -> Result<()> {
     Ok(())
 }
 
-/// Hyprland re-renders the whole output into an SDR copy buffer for every
-/// screencopy frame (blur included), so each captured frame costs compositor
-/// GPU time. The strip acknowledges ~50 updates/s over USB; frames beyond
-/// that are discarded unseen, so Hyprland is asked for no more than
-/// `HYPRLAND_CAPTURE_FPS`. KWin keeps its validated request. An explicit
-/// `NANOLEAF_CAPTURE_FPS` (1..=240) overrides both, still bounded by `fps`.
-pub const HYPRLAND_CAPTURE_FPS: u32 = 60;
-fn capture_fps(
-    compositor: super::compositor::Compositor,
-    fps: u32,
-    override_fps: Option<&str>,
-) -> u32 {
-    let cap = override_fps
+/// The frame rate requested from the screen-cast producer is `fps`. An explicit
+/// `NANOLEAF_CAPTURE_FPS` (1..=240) lowers it for experiments: on Hyprland each
+/// captured frame is re-rendered into an SDR copy buffer, but the measured
+/// wallpaper stutter was identical with mirroring off, and a lower request
+/// ages the frames the strip receives. Flow outranks GPU load, so there is no default cap.
+fn capture_fps(fps: u32, override_fps: Option<&str>) -> u32 {
+    override_fps
         .and_then(|v| v.trim().parse::<u32>().ok())
         .filter(|v| (1..=240).contains(v))
-        .unwrap_or(match compositor {
-            super::compositor::Compositor::KWin => fps,
-            super::compositor::Compositor::Hyprland => HYPRLAND_CAPTURE_FPS,
-        });
-    fps.min(cap)
+        .map_or(fps, |cap| fps.min(cap))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
-    fn hyprland_capture_request_is_capped_and_kwin_is_unchanged() {
-        use super::super::compositor::Compositor::{Hyprland, KWin};
-        assert_eq!(capture_fps(KWin, 240, None), 240);
-        assert_eq!(capture_fps(Hyprland, 240, None), HYPRLAND_CAPTURE_FPS);
-        assert_eq!(capture_fps(Hyprland, 30, None), 30);
-        assert_eq!(capture_fps(Hyprland, 240, Some("90")), 90);
-        assert_eq!(capture_fps(KWin, 240, Some(" 60 ")), 60);
-        assert_eq!(capture_fps(KWin, 50, Some("120")), 50);
+    fn capture_request_follows_fps_unless_explicitly_lowered() {
+        assert_eq!(capture_fps(240, None), 240);
+        assert_eq!(capture_fps(30, None), 30);
+        assert_eq!(capture_fps(240, Some(" 60 ")), 60);
+        assert_eq!(capture_fps(50, Some("120")), 50);
         for bad in ["0", "241", "fast", ""] {
-            assert_eq!(capture_fps(Hyprland, 240, Some(bad)), HYPRLAND_CAPTURE_FPS);
+            assert_eq!(capture_fps(240, Some(bad)), 240);
         }
     }
     #[test]

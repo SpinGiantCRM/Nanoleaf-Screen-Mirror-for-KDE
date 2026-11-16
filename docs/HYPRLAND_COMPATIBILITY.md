@@ -101,27 +101,26 @@ this 240 Hz output delivers every other display frame; the limit is its copy
 pacing, not a setting. Acknowledged USB updates (49–65/s) and screen-to-ACK
 p50 (20–26 ms) were unchanged, so the default configuration was restored.
 
-## Capture-rate cap (desktop stutter)
+## Capture rate and desktop stutter
 
 16 November 2026. While mirroring, a 60 fps live wallpaper dropped about one
-frame every 1.5–2 s behind blurred ("glass") windows. The worker asked for
-`VideoMaxFramerate = fps` (240), and xdph delivered up to ~120 frames/s. Every
-one of those frames makes Hyprland render the output again into an 8-bit SDR
-copy buffer, blur included. The strip, however, acknowledges only ~48 updates/s
-over USB (~20 ms per transaction), so most of those captures were discarded.
+frame every 1.5–2 s behind blurred ("glass") windows. Every frame xdph
+captures makes Hyprland render the output again into an 8-bit SDR copy buffer,
+and the worker requests `VideoMaxFramerate = fps` (240; xdph delivers ≤ ~120)
+while the strip acknowledges only ~48 updates/s.
 
-On Hyprland the worker now requests at most `HYPRLAND_CAPTURE_FPS` (60) from the
-portal (`application::capture_fps`). `fps` still drives the worker's cached
-re-processing cadence and temporal timing, so smoothing behaviour is unchanged.
-KWin keeps requesting `fps`. `NANOLEAF_CAPTURE_FPS=1..240` overrides the cap on
-either compositor for experiments, and is still bounded by `fps`.
+A 60 fps request was tried first. Over 10 s with the wallpaper, strip updates
+(48.1 → 48.4/s) and fresh screen-to-ACK latency (p50 25.7 → 25.6–25.8 ms) were
+unchanged, but the wallpaper's damage already limited capture to ~60/s, and
+the drops remained. Then 240 fps recordings (`gpu-screen-recorder`, frame-diff
+gaps over the glass region) were taken with mirroring on, off, and on again,
+and were indistinguishable (2–8 gaps of 6 or more frames per 10 s in each,
+depending on the threshold). The stutter is not caused by the capture.
 
-Measured over 10 s with the live wallpaper, before (120) → after (60):
-strip updates 48.1 → 48.4/s, fresh screen-to-ACK p50 25.7 → 25.6–25.8 ms,
-p95 29.5 → 29.6 ms, capture p50 0.67 → 0.68–0.74 ms. Colours are produced by the
-same samples and pipeline, so the cap changes how often frames are captured, not
-how they are coloured. `nvidia-smi pmon` is too noisy at this load to quantify the GPU
-saving.
+The default request therefore stays at `fps`. A lower request would age the
+frames the strip receives in high-frame-rate content, and flow outranks GPU
+load. `NANOLEAF_CAPTURE_FPS=1..240` (bounded by `fps`) lowers the request for
+experiments on either compositor.
 
 ## Limits
 
