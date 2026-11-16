@@ -369,7 +369,12 @@ fn run_inner(
     let mut deadline = Instant::now();
     let mut fps_epoch = Instant::now();
     let mut epoch_frames = 0;
-    if start || store.config.start_on_launch {
+    // A launch Start refused only because the desktop session monitor is not
+    // ready yet (e.g. the shell owning org.freedesktop.ScreenSaver starts after
+    // autostart) is retried once when the session becomes ready. Later lock,
+    // sleep or monitor interruptions still require an explicit Start.
+    let mut launch_start = LaunchStart::new(start || store.config.start_on_launch);
+    if launch_start.requested() {
         tx.send(Control::Start)?;
     }
     loop {
@@ -403,7 +408,9 @@ fn run_inner(
                 }
                 Control::Status => {}
                 Control::SessionReady => {
-                    if session_stopped && !state.running && !state.preview {
+                    if launch_start.retry_when_ready(state.running || state.preview) {
+                        pending.push_back(Control::Start);
+                    } else if session_stopped && !state.running && !state.preview {
                         state.message =
                             "Desktop session ready; choose Start to mirror again".into();
                     }
@@ -431,6 +438,7 @@ fn run_inner(
                     break;
                 }
                 Control::Stop | Control::SessionInterrupted => {
+                    launch_start.cancel();
                     session_stopped = matches!(command, Control::SessionInterrupted);
                     state.response_summary = Some(responses.summary());
                     // Revoke capture before waiting for the cleanup-black ACK.
@@ -520,6 +528,7 @@ fn run_inner(
                         }
                     };
                     if ready && !state.running {
+                        launch_start.cancel();
                         session_stopped = false;
                         responses = crate::response::Responses::default();
                         state.response_summary = None;
@@ -1067,9 +1076,45 @@ impl CaptureWatchdog {
     }
 }
 
+/// The one launch-time Start that may be deferred until the session is ready.
+struct LaunchStart {
+    pending: bool,
+}
+impl LaunchStart {
+    fn new(requested: bool) -> Self {
+        Self { pending: requested }
+    }
+    fn requested(&self) -> bool {
+        self.pending
+    }
+    fn cancel(&mut self) {
+        self.pending = false;
+    }
+    fn retry_when_ready(&mut self, active: bool) -> bool {
+        std::mem::take(&mut self.pending) && !active
+    }
+}
+
 #[cfg(test)]
 mod control_progress_tests {
     use super::*;
+    #[test]
+    fn launch_start_is_retried_once_only_until_started_or_stopped() {
+        let mut launch = LaunchStart::new(true);
+        assert!(launch.retry_when_ready(false));
+        assert!(!launch.retry_when_ready(false));
+        let mut launch = LaunchStart::new(false);
+        assert!(!launch.retry_when_ready(false));
+        // A successful start, a user Stop or a session interruption cancels it,
+        // so later unlock/resume never auto-starts.
+        let mut launch = LaunchStart::new(true);
+        launch.cancel();
+        assert!(!launch.retry_when_ready(false));
+        // Already mirroring or previewing: nothing to retry.
+        let mut launch = LaunchStart::new(true);
+        assert!(!launch.retry_when_ready(true));
+        assert!(!launch.retry_when_ready(false));
+    }
     #[test]
     fn session_interrupt_cancels_capture_during_ack_and_is_internal_only() {
         let (tx, rx) = mpsc::channel();
