@@ -18,6 +18,8 @@ use std::{
 };
 pub struct Application {
     pub config: Config,
+    /// Frame rate requested from the screen-cast producer; see `capture_fps`.
+    capture_fps: u32,
     pipeline: Pipeline,
     shadow: Option<Pipeline>,
     sent: Arc<Mutex<Vec<[u8; 3]>>>,
@@ -79,6 +81,7 @@ impl Application {
             cancel.store(true, Ordering::Release);
         });
         Ok(Self {
+            capture_fps: config.fps,
             config,
             pipeline: Pipeline::default(),
             shadow: std::env::var_os("NANOLEAF_STREAM_PARITY").map(|_| Pipeline::default()),
@@ -88,6 +91,9 @@ impl Application {
             last_output: None,
             temporal_clock: TemporalClock::default(),
         })
+    }
+    pub fn capture_fps(&self) -> u32 {
+        self.capture_fps
     }
     pub fn parity(&self) -> bool {
         self.shadow.is_some()
@@ -393,7 +399,12 @@ pub fn run() -> Result<()> {
         "Oversized capture configuration"
     );
     let config: Config = serde_json::from_str(&initial)?;
-    let application = Application::new(config)?;
+    let mut application = Application::new(config)?;
+    application.capture_fps = capture_fps(
+        compositor,
+        application.config.fps,
+        std::env::var("NANOLEAF_CAPTURE_FPS").ok().as_deref(),
+    );
     let prepared = super::gpu::prepare()?;
     let (session, fd) = super::portal::Session::open()?;
     let outputs = nanoleaf_native::screens::outputs()?;
@@ -435,9 +446,44 @@ pub fn run() -> Result<()> {
     Ok(())
 }
 
+/// Hyprland re-renders the whole output into an SDR copy buffer for every
+/// screencopy frame (blur included), so each captured frame costs compositor
+/// GPU time. The strip acknowledges ~50 updates/s over USB; frames beyond
+/// that are discarded unseen, so Hyprland is asked for no more than
+/// `HYPRLAND_CAPTURE_FPS`. KWin keeps its validated request. An explicit
+/// `NANOLEAF_CAPTURE_FPS` (1..=240) overrides both, still bounded by `fps`.
+pub const HYPRLAND_CAPTURE_FPS: u32 = 60;
+fn capture_fps(
+    compositor: super::compositor::Compositor,
+    fps: u32,
+    override_fps: Option<&str>,
+) -> u32 {
+    let cap = override_fps
+        .and_then(|v| v.trim().parse::<u32>().ok())
+        .filter(|v| (1..=240).contains(v))
+        .unwrap_or(match compositor {
+            super::compositor::Compositor::KWin => fps,
+            super::compositor::Compositor::Hyprland => HYPRLAND_CAPTURE_FPS,
+        });
+    fps.min(cap)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn hyprland_capture_request_is_capped_and_kwin_is_unchanged() {
+        use super::super::compositor::Compositor::{Hyprland, KWin};
+        assert_eq!(capture_fps(KWin, 240, None), 240);
+        assert_eq!(capture_fps(Hyprland, 240, None), HYPRLAND_CAPTURE_FPS);
+        assert_eq!(capture_fps(Hyprland, 30, None), 30);
+        assert_eq!(capture_fps(Hyprland, 240, Some("90")), 90);
+        assert_eq!(capture_fps(KWin, 240, Some(" 60 ")), 60);
+        assert_eq!(capture_fps(KWin, 50, Some("120")), 50);
+        for bad in ["0", "241", "fast", ""] {
+            assert_eq!(capture_fps(Hyprland, 240, Some(bad)), HYPRLAND_CAPTURE_FPS);
+        }
+    }
     #[test]
     fn line_certificates_match_the_actual_pipeline_mean_contract() {
         // Cross-crate regression: changes to the production luma expression
@@ -588,6 +634,7 @@ mod tests {
             });
         }
         Application {
+            capture_fps: config.fps,
             config,
             pipeline: Pipeline::default(),
             shadow: Some(Pipeline::default()),
