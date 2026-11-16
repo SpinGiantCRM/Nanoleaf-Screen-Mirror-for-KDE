@@ -75,6 +75,13 @@ clipped or tone-mapped to SDR, never raw PQ.
   UnknownMethod/Interface/Object, lock state now comes from logind's
   `Session.LockedHint` (`/org/freedesktop/login1/session/auto`). A missing owner
   still fails closed and retries; KWin implements `GetActive`, so Plasma is unchanged.
+- **Login race:** autostart ran the daemon ~14 s after boot, before Noctalia
+  owned `org.freedesktop.ScreenSaver`. The launch Start was refused as
+  "monitoring unavailable" and the later SessionReady only changed the message,
+  so the strip stayed off all day. A launch Start refused only by the session
+  monitor is now retried once on SessionReady. A successful start, a Stop or any
+  later lock/sleep interruption cancels that retry, so unlock/resume still never
+  auto-starts.
 
 ## Live daemon result
 
