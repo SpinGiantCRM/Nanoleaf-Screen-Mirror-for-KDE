@@ -98,9 +98,11 @@ fn parse_hyprland_version(reply: &str) -> Option<String> {
 /// considered when KWin does not own its bus name.
 pub fn detect(connection: &zbus::blocking::Connection) -> Result<Compositor> {
     let bus = zbus::blocking::fdo::DBusProxy::new(connection)?;
+    // A failed query is an error, never "not KWin": on Plasma it must not
+    // fall through to another compositor contract.
     let kwin_running = bus
         .name_has_owner(zbus::names::BusName::try_from("org.kde.KWin")?)
-        .unwrap_or(false);
+        .context("Cannot query the session bus for KWin")?;
     if kwin_running {
         let version = kwin_version(connection)?;
         ensure!(

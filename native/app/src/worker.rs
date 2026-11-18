@@ -85,9 +85,49 @@ pub struct Producer {
     feedback_notify: Option<mpsc::SyncSender<()>>,
     child: Option<Arc<Mutex<std::process::Child>>>,
 }
+/// Whether capture uses the portal stream. "auto" means KWin ScreenShot2 on
+/// Plasma, unchanged; without a KWin session (Hyprland) only the portal can
+/// capture, so "auto" selects it. A failed bus query keeps the KWin default.
+pub fn uses_portal(config: &Config) -> bool {
+    resolve_portal(&config.capture_backend, kwin_session)
+}
+fn resolve_portal(backend: &str, kwin: impl FnOnce() -> Option<bool>) -> bool {
+    match backend {
+        "xdg-portal" => true,
+        "auto" => kwin() == Some(false),
+        _ => false,
+    }
+}
+fn kwin_session() -> Option<bool> {
+    static KWIN: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+    *KWIN.get_or_init(|| {
+        let connection = zbus::blocking::connection::Builder::session()
+            .ok()?
+            .method_timeout(Duration::from_secs(2))
+            .build()
+            .ok()?;
+        zbus::blocking::fdo::DBusProxy::new(&connection)
+            .ok()?
+            .name_has_owner(zbus::names::BusName::try_from("org.kde.KWin").ok()?)
+            .ok()
+    })
+}
+#[cfg(test)]
+mod backend_tests {
+    #[test]
+    fn auto_uses_the_portal_only_without_a_kwin_session() {
+        use super::resolve_portal;
+        assert!(resolve_portal("xdg-portal", || Some(true)));
+        assert!(!resolve_portal("kwin-dbus", || Some(false)));
+        assert!(!resolve_portal("auto", || Some(true)));
+        assert!(resolve_portal("auto", || Some(false)));
+        // Unknown bus state keeps the original KWin default.
+        assert!(!resolve_portal("auto", || None));
+    }
+}
 impl Producer {
     pub fn spawn(config: Config, tx: mpsc::Sender<Control>) -> Self {
-        if config.capture_backend == "xdg-portal" {
+        if uses_portal(&config) {
             return Self::spawn_stream(config, tx);
         }
         let latest = Arc::new(Latest {

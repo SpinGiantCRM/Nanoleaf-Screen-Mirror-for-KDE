@@ -58,30 +58,43 @@ clipped or tone-mapped to SDR, never raw PQ.
 - **Monitor selection:** xdph reports physical size (3840×2160) while
   xdg-output gives logical size (2560×1440 at scale 1.5), so the KWin
   position/size match fails. The Hyprland branch matches the portal's
-  `mapping_id` to exactly one Wayland output name (and the configured monitor
-  if set).
+  `mapping_id` to exactly one Wayland output name, requires the portal's
+  logical position to equal that output's (so a region share is refused), and
+  checks the configured monitor if set.
+- **Capture backend:** `auto` still means KWin ScreenShot2 whenever
+  `org.kde.KWin` owns the session bus. Without a KWin session it selects the
+  portal stream, because nothing else can capture on Hyprland. If the bus query
+  fails, the KWin default is kept.
 - **Explicit sync:** `NANOLEAF_EXPLICIT_SYNC` is refused up front on Hyprland
   with a clear error instead of failing inside PipeWire.
-- **Restore tokens:** stored per desktop (`portal-token` for Plasma,
+- **Restore tokens:** stored per detected compositor (`portal-token` for KWin,
   `portal-token-hyprland` for Hyprland), so alternating logins do not discard
-  each other's remembered permission. xdg-desktop-portal binds a token to the
+  each other's remembered permission. The capture worker keys the file on the
+  compositor it detected, not on an inherited `XDG_CURRENT_DESKTOP`, so an
+  autostart unit without that variable cannot invalidate the Plasma token. xdg-desktop-portal binds a token to the
   caller's app ID: a token obtained by a helper started from a terminal or
   another app is rejected for the autostarted `org.spingiantcrm.NanoleafNative`
   and the picker is shown once. After the daemon itself was granted with
   "Remember", restarts restored silently (243 ms to mirroring) and rotated the token.
 - **Lock monitoring:** Noctalia owns `org.freedesktop.ScreenSaver` for
   inhibition only and has no `GetActive`, which left the daemon waiting on
-  "Desktop session monitoring unavailable". When the owner exists but answers
-  UnknownMethod/Interface/Object, lock state now comes from logind's
-  `Session.LockedHint` (`/org/freedesktop/login1/session/auto`). A missing owner
-  still fails closed and retries; KWin implements `GetActive`, so Plasma is unchanged.
+  "Desktop session monitoring unavailable". When the owner exists and answers
+  `GetActive` with `UnknownMethod` (exactly what Noctalia returns), lock state
+  comes from logind's `Session.LockedHint`
+  (`/org/freedesktop/login1/session/auto`), polled every 500 ms. UnknownObject,
+  UnknownInterface (possible while ksmserver registers), a missing owner or a
+  timeout still fail closed and retry, and KWin implements `GetActive`, so Plasma is
+  unchanged. Noctalia's lock screen calls logind `SetLockedHint` (present in its
+  binary). Lockers that do not set the hint are not detected.
 - **Login race:** autostart ran the daemon ~14 s after boot, before Noctalia
   owned `org.freedesktop.ScreenSaver`. The launch Start was refused as
   "monitoring unavailable" and the later SessionReady only changed the message,
   so the strip stayed off all day. A launch Start refused only by the session
-  monitor is now retried once on SessionReady. A successful start, a Stop or any
-  later lock/sleep interruption cancels that retry, so unlock/resume still never
-  auto-starts.
+  monitor is now retried once on SessionReady. Only "monitoring unavailable"
+  keeps the retry armed, and only for 5 minutes after launch. A refusal while
+  locked or sleeping, an invalid configuration, a busy strip, a successful start,
+  a Stop or any later lock/sleep interruption cancels it, so unlock and resume
+  still never start mirroring.
 
 ## Live daemon result
 
@@ -119,14 +132,15 @@ depending on the threshold). The stutter is not caused by the capture.
 
 The default request therefore stays at `fps`. A lower request would age the
 frames the strip receives in high-frame-rate content, and flow outranks GPU
-load. `NANOLEAF_CAPTURE_FPS=1..240` (bounded by `fps`) lowers the request for
-experiments on either compositor.
+load. No capture-rate override was kept: the repository does not add extra FPS
+controls.
 
 ## Limits
 
-Physical LED colour and optical latency were not measured. Whether the lock
-screen in use sets logind `LockedHint` was not tested (no lock was triggered);
-if it does not, mirroring continues while locked. Hyprland/xdph
+Physical LED colour and optical latency were not measured. Noctalia's lock was
+not triggered live; its `SetLockedHint` use is inferred from the binary. A
+locker that does not set logind `LockedHint` is not detected, and mirroring
+then continues while locked. Hyprland/xdph
 releases other than 0.57.x / 1.5.0 are not verified. If "Remember this choice"
 is not ticked, xdph returns no restore token and shows its picker on every
 capture start, including the worker restart after USB recovery.

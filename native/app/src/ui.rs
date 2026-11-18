@@ -1065,7 +1065,7 @@ impl Settings {
                     &mut self.draft.capture_backend,
                     &["auto", "kwin-dbus", "xdg-portal"],
                 );
-                ui.small("Streaming uses the portal permission and a separate capture worker. Automatic capture uses KWin. Your selected backend is preserved.");
+                ui.small("Streaming uses the portal permission and a separate capture worker. Automatic capture uses KWin on Plasma and the portal stream on Hyprland. Your selected backend is preserved.");
                 choice(
                     ui,
                     "Performance priority",

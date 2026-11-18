@@ -15,8 +15,8 @@ permission-mediated PipeWire/Vulkan streaming is available in Advanced. The nati
 bundle needs neither Python nor Qt, and capture needs no privileged DRM helper.
 
 **Hyprland 0.57** (with xdg-desktop-portal-hyprland) is also supported through
-the portal stream: set **Capture** to **Portal / Vulkan** in Settings → Advanced,
-because KWin ScreenShot2 exists only on Plasma. See
+the portal stream. With **Capture** left on `auto`, Plasma uses KWin and Hyprland
+uses the portal stream; tick **Remember this choice** in the sharing picker. See
 [Hyprland compatibility](docs/HYPRLAND_COMPATIBILITY.md) for what was verified.
 
 ## Install

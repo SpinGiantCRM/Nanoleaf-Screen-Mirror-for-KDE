@@ -346,14 +346,22 @@ pub fn user_data() -> Result<PathBuf> {
         ))
 }
 pub fn refresh_desktop() -> Result<()> {
-    ensure!(
-        std::process::Command::new("kbuildsycoca6")
-            .arg("--noincremental")
-            .status()?
-            .success(),
-        "KDE application cache refresh failed; installed files are retained"
-    );
-    Ok(())
+    refresh_kde_cache("KDE application cache refresh failed; installed files are retained")
+}
+/// Plasma caches launchers in KService's sycoca. Other desktops (Hyprland
+/// launchers) read the .desktop files directly, so a missing kbuildsycoca6 is
+/// not an error; a present one that fails still is.
+pub(crate) fn refresh_kde_cache(failure: &'static str) -> Result<()> {
+    match std::process::Command::new("kbuildsycoca6")
+        .arg("--noincremental")
+        .status()
+    {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        status => {
+            ensure!(status?.success(), failure);
+            Ok(())
+        }
+    }
 }
 fn system_autostart_launcher() -> Result<Vec<u8>> {
     let executable = std::env::current_exe()?.canonicalize()?;

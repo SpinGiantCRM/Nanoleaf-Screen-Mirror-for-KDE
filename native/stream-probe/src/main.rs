@@ -508,10 +508,7 @@ fn run_application(
         properties.insert(*pw::keys::TARGET_OBJECT, serial.to_string());
     }
     let stream = pw::stream::StreamBox::new(&core, "Nanoleaf native capture probe", properties)?;
-    let maximum_fps = application
-        .as_ref()
-        .map(application::Application::capture_fps)
-        .unwrap_or(30);
+    let maximum_fps = application.as_ref().map(|a| a.config.fps).unwrap_or(30);
     let shared = Rc::new(RefCell::new(State {
         mode,
         damage: (mode == Mode::DamageAudit).then(damage::Audit::default),

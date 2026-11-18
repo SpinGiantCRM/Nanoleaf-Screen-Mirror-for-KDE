@@ -13,25 +13,27 @@ Wayland and now also Hyprland 0.57.
   - Capture is untagged 8-bit BGRA, which xdph returns as bit-exact SDR sRGB even
     when the output runs HDR.
   - Synchronisation is implicit only.
-  - The shared monitor is matched by its connector name (`mapping_id`).
+  - The shared monitor is matched by its connector name (`mapping_id`) and
+    logical position, so a region share is refused.
 
   Other compositors and other Hyprland releases are refused rather than guessed.
-- **Choosing capture on Hyprland.** KWin ScreenShot2 exists only on Plasma, so
-  on Hyprland set **Capture** to **Portal / Vulkan** in Settings → Advanced.
+- **Capture on Hyprland.** With **Capture** on `auto`, Plasma keeps KWin
+  ScreenShot2, and a session without KWin (Hyprland) uses the portal stream.
   Ticking **Remember this choice** in the screen-sharing picker lets later starts
   skip it.
-- **Remembered screen-sharing permission.** The permission is stored per desktop,
-  so alternating Plasma and Hyprland logins keep their own.
-- **Lock detection.** If the screen-saver service has no lock state (as with
-  Noctalia on Hyprland), lock state comes from logind's `LockedHint`. If the
-  service itself is missing, the app still fails closed.
+- **Remembered screen-sharing permission.** The permission is stored per detected
+  compositor, so alternating Plasma and Hyprland logins keep their own.
+- **Lock detection.** If the screen-saver service answers that it has no lock
+  state (as Noctalia on Hyprland does), lock state comes from logind's
+  `LockedHint`. A missing or still-registering service still fails closed.
 - **Start at login.** A Start requested at login that was refused only because
-  the desktop session was not ready yet is retried once when it becomes ready.
-  Stop, a successful start or a later lock/sleep cancels the retry. Unlock and
+  the desktop session services were not ready yet is retried once when they
+  appear, within 5 minutes. Any other refusal (locked, sleeping, invalid
+  configuration, strip busy), a Stop or a successful start cancels it. Unlock and
   resume still never start mirroring on their own.
-- `NANOLEAF_CAPTURE_FPS=1..240` can lower the frame rate requested from the
-  screen-cast portal for experiments. By default the request still follows
-  Target FPS.
+- **Packaging.** The Arch recipe no longer requires KWin or KService. Both are
+  optional, as are the KDE and Hyprland portals. A missing `kbuildsycoca6` no
+  longer fails installation.
 
 Behaviour on KDE Plasma is otherwise unchanged. Configuration, calibration and
 unknown fields remain compatible with 2.0.0.
@@ -65,7 +67,8 @@ Verified there:
   mirroring on and with it off.
 
 Not verified:
-- Whether a given lock screen sets logind `LockedHint`.
+- Noctalia's lock screen was not triggered live; that it sets `LockedHint` is
+  inferred from its binary. Lockers that do not set it are not detected.
 - HDR-tagged client content (PQ video or games).
 - Other GPUs, and Hyprland releases other than 0.57.x.
 

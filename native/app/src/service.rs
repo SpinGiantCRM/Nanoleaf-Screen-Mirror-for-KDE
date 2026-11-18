@@ -319,7 +319,7 @@ fn run_inner(
         manual_zones: store.config.device_zone_count,
         repeat_suppression_enabled: repeat_enabled,
         message: "Stopped".into(),
-        backend: if store.config.capture_backend == "xdg-portal" {
+        backend: if crate::worker::uses_portal(&store.config) {
             "xdg-portal / requesting stream".into()
         } else {
             "kwin-dbus (SDR display-referred)".into()
@@ -408,7 +408,8 @@ fn run_inner(
                 }
                 Control::Status => {}
                 Control::SessionReady => {
-                    if launch_start.retry_when_ready(state.running || state.preview) {
+                    if launch_start.retry_when_ready(state.running || state.preview, Instant::now())
+                    {
                         pending.push_back(Control::Start);
                     } else if session_stopped && !state.running && !state.preview {
                         state.message =
@@ -503,11 +504,17 @@ fn run_inner(
                 },
                 Control::Start => {
                     if let Err(e) = crate::pipeline::validate_mirroring(&store.config) {
+                        launch_start.cancel();
                         state.message = e.to_string();
                         publish(&shared, &state);
                         continue;
                     }
                     if let Some(reason) = session.blocked() {
+                        // Only wait out services that have not appeared yet;
+                        // a launch while locked or sleeping never auto-starts later.
+                        if reason != crate::session::MONITORING_UNAVAILABLE {
+                            launch_start.cancel();
+                        }
                         session_stopped = true;
                         state.message = reason.into();
                         publish(&shared, &state);
@@ -522,6 +529,7 @@ fn run_inner(
                                 true
                             }
                             Err(e) => {
+                                launch_start.cancel();
                                 state.message = e.to_string();
                                 false
                             }
@@ -936,7 +944,7 @@ fn run_inner(
                     let _ = s.black();
                 }
                 capture = None;
-                if store.config.capture_backend == "xdg-portal" {
+                if crate::worker::uses_portal(&store.config) {
                     // Sharing denial/revocation is not permission to acquire the
                     // screen again or switch to another capture interface.
                     if let (Some(s), Some((power, brightness))) = (&mut strip, &original_controller)
@@ -1077,12 +1085,19 @@ impl CaptureWatchdog {
 }
 
 /// The one launch-time Start that may be deferred until the session is ready.
+/// It waits only for session services that have not appeared yet, and only
+/// briefly: a login that takes longer stays stopped until the user starts it.
 struct LaunchStart {
     pending: bool,
+    armed: Instant,
 }
+const LAUNCH_START_WINDOW: Duration = Duration::from_secs(300);
 impl LaunchStart {
     fn new(requested: bool) -> Self {
-        Self { pending: requested }
+        Self {
+            pending: requested,
+            armed: Instant::now(),
+        }
     }
     fn requested(&self) -> bool {
         self.pending
@@ -1090,8 +1105,10 @@ impl LaunchStart {
     fn cancel(&mut self) {
         self.pending = false;
     }
-    fn retry_when_ready(&mut self, active: bool) -> bool {
-        std::mem::take(&mut self.pending) && !active
+    fn retry_when_ready(&mut self, active: bool, now: Instant) -> bool {
+        std::mem::take(&mut self.pending)
+            && !active
+            && now.saturating_duration_since(self.armed) <= LAUNCH_START_WINDOW
     }
 }
 
@@ -1100,20 +1117,29 @@ mod control_progress_tests {
     use super::*;
     #[test]
     fn launch_start_is_retried_once_only_until_started_or_stopped() {
+        let now = Instant::now();
         let mut launch = LaunchStart::new(true);
-        assert!(launch.retry_when_ready(false));
-        assert!(!launch.retry_when_ready(false));
+        assert!(launch.retry_when_ready(false, now));
+        assert!(!launch.retry_when_ready(false, now));
         let mut launch = LaunchStart::new(false);
-        assert!(!launch.retry_when_ready(false));
-        // A successful start, a user Stop or a session interruption cancels it,
-        // so later unlock/resume never auto-starts.
+        assert!(!launch.retry_when_ready(false, now));
+        // A successful start, a user Stop, a session interruption or a refusal
+        // other than missing session services cancels it, so later
+        // unlock/resume never auto-starts.
         let mut launch = LaunchStart::new(true);
         launch.cancel();
-        assert!(!launch.retry_when_ready(false));
+        assert!(!launch.retry_when_ready(false, now));
         // Already mirroring or previewing: nothing to retry.
         let mut launch = LaunchStart::new(true);
-        assert!(!launch.retry_when_ready(true));
-        assert!(!launch.retry_when_ready(false));
+        assert!(!launch.retry_when_ready(true, now));
+        assert!(!launch.retry_when_ready(false, now));
+        // Session services that appear only after the window do not start it.
+        let mut launch = LaunchStart::new(true);
+        let late = launch.armed + LAUNCH_START_WINDOW + Duration::from_secs(1);
+        assert!(!launch.retry_when_ready(false, late));
+        let mut launch = LaunchStart::new(true);
+        let edge = launch.armed + LAUNCH_START_WINDOW;
+        assert!(launch.retry_when_ready(false, edge));
     }
     #[test]
     fn session_interrupt_cancels_capture_during_ack_and_is_internal_only() {

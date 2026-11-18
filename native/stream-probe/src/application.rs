@@ -18,8 +18,6 @@ use std::{
 };
 pub struct Application {
     pub config: Config,
-    /// Frame rate requested from the screen-cast producer; see `capture_fps`.
-    capture_fps: u32,
     pipeline: Pipeline,
     shadow: Option<Pipeline>,
     sent: Arc<Mutex<Vec<[u8; 3]>>>,
@@ -81,7 +79,6 @@ impl Application {
             cancel.store(true, Ordering::Release);
         });
         Ok(Self {
-            capture_fps: config.fps,
             config,
             pipeline: Pipeline::default(),
             shadow: std::env::var_os("NANOLEAF_STREAM_PARITY").map(|_| Pipeline::default()),
@@ -91,9 +88,6 @@ impl Application {
             last_output: None,
             temporal_clock: TemporalClock::default(),
         })
-    }
-    pub fn capture_fps(&self) -> u32 {
-        self.capture_fps
     }
     pub fn parity(&self) -> bool {
         self.shadow.is_some()
@@ -384,6 +378,7 @@ pub fn run() -> Result<()> {
         .method_timeout(std::time::Duration::from_secs(2))
         .build()?;
     let compositor = super::compositor::detect(&connection)?;
+    crate::permission::set_compositor(compositor);
     let explicit_sync = std::env::var_os("NANOLEAF_EXPLICIT_SYNC").is_some();
     ensure!(
         !explicit_sync || compositor.supports_explicit_sync(),
@@ -399,11 +394,7 @@ pub fn run() -> Result<()> {
         "Oversized capture configuration"
     );
     let config: Config = serde_json::from_str(&initial)?;
-    let mut application = Application::new(config)?;
-    application.capture_fps = capture_fps(
-        application.config.fps,
-        std::env::var("NANOLEAF_CAPTURE_FPS").ok().as_deref(),
-    );
+    let application = Application::new(config)?;
     let prepared = super::gpu::prepare()?;
     let (session, fd) = super::portal::Session::open()?;
     let outputs = nanoleaf_native::screens::outputs()?;
@@ -419,6 +410,7 @@ pub fn run() -> Result<()> {
         super::compositor::Compositor::Hyprland => nanoleaf_native::screens::selected_by_name(
             &outputs,
             session.mapping_id.as_deref(),
+            session.position,
             &application.config.capture_monitor,
         ),
     };
@@ -445,31 +437,9 @@ pub fn run() -> Result<()> {
     Ok(())
 }
 
-/// The frame rate requested from the screen-cast producer is `fps`. An explicit
-/// `NANOLEAF_CAPTURE_FPS` (1..=240) lowers it for experiments: on Hyprland each
-/// captured frame is re-rendered into an SDR copy buffer, but the measured
-/// wallpaper stutter was identical with mirroring off, and a lower request
-/// ages the frames the strip receives. Flow outranks GPU load, so there is no default cap.
-fn capture_fps(fps: u32, override_fps: Option<&str>) -> u32 {
-    override_fps
-        .and_then(|v| v.trim().parse::<u32>().ok())
-        .filter(|v| (1..=240).contains(v))
-        .map_or(fps, |cap| fps.min(cap))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn capture_request_follows_fps_unless_explicitly_lowered() {
-        assert_eq!(capture_fps(240, None), 240);
-        assert_eq!(capture_fps(30, None), 30);
-        assert_eq!(capture_fps(240, Some(" 60 ")), 60);
-        assert_eq!(capture_fps(50, Some("120")), 50);
-        for bad in ["0", "241", "fast", ""] {
-            assert_eq!(capture_fps(240, Some(bad)), 240);
-        }
-    }
     #[test]
     fn line_certificates_match_the_actual_pipeline_mean_contract() {
         // Cross-crate regression: changes to the production luma expression
@@ -620,7 +590,6 @@ mod tests {
             });
         }
         Application {
-            capture_fps: config.fps,
             config,
             pipeline: Pipeline::default(),
             shadow: Some(Pipeline::default()),

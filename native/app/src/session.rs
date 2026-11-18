@@ -1,4 +1,4 @@
-//! KDE session interruptions stop output and require an explicit restart.
+//! Desktop session interruptions (lock, sleep) stop output and require an explicit restart.
 //! No Lock/Suspend/Inhibit call is made. In particular, no pre-suspend cleanup
 //! completion is promised: logind can suspend before a non-inhibiting client
 //! runs. Its resume signal independently invalidates the old capture session.
@@ -49,7 +49,7 @@ impl State {
         } else if self.active[1] == Some(true) {
             Some("System preparing for sleep; choose Start after resuming")
         } else if self.active.contains(&None) {
-            Some("Desktop session monitoring unavailable; waiting to reconnect before Start")
+            Some(MONITORING_UNAVAILABLE)
         } else {
             None
         }
@@ -66,6 +66,11 @@ impl State {
             || (signal && matches!(source, Source::Sleep))
     }
 }
+
+/// The only refusal a launch-time Start may wait out: the desktop's session
+/// services have not appeared yet. Locked or sleeping never qualifies.
+pub const MONITORING_UNAVAILABLE: &str =
+    "Desktop session monitoring unavailable; waiting to reconnect before Start";
 
 struct Shared {
     state: Mutex<State>,
@@ -225,19 +230,14 @@ async fn connected(shared: &Shared, source: Source, address: Option<&str>) -> Re
 }
 
 fn lock_api_missing(error: &anyhow::Error) -> bool {
-    const MISSING: [&str; 3] = [
-        "org.freedesktop.DBus.Error.UnknownMethod",
-        "org.freedesktop.DBus.Error.UnknownInterface",
-        "org.freedesktop.DBus.Error.UnknownObject",
-    ];
+    // Only a live owner that answers "no such method" (Noctalia: UnknownMethod
+    // on /ScreenSaver) selects the fallback. UnknownObject/UnknownInterface can
+    // occur transiently while a full implementation (ksmserver) registers, so
+    // they keep failing closed and are retried like a missing owner.
+    const MISSING: &str = "org.freedesktop.DBus.Error.UnknownMethod";
     match error.downcast_ref::<zbus::Error>() {
-        Some(zbus::Error::MethodError(name, _, _)) => MISSING.contains(&name.as_str()),
-        Some(zbus::Error::FDO(error)) => matches!(
-            **error,
-            zbus::fdo::Error::UnknownMethod(_)
-                | zbus::fdo::Error::UnknownInterface(_)
-                | zbus::fdo::Error::UnknownObject(_)
-        ),
+        Some(zbus::Error::MethodError(name, _, _)) => name.as_str() == MISSING,
+        Some(zbus::Error::FDO(error)) => matches!(**error, zbus::fdo::Error::UnknownMethod(_)),
         _ => false,
     }
 }
@@ -273,23 +273,45 @@ mod tests {
     use super::*;
     #[test]
     fn only_a_present_owner_without_lock_state_uses_logind_fallback() {
+        // zbus reports a remote error reply as MethodError (the production
+        // path); local FDO errors are covered too.
+        let reply = |name: &str| {
+            let call = zbus::message::Message::method_call("/ScreenSaver", "GetActive")
+                .unwrap()
+                .build(&())
+                .unwrap();
+            anyhow::Error::from(zbus::Error::MethodError(
+                zbus::names::OwnedErrorName::try_from(name).unwrap(),
+                None,
+                call,
+            ))
+        };
+        assert!(lock_api_missing(&reply(
+            "org.freedesktop.DBus.Error.UnknownMethod"
+        )));
+        for name in [
+            "org.freedesktop.DBus.Error.UnknownObject",
+            "org.freedesktop.DBus.Error.UnknownInterface",
+            "org.freedesktop.DBus.Error.ServiceUnknown",
+            "org.freedesktop.DBus.Error.NoReply",
+            "org.freedesktop.DBus.Error.AccessDenied",
+        ] {
+            assert!(!lock_api_missing(&reply(name)), "{name}");
+        }
         let fdo = |e: zbus::fdo::Error| anyhow::Error::from(zbus::Error::FDO(Box::new(e)));
         assert!(lock_api_missing(&fdo(zbus::fdo::Error::UnknownMethod(
             "GetActive".into()
         ))));
-        assert!(lock_api_missing(&fdo(zbus::fdo::Error::UnknownInterface(
-            "org.freedesktop.ScreenSaver".into()
-        ))));
-        assert!(lock_api_missing(&fdo(zbus::fdo::Error::UnknownObject(
-            "/ScreenSaver".into()
-        ))));
-        // A missing owner or timeout keeps failing closed and retrying.
-        assert!(!lock_api_missing(&fdo(zbus::fdo::Error::ServiceUnknown(
-            "org.freedesktop.ScreenSaver".into()
-        ))));
-        assert!(!lock_api_missing(&fdo(zbus::fdo::Error::NoReply(
-            "".into()
-        ))));
+        // A missing owner, a registering object or a timeout keeps failing
+        // closed and retrying.
+        for error in [
+            zbus::fdo::Error::UnknownObject("/ScreenSaver".into()),
+            zbus::fdo::Error::UnknownInterface("org.freedesktop.ScreenSaver".into()),
+            zbus::fdo::Error::ServiceUnknown("org.freedesktop.ScreenSaver".into()),
+            zbus::fdo::Error::NoReply("".into()),
+        ] {
+            assert!(!lock_api_missing(&fdo(error)));
+        }
         assert!(!lock_api_missing(&anyhow::anyhow!("other")));
     }
     struct FakeLock(Arc<AtomicBool>);
