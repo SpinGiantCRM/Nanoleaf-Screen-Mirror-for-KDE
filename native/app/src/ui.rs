@@ -543,7 +543,8 @@ impl Settings {
                 if let Some(status) = &self.status {
                     ui.label(&status.message);
                     if let Some(failure) = &status.failure {
-                        ui.small(failure.kind.body());
+                        // Same wording as the desktop notice and tray.
+                        ui.small(crate::notifications::body(failure));
                     }
                     if running {
                         ui.small(format!(
@@ -567,7 +568,7 @@ impl Settings {
                                     status
                                         .failure
                                         .as_ref()
-                                        .is_some_and(|failure| !failure.retrying)
+                                        .is_some_and(crate::notifications::restart_allowed)
                                 }) {
                                     "Restart mirroring"
                                 } else {
@@ -706,7 +707,7 @@ impl Settings {
                     match &mut self.open_on_startup {
                         Ok(enabled) => {
                             ui.checkbox(enabled, "Open on startup")
-                                .on_hover_text("Open the tray when you sign in to KDE.");
+                                .on_hover_text("Open the tray when you sign in (Plasma or Hyprland).");
                         }
                         Err(error) => {
                             ui.add_enabled(false, egui::Checkbox::new(&mut false, "Open on startup"))

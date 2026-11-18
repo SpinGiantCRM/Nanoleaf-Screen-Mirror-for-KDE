@@ -15,7 +15,6 @@
   ready yet. Unlock and resume still never start mirroring automatically.
 - Make KWin and KService optional in the Arch recipe, and tolerate a missing
   `kbuildsycoca6`.
-
 - Add private troubleshooting reports with bounded recent timing/failure history,
   exact app/helper fingerprints, and the last failure retained across restarts.
   Export from Advanced or `--save-report`; cached sessions are labelled explicitly.

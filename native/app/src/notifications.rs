@@ -11,11 +11,16 @@ use std::{
     collections::HashMap,
     sync::{mpsc, Arc, Condvar, Mutex},
     thread::JoinHandle,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 const CALL_TIMEOUT: Duration = Duration::from_millis(500);
 const SIGNAL_TICK: Duration = Duration::from_millis(100);
+/// A link that keeps dropping and recovering on its own (flaky USB, a GPU
+/// timeout loop) would otherwise raise a notice per episode. Self-recovering
+/// failures of one kind notify at most once per window; failures that need
+/// the user (a Restart action) are always shown.
+const REPEAT_WINDOW: Duration = Duration::from_secs(120);
 const NAME: &str = "org.freedesktop.Notifications";
 const PATH: &str = "/org/freedesktop/Notifications";
 
@@ -80,14 +85,14 @@ impl Drop for Notifier {
     }
 }
 
-fn restart_allowed(failure: &Failure) -> bool {
+pub(crate) fn restart_allowed(failure: &Failure) -> bool {
     !failure.retrying
         && matches!(
             failure.kind,
             FailureKind::CaptureStalled | FailureKind::CaptureEnded | FailureKind::CaptureFailed
         )
 }
-fn body(failure: &Failure) -> &'static str {
+pub(crate) fn body(failure: &Failure) -> &'static str {
     if failure.retrying {
         match failure.kind {
             FailureKind::UsbDisconnected | FailureKind::UsbInitialization =>
@@ -104,8 +109,12 @@ fn current(shared: &Shared, generation: u64) -> bool {
         .lock()
         .is_ok_and(|state| !state.stop && state.generation == generation)
 }
+fn due(failure: &Failure, last: Option<Instant>, now: Instant) -> bool {
+    !failure.retrying || last.is_none_or(|at| now.saturating_duration_since(at) >= REPEAT_WINDOW)
+}
 fn work(shared: &Shared, tx: &mpsc::Sender<Control>, address: Option<&str>) {
     let mut seen = 0;
+    let mut shown: HashMap<FailureKind, Instant> = HashMap::new();
     loop {
         let Ok(mut state) = shared.state.lock() else {
             return;
@@ -125,7 +134,11 @@ fn work(shared: &Shared, tx: &mpsc::Sender<Control>, address: Option<&str>) {
         if let Some(failure) = failure {
             // Failure is best-effort and is attempted once per episode. A missing
             // daemon cannot turn per-frame updates into repeated bus traffic.
-            let _ = future::block_on(show(shared, tx, address, seen, &failure));
+            let now = Instant::now();
+            if due(&failure, shown.get(&failure.kind).copied(), now) {
+                shown.insert(failure.kind, now);
+                let _ = future::block_on(show(shared, tx, address, seen, &failure));
+            }
         }
     }
 }
@@ -260,6 +273,27 @@ async fn show(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn self_recovering_failures_of_one_kind_notify_once_per_window() {
+        use super::{due, REPEAT_WINDOW};
+        use crate::diagnostics::{Failure, FailureKind};
+        let now = std::time::Instant::now();
+        let retrying = Failure {
+            kind: FailureKind::UsbDisconnected,
+            at_unix_ms: 1,
+            retrying: true,
+        };
+        assert!(due(&retrying, None, now));
+        assert!(!due(&retrying, Some(now), now + REPEAT_WINDOW / 2));
+        assert!(due(&retrying, Some(now), now + REPEAT_WINDOW));
+        // A failure that needs the user's Restart is never suppressed.
+        let terminal = Failure {
+            kind: FailureKind::CaptureEnded,
+            at_unix_ms: 2,
+            retrying: false,
+        };
+        assert!(due(&terminal, Some(now), now));
+    }
     use super::*;
     use crate::diagnostics::{Failure, FailureKind};
     use std::{

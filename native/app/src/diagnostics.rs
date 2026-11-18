@@ -20,7 +20,7 @@ const SAMPLE_LIMIT: usize = 120;
 const EVENT_LIMIT: usize = 32;
 static UNIQUE: AtomicU64 = AtomicU64::new(0);
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum FailureKind {
     CaptureStalled,
@@ -48,7 +48,7 @@ impl FailureKind {
             Self::CaptureFailed => "Capture could not continue. Choose Restart mirroring to request capture again.",
             Self::UsbDisconnected => "USB communication was interrupted. Check the strip connection; mirroring will retry when available.",
             Self::UsbInitialization => "The strip could not be opened or initialized. Check its USB connection and permissions.",
-            Self::SessionInterrupted => "The desktop session was interrupted. Choose Restart mirroring after the session is ready.",
+            Self::SessionInterrupted => "The desktop session was interrupted. Choose Start mirroring after the session is ready.",
         }
     }
 }
@@ -280,7 +280,10 @@ impl State {
             }
             self.sampled_at = Some(elapsed_ms);
         }
-        let persist = lifecycle || failure || elapsed_ms.saturating_sub(self.persisted_at) >= 5000;
+        // Lifecycle changes and failures persist at once; steady mirroring only
+        // refreshes the rolling cache each minute (not a 5 s fsync loop).
+        let persist =
+            lifecycle || failure || elapsed_ms.saturating_sub(self.persisted_at) >= 60_000;
         if persist {
             self.persisted_at = elapsed_ms;
         }
@@ -514,8 +517,31 @@ fn state_root() -> Result<PathBuf> {
             .join(".local/state"),
     };
     ensure!(base.is_absolute(), "State directory must be absolute");
-    let app = base.join("nanoleaf-native");
+    let app = resolve_existing(&base)?.join("nanoleaf-native");
     Ok(app.join("diagnostics"))
+}
+/// The user's state base may legitimately sit behind symlinks (`/home` ->
+/// `var/home` on Fedora Atomic, a dotfile-managed `~/.local/state`). Resolve
+/// its existing part once; the app-owned directories below it are still
+/// created privately and must never be symlinks.
+fn resolve_existing(base: &Path) -> Result<PathBuf> {
+    let mut existing = base.to_path_buf();
+    let mut rest = Vec::new();
+    while !existing.exists() {
+        rest.push(
+            existing
+                .file_name()
+                .context("Invalid state directory")?
+                .to_owned(),
+        );
+        existing = existing
+            .parent()
+            .context("Invalid state directory")?
+            .to_path_buf();
+    }
+    let mut resolved = existing.canonicalize()?;
+    resolved.extend(rest.iter().rev());
+    Ok(resolved)
 }
 fn check_components(path: &Path) -> Result<()> {
     ensure!(path.is_absolute(), "Diagnostic directory must be absolute");
@@ -764,6 +790,32 @@ pub fn cached_report() -> Result<Report> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_symlinked_state_base_is_resolved_but_app_directories_stay_strict() {
+        let root = std::env::temp_dir().join(format!("nanoleaf-state-link-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("var/home/user/.local/state")).unwrap();
+        std::os::unix::fs::symlink("var/home", root.join("home")).unwrap();
+        let base = root.join("home/user/.local/state");
+        let resolved = super::resolve_existing(&base).unwrap();
+        assert_eq!(
+            resolved,
+            root.join("var/home/user/.local/state")
+                .canonicalize()
+                .unwrap()
+        );
+        // A not-yet-created tail is appended after the resolved prefix.
+        assert_eq!(
+            super::resolve_existing(&base.join("new/dir")).unwrap(),
+            resolved.join("new/dir")
+        );
+        super::private_dir(&resolved.join("nanoleaf-native/diagnostics")).unwrap();
+        // An app-owned directory replaced by a symlink is still refused.
+        let app = resolved.join("other-app");
+        std::os::unix::fs::symlink(&root, &app).unwrap();
+        assert!(super::check_components(&app.join("diagnostics")).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
     use super::*;
     use std::os::unix::fs::{symlink, PermissionsExt};
     use std::time::Duration;
@@ -992,10 +1044,10 @@ mod tests {
         let mut state = State::new();
         let status = status();
         assert!(state.observe_at(&status, 0, 0));
-        for tick in 1..250 {
+        for tick in 1..3000 {
             assert!(!state.observe_at(&status, tick * 20, tick * 20));
         }
-        assert!(state.observe_at(&status, 5000, 5000));
+        assert!(state.observe_at(&status, 60_000, 60_000));
         assert_eq!(state.events.len(), 1);
         let root = root("readonly");
         let absent = root.join("absent");
