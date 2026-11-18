@@ -1,0 +1,5 @@
+/plugin/nanoleaf-hdr.so
+/probe/nanoleaf-hdr-probe
+/probe/*-protocol.c
+/probe/*-client-protocol.h
+/probe/nanoleaf-hdr-ladder

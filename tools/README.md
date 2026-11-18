@@ -29,3 +29,9 @@ Analysis should compare the first visible screen change with the first and settl
 strip changes across several transitions. Browser timer/RAF times are not photon
 timestamps. Neither this target nor a colour camera replaces a colorimeter or
 photodiode. No optical measurement is claimed until a real recording is analysed.
+
+## Hyprland HDR capture (experimental)
+
+`hyprland-hdr-capture/` holds a local Hyprland 0.57.2 plugin that lets one
+opted-in program capture the monitor's real HDR (PQ) picture, plus test tools.
+The app does not use it. See its [README](hyprland-hdr-capture/README.md).
