@@ -105,7 +105,9 @@ Unload:
 hyprctl plugin unload "$PWD/tools/hyprland-hdr-capture/plugin/nanoleaf-hdr.so"
 ```
 
-To load it at every login, a Lua config can call `hl.plugin.load(path)`.
+To load it at every login, a Lua config can call `hl.plugin.load(path)`. Load
+it from a stable copy (for example `~/.local/lib/nanoleaf-hdr/nanoleaf-hdr.so`),
+not the build directory, and rebuild and re-copy after every Hyprland update.
 
 ## Tests
 
@@ -191,6 +193,19 @@ With the `content_peak` hook (MaxCLL and mastering peak declared, no range):
 | 465 nits | 464.4 | 256.1 | 150.1 (unchanged) |
 | 1000 nits | 998.9 | 464.4 | 191.8 (unchanged) |
 
+Live desktop, plugin 0.2.0 loaded (19 November 2026), test pattern unfocused:
+
+| Patch shown | Peak 465 declared | Nothing declared |
+| --- | --- | --- |
+| 100 nits | 94.5 | 63.6 |
+| 203 nits | 190.0 | 98.3 |
+| 465 nits | 435.8 | 140.4 |
+| 1000 nits | 938.1 | 179.6 |
+
+Every live value is 0.94 of the nested one: the desktop dims unfocused windows
+(`decoration:dim_inactive`, strength 0.06). Nanoleaf kept mirroring with no
+missed deadlines.
+
 Content above the display peak is still tone-mapped, and Hyprland's default
 curve then lowers mid-tones too (203 → 138 for 1000-nit content). The plugin
 does not change the curve; a `tonemap` window rule can, for windows only.
@@ -204,9 +219,9 @@ Arguments: output peak, the pattern's MaxCLL/mastering peak, its luminance range
 ## Not verified
 
 - An HDR game or video on the real desktop.
-- The `content_peak` hook on the real desktop (only nested so far). Its first
-  draft crashed the nested Hyprland: this Hyprland build leaves an unused
-  argument uninitialised, so hooks must never copy their arguments.
+- The `content_peak` hook's first draft crashed the nested Hyprland: this
+  Hyprland build leaves an unused argument uninitialised, so hooks must never
+  copy their arguments.
 - Direct scanout of fullscreen windows, the cursor plane, and DMA-BUF capture
   (the probe uses shared memory).
 - Effects applied in Hyprland's final output pass (`decoration:screen_shader`,
