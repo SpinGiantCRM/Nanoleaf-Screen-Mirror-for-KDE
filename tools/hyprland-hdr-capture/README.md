@@ -99,6 +99,24 @@ tools/hyprland-hdr-capture/probe/nanoleaf-hdr-probe --output DP-1
 
 `--patch X,Y,W,H` adds the mean code and PQ luminance of a region.
 
+`--raw FILE` also saves the frame for tools such as an HDR-aware screenshot
+script. FILE holds the pixels (`height` rows of `stride` bytes, little-endian
+XBGR2101010, R in bits 0–9); `FILE.json` gives width, height, stride, format,
+range and the output's transfer, primaries and min/max/reference nits. Both
+are written with mode 0600 through a temporary file and `rename`. The probe
+keeps capturing (up to 10 frames) until the plugin reports a frame it delivered
+as HDR, and saves nothing otherwise:
+
+| Exit | Meaning |
+| --- | --- |
+| 0 | saved |
+| 1 | capture or I/O failure, including no frame within 3 s |
+| 2 | usage |
+| 3 | plugin not loaded, or the output is not a 10-bit PQ output |
+| 4 | only Hyprland's SDR conversion arrived |
+
+A live 3840×2160 capture with `--raw` takes about 0.1 s.
+
 Unload:
 
 ```bash
