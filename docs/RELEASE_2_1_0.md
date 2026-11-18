@@ -31,6 +31,16 @@ Wayland and now also Hyprland 0.57.
   appear, within 5 minutes. Any other refusal (locked, sleeping, invalid
   configuration, strip busy), a Stop or a successful start cancels it. Unlock and
   resume still never start mirroring on their own.
+- **Troubleshooting reports.** Settings → Advanced and `--save-report` save a
+  private report: recent timing and failure history, the exact app and helper
+  fingerprints, and the last failure kept across restarts. Reports hold no
+  pixels, paths, error text or configuration.
+- **Interruption alerts.** An unexpected capture or USB interruption raises a
+  desktop notification. A capture failure that needs the user offers **Restart
+  mirroring**, tied to that failure. Stop, Quit, lock and suspend stay quiet. A
+  link that keeps dropping and recovering notifies at most once per two minutes.
+- **Startup choices.** **Open on startup** and **Start mirroring** sit together
+  in Mirroring settings.
 - **Packaging.** The Arch recipe no longer requires KWin or KService. Both are
   optional, as are the KDE and Hyprland portals. A missing `kbuildsycoca6` no
   longer fails installation.
