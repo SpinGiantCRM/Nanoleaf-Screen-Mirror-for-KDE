@@ -10,6 +10,7 @@ use std::{
 };
 pub struct Tray {
     pub message: String,
+    pub restart_required: bool,
     path: PathBuf,
     tx: Sender<Control>,
     settings_open: Arc<AtomicBool>,
@@ -63,7 +64,12 @@ impl ksni::Tray for Tray {
             }
             .into(),
             StandardItem {
-                label: "Start mirroring".into(),
+                label: if self.restart_required {
+                    "Restart mirroring"
+                } else {
+                    "Start mirroring"
+                }
+                .into(),
                 activate: Box::new(|t: &mut Self| {
                     let _ = t.tx.send(Control::Start);
                 }),
@@ -105,6 +111,7 @@ pub fn spawn(
 ) -> Result<ksni::blocking::Handle<Tray>, ksni::Error> {
     let mut tray = Tray {
         message: "Stopped".into(),
+        restart_required: false,
         path,
         tx,
         settings_open: Arc::new(AtomicBool::new(false)),

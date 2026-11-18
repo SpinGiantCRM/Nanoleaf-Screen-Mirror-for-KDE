@@ -36,9 +36,9 @@ runtime or privileged DRM helper is used. Installing the pipx package, running
 help/version or invoking the wrapper without an action does not download the
 native app. Install it explicitly before using mirroring commands.
 
-If this exact version has not been published, pipx cannot install it from the
-registry. The [GitHub native release](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/releases/tag/native-v2.0.0)
-and its checksum-verified archive provide the direct installation route.
+Version 2.0.0 is published on [PyPI](https://pypi.org/project/nanoleaf-kde-sync/2.0.0/).
+The [GitHub native release](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/releases/tag/native-v2.0.0)
+and its checksum-verified archive also provide a direct installation route.
 
 ## Set up and use
 
@@ -54,7 +54,7 @@ for setup, USB permissions, capture selection, calibration and troubleshooting.
 ## Upgrade, rollback and removal
 
 Quit the tray before upgrading the pipx package or installing another native
-version. Once native 2.1.0 is available, existing pipx users can run
+version. Existing pipx users can run
 `pipx upgrade nanoleaf-kde-sync`. After a pipx upgrade, run
 `~/.local/bin/nanoleaf-kde-sync --install-native` again to download and install the new pinned native
 pair and refresh the desktop launcher. Check the installed app using

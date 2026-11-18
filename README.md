@@ -38,12 +38,12 @@ Open **Nanoleaf Screen Mirror (Rust)** from KDE's application launcher. Installa
 uses your user account, preserves configuration and keeps previous native
 versions for rollback. It does not start mirroring or enable login startup.
 
-Optional native package routes are available after their registry publication:
+Native packages are also available through PyPI and a local Arch recipe:
 
 - **PyPI/pipx:** `pipx install nanoleaf-kde-sync==2.1.0`, then
   `~/.local/bin/nanoleaf-kde-sync --install-native` creates the native KDE launcher.
-- **Arch/AUR:** the `nanoleaf-kde-sync-bin` recipe packages the native release;
-  use the checked-out recipe until its AUR listing is published.
+- **Arch/AUR:** the `nanoleaf-kde-sync-bin` recipe packages the native release.
+  AUR publication is pending; use the checked-out recipe.
 
 See [package availability, requirements and upgrades](docs/PACKAGING_AUR.md).
 The PyPI wheel is a pure-Python installer with no native binaries. Explicit
@@ -120,7 +120,7 @@ emitted light. See [gameplay observations](docs/GAMEPLAY_PROFILING.md) and
 ## Development and evidence
 
 - [Native application development](native/app/README.md)
-- [Repository map and verification locations](docs/ai/repo-map.md)
+- [Contributing and verification](CONTRIBUTING.md)
 - [Native completion and measured performance](docs/RUST_NATIVE_COMPLETION.md)
 - [Streaming Vulkan backend](docs/RUST_STREAM_VULKAN.md)
 - [Changelog](CHANGELOG.md)

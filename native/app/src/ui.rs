@@ -11,6 +11,7 @@ use std::{
 };
 pub fn open(path: &Path) -> anyhow::Result<()> {
     let store = Store::load(path)?;
+    let open_on_startup = crate::package::autostart_enabled().map_err(|error| error.to_string());
     let icon = eframe::icon_data::from_png_bytes(include_bytes!(
         "../../../assets/icons/hicolor/128x128/apps/nanoleaf-kde-sync.png"
     ))?;
@@ -28,6 +29,8 @@ pub fn open(path: &Path) -> anyhow::Result<()> {
         Box::new(move |creation| {
             configure_style(&creation.egui_ctx);
             Ok(Box::new(Settings {
+                saved_open_on_startup: open_on_startup.as_ref().ok().copied(),
+                open_on_startup,
                 draft: store.config.clone(),
                 page: if onboarding::needs_setup(&store.config) {
                     Page::Strip
@@ -46,6 +49,8 @@ pub fn open(path: &Path) -> anyhow::Result<()> {
                 hdr_profile: false,
                 picker: None,
                 profile_action: None,
+                report_task: None,
+                saved_report: None,
             }))
         }),
     )
@@ -54,6 +59,8 @@ pub fn open(path: &Path) -> anyhow::Result<()> {
 struct Settings {
     store: Store,
     draft: Config,
+    open_on_startup: Result<bool, String>,
+    saved_open_on_startup: Option<bool>,
     message: String,
     page: Page,
     setup_step: Step,
@@ -66,6 +73,8 @@ struct Settings {
     hdr_profile: bool,
     picker: Option<crate::portal_file::Picker>,
     profile_action: Option<ProfileAction>,
+    report_task: Option<std::sync::mpsc::Receiver<Result<std::path::PathBuf, String>>>,
+    saved_report: Option<std::path::PathBuf>,
 }
 enum ProfileAction {
     Import,
@@ -130,6 +139,7 @@ fn card(ui: &mut egui::Ui, title: &str, description: &str, body: impl FnOnce(&mu
 }
 impl eframe::App for Settings {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.poll_report();
         if let Some(result) = self.picker.as_ref().and_then(|p| p.result()) {
             self.picker = None;
             self.message = match (result, self.profile_action.take()) {
@@ -164,6 +174,9 @@ impl eframe::App for Settings {
             self.last_poll = Instant::now();
         }
         ui.ctx().request_repaint_after(Duration::from_secs(1));
+        if self.report_task.is_some() {
+            ui.ctx().request_repaint_after(Duration::from_millis(100));
+        }
         egui::Frame::central_panel(ui.style())
             .inner_margin(24.0)
             .show(ui, |ui| self.layout(ui));
@@ -313,6 +326,41 @@ fn save_profile(doc: &mut toml_edit::DocumentMut, key: &str, p: &LedProfile) {
     doc[key]["color_matrix"] = toml_edit::value(matrix);
 }
 impl Settings {
+    fn start_report(&mut self) {
+        if self.report_task.is_some() {
+            return;
+        }
+        let (tx, rx) = std::sync::mpsc::sync_channel(1);
+        self.report_task = Some(rx);
+        self.message = "Saving troubleshooting report…".into();
+        std::thread::spawn(move || {
+            let result = service::save_troubleshooting_report().map_err(|error| error.to_string());
+            let _ = tx.send(result);
+        });
+    }
+
+    fn poll_report(&mut self) {
+        let Some(task) = &self.report_task else {
+            return;
+        };
+        let result = match task.try_recv() {
+            Ok(result) => result,
+            Err(std::sync::mpsc::TryRecvError::Empty) => return,
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                Err("The report task ended before saving a report. Try again.".into())
+            }
+        };
+        self.report_task = None;
+        match result {
+            Ok(path) => {
+                self.message =
+                    "Troubleshooting report saved on this PC. Nothing was uploaded.".into();
+                self.saved_report = Some(path);
+            }
+            Err(error) => self.message = format!("Report not saved: {error}"),
+        }
+    }
+
     fn control(&mut self, command: Control) {
         self.message = match service::send(&command) {
             Ok(s) => {
@@ -445,13 +493,17 @@ impl Settings {
                     Ok(store) => {
                         self.draft = store.config.clone();
                         self.store = store;
+                        self.open_on_startup =
+                            crate::package::autostart_enabled().map_err(|error| error.to_string());
+                        self.saved_open_on_startup = self.open_on_startup.as_ref().ok().copied();
                         self.message = "Saved settings reloaded.".into();
                     }
                     Err(error) => self.message = error.to_string(),
                 }
             }
             let changed = serde_json::to_value(&self.draft).ok()
-                != serde_json::to_value(&self.store.config).ok();
+                != serde_json::to_value(&self.store.config).ok()
+                || self.open_on_startup.as_ref().ok().copied() != self.saved_open_on_startup;
             ui.label(
                 egui::RichText::new(if changed {
                     "Unsaved changes"
@@ -490,6 +542,9 @@ impl Settings {
                 ui.label(egui::RichText::new(label).size(21.0).strong().color(colour));
                 if let Some(status) = &self.status {
                     ui.label(&status.message);
+                    if let Some(failure) = &status.failure {
+                        ui.small(failure.kind.body());
+                    }
                     if running {
                         ui.small(format!(
                             "{} · {:.1} acknowledged updates/s",
@@ -505,7 +560,21 @@ impl Settings {
                         && crate::pipeline::validate_mirroring(&self.store.config).is_ok()
                         && !running;
                     if ui
-                        .add_enabled(ready, egui::Button::new("Start mirroring"))
+                        .add_enabled(
+                            ready,
+                            egui::Button::new(
+                                if self.status.as_ref().is_some_and(|status| {
+                                    status
+                                        .failure
+                                        .as_ref()
+                                        .is_some_and(|failure| !failure.retrying)
+                                }) {
+                                    "Restart mirroring"
+                                } else {
+                                    "Start mirroring"
+                                },
+                            ),
+                        )
                         .clicked()
                     {
                         self.control(Control::Start);
@@ -633,10 +702,26 @@ impl Settings {
                     &mut self.draft.letterbox_detection,
                     "Follow content inside black bars",
                 );
-                ui.checkbox(
-                    &mut self.draft.start_on_launch,
-                    "Start mirroring when the tray launches",
-                );
+                ui.horizontal_wrapped(|ui| {
+                    match &mut self.open_on_startup {
+                        Ok(enabled) => {
+                            ui.checkbox(enabled, "Open on startup")
+                                .on_hover_text("Open the tray when you sign in to KDE.");
+                        }
+                        Err(error) => {
+                            ui.add_enabled(false, egui::Checkbox::new(&mut false, "Open on startup"))
+                                .on_disabled_hover_text(error.as_str());
+                        }
+                    }
+                    ui.checkbox(&mut self.draft.start_on_launch, "Start mirroring")
+                        .on_hover_text("Start mirroring whenever the tray opens, including when opened manually.");
+                });
+                ui.small("Open on startup launches the tray at sign-in. Start mirroring also turns on capture and lights when the tray opens. Save / Apply to keep your choices.");
+                if let Err(error) = &self.open_on_startup {
+                    ui.small(format!(
+                        "Startup setting unavailable: {error}. Reload saved to retry."
+                    ));
+                }
             },
         );
     }
@@ -1044,21 +1129,53 @@ impl Settings {
     fn advanced(&mut self, ui: &mut egui::Ui) {
         card(
             ui,
-            "Advanced / Troubleshooting",
-            "Capture, login startup and detailed diagnostics.",
+            "Troubleshooting report",
+            "Save recent failures and timing history for support.",
             |ui| {
-                ui.horizontal(|ui| {
-                    if ui.button("Launch native tray at login").clicked() {
-                        self.message = crate::package::autostart(true)
-                            .map(|_| "Native tray login launch enabled.".into())
-                            .unwrap_or_else(|e| e.to_string());
-                    }
-                    if ui.button("Disable native login launch").clicked() {
-                        self.message = crate::package::autostart(false)
-                            .map(|_| "Native login launch disabled.".into())
-                            .unwrap_or_else(|e| e.to_string());
-                    }
-                });
+                if ui
+                    .add_enabled(
+                        self.report_task.is_none(),
+                        egui::Button::new("Save troubleshooting report"),
+                    )
+                    .clicked()
+                {
+                    self.start_report();
+                }
+                ui.small("Reports stay on this PC. They exclude screenshots, settings, calibration, device serial numbers and screen-sharing permission tokens.");
+                if self.report_task.is_some() {
+                    ui.spinner();
+                }
+                if let Some(path) = &self.saved_report {
+                    ui.label("Report saved:");
+                    ui.monospace(path.display().to_string());
+                    ui.horizontal(|ui| {
+                        if ui.button("Copy report path").clicked() {
+                            ui.ctx().copy_text(path.display().to_string());
+                        }
+                        if ui.button("Open report folder").clicked() {
+                            if let Some(parent) = path.parent() {
+                                if let Err(error) = std::process::Command::new("xdg-open")
+                                    .arg(parent)
+                                    .stdin(std::process::Stdio::null())
+                                    .stdout(std::process::Stdio::null())
+                                    .stderr(std::process::Stdio::null())
+                                    .spawn()
+                                {
+                                    self.message = format!(
+                                        "Report saved, but the folder could not be opened: {error}"
+                                    );
+                                }
+                            }
+                        }
+                    });
+                }
+            },
+        );
+        card(
+            ui,
+            "Advanced / Troubleshooting",
+            "Capture and detailed diagnostics.",
+            |ui| {
                 choice(
                     ui,
                     "Capture",
@@ -1222,7 +1339,7 @@ impl Settings {
             || self.store.config.anchors() != self.draft.anchors();
         let doc = self.draft_document();
         let saved = self.store.save_document(doc);
-        let success = saved.is_ok();
+        let mut success = saved.is_ok();
         self.message = match saved {
             Ok(()) => {
                 self.draft = self.store.config.clone();
@@ -1242,6 +1359,19 @@ impl Settings {
             }
             Err(e) => e.to_string(),
         };
+        if success {
+            if let Ok(enabled) = self.open_on_startup {
+                if Some(enabled) != self.saved_open_on_startup {
+                    match crate::package::autostart(enabled) {
+                        Ok(()) => self.saved_open_on_startup = Some(enabled),
+                        Err(error) => {
+                            success = false;
+                            self.message = format!("{} Startup setting was not changed: {error}. Your startup choice is still unsaved; Save / Apply to retry.", self.message);
+                        }
+                    }
+                }
+            }
+        }
         success
     }
 }
@@ -1256,6 +1386,8 @@ mod tests {
             b"schema_version=2\nunknown_setting='preserve'\n[led_calibration_profile_sdr]\nred_gain=0.42\n".to_vec(),
         ).unwrap();
         Settings {
+            open_on_startup: Ok(false),
+            saved_open_on_startup: Some(false),
             draft: store.config.clone(),
             store,
             message: String::new(),
@@ -1270,6 +1402,168 @@ mod tests {
             hdr_profile: false,
             picker: None,
             profile_action: None,
+            report_task: None,
+            saved_report: None,
+        }
+    }
+
+    #[test]
+    fn report_save_results_keep_settings_drafts_and_allow_retry() {
+        let mut settings = settings();
+        settings.draft.brightness = 0.37;
+        let draft = serde_json::to_value(&settings.draft).unwrap();
+        let original = settings.store.document.to_string();
+        let (tx, rx) = std::sync::mpsc::channel();
+        settings.report_task = Some(rx);
+        tx.send(Err("Disk unavailable".into())).unwrap();
+        settings.poll_report();
+        assert!(settings.report_task.is_none());
+        assert!(settings.message.contains("Disk unavailable"));
+        assert!(settings.saved_report.is_none());
+        let path = std::path::PathBuf::from("/private/reports/example.json");
+        let (tx, rx) = std::sync::mpsc::channel();
+        settings.report_task = Some(rx);
+        tx.send(Ok(path.clone())).unwrap();
+        settings.poll_report();
+        assert!(settings.report_task.is_none());
+        assert_eq!(settings.saved_report, Some(path));
+        let (tx, rx) = std::sync::mpsc::channel();
+        settings.report_task = Some(rx);
+        drop(tx);
+        settings.poll_report();
+        assert!(
+            settings.report_task.is_none(),
+            "An interrupted task must not leave saving disabled"
+        );
+        assert_eq!(serde_json::to_value(&settings.draft).unwrap(), draft);
+        assert_eq!(settings.store.document.to_string(), original);
+    }
+
+    #[test]
+    fn startup_save_persists_both_choices_and_retries_failed_startup_writes() {
+        // Run filesystem/service operations in a subprocess with private XDG
+        // directories so this test cannot contact the user's running tray.
+        const CHILD: &str = "NANOLEAF_STARTUP_SAVE_TEST";
+        if std::env::var_os(CHILD).is_none() {
+            let root = std::env::temp_dir()
+                .join(format!("nanoleaf-settings-startup-{}", std::process::id()));
+            std::fs::create_dir(&root).unwrap();
+            let runtime = root.join("runtime");
+            std::fs::create_dir(&runtime).unwrap();
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", "ui::tests::startup_save_persists_both_choices_and_retries_failed_startup_writes", "--nocapture"])
+                .env(CHILD, "1")
+                .env("HOME", &root)
+                .env("XDG_CONFIG_HOME", root.join("config"))
+                .env("XDG_DATA_HOME", root.join("data"))
+                .env("XDG_RUNTIME_DIR", runtime)
+                .env("XDG_STATE_HOME", root.join("state"))
+                .output().unwrap();
+            std::fs::remove_dir_all(root).unwrap();
+            assert!(output.status.success(), "{output:?}");
+            return;
+        }
+        let root = std::path::PathBuf::from(std::env::var_os("HOME").unwrap());
+        let launcher = root.join("data/applications/org.spingiantcrm.NanoleafNative.desktop");
+        std::fs::create_dir_all(launcher.parent().unwrap()).unwrap();
+        std::fs::write(launcher, "[Desktop Entry]\nExec=\"/bin/true\" --daemon\n").unwrap();
+        let path = root.join("config.toml");
+        let mut settings = settings();
+        std::fs::write(&path, settings.store.document.to_string()).unwrap();
+        settings.store = Store::load(&path).unwrap();
+        for (startup, mirroring) in [(true, false), (true, true), (false, true), (false, false)] {
+            settings.open_on_startup = Ok(startup);
+            settings.draft.start_on_launch = mirroring;
+            assert!(settings.save(), "{}", settings.message);
+            assert_eq!(crate::package::autostart_enabled().unwrap(), startup);
+            assert_eq!(settings.saved_open_on_startup, Some(startup));
+            let saved = Store::load(&path).unwrap();
+            assert_eq!(saved.config.start_on_launch, mirroring);
+            assert_eq!(saved.config.led_calibration_profile_sdr.red_gain, 0.42);
+            assert_eq!(saved.document["unknown_setting"].as_str(), Some("preserve"));
+        }
+        let startup = root.join("config/autostart/org.spingiantcrm.NanoleafNative.desktop");
+        std::fs::write(&startup, "foreign entry").unwrap();
+        settings.open_on_startup = Ok(true);
+        settings.draft.start_on_launch = true;
+        assert!(!settings.save());
+        assert!(Store::load(&path).unwrap().config.start_on_launch);
+        assert_eq!(settings.saved_open_on_startup, Some(false));
+        assert_eq!(settings.open_on_startup, Ok(true));
+        assert!(settings.message.contains("Startup setting was not changed"));
+        assert_eq!(std::fs::read_to_string(&startup).unwrap(), "foreign entry");
+        std::fs::remove_file(startup).unwrap();
+        assert!(settings.save(), "{}", settings.message);
+        assert!(crate::package::autostart_enabled().unwrap());
+        assert_eq!(settings.saved_open_on_startup, Some(true));
+    }
+
+    #[test]
+    fn startup_checkboxes_can_be_clicked_independently_without_changing_calibration() {
+        let mut settings = settings();
+        let context = egui::Context::default();
+        let render = |settings: &mut Settings, events| {
+            let mut output = context.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(1200.0, 1800.0),
+                    )),
+                    events,
+                    ..Default::default()
+                },
+                |ui| settings.mirror(ui),
+            );
+            output.textures_delta.clear();
+            output
+        };
+        for (startup, mirroring) in [(true, false), (true, true), (false, true), (false, false)] {
+            for (label, change) in [
+                ("Open on startup", settings.open_on_startup != Ok(startup)),
+                (
+                    "Start mirroring",
+                    settings.draft.start_on_launch != mirroring,
+                ),
+            ] {
+                if !change {
+                    continue;
+                }
+                let output = render(&mut settings, vec![]);
+                let position = output
+                    .shapes
+                    .iter()
+                    .filter_map(|shape| match &shape.shape {
+                        egui::Shape::Text(text) if text.galley.text() == label => {
+                            Some(text.pos + text.galley.size() * 0.5)
+                        }
+                        _ => None,
+                    })
+                    .next_back()
+                    .expect("Startup checkbox must be visible");
+                for pressed in [true, false] {
+                    render(
+                        &mut settings,
+                        vec![
+                            egui::Event::PointerMoved(position),
+                            egui::Event::PointerButton {
+                                pos: position,
+                                button: egui::PointerButton::Primary,
+                                pressed,
+                                modifiers: Default::default(),
+                            },
+                        ],
+                    );
+                }
+            }
+            assert_eq!(settings.open_on_startup, Ok(startup));
+            assert_eq!(settings.draft.start_on_launch, mirroring);
+            assert_eq!(settings.saved_open_on_startup, Some(false));
+            let document = settings.draft_document();
+            let saved =
+                Store::parse(Path::new("unused.toml"), document.to_string().into_bytes()).unwrap();
+            assert_eq!(saved.config.start_on_launch, mirroring);
+            assert_eq!(saved.config.led_calibration_profile_sdr.red_gain, 0.42);
+            assert_eq!(saved.document["unknown_setting"].as_str(), Some("preserve"));
         }
     }
 

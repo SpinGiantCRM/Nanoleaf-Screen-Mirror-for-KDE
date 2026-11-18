@@ -23,6 +23,7 @@ use std::{
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum Control {
     Status,
+    Report,
     #[serde(skip)]
     FrameReady,
     #[serde(skip)]
@@ -30,6 +31,10 @@ pub enum Control {
     #[serde(skip)]
     SessionReady,
     Start,
+    #[serde(skip)]
+    RestartFailure {
+        failure: crate::diagnostics::Failure,
+    },
     Stop,
     Reload,
     Quit,
@@ -43,6 +48,8 @@ pub struct Status {
     pub running: bool,
     pub preview: bool,
     pub message: String,
+    #[serde(default)]
+    pub failure: Option<crate::diagnostics::Failure>,
     pub model: String,
     pub manual_zones: usize,
     pub reported_zones: usize,
@@ -166,7 +173,38 @@ pub fn send_at(socket: &Path, control: &Control) -> Result<Status> {
     stream.take(16384).read_to_string(&mut data)?;
     Ok(serde_json::from_str(&data)?)
 }
-fn listener(socket: &Path, tx: mpsc::Sender<Control>, status: Arc<Mutex<Status>>) -> Result<()> {
+
+/// Read an allowlisted diagnostic snapshot without changing capture or output.
+pub fn request_report_at(socket: &Path) -> Result<crate::diagnostics::Report> {
+    let mut stream =
+        UnixStream::connect(socket).context("The native tray service is not running")?;
+    stream.set_read_timeout(Some(Duration::from_secs(2)))?;
+    stream.set_write_timeout(Some(Duration::from_secs(1)))?;
+    serde_json::to_writer(&mut stream, &Control::Report)?;
+    stream.write_all(b"\n")?;
+    stream.shutdown(std::net::Shutdown::Write)?;
+    let mut bytes = Vec::new();
+    stream.take(262145).read_to_end(&mut bytes)?;
+    ensure!(bytes.len() <= 262144, "Oversized diagnostic report");
+    Ok(serde_json::from_slice(&bytes)?)
+}
+
+/// Export the live service's history, or clearly labelled cached history after
+/// its exit. Neither path starts screen sharing, touches USB, or edits settings.
+pub fn save_troubleshooting_report() -> Result<PathBuf> {
+    let report = Paths::new()
+        .and_then(|paths| request_report_at(&paths.socket))
+        .or_else(|_| crate::diagnostics::cached_report())
+        .context("No diagnostic history is available yet; open the native tray first")?;
+    crate::diagnostics::save_report(&report)
+}
+
+fn listener(
+    socket: &Path,
+    tx: mpsc::Sender<Control>,
+    status: Arc<Mutex<Status>>,
+    diagnostics: crate::diagnostics::Recorder,
+) -> Result<()> {
     if socket.exists() {
         fs::remove_file(socket)?;
     }
@@ -182,6 +220,15 @@ fn listener(socket: &Path, tx: mpsc::Sender<Control>, status: Arc<Mutex<Status>>
                 continue;
             }
             if let Ok(control) = serde_json::from_str::<Control>(&line) {
+                if matches!(control, Control::Report) {
+                    let reply = status.lock().ok().map(|value| diagnostics.report(&value));
+                    if let Some(bytes) = reply.and_then(|report| serde_json::to_vec(&report).ok()) {
+                        if bytes.len() <= 262144 {
+                            let _ = reader.get_mut().write_all(&bytes);
+                        }
+                    }
+                    continue;
+                }
                 // Finish the reply before dispatching Quit: the actor can exit
                 // immediately, otherwise truncating JSON on the listener thread.
                 let reply = status
@@ -236,10 +283,76 @@ pub(crate) fn acquire_output(paths: &Paths) -> Result<File> {
     );
     lease(&paths.root.join("strip.lock"))
 }
-fn publish(shared: &Arc<Mutex<Status>>, status: &Status) {
-    if let Ok(mut s) = shared.lock() {
-        *s = status.clone();
+/// Publish all service presentations together, including early recovery returns.
+/// The actor never performs diagnostic file I/O or notification D-Bus calls.
+struct Publisher {
+    status: Arc<Mutex<Status>>,
+    diagnostics: crate::diagnostics::Recorder,
+    notifications: Option<crate::notifications::Notifier>,
+    tray: Option<ksni::blocking::Handle<crate::tray::Tray>>,
+    tray_state: (String, bool),
+}
+impl Publisher {
+    fn publish(&mut self, status: &Status) {
+        self.diagnostics.observe(status);
+        if let Some(notifications) = &self.notifications {
+            notifications.update(status);
+        }
+        if let Ok(mut shared) = self.status.lock() {
+            *shared = status.clone();
+        }
+        let restart_required = status.failure.as_ref().is_some_and(|failure| {
+            !failure.retrying && failure.kind != crate::diagnostics::FailureKind::SessionInterrupted
+        });
+        if self.tray_state.0 != status.message || self.tray_state.1 != restart_required {
+            if let Some(handle) = &self.tray {
+                handle.update(|tray| {
+                    tray.message = status.message.clone();
+                    tray.restart_required = restart_required;
+                });
+            }
+            self.tray_state = (status.message.clone(), restart_required);
+        }
     }
+}
+
+fn failure(state: &mut Status, kind: crate::diagnostics::FailureKind, retrying: bool) {
+    if state
+        .failure
+        .as_ref()
+        .is_none_or(|previous| previous.kind != kind || previous.retrying != retrying)
+    {
+        state.failure = Some(crate::diagnostics::Failure::new(kind, retrying));
+    }
+}
+
+fn capture_failure_kind(error: &str) -> crate::diagnostics::FailureKind {
+    use crate::diagnostics::FailureKind;
+    let error = error.to_ascii_lowercase();
+    if error.contains("capture stalled") {
+        FailureKind::CaptureStalled
+    } else if error.contains("capture worker ended")
+        || error.contains("screen sharing ended")
+        || error.contains("denied")
+        || error.contains("revoked")
+    {
+        FailureKind::CaptureEnded
+    } else {
+        FailureKind::CaptureFailed
+    }
+}
+
+fn requested_restart_is_current(status: &Status, failure: &crate::diagnostics::Failure) -> bool {
+    !status.running
+        && !status.preview
+        && !failure.retrying
+        && matches!(
+            failure.kind,
+            crate::diagnostics::FailureKind::CaptureStalled
+                | crate::diagnostics::FailureKind::CaptureEnded
+                | crate::diagnostics::FailureKind::CaptureFailed
+        )
+        && status.failure.as_ref() == Some(failure)
 }
 /// Preserve command order while inspecting a bounded batch during an ACK wait.
 /// Frame-ready events still coalesce in the existing latest-only colour slot.
@@ -327,9 +440,16 @@ fn run_inner(
         priority: crate::priority::apply(&store.config.performance_priority),
         ..Default::default()
     };
+    let diagnostics = crate::diagnostics::Recorder::start();
+    diagnostics.observe(&state);
     let shared = Arc::new(Mutex::new(state.clone()));
-    listener(&paths.socket, tx.clone(), shared.clone())?;
-    let mut tray_message = state.message.clone();
+    listener(
+        &paths.socket,
+        tx.clone(),
+        shared.clone(),
+        diagnostics.clone(),
+    )?;
+    let notifications = tray.then(|| crate::notifications::Notifier::spawn(tx.clone()));
     let _tray = if tray {
         match crate::tray::spawn(
             path.into(),
@@ -346,6 +466,14 @@ fn run_inner(
     } else {
         None
     };
+    let mut publisher = Publisher {
+        status: shared,
+        diagnostics,
+        notifications,
+        tray: _tray,
+        tray_state: ("Stopped".into(), false),
+    };
+    publisher.publish(&state);
     if let Some(duration) = profile {
         let tx = tx.clone();
         std::thread::spawn(move || {
@@ -390,7 +518,7 @@ fn run_inner(
             let mut ready = false;
             if !matches!(
                 &command,
-                Control::FrameReady | Control::Status | Control::SessionReady
+                Control::FrameReady | Control::Status | Control::Report | Control::SessionReady
             ) {
                 // Settings, output ownership, preview and session transitions
                 // must never reuse an earlier controller-state assumption.
@@ -406,7 +534,7 @@ fn run_inner(
                     }
                     ready = true;
                 }
-                Control::Status => {}
+                Control::Status | Control::Report => {}
                 Control::SessionReady => {
                     if launch_start.retry_when_ready(state.running || state.preview, Instant::now())
                     {
@@ -417,6 +545,7 @@ fn run_inner(
                     }
                 }
                 Control::Quit => {
+                    state.failure = None;
                     state.response_summary = Some(responses.summary());
                     // Release capture before reporting: a slow stdout consumer
                     // must never keep screen sharing or hardware ownership alive.
@@ -435,7 +564,7 @@ fn run_inner(
                         }
                     }
                     drop(strip.take());
-                    publish(&shared, &state);
+                    publisher.publish(&state);
                     break;
                 }
                 Control::Stop | Control::SessionInterrupted => {
@@ -464,13 +593,21 @@ fn run_inner(
                     } else {
                         "Stopped".into()
                     };
+                    state.failure = None;
+                    if session_stopped {
+                        failure(
+                            &mut state,
+                            crate::diagnostics::FailureKind::SessionInterrupted,
+                            false,
+                        );
+                    }
                 }
                 Control::Reload => match Store::load(path) {
                     Ok(s) => {
                         if state.running {
                             if let Err(e) = crate::pipeline::validate_mirroring(&s.config) {
                                 state.message = format!("Settings not applied: {e}");
-                                publish(&shared, &state);
+                                publisher.publish(&state);
                                 continue;
                             }
                         }
@@ -502,11 +639,17 @@ fn run_inner(
                     }
                     Err(e) => state.message = format!("Settings not applied: {e}"),
                 },
-                Control::Start => {
+                Control::Start | Control::RestartFailure { .. } => {
+                    if let Control::RestartFailure { failure } = &command {
+                        if !requested_restart_is_current(&state, failure) {
+                            continue;
+                        }
+                    }
+                    state.failure = None;
                     if let Err(e) = crate::pipeline::validate_mirroring(&store.config) {
                         launch_start.cancel();
                         state.message = e.to_string();
-                        publish(&shared, &state);
+                        publisher.publish(&state);
                         continue;
                     }
                     if let Some(reason) = session.blocked() {
@@ -517,7 +660,12 @@ fn run_inner(
                         }
                         session_stopped = true;
                         state.message = reason.into();
-                        publish(&shared, &state);
+                        failure(
+                            &mut state,
+                            crate::diagnostics::FailureKind::SessionInterrupted,
+                            false,
+                        );
+                        publisher.publish(&state);
                         continue;
                     }
                     let ready = if output_owner.is_some() {
@@ -577,6 +725,7 @@ fn run_inner(
                             }
                         }
                     } {
+                        state.failure = None;
                         session_stopped = false;
                         predictor.reset();
                         usb_history.clear();
@@ -590,13 +739,7 @@ fn run_inner(
                     }
                 }
             }
-            publish(&shared, &state);
-            if let Some(handle) = &_tray {
-                if tray_message != state.message {
-                    handle.update(|t| t.message = state.message.clone());
-                    tray_message = state.message.clone();
-                }
-            }
+            publisher.publish(&state);
             if !ready {
                 continue;
             }
@@ -646,9 +789,14 @@ fn run_inner(
                     })();
                     if let Err(e) = initialized {
                         state.message = format!("Strip initialization recovery: {e}");
+                        failure(
+                            &mut state,
+                            crate::diagnostics::FailureKind::UsbInitialization,
+                            true,
+                        );
                         retry = Instant::now() + Duration::from_secs(2);
                         deadline = retry;
-                        publish(&shared, &state);
+                        publisher.publish(&state);
                         continue;
                     }
                     state.model = s.model.clone();
@@ -666,9 +814,14 @@ fn run_inner(
                 }
                 Err(e) => {
                     state.message = format!("Waiting for strip: {e}");
+                    failure(
+                        &mut state,
+                        crate::diagnostics::FailureKind::UsbDisconnected,
+                        true,
+                    );
                     retry = Instant::now() + Duration::from_secs(2);
                     deadline = retry;
-                    publish(&shared, &state);
+                    publisher.publish(&state);
                     continue;
                 }
             }
@@ -827,7 +980,8 @@ fn run_inner(
                                     // mistake early capture cancellation for a released
                                     // strip lease or an acknowledged cleanup-black frame.
                                     state.message = "Stopping".into();
-                                    publish(&shared, &state);
+                                    state.failure = None;
+                                    publisher.publish(&state);
                                 }
                             });
                     state.usb_ms = usb_start.elapsed().as_secs_f64() * 1000.0;
@@ -836,6 +990,7 @@ fn run_inner(
                         .and_then(|s| s.last_frame_transaction.clone());
                     match result {
                         Ok(()) => {
+                            state.failure = None;
                             if let Some(t) = &state.usb_transaction {
                                 if t.sent_zones < colors.len() {
                                     state.shortened_packets += 1;
@@ -923,6 +1078,11 @@ fn run_inner(
                             usb_history.clear();
                             watchdog.reset();
                             state.message = format!("USB recovery: {e}");
+                            failure(
+                                &mut state,
+                                crate::diagnostics::FailureKind::UsbDisconnected,
+                                true,
+                            );
                             strip = None;
                             capture = None;
                             retry = Instant::now() + Duration::from_secs(2);
@@ -930,6 +1090,7 @@ fn run_inner(
                     }
                     if stopping {
                         state.message = "Stopping".into();
+                        state.failure = None;
                     }
                 }
             }
@@ -940,6 +1101,11 @@ fn run_inner(
                 usb_history.clear();
                 watchdog.reset();
                 state.message = format!("Capture/colour recovery: {e}");
+                failure(
+                    &mut state,
+                    capture_failure_kind(&e.to_string()),
+                    store.config.capture_backend != "xdg-portal",
+                );
                 if let Some(s) = &mut strip {
                     let _ = s.black();
                 }
@@ -959,7 +1125,7 @@ fn run_inner(
                         format!("Screen sharing stopped: {e}. Start to request it again.");
                 }
                 deadline = Instant::now() + Duration::from_secs(2);
-                publish(&shared, &state);
+                publisher.publish(&state);
                 continue;
             }
         }
@@ -1001,13 +1167,7 @@ fn run_inner(
         if profile.is_some() {
             samples.push(state.clone());
         }
-        publish(&shared, &state);
-        if let Some(handle) = &_tray {
-            if tray_message != state.message {
-                handle.update(|t| t.message = state.message.clone());
-                tray_message = state.message.clone();
-            }
-        }
+        publisher.publish(&state);
     }
     if let Some((power, brightness)) = &original_controller {
         if !restored {
@@ -1141,6 +1301,66 @@ mod control_progress_tests {
         let edge = launch.armed + LAUNCH_START_WINDOW;
         assert!(launch.retry_when_ready(false, edge));
     }
+
+    #[test]
+    fn notification_restart_is_rejected_after_queued_stop_or_another_failure() {
+        use crate::diagnostics::{Failure, FailureKind};
+        let failure = Failure {
+            kind: FailureKind::CaptureStalled,
+            at_unix_ms: 100,
+            retrying: false,
+        };
+        let mut state = Status {
+            failure: Some(failure.clone()),
+            ..Default::default()
+        };
+        assert!(requested_restart_is_current(&state, &failure));
+        state.failure = None; // The earlier queued Stop has been processed.
+        assert!(!requested_restart_is_current(&state, &failure));
+        state.failure = Some(Failure {
+            at_unix_ms: 101,
+            ..failure.clone()
+        });
+        assert!(!requested_restart_is_current(&state, &failure));
+        state.failure = Some(failure.clone());
+        state.running = true;
+        assert!(!requested_restart_is_current(&state, &failure));
+        assert!(serde_json::from_str::<Control>(r#"{"action":"restart_failure","failure":{"kind":"capture_stalled","at_unix_ms":100,"retrying":false}}"#).is_err());
+    }
+
+    #[test]
+    fn capture_failures_are_classified_without_exporting_error_details() {
+        use crate::diagnostics::FailureKind;
+        for (error, expected) in [
+            (
+                "Capture stalled; no fresh frame within the recovery deadline",
+                FailureKind::CaptureStalled,
+            ),
+            (
+                "Capture worker ended before the next frame: private error",
+                FailureKind::CaptureEnded,
+            ),
+            ("Portal permission denied", FailureKind::CaptureEnded),
+            ("Sharing revoked", FailureKind::CaptureEnded),
+            (
+                "Invalid frame format with /private/path",
+                FailureKind::CaptureFailed,
+            ),
+        ] {
+            assert_eq!(capture_failure_kind(error), expected);
+        }
+        let mut status = Status::default();
+        failure(&mut status, FailureKind::UsbDisconnected, true);
+        let first = status.failure.clone();
+        failure(&mut status, FailureKind::UsbDisconnected, true);
+        assert_eq!(
+            status.failure, first,
+            "Retries belong to the same failure episode"
+        );
+        failure(&mut status, FailureKind::CaptureFailed, false);
+        assert_ne!(status.failure, first);
+    }
+
     #[test]
     fn session_interrupt_cancels_capture_during_ack_and_is_internal_only() {
         let (tx, rx) = mpsc::channel();

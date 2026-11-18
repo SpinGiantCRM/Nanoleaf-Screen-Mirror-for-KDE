@@ -48,7 +48,10 @@ struct State {
     original_launcher: Option<String>,
 }
 fn digest(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    Sha256::digest(bytes)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 fn regular(path: &Path) -> Result<Vec<u8>> {
     ensure!(
@@ -397,16 +400,48 @@ fn system_autostart_launcher() -> Result<Vec<u8>> {
     }
     anyhow::bail!("Install the native app before enabling login startup")
 }
-/// An opt-in tray autostart entry; never alters unrelated autostart files.
-pub fn autostart(enabled: bool) -> Result<()> {
+fn autostart_path() -> Result<PathBuf> {
     let config = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .unwrap_or(
             PathBuf::from(std::env::var_os("HOME").context("Home directory")?).join(".config"),
         );
-    let dir = config.join("autostart");
-    directory(&dir)?;
-    let path = dir.join("org.spingiantcrm.NanoleafNative.desktop");
+    Ok(config.join("autostart/org.spingiantcrm.NanoleafNative.desktop"))
+}
+
+/// Read the managed login setting without creating files or directories.
+pub fn autostart_enabled() -> Result<bool> {
+    let path = autostart_path()?;
+    match fs::symlink_metadata(&path) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        result => {
+            result?;
+        }
+    }
+    let content = String::from_utf8(regular(&path)?)?;
+    ensure!(
+        content.starts_with("# Managed by nanoleaf-native\n"),
+        "An unrelated autostart entry already exists"
+    );
+    let mut desktop_entry = false;
+    for line in content.lines().map(str::trim) {
+        if line.starts_with('[') {
+            desktop_entry = line == "[Desktop Entry]";
+        } else if desktop_entry && !line.starts_with('#') {
+            if let Some((key, value)) = line.split_once('=') {
+                if key.trim() == "Hidden" && value.trim() == "true" {
+                    return Ok(false);
+                }
+            }
+        }
+    }
+    Ok(true)
+}
+
+/// An opt-in tray autostart entry; never alters unrelated autostart files.
+pub fn autostart(enabled: bool) -> Result<()> {
+    let path = autostart_path()?;
+    directory(path.parent().context("Autostart directory")?)?;
     if path.exists() {
         ensure!(
             regular(&path)?.starts_with(b"# Managed by nanoleaf-native\n"),

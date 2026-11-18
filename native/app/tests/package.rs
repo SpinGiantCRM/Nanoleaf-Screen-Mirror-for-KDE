@@ -39,8 +39,11 @@ fn manifest(bundle: &Path) {
         "60-nanoleaf-kde-sync.rules",
     ] {
         content.push_str(&format!(
-            "{:x}  {name}\n",
+            "{}  {name}\n",
             Sha256::digest(fs::read(bundle.join(name)).unwrap())
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
         ));
     }
     fs::write(bundle.join("SHA256SUMS"), content).unwrap();
@@ -125,8 +128,11 @@ fn notice_manifest_upgrades_and_rolls_back_to_the_earlier_bundle_format() {
     fs::write(bundle.join("THIRD_PARTY_NOTICES.txt"), notice).unwrap();
     let mut sum = fs::read_to_string(bundle.join("SHA256SUMS")).unwrap();
     sum.push_str(&format!(
-        "{:x}  THIRD_PARTY_NOTICES.txt\n",
+        "{}  THIRD_PARTY_NOTICES.txt\n",
         Sha256::digest(notice)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
     ));
     fs::write(bundle.join("SHA256SUMS"), sum).unwrap();
     let next = install(&bundle, &prefix, &data).unwrap();
@@ -163,6 +169,57 @@ fn disabling_autostart_needs_no_installed_launcher_and_preserves_foreign_files()
     fs::write(&entry, "user-managed entry").unwrap();
     assert!(!run().status.success());
     assert_eq!(fs::read_to_string(&entry).unwrap(), "user-managed entry");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn startup_status_is_read_only_and_respects_disabled_and_foreign_entries() {
+    let _guard = PACKAGE_TEST_LOCK.lock().unwrap();
+    let (root, _bundle, _prefix, data) = fixture("startup-status");
+    let config = root.join("config");
+    let entry = config.join("autostart/org.spingiantcrm.NanoleafNative.desktop");
+    let run = || {
+        std::process::Command::new(env!("CARGO_BIN_EXE_nanoleaf-native"))
+            .args(["--autostart", "status"])
+            .env("HOME", &root)
+            .env("XDG_CONFIG_HOME", &config)
+            .env("XDG_DATA_HOME", &data)
+            .output()
+            .unwrap()
+    };
+    let status = run();
+    assert!(status.status.success(), "{:?}", status);
+    assert_eq!(status.stdout, b"false\n");
+    assert!(
+        !config.exists(),
+        "Reading startup must not create directories"
+    );
+    fs::create_dir_all(entry.parent().unwrap()).unwrap();
+    for (content, enabled) in [
+        ("# Managed by nanoleaf-native\n[Desktop Entry]\nType=Application\nExec=/example --daemon\n", true),
+        ("# Managed by nanoleaf-native\n[Desktop Entry]\nHidden=true\n", false),
+        ("# Managed by nanoleaf-native\n[Desktop Entry]\nHidden=false\n", true),
+        ("# Managed by nanoleaf-native\n[Desktop Entry]\nHidden = true\n", false),
+    ] {
+        fs::write(&entry, content).unwrap();
+        let status = run();
+        assert!(status.status.success(), "{:?}", status);
+        assert_eq!(String::from_utf8(status.stdout).unwrap().trim(), enabled.to_string());
+        assert_eq!(fs::read_to_string(&entry).unwrap(), content);
+    }
+    fs::write(&entry, "user-managed startup").unwrap();
+    assert!(!run().status.success());
+    assert_eq!(fs::read_to_string(&entry).unwrap(), "user-managed startup");
+    fs::remove_file(&entry).unwrap();
+    symlink(root.join("missing"), &entry).unwrap();
+    assert!(
+        !run().status.success(),
+        "A dangling symlink is not a managed entry"
+    );
+    assert!(fs::symlink_metadata(&entry)
+        .unwrap()
+        .file_type()
+        .is_symlink());
     fs::remove_dir_all(root).unwrap();
 }
 
