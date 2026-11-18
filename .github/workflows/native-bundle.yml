@@ -33,6 +33,7 @@ on:
       - "scripts/test_native_bootstrap.py"
       - "docs/NATIVE_INSTALL.md"
       - "docs/RELEASE_2_0_0.md"
+      - "docs/RELEASE_2_1_0.md"
       - "assets/udev/**"
       - "assets/icons/**"
       - "LICENSE"
@@ -85,4 +86,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          python scripts/publish_native_release.py --repo "$GITHUB_REPOSITORY" --tag "$RELEASE_TAG" --archive dist/native.tar.gz --notes docs/RELEASE_2_0_0.md
+          python scripts/publish_native_release.py --repo "$GITHUB_REPOSITORY" --tag "$RELEASE_TAG" --archive dist/native.tar.gz --notes docs/RELEASE_2_1_0.md

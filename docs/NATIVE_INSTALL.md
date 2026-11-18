@@ -24,7 +24,7 @@ vulkan-icd-loader, plus the matching graphics driver.
 
 ## Download and install
 
-From a [native 2.0.0 release](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/releases/tag/native-v2.0.0),
+From a [native 2.1.0 release](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/releases/tag/native-v2.1.0),
 download `native.tar.gz` and `native.tar.gz.sha256`.
 PyPI `nanoleaf-kde-sync` **1.x** and GitHub `v1.9.3` retain the old Python application;
 see the repository’s [migration guide](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/blob/main/docs/LEGACY_PYTHON.md)
@@ -40,10 +40,10 @@ tar -xzf native.tar.gz
 
 Native PyPI and AUR routes are described in the repository’s
 [distribution guide](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/blob/main/docs/PACKAGING_AUR.md).
-For native PyPI 2.0.0, once published:
+For native PyPI 2.1.0, once published:
 
 ```bash
-pipx install nanoleaf-kde-sync==2.0.0
+pipx install nanoleaf-kde-sync==2.1.0
 ~/.local/bin/nanoleaf-kde-sync --install-native
 ~/.local/bin/nanoleaf-native --version
 ```
@@ -289,5 +289,7 @@ user installer and the system package manager own different locations.
 Real NL82K2 output and physical USB reconnect have been exercised and visually
 confirmed. NL82K1 physical output, physical suspend/resume, optical latency,
 colourimeter accuracy, power and long-duration soak behaviour remain unverified.
-Software tests and CI do not establish those physical results. For 2.0.0 scope
-and the source evidence index, see `docs/RELEASE_2_0_0.md` in the repository.
+Software tests and CI do not establish those physical results. For release scope
+and the source evidence index, see `docs/RELEASE_2_1_0.md` and
+`docs/RELEASE_2_0_0.md` in the repository. On Hyprland, see
+`docs/HYPRLAND_COMPATIBILITY.md`.

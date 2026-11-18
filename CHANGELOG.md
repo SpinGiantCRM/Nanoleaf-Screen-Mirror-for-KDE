@@ -1,5 +1,21 @@
 # Changelog
 
+## native-v2.1.0 — Hyprland support
+
+- Detect the compositor for portal/PipeWire/Vulkan capture. KWin 6.7/6.8 keeps its
+  validated contract unchanged. Add a live-probed Hyprland 0.57 / xdph 1.5 contract:
+  untagged SDR sRGB BGRA with implicit sync, and the monitor matched by connector name.
+- Store the remembered screen-sharing permission per desktop (Plasma and Hyprland).
+- Fall back to logind `LockedHint` when the screen-saver service has no lock state,
+  as with Noctalia on Hyprland. A missing service still fails closed.
+- Retry a login-time Start once if it was refused only because the session was not
+  ready yet. Unlock and resume still never start mirroring automatically.
+- Add an opt-in `NANOLEAF_CAPTURE_FPS` request cap for experiments. The default
+  request still follows Target FPS.
+
+See [2.1.0 release notes](docs/RELEASE_2_1_0.md) and
+[Hyprland compatibility](docs/HYPRLAND_COMPATIBILITY.md) for the evidence and its limits.
+
 ## native-v2.0.0 — Native Rust application
 
 ### Application and distribution

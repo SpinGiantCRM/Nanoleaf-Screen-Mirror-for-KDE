@@ -2,7 +2,7 @@
 # makepkg consumes package metadata and supplies srcdir/pkgdir.
 # shellcheck disable=SC2034,SC2154
 pkgname=nanoleaf-kde-sync-bin
-pkgver=2.0.0
+pkgver=2.1.0
 pkgrel=1
 pkgdesc='Native screen mirroring for one Nanoleaf USB strip on KDE Plasma Wayland'
 arch=('x86_64')

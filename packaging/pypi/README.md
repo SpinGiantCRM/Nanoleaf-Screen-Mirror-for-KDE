@@ -1,7 +1,7 @@
 # Nanoleaf Screen Mirror for KDE — native Rust application
 
 Mirror one screen's edge colours to one Nanoleaf NL82K1/NL82K2 USB strip on KDE
-Plasma 6 Wayland. Version 2.0.0 is a **Python installer for the native Rust
+Plasma 6 Wayland. Version 2.1.0 is a **Python installer for the native Rust
 application and matching capture helper**. The wheel contains no native
 executables. Its standard-library installer downloads the version-pinned native
 release only when explicitly requested, then later commands execute the
@@ -12,12 +12,12 @@ installed Rust app. There is no Python GUI, capture, colour or USB runtime.
 Use Linux x86_64, Python 3.11 or newer and pipx:
 
 ```bash
-pipx install nanoleaf-kde-sync==2.0.0
+pipx install nanoleaf-kde-sync==2.1.0
 ~/.local/bin/nanoleaf-kde-sync --install-native
 ~/.local/bin/nanoleaf-native --version
 ```
 
-The explicit `--install-native` step downloads the native-v2.0.0 GitHub archive
+The explicit `--install-native` step downloads the native-v2.1.0 GitHub archive
 and checksum. It verifies the archive against the SHA-256 embedded when this
 installer wheel was built, validates archive paths and the internal manifest,
 then installs the native pair into immutable versions under `~/.local`. It
@@ -54,7 +54,7 @@ for setup, USB permissions, capture selection, calibration and troubleshooting.
 ## Upgrade, rollback and removal
 
 Quit the tray before upgrading the pipx package or installing another native
-version. Once native 2.0.0 is available, existing pipx users can run
+version. Once native 2.1.0 is available, existing pipx users can run
 `pipx upgrade nanoleaf-kde-sync`. After a pipx upgrade, run
 `~/.local/bin/nanoleaf-kde-sync --install-native` again to download and install the new pinned native
 pair and refresh the desktop launcher. Check the installed app using
@@ -78,7 +78,7 @@ native desktop application available.
 ## Existing Python installations
 
 Version 1.9.3 and earlier contain the retired Python/PyQt6 application. Quit that
-app and disable its login startup before upgrading to 2.0.0. Keep
+app and disable its login startup before upgrading to 2.x. Keep
 `~/.config/nanoleaf-kde-sync/`: native releases preserve the shared configuration,
 manual mapping, calibration profiles and unknown fields. See
 [migration guidance](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/blob/main/docs/LEGACY_PYTHON.md).
@@ -88,5 +88,5 @@ suspend/resume, optical latency and colourimeter accuracy remain unverified.
 Software timings and USB acknowledgements do not measure emitted light.
 
 [Source and issues](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE)
-· [Release notes](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/blob/native-v2.0.0/docs/RELEASE_2_0_0.md)
+· [Release notes](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/blob/native-v2.1.0/docs/RELEASE_2_1_0.md)
 · [Licence](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/blob/main/LICENSE)

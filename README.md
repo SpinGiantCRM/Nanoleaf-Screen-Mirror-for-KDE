@@ -14,11 +14,16 @@ resources. KWin ScreenShot2 is the automatic capture backend. Optional
 permission-mediated PipeWire/Vulkan streaming is available in Advanced. The native
 bundle needs neither Python nor Qt, and capture needs no privileged DRM helper.
 
+**Hyprland 0.57** (with xdg-desktop-portal-hyprland) is also supported through
+the portal stream: set **Capture** to **Portal / Vulkan** in Settings → Advanced,
+because KWin ScreenShot2 exists only on Plasma. See
+[Hyprland compatibility](docs/HYPRLAND_COMPATIBILITY.md) for what was verified.
+
 ## Install
 
 Use the Linux x86_64 `native.tar.gz` and matching checksum from a
-[native 2.0.0 release](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/releases/tag/native-v2.0.0).
-Native tags use `native-vX.Y.Z`; see the [2.0.0 release notes](docs/RELEASE_2_0_0.md).
+[native 2.1.0 release](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/releases/tag/native-v2.1.0).
+Native tags use `native-vX.Y.Z`; see the [2.1.0 release notes](docs/RELEASE_2_1_0.md).
 PyPI `nanoleaf-kde-sync` **1.x** and GitHub `v1.9.3` contain the retired Python app;
 [existing installations can migrate while preserving settings](docs/LEGACY_PYTHON.md).
 In a fresh download directory containing both native release files:
@@ -35,7 +40,7 @@ versions for rollback. It does not start mirroring or enable login startup.
 
 Optional native package routes are available after their registry publication:
 
-- **PyPI/pipx:** `pipx install nanoleaf-kde-sync==2.0.0`, then
+- **PyPI/pipx:** `pipx install nanoleaf-kde-sync==2.1.0`, then
   `~/.local/bin/nanoleaf-kde-sync --install-native` creates the native KDE launcher.
 - **Arch/AUR:** the `nanoleaf-kde-sync-bin` recipe packages the native release;
   use the checked-out recipe until its AUR listing is published.
