@@ -2,7 +2,13 @@
 // luminances, tagged as SMPTE ST 2084 (PQ) / BT.2020 through
 // wp-color-management-v1. Used as ground truth for the plugin test.
 //
-//   nanoleaf-hdr-ladder [NITS...]     (default: 100 203 465 1000)
+//   nanoleaf-hdr-ladder [--mastering PEAK] [--luminance PEAK] [NITS...]     (default: 100 203 465 1000)
+//
+// --mastering PEAK declares the content's mastering peak and MaxCLL (cd/m²), as
+// HDR video and games do.
+// --luminance PEAK sets the description's luminance range to 0..PEAK with a
+// 203 cd/m² reference. Without it PQ implies 0.005..10000, and Hyprland 0.57
+// tone-maps the content as if it reached 10000 cd/m².
 //
 // The window is split into equal vertical bands, one per value, left to right.
 
@@ -28,7 +34,9 @@ static struct wl_compositor*      g_compositor;
 static struct wl_shm*             g_shm;
 static struct xdg_wm_base*        g_wm;
 static struct wp_color_manager_v1* g_cm;
-static bool                       g_pqSupported, g_bt2020Supported, g_parametric, g_cmDone;
+static bool                       g_pqSupported, g_bt2020Supported, g_parametric, g_mastering, g_cmDone;
+static int                        g_masteringPeak, g_luminancePeak;
+static bool                       g_setLuminances;
 static int                        g_descState; // 0 pending, 1 ready, -1 failed
 static int                        g_width = 1280, g_height = 720;
 static bool                       g_configured;
@@ -49,6 +57,10 @@ static void cmFeature(void* d, struct wp_color_manager_v1* m, uint32_t f) {
     (void)d, (void)m;
     if (f == WP_COLOR_MANAGER_V1_FEATURE_PARAMETRIC)
         g_parametric = true;
+    if (f == WP_COLOR_MANAGER_V1_FEATURE_SET_MASTERING_DISPLAY_PRIMARIES)
+        g_mastering = true;
+    if (f == WP_COLOR_MANAGER_V1_FEATURE_SET_LUMINANCES)
+        g_setLuminances = true;
 }
 static void cmTf(void* d, struct wp_color_manager_v1* m, uint32_t tf) {
     (void)d, (void)m;
@@ -164,8 +176,14 @@ static struct wl_buffer* makeBuffer(void) {
 }
 
 int main(int argc, char** argv) {
-    for (int i = 1; i < argc && g_bands < MAX_BANDS; i++)
-        g_nits[g_bands++] = atof(argv[i]);
+    for (int i = 1; i < argc && g_bands < MAX_BANDS; i++) {
+        if (!strcmp(argv[i], "--mastering") && i + 1 < argc)
+            g_masteringPeak = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--luminance") && i + 1 < argc)
+            g_luminancePeak = atoi(argv[++i]);
+        else
+            g_nits[g_bands++] = atof(argv[i]);
+    }
     if (!g_bands) {
         const double def[] = {100, 203, 465, 1000};
         for (int i = 0; i < 4; i++)
@@ -188,6 +206,17 @@ int main(int argc, char** argv) {
     struct wp_image_description_creator_params_v1* creator = wp_color_manager_v1_create_parametric_creator(g_cm);
     wp_image_description_creator_params_v1_set_tf_named(creator, WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_ST2084_PQ);
     wp_image_description_creator_params_v1_set_primaries_named(creator, WP_COLOR_MANAGER_V1_PRIMARIES_BT2020);
+    if (g_luminancePeak > 0) {
+        if (!g_setLuminances)
+            return fprintf(stderr, "nanoleaf-hdr-ladder: compositor does not accept luminance ranges\n"), 1;
+        wp_image_description_creator_params_v1_set_luminances(creator, 0, (uint32_t)g_luminancePeak, 203);
+    }
+    if (g_masteringPeak > 0) {
+        if (!g_mastering)
+            return fprintf(stderr, "nanoleaf-hdr-ladder: compositor does not accept mastering metadata\n"), 1;
+        wp_image_description_creator_params_v1_set_mastering_luminance(creator, 0, (uint32_t)g_masteringPeak);
+        wp_image_description_creator_params_v1_set_max_cll(creator, (uint32_t)g_masteringPeak);
+    }
     struct wp_image_description_v1* desc = wp_image_description_creator_params_v1_create(creator);
     wp_image_description_v1_add_listener(desc, &descListener, NULL);
     while (g_descState == 0 && wl_display_dispatch(display) != -1) {}

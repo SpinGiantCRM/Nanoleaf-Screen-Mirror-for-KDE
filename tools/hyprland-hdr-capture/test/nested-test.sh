@@ -6,14 +6,18 @@
 # captures them: with normal 8-bit capture, with the plugin's 10-bit capture, and
 # again after unloading. Only numbers are printed; no image is saved.
 #
-#   tools/hyprland-hdr-capture/test/nested-test.sh [MAX_NITS]
+#   tools/hyprland-hdr-capture/test/nested-test.sh [MAX_NITS [MASTERING_NITS [LUMINANCE_NITS]]]
 #
 # MAX_NITS (default 10000) is the nested output's peak. At 10000 Hyprland does not
 # tone-map the patches, so the plugin's capture must return the patch codes exactly.
+# MASTERING_NITS, if given, is declared as the test pattern's mastering peak/MaxCLL.
+# LUMINANCE_NITS, if given, is the test pattern's declared luminance range peak.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 PEAK=${1:-10000}
+MASTERING=${2:-}
+LUMINANCE=${3:-}
 WORK=$(mktemp -d)
 trap 'kill ${LPID:-} ${HPID:-} 2>/dev/null || true; rm -rf "$WORK"' EXIT
 
@@ -32,9 +36,9 @@ l=[i for i in json.load(sys.stdin) if i['instance'] not in b]
 print(l[0]['instance'], l[0]['wl_socket'])")
 h() { hyprctl --instance "$NEW" "$@"; }
 
-WAYLAND_DISPLAY=$SOCK "$ROOT/probe/nanoleaf-hdr-ladder" > "$WORK/ladder.txt" 2>&1 &
+WAYLAND_DISPLAY=$SOCK "$ROOT/probe/nanoleaf-hdr-ladder" ${MASTERING:+--mastering "$MASTERING"} ${LUMINANCE:+--luminance "$LUMINANCE"} > "$WORK/ladder.txt" 2>&1 &
 LPID=$!
-sleep 2
+sleep 3
 tail -1 "$WORK/ladder.txt"
 
 read -r -a PATCH < <(h clients -j | python3 -c "
@@ -47,10 +51,17 @@ import sys
 print(' '.join('%d,%d'%(int(a.split(',')[0])+10, int(a.split(',')[1])+10) for a in sys.stdin.read().split()))")
 
 grim8() {
-    WAYLAND_DISPLAY=$SOCK timeout 10 grim -t ppm -o WAYLAND-1 - | python3 -c "
+    # grim occasionally returns nothing right after a window change: retry.
+    local i
+    for i in 1 2 3; do
+        WAYLAND_DISPLAY=$SOCK timeout 10 grim -t ppm -o WAYLAND-1 "$WORK/shot.ppm" 2>/dev/null && [ -s "$WORK/shot.ppm" ] && break
+        sleep 1
+    done
+    python3 -c "
 import sys
-d=sys.stdin.buffer.read(); parts=d.split(b'\n',3); w,h=map(int,parts[1].split()); px=parts[3]
+d=open('$WORK/shot.ppm','rb').read(); parts=d.split(b'\n',3); w,h=map(int,parts[1].split()); px=parts[3]
 print('   8-bit codes:', [px[(int(c.split(',')[1])*w+int(c.split(',')[0]))*3] for c in '$CENTRES'.split()])"
+    rm -f "$WORK/shot.ppm"
 }
 probe() {
     local out

@@ -96,7 +96,9 @@ To load it at every login, a Lua config can call `hl.plugin.load(path)`.
 `test/nested-test.sh` runs everything inside a **nested** Hyprland window, never
 the running desktop. It forces the nested output to PQ HDR, shows
 `nanoleaf-hdr-ladder` (a colour-managed test window with grey patches at 100,
-203, 465 and 1000 nits) and captures it with and without the plugin.
+203, 465 and 1000 nits) and captures it with and without the plugin. Optional
+arguments: output peak, the pattern's mastering peak, and its declared luminance
+range.
 
 ```bash
 tools/hyprland-hdr-capture/test/nested-test.sh
@@ -123,9 +125,53 @@ Results on 19 November 2026 (Hyprland 0.57.2, RTX 4080 SUPER, NVIDIA 620.70):
   the plugin then has nothing to copy. mpv's Vulkan HDR output was not tagged in
   a way Hyprland honoured, so it was not usable as a test source.
 
+### Live desktop (19 November 2026)
+
+Loaded into the running Hyprland on the 3840×2160 PQ desktop (465-nit peak,
+203-nit SDR white, scale 1.5) while Nanoleaf mirrored through the portal:
+
+| Patch shown | Normal 8-bit capture | Plugin |
+| --- | --- | --- |
+| 100 nits | 223 | 474 = 63.6 nits |
+| 203 nits | 255 | 518 = 98.3 nits |
+| 465 nits | 255 | 555 = 140.4 nits |
+| 1000 nits | 255 | 581 = 179.6 nits |
+
+- The plugin loaded, captured and unloaded without trouble. Nanoleaf kept
+  mirroring (48–50 updates/s, no missed deadlines), and other clients' captures
+  were identical with the plugin loaded and unloaded.
+- The values match the nested 465-nit test: Hyprland tone-maps the test pattern.
+- With the wallpaper and windows on screen (before the pattern opened), nothing
+  was above 203 nits.
+
+### Why HDR content looks dim: declare its luminance range
+
+Hyprland 0.57 tone-maps a PQ surface from its declared luminance maximum to the
+output's. A PQ description without `set_luminances` implies 0.005–10000 cd/m²,
+so Hyprland compresses everything, including SDR-level values (203 → 104 nits).
+Mastering metadata (`set_mastering_luminance`, `set_max_cll`) does not change
+this (`src/render/Renderer.cpp:2179-2206`, `tonemap.glsl`). Nested test, output
+peak 465:
+
+| Patch shown | No range declared | `--luminance 465` | `--luminance 1000` |
+| --- | --- | --- | --- |
+| 100 nits | 68.2 | 100.2 | 79.2 |
+| 203 nits | 104.2 | 202.9 | 137.8 |
+| 465 nits | 150.1 | 464.4 | 256.1 |
+| 1000 nits | 191.8 | 998.9 | 464.4 |
+
+An HDR client whose content peaks at the display's peak should therefore call
+`set_luminances(0, peak, 203)` on its PQ description. A window rule
+(`tonemap`) can also change the curve per window, but not for layer surfaces
+such as wallpapers.
+
+```bash
+tools/hyprland-hdr-capture/test/nested-test.sh 465 "" 465
+```
+
 ## Not verified
 
-- Loading on the real desktop with a real HDR wallpaper or game.
+- An HDR game or video on the real desktop.
 - Direct scanout of fullscreen windows, the cursor plane, and DMA-BUF capture
   (the probe uses shared memory).
 - Effects applied in Hyprland's final output pass (`decoration:screen_shader`,

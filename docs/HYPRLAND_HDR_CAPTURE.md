@@ -70,6 +70,18 @@ came back as 255.
    so portal clients get HDR with explicit metadata and without opting in by
    name.
 
+## Related: HDR content is dimmed unless it declares its range
+
+Not a capture problem, but it decides what capture sees. Hyprland tone-maps a
+PQ surface from its declared luminance maximum to the output's
+(`src/render/Renderer.cpp:2179-2206`). PQ without `set_luminances` implies
+10000 cd/m², and the default curve then lowers even SDR-level values (a 203-nit
+patch showed at about 104 nits on a 465-nit output). Mastering metadata does
+not change it. Clients can avoid it with `set_luminances`; whether Hyprland
+should treat mastering luminance or MaxCLL as the content peak is a fair
+question for upstream. Details and measurements are in the
+[plugin README](../tools/hyprland-hdr-capture/README.md).
+
 ## Not in scope here
 
 Plasma/KWin was not re-examined; its capture also produces 8-bit sRGB (see the
