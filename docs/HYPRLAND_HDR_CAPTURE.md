@@ -5,7 +5,7 @@
 wayland-protocols. Line numbers are for `v0.57.2`; `main` matches within a line.
 
 The [experimental plugin](../tools/hyprland-hdr-capture/README.md) works around
-items 1–3 for one opted-in program. These are notes for a feature request. The
+items 1–3 for one opted-in program, and item 6. These are notes for a feature request. The
 Hyprland project does not accept AI-written pull requests, issues or
 descriptions, and requires contributors to understand every change themselves,
 so write any request in your own words.
@@ -76,11 +76,23 @@ Not a capture problem, but it decides what capture sees. Hyprland tone-maps a
 PQ surface from its declared luminance maximum to the output's
 (`src/render/Renderer.cpp:2179-2206`). PQ without `set_luminances` implies
 10000 cd/m², and the default curve then lowers even SDR-level values (a 203-nit
-patch showed at about 104 nits on a 465-nit output). Mastering metadata does
-not change it. Clients can avoid it with `set_luminances`; whether Hyprland
-should treat mastering luminance or MaxCLL as the content peak is a fair
-question for upstream. Details and measurements are in the
-[plugin README](../tools/hyprland-hdr-capture/README.md).
+patch showed at about 104 nits on a 465-nit output). MaxCLL and mastering
+luminance are stored (`src/protocols/ColorManagement.cpp:722-732`) but not used
+for this decision.
+
+Vulkan HDR apps cannot work around it: the NVIDIA driver translates
+`vkSetHdrMetadataEXT` into `set_mastering_luminance` and `set_max_cll`, never
+`set_luminances`. So games, video players and HDR wallpapers that correctly
+declare a 465-nit peak are dimmed as if they reached 10000 nits.
+
+6. **Ask:** when a PQ description has no explicit luminance range, use MaxCLL
+   (or the mastering peak) as the content peak for tone mapping. Optionally,
+   keep values at or below reference white unchanged in the default curve; it
+   currently lowers them whenever it tone-maps (203 → 138 for 1000-nit content
+   on a 465-nit output).
+
+The plugin's `content_peak` hook does the first part. Details and measurements
+are in the [plugin README](../tools/hyprland-hdr-capture/README.md).
 
 ## Not in scope here
 

@@ -54,7 +54,7 @@ grim8() {
     # grim occasionally returns nothing right after a window change: retry.
     local i
     for i in 1 2 3; do
-        WAYLAND_DISPLAY=$SOCK timeout 10 grim -t ppm -o WAYLAND-1 "$WORK/shot.ppm" 2>/dev/null && [ -s "$WORK/shot.ppm" ] && break
+        WAYLAND_DISPLAY=$SOCK timeout 10 grim -t ppm -o WAYLAND-1 "$WORK/shot.ppm" 2>>"$WORK/grim.err" && [ -s "$WORK/shot.ppm" ] && break
         sleep 1
     done
     python3 -c "
@@ -82,4 +82,5 @@ h nanoleafhdr | python3 -c "import json,sys;print('   plugin counters:',json.loa
 h plugin unload "$ROOT/plugin/nanoleaf-hdr.so" >/dev/null
 echo "5) Plugin unloaded, normal 8-bit capture:"; grim8
 h version >/dev/null && echo "   nested Hyprland still running after unload"
+[ -s "$WORK/grim.err" ] && { echo "   grim errors:"; sort -u "$WORK/grim.err" | head -3; }
 if grep -qE "Assertion|crashed" "$WORK/log.txt"; then echo "nested Hyprland reported a crash"; exit 1; fi

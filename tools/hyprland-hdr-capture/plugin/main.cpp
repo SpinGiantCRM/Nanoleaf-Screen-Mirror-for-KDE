@@ -75,12 +75,14 @@ static constexpr auto IDLE_DISARM = std::chrono::seconds(2);
 static struct {
     SP<Config::Values::CBoolValue>   enabled;
     SP<Config::Values::CStringValue> clients;
+    SP<Config::Values::CBoolValue>   contentPeak;
 } g_config;
 
 static CFunctionHook* g_saveMirrorHook    = nullptr;
 static CFunctionHook* g_renderMonitorHook = nullptr;
 static CFunctionHook* g_beginCopyHook     = nullptr;
 static CFunctionHook* g_constraintsHook   = nullptr;
+static CFunctionHook* g_cmSettingsHook    = nullptr;
 
 static SP<IPC::Socket1::SCommand> g_statusCommand;
 
@@ -99,6 +101,7 @@ static struct {
     uint64_t renderMonitor  = 0;
     uint64_t beginCopy      = 0;
     uint64_t formatOffers   = 0; // sessions offered XBGR2101010
+    uint64_t peakFixes      = 0; // tone-mapping decisions that used the content's declared peak
     uint64_t hdrFrames      = 0; // frames delivered from the HDR framebuffer
     uint64_t convertedFrames = 0; // opted-in frames converted from the SDR mirror (HDR copy not ready)
 } g_counters;
@@ -266,9 +269,10 @@ static bool hkSaveBufferForMirror(Render::GL::CHyprOpenGLImpl* thisptr, Render::
 
 // ---- hook 2: tag the opted-in client's capture target as the monitor's PQ ----
 
-typedef bool (*origBeginCopy)(Screenshare::CScreenshareFrame*, SP<Render::IFramebuffer>);
+// By reference: same ABI as by-value for this type, and no extra copy.
+typedef bool (*origBeginCopy)(Screenshare::CScreenshareFrame*, SP<Render::IFramebuffer>&);
 
-static bool hkBeginCopy(Screenshare::CScreenshareFrame* thisptr, SP<Render::IFramebuffer> framebuffer) {
+static bool hkBeginCopy(Screenshare::CScreenshareFrame* thisptr, SP<Render::IFramebuffer>& framebuffer) {
     g_counters.beginCopy++;
     const bool ok = (*(origBeginCopy)g_beginCopyHook->m_original)(thisptr, framebuffer);
     if (!ok || !frameWantsHDR(thisptr))
@@ -321,6 +325,54 @@ static void hkRenderMonitor(Screenshare::CScreenshareFrame* thisptr, Render::CRe
     g_counters.hdrFrames++;
 }
 
+// ---- hook 4: tone-map PQ content from its declared peak ----
+// A PQ image description without set_luminances implies 0.005-10000 cd/m2, and
+// Hyprland 0.57 tone-maps from luminances.max, ignoring MaxCLL and mastering
+// luminance. Vulkan clients (NVIDIA's WSI: games, mpv, wallpaper renderers) send
+// only MaxCLL/mastering, so their HDR is compressed as if it reached 10000 nits,
+// dimming even SDR-level values. When the range is the PQ default and a peak was
+// declared, decide with that peak instead. HDR targets only; SDR targets
+// (SDR monitors, sRGB capture) keep Hyprland's behaviour.
+
+// The class-type arguments are taken by reference: for non-trivially-copyable
+// types the Itanium ABI passes them as a pointer either way, and copying them
+// would be wrong. This Hyprland build (GCC, optimised) leaves `surface`
+// uninitialised at call sites that don't use it, so it must never be copied.
+typedef Render::SCMSettings (*origGetCMSettings)(Render::IHyprRenderer*, Render::CRenderContext&, const PImageDescription&, const PImageDescription&,
+                                                 SP<CWLSurfaceResource>&, bool, float, int, bool);
+
+static Render::SCMSettings hkGetCMSettings(Render::IHyprRenderer* thisptr, Render::CRenderContext& ctx, const PImageDescription& src, const PImageDescription& dst,
+                                           SP<CWLSurfaceResource>& surface, bool modifySDR, float sdrMin, int sdrMax, bool useSurface) {
+    auto result = (*(origGetCMSettings)g_cmSettingsHook->m_original)(thisptr, ctx, src, dst, surface, modifySDR, sdrMin, sdrMax, useSurface);
+
+    if (!g_config.contentPeak || !g_config.contentPeak->value() || !src || !dst)
+        return result;
+
+    const auto& s = src->value();
+    const auto& d = dst->value();
+    if (s.transferFunction != CM_TRANSFER_FUNCTION_ST2084_PQ || s.luminances.max < 10000)
+        return result; // not PQ, or the client declared its own range
+    const bool hdrTarget = d.transferFunction == CM_TRANSFER_FUNCTION_ST2084_PQ || d.transferFunction == CM_TRANSFER_FUNCTION_LINEAR ||
+        d.transferFunction == CM_TRANSFER_FUNCTION_EXT_LINEAR || d.transferFunction == CM_TRANSFER_FUNCTION_HLG;
+    if (!hdrTarget)
+        return result;
+
+    float peak = 0;
+    if (s.maxCLL > 0)
+        peak = s.maxCLL;
+    else if (s.masteringLuminances.max > 0)
+        peak = s.masteringLuminances.max;
+    if (peak <= 0 || peak >= 10000 || s.luminances.reference <= 0)
+        return result;
+
+    // Same rules as IHyprRenderer::getCMSettings, with the declared peak.
+    const bool needs    = peak >= result.dstMaxLuminance * 1.01f;
+    result.needsTonemap = result.tonemapMode != 0 && needs;
+    result.maxLuminance = needs && result.tonemapMode == 2 ? result.dstMaxLuminance : peak * d.luminances.reference / s.luminances.reference;
+    g_counters.peakFixes++;
+    return result;
+}
+
 // ---- hyprctl nanoleafhdr: what the plugin delivers, for clients to check ----
 
 static std::string escapeJSON(const std::string& s) {
@@ -360,8 +412,9 @@ static IPC::Socket1::SResponse statusCommand(const IPC::Socket1::SRequest&) {
     }
 
     return IPC::Socket1::SResponse(std::format(
-        R"({{"plugin":"nanoleaf-hdr","version":"0.1.0","hyprland":"{}","enabled":{},"clients":"{}","outputs":[{}],"pq_outputs":[{}],"armed":[{}],"counters":{{"format_offers":{},"save_mirror":{},"begin_copy":{},"render_monitor":{},"hdr_frames":{},"converted_frames":{}}}}})",
-        SUPPORTED_TAG, g_config.enabled->value() ? "true" : "false", escapeJSON(std::string(g_config.clients->value())), all, outputs, monitors, g_counters.formatOffers, g_counters.saveMirror,
+        R"({{"plugin":"nanoleaf-hdr","version":"0.2.0","hyprland":"{}","enabled":{},"clients":"{}","outputs":[{}],"pq_outputs":[{}],"armed":[{}],"content_peak":{},"counters":{{"peak_fixes":{},"format_offers":{},"save_mirror":{},"begin_copy":{},"render_monitor":{},"hdr_frames":{},"converted_frames":{}}}}})",
+        SUPPORTED_TAG, g_config.enabled->value() ? "true" : "false", escapeJSON(std::string(g_config.clients->value())), all, outputs, monitors, g_config.contentPeak->value() ? "true" : "false",
+        g_counters.peakFixes, g_counters.formatOffers, g_counters.saveMirror,
         g_counters.beginCopy, g_counters.renderMonitor, g_counters.hdrFrames, g_counters.convertedFrames));
 }
 
@@ -399,23 +452,28 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
                                                                 "Comma-separated executable names allowed to receive HDR capture", "nanoleaf-hdr-probe");
     HyprlandAPI::addConfigValueV2(PHANDLE, g_config.enabled);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_config.clients);
+    g_config.contentPeak = makeShared<Config::Values::CBoolValue>("plugin:nanoleaf_hdr:content_peak",
+                                                                  "Tone-map PQ content from its declared MaxCLL/mastering peak when it declares no luminance range", true);
+    HyprlandAPI::addConfigValueV2(PHANDLE, g_config.contentPeak);
 
     const auto saveMirror    = findOne("saveBufferForMirror", "CHyprOpenGLImpl::saveBufferForMirror(Render::CRenderContext&");
     const auto renderMonitor = findOne("renderMonitor", "CScreenshareFrame::renderMonitor(Render::CRenderContext&)");
     const auto beginCopy     = findOne("beginCopy", "CScreenshareFrame::beginCopy(");
     const auto constraints   = findOne("calculateConstraints", "CScreenshareSession::calculateConstraints()");
-    if (!saveMirror || !renderMonitor || !beginCopy || !constraints)
+    const auto cmSettings    = findOne("getCMSettings", "IHyprRenderer::getCMSettings(Render::CRenderContext&");
+    if (!saveMirror || !renderMonitor || !beginCopy || !constraints || !cmSettings)
         fail("a function this plugin hooks was not found in this Hyprland build");
 
     g_saveMirrorHook    = HyprlandAPI::createFunctionHook(PHANDLE, saveMirror, (void*)::hkSaveBufferForMirror);
     g_renderMonitorHook = HyprlandAPI::createFunctionHook(PHANDLE, renderMonitor, (void*)::hkRenderMonitor);
     g_beginCopyHook     = HyprlandAPI::createFunctionHook(PHANDLE, beginCopy, (void*)::hkBeginCopy);
     g_constraintsHook   = HyprlandAPI::createFunctionHook(PHANDLE, constraints, (void*)::hkCalculateConstraints);
-    if (!g_saveMirrorHook || !g_renderMonitorHook || !g_beginCopyHook || !g_constraintsHook)
+    g_cmSettingsHook    = HyprlandAPI::createFunctionHook(PHANDLE, cmSettings, (void*)::hkGetCMSettings);
+    if (!g_saveMirrorHook || !g_renderMonitorHook || !g_beginCopyHook || !g_constraintsHook || !g_cmSettingsHook)
         fail("could not create function hooks");
 
-    if (!g_saveMirrorHook->hook() || !g_beginCopyHook->hook() || !g_renderMonitorHook->hook() || !g_constraintsHook->hook()) {
-        for (auto* hook : {g_saveMirrorHook, g_beginCopyHook, g_renderMonitorHook, g_constraintsHook})
+    if (!g_saveMirrorHook->hook() || !g_beginCopyHook->hook() || !g_renderMonitorHook->hook() || !g_constraintsHook->hook() || !g_cmSettingsHook->hook()) {
+        for (auto* hook : {g_saveMirrorHook, g_beginCopyHook, g_renderMonitorHook, g_constraintsHook, g_cmSettingsHook})
             hook->unhook();
         fail("hooking failed; nothing was changed");
     }
@@ -423,7 +481,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_statusCommand = HyprlandAPI::registerHyprCtlCommand(PHANDLE, IPC::Socket1::SCommand{.name = "nanoleafhdr", .handler = statusCommand});
 
     HyprlandAPI::addNotification(PHANDLE, "[nanoleaf-hdr] loaded", CHyprColor{0.2, 1.0, 0.2, 1.0}, 3000);
-    return {"nanoleaf-hdr", "HDR (PQ) screen capture for opted-in clients", "Nanoleaf Screen Mirror", "0.1.0"};
+    return {"nanoleaf-hdr", "HDR (PQ) capture for opted-in clients; tone-map PQ content from its declared peak", "Nanoleaf Screen Mirror", "0.2.0"};
 }
 
 APICALL EXPORT void PLUGIN_EXIT() {

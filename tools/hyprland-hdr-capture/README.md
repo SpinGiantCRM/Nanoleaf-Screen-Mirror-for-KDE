@@ -3,8 +3,14 @@
 Hyprland 0.57.2 always gives screen-capture clients standard-range (SDR) sRGB
 pictures, even when the monitor runs HDR. Highlights brighter than SDR white
 (203 nits on an HDR desktop) are clipped before any capture client sees them.
-This directory holds a Hyprland plugin that lets **one opted-in program** receive
-the monitor's real HDR picture (PQ / BT.2020, 10-bit), plus test tools.
+This directory holds a Hyprland plugin that does two things:
+
+- lets **one opted-in program** receive the monitor's real HDR picture
+  (PQ / BT.2020, 10-bit) instead of the SDR copy, and
+- stops Hyprland from **dimming HDR content** from Vulkan apps (games, video
+  players, HDR wallpapers): see [content peak](#why-hdr-content-looks-dim).
+
+It also holds test tools.
 
 This is a local, experimental tool. Nanoleaf Screen Mirror does not use it yet:
 the app's sampler accepts SDR sRGB only, and mapping HDR to LED output is separate
@@ -15,6 +21,8 @@ your compositor. It must not be submitted to Hyprland: see
 [upstream requests](../../docs/HYPRLAND_HDR_CAPTURE.md) for what to ask for there.
 
 ## What the plugin changes
+
+### HDR capture
 
 Only while an opted-in client captures a PQ HDR monitor into a 10-bit buffer:
 
@@ -36,6 +44,14 @@ clients (the portal, OBS, `grim`) keep getting the same SDR picture.
 Opt-in is by executable name: the client's `/proc/<pid>/exe` basename must be in
 `plugin:nanoleaf_hdr:clients` (default `nanoleaf-hdr-probe`), and the process
 must run as the same user as Hyprland.
+
+### Content peak (`plugin:nanoleaf_hdr:content_peak`, on by default)
+
+When a PQ surface declares no luminance range but does declare MaxCLL or a
+mastering peak, Hyprland's tone-mapping decision for HDR targets uses that peak
+instead of 10000 cd/m². SDR targets (an SDR monitor, sRGB capture) and surfaces
+that declare a range are unchanged. This changes what the screen shows, so
+every capture of the screen sees it too.
 
 ## Build
 
@@ -144,14 +160,20 @@ Loaded into the running Hyprland on the 3840×2160 PQ desktop (465-nit peak,
 - With the wallpaper and windows on screen (before the pattern opened), nothing
   was above 203 nits.
 
-### Why HDR content looks dim: declare its luminance range
+### Why HDR content looks dim
 
 Hyprland 0.57 tone-maps a PQ surface from its declared luminance maximum to the
 output's. A PQ description without `set_luminances` implies 0.005–10000 cd/m²,
 so Hyprland compresses everything, including SDR-level values (203 → 104 nits).
 Mastering metadata (`set_mastering_luminance`, `set_max_cll`) does not change
-this (`src/render/Renderer.cpp:2179-2206`, `tonemap.glsl`). Nested test, output
-peak 465:
+this (`src/render/Renderer.cpp:2179-2206`, `tonemap.glsl`).
+
+Vulkan apps cannot avoid it. With `VK_COLOR_SPACE_HDR10_ST2084_EXT` and
+`vkSetHdrMetadataEXT`, the NVIDIA 620.70 driver sends `set_tf_named(st2084_pq)`,
+`set_primaries_named(bt2020)`, mastering primaries, `set_mastering_luminance` and
+`set_max_cll`, never `set_luminances` (logged with `WAYLAND_DEBUG` from mpv).
+The `content_peak` hook fixes this case. Nested test, output peak 465, without
+the hook:
 
 | Patch shown | No range declared | `--luminance 465` | `--luminance 1000` |
 | --- | --- | --- | --- |
@@ -160,18 +182,31 @@ peak 465:
 | 465 nits | 150.1 | 464.4 | 256.1 |
 | 1000 nits | 191.8 | 998.9 | 464.4 |
 
-An HDR client whose content peaks at the display's peak should therefore call
-`set_luminances(0, peak, 203)` on its PQ description. A window rule
-(`tonemap`) can also change the curve per window, but not for layer surfaces
-such as wallpapers.
+With the `content_peak` hook (MaxCLL and mastering peak declared, no range):
+
+| Patch shown | Peak 465 declared | Peak 1000 declared | Nothing declared |
+| --- | --- | --- | --- |
+| 100 nits | 100.2 | 79.2 | 68.2 (unchanged) |
+| 203 nits | 202.9 | 137.8 | 104.2 (unchanged) |
+| 465 nits | 464.4 | 256.1 | 150.1 (unchanged) |
+| 1000 nits | 998.9 | 464.4 | 191.8 (unchanged) |
+
+Content above the display peak is still tone-mapped, and Hyprland's default
+curve then lowers mid-tones too (203 → 138 for 1000-nit content). The plugin
+does not change the curve; a `tonemap` window rule can, for windows only.
 
 ```bash
-tools/hyprland-hdr-capture/test/nested-test.sh 465 "" 465
+tools/hyprland-hdr-capture/test/nested-test.sh 465 465
 ```
+
+Arguments: output peak, the pattern's MaxCLL/mastering peak, its luminance range.
 
 ## Not verified
 
 - An HDR game or video on the real desktop.
+- The `content_peak` hook on the real desktop (only nested so far). Its first
+  draft crashed the nested Hyprland: this Hyprland build leaves an unused
+  argument uninitialised, so hooks must never copy their arguments.
 - Direct scanout of fullscreen windows, the cursor plane, and DMA-BUF capture
   (the probe uses shared memory).
 - Effects applied in Hyprland's final output pass (`decoration:screen_shader`,
