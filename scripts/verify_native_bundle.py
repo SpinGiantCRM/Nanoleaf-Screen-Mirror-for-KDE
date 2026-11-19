@@ -98,6 +98,7 @@ def main():
             XDG_CONFIG_HOME=str(root / "config"),
             XDG_DATA_HOME=str(root / "data"),
             XDG_CACHE_HOME=str(root / "cache"),
+            XDG_STATE_HOME=str(root / "state"),
             XDG_RUNTIME_DIR=str(root / "runtime"),
         )
         (root / "runtime").mkdir(mode=0o700)

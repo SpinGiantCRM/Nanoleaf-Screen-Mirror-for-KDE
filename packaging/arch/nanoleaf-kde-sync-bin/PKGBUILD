@@ -2,15 +2,18 @@
 # makepkg consumes package metadata and supplies srcdir/pkgdir.
 # shellcheck disable=SC2034,SC2154
 pkgname=nanoleaf-kde-sync-bin
-pkgver=2.0.0
+pkgver=2.1.0
 pkgrel=1
-pkgdesc='Native screen mirroring for one Nanoleaf USB strip on KDE Plasma Wayland'
+pkgdesc='Native screen mirroring for one Nanoleaf USB strip on KDE Plasma or Hyprland (Wayland)'
 arch=('x86_64')
 url='https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE'
 license=('LicenseRef-Nanoleaf-Non-Commercial')
 depends=('glibc' 'gcc-libs' 'libpipewire' 'libglvnd' 'libxkbcommon'
-         'wayland' 'vulkan-icd-loader' 'kservice' 'kwin>=6')
-optdepends=('xdg-desktop-portal-kde: explicitly selected Portal/Vulkan capture')
+         'wayland' 'vulkan-icd-loader')
+optdepends=('kwin>=6: KDE Plasma session with automatic KWin capture'
+            'kservice: refresh the Plasma application menu after installation'
+            'xdg-desktop-portal-kde: Portal/Vulkan capture on Plasma'
+            'xdg-desktop-portal-hyprland: Portal/Vulkan capture on Hyprland')
 provides=("nanoleaf-kde-sync=$pkgver")
 conflicts=('nanoleaf-kde-sync')
 options=('!strip' '!debug')
@@ -18,7 +21,7 @@ source=("nanoleaf-native-$pkgver.tar.gz::$url/releases/download/native-v$pkgver/
         'nanoleaf-native.desktop'
         '60-nanoleaf-kde-sync.rules'
         'nanoleaf-kde-sync.svg')
-sha256sums=('6ffb46f594537f638b892b5af74e26f964b5f58a867baddc90a15b5a9e0dd818'
+sha256sums=('efd0af89f33c269dec2146f74f2603034cd9bd983676f869ec68a3b228a634a7'
             'e1de90b276db2659950273d3e52feedcd10d8fcc3cd0ecca2c523de9a60489f3'
             'b0c8d7099eb5331951c1c9d74052356671d5c7d3acec0ea8d82dbca2ab65ba8e'
             '35a483ef69f9b724005a9c5b9feae698f8c1e2f5b8c0ef87dd5e39f2f76ac970')

@@ -113,7 +113,14 @@ class NativeArchPackageTests(unittest.TestCase):
         self.assertEqual(fields["pkgname"], ["nanoleaf-kde-sync-bin"])
         self.assertEqual(fields["arch"], ["x86_64"])
         self.assertIn("libpipewire", fields["depends"])
-        self.assertIn("kwin>=6", fields["depends"])
+        # Plasma and Hyprland are both supported: no desktop is forced.
+        self.assertNotIn("kwin>=6", fields["depends"])
+        self.assertIn(
+            "kwin>=6: KDE Plasma session with automatic KWin capture", fields["optdepends"]
+        )
+        self.assertTrue(
+            any(v.startswith("xdg-desktop-portal-hyprland") for v in fields["optdepends"])
+        )
         self.assertFalse(any("python" in value.lower() for value in fields["depends"]))
         self.assertNotIn("install", fields)
         manifest = RECIPE.parents[2] / "native/app/Cargo.toml"

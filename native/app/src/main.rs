@@ -22,6 +22,7 @@ Daily use:
 Configuration and diagnostics:
   --doctor                 Read-only configuration and device diagnostics
   --preflight              Read-only colour mapping readiness check
+  --save-report            Save a private troubleshooting report; no capture
   --fast-response CONFIG   Save fast response using existing timing controls
   --capture-backend CONFIG auto|kwin-dbus|xdg-portal
                            Save the selected capture backend
@@ -30,7 +31,7 @@ Installation (from an extracted native bundle):
   --install-native [PREFIX]    Install the app and capture helper together
   --rollback-native [PREFIX]   Restore the previous native bundle
   --uninstall-native [PREFIX]  Remove launchers; keep versions and calibration
-  --autostart on|off           Enable or disable tray launch at sign-in
+  --autostart on|off|status    Set or read tray launch at sign-in
   --install-launcher           Create a launcher for this executable
 
 Operator probes (optional duration defaults to 8 seconds):
@@ -63,6 +64,13 @@ fn main() -> Result<()> {
         Store::initialize(&path)?;
     }
     match command {
+        "--save-report" => {
+            if args.len() != 2 {
+                bail!("Use --save-report without extra arguments");
+            }
+            println!("{}", service::save_troubleshooting_report()?.display());
+            Ok(())
+        }
         "--help" | "-h" => {
             println!("{HELP}");
             Ok(())
@@ -128,10 +136,14 @@ fn main() -> Result<()> {
             Ok(())
         }
         "--autostart" => {
+            if args.get(2).map(String::as_str) == Some("status") {
+                println!("{}", nanoleaf_native::package::autostart_enabled()?);
+                return Ok(());
+            }
             let enable = match args.get(2).map(String::as_str) {
                 Some("on") => true,
                 Some("off") => false,
-                _ => bail!("Use --autostart on or --autostart off"),
+                _ => bail!("Use --autostart on, off or status"),
             };
             nanoleaf_native::package::autostart(enable)?;
             Ok(())

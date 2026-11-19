@@ -21,7 +21,8 @@ Ubuntu 24.04 build baseline. The Python installer’s pure tag does not imply th
 the native app supports other operating systems or architectures. No legacy
 Python/PyQt6 application or privileged DRM helper is restored.
 
-After native 2.0.0 is published on [PyPI](https://pypi.org/project/nanoleaf-kde-sync/):
+Native 2.0.0 is published on [PyPI](https://pypi.org/project/nanoleaf-kde-sync/).
+Install it with pipx:
 
 ```bash
 pipx install nanoleaf-kde-sync==2.0.0
@@ -52,8 +53,8 @@ The native binary recipe is **nanoleaf-kde-sync-bin** under
 `native-v2.0.0` GitHub archive. The `-bin` suffix follows
 [Arch's prebuilt-package naming rule](https://wiki.archlinux.org/title/AUR_submission_guidelines).
 
-Before AUR publication, use the checked-out recipe after the native release and
-final archive checksum are available:
+AUR publication is pending. The checked-out recipe already pins the published
+native release and its final archive checksum:
 
 ```bash
 cd packaging/arch/nanoleaf-kde-sync-bin

@@ -163,7 +163,7 @@ fn helper() -> Result<PathBuf> {
             return Ok(development);
         }
     }
-    anyhow::bail!("Native capture helper is not installed; use KWin capture")
+    anyhow::bail!("Native capture helper is not installed; reinstall the native bundle, or use KWin capture on Plasma")
 }
 impl Producer {
     pub(super) fn spawn_stream(config: Config, tx: mpsc::Sender<Control>) -> Self {

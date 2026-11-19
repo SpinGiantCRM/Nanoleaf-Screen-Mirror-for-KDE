@@ -36,12 +36,6 @@ pub fn install() -> Result<PathBuf> {
         f.write_all(content.as_bytes())?;
         f.sync_all()?;
     }
-    ensure!(
-        std::process::Command::new("kbuildsycoca6")
-            .arg("--noincremental")
-            .status()?
-            .success(),
-        "KDE application cache refresh failed"
-    );
+    crate::package::refresh_kde_cache("KDE application cache refresh failed")?;
     Ok(path)
 }

@@ -24,7 +24,7 @@ vulkan-icd-loader, plus the matching graphics driver.
 
 ## Download and install
 
-From a [native 2.0.0 release](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/releases/tag/native-v2.0.0),
+From a [native 2.1.0 release](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/releases/tag/native-v2.1.0),
 download `native.tar.gz` and `native.tar.gz.sha256`.
 PyPI `nanoleaf-kde-sync` **1.x** and GitHub `v1.9.3` retain the old Python application;
 see the repository’s [migration guide](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/blob/main/docs/LEGACY_PYTHON.md)
@@ -40,10 +40,10 @@ tar -xzf native.tar.gz
 
 Native PyPI and AUR routes are described in the repository’s
 [distribution guide](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/blob/main/docs/PACKAGING_AUR.md).
-For native PyPI 2.0.0, once published:
+Install native PyPI 2.1.0 with pipx:
 
 ```bash
-pipx install nanoleaf-kde-sync==2.0.0
+pipx install nanoleaf-kde-sync==2.1.0
 ~/.local/bin/nanoleaf-kde-sync --install-native
 ~/.local/bin/nanoleaf-native --version
 ```
@@ -211,6 +211,38 @@ colour accuracy or optical latency. For support, include the app version,
 selected backend, manual count and relevant error text; review any diagnostics
 for private paths before sharing.
 
+### Failure reports and stop notifications
+
+In **Advanced**, choose **Save troubleshooting report**. Saving runs in the
+background and keeps Settings open. **Open report folder** locates the file;
+**Copy report path** copies its location. Nothing is uploaded automatically.
+Terminal equivalent:
+
+```bash
+~/.local/bin/nanoleaf-native --save-report
+```
+
+Reports are private JSON files in
+`$XDG_STATE_HOME/nanoleaf-native/diagnostics/reports/`, or
+`~/.local/state/nanoleaf-native/diagnostics/reports/`. They contain the app/helper
+fingerprints, kernel/driver versions when available, recent numeric timings and
+structured failure reasons. They exclude screen pixels, configuration,
+calibration, device serial numbers, portal permission tokens and raw error text.
+Each report holds up to 120 timing samples at one sample per second and 32
+transitions. The most recent failure is retained across app restarts with its
+original build context. Reports exported after the service exits explicitly
+label the last saved session as cached/stale. An export immediately after startup
+may mark build fingerprints as pending while they are calculated in the background.
+
+Unexpected capture failures show a desktop notification with **Restart mirroring**.
+Restart is a user action and may request portal permission again. Notifications
+from an earlier failure cannot restart a newer session or undo a later Stop.
+USB interruptions keep the existing automatic reconnect behaviour and explain
+that the app is waiting for the strip. Manual Stop, Quit, lock and suspend do not
+generate failure notifications. If desktop notifications are unavailable,
+the tray, Settings and reports remain usable. These features do not change the
+saved backend, capture FPS, colour processing or acknowledged USB transactions.
+
 ## Acknowledged USB updates
 
 On the tested NL82K2, firmware 1.5/hardware 1.1 with manual 48 zones, a trailing
@@ -263,16 +295,22 @@ version directories; it is not a full data purge.
 
 ## Login startup
 
-In Advanced choose **Launch native tray at login** or
-**Disable native login launch**. Terminal equivalents:
+In **Mirroring → Response & startup**, select **Open on startup** to launch
+the tray when you sign in. Select **Start mirroring** beside it to begin capture
+and LED output whenever the tray opens. Both choices are independent: leave
+Start mirroring off for a quiet tray at sign-in, or leave Open on startup off
+to launch manually. Choose **Save / Apply** to keep your choices; Settings stays
+open. **Reload saved** discards unsaved changes to both choices.
+
+Terminal equivalents for tray login startup:
 
 ```bash
 ~/.local/bin/nanoleaf-native --autostart on
 ~/.local/bin/nanoleaf-native --autostart off
+~/.local/bin/nanoleaf-native --autostart status
 ```
 
-Login startup launches the tray. **Start mirroring when the tray launches**
-separately controls capture/output. Remove obsolete Python startup entries before
+Reading startup status does not create files or start the app. Remove obsolete Python startup entries before
 enabling mirroring; the native app manages only its own entry.
 
 ## Releases and verification limits
@@ -289,5 +327,7 @@ user installer and the system package manager own different locations.
 Real NL82K2 output and physical USB reconnect have been exercised and visually
 confirmed. NL82K1 physical output, physical suspend/resume, optical latency,
 colourimeter accuracy, power and long-duration soak behaviour remain unverified.
-Software tests and CI do not establish those physical results. For 2.0.0 scope
-and the source evidence index, see `docs/RELEASE_2_0_0.md` in the repository.
+Software tests and CI do not establish those physical results. For release scope
+and the source evidence index, see `docs/RELEASE_2_1_0.md` and
+`docs/RELEASE_2_0_0.md` in the repository. On Hyprland, see
+`docs/HYPRLAND_COMPATIBILITY.md`.

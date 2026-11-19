@@ -1,4 +1,4 @@
-//! KDE session interruptions stop output and require an explicit restart.
+//! Desktop session interruptions (lock, sleep) stop output and require an explicit restart.
 //! No Lock/Suspend/Inhibit call is made. In particular, no pre-suspend cleanup
 //! completion is promised: logind can suspend before a non-inhibiting client
 //! runs. Its resume signal independently invalidates the old capture session.
@@ -49,7 +49,7 @@ impl State {
         } else if self.active[1] == Some(true) {
             Some("System preparing for sleep; choose Start after resuming")
         } else if self.active.contains(&None) {
-            Some("Desktop session monitoring unavailable; waiting to reconnect before Start")
+            Some(MONITORING_UNAVAILABLE)
         } else {
             None
         }
@@ -66,6 +66,11 @@ impl State {
             || (signal && matches!(source, Source::Sleep))
     }
 }
+
+/// The only refusal a launch-time Start may wait out: the desktop's session
+/// services have not appeared yet. Locked or sleeping never qualifies.
+pub const MONITORING_UNAVAILABLE: &str =
+    "Desktop session monitoring unavailable; waiting to reconnect before Start";
 
 struct Shared {
     state: Mutex<State>,
@@ -186,7 +191,17 @@ async fn connected(shared: &Shared, source: Source, address: Option<&str>) -> Re
     // Subscribe before querying so a transition in the initialization window
     // remains queued and cannot leave a stale unlocked state indefinitely.
     let mut signals = proxy.receive_signal(signal).await?;
-    shared.update(source, Some(current(&proxy, source).await?), false);
+    let initial = current(&proxy, source).await;
+    if let (Source::Lock, Err(error)) = (source, &initial) {
+        // Some desktops (e.g. Noctalia on Hyprland) own the ScreenSaver name
+        // only for inhibition. A present owner without the lock-state API uses
+        // logind's standard session LockedHint instead; a missing owner still
+        // fails closed below and is retried.
+        if lock_api_missing(error) {
+            return locked_hint(shared, address).await;
+        }
+    }
+    shared.update(source, Some(initial?), false);
     let mut refreshed = Instant::now();
     while !shared.stop.load(Ordering::Acquire) {
         enum Event {
@@ -214,9 +229,91 @@ async fn connected(shared: &Shared, source: Source, address: Option<&str>) -> Re
     Ok(())
 }
 
+fn lock_api_missing(error: &anyhow::Error) -> bool {
+    // Only a live owner that answers "no such method" (Noctalia: UnknownMethod
+    // on /ScreenSaver) selects the fallback. UnknownObject/UnknownInterface can
+    // occur transiently while a full implementation (ksmserver) registers, so
+    // they keep failing closed and are retried like a missing owner.
+    const MISSING: &str = "org.freedesktop.DBus.Error.UnknownMethod";
+    match error.downcast_ref::<zbus::Error>() {
+        Some(zbus::Error::MethodError(name, _, _)) => name.as_str() == MISSING,
+        Some(zbus::Error::FDO(error)) => matches!(**error, zbus::fdo::Error::UnknownMethod(_)),
+        _ => false,
+    }
+}
+
+async fn locked_hint(shared: &Shared, address: Option<&str>) -> Result<()> {
+    let builder = if let Some(address) = address {
+        zbus::connection::Builder::address(address)?
+    } else {
+        zbus::connection::Builder::system()?
+    };
+    let connection = builder
+        .method_timeout(Duration::from_secs(2))
+        .build()
+        .await?;
+    // `auto` resolves to this user's display session, also from a user service.
+    let proxy = zbus::proxy::Builder::<zbus::Proxy<'_>>::new(&connection)
+        .destination("org.freedesktop.login1")?
+        .path("/org/freedesktop/login1/session/auto")?
+        .interface("org.freedesktop.login1.Session")?
+        .cache_properties(zbus::proxy::CacheProperties::No)
+        .build()
+        .await?;
+    while !shared.stop.load(Ordering::Acquire) {
+        let locked: bool = proxy.get_property("LockedHint").await?;
+        shared.update(Source::Lock, Some(locked), false);
+        async_io::Timer::after(Duration::from_millis(500)).await;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn only_a_present_owner_without_lock_state_uses_logind_fallback() {
+        // zbus reports a remote error reply as MethodError (the production
+        // path); local FDO errors are covered too.
+        let reply = |name: &str| {
+            let call = zbus::message::Message::method_call("/ScreenSaver", "GetActive")
+                .unwrap()
+                .build(&())
+                .unwrap();
+            anyhow::Error::from(zbus::Error::MethodError(
+                zbus::names::OwnedErrorName::try_from(name).unwrap(),
+                None,
+                call,
+            ))
+        };
+        assert!(lock_api_missing(&reply(
+            "org.freedesktop.DBus.Error.UnknownMethod"
+        )));
+        for name in [
+            "org.freedesktop.DBus.Error.UnknownObject",
+            "org.freedesktop.DBus.Error.UnknownInterface",
+            "org.freedesktop.DBus.Error.ServiceUnknown",
+            "org.freedesktop.DBus.Error.NoReply",
+            "org.freedesktop.DBus.Error.AccessDenied",
+        ] {
+            assert!(!lock_api_missing(&reply(name)), "{name}");
+        }
+        let fdo = |e: zbus::fdo::Error| anyhow::Error::from(zbus::Error::FDO(Box::new(e)));
+        assert!(lock_api_missing(&fdo(zbus::fdo::Error::UnknownMethod(
+            "GetActive".into()
+        ))));
+        // A missing owner, a registering object or a timeout keeps failing
+        // closed and retrying.
+        for error in [
+            zbus::fdo::Error::UnknownObject("/ScreenSaver".into()),
+            zbus::fdo::Error::UnknownInterface("org.freedesktop.ScreenSaver".into()),
+            zbus::fdo::Error::ServiceUnknown("org.freedesktop.ScreenSaver".into()),
+            zbus::fdo::Error::NoReply("".into()),
+        ] {
+            assert!(!lock_api_missing(&fdo(error)));
+        }
+        assert!(!lock_api_missing(&anyhow::anyhow!("other")));
+    }
     struct FakeLock(Arc<AtomicBool>);
     #[zbus::interface(name = "org.freedesktop.ScreenSaver")]
     impl FakeLock {

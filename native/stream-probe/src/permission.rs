@@ -9,6 +9,14 @@ use std::{
 pub struct Permission {
     path: PathBuf,
 }
+/// The compositor detected by the capture worker. When set, it, not the
+/// inherited `XDG_CURRENT_DESKTOP`, chooses the token file: an autostart unit
+/// without that variable must never load, invalidate or overwrite the Plasma
+/// token on Hyprland (or the reverse).
+static DETECTED: std::sync::OnceLock<crate::compositor::Compositor> = std::sync::OnceLock::new();
+pub fn set_compositor(compositor: crate::compositor::Compositor) {
+    let _ = DETECTED.set(compositor);
+}
 impl Permission {
     pub fn user() -> Result<Self> {
         let root = std::env::var_os("XDG_CONFIG_HOME")
@@ -16,7 +24,12 @@ impl Permission {
             .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
             .context("No config directory")?;
         Ok(Self {
-            path: root.join("nanoleaf-native-stream-probe/portal-token"),
+            path: root
+                .join("nanoleaf-native-stream-probe")
+                .join(match DETECTED.get() {
+                    Some(compositor) => compositor_token_name(*compositor),
+                    None => token_name(std::env::var("XDG_CURRENT_DESKTOP").ok().as_deref()),
+                }),
         })
     }
     pub fn load(&self) -> Result<Option<String>> {
@@ -98,9 +111,43 @@ impl Permission {
         Ok(())
     }
 }
+/// Restore tokens are issued by each desktop's portal backend. Keep them
+/// apart so alternating Plasma and Hyprland logins do not discard each other's
+/// remembered permission. Plasma keeps the original file name.
+fn compositor_token_name(compositor: crate::compositor::Compositor) -> &'static str {
+    match compositor {
+        crate::compositor::Compositor::KWin => "portal-token",
+        crate::compositor::Compositor::Hyprland => "portal-token-hyprland",
+    }
+}
+/// Diagnostic probes that do not detect the compositor use the desktop name.
+fn token_name(desktop: Option<&str>) -> &'static str {
+    if desktop.is_some_and(|d| d.split(':').any(|n| n.eq_ignore_ascii_case("Hyprland"))) {
+        "portal-token-hyprland"
+    } else {
+        "portal-token"
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn plasma_keeps_its_token_and_hyprland_has_its_own() {
+        assert_eq!(token_name(Some("KDE")), "portal-token");
+        assert_eq!(token_name(None), "portal-token");
+        assert_eq!(token_name(Some("Hyprland")), "portal-token-hyprland");
+        assert_eq!(
+            token_name(Some("Hyprland:wlroots")),
+            "portal-token-hyprland"
+        );
+        assert_eq!(token_name(Some("KDE:NotHyprlandish")), "portal-token");
+        use crate::compositor::Compositor;
+        assert_eq!(compositor_token_name(Compositor::KWin), "portal-token");
+        assert_eq!(
+            compositor_token_name(Compositor::Hyprland),
+            "portal-token-hyprland"
+        );
+    }
     use std::os::unix::fs::{symlink, PermissionsExt};
     #[test]
     fn private_bounded_separate_token_store() {

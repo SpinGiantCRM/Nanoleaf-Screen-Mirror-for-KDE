@@ -1,5 +1,40 @@
 # Changelog
 
+## native-v2.1.0 — Hyprland support, troubleshooting and interruption alerts
+
+- Detect the compositor for portal/PipeWire/Vulkan capture. KWin 6.7/6.8 keeps its
+  validated contract unchanged. Add a live-probed Hyprland 0.57 / xdph 1.5 contract:
+  untagged SDR sRGB BGRA with implicit sync, and the monitor matched by connector name.
+- Store the remembered screen-sharing permission per detected compositor
+  (Plasma and Hyprland).
+- Select the portal stream for `auto` capture when no KWin session exists. Plasma
+  keeps KWin ScreenShot2.
+- Fall back to logind `LockedHint` when the screen-saver service answers
+  UnknownMethod, as Noctalia on Hyprland does. A missing service still fails closed.
+- Retry a login-time Start once if it was refused only because the session was not
+  ready yet. Unlock and resume still never start mirroring automatically.
+- Make KWin and KService optional in the Arch recipe, and tolerate a missing
+  `kbuildsycoca6`.
+- Add private troubleshooting reports with bounded recent timing/failure history,
+  exact app/helper fingerprints, and the last failure retained across restarts.
+  Export from Advanced or `--save-report`; cached sessions are labelled explicitly.
+- Notify on unexpected capture or USB interruptions. Terminal capture failures
+  offer a manual restart action tied to the current failure; manual Stop/Quit
+  and session lock/suspend stay quiet. Diagnostics and desktop messaging run
+  away from capture/USB work.
+- Put independent **Open on startup** and **Start mirroring** checkboxes together
+  in Mirroring settings. Save / Apply persists both choices and keeps Settings
+  open; Reload saved discards drafts. Startup status is read without creating
+  files, and a disabled or foreign startup entry is handled explicitly.
+- Refresh published PyPI installation guidance and development links.
+- Keep native installer SHA-256 encoding compatible with both digest array
+  representations used by the current and pending SHA library versions.
+- Record the Warframe GPU-timeout investigation and the limits of the temporary
+  KWin capture comparison; retain the user's selected Vulkan backend.
+
+See [2.1.0 release notes](docs/RELEASE_2_1_0.md) and
+[Hyprland compatibility](docs/HYPRLAND_COMPATIBILITY.md) for the evidence and its limits.
+
 ## native-v2.0.0 — Native Rust application
 
 ### Application and distribution

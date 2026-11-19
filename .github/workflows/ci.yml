@@ -103,6 +103,7 @@ jobs:
           cargo +1.95.0 fmt --manifest-path native/app/Cargo.toml --check
           cargo +1.95.0 clippy --manifest-path native/app/Cargo.toml --features gui --all-targets --locked --offline -- -D warnings
           cargo +1.95.0 test --manifest-path native/app/Cargo.toml --features gui --all-targets --locked --offline
+          cargo +1.95.0 test --manifest-path native/app/Cargo.toml --features gui --lib --locked --offline notifications::tests -- --ignored
           cargo +1.95.0 build --manifest-path native/app/Cargo.toml --features gui --release --locked --offline
 
   rust-streaming:

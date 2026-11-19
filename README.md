@@ -14,11 +14,16 @@ resources. KWin ScreenShot2 is the automatic capture backend. Optional
 permission-mediated PipeWire/Vulkan streaming is available in Advanced. The native
 bundle needs neither Python nor Qt, and capture needs no privileged DRM helper.
 
+**Hyprland 0.57** (with xdg-desktop-portal-hyprland) is also supported through
+the portal stream. With **Capture** left on `auto`, Plasma uses KWin and Hyprland
+uses the portal stream; tick **Remember this choice** in the sharing picker. See
+[Hyprland compatibility](docs/HYPRLAND_COMPATIBILITY.md) for what was verified.
+
 ## Install
 
 Use the Linux x86_64 `native.tar.gz` and matching checksum from a
-[native 2.0.0 release](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/releases/tag/native-v2.0.0).
-Native tags use `native-vX.Y.Z`; see the [2.0.0 release notes](docs/RELEASE_2_0_0.md).
+[native 2.1.0 release](https://github.com/SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE/releases/tag/native-v2.1.0).
+Native tags use `native-vX.Y.Z`; see the [2.1.0 release notes](docs/RELEASE_2_1_0.md).
 PyPI `nanoleaf-kde-sync` **1.x** and GitHub `v1.9.3` contain the retired Python app;
 [existing installations can migrate while preserving settings](docs/LEGACY_PYTHON.md).
 In a fresh download directory containing both native release files:
@@ -33,12 +38,12 @@ Open **Nanoleaf Screen Mirror (Rust)** from KDE's application launcher. Installa
 uses your user account, preserves configuration and keeps previous native
 versions for rollback. It does not start mirroring or enable login startup.
 
-Optional native package routes are available after their registry publication:
+Native packages are also available through PyPI and a local Arch recipe:
 
-- **PyPI/pipx:** `pipx install nanoleaf-kde-sync==2.0.0`, then
+- **PyPI/pipx:** `pipx install nanoleaf-kde-sync==2.1.0`, then
   `~/.local/bin/nanoleaf-kde-sync --install-native` creates the native KDE launcher.
-- **Arch/AUR:** the `nanoleaf-kde-sync-bin` recipe packages the native release;
-  use the checked-out recipe until its AUR listing is published.
+- **Arch/AUR:** the `nanoleaf-kde-sync-bin` recipe packages the native release.
+  AUR publication is pending; use the checked-out recipe.
 
 See [package availability, requirements and upgrades](docs/PACKAGING_AUR.md).
 The PyPI wheel is a pure-Python installer with no native binaries. Explicit
@@ -115,7 +120,7 @@ emitted light. See [gameplay observations](docs/GAMEPLAY_PROFILING.md) and
 ## Development and evidence
 
 - [Native application development](native/app/README.md)
-- [Repository map and verification locations](docs/ai/repo-map.md)
+- [Contributing and verification](CONTRIBUTING.md)
 - [Native completion and measured performance](docs/RUST_NATIVE_COMPLETION.md)
 - [Streaming Vulkan backend](docs/RUST_STREAM_VULKAN.md)
 - [Changelog](CHANGELOG.md)
