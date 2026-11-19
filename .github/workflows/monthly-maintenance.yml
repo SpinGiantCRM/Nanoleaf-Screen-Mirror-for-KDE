@@ -53,7 +53,7 @@ jobs:
           python scripts/verify_public_install.py --output dist/public-install.json --stub-desktop-cache
       - name: Keep public-install evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: public-install-${{ matrix.os }}
           path: dist/public-install.json
